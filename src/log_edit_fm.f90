@@ -259,7 +259,7 @@ module log_edit_fm
     !> where REGEXP should match the expression referring to a bug number
     !> in the text, and REPLACEMENT is an expression to pass to `replace_match'
     !> to build the Fixes: header.  Port of log-edit.el
-    !> log-edit-rewrite-fixes (unallocated for nil).
+    !> log-edit-rewrite-fixes (unallocated for none).
     character(len=:), allocatable, public :: log_edit_rewrite_fixes_regexp, log_edit_rewrite_fixes_replacement
 
     !> The name of the buffer listing the files to be committed.  Port of
@@ -319,13 +319,13 @@ module log_edit_fm
     type(local_type), allocatable :: locals(:)
 
     ! log-edit-author: the author found by `is_log_edit_changelog_ours'
-    ! (dynamically bound by `log_edit_insert_changelog_entries').
+    ! (saved and restored by `log_edit_insert_changelog_entries').
     logical :: author_bound = .false.
     logical :: has_author = .false.
     character(len=:), allocatable :: author_name
     logical :: author_tiny = .false.
 
-    ! log-edit-changelog-use-first (dynamically bound).
+    ! log-edit-changelog-use-first (saved and restored around its use).
     logical :: changelog_use_first = .false.
 
     ! The ChangeLog entries for a file (see `log_edit_changelog_entries'):
@@ -405,7 +405,7 @@ contains
     end subroutine kill_log_edit_locals
 
     !> The current buffer's `log_edit_vc_backend' (a VC backend index, 0
-    !> for nil): the VC fileset backend corresponding to the current log.
+    !> for none): the VC fileset backend corresponding to the current log.
     !> Not a port.
     integer function log_edit_vc_backend() result(b)
         integer :: k
@@ -415,7 +415,7 @@ contains
         if (k > 0) b = locals(k)%vc_backend
     end function log_edit_vc_backend
 
-    !> Set the current buffer's `log_edit_callback' (setq-local): the
+    !> Set the current buffer's `log_edit_callback' (set_local): the
     !> command `log_edit_done' calls to perform the operation.  Not a port.
     subroutine set_log_edit_callback(callback)
         procedure(command_proc) :: callback
@@ -425,8 +425,8 @@ contains
         locals(k)%callback => callback
     end subroutine set_log_edit_callback
 
-    !> Set the current buffer's `log_edit_vc_backend' (setq-local): B is
-    !> a VC backend index, 0 for nil.  Not a port.
+    !> Set the current buffer's `log_edit_vc_backend' (set_local): B is
+    !> a VC backend index, 0 for none.  Not a port.
     subroutine set_log_edit_vc_backend(b)
         integer, intent(in) :: b
         integer :: k
@@ -1911,7 +1911,7 @@ contains
     !> The return value looks like this:
     !>   (LOGBUFFER (ENTRYSTART ENTRYEND) ...)
     !> where LOGBUFFER is the name of the ChangeLog buffer, and each
-    !> (ENTRYSTART . ENTRYEND) pair is a buffer region.  Port of
+    !> two values, ENTRYSTART and ENTRYEND, are a buffer region.  Port of
     !> log-edit.el:log-edit-changelog-entries.
     recursive subroutine log_edit_changelog_entries(file, entries, status)
         character(len=*), intent(in) :: file

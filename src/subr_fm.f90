@@ -62,7 +62,7 @@ module subr_fm
 
     !> A numerical progress reporter (`make_progress_reporter' with
     !> MIN_VALUE and MAX_VALUE): the value at which to report next (the
-    !> car of upstream's cons) and the parameters vector.
+    !> first of upstream's two values) and the parameters vector.
     type, public :: progress_reporter_type
         real(real64) :: next_value = 0
         !> The time of the next echo area update, in seconds.
@@ -102,9 +102,9 @@ module subr_fm
     !> elements, and is done just after inserting a new element.
     !>
     !> This variable only affects history lists that don't specify their own
-    !> maximum lengths.  Setting the `history_length' property of a history
+    !> maximum lengths.  Setting the `history_length' attribute of a history
     !> variable overrides this default.  Port of minibuf.c history-length
-    !> (the value t, no truncation, is not ported: Deferred).
+    !> (a value meaning no truncation is not ported: Deferred).
     integer, public :: history_length = 100
     !> True means to delete duplicates in history.
     !> If set to true when adding a new history element, all previous identical
@@ -285,7 +285,7 @@ module subr_fm
         !>
         !> DEFAULTS, in place of DEFAULT, is an array of defaults: the first
         !> is the default, all are offered by M-n; with NO_DEFAULT, the list
-        !> starts with a nil default (there is none, the others are offered
+        !> starts with an empty default (there is none, the others are offered
         !> by M-n).  Port of subr.el:read-number (the answer is read as
         !> upstream's reader reads an integer; floats are not ported).  (In
         !> subr_read_fm.)
@@ -762,14 +762,14 @@ contains
     !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.
     !> Otherwise, the maximum history length is the value of the `history_length'
-    !> property on symbol HISTORY-VAR, if set, or the value of the `history_length'
+    !> property on name HISTORY-VAR, if set, or the value of the `history_length'
     !> variable.  The possible values of maximum length have the same meaning as
     !> the values of `history_length'.
-    !> Remove duplicates of NEWELT if `history_delete_duplicates' is non-nil.
-    !> If optional fourth arg KEEP-ALL is non-nil, add NEWELT to history even
+    !> Remove duplicates of NEWELT if `history_delete_duplicates' is .true..
+    !> If optional fourth arg KEEP-ALL is .true., add NEWELT to history even
     !> if it is empty or duplicates the most recent entry in the history.
     !> Port of subr.el:add-to-history (NEWELT a string; `added' says
-    !> whether the list changed; a void HISTORY-VAR is a void-variable
+    !> whether the list changed; a HISTORY-VAR without a value is a `void_variable'
     !> error in `status').
     subroutine add_to_history(history_var, newelt, maxelt, keep_all, added, status)
         character(len=*), intent(in) :: history_var, newelt
@@ -864,8 +864,8 @@ contains
         prefix_arg = value_type()
     end subroutine undefined
 
-    !> (defvar NAME nil): give the variable NAME the value nil unless it
-    !> has a value already.  Port of eval.c:Fdefvar (INITVALUE nil).
+    !> Give the variable NAME an unallocated value unless it
+    !> has a value already.  Port of eval.c:Fdefvar (INITVALUE empty).
     subroutine defvar_nil(name)
         character(len=*), intent(in) :: name
         type(value_type) :: v
@@ -880,7 +880,7 @@ contains
     !> recommended function to use instead.
     !>
     !> COMMAND is the command definition to use; usually it is
-    !> a symbol naming an interactively-callable function.
+    !> a name of an interactively-callable function.
     !> KEY is a key sequence: a vector of events, as `key_parse' makes.
     !>
     !> Note that if KEY has a local binding in the current buffer,
@@ -908,7 +908,7 @@ contains
     !> means the entire text matched by the whole regexp or whole string.
     !>
     !> The return value is an empty string (and `matched' false) if NUMth
-    !> pair didn't match, or there were less than NUM pairs.
+    !> subexpression didn't match, or there were less than NUM subexpressions.
     !>
     !> STRING should be given if the last search was by `string_match' on
     !> STRING.  If STRING is absent, the current buffer should be the same
@@ -938,8 +938,8 @@ contains
 
     !> Return string of text matched by last search, without text
     !> properties.  NUM specifies which parenthesized expression in the
-    !> last regexp.  Value is an empty string if NUMth pair didn't match, or there
-    !> were less than NUM pairs.  Zero means the entire text matched by
+    !> last regexp.  Value is an empty string if NUMth subexpression didn't match, or there
+    !> were less than NUM subexpressions.  Zero means the entire text matched by
     !> the whole regexp or whole string.  STRING should be given if the
     !> last search was by `string_match' on STRING.  If STRING is absent, the
     !> current buffer should be the same buffer as the one in which the
@@ -1195,9 +1195,9 @@ contains
         call message(reporter%text//" "//pulse_characters(k:k))
     end subroutine progress_reporter_pulse
 
-    !> Move point to the next position that is the end of a symbol.
-    !> A symbol is any sequence of characters that are in either the
-    !> word constituent or symbol constituent syntax class.
+    !> Move point to the next position that is the end of an identifier.
+    !> An identifier is any sequence of characters that are in either the
+    !> word constituent or identifier constituent syntax class.
     !> With prefix argument ARG, do it ARG times if positive, or move
     !> backwards ARG times if negative.  Port of subr.el:forward-symbol.
     subroutine forward_identifier(arg)
@@ -1218,7 +1218,7 @@ contains
         end if
     end subroutine forward_identifier
 
-    !> The bounds of the symbol at point (`found' false if none).
+    !> The bounds of the identifier at point (`found' false if none).
     !> Port of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
     !> forward-symbol, beginning-op thing-at-point--beginning-of-symbol,
     !> whose search failing is an error ignored).
@@ -1332,7 +1332,7 @@ contains
         if (found) regexp = regexp_quote(tag)
     end subroutine find_tag_default_as_regexp
 
-    !> Return regexp that matches the default tag at point as symbol.
+    !> Return regexp that matches the default tag at point as identifier.
     !> If there is no tag at point, `found' is false.  Port of
     !> subr.el:find-tag-default-as-symbol-regexp.
     subroutine find_tag_default_as_identifier_regexp(regexp, found)

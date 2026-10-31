@@ -33,7 +33,7 @@
 !>
 !> Deferred: the faces of `completion_pcm__hilit_commonality' (strings
 !> carry no text properties), the shorthand style (Lisp symbol shorthands;
-!> it never matches here), styles with let-bound variables, the
+!> it never matches here), styles that set variables while they run, the
 !> `completion-try-word' property that keeps a delimiter inserted by
 !> `minibuffer_complete_word' from being one, the unquote/requote
 !> machinery of completion--nth-completion, and `completion-lazy-hilit'.

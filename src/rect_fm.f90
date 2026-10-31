@@ -475,7 +475,7 @@ contains
         call append_line(self%lines, line)
     end subroutine extract_line
 
-    !> The function of rect.el:extract-rectangle-bounds.  Port of the lambda
+    !> The function of rect.el:extract-rectangle-bounds.  Port of the procedure
     !> of rect.el:extract-rectangle-bounds.
     recursive subroutine bounds_line(self, startcol, endcol, status)
         class(bounds_line_action), intent(inout) :: self
@@ -1045,7 +1045,7 @@ contains
                 conversion = "s"
             else if (conversion == "c") then
                 if (arg < 0 .or. arg > MAX_CHAR) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(arg))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got "//int_text(arg))
                     return
                 end if
 
@@ -1276,7 +1276,7 @@ contains
         call move_alloc(grown, crutches)
     end subroutine set_crutch
 
-    !> Remove OWNER's crutch from CRUTCHES (setting it to nil).  Not a port.
+    !> Remove OWNER's crutch from CRUTCHES (clearing it).  Not a port.
     subroutine clear_crutch(crutches, owner)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
@@ -1497,8 +1497,8 @@ contains
         end if
     end subroutine rectangle_mark_mode_body
 
-    !> (lambda () (rectangle-mark-mode -1)) on `deactivate_mark_hook'.
-    !> Port of the deactivate-mark-hook lambda of
+    !> Turn `rectangle_mark_mode' off, on `deactivate_mark_hook'.
+    !> Port of the deactivate-mark-hook procedure of
     !> rect.el:rectangle-mark-mode.
     recursive subroutine rectangle_mark_mode_off(status)
         type(status_type), intent(out) :: status
@@ -1527,7 +1527,7 @@ contains
         m = mark_position()
 
         if (m == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer-or-marker-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
             return
         end if
 
@@ -1731,7 +1731,7 @@ contains
         mk = mark_position()
 
         if (mk == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer-or-marker-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
             return
         end if
 
@@ -1785,7 +1785,7 @@ contains
     end subroutine rectangle_region_end
 
     !> The region's beginning and end as the primitives give them
-    !> (`(let (rectangle-mark-mode) (region-beginning))').  Not a port.
+    !> (with `rectangle_mark_mode' off meanwhile, saved and restored).  Not a port.
     recursive subroutine plain_region(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
@@ -1912,7 +1912,7 @@ contains
 
     !> The `yank_undo_function' of a yanked rectangle: undo back to the
     !> point entry recorded before it, turned into a boundary.  Port of the
-    !> yank-undo-function lambda of rect.el:rectangle--insert-for-yank.
+    !> yank-undo-function procedure of rect.el:rectangle--insert-for-yank.
     recursive subroutine rectangle_yank_undo(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -2306,7 +2306,7 @@ contains
     end subroutine cmd_clear_rectangle
 
     !> The newest element of `string_rectangle_history', or "" (the
-    !> (or (car string-rectangle-history) "") of the prompts).  Not a port.
+    !> (the first element of `string_rectangle_history', or "") of the prompts).  Not a port.
     function history_head() result(head)
         character(len=:), allocatable :: head
         type(value_type) :: hist, first
@@ -2332,7 +2332,7 @@ contains
     end function prompt_with_default
 
     !> Read the string of `string_rectangle' and `string_insert_rectangle'
-    !> with PROMPT (their interactive specs).  Port of the interactive specs
+    !> with PROMPT (how the commands read their arguments).  Port of the argument reading
     !> of rect.el:string-rectangle and rect.el:string-insert-rectangle.
     recursive subroutine read_rectangle_string(prompt, string, status)
         character(len=*), intent(in) :: prompt

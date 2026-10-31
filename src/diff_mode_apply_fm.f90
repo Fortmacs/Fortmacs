@@ -1035,7 +1035,7 @@ contains
         if (count /= 1) s = s//"s"
     end function plural
 
-    !> (push (cons pos dst) (alist-get buf buffer-edits)).
+    !> Add the edit L (a position and its destination) to the edits of its buffer.  Not a port.
     subroutine add_edit(l)
         type(diff_source_location_type), intent(in) :: l
         type(edit_type), allocatable :: grown(:)

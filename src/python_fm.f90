@@ -234,7 +234,7 @@ module python_fm
                                              logical_setting(name="python_indent_block_paren_deeper", value=.false.)
 
     !> Function to use when navigating between expressions.  Port of
-    !> python.el python-forward-sexp-function (null for nil, "CC-mode
+    !> python.el python-forward-sexp-function (null for the default, "CC-mode
     !> like").
     procedure(python_forward_expression_proc), pointer, public :: python_forward_expression_function => null()
 
@@ -316,7 +316,7 @@ module python_fm
         end subroutine python_forward_expression_proc
 
         !> A fill function of `python_fill_paragraph': DONE is its value
-        !> (JUSTIFY absent for nil).
+        !> (JUSTIFY absent for no justification).
         recursive subroutine python_fill_proc(status, done, justify)
             import :: status_type
             implicit none(type, external)
@@ -2241,8 +2241,8 @@ contains
 
     !> Move forward across expressions.
     !> With ARG, do it that many times.  Negative arg -N means move
-    !> backward N times.  When optional argument SAFE is true do not
-    !> throw errors when at end of expression, skip it instead.  With optional
+    !> backward N times.  When optional argument SAFE is true, no error
+    !> condition occurs at the end of an expression: it is skipped.  With optional
     !> argument SKIP_PARENS_P force expression motion to ignore parenthesized
     !> expressions when looking at them in either direction (forced to true
     !> in interactive calls).  Port of python.el:python-nav-forward-sexp
@@ -2302,8 +2302,8 @@ contains
 
     !> Move backward across expressions.
     !> With ARG, do it that many times.  Negative arg -N means move
-    !> forward N times.  When optional argument SAFE is true do not
-    !> throw errors when at end of expression, skip it instead.  With optional
+    !> forward N times.  When optional argument SAFE is true, no error
+    !> condition occurs at the end of an expression: it is skipped.  With optional
     !> argument SKIP_PARENS_P force expression motion to ignore parenthesized
     !> expressions when looking at them in either direction (forced to true
     !> in interactive calls).  Port of python.el:python-nav-backward-sexp.

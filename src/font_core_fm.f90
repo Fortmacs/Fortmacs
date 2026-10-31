@@ -68,7 +68,7 @@ module font_core_fm
               font_lock_form_proc, font_lock_function_proc, major_mode_of_current, font_lock_properties_proc
 
     !> Overrides of a highlight (OVERRIDE in `font_lock_keywords'): keep
-    !> an existing face (nil), override it (t), keep it and add only where
+    !> an existing face (FONT_LOCK_OVERRIDE_NO), override it (FONT_LOCK_OVERRIDE_YES), keep it and add only where
     !> there is none (`keep'), merge before it (`prepend') or after it
     !> (`append').
     integer, parameter, public :: FONT_LOCK_OVERRIDE_NO = 0, FONT_LOCK_OVERRIDE_YES = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
@@ -135,7 +135,7 @@ module font_core_fm
     !> The face may come with text properties to give the text as well
     !> (a FACENAME of the form (face FACE PROP VAL ...)): the names in
     !> `true_properties' are set to true, those in `nil_properties' to
-    !> false (nil), `display' is the `display' property, and
+    !> .false., `display' is the `display' property, and
     !> `properties_function' gives the ones that depend on the match.
     type, public :: font_lock_match_highlight_type
         integer :: subexp = 0
@@ -247,8 +247,8 @@ module font_core_fm
     !>
     !>  (KEYWORDS [KEYWORDS-ONLY [CASE-FOLD [SYNTAX-ALIST ...]]])
     !>
-    !> KEYWORDS may be a symbol (a variable or function whose value is the
-    !> keywords to use for fontification) or a list of symbols (specifying
+    !> KEYWORDS may be a name (a variable or function whose value is the
+    !> keywords to use for fontification) or a list of names (specifying
     !> different levels of fontification).
     !>
     !> If KEYWORDS-ONLY is true, syntactic fontification (strings and
@@ -257,8 +257,8 @@ module font_core_fm
     !> If CASE-FOLD is true, the case of the keywords is ignored when
     !> fontifying.
     !>
-    !> If SYNTAX-ALIST is true, it should be a list of cons pairs of the
-    !> form (CHAR-OR-STRING . STRING) used to set the local Font Lock
+    !> If SYNTAX-ALIST is true, it should be an array of entries of two values, of the
+    !> form CHAR-OR-STRING and STRING used to set the local Font Lock
     !> syntax table, for keyword and syntactic fontification (see
     !> `modify_syntax_entry').
     !>
@@ -273,12 +273,12 @@ module font_core_fm
         character(len=48) :: name = "font_lock_defaults"
         type(defaults_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer these defaults (setq-local): its
+        !> Give the current buffer these defaults (set_local): its
         !> KEYWORDS (or the keyword lists of its decoration LEVELS),
         !> KEYWORDS_ONLY, CASE_FOLD and SYNTAX_MODIFICATIONS.
         procedure :: set_local => defaults_set_local
         !> Whether the current buffer has defaults (font-lock-defaults is
-        !> non-nil).
+        !> set).
         procedure :: present_p => has_defaults
         !> The current buffer's defaults (call only when present_p).
         procedure :: get => defaults_get

@@ -24,10 +24,10 @@
 !> earlier and expand them with M-/ (`dabbrev_expand'), which searches
 !> backward, then forward in the current buffer, then in other buffers.
 !>
-!> Settings whose upstream values are nil, t or a symbol are integers
-!> with the named constants DABBREV_OFF (nil), DABBREV_ON (t),
-!> DABBREV_LIKE_CASE_FOLD_SEARCH (`case-fold-search'),
-!> DABBREV_LIKE_CASE_REPLACE (`case-replace') and DABBREV_ASK (another
+!> Settings whose upstream values are .false., .true. or a name are integers
+!> with the named constants DABBREV_OFF, DABBREV_ON,
+!> DABBREV_LIKE_CASE_FOLD_SEARCH (like `case_fold_search'),
+!> DABBREV_LIKE_CASE_REPLACE (like `case_replace') and DABBREV_ASK (another
 !> value of `dabbrev_check_other_buffers').
 !>
 !> `dabbrev_completion' (C-M-/) completes through
@@ -75,8 +75,8 @@ module dabbrev_fm
     public :: dabbrev_expand, dabbrev_reset_global_variables, is_dabbrev_same_major_mode, dabbrev_select_buffers, &
               dabbrev_friend_buffer_proc, dabbrev_select_buffers_proc, syms_of_dabbrev
 
-    !> Values of the dabbrev settings that upstream are nil, t or a
-    !> symbol: off (nil), on (t), like `case_fold_search', like
+    !> Values of the dabbrev settings that upstream are .false., .true. or a
+    !> name: off, on, like `case_fold_search', like
     !> `case_replace', and ask (another value).
     integer, parameter, public :: DABBREV_OFF = 0, DABBREV_ON = 1, DABBREV_LIKE_CASE_FOLD_SEARCH = 2, &
                                   DABBREV_LIKE_CASE_REPLACE = 3, DABBREV_ASK = 4
@@ -169,7 +169,7 @@ module dabbrev_fm
     !> This regexp will be surrounded with \\( ... \\) when actually used.
     !>
     !> Set this variable to "\\sw" if you want ordinary words or
-    !> "\\sw\\|\\s_" if you want symbols (including characters
+    !> "\\sw\\|\\s_" if you want identifiers (including characters
     !> whose syntax is "symbol" as well as those whose syntax is
     !> "word").  The abbreviation is from point to the start of the
     !> previous sequence of characters matching this variable.
@@ -178,7 +178,7 @@ module dabbrev_fm
     !>
     !> For instance, suppose the current buffer is in `c_mode'.  If this
     !> variable is unallocated or "\\sw\\|\\s_", then expanding
-    !> `debug_print_in_' looks for a symbol starting with
+    !> `debug_print_in_' looks for an identifier starting with
     !> `debug_print_in_'.  If you set this variable to "\\sw", that
     !> expansion looks for a word prefixed with `in_' (e.g., it would
     !> match `in_range', but not `in_close_range').  If expanding
@@ -419,7 +419,7 @@ contains
         location_pos = pos
     end subroutine set_location
 
-    !> Make the location of the last expansion nil.  Not a port.
+    !> Clear the location of the last expansion.  Not a port.
     subroutine clear_location()
         type(status_type) :: st
 
@@ -449,7 +449,7 @@ contains
     end function abbrev_location
 
     !> Record point POS in the current buffer's undo list
-    !> (`(setq buffer-undo-list (cons POS buffer-undo-list))').  Not a port.
+    !> (POS added to the front of `buffer_undo_list').  Not a port.
     subroutine push_undo_point(pos)
         integer(int64), intent(in) :: pos
         type(undo_entry_type) :: entry
@@ -531,7 +531,7 @@ contains
     !> direction of search to backward if set true.
     !>
     !> See also `dabbrev_abbrev_char_regexp'.  Port of
-    !> dabbrev.el:dabbrev-expand (ARG absent is nil, else its numeric
+    !> dabbrev.el:dabbrev-expand (ARG absent for no prefix, else its numeric
     !> value).
     recursive subroutine dabbrev_expand(status, arg)
         type(status_type), intent(out) :: status
@@ -804,7 +804,7 @@ contains
         end if
     end subroutine goto_start_of_abbrev
 
-    !> Extract the symbol at point to serve as abbreviation.  Port of
+    !> Extract the identifier at point to serve as abbreviation.  Port of
     !> dabbrev.el:dabbrev--abbrev-at-point.
     recursive subroutine abbrev_at_point(abbrev, status)
         character(len=:), allocatable, intent(out) :: abbrev
@@ -1526,7 +1526,7 @@ contains
 
         if (allocated(dabbrev_limit)) then
             if (.not. location_set) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer_or_marker_p, .false.")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type), got .false.")
                 return
             end if
 
@@ -1624,7 +1624,7 @@ contains
     !>
     !> If the prefix argument is 16 (which comes from \[universal_argument] \[universal_argument]),
     !> then it searches *all* buffers.  Port of dabbrev.el:dabbrev-completion
-    !> (ARG absent is nil, else its numeric value).
+    !> (ARG absent for no prefix, else its numeric value).
     recursive subroutine dabbrev_completion(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -1663,7 +1663,7 @@ contains
 
         ! Don't reset the vars if we're in the "same" completion,
         ! especially since they may have been set to different values,
-        ! e.g. if the user passes a non-nil ARG to `dabbrev_completion'.
+        ! e.g. if the user passes a prefix ARG to `dabbrev_completion'.
         same = .false.
 
         if (last_abbrev_location%index /= 0) then

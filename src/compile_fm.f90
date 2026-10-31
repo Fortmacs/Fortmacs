@@ -57,13 +57,13 @@
 !> `compilation_error_regexp_names' with rule specifications rather than
 !> names (add the rule to `compilation_error_regexp_table'; a mode's
 !> own value is rules), FILE given as (FILE FORMAT...), HIGHLIGHT faces
-!> given as property lists other than (face FACE display DISPLAY),
+!> given as text properties other than `face' and `display',
 !> `compilation_parse_errors_filename_function',
 !> `comint_file_name_prefix' (remote files), `compilation_search_path'
 !> and `compilation_search_extra_path' (only the directory of the message
 !> and, with `compilation_search_all_directories', the directories
 !> entered before it are searched), `compilation_fake_loc',
-!> `compilation_debug'; the parts (face nil compilation_message nil ...)
+!> `compilation_debug'; the text properties (no `face', no `compilation_message', ...)
 !> of the font-lock keywords of the "Compilation finished" and
 !> "Compilation exited" lines, and removing the font-lock keywords when
 !> the minor modes are turned off (`font_lock_remove_keywords'); visiting
@@ -174,7 +174,7 @@ module compile_fm
             logical, intent(out) :: found
         end subroutine compilation_file_function
 
-        !> A HIGHLIGHT's FACE given as a function evaluated after each
+        !> A HIGHLIGHT's FACE given as a function called after each
         !> match: the face's name (FACE unallocated for none).  Not a port.
         recursive subroutine compilation_face_function(face, status)
             import :: status_type
@@ -222,7 +222,7 @@ module compile_fm
 
     !> A HIGHLIGHT of a rule: the text of SUBMATCH gets the face FACE (a
     !> face name), or the one FACE_FUNCTION gives.  DISPLAY, if allocated,
-    !> makes it the property list (face FACE display DISPLAY): the text
+    !> makes the text properties `face' FACE and `display' DISPLAY: the text
     !> also gets that `display' property.
     type, public :: compilation_highlight_type
         integer :: submatch = 0
@@ -234,7 +234,7 @@ module compile_fm
     !> A rule for matching messages: an element of
     !> `compilation_error_regexp_table' (see
     !> `compilation_error_regexp_names').  Subexpression numbers are 0 for
-    !> none (nil); WARNING and INFO, if either is not 0, make the type
+    !> none; WARNING and INFO, if either is not 0, make the type
     !> depend on which of them matched ((WARNING . INFO)), otherwise TYPE
     !> is the type (2 error, 1 warning, 0 info).
     type, public :: compilation_rule_type
@@ -255,14 +255,14 @@ module compile_fm
     end type compilation_rule_type
 
     !> The value of `compilation_directory_matcher': REGEXP (unallocated
-    !> for nil) and the subexpressions DIR(i), with LEAVE(i) (0 for nil).
+    !> for none) and the subexpressions DIR(i), with LEAVE(i) (0 for none).
     type, public :: compilation_directory_matcher_type
         character(len=:), allocatable :: regexp
         integer, allocatable :: dir(:), leave(:)
     end type compilation_directory_matcher_type
 
     !> An element of `compilation_transform_file_match_table': REGEXP and
-    !> REPLACEMENT (unallocated for nil).
+    !> REPLACEMENT (unallocated for none).
     type, public :: compilation_transform_type
         character(len=:), allocatable :: regexp, replacement
     end type compilation_transform_type
@@ -335,8 +335,8 @@ module compile_fm
     !>
     !> COMPILATION_SCROLL_FIRST_ERROR stops scrolling at the first error,
     !> and leaves point on its location in the *compilation* buffer.  Port of
-    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NO is nil,
-    !> COMPILATION_SCROLL_YES t, COMPILATION_SCROLL_FIRST_ERROR `first-error').
+    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NO,
+    !> COMPILATION_SCROLL_YES and COMPILATION_SCROLL_FIRST_ERROR).
     type(integer_setting), public :: compilation_scroll_output = &
                                      integer_setting(name="compilation_scroll_output", value=COMPILATION_SCROLL_NO)
 
@@ -392,7 +392,7 @@ module compile_fm
 
     !> Table that specifies how to match errors in compiler output.
     !> On GNU and Unix, any string is a valid filename, so these
-    !> matchers must make some common sense assumptions, which catch
+    !> matchers must make some common sense assumptions, which handle
     !> normal cases.  A shorter list will be lighter on resource usage.
     !>
     !> Each element is the name of a rule of
@@ -462,7 +462,7 @@ module compile_fm
     !> A value for tracking when directories are entered or left.
     !> If its regexp is unallocated, do not track directories, e.g. if all
     !> file names are absolute.  The REGEXP matches these messages.  It can
-    !> match any number of variants, e.g. different languages.  The pairs
+    !> match any number of variants, e.g. different languages.  The values
     !> DIR and LEAVE say: if the DIR'th subexpression matches, that is a
     !> directory name.  If LEAVE is 0 or the corresponding LEAVE'th
     !> subexpression doesn't match, this message is about going into
@@ -472,7 +472,7 @@ module compile_fm
     type(compilation_directory_matcher_type), public :: compilation_directory_matcher
 
     !> Table of regexp/replacements to alter file names in compiler
-    !> messages.  If the replacement is unallocated (nil), the matching
+    !> messages.  If the replacement is unallocated, the matching
     !> message will not be considered an error or warning.  If not, it
     !> should be a replacement string for the matched regexp.
     !>
@@ -1197,7 +1197,7 @@ contains
 
     !> Give the current buffer its own values of the compilation variables,
     !> as the body of a mode made by define-compilation-mode does with
-    !> `setq_local' (after `compilation_mode' has run as its parent):
+    !> `set_local' (after `compilation_mode' has run as its parent):
     !> `compilation_error_regexp_names' as the rules ERROR_REGEXP_TABLE,
     !> `compilation_directory_matcher', `compilation_transform_file_match_table',
     !> `compilation_error' (the word for a message, "error" by default),
@@ -2742,7 +2742,8 @@ contains
 
                 do i = 1, size(dm%dir)
                     if (md_pos(md, dm%dir(i), .false.) == 0) then
-                        call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: integer_or_marker_p, .false.")
+                        call set_error(status, FM_GENERIC_ERROR, &
+                                       "Wrong type argument: expected integer or type(marker_type), got .false.")
                         return
                     end if
 
@@ -3132,7 +3133,7 @@ contains
                 limit = point_max()
             else
                 ! Don't move "back" to message at or before point.  Pass an
-                ! explicit (point-min) to make sure pt is non-nil.
+                ! explicit (point-min) to make sure pt has a value.
                 call previous_single_property_change(pt, sym("compilation_message"), res, found, st, point_min())
                 pt = res
                 limit = point_min()
@@ -4317,7 +4318,7 @@ contains
         subroutine restore_dir()
             type(status_type) :: st
 
-            ! The let binding ends in the buffer that was current.
+            ! Restore the saved value in the buffer that was current.
             if (.not. is_buffer_live(old)) return
             call set_buffer(old, st)
 
@@ -4329,7 +4330,7 @@ contains
         end subroutine restore_dir
     end subroutine recompile
 
-    !> The current buffer's `compilation_directory' ("" for nil).  Not a port.
+    !> The current buffer's `compilation_directory' ("" for none).  Not a port.
     function compilation_directory_value() result(dir)
         character(len=:), allocatable :: dir
         integer :: k

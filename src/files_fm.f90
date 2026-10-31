@@ -407,7 +407,7 @@ module files_fm
         !> trailing slash, to indicate that it is a directory.
         !>
         !> Valid wildcards are `*', `?', `[abc]' and `[a-z]'.  Port of
-        !> files.el:insert-directory-wildcard-in-dir-p (the cons as
+        !> files.el:insert-directory-wildcard-in-dir-p (its two values as
         !> DIRECTORY and WILDCARD).  (In files_dir_fm.)
         module function is_insert_directory_wildcard_in_dir(dir, directory, wildcard) result(found)
             implicit none(type, external)
@@ -669,8 +669,7 @@ module files_fm
     !> make-backup-files.
     logical, public :: make_backup_files = .true.
 
-    !> Values of `require_final_newline' and `mode_require_final_newline'
-    !> (upstream nil, t, visit, visit-save and any other value).
+    !> Values of `require_final_newline' and `mode_require_final_newline'.
     integer, parameter, public :: FINAL_NEWLINE_NEVER = 0, FINAL_NEWLINE_SAVE = 1, FINAL_NEWLINE_VISIT = 2, &
                                   FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
 
@@ -688,10 +687,7 @@ module files_fm
     !> This variable is heeded only when visiting files (or saving
     !> buffers into files they visit).  Writing data to the file system
     !> with `write_region' and the like is not influenced by this variable.
-    !> Port of files.el require-final-newline (FINAL_NEWLINE_NEVER is
-    !> nil, FINAL_NEWLINE_SAVE t, FINAL_NEWLINE_VISIT `visit',
-    !> FINAL_NEWLINE_VISIT_SAVE `visit_save', FINAL_NEWLINE_ASK any other
-    !> value).
+    !> Port of files.el require-final-newline.
     type(integer_setting), public :: require_final_newline = &
                                      integer_setting(name="require_final_newline", value=FINAL_NEWLINE_NEVER)
 
@@ -848,7 +844,7 @@ module files_fm
         character(len=48) :: name = "revert_buffer_function"
         type(revert_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's revert function (setq-local).
+        !> Make FN the current buffer's revert function (set_local).
         procedure :: set_local => revert_set_local
         !> The current buffer's revert function (null for the default).
         procedure :: get => revert_get
@@ -860,7 +856,7 @@ module files_fm
 
     !> Values a `buffer_stale_function' returns: the buffer needs no
     !> reverting, it needs reverting, or the need was not checked but
-    !> reverting it is fast (upstream's nil, non-nil and `fast').
+    !> reverting it is fast (BUFFER_STALE_NO, BUFFER_STALE_YES and BUFFER_STALE_FAST).
     integer, parameter, public :: BUFFER_STALE_NO = 0, BUFFER_STALE_YES = 1, BUFFER_STALE_FAST = 2
 
     abstract interface
@@ -900,7 +896,7 @@ module files_fm
         character(len=48) :: name = "buffer_stale_function"
         type(stale_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => stale_set_local
         !> The current buffer's function (null for the default).
         procedure :: get => stale_get
@@ -1228,7 +1224,7 @@ contains
     !> exist still gets a buffer, which will create it when saved.
     !> Port of files.el:find-file-noselect with find-file-noselect-1 (no
     !> wildcards, truenames, raw files, or checks that an already-visited
-    !> file changed on disk; `find_file_visit_truename' nil).
+    !> file changed on disk; `find_file_visit_truename' .false.).
     recursive subroutine find_file_noselect(filename, buf, status)
         character(len=*), intent(in) :: filename
         type(handle_type), intent(out) :: buf
@@ -1408,7 +1404,7 @@ contains
     end function is_backup_file_name
 
     !> The backup name of `file': FILE~.  Port of
-    !> files.el:make-backup-file-name (backup-directory-alist nil).
+    !> files.el:make-backup-file-name (`backup_directory_table' empty).
     pure function make_backup_file_name(file) result(backup)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: backup
@@ -1778,7 +1774,7 @@ contains
     end subroutine insert_final_newline
 
     !> map-y-or-n-p prompter for save_some_buffers.  Port of the prompter
-    !> lambda of files.el:save-some-buffers.
+    !> procedure of files.el:save-some-buffers.
     subroutine save_prompter(k, how, prompt)
         integer, intent(in) :: k
         integer, intent(out) :: how
@@ -1803,7 +1799,7 @@ contains
     end subroutine save_prompter
 
     !> map-y-or-n-p actor for save_some_buffers: save that buffer.  Port of
-    !> the actor lambda of files.el:save-some-buffers.
+    !> the actor procedure of files.el:save-some-buffers.
     subroutine save_actor(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
@@ -1842,7 +1838,7 @@ contains
     !> The functions in `save_some_buffers_functions' are called after
     !> saving the buffers.  PRED, if present, is called with each buffer
     !> current and says whether to offer to save it.  Port of
-    !> files.el:save-some-buffers (PRED nil or a function; no
+    !> files.el:save-some-buffers (PRED absent or a function; no
     !> buffer-save-without-query or buffer-offer-save).
     recursive subroutine save_some_buffers(arg, called_interactively, status, pred)
         logical, intent(in) :: arg, called_interactively
@@ -2124,7 +2120,7 @@ contains
     !>
     !> Be aware that this records ALL characters you type!
     !> This may include sensitive information such as passwords.  Port of
-    !> keyboard.c:Fopen_dribble_file (its interactive spec).
+    !> keyboard.c:Fopen_dribble_file (how the command reads its argument).
     recursive subroutine cmd_open_dribble_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename
@@ -2580,7 +2576,7 @@ contains
     !>
     !> ALREADY is true if PARENTS is true and DIR already exists as a
     !> directory, and false if DIR did not already exist but was created.
-    !> Signal an error if unsuccessful.  Port of files.el:make-directory.
+    !> An error condition occurs if unsuccessful.  Port of files.el:make-directory.
     subroutine make_directory(dir, status, parents, already)
         character(len=*), intent(in) :: dir
         type(status_type), intent(out) :: status

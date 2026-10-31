@@ -44,8 +44,8 @@ module edmacro_fm
 
     public :: format_kbd_macro
 
-    !> Values of `format_kbd_macro''s VERBOSE: nil (a compact 80-column
-    !> format), 1 (everything on one line) and t (one command per line,
+    !> Values of `format_kbd_macro''s VERBOSE: EDMACRO_COMPACT (a compact 80-column
+    !> format), EDMACRO_ONE_LINE (everything on one line) and EDMACRO_VERBOSE (one command per line,
     !> with comments).
     integer, parameter, public :: EDMACRO_COMPACT = 0, EDMACRO_ONE_LINE = 1, EDMACRO_VERBOSE = 2
 

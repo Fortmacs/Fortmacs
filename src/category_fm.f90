@@ -148,7 +148,7 @@ contains
 
         do k = len(categories), 1, -1
             if (.not. is_category(categories(k:k))) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
                 return
             end if
 
@@ -189,8 +189,8 @@ contains
 
     !> If TABLE is absent, give the current category table.  If TABLE is
     !> present, check the validity of TABLE as a category table: give
-    !> TABLE itself if valid, else signal an error of
-    !> wrong-type-argument.  INFO is the number of its info.  Port of
+    !> TABLE itself if valid, else a
+    !> `wrong_type_argument' error condition occurs.  INFO is the number of its info.  Port of
     !> category.c:check_category_table.
     recursive subroutine check_category_table(h, info, status, table)
         type(handle_type), intent(out) :: h
@@ -206,7 +206,7 @@ contains
             h = table
 
             if (.not. is_category_table(h)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category_table")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category table type(char_table_type)")
                 return
             end if
         else
@@ -365,7 +365,7 @@ contains
         integer :: info
 
         if (.not. is_category(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
             return
         end if
 
@@ -397,7 +397,7 @@ contains
         if (present(defined)) defined = .false.
 
         if (.not. is_category(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
             return
         end if
 
@@ -496,12 +496,12 @@ contains
         if (present(to)) last = to
 
         if (start < 0 .or. start > MAX_CHAR .or. last < 0 .or. last > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
         if (.not. is_category(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
             return
         end if
 

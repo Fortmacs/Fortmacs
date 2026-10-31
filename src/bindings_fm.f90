@@ -24,7 +24,7 @@
 !> `init_bindings' registers the ported commands and builds global-map,
 !> esc-map, ctl-x-map and function-key-map with the bindings upstream
 !> gives them, as far as their commands exist.  Bindings to commands not
-!> ported yet are left out rather than failing with void-function.
+!> ported yet are left out rather than failing with `void_function'.
 module bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -161,7 +161,7 @@ contains
     !> The completion method is determined by `completion_at_point_functions'.
     !>
     !> With a prefix argument, this command does completion within
-    !> the collection of symbols listed in the index of the manual for the
+    !> the collection of names listed in the index of the manual for the
     !> language you are using (info_complete_name, not ported yet).
     !> Port of bindings.el:complete-symbol.
     subroutine cmd_complete_name(status)
@@ -176,7 +176,7 @@ contains
     end subroutine cmd_complete_name
 
     !> Move point N characters to the right (to the left if N is negative).
-    !> On reaching beginning or end of buffer, stop and signal error.
+    !> On reaching beginning or end of buffer, stop, and an error condition occurs.
     !>
     !> In left-to-right text this moves forward in the buffer, like
     !> \[forward_char].  Port of bindings.el:right-char (left-to-right
@@ -188,7 +188,7 @@ contains
     end subroutine cmd_right_char
 
     !> Move point N characters to the left (to the right if N is negative).
-    !> On reaching beginning or end of buffer, stop and signal error.
+    !> On reaching beginning or end of buffer, stop, and an error condition occurs.
     !>
     !> In left-to-right text this moves backward in the buffer, like
     !> \[backward_char].  Port of bindings.el:left-char (left-to-right

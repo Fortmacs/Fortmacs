@@ -151,12 +151,12 @@ module sh_script_fm
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> The symbols an indentation variable can hold, for `sh_var_value':
+    !> The names an indentation variable can hold, for `sh_var_value':
     !> + - ++ -- * /.
     integer, parameter, public :: SH_PLUS = -1000001, SH_MINUS = -1000002, SH_PLUS_PLUS = -1000003, &
                                   SH_MINUS_MINUS = -1000004, SH_STAR = -1000005, SH_SLASH = -1000006
 
-    !> Values of `sh_indent_after_continuation': nil, t and `always'.
+    !> Values of `sh_indent_after_continuation': SH_CONTINUATION_NO, SH_CONTINUATION_DEEPER and SH_CONTINUATION_ALWAYS.
     integer, parameter, public :: SH_CONTINUATION_NO = 0, SH_CONTINUATION_DEEPER = 1, SH_CONTINUATION_ALWAYS = 2
 
     !> A string of a list.
@@ -213,19 +213,19 @@ module sh_script_fm
     end type sh_keywords_feature_type
 
     !> One shell's entry of a feature table of strings: `value'
-    !> unallocated is nil.
+    !> unallocated for none.
     type, public :: sh_string_entry_type
         character(len=:), allocatable :: shell
         character(len=:), allocatable :: value
     end type sh_string_entry_type
 
-    !> A feature table whose values are strings or nil.
+    !> A feature table whose values are strings or none.
     type, public :: sh_string_feature_type
         type(sh_string_entry_type), allocatable :: entries(:)
     contains
-        !> Set SHELL's entry to VALUE (absent for nil).
+        !> Set SHELL's entry to VALUE (absent for none).
         procedure :: add => string_feature_add
-        !> The value for the current shell (unallocated for nil).
+        !> The value for the current shell (unallocated for none).
         procedure :: get => string_feature_get
     end type sh_string_feature_type
 
@@ -235,8 +235,8 @@ module sh_script_fm
         character(len=:), allocatable :: syntax
     end type sh_syntax_change_type
 
-    !> One shell's entry of `sh_mode_syntax_table_input': nil (no
-    !> `changes'), or (TABLE CHAR SYNTAX ...): a copy of `table' with
+    !> One shell's entry of `sh_mode_syntax_table_input': none (no
+    !> `changes'), or TABLE with CHAR and SYNTAX entries: a copy of `table' with
     !> `changes'.
     type, public :: sh_syntax_entry_type
         character(len=:), allocatable :: shell
@@ -343,8 +343,8 @@ module sh_script_fm
     !> Use this where the name of the executable doesn't correspond to
     !> the type of shell it really is.  Keys are regular expressions
     !> matched against the full path of the interpreter.  (For backward
-    !> compatibility, keys may also be symbols, which are matched
-    !> against the interpreter's basename.  The values are symbols
+    !> compatibility, keys may also be names, which are matched
+    !> against the interpreter's basename.  The values are names
     !> naming the shell.  Port of sh-script.el sh-alias-alist.
     type(sh_alias_type), allocatable, public :: sh_alias_table(:)
 
@@ -481,7 +481,7 @@ module sh_script_fm
     type(hook_type), target, public :: sh_base_mode_hook = hook_type(name="sh_base_mode_hook")
 
     !> The default indentation increment.
-    !> This value is used for the `+' and `-' symbols in an indentation variable.
+    !> This value is used for the `+' and `-' values in an indentation variable.
     !> Port of sh-script.el sh-basic-offset.
     type(integer_setting), target, public :: sh_basic_offset = integer_setting(name="sh_basic_offset", value=4)
 
@@ -1762,7 +1762,7 @@ contains
         if (state%incomment /= 0) call put_syntax(eol - 1, eol, ">")
         ! If the sh-escaped-line-re part of sh-here-doc-open-re has matched
         ! several lines, make sure we refontify them together.
-        ! Furthermore, if (nth 5 ppss) is non-nil (i.e. the \n is
+        ! Furthermore, if (nth 5 ppss) is set (i.e. the \n is
         ! escaped), it means the right \n is actually further down.
         ! Don't bother fixing it now, but place a multiline property so
         ! that when jit-lock-context-* refontifies the rest of the
@@ -2252,7 +2252,7 @@ contains
         if (allocated(tok)) is = tok == s .and. len(tok) == len(s)
     end function is
 
-    ! Non-nil if we're at a keyword position.
+    ! True if we're at a keyword position.
     ! A keyword position is one where if we're looking at something that looks
     ! like a keyword, then it is a keyword.  Port of
     ! sh-script.el:sh-smie--keyword-p.
@@ -2269,7 +2269,7 @@ contains
         end if
     end function is_sh_smie_keyword
 
-    ! Return non-nil if a newline should be treated as a semi-colon.
+    ! Return .true. if a newline should be treated as a semi-colon.
     ! Here we assume that a newline should be treated as a semi-colon unless it
     ! comes right after a special keyword.
     ! This function does not pay attention to line-continuations.
@@ -2305,7 +2305,7 @@ contains
         call goto_char(here)
     end function is_sh_smie_newline_semi
 
-    ! When looking at TOK (either "in" or "do"), non-nil if TOK is a keyword.
+    ! When looking at TOK (either "in" or "do"), .true. if TOK is a keyword.
     ! Does not preserve point.  Port of sh-script.el:sh-smie--sh-keyword-in/do-p.
     recursive logical function is_sh_smie_sh_keyword_in_do(tok) result(keyword)
         character(len=*), intent(in) :: tok
@@ -2354,7 +2354,7 @@ contains
         keyword = res == KEYWORD_RES
     end function is_sh_smie_sh_keyword_in_do
 
-    ! Non-nil if TOK (at which we're looking) really is a keyword.  Port of
+    ! True if TOK (at which we're looking) really is a keyword.  Port of
     ! sh-script.el:sh-smie--sh-keyword-p.
     recursive logical function is_sh_smie_sh_keyword(tok) result(p)
         character(len=*), intent(in) :: tok
@@ -2886,7 +2886,7 @@ contains
         if (is(tok, "if") .or. is(tok, "for") .or. is(tok, "switch") .or. is(tok, "while")) call move_alloc(tok, construct)
     end subroutine sh_smie_rc_after_special_arg_p
 
-    ! Return non-nil if a newline should be treated as a semi-colon.
+    ! Return .true. if a newline should be treated as a semi-colon.
     ! Point should be before the newline.  Port of
     ! sh-script.el:sh-smie--rc-newline-semi-p.
     recursive logical function is_sh_smie_rc_newline_semi() result(semi)
@@ -3581,7 +3581,7 @@ contains
     end function sh_canonicalize_shell
 
     !> Return the value of the indentation variable VAR, interpreting the
-    !> symbols SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR and
+    !> names SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR and
     !> SH_SLASH by `sh_basic_offset'.  Port of sh-script.el:sh-var-value.
     integer function sh_var_value(var) result(value)
         type(integer_setting), intent(in) :: var
@@ -4301,7 +4301,7 @@ contains
     end subroutine sh_delete_backslash
 
     !> Find the name of function or variable at point.
-    !> For use in `add_log_current_subprogram_function' (unallocated for nil).
+    !> For use in `add_log_current_subprogram_function' (unallocated for none).
     !> Port of sh-script.el:sh-current-defun-name.
     function sh_current_function_name() result(name)
         character(len=:), allocatable :: name
@@ -4798,7 +4798,7 @@ contains
     !> Save all current styles as Fortran to buffer BUFF.
     !> This is always added to the end of the buffer.  Port of
     !> sh-script.el:sh-save-styles-to-buffer (an assignment of
-    !> `sh_styles_table', for init.f90, in place of a setq).
+    !> `sh_styles_table', for init.f90, in place of an assignment).
     recursive subroutine sh_save_styles_to_buffer(buff, status)
         character(len=*), intent(in) :: buff
         type(status_type), intent(out) :: status

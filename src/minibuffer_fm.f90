@@ -106,13 +106,13 @@ module minibuffer_fm
               read_file_name_internal
 
     !> Values of REQUIRE_MATCH for `completing_read', also those of
-    !> `minibuffer_completion_confirm': nil, t, `confirm',
-    !> `confirm_after_completion' and any other non-nil value.
+    !> `minibuffer_completion_confirm': REQUIRE_MATCH_NO, REQUIRE_MATCH_YES,
+    !> REQUIRE_MATCH_CONFIRM, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION and REQUIRE_MATCH_OTHER.
     integer, parameter, public :: REQUIRE_MATCH_NO = 0, REQUIRE_MATCH_YES = 1, REQUIRE_MATCH_CONFIRM = 2, &
                                   REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION = 3, REQUIRE_MATCH_OTHER = 4
 
-    !> Kinds of `completion_try_completion' result: nil, t, and (STRING .
-    !> POINT).
+    !> Kinds of `completion_try_completion' result: none (TRY_NONE), exact (TRY_EXACT), and a STRING with a
+    !> POINT (TRY_STRING).
     integer, parameter, public :: TRY_NONE = 0, TRY_EXACT = 1, TRY_STRING = 2
 
     !> A `completion_try_completion' result.
@@ -188,7 +188,7 @@ module minibuffer_fm
     logical, public :: insert_default_directory = .true.
 
     !> True means when reading a file name completion ignores case.
-    !> Port of minibuffer.el read-file-name-completion-ignore-case (nil on
+    !> Port of minibuffer.el read-file-name-completion-ignore-case (.false. on
     !> GNU/Linux).
     logical, public :: read_file_name_completion_ignore_case = .false.
 
@@ -303,7 +303,7 @@ module minibuffer_fm
     !> completion data (START END COLLECTION . PROPS), where:
     !>  START and END delimit the entity to complete and should include point,
     !>  COLLECTION is the completion table to use to complete the entity, and
-    !>  PROPS is a property list for additional information.
+    !>  PROPS holds attributes for additional information.
     !> Currently supported properties are:
     !>  `predicate'        a predicate that completion candidates need to satisfy.
     !>  `exclusive'        false means that if the completion table fails to
@@ -350,7 +350,7 @@ module minibuffer_fm
     procedure(completion_exit_function_proc), pointer, public :: completion_exit_function => null()
 
     !> completion-in-region--data: the start and end markers, the table
-    !> and the predicate (`cir_data' false for nil).
+    !> and the predicate (`cir_data' .false. for none).
     logical :: cir_data = .false.
     type(handle_type) :: cir_start, cir_end
     type(completion_table_type) :: cir_table
@@ -371,9 +371,9 @@ module minibuffer_fm
         !> Try to complete STRING using completion table TABLE.
         !> Only the elements of table that satisfy predicate PRED are
         !> considered.  POINT is the position of point within STRING.  The
-        !> result is nil to indicate that there is no completion, t to
-        !> indicate that STRING is the only possible completion, or a pair
-        !> (NEWSTRING . NEWPOINT) of the completed result string together
+        !> result is TRY_NONE to indicate that there is no completion, TRY_EXACT to
+        !> indicate that STRING is the only possible completion, or TRY_STRING with
+        !> NEWSTRING and NEWPOINT, the completed result string together
         !> with a new position for point.  Port of
         !> minibuffer.el:completion-try-completion.
         module subroutine completion_try_completion(string, table, point, res, pred)
@@ -1241,7 +1241,7 @@ contains
     !>  111  7 completed to an exact completion
     !>
     !> WORD uses `completion__try_word_completion' in place of
-    !> `completion_try_completion'.  EXPECT-EXACT, if non-nil, means that
+    !> `completion_try_completion'.  EXPECT-EXACT, if .true., means that
     !> there is no need to tell the user when the buffer's text is already
     !> an exact match.  Port of minibuffer.el:completion--do-completion
     !> (no cycling).
@@ -1780,7 +1780,7 @@ contains
 
     !> `completion_at_point' giving in RES whether there was a valid
     !> completion; with FUNCTIONS, those instead of
-    !> `completion_at_point_functions' (upstream let-binds the hook).
+    !> `completion_at_point_functions' (saved and restored around the call; upstream binds the hook).
     !> Port of minibuffer.el:completion-at-point.
     recursive subroutine completion_at_point_run(res, status, functions)
         logical, intent(out) :: res
@@ -2544,7 +2544,7 @@ contains
     !> PROMPT is a string to prompt with; normally it ends in a colon and
     !> a space.  COLLECTION, the completion table, is an array of strings,
     !> a table of (string, value) entries, or a completion function, or
-    !> the obarray (see `try_completion').  PREDICATE limits
+    !> the name table (see `try_completion').  PREDICATE limits
     !> completion to a subset of COLLECTION.
     !>
     !> REQUIRE_MATCH can take the following values:
@@ -2765,7 +2765,7 @@ contains
 
     !> Return completion boundaries on file name STRING: the start in
     !> STRING (`string_start'), and the end in SUFFIX (`bend', -1 for
-    !> nil).  Runs `substitute_in_file_name' on STRING first, but returns
+    !> none).  Runs `substitute_in_file_name' on STRING first, but returns
     !> completion boundaries for the original string.  Port of
     !> minibuffer.el:completion--sifn-boundaries.
     subroutine sifn_boundaries(string, suffix, string_start, bend, pred)
@@ -2844,7 +2844,7 @@ contains
         ! If true, sifn only un-doubled $s in ORIG, so we can fix a
         ! completion to match ORIG by just doubling $s again.  This
         ! preserves more text from the completion, behaving better with
-        ! non-nil `completion_ignore_case'.
+        ! `completion_ignore_case' .true..
         only_need_double_dollars = orig_in_bounds == double_dollars(sifned_in_bounds) .and. &
                                    len(orig_in_bounds) == len(double_dollars(sifned_in_bounds))
         call completion_file_name_table(sifned, action, result, status, pred)

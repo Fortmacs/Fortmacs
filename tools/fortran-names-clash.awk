@@ -45,8 +45,30 @@ function idents(s, t, n) {
 
 NR == FNR {
     old[FNR] = code_of($0)
-    n = idents(old[FNR], t)
-    for (i = 1; i <= n; i++) have[t[i]] = 1
+    l = old[FNR]
+    # A continued `use' or declaration line.
+    if (cont) { l = "&" l }
+    cont = (l ~ /&[ \t]*$/)
+    if (l ~ /^[ \t]*use[ \t]+[a-z_0-9]+[ \t]*,[ \t]*only[ \t]*:/ || (l ~ /^&/ && incont)) {
+        sub(/^.*only[ \t]*:/, "", l)
+        n = idents(l, t)
+        for (i = 1; i <= n; i++) have[t[i]] = 1
+        incont = cont
+    } else if (match(l, /(function|subroutine)[ \t]+[a-z_][a-z0-9_]*/) && l !~ /^[ \t]*end/) {
+        s = substr(l, RSTART, RLENGTH)
+        sub(/.*[ \t]/, "", s)
+        have[s] = 1
+        incont = 0
+    } else if (l ~ /::/) {
+        sub(/^[^:]*::/, "", l)
+        gsub(/\([^()]*\)/, "", l)
+        gsub(/=[^,]*/, "", l)
+        n = idents(l, t)
+        for (i = 1; i <= n; i++) have[t[i]] = 1
+        incont = cont
+    } else {
+        incont = 0
+    }
     next
 }
 
@@ -59,6 +81,6 @@ NR == FNR {
     nb = idents(b, tb)
     if (na != nb) next
     for (i = 1; i <= na; i++) {
-        if (ta[i] != tb[i] && (tb[i] in have)) printf "%s:%d: %s -> %s clashes with the existing %s\n", f, FNR, ta[i], tb[i], tb[i]
+        if (ta[i] != tb[i] && (tb[i] in have) && (ta[i] in have)) printf "%s:%d: %s -> %s clashes with the existing %s\n", f, FNR, ta[i], tb[i], tb[i]
     }
 }

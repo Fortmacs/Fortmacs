@@ -47,8 +47,8 @@ module prog_mode_fm
     !> prog-mode-abbrev-table (made by define-derived-mode).
     type(abbrev_table_type), target, public :: prog_mode_abbrev_table
 
-    !> The value of `prog_indentation_context': nil (`active' false) or
-    !> (FIRST-COLUMN . REST).
+    !> The value of `prog_indentation_context': none (`active' .false.) or
+    !> FIRST-COLUMN and REST.
     type, public :: prog_indentation_context_type
         logical :: active = .false.
         integer :: first_column = 0

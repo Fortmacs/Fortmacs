@@ -30,8 +30,8 @@
 !>
 !> The keyword lists (`conf_font_lock_keywords' and the others) are
 !> arrays of `font_lock_keyword_type'.  `conf_assignment_sign' is a string
-!> (unallocated for nil).  `conf_space_keywords_table' holds
-!> `conf_space_keywords_entry_type' pairs.
+!> (unallocated for none).  `conf_space_keywords_table' holds
+!> `conf_space_keywords_entry_type' entries.
 !>
 !> Deferred: Outline mode's variables (`outline_regexp',
 !> `outline_heading_end_regexp', `outline_level' with
@@ -167,7 +167,7 @@ module conf_mode_fm
     type(string_setting), target, public :: conf_space_keywords = string_setting(name="conf_space_keywords")
 
     !> Sign used for assignments (char or string).  Port of conf-mode.el
-    !> conf-assignment-sign (unallocated for nil).
+    !> conf-assignment-sign (unallocated for none).
     type(string_setting), target, public :: conf_assignment_sign = string_setting(name="conf_assignment_sign")
 
     !> Regexp to recognize assignments.
@@ -454,7 +454,7 @@ contains
     !> Align the assignments in the buffer or active region.
     !> In Transient Mark mode, if the mark is active, operate on the
     !> contents of the region.  Otherwise, operate on the whole buffer.
-    !> Port of conf-mode.el:conf-align-assignments (ARG absent for nil).
+    !> Port of conf-mode.el:conf-align-assignments (ARG absent for no prefix).
     subroutine conf_align_assignments(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -600,7 +600,7 @@ contains
     !> and you can correct it with this command.  (Some files even do
     !> both, i.e. quotes delimit strings, except when they are
     !> unbalanced, but hey...)  Port of conf-mode.el:conf-quote-normal
-    !> (ARG absent for nil).
+    !> (ARG absent for no prefix).
     subroutine conf_quote_normal(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg

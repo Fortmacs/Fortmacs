@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Disabled commands: a command whose symbol has a non-nil `disabled'
+!> Disabled commands: a command whose `disabled' attribute is .true.
 !> property asks before it runs (`disabled_command_function'), as
 !> simple.el:command-execute arranges.  `enable_command' and
 !> `disable_command' change the property and record the choice in the
@@ -61,7 +61,7 @@ module novice_fm
     !> Function to call to handle disabled commands.
     !> If false, the feature is disabled, i.e., all commands work normally.
     !> Port of novice.el disabled-command-function (true is the default
-    !> function, false is nil).
+    !> function, .false. is none).
     logical, public :: disabled_command_function_p = .true.
 
     character(len=*), parameter :: LF = achar(10)

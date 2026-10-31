@@ -31,7 +31,7 @@
 !> dired-aux.el (the operations on marked files) is in the submodule
 !> dired_aux_fm; its options are declared here.
 !>
-!> Deferred: a list of files as the directory argument (a cons
+!> Deferred: a list of files as the directory argument (an array as
 !> `dired_directory'), inserted subdirectories (`i', `dired_insert_subdir',
 !> `$' hiding, `dired_switches_table', `dired_subdir_switches'),
 !> `dired_hide_details_mode' and its options (the `invisible' properties
@@ -51,7 +51,7 @@
 !> (`dired_find_subdir', `dired_omit_mode', killing buffers of deleted
 !> files), `combine_change_calls' in `dired_readin' (the change hooks run
 !> for each change), trash (`delete_by_moving_to_trash'),
-!> `dired_trivial_filenames' t, B and L (byte-compiling and loading Lisp:
+!> `dired_trivial_filenames' t, B and L (loading Lisp:
 !> not applicable).
 module dired_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
@@ -174,7 +174,7 @@ module dired_mode_fm
     !> dired-listing-switches.
     character(len=:), allocatable, public :: dired_listing_switches
 
-    !> Values of `dired_use_ls_dired' (upstream nil, t and `unspecified').
+    !> Values of `dired_use_ls_dired'.
     integer, parameter, public :: DIRED_USE_LS_DIRED_NO = 0, DIRED_USE_LS_DIRED_YES = 1, &
                                   DIRED_USE_LS_DIRED_UNSPECIFIED = 2
 
@@ -213,7 +213,7 @@ module dired_mode_fm
     !> dired.el dired-trivial-filenames.
     character(len=:), allocatable, public :: dired_trivial_filenames
 
-    !> Values of `dired_free_space' (upstream nil, `separate' and `first').
+    !> Values of `dired_free_space'.
     integer, parameter, public :: DIRED_FREE_SPACE_NONE = 0, DIRED_FREE_SPACE_SEPARATE = 1, &
                                   DIRED_FREE_SPACE_FIRST = 2
 
@@ -227,7 +227,7 @@ module dired_mode_fm
     !> `display' property, which redisplay does not show yet).
     integer, public :: dired_free_space = DIRED_FREE_SPACE_FIRST
 
-    !> Values of `dired_mark_region' (upstream nil, `file' and `line').
+    !> Values of `dired_mark_region'.
     integer, parameter, public :: DIRED_MARK_REGION_NO = 0, DIRED_MARK_REGION_FILE = 1, DIRED_MARK_REGION_LINE = 2
 
     !> Defines what commands that mark files do with the active region.
@@ -252,8 +252,7 @@ module dired_mode_fm
     !> Port of dired.el dired-mark-region.
     integer, public :: dired_mark_region = DIRED_MARK_REGION_FILE
 
-    !> Values of `dired_movement_style' (upstream nil, `cycle', `bounded',
-    !> `cycle-files' and `bounded-files').
+    !> Values of `dired_movement_style'.
     integer, parameter, public :: DIRED_MOVEMENT_STYLE_PLAIN = 0, DIRED_MOVEMENT_STYLE_CYCLE = 1, &
                                   DIRED_MOVEMENT_STYLE_BOUNDED = 2, DIRED_MOVEMENT_STYLE_CYCLE_FILES = 3, &
                                   DIRED_MOVEMENT_STYLE_BOUNDED_FILES = 4
@@ -288,8 +287,7 @@ module dired_mode_fm
     !> connection.  Port of dired.el dired-check-symlinks.
     logical, public :: dired_check_symlinks = .true.
 
-    !> Values of `dired_recursive_deletes' (upstream nil, `always', `top'
-    !> and t).
+    !> Values of `dired_recursive_deletes'.
     integer, parameter, public :: DIRED_RECURSIVE_NEVER = 0, DIRED_RECURSIVE_ALWAYS = 1, DIRED_RECURSIVE_TOP = 2, &
                                   DIRED_RECURSIVE_ASK = 3
 
@@ -327,7 +325,7 @@ module dired_mode_fm
     type(dired_no_confirm_type), public :: dired_no_confirm
 
     !> Values of `dired_switches_in_mode_line' other than a number of
-    !> characters (upstream nil and `as-is').
+    !> characters.
     integer, parameter, public :: DIRED_SWITCHES_SORT_ORDER = -1, DIRED_SWITCHES_AS_IS = -2
 
     !> How to indicate `dired_actual_switches' in mode-line.
@@ -442,9 +440,7 @@ module dired_mode_fm
     !> dired.el dired-recursive-copies.
     integer, public :: dired_recursive_copies = DIRED_RECURSIVE_TOP
 
-    !> Values of `dired_dwim_target' (upstream nil, t or
-    !> dired-dwim-target-next, dired-dwim-target-next-visible and
-    !> dired-dwim-target-recent).
+    !> Values of `dired_dwim_target'.
     integer, parameter, public :: DIRED_DWIM_TARGET_NO = 0, DIRED_DWIM_TARGET_NEXT = 1, &
                                   DIRED_DWIM_TARGET_NEXT_VISIBLE = 2, DIRED_DWIM_TARGET_RECENT = 3
 
@@ -463,8 +459,7 @@ module dired_mode_fm
     !> deferred).
     integer, public :: dired_dwim_target = DIRED_DWIM_TARGET_NO
 
-    !> Values of `dired_create_destination_dirs' (upstream nil, `always'
-    !> and `ask').
+    !> Values of `dired_create_destination_dirs'.
     integer, parameter, public :: DIRED_CREATE_DESTINATION_DIRS_NEVER = 0, DIRED_CREATE_DESTINATION_DIRS_ALWAYS = 1, &
                                   DIRED_CREATE_DESTINATION_DIRS_ASK = 2
 
@@ -526,7 +521,7 @@ module dired_mode_fm
     character(len=:), allocatable, public :: dired_compress_directory_default_suffix
 
     !> A rule of `dired_compress_file_suffixes': (REGEXP NEW-SUFFIX
-    !> PROGRAM), PROGRAM empty for nil.
+    !> PROGRAM), PROGRAM empty for none.
     type, public :: dired_compress_suffix_type
         character(len=:), allocatable :: regexp, new_suffix, program
     end type dired_compress_suffix_type
@@ -592,7 +587,7 @@ module dired_mode_fm
         end subroutine dired_file_creator_proc
 
         !> A NAME-CONSTRUCTOR of `dired_create_files': the new file name TO
-        !> for FROM, or SKIP true to skip it (upstream nil).  Not a port.
+        !> for FROM, or SKIP .true. to skip it.  Not a port.
         recursive subroutine dired_name_constructor_proc(from, to, skip, status)
             import :: status_type
             implicit none(type, external)
@@ -746,8 +741,7 @@ module dired_mode_fm
                                    "\`\(\(\`\| +\)\(--[^ ]+\|-[^- t"//dired_ls_sorting_switches// &
                                    "]+\|""[^""]*""\)\)* *$"
 
-    !> Values of the LOCALP argument of `dired_get_filename' (upstream nil,
-    !> t, `no-dir' and `verbatim').
+    !> Values of the LOCALP argument of `dired_get_filename'.
     integer, parameter, public :: DIRED_LOCALP_ABSOLUTE = 0, DIRED_LOCALP_RELATIVE = 1, DIRED_LOCALP_NO_DIR = 2, &
                                   DIRED_LOCALP_VERBATIM = 3
 
@@ -838,7 +832,7 @@ module dired_mode_fm
     interface
         !> Create a directory called DIRECTORY.
         !> Parent directories of DIRECTORY are created as needed.
-        !> If DIRECTORY already exists, signal an error.  Port of
+        !> If DIRECTORY already exists, an error condition occurs.  Port of
         !> dired-aux.el:dired-create-directory.  (In dired_aux_fm.)
         recursive module subroutine dired_create_directory(directory, status)
             implicit none(type, external)
@@ -1169,7 +1163,7 @@ module dired_mode_fm
         !> FN_LIST is the list of files to copy (full absolute file names).
         !>
         !> NAME_CONSTRUCTOR is given the name of an old file and returns
-        !> either the corresponding new file name or nil (SKIP) to skip.
+        !> either the corresponding new file name or SKIP .true. to skip.
         !>
         !> Mark each newly-created file's Dired entry with the character
         !> MARKER_CHAR, or with the file's own mark if MARKER_CHAR is
@@ -1194,7 +1188,7 @@ module dired_mode_fm
         !>   Dired buffer's current directory (or, if `dired_dwim_target' is
         !>   set, the current directory of a neighboring Dired window).
         !>
-        !> OP_SYMBOL is the symbol for the operation.  Function
+        !> OP_SYMBOL is the name for the operation.  Function
         !>   `dired_mark_pop_up' will determine whether pop-ups are
         !>   appropriate for this OP_SYMBOL.
         !>
@@ -1357,7 +1351,7 @@ module dired_mode_fm
         !> Parent directories of FILE are created as needed.
         !> Add an entry in the Dired buffer for the topmost new parent
         !> directory of FILE, if created, otherwise for the new file.
-        !> If FILE already exists, signal an error.  Port of
+        !> If FILE already exists, an error condition occurs.  Port of
         !> dired-aux.el:dired-create-empty-file.  (In dired_aux_fm.)
         recursive module subroutine dired_create_empty_file(file, status)
             implicit none(type, external)
@@ -2433,7 +2427,7 @@ contains
         call search_forward(base, found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
-            ! The call chain of `dired_remove_entry' requires a non-nil
+            ! The call chain of `dired_remove_entry' requires an allocated
             ! `dired_subdir_table', so we set it.
             k = local_index(.true.)
             had_table = allocated(locals(k)%subdir_table)
@@ -2768,7 +2762,7 @@ contains
     !> Return the position of the beginning of the filename, or 0 if none
     !> found.
     !>
-    !> If RAISE_ERROR, signal an error if we can't find the filename on
+    !> If RAISE_ERROR, an error condition occurs if we can't find the filename on
     !> the current line.
     !>
     !> If EOL_IN is present, it is a position to use instead of
@@ -3417,7 +3411,7 @@ contains
 
     !> Like `dired' but return the Dired buffer as value, do not select it.
     !> Port of dired.el:dired-noselect (DIR-OR-LIST a string;
-    !> `find_file_visit_truename' nil).
+    !> `find_file_visit_truename' .false.).
     recursive subroutine dired_noselect(dir_or_list, buffer, status, switches)
         character(len=*), intent(in) :: dir_or_list
         type(handle_type), intent(out) :: buffer
@@ -3635,7 +3629,7 @@ contains
     !> In Dired, you are "editing" a list of the files in a directory and
     !>   (optionally) its subdirectories, in the format of `ls -lR'.
     !> "Editing" means that you can run shell commands on files, visit,
-    !>   compress, load or byte-compile them, change their file attributes
+    !>   compress or load them, change their file attributes
     !>   and insert subdirectories into the same buffer.  You can "mark"
     !>   files for later commands or "flag" them for deletion, either file
     !>   by file or all files matching certain criteria.
@@ -4473,7 +4467,7 @@ contains
 
     !> Find FILE (with `find_file_run_dired' bound to true).  Port of
     !> dired.el:dired--find-possibly-alternative-file with dired--find-file
-    !> (`dired_kill_when_opening_new_dired_buffer' nil).
+    !> (`dired_kill_when_opening_new_dired_buffer' .false.).
     recursive subroutine dired_find_possibly_alternative_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
@@ -4650,7 +4644,7 @@ contains
     !> does.  FOUND tells whether marked lines were found (or, for an
     !> integer or other ARG, true); BODY_RUNS counts the calls.  UPWARD
     !> means the calls went upwards (a negative integer ARG).  Port of
-    !> dired.el:dired-map-over-marks (SHOW-PROGRESS nil).
+    !> dired.el:dired-map-over-marks (SHOW-PROGRESS .false.).
     recursive subroutine dired_map_over_marks(body, arg_kind, arg_n, status, found, upward)
         interface
             recursive subroutine body(status)
@@ -4682,7 +4676,7 @@ contains
             upward = arg_n < 0
             found = .true.
         else if (arg_kind == DIRED_ARG_OTHER) then
-            ! non-nil, non-integer, non-marked ARG means use current file:
+            ! a non-numeric prefix ARG, not marked, means use current file:
             call body(status)
             found = .true.
         else
@@ -4758,7 +4752,7 @@ contains
         call move_alloc(grown, map_markers)
     end subroutine collect_filename_and_marker
 
-    !> Append FILE (FOUND false for nil) to the `map_files' results.
+    !> Append FILE (FOUND .false. for none) to the `map_files' results.
     !> Not a port.
     subroutine push_result(file, found)
         character(len=*), intent(in) :: file
@@ -4789,9 +4783,9 @@ contains
         map_n = 0
     end subroutine reset_results
 
-    !> Return the marked files' names as list of strings.
-    !> The list is in the same order as the Dired buffer text, that is, the car
-    !>   is the first marked file.
+    !> Return the marked files' names as an array of strings.
+    !> The list is in the same order as the Dired buffer text, that is, the first
+    !>   element is the first marked file.
     !> Values returned are normally absolute file names.
     !> LOCALP is as in `dired_get_filename'.
     !> ARG_KIND and ARG_N, if not DIRED_ARG_NONE, specify files near point
@@ -4808,7 +4802,7 @@ contains
     !> If DISTINGUISH_ONE_MARKED is true, then if we find just one marked
     !> file, ONE_MARKED is true.
     !>
-    !> If ERROR is present, signal it (a message) when the list of found
+    !> If ERROR is present, an error condition with it as the message occurs when the list of found
     !> files is empty.  Port of dired.el:dired-get-marked-files (no
     !> FILTER).
     recursive subroutine dired_get_marked_files(files, status, localp, arg_kind, arg_n, distinguish_one_marked, &
@@ -4949,7 +4943,7 @@ contains
     end function region_end_line_position
 
     !> Mark files for PREDICATE, according to `dired_marker_char'.
-    !> PREDICATE is evaluated on each line, with point at beginning of line.
+    !> PREDICATE is called on each line, with point at beginning of line.
     !> MSG is a noun phrase for the type of files being marked.
     !> It should end with a noun that can be pluralized by adding `s'.
     !>

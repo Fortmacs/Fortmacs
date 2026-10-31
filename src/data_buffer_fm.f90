@@ -304,7 +304,7 @@ contains
     end subroutine keep_exact
 
     !> Set integer setting S to V.  With INTEGERP (a DEFVAR_PER_BUFFER with
-    !> predicate `integerp'), a non-nil V must be an integer; otherwise any
+    !> predicate `integerp'), a V that is not empty must be an integer; otherwise any
     !> value is kept.  Not a port.
     subroutine set_integer(s, v, integerp, status)
         type(integer_setting), intent(inout) :: s
@@ -317,14 +317,14 @@ contains
         if (vtag(v) == V_INTEGER) then
             s = xfixnum(v)
         else if (integerp .and. allocated(v%a)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         else
             call keep_exact(s, v)
         end if
     end subroutine set_integer
 
     !> Set logical setting S to V (any value; the Fortran value is whether
-    !> it is non-nil).  Not a port.
+    !> it is not empty).  Not a port.
     subroutine set_logical(s, v)
         type(logical_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -546,7 +546,7 @@ contains
             if (cur == 0) return
 
             if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
             else if (.not. allocated(v%a)) then
                 buffers(cur)%major_mode = "nil"
             else
@@ -558,7 +558,7 @@ contains
             if (vtag(v) == V_STRING) then
                 buffers(cur)%mode_name = xstring(v)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
             end if
         case ("buffer_read_only")
             if (cur > 0) buffers(cur)%read_only = allocated(v%a)
@@ -626,7 +626,7 @@ contains
     end subroutine set_indent_line
 
     !> The value of a require-final-newline setting N: nil, t, `visit',
-    !> `visit_save' or (for any other non-nil value) `ask'.  Not a port.
+    !> `visit_save' or (for any other value) `ask'.  Not a port.
     function final_newline_value(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
@@ -696,14 +696,14 @@ contains
 
         select case (trim(FWD_NAMES(k)))
         case ("fill_column", "left_margin", "tab_width")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             indent_tabs_mode = .true.
         case ("completion_ignore_case")
             completion_ignore_case = .true.
         case ("major_mode")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
         case ("mode_name", "buffer_read_only")
             continue
         case ("case_fold_search")
@@ -1352,12 +1352,12 @@ contains
     id = xsymbol(variable)
 
     if (buffer <= 0 .or. buffer > size(buffers, kind=int64)) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
         return
     end if
 
     if (.not. is_buffer_live(buffer_handle(buffer))) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
         return
     end if
 

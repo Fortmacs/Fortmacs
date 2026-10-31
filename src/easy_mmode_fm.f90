@@ -320,7 +320,7 @@ contains
         if (re_narrow) call narrowfun(status)
     end subroutine easy_mmode_prev
 
-    !> Turn the symbol MODE into a string intended for the user.
+    !> Turn the name MODE into a string intended for the user.
     !> If provided, LIGHTER will be used to help choose capitalization by,
     !> replacing its case-insensitive matches with the literal string in
     !> LIGHTER.  Port of easy-mmode.el:easy-mmode-pretty-mode-name.
@@ -647,7 +647,7 @@ contains
     end function getter_in
 
     !> Set the mode's own state: globally, or (a buffer-local mode) in
-    !> the current buffer, as `(setq MODE ON)' does.  Not a port.
+    !> the current buffer, as assigning ON to the mode variable does.  Not a port.
     subroutine minor_mode_set_state(self, on)
         class(minor_mode_type), intent(inout) :: self
         logical, intent(in) :: on
@@ -775,7 +775,7 @@ contains
         end if
     end function local_text
 
-    !> Turn the mode on (upstream's (MODE 1), or (MODE) from Lisp).
+    !> Turn the mode on (upstream's MODE called with 1, or with no argument from code).
     !> Not a port.
     recursive subroutine minor_mode_enable(self, status)
         class(minor_mode_type), intent(inout) :: self

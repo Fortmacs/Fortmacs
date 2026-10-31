@@ -22,7 +22,7 @@
 !> Reading a line of input in the minibuffer: the prompt is read-only
 !> text in a field at the start of buffer " *Minibuf-N*", shown in the
 !> frame's minibuffer window, which is selected while a recursive edit
-!> runs; a command throws to `exit' to finish.
+!> runs; a command returns to `exit' with a status to finish.
 !>
 !> The completion primitives (`try_completion', `all_completions',
 !> `test_completion') are here too; the completion UI is minibuffer_fm's.
@@ -118,7 +118,7 @@ module minibuf_fm
     !>
     !> This variable also overrides the default character that
     !> `read_passwd' uses to hide passwords.  Port of minibuf.c
-    !> read-hide-char (-1 for nil).
+    !> read-hide-char (-1 for none).
     integer(int32), public :: read_hide_char = -1
 
     !> Normal hook run just after entry to minibuffer.  Port of minibuf.c
@@ -137,18 +137,18 @@ module minibuf_fm
     !> See Info node `(elisp)Basic Completion', for a description of these
     !> functions.
     !>
-    !> Do not set this variable to a non-nil value globally, as that is not
+    !> Do not set this variable to a value globally, as that is not
     !> safe and will probably cause errors in completion commands.  This
-    !> variable should be only let-bound to non-nil values around calls to
+    !> variable should only be set, then restored, around calls to
     !> basic completion functions like `try_completion' and `all_completions'.
-    !> Port of minibuf.c completion-regexp-list (unallocated for nil).
+    !> Port of minibuf.c completion-regexp-list (unallocated when unset).
     character(len=:), allocatable, public :: completion_regexp_list(:)
 
     !> minibuf.c:minibuf_prompt, the prompt of the active minibuffer
-    !> (unallocated for nil).
+    !> (unallocated for none).
     character(len=:), allocatable :: minibuf_prompt
 
-    !> Vminibuffer_history_variable: the history list's symbol name.
+    !> Vminibuffer_history_variable: the history list's name.
     character(len=:), allocatable, public :: minibuffer_history_variable
     !> Vminibuffer_history_position: the element shown (0: the input).
     integer, public :: minibuffer_history_position = 0
@@ -158,13 +158,13 @@ module minibuf_fm
     end type minibuffer_string_type
 
     !> minibuffer-default: the default values, for M-n ("future
-    !> history"); unallocated (or empty) for nil.
+    !> history"); unallocated (or empty) for none.
     type(minibuffer_string_type), allocatable, public :: minibuffer_default(:)
     !> simple.el minibuffer-temporary-goal-position: where M-n and M-p
     !> leave point (0 for the end), kept while they repeat.
     integer(int64), public :: minibuffer_temporary_goal_position = 0
     !> simple.el minibuffer-text-before-history: the input before moving
-    !> into the history; unallocated for nil.
+    !> into the history; unallocated for none.
     character(len=:), allocatable, public :: minibuffer_text_before_history
 
     !> A string in an array.
@@ -706,17 +706,17 @@ contains
         end do
     end function match_regexps
 
-    !> Like `assoc' but specifically for strings (and symbols).
+    !> Like `assoc' but specifically for strings (and names).
     !>
-    !> This returns the first element of LIST whose car matches the string or
-    !> symbol KEY, or nil if no match exists.  When performing the
-    !> comparison, symbols are first converted to strings, and unibyte
+    !> This returns the first element of LIST whose first element matches the string or
+    !> name KEY, or an unallocated value if no match exists.  When performing the
+    !> comparison, names are first converted to strings, and unibyte
     !> strings to multibyte.  If the optional arg CASE_FOLD is true, both
     !> KEY and the elements of LIST are upcased for comparison.
     !>
     !> Unlike `assoc', KEY can also match an entry in LIST consisting of a
-    !> single string, rather than a cons cell whose car is a string.
-    !> Port of minibuf.c:Fassoc_string (KEY as a string; a symbol is
+    !> single string, rather than two values whose first is a string.
+    !> Port of minibuf.c:Fassoc_string (KEY as a string; a name is
     !> given by its name).
     function assoc_string(key, list_value, case_fold) result(elt)
         character(len=*), intent(in) :: key
@@ -823,9 +823,9 @@ contains
     ! ------------------------------------------------------------------
 
     !> The elements of a non-function table: `elts' (the list elements or
-    !> symbols, given to the predicate) and the string each one completes
+    !> names, given to the predicate) and the string each one completes
     !> to (`names'; `ok' is false for elements that are not strings or
-    !> symbols).  Not a port.
+    !> names).  Not a port.
     subroutine table_elements(table, elts, names, ok)
         type(completion_table_type), intent(in) :: table
         type(value_type), allocatable, intent(out) :: elts(:)
@@ -889,11 +889,11 @@ contains
     !>
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
-    !> symbols.  Symbols are converted to strings before testing, by using
+    !> names.  Names are converted to strings before testing, by using
     !> `symbol_name'.
     !>
-    !> If no possible completions match, the function returns nil; if
-    !> there's just one exact match, it returns t; otherwise it returns
+    !> If no possible completions match, the function returns no completion (TRY_NONE); if
+    !> there's just one exact match, it returns TRY_EXACT; otherwise it returns
     !> the longest initial substring common to all possible completions
     !> that begin with STRING.
     !>
@@ -901,7 +901,7 @@ contains
     !> of (string, value) entries, or a completion function.  In a table,
     !> the strings of the entries are the possible completions; an entry
     !> that is only a string is itself a possible completion.  If
-    !> COLLECTION is the obarray, the names of all symbols in the obarray
+    !> COLLECTION is the name table, the names of all names in the name table
     !> are the possible completions.
     !>
     !> A completion function does the completion itself.  It receives
@@ -912,9 +912,9 @@ contains
     !> possible completion.  A possible completion is accepted only if
     !> PREDICATE returns true.  The argument given to PREDICATE is either a
     !> string or an entry (whose first element is a string) of COLLECTION,
-    !> or a symbol from the obarray.
+    !> or a name from the name table.
     !>
-    !> If `completion_ignore_case' is non-nil, possible completions are
+    !> If `completion_ignore_case' is .true., possible completions are
     !> matched while ignoring letter-case, but no guarantee is made about
     !> the letter-case of the return value, except that it comes either
     !> from the user's input or from one of the possible completions.
@@ -1035,7 +1035,7 @@ contains
     !>
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
-    !> symbols.  Symbols are converted to strings before testing, by using
+    !> names.  Names are converted to strings before testing, by using
     !> `symbol_name'.
     !>
     !> The value is a list of all the possible completions that match
@@ -1044,7 +1044,7 @@ contains
     !> COLLECTION, the completion table, is an array of strings, a table
     !> of (string, value) entries, or a completion function.  In a table,
     !> the strings of the entries are the possible completions.  If
-    !> COLLECTION is the obarray, the names of all symbols in the obarray
+    !> COLLECTION is the name table, the names of all names in the name table
     !> are the possible completions.
     !>
     !> A completion function does the completion itself.  It receives
@@ -1104,14 +1104,14 @@ contains
         result = make_list(matches(1:n))
     end subroutine all_completions
 
-    !> Return non-nil if STRING is a valid completion.
+    !> Return .true. if STRING is a valid completion.
     !> For instance, if COLLECTION is a list of strings, STRING is a valid
     !> completion if it appears in the list and PREDICATE is satisfied.
     !>
     !> Takes the same arguments as `all_completions' and `try_completion'.
     !>
     !> If COLLECTION is a function, it is called with STRING, PREDICATE and
-    !> COMPLETE_TEST (`lambda').  Port of minibuf.c:Ftest_completion.
+    !> COMPLETE_TEST.  Port of minibuf.c:Ftest_completion.
     recursive logical function test_completion(string, collection, predicate) result(valid)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
@@ -1188,7 +1188,7 @@ contains
     !> unquoted positions, we simply assume that `concat' and `unquote'
     !> commute (which tends to be the case).  And we ask `requote' to do
     !> the work of mapping from unquoted positions back to quoted
-    !> positions.  Port of the lambda of
+    !> positions.  Port of the anonymous procedure of
     !> minibuffer.el:completion-table-with-quoting (no metadata, and no
     !> `completion--unquote' action: the completion styles call
     !> `try_completion' and `all_completions' on the quoted table).
@@ -1445,7 +1445,7 @@ contains
     !> If TABLE is a function, it will be called directly to perform
     !> completion, no matter what ACTION is.
     !>
-    !> If ACTION is COMPLETE_BOUNDARIES, return nil (the default
+    !> If ACTION is COMPLETE_BOUNDARIES, return nothing (the default
     !> boundaries) for other tables.  If ACTION is COMPLETE_TRY, this
     !> works like `try_completion'; if it is COMPLETE_ALL, like
     !> `all_completions'; and COMPLETE_TEST makes it work like
@@ -1487,7 +1487,7 @@ contains
     !> Complete with TABLE, with S1 replaced by S2: strings of the form
     !> (concat S1 S) complete in the same way as TABLE completes strings
     !> of the form (concat S2 S).  ACTION, STRING, RESULT, PREDICATE and
-    !> SUFFIX are those of a function table.  Port of the lambda of
+    !> SUFFIX are those of a function table.  Port of the anonymous procedure of
     !> minibuffer.el:completion-table-subvert.
     recursive subroutine completion_table_subvert(table, s1, s2, string, action, result, status, predicate, suffix)
         type(completion_table_type), intent(in) :: table

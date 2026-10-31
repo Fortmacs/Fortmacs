@@ -91,7 +91,7 @@ contains
 
         if (present(count)) then
             if (count < 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "wholenump")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (>= 0)")
                 return
             end if
         end if
@@ -167,7 +167,7 @@ contains
     !> Complete file name FILE in directory DIRECTORY.
     !> Returns the longest string common to all file names in DIRECTORY
     !> that start with FILE.  If there is only one and FILE matches it
-    !> exactly, returns t.  Returns nil if DIRECTORY contains no name
+    !> exactly, returns it with exact .true..  Returns "" if DIRECTORY contains no name
     !> starting with FILE.
     !>
     !> If PREDICATE is present, call it with each possible completion (in

@@ -523,7 +523,7 @@ contains
         call fresh_scratch()
         call type_keys("C-h f RET")
         call command_loop(st)
-        call check(error, last_message, "You didn"//RQ//"t specify a function symbol")
+        call check(error, last_message, "You didn"//RQ//"t specify a function name")
         if (allocated(error)) return
         call type_keys("C-h v RET")
         call command_loop(st)

@@ -997,7 +997,7 @@ contains
     !> The arguments IGNORE_AUTO and NOCONFIRM are as described for `revert_buffer'.
     !> Runs the hooks `before_revert_hook' and `after_revert_hook' at the
     !> start and end.
-    !> The function signals an error if the buffer is not associated with
+    !> An error condition occurs if the buffer is not associated with
     !> a file.
     !>
     !> Calls `revert_buffer_insert_file_contents__default_function' to

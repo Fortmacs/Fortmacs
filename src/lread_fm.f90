@@ -43,7 +43,7 @@ module lread_fm
 
     !> File name, including directory, of user's initialization file.
     !> While the init file's `configure' runs, value is the real name
-    !> of the file.  Port of lread.c user-init-file (unallocated is nil:
+    !> of the file.  Port of lread.c user-init-file (unallocated for none:
     !> -q, or no init file compiled in).
     character(len=:), allocatable, public :: user_init_file
 

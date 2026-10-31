@@ -129,6 +129,6 @@ contains
         call check(error, format_error(st), "Cyclic keymap inheritance")
         if (allocated(error)) return
         call set_error(st, FM_VOID_FUNCTION, "foo")
-        call check(error, format_error(st), format_message("Symbol's function definition is void: foo"))
+        call check(error, format_error(st), format_message("Function is not defined: foo"))
     end subroutine test_format
 end module test_error_fm

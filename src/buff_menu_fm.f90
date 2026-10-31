@@ -508,7 +508,7 @@ contains
 
     !> Return the buffer described by the current Buffer Menu line.
     !> If there is no buffer here, return the null handle if
-    !> ERROR_IF_NON_EXISTENT_P is false or omitted, and signal an error in
+    !> ERROR_IF_NON_EXISTENT_P is false or omitted, and an error condition occurs in
     !> STATUS otherwise.  Port of buff-menu.el:Buffer-menu-buffer.
     function buffer_menu_buffer(status, error_if_non_existent_p) result(buffer)
         type(status_type), intent(out) :: status

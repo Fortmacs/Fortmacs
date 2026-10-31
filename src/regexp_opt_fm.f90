@@ -38,8 +38,8 @@ module regexp_opt_fm
 
     public :: regexp_opt, regexp_opt_charset, regexp_opt_depth
 
-    !> PAREN of `regexp_opt': nil (a shy group if a postfix operator
-    !> needs one), t (a group), `words' (\<\( ... \)\>) and `symbols'
+    !> PAREN of `regexp_opt': REGEXP_OPT_SHY (a shy group if a postfix operator
+    !> needs one), REGEXP_OPT_GROUP (a group), REGEXP_OPT_WORDS (\<\( ... \)\>) and REGEXP_OPT_IDENTIFIERS
     !> (\_<\( ... \)\_>).
     integer, parameter, public :: REGEXP_OPT_SHY = 0, REGEXP_OPT_GROUP = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_IDENTIFIERS = 3
 

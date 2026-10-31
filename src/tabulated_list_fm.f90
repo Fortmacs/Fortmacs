@@ -106,7 +106,7 @@ module tabulated_list_fm
     end type tabulated_list_desc_type
 
     !> An entry: its ID, which keeps the cursor on the "same" entry when
-    !> rearranging the list (empty for nil), and one descriptor per column.
+    !> rearranging the list (empty for none), and one descriptor per column.
     !> Port of an element (ID [DESC1 ... DESCN]) of tabulated-list.el
     !> tabulated-list-entries.
     type, public :: tabulated_list_entry_type
@@ -196,7 +196,7 @@ module tabulated_list_fm
         procedure(tabulated_list_entries_proc), pointer, nopass :: entries_function => null()
         !> tabulated-list-padding.
         integer :: padding = 0
-        !> tabulated-list-sort-key: (NAME . FLIP), nil when SORT_NAME is
+        !> tabulated-list-sort-key: NAME and FLIP, none when SORT_NAME is
         !> unallocated.
         character(len=:), allocatable :: sort_name
         logical :: sort_flip = .false.
@@ -273,7 +273,7 @@ contains
 
     !> Set the current buffer's `tabulated_list_format' to COLUMNS, the
     !> format of the current Tabulated List mode buffer.  Port of
-    !> tabulated-list.el tabulated-list-format (setq-local).
+    !> tabulated-list.el tabulated-list-format (set_local).
     subroutine set_tabulated_list_format(columns)
         type(tabulated_list_column_type), intent(in) :: columns(:)
         integer :: k, j
@@ -287,7 +287,7 @@ contains
         end do
     end subroutine set_tabulated_list_format
 
-    !> The current buffer's `tabulated_list_format' (empty for nil).
+    !> The current buffer's `tabulated_list_format' (empty when unset).
     !> Not a port.
     function tabulated_list_format() result(columns)
         type(tabulated_list_column_type), allocatable :: columns(:)
@@ -310,7 +310,7 @@ contains
 
     !> Set the current buffer's `tabulated_list_entries' to ENTRIES, the
     !> entries displayed in the current Tabulated List buffer.  Port of
-    !> tabulated-list.el tabulated-list-entries (a list; setq-local).
+    !> tabulated-list.el tabulated-list-entries (an array; set_local).
     subroutine set_tabulated_list_entries(entries)
         type(tabulated_list_entry_type), intent(in) :: entries(:)
         integer :: k
@@ -364,7 +364,7 @@ contains
     !> of characters preceding each Tabulated List mode entry.  By default,
     !> lines are padded with spaces, but you can use the function
     !> `tabulated_list_put_tag' to change this.  Port of tabulated-list.el
-    !> tabulated-list-padding (setq-local).
+    !> tabulated-list-padding (set_local).
     subroutine set_tabulated_list_padding(n)
         integer, intent(in) :: n
         integer :: k
@@ -386,7 +386,7 @@ contains
     !> FLIP): NAME is one of the column names in `tabulated_list_format'
     !> (the corresponding SORT entry then specifies how to sort); FLIP
     !> true means to invert the resulting sort.  Port of tabulated-list.el
-    !> tabulated-list-sort-key (setq-local).
+    !> tabulated-list-sort-key (set_local).
     subroutine set_tabulated_list_sort_key(name, flip)
         character(len=*), intent(in) :: name
         logical, intent(in), optional :: flip
@@ -398,7 +398,7 @@ contains
         if (present(flip)) locals(k)%sort_flip = flip
     end subroutine set_tabulated_list_sort_key
 
-    !> Make the current buffer's `tabulated_list_sort_key' nil: no
+    !> Make the current buffer's `tabulated_list_sort_key' empty: no
     !> additional sorting is performed.  Not a port.
     subroutine clear_tabulated_list_sort_key()
         integer :: k
@@ -410,7 +410,7 @@ contains
     end subroutine clear_tabulated_list_sort_key
 
     !> The current buffer's `tabulated_list_sort_key': its NAME (empty for
-    !> nil) and FLIP.  Not a port.
+    !> none) and FLIP.  Not a port.
     subroutine tabulated_list_sort_key(name, flip)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: flip
@@ -438,7 +438,7 @@ contains
 
     !> Make FN the current buffer's `tabulated_list_printer': the function
     !> for inserting a Tabulated List entry at point.  Port of
-    !> tabulated-list.el tabulated-list-printer (setq-local).
+    !> tabulated-list.el tabulated-list-printer (set_local).
     subroutine set_tabulated_list_printer(fn)
         procedure(tabulated_list_printer_proc) :: fn
         integer :: k
@@ -452,7 +452,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Return the entry ID of the Tabulated List entry at POS ("" for
-    !> nil).  POS, if absent, defaults to point.  Port of
+    !> none).  POS, if absent, defaults to point.  Port of
     !> tabulated-list.el:tabulated-list-get-id.
     function tabulated_list_get_id(pos) result(id)
         integer(int64), intent(in), optional :: pos

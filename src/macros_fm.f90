@@ -25,7 +25,7 @@
 !> (`last_kbd_macro'); the macro being defined is collected in
 !> `kbd_macro_buffer'.
 !>
-!> Deferred: macros that are symbols (their function definitions), and
+!> Deferred: macros that are names (their function definitions), and
 !> string macros other than as `execute_kbd_macro' arguments (a string
 !> `last_kbd_macro').
 submodule(keyboard_fm) macros_fm
@@ -58,7 +58,7 @@ contains
     else
         ! Check the type of last-kbd-macro.
         if (.not. allocated(last_kbd_macro)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "arrayp, .false.")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array, got .false.")
             return
         end if
 
@@ -111,7 +111,7 @@ contains
     else if (vtag(repeat) == V_INTEGER) then
         n = xfixnum(repeat)
     else
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "fixnump, "//fortran_repr(repeat))
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got "//fortran_repr(repeat))
         return
     end if
 

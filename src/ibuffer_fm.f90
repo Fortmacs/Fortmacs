@@ -210,9 +210,9 @@ module ibuffer_fm
     logical, public :: ibuffer_always_compile_formats = .false.
 
     !> An array describing how to fontify buffers.
-    !> Each element has a PRIORITY, a FORM (a function evaluated in the
-    !> buffer), and the FACE to use for fontification.  If the FORM
-    !> returns true, then FACE will be put on the buffer name.  The
+    !> Each element has a PRIORITY, a PREDICATE (a logical function called in the
+    !> buffer), and the FACE to use for fontification.  If the PREDICATE
+    !> returns .true., then FACE will be put on the buffer name.  The
     !> element with the highest PRIORITY takes precedence.
     !>
     !> If you change this variable, you must kill the Ibuffer buffer and
@@ -555,7 +555,7 @@ module ibuffer_fm
     ! The operation `ibuffer_operate' runs, and its arguments.
     type(ibuffer_op_type) :: current_op
 
-    ! State of the mapping functions (upstream's dynamically bound
+    ! State of the mapping functions (upstream's temporarily bound
     ! variables and closures).
     character :: map_mark = " ", map_new = " "
     character(len=256), allocatable :: map_names(:)
@@ -1081,7 +1081,7 @@ contains
         f = ibuffer_formats
     end function formats_of
 
-    !> (car FILTER): the name of a simple filter, else "not", "and", "or"
+    !> The first element of FILTER: the name of a simple filter, else "not", "and", "or"
     !> or "saved".  Not a port.
     function filter_symbol(filter) result(name)
         type(ibuffer_filter_type), intent(in) :: filter
@@ -1195,7 +1195,7 @@ contains
     end function ibuffer_current_mark
 
     !> Return the buffer on the current line (the null handle for none or
-    !> a killed buffer).  If MUST_BE_LIVE, signal an error in STATUS if
+    !> a killed buffer).  If MUST_BE_LIVE, an error condition occurs in STATUS if
     !> there is none or it has been killed.  Port of
     !> ibuffer.el:ibuffer-current-buffer.
     function ibuffer_current_buffer(status, must_be_live) result(buf)
@@ -2883,8 +2883,8 @@ contains
         end select
     end function ibuffer_format_column
 
-    !> The face of the name of BUF, marked with MARK (upstream a symbol;
-    !> "" for nil).  Port of ibuffer.el:ibuffer-buffer-name-face.
+    !> The face of the name of BUF, marked with MARK (a mark character;
+    !> "" for none).  Port of ibuffer.el:ibuffer-buffer-name-face.
     recursive function ibuffer_buffer_name_face(buf, mark) result(face)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -3021,7 +3021,7 @@ contains
     !> buffers in filtering group GROUP.
     !>
     !> FUNCTION is called with two arguments:
-    !> the buffer object itself and the current mark symbol.  Return the
+    !> the buffer object itself and the current mark name.  Return the
     !> number of lines it affected.  Port of
     !> ibuffer.el:ibuffer-map-lines.
     recursive integer function ibuffer_map_lines(func, status, nomodify, group) result(count)
@@ -3507,7 +3507,7 @@ contains
         cell%mouse_face = "highlight"
     end function column_mode
 
-    !> (format-mode-line mode-name nil nil BUFFER).  Not a port.
+    !> `format_mode_line' of `mode_name' in BUFFER.  Not a port.
     function mode_name_of(buffer) result(name)
         type(handle_type), intent(in) :: buffer
         character(len=:), allocatable :: name

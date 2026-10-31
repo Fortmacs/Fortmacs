@@ -1228,7 +1228,7 @@ contains
             else if (index <= size(stack)) then
                 directory_replacement = file_name_as_directory(stack(index)%s)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, nil")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got unallocated")
                 call goto_char(opoint)
                 return
             end if

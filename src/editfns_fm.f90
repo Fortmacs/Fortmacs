@@ -21,7 +21,7 @@
 
 !> Editing primitives on the current buffer.
 !>
-!> Lisp functions that return nil for "no such position" take a `found'
+!> Upstream functions that return no position for "no such position" take a `found'
 !> (or similar) logical here.  Text comes back as byte strings in the
 !> buffer's representation.
 !>
@@ -232,8 +232,8 @@ contains
         m = buffers(cur)%mark
     end subroutine mark_marker
 
-    !> The position of the current buffer's mark, or 0 if it has none (nil
-    !> upstream): `(marker-position (mark-marker))'.  Not a port.
+    !> The position of the current buffer's mark, or 0 if it has none:
+    !> the position of `mark_marker'.  Not a port.
     integer(int64) function mark_position() result(pos)
         integer(int64) :: i
         type(status_type) :: st
@@ -331,8 +331,8 @@ contains
         end if
     end subroutine check_mark
 
-    !> The region as the arguments of a command whose interactive spec
-    !> has `r': point and the mark, the smaller first (as they are, not
+    !> The region as the arguments of a command that reads the region
+    !> (`r'): point and the mark, the smaller first (as they are, not
     !> limited to the accessible part).  `check_mark' reports a mark that
     !> is not set or inactive; rectangle_mark_mode's advice of
     !> `region_beginning' does not apply.  Port of the `r' code of
@@ -542,7 +542,7 @@ contains
         integer(int64) :: n, chunk, reps
 
         if (.not. is_char_valid(c)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -1022,14 +1022,14 @@ contains
     ! properties only, as there are no overlays yet).
     ! ------------------------------------------------------------------
 
-    !> The `field' symbol.  Not a port.
+    !> The `field' name.  Not a port.
     function qfield() result(v)
         type(value_type) :: v
 
         v = sym("field")
     end function qfield
 
-    !> `prop' of the current buffer's character at `pos' (nil outside the
+    !> `prop' of the current buffer's character at `pos' (unallocated outside the
     !> accessible text); get_char_property without overlays.  Not a port.
     function char_property(pos, prop) result(v)
         integer(int64), intent(in) :: pos
@@ -1090,7 +1090,7 @@ contains
             if (.not. value_eq(field, after_field)) at_field_end = .true.
             if (.not. value_eq(field, before_field)) at_field_start = .true.
 
-            ! A nil field between non-nil ones is a field not meant for
+            ! A field without a value between ones with a value is a field not meant for
             ! editing (like a prompt), not a zero-length field.
             if (.not. allocated(field%a) .and. at_field_start .and. at_field_end) then
                 at_field_end = .false.
@@ -1242,12 +1242,14 @@ contains
         if (.not. status%ok()) return
 
         if (.not. is_char_valid(fromchar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(fromchar, int64)))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer (a character code), got "//int_text(int(fromchar, int64)))
             return
         end if
 
         if (.not. is_char_valid(tochar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(tochar, int64)))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer (a character code), got "//int_text(int(tochar, int64)))
             return
         end if
 

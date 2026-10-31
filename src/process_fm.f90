@@ -49,10 +49,10 @@
 !> `process_environment' (the editor's environment is passed); remote
 !> directories and file name handlers; stopped processes (`stop_process',
 !> `continue_process', `stop' statuses); `set_process_filter' with t
-!> (stopping output); a CURRENT_GROUP of `lambda' (signal only when the
+!> (stopping output); a special CURRENT_GROUP (signal only when the
 !> shell does not own the terminal); `signal_process'
 !> with names, `interrupt_process_functions', `signal_process_functions';
-!> the process plist (`process_get', `process_put'); threads locking
+!> the process attributes (`process_get', `process_put'); threads locking
 !> processes (`set_process_thread'); `set_process_window_size';
 !> `process_running_child_p'; adaptive read buffering; `inhibit_sentinels';
 !> the saving of the match data around filters and sentinels; quitting
@@ -159,7 +159,7 @@ module process_fm
         !> Marker set to end of last buffer-inserted output from this process.
         type(handle_type) :: mark
         integer(int32) :: pid = 0
-        !> Symbol indicating status of process (ST_*), with the exit code or
+        !> Name indicating status of process (ST_*), with the exit code or
         !> signal number and whether a core was dumped.
         integer :: state = ST_RUN
         integer(int32) :: code = 0
@@ -230,10 +230,10 @@ contains
         type(status_type), intent(out) :: status
 
         call table%resolve(proc, i, status)
-        if (.not. status%ok()) status%detail = "Wrong type argument: is_process"
+        if (.not. status%ok()) status%detail = "Wrong type argument: expected type(process_type)"
     end subroutine resolve
 
-    !> Return t if OBJECT is a process.  Port of process.c:Fprocessp.
+    !> Return .true. if OBJECT is a process.  Port of process.c:Fprocessp.
     logical function is_process(object)
         type(handle_type), intent(in) :: object
 
@@ -446,7 +446,7 @@ contains
     !> "exit" -- for a process that has exited.
     !> "signal" -- for a process that has got a fatal signal.
     !> "" -- if PROCESS is not a process.
-    !> Port of process.c:Fprocess_status (status symbols as strings).
+    !> Port of process.c:Fprocess_status (status names as strings).
     function process_status(process) result(status_name)
         type(handle_type), intent(in) :: process
         character(len=:), allocatable :: status_name
@@ -595,7 +595,7 @@ contains
         if (.not. status%ok()) return
 
         if (buffer%index /= 0 .and. .not. is_buffer_live(buffer)) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: bufferp")
+            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected type(buffer_type)")
             return
         end if
 
@@ -1760,7 +1760,7 @@ contains
     !> Set coding systems of PROCESS to DECODING and ENCODING.
     !> DECODING will be used to decode subprocess output and ENCODING to
     !> encode subprocess input.  Port of process.c:Fset_process_coding_system
-    !> ("" for nil, which is no conversion).
+    !> ("" for none, which is no conversion).
     subroutine set_process_coding_system(process, decoding, encoding, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: decoding, encoding

@@ -32,7 +32,7 @@
 !> The file is in namelist syntax (namelist_fm) rather than Lisp, so it
 !> is read, not loaded: its objects are the variables to set.  A value
 !> is saved if it is a string, an integer, true or false, or a list of
-!> those; other values (symbols, nested lists) are not printable.
+!> those; other values (names, nested lists) are not printable.
 !> Deferred: the text properties of saved strings, the warning about a
 !> file that can't be written (warnings.el is not ported), and the
 !> obsolete `savehist_trim_history'.
@@ -126,12 +126,12 @@ module savehist_fm
     !> Set to -1 to use the default permissions that Fortmacs uses,
     !> typically mandated by umask.  The default is a bit more restrictive
     !> to protect the user's privacy.  Port of savehist.el
-    !> savehist-file-modes (-1 for nil).
+    !> savehist-file-modes (-1 for none).
     integer, public :: savehist_file_modes = 384
 
     !> The interval between autosaves of minibuffer history, in seconds.
     !> If set to 0, disables timer-based autosaving.  Port of savehist.el
-    !> savehist-autosave-interval (0 for nil; it takes effect when the
+    !> savehist-autosave-interval (0 for none; it takes effect when the
     !> timer is next set, as Savehist mode does).
     integer, public :: savehist_autosave_interval = 5*60
 
@@ -162,7 +162,7 @@ module savehist_fm
     logical, public :: savehist_loaded = .false.
 
     !> Modtime of the `savehist_file' when we last sync'd up with it
-    !> (savehist--file-sync-modtime); KNOWN false for nil.  A file that
+    !> (savehist--file-sync-modtime); KNOWN .false. for none.  A file that
     !> doesn't exist has the modtime t (EXISTS false).
     type :: modtime_type
         logical :: known = .false., exists = .false.

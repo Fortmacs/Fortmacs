@@ -49,8 +49,8 @@
 !> `dired_dwim_target_defaults' (offered by M-n: `read_file_name' takes
 !> one default) and a procedure as `dired_dwim_target', the error data in
 !> the log of a failed file operation (its name and message are logged,
-!> not the condition's data list), file name handlers.  Loading and
-!> byte-compiling Lisp files (`L', `B') are not applicable.
+!> not the condition's data list), file name handlers.  Loading Lisp
+!> files (`L', `B') is not applicable.
 submodule(dired_mode_fm) dired_aux_fm
     use lisp_fm, only: make_list, xfixnum, value_type, vtag, V_INTEGER, V_ARRAY
     use error_fm, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
@@ -153,7 +153,7 @@ contains
 
     !> Create a directory called DIRECTORY.
     !> Parent directories of DIRECTORY are created as needed.
-    !> If DIRECTORY already exists, signal an error.  Port of
+    !> If DIRECTORY already exists, an error condition occurs.  Port of
     !> dired-aux.el:dired-create-directory (interactive).
     recursive subroutine cmd_dired_create_directory(status)
         type(status_type), intent(out) :: status
@@ -758,7 +758,7 @@ contains
     !> Read args for a Dired marked-files command, prompting with PROMPT.
     !> RESULT is the user input (a string).
     !>
-    !> OP_SYMBOL is an operation symbol (see `dired_no_confirm').
+    !> OP_SYMBOL is an operation name (see `dired_no_confirm').
     !> ARG_KIND and ARG_N are normally the prefix argument for the calling
     !> command; they are passed to `dired_marker_prompt'.
     !> FILES should be a list of marked files' names.
@@ -906,7 +906,7 @@ contains
     end subroutine dired_mark_confirm
 
     !> What an operation is called in messages: "Compress or uncompress"
-    !> for `compress', else the capitalized symbol name.  Not a port.
+    !> for `compress', else the capitalized name.  Not a port.
     function operation_string(op_symbol) result(s)
         character(len=*), intent(in) :: op_symbol
         character(len=:), allocatable :: s
@@ -1851,7 +1851,7 @@ contains
     !> and display failures.  FUN records, with `push_check_result', the
     !> offending object (e.g. the short form of the filename) for a
     !> failure, or "", and probably logs a detailed error explanation
-    !> using `dired_log'.  OP_SYMBOL is a symbol describing the operation
+    !> using `dired_log'.  OP_SYMBOL is a name describing the operation
     !> performed (e.g. `compress').  Port of
     !> dired-aux.el:dired-map-over-marks-check.
     recursive subroutine dired_map_over_marks_check(fun, arg_kind, arg_n, op_symbol, status)
@@ -3212,7 +3212,7 @@ contains
 
     !> Replace first match of REGEXP in STRING with NEWTEXT (NEW; FOUND
     !> false if it does not match).  Port of
-    !> dired.el:dired-string-replace-match (LITERAL and GLOBAL nil).
+    !> dired.el:dired-string-replace-match (LITERAL and GLOBAL .false.).
     recursive subroutine dired_string_replace_match(regexp, string, newtext, new, found, status)
         character(len=*), intent(in) :: regexp, string, newtext
         character(len=:), allocatable, intent(out) :: new
@@ -3585,7 +3585,7 @@ contains
     !> If user option `dired_create_empty_file_in_current_directory' is
     !> true, act on the current subdirectory by default, otherwise act on
     !> the default directory by default.
-    !> If FILE already exists, signal an error.  Port of
+    !> If FILE already exists, an error condition occurs.  Port of
     !> dired-aux.el:dired-create-empty-file (interactive).
     recursive subroutine cmd_dired_create_empty_file(status)
         type(status_type), intent(out) :: status
@@ -4031,7 +4031,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push_string
 
-    !> (re-search-forward REGEXP nil t) as a truth value.  Not a port.
+    !> `re_search_forward' of REGEXP (NOERROR .true.) as a logical.  Not a port.
     logical function aux_re_search_forward(regexp) result(found)
         character(len=*), intent(in) :: regexp
         integer(int64) :: pos

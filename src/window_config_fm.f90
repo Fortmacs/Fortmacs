@@ -29,7 +29,7 @@
 !> (`read_minibuffer_restore_windows').
 !>
 !> Deferred: other frames, window parameters (no persistent ones are
-!> ported), `window_restore_killed_buffer_windows' other than nil, the
+!> ported), `window_restore_killed_buffer_windows' other than .false., the
 !> frame's focus and `minibuffer_scroll_window'.
 submodule(window_fm) window_config_fm
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, resolve_buffer, buffer_list, &

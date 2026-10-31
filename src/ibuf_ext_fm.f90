@@ -2411,7 +2411,7 @@ contains
         s = qualifier_text(node)
 
         if (.not. node%has_qualifier .or. node%is_number .or. associated(node%predicate)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
         end if
     end subroutine string_qualifier
 
@@ -2574,7 +2574,7 @@ contains
         size = buffer_size()
         call set_buffer(old, st)
         number = node%number
-        if (.not. node%is_number) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number-or-marker-p")
+        if (.not. node%is_number) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, real or type(marker_type)")
     end subroutine size_and_number
 
     ! Port of ibuf-ext.el define-ibuffer-filter size-gt.
@@ -2656,7 +2656,7 @@ contains
         included = .false.
 
         if (.not. associated(qualifier%predicate)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "functionp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected procedure")
             return
         end if
 
@@ -3880,9 +3880,9 @@ contains
             if (size(events) > 0) then
                 if (vtag(events(1)) == V_INTEGER) then
                     write (buf, "(i0)") xfixnum(events(1))
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//trim(buf))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//trim(buf))
                 else
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep")
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*)")
                 end if
 
                 return
@@ -3920,7 +3920,7 @@ contains
             call ibuffer_set_filtering_qualifiers(kept(1:n))
         else
             if (buf%index == 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
                 return
             end if
 

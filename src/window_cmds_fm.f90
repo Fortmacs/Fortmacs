@@ -32,7 +32,7 @@
 !> depends on window_fm, so they live in a submodule.
 !>
 !> Deferred: window parameters, side and atomic windows, dedicated
-!> windows, `window_combination_resize', `split_window_keep_point' nil,
+!> windows, `window_combination_resize', `split_window_keep_point' .false.,
 !> `delete_window_choose_selected' other than `mru', other frames, the
 !> window commands while the minibuffer is selected, buffer menus
 !> (C-x C-b), `switch_to_buffer_preserve_window_point',
@@ -59,7 +59,7 @@ contains
     subroutine not_live(status)
         type(status_type), intent(out) :: status
 
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_live")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
     end subroutine not_live
 
     !> The window commands can't run in the minibuffer yet.  Not a port.
@@ -172,7 +172,7 @@ contains
         integer(int64) :: bi
 
         if (.not. is_window_valid(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_valid")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -301,7 +301,7 @@ contains
         status = status_type()
 
         if (.not. is_window_valid(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_valid")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -331,7 +331,7 @@ contains
     !> Delete specified WINDOW.
     !> WINDOW must be a valid window and defaults to the selected one.
     !>
-    !> Signal an error if WINDOW is the only window on its frame.
+    !> An error condition occurs if WINDOW is the only window on its frame.
     !>
     !> If WINDOW is the selected window on its frame, choose some other
     !> window as that frame's selected window: the most recently used one.
@@ -350,7 +350,7 @@ contains
         integer :: top, left, lines, cols
 
         if (.not. is_window_valid(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_valid")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -563,7 +563,7 @@ contains
             end if
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
-            ! non-nil one meaning `inhibit_same_window'.
+            ! one that is .true. meaning `inhibit_same_window'.
             call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else if (windows(sw%index)%dedicated == DEDICATED_STRONG) then
@@ -573,7 +573,7 @@ contains
             end if
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
-            ! non-nil one meaning `inhibit_same_window'.
+            ! one that is .true. meaning `inhibit_same_window'.
             call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else

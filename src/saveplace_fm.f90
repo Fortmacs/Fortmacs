@@ -104,8 +104,8 @@ module saveplace_fm
     !> `~/.local/state/fortmacs/places').
     character(len=:), allocatable, public :: save_place_file
 
-    !> Values of `save_place_version_control': t, nil, `never' and
-    !> `nospecial'.
+    !> Values of `save_place_version_control': SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING,
+    !> SAVE_PLACE_VERSION_CONTROL_NEVER and SAVE_PLACE_VERSION_CONTROL_NOSPECIAL.
     integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_NUMBERED = 1, SAVE_PLACE_VERSION_CONTROL_EXISTING = 0, &
                                   SAVE_PLACE_VERSION_CONTROL_NEVER = 2, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL = 3
 
@@ -123,7 +123,7 @@ module saveplace_fm
     !> saveplace.el save-place-loaded.
     logical, public :: save_place_loaded = .false.
 
-    !> `save_place_limit' for no limit (nil upstream).
+    !> `save_place_limit' for no limit.
     integer, parameter, public :: SAVE_PLACE_NO_LIMIT = huge(0)
 
     !> Maximum number of entries to retain in the list; SAVE_PLACE_NO_LIMIT
@@ -176,7 +176,7 @@ module saveplace_fm
 
     !> The interval between auto saves of buffer places, in seconds.
     !> If set to 0, disables timer-based auto saving.  Port of saveplace.el
-    !> save-place-autosave-interval (0 for nil).
+    !> save-place-autosave-interval (0 for none).
     integer, public :: save_place_autosave_interval = 0
 
     !> Hook run at the end of `save_place_find_file_hook'.  Port of

@@ -22,7 +22,7 @@
 !> Overlays.  An overlay is a registry object referenced by a handle: the
 !> buffer it is in (the null handle once deleted), the interval it
 !> covers (itree.c's struct itree_node: begin, end, front_advance,
-!> rear_advance) and its property list.  Upstream keeps a buffer's
+!> rear_advance) and its text properties.  Upstream keeps a buffer's
 !> overlays in an interval tree (itree.c); here they are one array of
 !> nodes, scanned in order of their start, which gives the same results
 !> for the few overlays a buffer has.  insdel_fm moves them with the text
@@ -37,15 +37,15 @@
 !> `before_string' and `after_string' properties, and textprop_fm's
 !> `get_char_property' family looks at them.
 !>
-!> Modification hooks: insdel_fm's change signals call
+!> Modification hooks: insdel_fm's change notifications call
 !> `report_overlay_modification', which runs the functions of the
 !> `modification_hooks', `insert_in_front_hooks' and `insert_behind_hooks'
-!> properties; a function there is a symbol naming a defined
+!> properties; a function there is a name of a defined
 !> `property_function_type' (eval_fm).
 !>
 !> Deferred: indirect buffers (`copy_overlays'), the `window', `mouse_face' and
-!> `intangible' properties, priorities given as (PRIMARY . SECONDARY)
-!> pairs (no dotted pairs), `remove_overlays' (subr.el) and
+!> `intangible' properties, priorities given as two values, PRIMARY and SECONDARY
+!> (no entry of two names), `remove_overlays' (subr.el) and
 !> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -76,7 +76,7 @@ module itree_fm
         type(handle_type) :: buffer
         integer(int64) :: begin = 0, end = 0
         logical :: front_advance = .false., rear_advance = .false.
-        !> The property list.
+        !> The overlay's properties.
         type(value_type) :: plist
     end type overlay_type
 
@@ -131,7 +131,7 @@ contains
         type(handle_type), intent(in) :: ov
         type(status_type), intent(out) :: status
 
-        if (.not. is_overlay(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_overlay")
+        if (.not. is_overlay(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(overlay_type)")
     end subroutine check_overlay
 
     !> Whether overlay slot I is in buffer slot B.  Not a port.
@@ -471,8 +471,8 @@ contains
         end do
     end subroutine delete_all_overlays
 
-    !> Return the position at which OVERLAY starts (0 if it is deleted,
-    !> upstream's nil).  Port of buffer.c:Foverlay_start (with
+    !> Return the position at which OVERLAY starts (0 if it is deleted).
+    !> Port of buffer.c:Foverlay_start (with
     !> itree.c:itree_node_begin: no offsets to add up).
     integer(int64) function overlay_start(overlay)
         type(handle_type), intent(in) :: overlay
@@ -482,8 +482,8 @@ contains
         if (is_buffer_live(overlays(overlay%index)%buffer)) overlay_start = overlays(overlay%index)%begin
     end function overlay_start
 
-    !> Return the position at which OVERLAY ends (0 if it is deleted,
-    !> upstream's nil).  Port of buffer.c:Foverlay_end (with
+    !> Return the position at which OVERLAY ends (0 if it is deleted).
+    !> Port of buffer.c:Foverlay_end (with
     !> itree.c:itree_node_end).
     integer(int64) function overlay_end(overlay)
         type(handle_type), intent(in) :: overlay
@@ -506,7 +506,7 @@ contains
     end function overlay_buffer
 
     !> Return a list of the properties on OVERLAY.
-    !> This is a copy of OVERLAY's plist; modifying its conses has no effect on
+    !> This is a copy of OVERLAY's properties; modifying it has no effect on
     !> OVERLAY.  Port of buffer.c:Foverlay_properties.
     function overlay_properties(overlay) result(plist)
         type(handle_type), intent(in) :: overlay
@@ -540,7 +540,7 @@ contains
         rear_advance = overlays(overlay%index)%rear_advance
     end subroutine overlay_advance
 
-    !> `overlay_get' with the property given as a symbol value.  Port of
+    !> `overlay_get' with the property given as a name value.  Port of
     !> buffer.c:Foverlay_get.
     function overlay_get_prop(overlay, prop) result(val)
         type(handle_type), intent(in) :: overlay

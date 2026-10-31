@@ -154,7 +154,7 @@ module xdisp_fm
         !> Highlight the region START..END of the current buffer in
         !> WINDOW, which shows it.  RB and RE are what redisplay paints in
         !> the `region' face (upstream's region overlay of priority
-        !> (nil . 100)); both 0 when the function shows the region itself.
+        !> 100); both 0 when the function shows the region itself.
         !> Not a port.
         subroutine highlight_region_proc(start, end, window, rb, re)
             import :: int64, handle_type
@@ -196,7 +196,7 @@ module xdisp_fm
     !> If MESSAGE_LOG_DISABLED, disable message logging.  If
     !> MESSAGE_LOG_UNLIMITED, log messages but don't truncate the buffer
     !> when it becomes large.  Port of xdisp.c message-log-max (named
-    !> constants for nil and t).
+    !> constants for none and no limit).
     integer(int64), public :: message_log_max = 1000
 
     !> The name of the buffer where messages are logged.  xdisp.c
@@ -222,7 +222,7 @@ module xdisp_fm
     type(position_hook_type), target, public :: fontification_functions = &
                                                 position_hook_type(name="fontification_functions")
 
-    !> fontification-functions is bound to nil while its functions run.
+    !> `fontification_functions' is emptied, then restored, while its functions run.
     logical :: fontifying = .false.
 
     !> xdisp.c cursor-in-echo-area: put the cursor after the echo area
@@ -249,8 +249,8 @@ module xdisp_fm
     !> A value of 0 means to respect the value of `truncate_lines'.
     !>
     !> Port of
-    !> xdisp.c truncate-partial-width-windows (0 for nil, huge(0) for any
-    !> other non-nil value); the truncation itself is
+    !> xdisp.c truncate-partial-width-windows (0 or a
+    !> number of columns, huge(0) for all widths); the truncation itself is
     !> not ported yet (Deferred), only commands that test the variable.
     integer, public :: truncate_partial_width_windows = 50
 
@@ -262,7 +262,7 @@ module xdisp_fm
             implicit none(type, external)
         end function lighter_active_proc
         !> The TEXT a minor-mode-alist entry shows for buffer slot BI, whose
-        !> variable holds the text itself ("" when it is nil).  (A
+        !> variable holds the text itself ("" when it is unallocated).  (A
         !> subroutine: gfortran frees the target of a procedure pointer
         !> component returning an allocatable string when an array of the
         !> type is deallocated.) Not a port.
@@ -1856,7 +1856,7 @@ contains
     !> The face of character C in text whose face is FACE_ID on frame F:
     !> control characters and raw bytes shown as ^X or \ooo in the
     !> escape-glyph face merged in, non-ASCII spaces and hyphens with
-    !> nobreak-space and nobreak-hyphen (nobreak-char-display t).  The
+    !> nobreak-space and nobreak-hyphen (`nobreak_char_display' .true.).  The
     !> face part of xdisp.c:get_next_display_element.
     !> Port of xdisp.c:get_next_display_element, in part, with
     !> xdisp.c:merge_escape_glyph_face.
@@ -2234,7 +2234,7 @@ contains
     end subroutine put_rows
 
     !> Highlight START..END in WINDOW with the `region' face, an overlay
-    !> of priority (nil . 100) for WINDOW only (here the range redisplay
+    !> of priority 100 for WINDOW only (here the range redisplay
     !> paints, RB..RE).  Port of
     !> simple.el:redisplay--highlight-overlay-function.
     subroutine redisplay_highlight_overlay_function(start, end, window, rb, re)
@@ -2505,7 +2505,7 @@ contains
     end function mode_line_mule_info
 
     !> The `vc_mode' of buffer BI, "" when its file is not under version
-    !> control (nil).  Not a port.
+    !> control.  Not a port.
     function buffer_vc_mode(bi) result(vc)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: vc
@@ -2723,7 +2723,7 @@ contains
     !> `start': point's line number, or ?? when the lines before the
     !> window start are too long to count (line-number-display-limit-width
     !> 200).  The counting part of the %l case of xdisp.c:decode_mode_spec
-    !> (no base line cache, line-number-display-limit nil).
+    !> (no base line cache, `line_number_display_limit' unset).
     !> Port of xdisp.c:decode_mode_spec, in part.
     function mode_line_line(bi, start, pt, height) result(s)
         integer(int64), intent(in) :: bi, start, pt
@@ -2888,13 +2888,13 @@ contains
         end function span_face_of
     end subroutine mode_line_row
 
-    !> Show LIGHTER in the mode line while VARIABLE is non-nil (replacing
+    !> Show LIGHTER in the mode line while VARIABLE is .true. (replacing
     !> VARIABLE's earlier lighter), in FACE if present (a propertized
     !> lighter).  ACTIVE, if present, tells whether VARIABLE is true (a
     !> variable kept in Fortran).  TEXT, if present, gives the text for
     !> an entry (VARIABLE VARIABLE) whose variable holds the text (a
-    !> Fortran-kept string, "" for nil).  With FIRST, a new entry goes in
-    !> front (consed onto minor-mode-alist).  Port of the mode-line part of
+    !> Fortran-kept string, "" for none).  With FIRST, a new entry goes in
+    !> front (added to the front of `minor_mode_table').  Port of the mode-line part of
     !> subr.el:add-minor-mode (minor-mode-alist).
     subroutine add_minor_mode_lighter(variable, lighter, face, active, text, first)
         character(len=*), intent(in) :: variable, lighter
@@ -2962,8 +2962,8 @@ contains
         k = 0
     end function process_entry_of
 
-    !> Give the current buffer the `mode_line_process' PARTS (setq
-    !> mode-line-process, a buffer-local variable).
+    !> Give the current buffer the `mode_line_process' PARTS
+    !> (set_local: `mode_line_process' is a buffer-local variable).
     !>
     !> Mode line construct for displaying info on process status.
     !> Normally unallocated in most modes, since there is no process to
@@ -2995,7 +2995,7 @@ contains
         process_entries(k)%parts = parts
     end subroutine set_mode_line_process
 
-    !> Make the current buffer's `mode_line_process' empty (nil): when its
+    !> Make the current buffer's `mode_line_process' empty: when its
     !> local variables are killed, as kill_all_local_variables does.
     !> Not a port.
     subroutine clear_mode_line_process()
@@ -3108,7 +3108,7 @@ contains
 
     !> The modes part of buffer BI's mode line: `mode_name', " Narrow"
     !> if the buffer is narrowed (%n), and the lighters of
-    !> `minor_mode_table' whose variables are non-nil there.  Not a port.
+    !> `minor_mode_table' whose variables are .true. there.  Not a port.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
@@ -3206,7 +3206,7 @@ contains
     !> column of the border glyph of a window with one to its right.  The
     !> mode line is in the mode_line_active face if `w' is the selected
     !> window (or was when the minibuffer was entered), else in
-    !> mode_line_inactive (mode-line-in-non-selected-windows t); the
+    !> mode_line_inactive (`mode_line_in_non_selected_windows' .true.); the
     !> buffer name (mode-line-buffer-identification, "%12b") has the
     !> mode_line_buffer_id face merged in.  Port of the terminal part of
     !> xdisp.c:display_mode_line (CURRENT_MODE_LINE_ACTIVE_FACE_ID_3),
@@ -3453,7 +3453,7 @@ contains
 
     !> Where and how large the cursor of window `w' on window-system frame
     !> `f' is drawn: on glyph `hpos' of `row' at pixel `x' of the text
-    !> area (less wide on a stretch glyph, x-stretch-cursor nil), as high
+    !> area (less wide on a stretch glyph, `x_stretch_cursor' .false.), as high
     !> as the glyph within the row, kept above `text_bottom' (the bottom of
     !> the text area).  Port of xdisp.c:get_phys_cursor_geometry (no tab or
     !> header line), stored as w->phys_cursor.
@@ -4261,7 +4261,7 @@ contains
     !> could be forced to display as `R' by a directional override, and
     !> likewise characters whose `bidi-class' is `R' or `AL' that are
     !> forced to display as `L'.
-    !> If no such character is found, the function returns -1 (nil).
+    !> If no such character is found, the function returns -1.
     !> OBJECT is the current buffer, or STRING when given (FROM and TO then
     !> 0-based character indices into it).
     !> Optional argument BASE_DIR specifies the base paragraph directory

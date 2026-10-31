@@ -228,14 +228,14 @@ contains
         end if
     end function is_case_table
 
-    !> Signal wrong-type-argument unless OBJ is a case table.  Port of
+    !> A `wrong_type_argument' error condition occurs unless OBJ is a case table.  Port of
     !> casetab.c:check_case_table.
     subroutine check_case_table(obj, status)
         type(handle_type), intent(in) :: obj
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. is_case_table(obj)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_case_table")
+        if (.not. is_case_table(obj)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected case table type(char_table_type)")
     end subroutine check_case_table
 
     !> Return the case table of the current buffer.  Port of
@@ -386,7 +386,7 @@ contains
         u = char_table_ref(up, int(elt))
 
         if (u < 0) then
-            call set_error(map_status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(map_status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 

@@ -106,7 +106,7 @@ module fill_fm
     !>
     !> If the paragraph has just one line, the indentation is taken from that
     !> line, but in that case `adaptive_fill_first_line_regexp' also plays
-    !> a role.  Port of fill.el adaptive-fill-regexp (unallocated is nil).
+    !> a role.  Port of fill.el adaptive-fill-regexp (unallocated when unset).
     character(len=:), allocatable, public :: adaptive_fill_regexp
 
     !> Regexp specifying whether to set fill prefix from a one-line paragraph.
@@ -164,7 +164,7 @@ module fill_fm
 
     abstract interface
         !> A `fill_paragraph_function': fill the paragraph at point (JUSTIFY
-        !> as in `fill_paragraph'); DONE false (upstream's nil) means
+        !> as in `fill_paragraph'); DONE .false. means
         !> `fill_paragraph' should do its normal work.  Not a port.
         subroutine fill_paragraph_proc(status, done, justify)
             import :: status_type
@@ -182,14 +182,14 @@ module fill_fm
     end type fill_paragraph_entry_type
 
     !> The type of `fill_paragraph_function': a default `value' (assign
-    !> with `=>'; null is nil) and buffers' own (`set_local').
+    !> with `=>'; null when unset) and buffers' own (`set_local').
     type, public :: fill_paragraph_function_type
         procedure(fill_paragraph_proc), pointer, nopass :: value => null()
         type(fill_paragraph_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => fill_paragraph_set_local
-        !> The current buffer's function (null for nil).
+        !> The current buffer's function (null when unset).
         procedure :: get => fill_paragraph_get
         !> Make the current buffer use the default again.
         procedure :: kill_local => fill_paragraph_kill_local
@@ -227,7 +227,7 @@ module fill_fm
             implicit none(type, external)
         end function is_fill_comment_syntax
 
-        !> `comment_start_skip', "" for nil.  (In fill_comment_fm.)
+        !> `comment_start_skip', "" when unset.  (In fill_comment_fm.)
         !> Not a port.
         module function fill_comment_start_skip() result(skip)
             implicit none(type, external)
@@ -425,8 +425,8 @@ contains
         call free_marker(end_marker, st)
     end subroutine canonically_space_region
 
-    !> Return the longest common prefix of strings S1 and S2, or nil if none.
-    !> `found' is false for nil.  Port of fill.el:fill-common-string-prefix.
+    !> Return the longest common prefix of strings S1 and S2, or none.
+    !> `found' is .false. for none.  Port of fill.el:fill-common-string-prefix.
     subroutine fill_common_string_prefix(s1, s2, prefix, found)
         character(len=*), intent(in) :: s1, s2
         character(len=:), allocatable, intent(out) :: prefix
@@ -481,7 +481,7 @@ contains
     !> This uses the variables `adaptive_fill_regexp' and `adaptive_fill_function'
     !> and `adaptive_fill_first_line_regexp'.  `paragraph_start' also plays a role;
     !> we reject a prefix based on a one-line paragraph if that prefix would
-    !> act as a paragraph-separator.  `found' is false for nil.  Port of
+    !> act as a paragraph-separator.  `found' is .false. for none.  Port of
     !> fill.el:fill-context-prefix.
     subroutine fill_context_prefix(from, to, prefix, found, first_line_regexp)
         integer(int64), intent(in) :: from, to
@@ -845,10 +845,10 @@ contains
         ! Delete unnecessary newlines surrounded by words.  The character
         ! category `|' means that we can break a line at the character.
         ! And, char-table `fill_nospace_between_words_table' tells how to
-        ! concatenate words.  If a character has non-nil value in the
+        ! concatenate words.  If a character has the value .true. in the
         ! table, never put spaces between words, thus delete a newline
         ! between them.  Otherwise, delete a newline only when a character
-        ! preceding a newline has non-nil value in that table.
+        ! preceding a newline has the value .true. in that table.
         do
             call marker_position(to_marker, endpos, st)
             call search_forward(LF, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
@@ -1071,7 +1071,7 @@ contains
     !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region-as-paragraph-default (with
-    !> fill-region-as-paragraph; JUSTIFY nil is JUSTIFY_CURRENT, as the
+    !> fill-region-as-paragraph; JUSTIFY absent is JUSTIFY_CURRENT, as the
     !> `current_justification' default).
     recursive subroutine fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, &
                                                   used, have_used)
@@ -1270,7 +1270,7 @@ contains
     !> call `fill_region' to fill each of the paragraphs in the active
     !> region, instead of just filling the current paragraph.  Port of
     !> fill.el:fill-paragraph (no fill-paragraph-function or comments;
-    !> JUSTIFY is a JUSTIFY_ constant, JUSTIFY_CURRENT for nil).
+    !> JUSTIFY is a JUSTIFY_ constant, JUSTIFY_CURRENT when absent).
     recursive subroutine fill_paragraph(status, justify, region, used)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: justify
@@ -1477,7 +1477,7 @@ contains
     !> When called from Fortran, ARG is the number of following paragraphs to join
     !> lines within, or if ARG is 0, optional arguments BEG and END present
     !> means to join the lines of each paragraph in the region delimited by BEG
-    !> and END.  Port of fill.el:unfill-paragraph (ARG 0 for nil).
+    !> and END.  Port of fill.el:unfill-paragraph (ARG 0 for no prefix).
     recursive subroutine unfill_paragraph(arg, status, beg, end)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -1528,7 +1528,7 @@ contains
     !>
     !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
-    !> fill.el:fill-region (JUSTIFY_CURRENT for nil).
+    !> fill.el:fill-region (JUSTIFY_CURRENT when absent).
     recursive subroutine fill_region(from, to, status, justify, nosqueeze, to_eop, used)
         integer(int64), intent(in) :: from, to
         type(status_type), intent(out) :: status
@@ -1591,7 +1591,7 @@ contains
     !> This returns the value of the text-property `justification',
     !> or the variable `default_justification' if there is no text-property.
     !> However, it returns JUSTIFY_NONE to mean "don't justify".
-    !> Port of fill.el:current-justification (JUSTIFY_NONE for nil).
+    !> Port of fill.el:current-justification (JUSTIFY_NONE for none).
     integer function current_justification() result(j)
         type(value_type) :: v
         type(status_type) :: st

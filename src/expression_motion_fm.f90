@@ -37,7 +37,7 @@
 !>
 !> Deferred: `forward_group_function', `down_group_function' and
 !> `up_group_function' (the defaults are always used), shift selection
-!> (the `^' of the interactive specs), `kill_backward_up_group' (needs
+!> (the `^' of how the commands read their arguments), `kill_backward_up_group' (needs
 !> thingatpt.el), `move_past_close_and_reindent' (M-); needs lisp-mode.el's
 !> `calculate_lisp_indent'); not applicable: `field_complete' and
 !> `lisp_complete_symbol' (obsolete; Emacs Lisp completion).
@@ -95,16 +95,16 @@ module expression_motion_fm
     end type forward_expression_entry_type
 
     !> The type of `forward_expression_function': the default `value' (assign
-    !> with `=>'; null is nil) and buffers' own values (`set_local',
-    !> where null is nil too).
+    !> with `=>'; null when unset) and buffers' own values (`set_local',
+    !> where null means unset too).
     type, public :: forward_expression_function_type
         procedure(forward_expression_proc), pointer, nopass :: value => null()
         type(forward_expression_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer its own value FN (setq-local); absent is
-        !> nil.
+        !> Give the current buffer its own value FN (set_local); absent
+        !> clears it.
         procedure :: set_local => forward_expression_set_local
-        !> The value in the current buffer (null for nil).
+        !> The value in the current buffer (null when unset).
         procedure :: get => forward_expression_get
         !> Whether the current buffer has its own value.
         procedure :: local_p => is_forward_expression_local
@@ -137,16 +137,16 @@ module expression_motion_fm
     end type beginning_of_subprogram_entry_type
 
     !> The type of `beginning_of_subprogram_function': the default `value'
-    !> (assign with `=>'; null is nil) and buffers' own values
+    !> (assign with `=>'; null when unset) and buffers' own values
     !> (`set_local').
     type, public :: beginning_of_subprogram_function_type
         procedure(beginning_of_subprogram_proc), pointer, nopass :: value => null()
         type(beginning_of_subprogram_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer its own value FN (setq-local); absent is
-        !> nil.
+        !> Give the current buffer its own value FN (set_local); absent is
+        !> clears it.
         procedure :: set_local => bod_set_local
-        !> The value in the current buffer (null for nil).
+        !> The value in the current buffer (null when unset).
         procedure :: get => bod_get
         !> Make the current buffer use the default again.
         procedure :: kill_local => bod_kill_local
@@ -207,7 +207,7 @@ module expression_motion_fm
     !> Table of paired characters inserted by `insert_pair'.
     !> Each element looks like (OPEN-CHAR CLOSE-CHAR) or (COMMAND-CHAR
     !> OPEN-CHAR CLOSE-CHAR).  The characters OPEN-CHAR and CLOSE-CHAR
-    !> of the pair whose key is equal to the last input character with
+    !> of the entry whose key is equal to the last input character with
     !> or without modifiers, are inserted by `insert_pair'.
     !>
     !> If COMMAND-CHAR is specified, it is a character that triggers the
@@ -435,7 +435,7 @@ contains
     !> backward across N balanced expressions.  This command assumes
     !> point is not in a string or comment.  Calls
     !> `forward_expression_function' to do the work, if that is set.
-    !> If unable to move over an expression, signal `scan_error' with three
+    !> If unable to move over an expression, a `scan_error' error condition occurs with three
     !> arguments: a message, the start of the obstacle (usually a
     !> parenthesis or group marker of some kind), and end of the
     !> obstacle.  If INTERACTIVE is true, as it is interactively,
@@ -1532,7 +1532,7 @@ contains
     !> character is inserted ARG times.
     !>
     !> This command assumes point is not in a string or comment.
-    !> Port of lisp.el:insert-pair (ARG absent for nil).
+    !> Port of lisp.el:insert-pair (ARG absent for no prefix).
     recursive subroutine insert_pair(status, arg, open, close)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -1659,7 +1659,7 @@ contains
     !> If region is active, insert enclosing characters at region boundaries.
     !>
     !> This command assumes point is not in a string or comment.
-    !> Port of lisp.el:insert-parentheses (ARG absent for nil).
+    !> Port of lisp.el:insert-parentheses (ARG absent for no prefix).
     recursive subroutine insert_parentheses(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -1753,16 +1753,11 @@ contains
     !>
     !> For instance, if you have:
     !>
-    !>   (let ((foo 2))
-    !>     (progn
-    !>       (setq foo 3)
-    !>       (zot)
-    !>       (+ foo 2)))
+    !>   x = max(a, min(b, c))
     !>
-    !> and point is before (zot), \[raise_expression] will give you
+    !> and point is before min, \[raise_expression] will give you
     !>
-    !>   (let ((foo 2))
-    !>     (zot))
+    !>   x = min(b, c)
     !>
     !> Port of lisp.el:raise-sexp.
     recursive subroutine raise_expression(n, status)
@@ -1803,7 +1798,7 @@ contains
     !> expressions in general.  This is done according to the
     !> current syntax table and will find unbalanced brackets or quotes as
     !> appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is
-    !> found, an error is signaled and point is left at the first unbalanced
+    !> found, an error condition occurs and point is left at the first unbalanced
     !> character.  Port of lisp.el:check-parens.
     subroutine check_parens(status)
         type(status_type), intent(out) :: status

@@ -26,7 +26,7 @@
 !>
 !> Differences from upstream, for want of Lisp and of display features:
 !>
-!> - REPLACEMENTS as a (FUNCTION . DATA) cons is a Fortran function of
+!> - REPLACEMENTS as two values, FUNCTION and DATA, is a Fortran function of
 !>   the replacement count (`replacement_function'); `\,' (a Lisp
 !>   expression) in an interactive replacement is an error, while `\#'
 !>   (the replacement count) works;
@@ -150,7 +150,7 @@ module replace_fm
     !> match.
     type(named_face_type), target, public :: match
 
-    !> A FROM_STRING and TO_STRING pair of `query_replace_defaults'.
+    !> An entry of `query_replace_defaults', with components `from' and `to'.
     type, public :: replace_pair_type
         character(len=:), allocatable :: from, to
     end type replace_pair_type
@@ -186,13 +186,13 @@ module replace_fm
     logical, public :: replace_regexp_lax_whitespace = .false.
 
     !> Default values of FROM_STRING and TO_STRING for `query_replace'.
-    !> This is an array of FROM_STRING and TO_STRING pairs, or unallocated
+    !> This is an array of entries with components `from' and `to', or unallocated
     !> if there are no default values.  Port of replace.el
     !> query-replace-defaults (most recent first).
     type(replace_pair_type), allocatable, public :: query_replace_defaults(:)
 
     !> String that separates FROM and TO in the history of replacement
-    !> pairs.  When unallocated, the pair will not be added to the
+    !> strings.  When unallocated, FROM and TO will not be added to the
     !> history (same behavior as in Emacs 24.5).  Port of replace.el
     !> query-replace-from-to-separator.
     character(len=:), allocatable, public :: query_replace_from_to_separator
@@ -469,7 +469,7 @@ contains
     end function find_directive
 
     !> Maybe convert a regexp replacement TO for `perform_replace'.
-    !> REGEXP-FLAG non-nil means TO is a regexp.  `counted' is true when TO
+    !> REGEXP-FLAG .true. means TO is a regexp.  `counted' is true when TO
     !> contains `\#', which stands for the number of replacements done so
     !> far (`replace_expand_count' substitutes it).  `\,' (a Lisp
     !> expression) is an error: there is no Lisp.  Port of
@@ -550,9 +550,8 @@ contains
         found = .true.
     end subroutine history_head
 
-    !> Add (FROM . TO) to `query_replace_defaults'.  Port of the
-    !> (add-to-history 'query-replace-defaults (cons from to) nil t)
-    !> calls.
+    !> Add FROM and TO to `query_replace_defaults'.  Port of the
+    !> `add_to_history' calls on `query_replace_defaults' (KEEP-ALL .true.).
     subroutine push_defaults(from, to)
         character(len=*), intent(in) :: from, to
         type(replace_pair_type), allocatable :: longer(:)
@@ -644,7 +643,7 @@ contains
     !> (a.k.a. "tag") at point, the last isearch regexp, the last isearch
     !> string, and the last replacement regexp.  `read_regexp' appends the
     !> list returned by this function to the end of values available via
-    !> M-n.  Port of replace.el:read-regexp-suggestions (nil elements are
+    !> M-n.  Port of replace.el:read-regexp-suggestions (unallocated elements are
     !> left out, as read-regexp drops them).
     subroutine read_regexp_suggestions(list, n)
         type(minibuffer_string_type), allocatable, intent(out) :: list(:)
@@ -678,8 +677,8 @@ contains
     !> rest come before `read_regexp_suggestions' in the values M-n
     !> offers.
     !>
-    !> The optional argument HISTORY is a symbol to use for the history list.
-    !> If nil, use `regexp_history'.  Port of replace.el:read-regexp
+    !> The optional argument HISTORY is a name to use for the history list.
+    !> If absent, use `regexp_history'.  Port of replace.el:read-regexp
     !> (DEFAULTS a list of strings; no read-regexp-defaults-function,
     !> read-regexp-map or case-fold toggle).
     recursive subroutine read_regexp(prompt, result, status, defaults, history)
@@ -772,8 +771,8 @@ contains
     end subroutine read_regexp
 
     !> Query and return the FROM argument of a `query_replace' operation.
-    !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should
-    !> be a regexp.  The return value can also be a pair (FROM . TO)
+    !> Prompt with PROMPT.  REGEXP-FLAG .true. means the response should
+    !> be a regexp.  The return value can also be two values, FROM and TO,
     !> indicating that the user wants to replace FROM with TO: then
     !> `have_to' is true, and `counted' says whether TO uses `\#'.
     !> Port of replace.el:query-replace-read-from.
@@ -892,7 +891,7 @@ contains
     end subroutine query_replace_read_from
 
     !> Query and return the TO argument of a `query_replace' operation.
-    !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response
+    !> Prompt with PROMPT.  REGEXP-FLAG .true. means the response
     !> should a regexp.  `counted' says whether TO uses `\#'.  Port of
     !> replace.el:query-replace-read-to.
     recursive subroutine query_replace_read_to(from, prompt, regexp_flag, to, counted, status)
@@ -1016,7 +1015,7 @@ contains
     !> as returned from the `match_data' function.  BACKWARD is
     !> used to reverse the replacement direction.
     !>
-    !> The return value is non-nil if there has been no `\?' or NOEDIT was
+    !> The return value is .true. if there has been no `\?' or NOEDIT was
     !> passed in.  If LITERAL is set, no checking is done, anyway.
     !> Port of replace.el:replace-match-maybe-edit (the edited text is read
     !> with point at its end).
@@ -1135,13 +1134,13 @@ contains
     !> see the documentation of `replace_match' to find out how to simulate
     !> `case_replace'.
     !>
-    !> This function returns nil if there were no matches to make, or
+    !> This function returns .false. if there were no matches to make, or
     !> the user canceled the call.
     !>
-    !> REPLACEMENTS is either a string, a list of strings, or a cons cell
-    !> containing a function and its first argument.  The function is
+    !> REPLACEMENTS is either a string, an array of strings, or two values,
+    !> a function and its first argument.  The function is
     !> called to generate each replacement like this:
-    !>   (funcall (car replacements) (cdr replacements) replace-count)
+    !>   call FUNCTION(DATA, replace_count)
     !> It must return a string.
     !>
     !> In Fortmacs, REPLACEMENTS is the string `replacements', unless
@@ -1274,7 +1273,7 @@ contains
                 real_data = again_match
                 found = .true.
             case (AGAIN_AT_POINT)
-                ! MATCH-AGAIN non-nil means accept an adjacent match.
+                ! MATCH-AGAIN .true. means accept an adjacent match.
                 found = replace_search(from_string, merge(limit, 0_int64, have_limit), regexp_flag, &
                                        delimited_flag, fold, status, back)
                 if (.not. status%ok()) exit main

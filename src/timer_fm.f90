@@ -41,7 +41,7 @@
 !> 35 minutes"), encoded times and t (integral multiples of REPEAT,
 !> timer-next-integral-multiple-of-time), `with_timeout',
 !> `read_y_or_n_with_timeout', `timer_duration', `add_timeout' (obsolete),
-!> keyboard.c's pending_funcalls, the timer-event-last debugging
+!> keyboard.c's pending calls, the timer-event-last debugging
 !> variables, and timers' interactive commands (`cancel_function_timers'
 !> is a function only).  The clock is monotonic, where upstream's
 !> current-time is the wall clock.
@@ -71,7 +71,7 @@ module timer_fm
     !> loop redisplays when it changes while waiting).
     integer(int64), public, protected :: timers_run = 0
 
-    !> The message of the last error a timer function signaled ("Error
+    !> The message of the last error condition that occurred in a timer function ("Error
     !> running timer: ..."), for the caller of `timer_check' to show;
     !> unallocated for none.  Port of the message of
     !> timer.el:timer-event-handler (timer_fm sits below the echo area).
@@ -180,13 +180,13 @@ contains
         is_timer = table%is_live(timer)
     end function is_timer
 
-    !> Signal wrong-type-argument unless TIMER is a timer.  Port of
+    !> A `wrong_type_argument' error condition occurs unless TIMER is a timer.  Port of
     !> timer.el:timer--check.
     subroutine timer_check_arg(timer, status)
         type(handle_type), intent(in) :: timer
         type(status_type), intent(out) :: status
 
-        if (.not. is_timer(timer)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_timer")
+        if (.not. is_timer(timer)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(timer_type)")
     end subroutine timer_check_arg
 
     !> Whether TIMER is inactive (triggered): not waiting to be run.
@@ -217,7 +217,7 @@ contains
     !> If optional third argument DELTA is a positive number, make the timer
     !> fire repeatedly that many seconds apart.  Port of
     !> timer.el:timer-set-time (TIME is relative, in seconds; upstream it
-    !> is a Lisp time value).
+    !> is a time value of several forms).
     subroutine timer_set_time(timer, time, status, delta)
         type(handle_type), intent(in) :: timer
         real(real64), intent(in) :: time
@@ -421,7 +421,7 @@ contains
     end subroutine cancel_timer
 
     !> Remove TIMER from the list of active timers or idle timers; WAS
-    !> says whether it was on one (upstream returns the cons cell that was
+    !> says whether it was on one (upstream returns the list element that was
     !> removed).  Port of timer.el:cancel-timer-internal.
     subroutine cancel_timer_internal(timer, was)
         type(handle_type), intent(in) :: timer
@@ -678,7 +678,7 @@ contains
     end subroutine timer_resume_idle
 
     !> Return the current length of Emacs idleness in seconds in SECS,
-    !> with IDLE_P false (upstream's nil) when Emacs is not idle.  Port of
+    !> with IDLE_P .false. when Emacs is not idle.  Port of
     !> keyboard.c:Fcurrent_idle_time.
     subroutine current_idle_time(idle_p, secs)
         logical, intent(out) :: idle_p

@@ -131,7 +131,7 @@ module recentf_fm
         procedure(recentf_filename_handler_proc), pointer, nopass :: handler => null()
     end type recentf_filename_handler_type
 
-    !> `recentf_max_saved_items' for no limit (nil upstream).
+    !> `recentf_max_saved_items' for no limit.
     integer, parameter, public :: RECENTF_NO_LIMIT = huge(0)
 
     !> Maximum number of items of the recent list that will be saved.
@@ -150,7 +150,7 @@ module recentf_fm
     !> this value.  This is decimal, not octal.  The default is 384 (0600
     !> in octal), which gives R/W access only to the user who owns that
     !> file.  See also the function `set_file_modes'.  Port of recentf.el
-    !> recentf-save-file-modes (-1 for nil).
+    !> recentf-save-file-modes (-1 for none).
     integer, public :: recentf_save_file_modes = 384
 
     !> List of regexps and predicates for filenames excluded from the
@@ -225,7 +225,7 @@ module recentf_fm
 
     !> The interval between auto saves of recently opened files, in
     !> seconds.  If set to 0, disables timer-based auto saving.  Port of
-    !> recentf.el recentf-autosave-interval (0 for nil).
+    !> recentf.el recentf-autosave-interval (0 for none).
     integer, public :: recentf_autosave_interval = 0
 
     !> True if recentf searches and matches should ignore case (false on

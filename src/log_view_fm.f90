@@ -28,7 +28,7 @@
 !> The buffer-local variables `log_view_file_re', `log_view_message_re',
 !> `log_view_per_file_logs', `log_view_expanded_log_entry_function',
 !> `log_view_vc_fileset' and `log_view_vc_backend' are set with
-!> `set_log_view_file_re' and its siblings, as `setq-local' does.
+!> `set_log_view_file_re' and its siblings, as `set_local' does.
 !>
 !> Deferred: `log_view_modify_change_comment' (e, needing the backend's
 !> `modify-change-comment'), `log_view_annotate_version' (a, needing
@@ -92,7 +92,7 @@ module log_view_fm
 
     abstract interface
         !> `log_view_expanded_log_entry_function': return in TEXT the detailed
-        !> description of the Log View entry REVISION (FOUND false for nil).
+        !> description of the Log View entry REVISION (FOUND .false. for none).
         !> Not a port.
         recursive subroutine log_view_entry_proc(revision, text, found)
             implicit none(type, external)
@@ -262,7 +262,7 @@ contains
     end function log_view_per_file_logs
 
     !> The current buffer's `log_view_vc_fileset': the VC fileset
-    !> corresponding to the current log (HAS false for nil).  Not a port.
+    !> corresponding to the current log (HAS .false. for none).  Not a port.
     subroutine log_view_vc_fileset(fileset, has)
         type(vc_string_type), allocatable, intent(out) :: fileset(:)
         logical, intent(out) :: has
@@ -280,7 +280,7 @@ contains
     end subroutine log_view_vc_fileset
 
     !> The current buffer's `log_view_vc_backend': the VC backend that
-    !> created the current log (0 for nil).  Not a port.
+    !> created the current log (0 for none).  Not a port.
     integer function log_view_vc_backend() result(b)
         integer :: k
 
@@ -315,7 +315,7 @@ contains
         keywords(2) = font_lock_keyword(log_view_message_re(), face="log_view_message")
     end subroutine log_view_font_lock_keywords
 
-    !> (setq-local log-view-file-re RE).  Not a port.
+    !> Give the current buffer its own `log_view_file_re', RE (set_local).  Not a port.
     subroutine set_log_view_file_re(re)
         character(len=*), intent(in) :: re
         integer :: k
@@ -324,7 +324,7 @@ contains
         locals(k)%file_re = re
     end subroutine set_log_view_file_re
 
-    !> (setq-local log-view-message-re RE).  Not a port.
+    !> Give the current buffer its own `log_view_message_re', RE (set_local).  Not a port.
     subroutine set_log_view_message_re(re)
         character(len=*), intent(in) :: re
         integer :: k
@@ -333,7 +333,7 @@ contains
         locals(k)%message_re = re
     end subroutine set_log_view_message_re
 
-    !> (setq-local log-view-per-file-logs FLAG).  Not a port.
+    !> Give the current buffer its own `log_view_per_file_logs', FLAG (set_local).  Not a port.
     subroutine set_log_view_per_file_logs(flag)
         logical, intent(in) :: flag
         integer :: k
@@ -343,7 +343,7 @@ contains
         locals(k)%per_file_logs = flag
     end subroutine set_log_view_per_file_logs
 
-    !> (setq-local log-view-expanded-log-entry-function FN).  Not a port.
+    !> Give the current buffer its own `log_view_expanded_log_entry_function', FN (set_local).  Not a port.
     subroutine set_log_view_expanded_log_entry_function(fn)
         procedure(log_view_entry_proc) :: fn
         integer :: k
@@ -352,7 +352,7 @@ contains
         locals(k)%expanded => fn
     end subroutine set_log_view_expanded_log_entry_function
 
-    !> (setq-local log-view-vc-fileset FILESET).  Not a port.
+    !> Give the current buffer its own `log_view_vc_fileset', FILESET (set_local).  Not a port.
     subroutine set_log_view_vc_fileset(fileset)
         type(vc_string_type), intent(in) :: fileset(:)
         integer :: k
@@ -362,7 +362,7 @@ contains
         locals(k)%fileset = fileset
     end subroutine set_log_view_vc_fileset
 
-    !> (setq-local log-view-vc-backend B).  Not a port.
+    !> Give the current buffer its own `log_view_vc_backend', B (set_local).  Not a port.
     subroutine set_log_view_vc_backend(b)
         integer, intent(in) :: b
         integer :: k
@@ -371,7 +371,7 @@ contains
         locals(k)%backend = b
     end subroutine set_log_view_vc_backend
 
-    !> (setq-local log-view-font-lock-keywords KEYWORDS).  Not a port.
+    !> Give the current buffer its own `log_view_font_lock_keywords', KEYWORDS (set_local).  Not a port.
     subroutine set_log_view_font_lock_keywords(keywords)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
@@ -618,7 +618,7 @@ contains
     end function is_log_view_inside_comment
 
     !> Return the revision tag (a string) of the Log View entry at POS.
-    !> if POS is omitted, it defaults to point (HAS false for nil).
+    !> if POS is omitted, it defaults to point (HAS .false. for none).
     !> Port of log-view.el:log-view-current-tag.
     recursive subroutine log_view_current_tag(tag, has, pos)
         character(len=:), allocatable, intent(out) :: tag

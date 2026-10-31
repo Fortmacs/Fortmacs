@@ -189,7 +189,7 @@ contains
     end subroutine syms_of_buffer
 
     !> Start keeping undo information for buffer BUFFER.
-    !> No argument or nil as argument means do this for the current buffer.
+    !> An absent argument means do this for the current buffer.
     !> Port of buffer.c:Fbuffer_enable_undo (the command: interactive "",
     !> the current buffer).
     subroutine cmd_buffer_enable_undo(status)

@@ -147,20 +147,20 @@ module mule_fm
 
     !> Per-buffer `buffer_file_coding_system_explicit': the coding systems
     !> the user gave for reading and for writing the buffer's file
-    !> (mule.el's permanent-local (READ . WRITE) cons), by buffer serial.
+    !> (mule.el's permanent-local two values, READ and WRITE), by buffer serial.
     type :: explicit_type
         integer(int64) :: serial = -1
         character(len=:), allocatable :: read, write
     end type explicit_type
     type(explicit_type), allocatable :: explicit(:)
 
-    !> Default value for the terminal coding system ("" for nil).  This is
+    !> Default value for the terminal coding system ("" for none).  This is
     !> normally set according to the selected language environment.  See
     !> also the command `set_terminal_coding_system'.  Port of mule.el
     !> default-terminal-coding-system.
     character(len=:), allocatable, public :: default_terminal_coding_system
 
-    !> Default value of the keyboard coding system ("" for nil).  This is
+    !> Default value of the keyboard coding system ("" for none).  This is
     !> normally set according to the selected language environment.  See
     !> also the command `set_keyboard_coding_system'.  Port of mule.el
     !> default-keyboard-coding-system.
@@ -1141,7 +1141,7 @@ contains
     !> \[list_coding_systems].  The default is determined by the selected
     !> language environment or by the previous use of this command.
     !>
-    !> If CODING_SYSTEM is nil or the coding-type of CODING_SYSTEM is
+    !> If CODING_SYSTEM is "" or the coding-type of CODING_SYSTEM is
     !> `raw-text', the decoding of keyboard input is disabled.
     !>
     !> The setting has no effect on graphical terminals.  Port of

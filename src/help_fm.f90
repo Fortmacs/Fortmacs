@@ -586,7 +586,7 @@ contains
 
     !> Set up help window WINDOW for `with_help_window'.  WINDOW is the
     !> window used for displaying the help buffer.  Port of
-    !> help.el:help-window-setup (`help_window_select' nil, one frame).
+    !> help.el:help-window-setup (`help_window_select' .false., one frame).
     subroutine help_window_setup(window)
         type(handle_type), intent(in) :: window
         integer :: help_setup, nwindows
@@ -755,7 +755,7 @@ contains
         ok = status%ok() .and. .not. eof
     end subroutine read_help_key
 
-    !> Whether `defn' leaves a key undefined: nil, a number (a key too
+    !> Whether `defn' leaves a key undefined: unallocated, a number (a key too
     !> long) or `undefined'.  Port of help.el:help--binding-undefined-p.
     logical function is_binding_undefined(defn)
         type(value_type), intent(in) :: defn
@@ -1879,7 +1879,7 @@ contains
     end subroutine describe_map
 
     !> The binding of `key' in the shadowing maps (lookup-key with
-    !> ACCEPT-DEFAULT); nil if the key sequence is too long.  Port of
+    !> ACCEPT-DEFAULT); unallocated if the key sequence is too long.  Port of
     !> help.el:help--shadow-lookup (no REMAP).
     subroutine shadow_lookup(shadow, key, val)
         type(value_type), intent(in) :: shadow(:), key(:)

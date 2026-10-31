@@ -179,7 +179,7 @@ module vc_dir_fm
     type(local_type), allocatable :: locals(:)
 
     ! The backend `vc_dir_mode' gives the buffer (use-vc-backend,
-    ! dynamically bound by `vc_dir').
+    ! saved and restored by `vc_dir').
     integer :: use_vc_backend = 0
 
     ! `vc_dir_allow_mass_mark_changes' as bound by `vc_dir_mark_unmark'.
@@ -247,7 +247,7 @@ contains
         if (k > 0) locals(k) = local_type()
     end subroutine kill_vc_dir_locals
 
-    !> The current buffer's `vc_ewoc' (HAS false for nil).  Not a port.
+    !> The current buffer's `vc_ewoc' (HAS .false. for none).  Not a port.
     subroutine vc_dir_ewoc(ewoc, has)
         type(ewoc_type), intent(out) :: ewoc
         logical, intent(out) :: has
@@ -271,7 +271,7 @@ contains
     end function ew
 
     !> The current buffer's `vc_dir_backend': the backend used by the
-    !> current *vc-dir* buffer (0 for nil).  Not a port.
+    !> current *vc-dir* buffer (0 for none).  Not a port.
     integer function vc_dir_backend()
         integer :: k
 
@@ -1703,8 +1703,8 @@ contains
         end do
     end subroutine vc_dir_marked_files
 
-    !> Return the list of (FILE . STATE) for the marked files.
-    !> For marked directories return the corresponding pairs for the
+    !> Return the FILE and STATE of each marked file.
+    !> For marked directories return the FILE and STATE of the
     !> child files.  Port of vc-dir.el:vc-dir-marked-only-files-and-states.
     subroutine vc_dir_marked_only_files_and_states(files, states)
         type(vc_string_type), allocatable, intent(out) :: files(:)
@@ -1767,8 +1767,8 @@ contains
 
     !> Return the state of one or more files for the current entry.
     !> If the entry is a directory, return the list of states of its child
-    !> files, where each file is described by a pair (FILE . STATE).
-    !> If the entry is a file, return a single pair (FILE . STATE) for
+    !> files, where each file is described by two values, FILE and STATE.
+    !> If the entry is a file, return its FILE and STATE for
     !> that file.  Port of vc-dir.el:vc-dir-child-files-and-states.
     subroutine vc_dir_child_files_and_states(files, states)
         type(vc_string_type), allocatable, intent(out) :: files(:)
@@ -2219,7 +2219,7 @@ contains
     end function set_needs_update
 
     !> Refresh the contents of the *VC-Dir* buffer.
-    !> Throw an error if another update process is in progress.  Port of
+    !> An error condition occurs if another update process is in progress.  Port of
     !> vc-dir.el:vc-dir-refresh.
     recursive subroutine vc_dir_refresh(status)
         type(status_type), intent(out) :: status
@@ -2291,7 +2291,7 @@ contains
     !> Hide items that are in STATE from display.
     !> See `vc_state' for valid values of STATE.
     !>
-    !> If STATE is absent (nil), hide both `up-to-date' and `ignored' items.
+    !> If STATE is absent, hide both `up-to-date' and `ignored' items.
     !>
     !> Interactively, if `current_prefix_arg' is true, set STATE to
     !> state of item at point, if any.  Port of vc-dir.el:vc-dir-hide-state.

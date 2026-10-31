@@ -610,6 +610,76 @@ scheme_fm and their tests), and tools that read upstream's Lisp and C
 (tools/progress.sh).  Messages and docstrings are renamed; Lisp that code
 matches is not.
 
+### Wording
+
+Docstrings, messages, error strings and these documents say in Fortran
+what upstream says in Lisp.  Applied (the owner's design review, PR 2):
+
+- A2: a wrong-type error names the expected Fortran declaration: "Wrong
+  type argument: expected character(len=*)", "expected integer",
+  "expected type(keymap_type)", "expected live type(window_type)",
+  "expected integer (a character code)", "expected name", "expected
+  array", then ", got VALUE" where upstream shows the value ("Wrong
+  type argument: expected character(len=*), got file").  The qualifiers
+  (live, valid, case table, ">= 0", "a character code") stay.
+- A3: the error table and help say "Variable has no value", "Function
+  is not defined", "Attempt to set a named constant" and "Unknown name";
+  help says "NAME has no value as a variable" and "You didn't specify a
+  function name".
+- A4a: nil and non-nil go by the value's type: a logical is `.true.` or
+  `.false.`, an optional argument present or absent, an allocatable
+  unallocated, a pointer null, a missing name "", a handle the null
+  handle, and a setting its named constants (the "(upstream nil, t,
+  ...)" asides are gone); a bare t meaning true is `.true.`.  A null
+  `value_type` is unallocated ("Return an unallocated value if KEY has
+  no binding"), a 0 or -1 sentinel is none, and an absent prefix
+  argument is no prefix.
+- A4b and B2: a symbol in the Lisp-object sense is a name; the syntax
+  class (symbol constituents, the identifier at point) is an
+  identifier.  Upstream's own symbols, cited as such, keep the word.
+- A4c: an error is "a `X' error condition occurs" (the standard's
+  wording), not a signal; POSIX process signals keep the word.
+- B8: a condition-case handler is a check of the status, a throw to X a
+  return to X with a status, and a catch the caller that checks the
+  status.
+- A4d: a cons is named components (`decoding` and `encoding`; "a
+  replacement with components `function` and `data`"), or, where the
+  text only describes upstream data, "two values, X and Y"; the word
+  "pair" is never used for data; a FORM that is evaluated is a
+  PREDICATE (a logical function)
+  that is called; an interactive spec is described ("a command that
+  reads the region"); a plist is typed components and constructors for
+  faces (`face_underline(color=..., style=..., position=...)`), "text
+  properties" for text, and "attributes" for symbols, charsets and
+  abbrevs; byte-compiler mentions are gone; help's Lisp samples are
+  Fortran (raise_expression: "x = max(a, min(b, c))" with point before
+  min gives "x = min(b, c)").
+- The rest of the scan: car and cdr are first and rest (or the
+  component's name), lambda a procedure, funcall a call, setq an
+  assignment (setq-local `set_local`), the obarray the name table,
+  "Elisp" and "Lisp" are reworded (Info node names such as
+  `(elisp)Basic Completion` and the Lisp language modes stay), and
+  "dynamic binding" or "let-bound" in comments is "saved and restored".
+
+**The check.**  tools/fortran-prose lists the wording that is no longer
+used, with what to write instead: non-nil, a standalone nil, "is void",
+"Symbol's value", "constant symbol", "Wrong type argument: PREDp,",
+"signal an error", throw and catch, condition-case, "property list" and
+plist, "interactive spec", "byte-compil", cons, "dotted pair", pair
+(kept where it means delimiters, Unicode bracket pairs or a
+pseudo-terminal pair), car and cdr, lambda, funcall, setq, obarray and
+Elisp.  tools/check.sh runs
+tools/fortran-prose.awk, which fails with FILE:LINE on one of them in a
+`!>` docstring or in a message or error string (the string literals of
+a line that calls `set_error`, `message`, `user_error`,
+`format_message` or `minibuffer_message`), and
+tools/test-fortran-prose.sh on its fixture (tools/fortran-prose-test).
+Citations, identifiers (a quoted `name`, a name with an underscore, an
+argument in capitals), the tests, the Lisp language modes and the
+table's `keep` entries are not checked; the generic value machinery
+(lisp_fm, fns_fm, data_fm, print_fm, lread_fm, data_buffer_fm) is kept
+until C1 to C5 rewrite it.
+
 ### Decided, not yet applied
 
 The owner settled these in the same design review; each waits for the PR
@@ -617,37 +687,20 @@ named with it.
 
 **PR 2: wording and names.**
 
-- A2: wrong-type messages use the Fortran declaration: "Wrong type
-  argument: expected X, got VALUE" ("expected character(len=*)"), with a
-  qualifier where the bare type loses what was checked: characterp is
-  "expected integer (a character code)", wholenump "expected integer
-  (>= 0)", a live window "expected live type(window_type)", symbolp
-  "expected name", listp "expected array"; predicate names never appear.
-- "pair" is never said: our types name their components ("a replacement
-  with components `function` and `data`"), and upstream data is "two
-  values, X and Y" (no "upstream's cons" aside).
-- A null `value_type` is "unallocated" in prose; a 0 or -1 sentinel is
-  "none"; an absent prefix argument is "no prefix".
-- A3: the messages "Variable has no value", "Function is not defined",
-  "Attempt to set a named constant" and "Unknown name".
-- A4a: nil and non-nil are said by meaning: a logical is `.true.` or
-  `.false.`, an optional argument is present or absent, a setting has its
-  named constants, and "" means no name.
-- A4b: a symbol in the Lisp-object sense is a name or a named constant.
-- A4c: a signal or throw becomes "a `X' error condition occurs" (the
-  standard wording), and condition-case a check of the status.
-- A4d:
-  - a cons becomes named components (for example `decoding` and
-    `encoding`);
-  - a FORM that is evaluated becomes a PREDICATE (a logical function)
-    that is called;
-  - an interactive spec is described ("a command that reads the region");
-  - a plist goes by its sense: face attributes are a typed constructor or
-    components, text properties are "text properties", and symbol,
-    charset and abbrev plists are "attributes";
-  - `ibuffer_always_compile_formats` (the byte compiler) is removed as
-    not applicable;
-  - Lisp code samples in help become Fortran samples.
+- A2, A3, A4a to A4c and the wording of A4d are applied (see "Wording"
+  above).
+- A6b: a setting with two states is a `logical` (.true./.false.); one
+  with more states is an integer setting with named constants named for
+  their meaning, never `_NIL`, `_T`, `_TRUE` or `_FALSE` (checked with
+  A1: no family has only two states; tools/intrinsics.awk rejects the old
+  forms).
+
+**PR 2b: refactors** (branch `fortran-first-refactors`).
+
+- The code half of A4d: a cons becomes named components (for example
+  `decoding` and `encoding` of `default_process_coding_system`), and
+  `ibuffer_always_compile_formats` (the byte compiler) is removed as not
+  applicable.
 - A5: an `ansi_color_face_type` record (`faces(:)` of `named_face`
   pointers, plus foreground and background); empty means none.
 - A6: settings reached by a name string become typed setting objects;
@@ -660,9 +713,6 @@ named with it.
   becomes an integer setting with named constants; a function setting
   resolves names to procedure pointers when set (an unknown name is
   "Function is not defined"); other mismatches are a wrong-type error.
-- B8: a condition-case handler is "a check of the status", a throw to X
-  is "return to X with a status", and a catch is "the caller that checks
-  the status".
 - Completion help says "COLLECTION is an array of strings, a table of
   (string, value) entries, or a completion function".
 - C2b: a value's type is tested with the language construct on the flat
@@ -675,9 +725,6 @@ named with it.
 - C2c: flat lists become plain Fortran arrays used with the intrinsics
   (`size`, `findloc`, `any`, `pack`, array sections); `value_type` lists
   remain only for truly nested data.
-- A6b: a setting with two states is a `logical` (.true./.false.); one
-  with more states is an integer setting with named constants named for
-  their meaning, never `_NIL`, `_T`, `_TRUE` or `_FALSE`.
 - C3: the name table holds only names that exist at run time;
   compile-time things are reached only through their typed objects;
   `intern` becomes `add_name`, `intern_soft` `find_name`, and
@@ -697,6 +744,24 @@ named with it.
   once to a pointer.
 - C5-5: `cons_repr` and `cons_arg` are removed: each pair-shaped value is
   a derived type with named components; there is no generic "pair".
+- C2b, the rest: the type-checked readers `xfixnum`, `xsymbol`, `xstring`
+  and `xhandle` (each returns a default for another type, so every call
+  site is checked) become direct component reads.
+
+Queued for the owner (no form decided yet): the replacements of
+`t_value`, `sym` and `make_fixnum`; the names of the `*_p` functions
+that are not logical (`window_dedicated_p`, `set_window_dedicated_p`,
+`invisible_p`, `coordinates_in_window_p`, `char_variation_selector_p`,
+`preferred_sequence_p`, `diff_at_diff_header_p`, `arg_p`,
+`vc_call_responsible_p`, `sh_smie_rc_after_special_arg_p`, the hook
+`executable_make_buffer_file_executable_if_script_p`, and six test
+names); the `_vector` names whose plurals clash
+(`this_command_keys_vector`, `execute_kbd_macro_vector`, keymap.c's
+`describe_vector`, keymap_fm's local `is_vector`); the remaining
+object-sense symbols (event symbols, the `apropos_symbol` face, abbrev
+internals, `f90_equal_symbols`); `PYTHON_DOCSTRING_NONE` (named by the A1
+pattern, to confirm); and the decision "keep the blended (multiply)
+shadows" of the logo.
 
 **PR 3: module suffix and module names.**
 

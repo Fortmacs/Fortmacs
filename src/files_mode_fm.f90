@@ -33,8 +33,8 @@ submodule(files_fm) files_mode_fm
     !> An entry of auto-mode-alist.
     type :: auto_mode_type
         character(len=:), allocatable :: regexp, mode
-        !> A (REGEXP MODE t) entry: remove the match from the name and
-        !> keep looking (MODE may be empty, nil).
+        !> An entry with REGEXP, MODE and stripping: remove the match from the name and
+        !> keep looking (MODE may be empty).
         logical :: strip = .false.
     end type auto_mode_type
 

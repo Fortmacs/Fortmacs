@@ -124,19 +124,18 @@ module grep_fm
               grep_process_setup, grep_exit_message, grep_filter, grep_find_ignored_files, &
               rgrep_find_ignored_directories, grep_read_files, grep_apply_setting, grep_tag_default, syms_of_grep
 
-    !> Values of `grep_use_null_device': false (nil), true (t) and not yet
-    !> probed (`auto-detect').
+    !> Values of `grep_use_null_device': .false., .true. and not yet probed.
     integer, parameter, public :: GREP_USE_NULL_DEVICE_NO = 0, GREP_USE_NULL_DEVICE_YES = 1, &
                                   GREP_USE_NULL_DEVICE_AUTO_DETECT = 2
 
-    !> Values of `grep_use_null_filename_separator': false (nil), true (t)
-    !> and not yet probed (`auto-detect').
+    !> Values of `grep_use_null_filename_separator': .false., .true. and not
+    !> yet probed.
     integer, parameter, public :: GREP_USE_NULL_FILENAME_SEPARATOR_NO = 0, GREP_USE_NULL_FILENAME_SEPARATOR_YES = 1, &
                                   GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT = 2
 
-    !> Values of `grep_highlight_matches': false (nil), true (t), not yet
-    !> probed (`auto-detect'), `--color=always' (`always') and
-    !> `--color=auto' (`auto').
+    !> Values of `grep_highlight_matches': .false., .true., not yet probed,
+    !> `--color=always' (GREP_HIGHLIGHT_MATCHES_ALWAYS) and `--color=auto'
+    !> (GREP_HIGHLIGHT_MATCHES_AUTO).
     integer, parameter, public :: GREP_HIGHLIGHT_MATCHES_NO = 0, GREP_HIGHLIGHT_MATCHES_YES = 1, &
                                   GREP_HIGHLIGHT_MATCHES_AUTO_DETECT = 2, GREP_HIGHLIGHT_MATCHES_ALWAYS = 3, &
                                   GREP_HIGHLIGHT_MATCHES_AUTO = 4
@@ -144,7 +143,7 @@ module grep_fm
     ! Whether `lgrep' passes "--directories=skip": yes, no or not known yet.
     integer, parameter :: DIRECTORIES_SKIP_NO = 0, DIRECTORIES_SKIP_YES = 1, DIRECTORIES_SKIP_UNKNOWN = 2
 
-    !> The values of `grep_find_use_xargs': not yet probed (nil), `find
+    !> The values of `grep_find_use_xargs': not yet probed (GREP_FIND_USE_XARGS_UNKNOWN), `find
     !> -exec {} ;' (`exec'), `find -exec {} +' (`exec-plus'), `find
     !> -print0 | xargs -0' (`gnu'), `find -print0 | sort -z | xargs -0'
     !> (`gnu-sort'), and `find -print | xargs' (any other value).
@@ -152,8 +151,8 @@ module grep_fm
                                   GREP_FIND_USE_XARGS_EXEC_PLUS = 2, GREP_FIND_USE_XARGS_GNU = 3, &
                                   GREP_FIND_USE_XARGS_GNU_SORT = 4, GREP_FIND_USE_XARGS_OTHER = 5
 
-    !> The values of `grep_save_buffers': don't save (nil), save all
-    !> buffers (t), ask before saving (`ask').  A function given as
+    !> The values of `grep_save_buffers': don't save (GREP_SAVE_BUFFERS_NO), save all
+    !> buffers (GREP_SAVE_BUFFERS_YES), ask before saving (GREP_SAVE_BUFFERS_ASK).  A function given as
     !> `grep_save_buffers_function' takes precedence.
     integer, parameter, public :: GREP_SAVE_BUFFERS_NO = 0, GREP_SAVE_BUFFERS_YES = 1, GREP_SAVE_BUFFERS_ASK = 2
 
@@ -165,7 +164,7 @@ module grep_fm
     end type grep_files_alias_type
 
     abstract interface
-        !> The car of a cons element of `grep_find_ignored_files_variable' and
+        !> The test of an element of `grep_find_ignored_files_variable' and
         !> `grep_find_ignored_directories': whether the element applies to
         !> the search directory DIR.  Not a port.
         logical function grep_ignore_predicate(dir)
@@ -193,8 +192,7 @@ module grep_fm
 
     !> An element of `grep_find_ignored_files_variable' and
     !> `grep_find_ignored_directories': the file or directory NAME, which
-    !> applies to a search directory only if APPLIES (when given) says so
-    !> (the cons form (FUNCTION . NAME)).
+    !> applies to a search directory only if APPLIES (when given) says so.
     type, public :: grep_ignore_type
         character(len=64) :: name = ""
         procedure(grep_ignore_predicate), pointer, nopass :: applies => null()
@@ -863,7 +861,7 @@ contains
         call move_alloc(k, grep_mode_font_lock_keywords)
     end subroutine init_grep_mode_font_lock_keywords
 
-    !> S, or "" for nil.  Not a port.
+    !> S, or "" when unallocated.  Not a port.
     function setting_value(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: v
@@ -872,8 +870,8 @@ contains
         if (allocated(s)) v = s
     end function setting_value
 
-    !> (if (eq (char-after (match-beginning 1)) ?\0) `(face nil display
-    !> ,(match-string 2))): a NUL separator of a context line is shown as
+    !> The text properties of a context line whose separator (match 1) is NUL:
+    !> no `face', and a `display' of match 2, so the separator is shown as
     !> the separator after the line number.  Not a port.
     subroutine context_separator_properties(start, end, status)
         integer(int64), intent(in) :: start, end
@@ -888,8 +886,8 @@ contains
         if (status%ok()) call put_text_property(start, end, sym("display"), make_string(match_string(2)), status)
     end subroutine context_separator_properties
 
-    !> (if grep-find-abbreviate grep-find-abbreviate-properties '(face nil
-    !> abbreviated-command t)).  Not a port.
+    !> The text properties of an abbreviated command: when `grep_find_abbreviate'
+    !> is .true., `grep_find_abbreviate_properties', else no `face' and `abbreviated-command' .true..  Not a port.
     subroutine abbreviate_properties(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -1862,7 +1860,7 @@ contains
 
     contains
 
-        !> The next region from FROM where PROP is not nil, of one value
+        !> The next region from FROM where PROP has a value, of one value
         !> (text-property-search-forward).
         subroutine next_region(prop, from, b, e2, ok)
             character(len=*), intent(in) :: prop
@@ -2432,7 +2430,7 @@ contains
         if (len(regexp) == 0) return
 
         if (.not. present(dir)) then
-            call set_error(status, FM_USER_ERROR, "Unable to open directory: nil")
+            call set_error(status, FM_USER_ERROR, 'Unable to open directory: ""')
             return
         end if
 
@@ -2526,7 +2524,7 @@ contains
         same_buffer = a%index == b%index .and. a%generation == b%generation
     end function same_buffer
 
-    !> Give OLD its directory back (the end of a let binding of
+    !> Give OLD its directory back (restoring the saved
     !> `default_directory').  Not a port.
     subroutine restore_directory(old, had_dir, saved_dir)
         type(handle_type), intent(in) :: old
@@ -2542,7 +2540,7 @@ contains
         end if
     end subroutine restore_directory
 
-    !> S, or "" for nil.  Not a port.
+    !> S, or "" when unallocated.  Not a port.
     function setting(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: v
@@ -2555,7 +2553,7 @@ contains
     !> with C-u C-u the command (RUN, from COMMAND and HISTORY), else the
     !> REGEXP, FILES, DIR (prompted with DIR_PROMPT) and CONFIRM (C-u).
     !> Port of grep.el:lgrep, grep.el:rgrep and grep.el:zrgrep, in part
-    !> (their interactive specs).
+    !> (how the commands read their arguments).
     recursive subroutine read_grep_args(command, history, dir_prompt, run, regexp, files, dir, confirm, status)
         character(len=:), allocatable, intent(in) :: command
         character(len=*), intent(in) :: history, dir_prompt
@@ -2675,7 +2673,7 @@ contains
         if (len(regexp) == 0) return
 
         if (.not. present(dir)) then
-            call set_error(status, FM_USER_ERROR, "Unable to open directory: nil")
+            call set_error(status, FM_USER_ERROR, 'Unable to open directory: ""')
             return
         end if
 
@@ -2921,7 +2919,7 @@ contains
         ! Use for `grep_read_files'.
         grep_files_aliases = [grep_files_alias_type(name="all", files="* .*"), &
                               grep_files_alias_type(name="gz", files="*.gz")]
-        ! Recompute defaults using let-bound values above.
+        ! Recompute defaults using the values set above (saved and restored).
         call grep_compute_defaults(status)
         have_template = allocated(grep_find_template)
         if (have_template) template = grep_find_template
@@ -2936,7 +2934,7 @@ contains
             end if
         end if
 
-        ! The let bindings end.
+        ! Restore the saved values.
         grep_program = saved_program
         call move_alloc(saved_aliases, grep_files_aliases)
         grep_host_defaults_table = saved_table

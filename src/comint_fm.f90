@@ -594,7 +594,7 @@ module comint_fm
         type(handle_type) :: buffer
         type(ring_type) :: input_ring
         logical :: has_ring = .false.
-        !> -1 for nil.
+        !> -1 for none.
         integer :: input_ring_index = -1, save_input_ring_index = -1
         logical :: ptyp = .true.
         !> The variables comint-mode sets (killed with the local variables).
@@ -674,8 +674,8 @@ module comint_fm
     !> The string FILESUFFIX added to file names on unambiguous or exact
     !> completion (" " by default; the empty string adds none).
     !> This mirrors the optional behavior of tcsh.  Port of comint.el
-    !> comint-completion-addsuffix (t is " ", nil is "", and the obsolete
-    !> pair (DIRSUFFIX . FILESUFFIX) is FILESUFFIX).
+    !> comint-completion-addsuffix (.true. is " ", .false. is "", and the obsolete
+    !> two values, DIRSUFFIX and FILESUFFIX, give FILESUFFIX).
     type(string_setting), target, public :: comint_completion_addsuffix = &
                                             string_setting(name="comint_completion_addsuffix")
 
@@ -970,7 +970,7 @@ contains
     !> The default is `comint_get_old_input_default', which either grabs
     !> the current input field or grabs the current line and strips off
     !> leading text matching `comint_prompt_regexp', depending on the value
-    !> of `comint_use_prompt_regexp'.  Port of the setq-local of comint.el
+    !> of `comint_use_prompt_regexp'.  Port of the buffer-local setting of comint.el
     !> comint-get-old-input.
     subroutine set_comint_get_old_input(fn)
         procedure(comint_get_old_input_proc) :: fn
@@ -988,7 +988,7 @@ contains
     !> `comint_simple_send' just sends the string plus a newline.
     !> (If `comint_input_sender_no_newline' is true, it omits the newline.)
     !> This is called from the user command `comint_send_input'.  Port of
-    !> the setq-local of comint.el comint-input-sender.
+    !> the buffer-local setting of comint.el comint-input-sender.
     subroutine set_comint_input_sender(fn)
         procedure(comint_input_sender_proc) :: fn
         integer :: k
@@ -1002,7 +1002,7 @@ contains
     !> predicate for filtering additions to input history.
     !> Takes one argument, the input.  If true, the input may be saved on
     !> the input history list.  Default is to save anything that isn't all
-    !> whitespace.  Port of the setq-local of comint.el comint-input-filter.
+    !> whitespace.  Port of the buffer-local setting of comint.el comint-input-filter.
     subroutine set_comint_input_filter(fn)
         procedure(comint_input_filter_proc) :: fn
         integer :: k
@@ -1014,9 +1014,9 @@ contains
 
     !> Abnormal hook run when prompted for a password.
     !> This function gets one argument, a string containing the prompt.
-    !> It may return a string containing the password, or nil if normal
+    !> It may return a string containing the password, or unallocated if normal
     !> password prompting should occur.  Sets the current buffer's
-    !> comint.el comint-password-function (buffer-local); without FN, nil.
+    !> comint.el comint-password-function (buffer-local); without FN, null.
     !> Not a port.
     subroutine set_comint_password_function(fn)
         procedure(comint_password_proc), optional :: fn
@@ -1073,7 +1073,7 @@ contains
         pmark_pos = marker_pos(process_mark(proc))
     end function pmark_pos
 
-    !> The property list (rear-nonsticky comint--prompt-rear-nonsticky).
+    !> The text properties (`rear_nonsticky' with `comint__prompt_rear_nonsticky').
     !> Not a port.
     function rear_nonsticky_plist() result(v)
         type(value_type) :: v
@@ -1085,7 +1085,7 @@ contains
                                              sym(trim(PROMPT_REAR_NONSTICKY(5)))))
     end function rear_nonsticky_plist
 
-    !> Whether the symbol V is named NAME.  Not a port.
+    !> Whether the name V is named NAME.  Not a port.
     logical function symbol_is(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
@@ -2441,7 +2441,7 @@ contains
                 if (same_text(lis, lie, lie, lie + echo_len)) then
                     ! Certain parts of the text to be deleted may have been
                     ! mistaken for prompts.  We have to prevent problems
-                    ! when `comint-prompt-read-only' is non-nil.
+                    ! when `comint_prompt_read_only' is .true..
                     call inhibit_read_only_begin(saved)
                     call delete_region(lie, lie + echo_len, st)
 
@@ -4314,7 +4314,7 @@ contains
     !> beginning of line.
     !>
     !> If DRY_RUN is true, return in KIND what the first reference would
-    !> do before performing any actual side-effect (upstream throws it to
+    !> do before performing any actual side-effect (upstream returns it to
     !> DRY-RUN).  Port of
     !> comint.el:comint-replace-by-expanded-history-before-point.
     recursive subroutine comint_replace_by_expanded_history_before_point(silent, status, start, dry_run, kind)
@@ -4565,7 +4565,7 @@ contains
     !> (using the value of INDEX specified with the first command).
     !> Values of INDEX < 0 count from the end, so INDEX = -1 is the last
     !> argument.  This command is like "M-." in Bash and zsh.  HAS_INDEX
-    !> false is INDEX nil.  Port of
+    !> .false. means no INDEX.  Port of
     !> comint.el:comint-insert-previous-argument.
     recursive subroutine comint_insert_previous_argument(index, has_index, status)
         integer, intent(in) :: index
@@ -4719,7 +4719,7 @@ contains
     end subroutine comint_history_isearch_end
 
     !> Put input history item of the absolute history position POS (-1
-    !> for nil).  Port of comint.el:comint-goto-input.
+    !> for none).  Port of comint.el:comint-goto-input.
     recursive subroutine comint_goto_input(pos, status)
         integer, intent(in) :: pos
         type(status_type), intent(out) :: status
@@ -5641,7 +5641,7 @@ contains
     end subroutine quote_functions
 
     !> Give the current buffer its own `comint_unquote_function' and
-    !> `comint_requote_function' (setq-local), UNQUOTE and REQUOTE.
+    !> `comint_requote_function' (set_local), UNQUOTE and REQUOTE.
     !> Not a port.
     subroutine set_comint_quote_functions(unquote, requote)
         procedure(completion_unquote_proc) :: unquote
@@ -5654,7 +5654,7 @@ contains
     end subroutine set_comint_quote_functions
 
     !> Give the current buffer its own `comint_completion_fignore',
-    !> SUFFIXES (setq-local comint-completion-fignore).  Not a port.
+    !> SUFFIXES (set_local).  Not a port.
     subroutine set_comint_completion_fignore(suffixes)
         character(len=*), intent(in) :: suffixes(:)
         integer :: k, i

@@ -24,7 +24,7 @@
 !> built-in ones are the components of `commands' (commands_fm), others
 !> are defined with `define'.  Keymaps bind command names; upstream a
 !> command is a function with an `interactive' spec, stored in the
-!> symbol's function cell, and here a command reads its own arguments
+!> name's function cell, and here a command reads its own arguments
 !> (the prefix argument is `current_prefix_arg').
 !>
 !>     commands%forward_char%run => cmd_forward_char
@@ -93,7 +93,7 @@ contains
         end if
     end function find_command
 
-    !> The function named by symbol V, or null.  Not a port.
+    !> The function named V, or null.  Not a port.
     function symbol_command(v) result(p)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -127,7 +127,7 @@ contains
     end function command_name_of
 
     !> Intern the names of the built-in commands, so that completion over
-    !> the obarray (M-x) sees them.  Not a port.
+    !> the name table (M-x) sees them.  Not a port.
     subroutine intern_command_names()
         integer :: i
         integer(int64) :: id
@@ -145,8 +145,8 @@ contains
         fboundp = associated(symbol_command(v))
     end function fboundp
 
-    !> Whether symbol `v' names a defined command (a function with an
-    !> interactive spec).  Not a port.
+    !> Whether name `v' names a defined command (a function that is a
+    !> command).  Not a port.
     logical function is_command_defined(v)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -194,8 +194,8 @@ contains
         if (allocated(p%disabled_message)) deallocate (p%disabled_message)
     end subroutine set_command_disabled
 
-    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (the
-    !> interactive spec is the command's own business here).  Recursive:
+    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (how the
+    !> command reads its arguments is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
     recursive subroutine call_interactively(cmd, status)
         type(value_type), intent(in) :: cmd
@@ -211,9 +211,9 @@ contains
 
         if (.not. associated(p)) then
             if ((vtag(cmd) == V_NAME .or. vtag(cmd) == V_NULL)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_command, "//symbols(xsymbol(cmd))%name)
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), got "//symbols(xsymbol(cmd))%name)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_command")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type)")
             end if
 
             return
@@ -247,7 +247,7 @@ contains
         call p%run(status)
     end subroutine funcall
 
-    !> The numeric value of raw prefix argument `raw': nil gives 1, `-'
+    !> The numeric value of raw prefix argument `raw': no prefix gives 1, `-'
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.
     integer(int64) function prefix_numeric_value(raw) result(n)
         type(value_type), intent(in) :: raw

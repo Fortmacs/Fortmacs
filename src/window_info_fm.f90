@@ -25,7 +25,7 @@
 
 !> Part of window_fm: the window.c functions that tell about windows.  A
 !> window argument that is absent means the selected window; a result
-!> of nil is the null handle.  There is one frame, so the ALL-FRAMES
+!> of none is the null handle.  There is one frame, so the ALL-FRAMES
 !> arguments of upstream make no difference and are left out, and sizes
 !> are in the canonical lines and columns of a terminal frame.  These
 !> need the frame (frame_fm), so they live in a submodule.
@@ -51,7 +51,7 @@ contains
         i = 0
 
         if (.not. is_window_live(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_live")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
             return
         end if
 
@@ -71,7 +71,7 @@ contains
         i = 0
 
         if (.not. is_window_valid(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_valid")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -108,7 +108,7 @@ contains
         b = null_handle()
 
         if (.not. wtable%issued(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
             return
         end if
 
@@ -183,7 +183,7 @@ contains
 
         if (present(window)) then
             if (.not. is_window_valid(window)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "frame_live_p")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(frame_type)")
                 return
             end if
         end if
@@ -202,7 +202,7 @@ contains
 
         if (present(window)) then
             if (.not. is_window_valid(window)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "frame_live_p")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(frame_type)")
                 return
             end if
         end if
@@ -610,7 +610,7 @@ contains
         if (present(window)) then
             if (.not. wtable%issued(window)) then
                 allocate (list(0))
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
                 return
             end if
         end if

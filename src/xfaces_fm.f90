@@ -28,8 +28,8 @@
 !> text (its `face' text property over the default face, then the
 !> region); `merge_faces' merges a named face into a realized one.
 !>
-!> Face references in text properties are face names (symbols, in the
-!> Fortran spelling: `region', `font_lock_comment_face'), property lists
+!> Face references in text properties are face names (symbols upstream, in the
+!> Fortran spelling: `region', `font_lock_comment_face'), lists
 !> of attributes with the Fortran attribute names as keywords
 !> (`:foreground', `:inverse_video', `:strike_through'), or lists of
 !> face references, the first taking precedence.
@@ -38,8 +38,8 @@
 !> redisplay's region overlay).
 !>
 !> Deferred: `face_remapping_table', mouse faces, face filters
-!> (`:filter'), the cons forms (FOREGROUND-COLOR . COLOR) of face
-!> references (no dotted pairs), the `reset' attribute value, relative
+!> (`:filter'), the two-value forms FOREGROUND-COLOR and COLOR of face
+!> references (no entry of two names), the `reset' attribute value, relative
 !> (float) and functional heights in face references, fonts, fontsets,
 !> stipples and the window-system faces, `internal_set_lisp_face_attribute'
 !> (faces change by assignment in the configuration, then
@@ -130,7 +130,7 @@ contains
     !> didn't say): light for xterm, rxvt, dtterm and eterm (whose
     !> default background is white), else dark.  Port of
     !> frame.el:frame-set-background-mode (the terminal part,
-    !> frame-background-mode nil; the background color xterm.el queries is
+    !> `frame_background_mode' unset; the background color xterm.el queries is
     !> deferred).
     integer function frame_background_mode(term_type, bg_color) result(mode)
         character(len=*), intent(in) :: term_type, bg_color
@@ -218,7 +218,7 @@ contains
     !> face that are not specified get their terminal values: family and
     !> foundry "default", width normal, height 1, weight and slant normal,
     !> no underline, overline, strike-through, box or inverse video,
-    !> `extend' nil, and the colors "unspecified-fg" and "unspecified-bg".
+    !> `extend' .false., and the colors "unspecified-fg" and "unspecified-bg".
     !> They are set on the `default' face itself.  Port of the terminal
     !> part of xfaces.c:realize_default_face.
     subroutine realize_default_face(f)
@@ -619,7 +619,7 @@ contains
     end function face_inherited_extend
 
     !> Merge face attributes from the face reference FACE_REF into TO.
-    !> FACE_REF is a face name, a property list of attributes, or a list
+    !> FACE_REF is a face name, attributes, or a list
     !> of face references, those at the beginning taking precedence.  OK
     !> is false if FACE_REF is invalid (what is valid of it is still
     !> merged).  With EXTEND_ONLY, a face is merged only if it gives
@@ -677,7 +677,7 @@ contains
         ok = .false.
     end subroutine merge_face_ref
 
-    !> Whether V is a keyword (a symbol whose name starts with `:').
+    !> Whether V is a keyword (a name that starts with `:').
     !> Not a port.
     logical function keywordp(v)
         type(value_type), intent(in) :: v
@@ -690,7 +690,7 @@ contains
         end associate
     end function keywordp
 
-    !> Whether V is the symbol NAME.  Not a port.
+    !> Whether V is the name NAME.  Not a port.
     logical function is_symbol(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
@@ -699,7 +699,7 @@ contains
         if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) is_symbol = symbols(xsymbol(v))%name == name
     end function is_symbol
 
-    !> The name of symbol V, or "" if V is not a symbol.  Not a port.
+    !> The text of name V, or "" if V is not a name.  Not a port.
     function symbol_name(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
@@ -708,11 +708,11 @@ contains
         if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function symbol_name
 
-    !> Merge the property list ELTS (keyword, value, ...) of a face
+    !> Merge the attributes ELTS (keyword, value, ...) of a face
     !> reference into TO, in order.  With FILTER, nothing is merged unless
     !> `:extend' is given a true value, or is not mentioned and a face
     !> `:inherit' names gives it one.  Port of
-    !> xfaces.c:merge_face_ref (the property list part).
+    !> xfaces.c:merge_face_ref (the attributes part).
     recursive subroutine merge_plist(elts, to, ok, filter, depth)
         type(value_type), intent(in) :: elts(:)
         type(face_attributes_type), intent(inout) :: to
@@ -730,7 +730,7 @@ contains
         if (filter) then
             ! Don't merge this face if `extend' is nil, or not mentioned,
             ! or if it's unspecified and the face doesn't inherit from a
-            ! face whose `extend' is non-nil.
+            ! face whose `extend' is .true..
             seen = .false.
             k = 1
 
@@ -928,7 +928,7 @@ contains
         end select
     end subroutine merge_attribute
 
-    !> An underline given as a property list (:color COLOR :style STYLE
+    !> An underline given as attributes (:color COLOR :style STYLE
     !> :position POS).  Not a port.
     subroutine underline_from_plist(value, to)
         type(value_type), intent(in) :: value
@@ -1077,7 +1077,7 @@ contains
     !> The id of the face for a character of a string whose `face'
     !> property is PROP, shown where the face is BASE_FACE_ID on frame F:
     !> the base face with PROP merged in (the base face itself if PROP is
-    !> nil).  Port of xfaces.c:face_at_string_position (the string's
+    !> empty).  Port of xfaces.c:face_at_string_position (the string's
     !> property already looked up; no mouse faces).
     integer(int32) function face_at_string_position(f, prop, base_face_id) result(id)
         type(frame_type), intent(inout) :: f
@@ -1104,7 +1104,7 @@ contains
     !> `face' properties of the overlays at POS in order of increasing
     !> priority, among them the `region' face if POS is in
     !> [REGION_START, REGION_END) (the region overlay redisplay makes for
-    !> an active region, of priority (nil . 100)).  With EXTEND_ONLY, only
+    !> an active region, of priority 100).  With EXTEND_ONLY, only
     !> faces that set `extend' are merged (for filling the rest of a
     !> line).  Overlays whose `window' property is not WINDOW (when given)
     !> are left out.  Port of xfaces.c:face_at_buffer_position (no mouse

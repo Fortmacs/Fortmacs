@@ -31,7 +31,7 @@
 !> buffer-local when set and whether it is a user option ("You can
 !> customize this variable.").
 !>
-!> Deferred: the default from the symbol at point, cross-reference
+!> Deferred: the default from the identifier at point, cross-reference
 !> buttons, "Probably introduced at" lines, obsolescence, aliases,
 !> buffer-local values and the other help-fns-describe-variable-functions
 !> (safe and risky local variables, file-local values, watchpoints), the
@@ -113,7 +113,7 @@ contains
     end function is_function_name
 
     !> Whether event `ev' has no modifiers but shift: its
-    !> `event_modifiers' are nil or (shift).  Not a port.
+    !> `event_modifiers' are none or only shift.  Not a port.
     logical function is_unmodified_event(ev)
         type(value_type), intent(in) :: ev
         type(value_type) :: head
@@ -339,7 +339,7 @@ contains
         call variable_doc(name, entry, found)
 
         if (.not. found) then
-            text = name//" is void as a variable."//LF
+            text = name//" has no value as a variable."//LF
             return
         end if
 
@@ -407,7 +407,7 @@ contains
         ! help-fns--describe-function-or-command-prompt (no function at
         ! point yet)
         if (len(name) == 0) then
-            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function symbol"))
+            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function name"))
             return
         end if
 
@@ -657,7 +657,7 @@ contains
         call describe_name_text(name, text, found)
 
         if (.not. found) then
-            call set_error(status, FM_USER_ERROR, "Unknown symbol: "//name)
+            call set_error(status, FM_USER_ERROR, "Unknown name: "//name)
             return
         end if
 

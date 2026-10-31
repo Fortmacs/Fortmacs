@@ -31,8 +31,8 @@
 !> stand for upstream's buttons.
 !>
 !> Deferred: `apropos' itself and `apropos_value', `apropos_library',
-!> `apropos_local_variable', `apropos_local_value' (they need symbol
-!> property lists, faces, libraries or values of every symbol), the
+!> `apropos_local_variable', `apropos_local_value' (they need name
+!> attributes, faces, libraries or values of every name), the
 !> scores of `apropos_sort_by_scores' (the default, false, sorts by
 !> name; `apropos_documentation' sorts by score as upstream), faces of
 !> entries and matches, mouse buttons, `apropos_compact_layout',
@@ -117,7 +117,7 @@ module apropos_fm
                                                                                                                  "region selection"]
 
     !> An entry of the apropos accumulator: SYMBOL SCORE FN-DOC VAR-DOC
-    !> (the docs unallocated for nil).
+    !> (the docs unallocated when there are none).
     type :: apropos_item_type
         character(len=:), allocatable :: name
         integer(int64) :: score = 0
@@ -150,7 +150,7 @@ module apropos_fm
             type(status_type), intent(out) :: status
         end subroutine apropos_command
 
-        !> Show symbols whose documentation contains matches for PATTERN.
+        !> Show names whose documentation contains matches for PATTERN.
         !> PATTERN can be a word, a list of words (separated by spaces),
         !> or a regexp (using some regexp special characters).  If it is a word,
         !> search for matches for that word as a substring.  If it is a list of words,
@@ -512,7 +512,7 @@ contains
         is_at_name = type == "apropos_symbol"
     end function is_at_name
 
-    !> Move cursor down to the next symbol in an `apropos_mode' buffer.
+    !> Move cursor down to the next name in an `apropos_mode' buffer.
     !> Port of apropos.el:apropos-next-symbol.
     subroutine apropos_next_name(status)
         type(status_type), intent(out) :: status
@@ -526,7 +526,7 @@ contains
         end do
     end subroutine apropos_next_name
 
-    !> Move cursor back to the last symbol in an `apropos_mode' buffer.
+    !> Move cursor back to the last name in an `apropos_mode' buffer.
     !> Port of apropos.el:apropos-previous-symbol.
     subroutine apropos_previous_name(status)
         type(status_type), intent(out) :: status
@@ -633,13 +633,13 @@ contains
         end if
     end subroutine cmd_apropos_variable
 
-    !> Show symbols whose documentation contains matches for PATTERN.
+    !> Show names whose documentation contains matches for PATTERN.
     !> PATTERN can be a word, a list of words (separated by spaces),
     !> or a regexp (using some regexp special characters).  If it is a word,
     !> search for matches for that word as a substring.  If it is a list of words,
     !> search for matches for any two (or more) of those words.
     !>
-    !> Returns list of symbols and documentation found.  Port of
+    !> Returns list of names and documentation found.  Port of
     !> apropos.el:apropos-documentation (the command).
     recursive subroutine cmd_apropos_documentation(status)
         type(status_type), intent(out) :: status

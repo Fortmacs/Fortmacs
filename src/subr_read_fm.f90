@@ -154,8 +154,8 @@ contains
     end function itoa
     end procedure read_number
 
-    !> The integer the Lisp reader reads first from STR, `ok' false if it
-    !> reads something else (or nothing, or signals).  The syntax of
+    !> The integer upstream's reader reads first from STR, `ok' false if it
+    !> reads something else (or nothing, or an error condition occurs).  The syntax of
     !> lread.c:read0 for integers: decimal with an optional sign and
     !> trailing dot, #x, #o, #b and #RADIXr prefixes, and ?C characters.
     !> Floats are not read (the result is an integer): Deferred.
@@ -574,7 +574,7 @@ contains
         call sit_for(2000)
     end subroutine read_y_or_n_insert_other
 
-    !> Ignore ARGUMENTS, do nothing, and return nil.
+    !> Ignore ARGUMENTS and do nothing.
     !> This function accepts any number of arguments in ARGUMENTS.
     !> Also see `always'.  Port of subr.el:ignore (no arguments).
     recursive subroutine ignore(status)
@@ -600,7 +600,7 @@ contains
     end subroutine cmd_exit_recursive_edit
 
     !> Invoke the editor command loop recursively.
-    !> To get out of the recursive edit, a command can throw to `exit' --
+    !> To get out of the recursive edit, a command can return to `exit' with a status --
     !> for instance \[exit_recursive_edit] or \[abort_recursive_edit].
     !> Port of keyboard.c:Frecursive_edit.
     recursive subroutine cmd_recursive_edit(status)
@@ -618,11 +618,11 @@ contains
     end subroutine cmd_top_level
 
     !> Return or set the maximum number of keystrokes to save.
-    !> If called with a non-nil ARG, set the limit to ARG and return it.
+    !> If called with a prefix ARG, set the limit to ARG and return it.
     !> Otherwise, return the current limit.
     !>
     !> The saved keystrokes are shown by `view_lossage'.  Port of
-    !> keyboard.c:Flossage_size (its interactive spec).
+    !> keyboard.c:Flossage_size (how the command reads its argument).
     recursive subroutine cmd_lossage_size(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
@@ -815,7 +815,7 @@ contains
         ! We are about to enter recursive-edit, which sets
         ! `last_command'.  If the callers of this function have some
         ! logic based on `last_command''s value (example: `kill_region'),
-        ! that could interfere with their logic.  So we let-bind
+        ! that could interfere with their logic.  So we save, set and restore
         ! `last_command' here to prevent that.
         saved_last = last_command
         call read_char_from_minibuffer(prompt, c, status, chars=chars, help_procedure=help_procedure)

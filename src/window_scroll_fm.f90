@@ -26,7 +26,7 @@
 !> Part of window_fm.  Scrolling moves by screen lines (indent_fm), and
 !> the screen-line code depends on window_fm, so these live in a
 !> submodule.  Scrolling is line based, as upstream on text terminals,
-!> with `scroll_margin' 0 and `scroll_preserve_screen_position' nil.
+!> with `scroll_margin' 0 and `scroll_preserve_screen_position' .false..
 submodule(window_fm) window_scroll_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
@@ -104,7 +104,7 @@ contains
     !> if negative; with `whole', `n' screenfuls less
     !> next-screen-context-lines.  Port of window.c:window_scroll (line
     !> based on a terminal frame), window.c:window_scroll_line_based
-    !> (scroll-margin 0, scroll-preserve-screen-position nil).
+    !> (`scroll_margin' 0, `scroll_preserve_screen_position' .false.).
     subroutine window_scroll(w, n, whole, status)
         type(window_type), pointer, intent(in) :: w
         integer(int64), intent(in) :: n
@@ -307,8 +307,8 @@ contains
     !> `line_move_visual' with lines not truncated, `goal_column' in screen
     !> columns as vertical-motion counts them, else as
     !> simple.el:line-move-to-column (`truncate_partial_width_windows' is
-    !> non-nil by default, so that is the usual case).  Port of
-    !> window.el:scroll-command--goto-goal-column (truncate-lines nil).
+    !> .true. by default, so that is the usual case).  Port of
+    !> window.el:scroll-command--goto-goal-column (`truncate_lines' .false.).
     subroutine goto_goal_column()
         integer(int64) :: moved, reached
 

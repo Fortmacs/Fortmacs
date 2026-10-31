@@ -87,7 +87,7 @@ module data_fm
         procedure, private :: set_local_setting => integer_set_local_setting
     end type integer_setting
 
-    !> A true/false setting (nil or non-nil upstream).
+    !> A true/false setting (.true. or .false.).
     type, extends(setting_type), public :: logical_setting
         logical :: value = .false.
     contains
@@ -97,7 +97,7 @@ module data_fm
         procedure, private :: set_local_logical => logical_set_local
     end type logical_setting
 
-    !> A string setting; unallocated is nil.
+    !> A string setting; unallocated when unset.
     type, extends(setting_type), public :: string_setting
         character(len=:), allocatable :: value
     contains
@@ -105,12 +105,12 @@ module data_fm
         generic :: set_local => set_local_string
         procedure, private :: assign => string_assign
         procedure, private :: set_local_string => string_set_local
-        !> Make it nil.
+        !> Deallocate it.
         procedure :: clear => string_clear
     end type string_setting
 
     !> A setting whose value is a function of no arguments (a
-    !> `command_type' procedure); null is nil.  Assign with `=>' to
+    !> `command_type' procedure); null when unset.  Assign with `=>' to
     !> `value'.
     type, extends(setting_type), public :: function_setting
         procedure(command_proc), pointer, nopass :: value => null()
@@ -248,7 +248,7 @@ module data_fm
         !> Switch to Fundamental mode by killing current buffer's local variables.
         !> Most local variable bindings are eliminated so that the default values
         !> become effective once more.  Also, the syntax table is set from
-        !> `standard_syntax_table', the local keymap is set to nil,
+        !> `standard_syntax_table', the local keymap is set to none,
         !> and the abbrev table from `fundamental_mode_abbrev_table'.
         !> This function also forces redisplay of the mode line.
         !>
@@ -256,8 +256,8 @@ module data_fm
         !> calling this function.
         !>
         !> As a special exception, local variables whose names have
-        !> a non-nil `permanent_local' property are not eliminated by this function.
-        !> If the optional KILL-PERMANENT argument is non-nil, clear out these local
+        !> a `permanent_local' attribute that is .true. are not eliminated by this function.
+        !> If the optional KILL-PERMANENT argument is .true., clear out these local
         !> variables, too.
         !>
         !> The first thing this function does is run
@@ -268,7 +268,7 @@ module data_fm
             logical, intent(in), optional :: kill_permanent
         end subroutine kill_all_local_variables
 
-        !> Non-nil if VARIABLE has a local binding in buffer BUFFER (the
+        !> True if VARIABLE has a local binding in buffer BUFFER (the
         !> slot number; the current buffer if absent).  Port of
         !> data.c:Flocal_variable_p.  (In data_buffer_fm.)
         module logical function is_local_variable(variable, buffer)
@@ -277,10 +277,10 @@ module data_fm
             integer(int64), intent(in), optional :: buffer
         end function is_local_variable
 
-        !> Non-nil if VARIABLE is local in buffer BUFFER when set there.
+        !> True if VARIABLE is local in buffer BUFFER when set there.
         !> BUFFER defaults to the current buffer.
         !>
-        !> More precisely, return non-nil if either VARIABLE already has a local
+        !> More precisely, return .true. if either VARIABLE already has a local
         !> value in BUFFER, or if VARIABLE is automatically buffer-local (see
         !> `make_variable_buffer_local').  Port of
         !> data.c:Flocal_variable_if_set_p.  (In data_buffer_fm.)
@@ -364,7 +364,7 @@ module data_fm
         !> Most elements look like (SYMBOL VALUE), describing one variable.
         !> For a symbol that is locally unbound, just the symbol appears in the value.
         !> Note that storing new VALUEs in these elements doesn't change the variables.
-        !> No argument or nil as argument means use current buffer as BUFFER.
+        !> An absent argument means use current buffer as BUFFER.
         !> Port of buffer.c:Fbuffer_local_variables (with
         !> buffer.c:buffer_lisp_local_variables and buffer.c:buffer_local_variables_1;
         !> elements are two-element
@@ -609,7 +609,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (vtag(v) /= V_INTEGER) call wrong_type(status, "fixnump")
+        if (vtag(v) /= V_INTEGER) call wrong_type(status, "expected integer")
     end subroutine check_fixnum
 
     !> Port of lisp.h:CHECK_SYMBOL.
@@ -617,7 +617,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) call wrong_type(status, "symbolp")
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) call wrong_type(status, "expected name")
     end subroutine check_symbol
 
     !> Port of lisp.h:CHECK_STRING.
@@ -625,7 +625,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (vtag(v) /= V_STRING) call wrong_type(status, "stringp")
+        if (vtag(v) /= V_STRING) call wrong_type(status, "expected character(len=*)")
     end subroutine check_string
 
     !> Port of lisp.h:CHECK_LIST.
@@ -633,7 +633,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if ((vtag(v) /= V_ARRAY .and. vtag(v) /= V_NULL)) call wrong_type(status, "listp")
+        if ((vtag(v) /= V_ARRAY .and. vtag(v) /= V_NULL)) call wrong_type(status, "expected array")
     end subroutine check_list
 
     ! ------------------------------------------------------------------
@@ -674,7 +674,7 @@ contains
         case (V_NULL)
             v = value_type()
         case default
-            call wrong_type(status, "listp")
+            call wrong_type(status, "expected array")
         end select
     end subroutine car
 
@@ -691,7 +691,7 @@ contains
         case (V_NULL)
             v = value_type()
         case default
-            call wrong_type(status, "listp")
+            call wrong_type(status, "expected array")
         end select
     end subroutine cdr
 

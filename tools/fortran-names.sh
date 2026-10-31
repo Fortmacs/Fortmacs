@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-# Usage: tools/fortran-names.sh [--table FILE] [PATH...]
+# Usage: tools/fortran-names.sh [--table FILE] [--merge] [PATH...]
 #
 # Applies the table to each PATH (a file, or every file under a
 # directory), relative to the current directory; with no PATH, to the
@@ -35,6 +35,9 @@
 # imported forward_sexp renamed onto the file's own forward_expression)
 # is not changed: the clash is reported as FILE:LINE, and the exit status
 # is 4; rename the file's own identifier, then run the script again.
+# With --merge (after merging a renamed branch with an unrenamed one, so a
+# file holds both an old name and its new one for the same entity), the
+# clash check is skipped.
 #
 # Use it on this tree when the table gains an entry, on a branch written
 # before an entry (after merging main), and on code freshly ported from a
@@ -53,6 +56,11 @@ lib=$here/fortran-names-lib.awk
 if [ "${1:-}" = --table ]; then
     table=$2
     shift 2
+fi
+merge=false
+if [ "${1:-}" = --merge ]; then
+    merge=true
+    shift
 fi
 
 if [ $# -eq 0 ]; then
@@ -106,8 +114,8 @@ while IFS= read -r f; do
             "$f" "$tmp"; then
             # A new name that the file already has (an import renamed onto a
             # local procedure of that name): the file is left as it is.
-            case $f in
-            *.f90)
+            case $merge:$f in
+            false:*.f90)
                 clash=$(awk -v f="$f" -f "$here/fortran-names-clash.awk" "$f" "$tmp")
                 if [ -n "$clash" ]; then
                     printf 'fortran-names.sh: %s\n' "$clash" >&2

@@ -666,7 +666,7 @@ contains
         if (present(flag)) present_true = flag
     end function present_true
 
-    !> SYNTAX (prevc) is a word (or a symbol, with case-symbols-as-words).
+    !> SYNTAX (prevc) is a word (or an identifier, with case-symbols-as-words).
     logical function word_or_identifier(ch)
         integer(int32), intent(in) :: ch
         integer :: syn

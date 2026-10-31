@@ -2288,13 +2288,13 @@ contains
         case ("apropos_documentation")
             entry%file = "apropos_fm.f90"
             entry%command = .true.
-            entry%doc = "Show symbols whose documentation contains matches for PATTERN."//LF// &
+            entry%doc = "Show names whose documentation contains matches for PATTERN."//LF// &
                         "PATTERN can be a word, a list of words (separated by spaces),"//LF// &
                         "or a regexp (using some regexp special characters).  If it is a word,"//LF// &
                         "search for matches for that word as a substring.  If it is a list of words,"//LF// &
                         "search for matches for any two (or more) of those words."//LF// &
                         ""//LF// &
-                        "Returns list of symbols and documentation found."
+                        "Returns list of names and documentation found."
         case ("apropos_follow")
             entry%file = "apropos_fm.f90"
             entry%command = .true.
@@ -2321,11 +2321,11 @@ contains
         case ("apropos_next_name")
             entry%file = "apropos_fm.f90"
             entry%command = .true.
-            entry%doc = "Move cursor down to the next symbol in an `apropos_mode' buffer."
+            entry%doc = "Move cursor down to the next name in an `apropos_mode' buffer."
         case ("apropos_previous_name")
             entry%file = "apropos_fm.f90"
             entry%command = .true.
-            entry%doc = "Move cursor back to the last symbol in an `apropos_mode' buffer."
+            entry%doc = "Move cursor back to the last name in an `apropos_mode' buffer."
         case ("apropos_user_option")
             entry%file = "apropos_fm.f90"
             entry%command = .true.
@@ -2430,7 +2430,7 @@ contains
                                  "integer(int64), intent(in), optional :: n"
             entry%command = .true.
             entry%doc = "Move point N characters backward (forward if N is negative)."//LF// &
-                        "On attempt to pass beginning or end of buffer, stop and signal error."//LF// &
+                        "On attempt to pass beginning or end of buffer, stop, and an error condition occurs."//LF// &
                         "Interactively, N is the numeric prefix argument."//LF// &
                         "If N is omitted, move point 1 character backward."//LF// &
                         ""//LF// &
@@ -3105,7 +3105,7 @@ contains
             entry%file = "buffer_ops_fm.f90"
             entry%command = .true.
             entry%doc = "Start keeping undo information for buffer BUFFER."//LF// &
-                        "No argument or nil as argument means do this for the current buffer."
+                        "An absent argument means do this for the current buffer."
         case ("buffer_menu")
             entry%file = "buff_menu_fm.f90"
             entry%command = .true.
@@ -3465,8 +3465,8 @@ contains
             entry%declarations = "character(len=*), intent(in) :: coding_system"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Check validity of CODING-SYSTEM."//LF// &
-                        "If valid, return CODING-SYSTEM, else signal a `coding_system_error' error."//LF// &
-                        "It is valid if it is nil or a symbol defined as a coding system by the"//LF// &
+                        "If valid, return CODING-SYSTEM, else a `coding_system_error' error condition occurs."//LF// &
+                        "It is valid if it is """" or a name defined as a coding system by the"//LF// &
                         "function `define_coding_system'."
         case ("check_parens")
             entry%file = "expression_motion_fm.f90"
@@ -3476,7 +3476,7 @@ contains
                         "expressions in general.  This is done according to the"//LF// &
                         "current syntax table and will find unbalanced brackets or quotes as"//LF// &
                         "appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is"//LF// &
-                        "found, an error is signaled and point is left at the first unbalanced"//LF// &
+                        "found, an error condition occurs and point is left at the first unbalanced"//LF// &
                         "character."
         case ("clear_rectangle")
             entry%file = "rect_fm.f90"
@@ -3513,9 +3513,9 @@ contains
             entry%doc = "Return a coding system which differs from CODING-SYSTEM in EOL conversion."//LF// &
                         "The returned coding system converts end-of-line by EOL-TYPE"//LF// &
                         "but text as the same way as CODING-SYSTEM."//LF// &
-                        "EOL-TYPE should be `unix', `dos', `mac', or nil (EOL_UNIX, EOL_DOS,"//LF// &
+                        "EOL-TYPE should be `unix', `dos', `mac', or undecided (EOL_UNIX, EOL_DOS,"//LF// &
                         "EOL_MAC or EOL_UNDECIDED here)."//LF// &
-                        "If EOL-TYPE is nil, the returned coding system detects"//LF// &
+                        "If EOL-TYPE is EOL_UNDECIDED, the returned coding system detects"//LF// &
                         "how end-of-line is formatted automatically while decoding."//LF// &
                         ""//LF// &
                         "EOL-TYPE can be specified by an integer 0, 1, or 2."//LF// &
@@ -3528,7 +3528,7 @@ contains
             entry%doc = "Return a coding system which differs from CODING-SYSTEM in text conversion."//LF// &
                         "The returned coding system converts text by CODING"//LF// &
                         "but end-of-line as the same way as CODING-SYSTEM."//LF// &
-                        "If CODING is nil, the returned coding system detects"//LF// &
+                        "If CODING is """", the returned coding system detects"//LF// &
                         "how text is formatted automatically while decoding."
         case ("coding_system_eol_type")
             entry%file = "coding_fm.f90"
@@ -3559,7 +3559,7 @@ contains
             entry%fortran = "coding_system_type(coding_system)"
             entry%declarations = "character(len=*), intent(in) :: coding_system"
             entry%doc = "Return the coding type of CODING-SYSTEM."//LF// &
-                        "A coding type is a symbol indicating the encoding method of CODING-SYSTEM."//LF// &
+                        "A coding type is a name indicating the encoding method of CODING-SYSTEM."//LF// &
                         "See the function `define_coding_system' for more detail."
         case ("comint_accumulate")
             entry%file = "comint_fm.f90"
@@ -3704,7 +3704,7 @@ contains
                         "(using the value of INDEX specified with the first command)."//LF// &
                         "Values of INDEX < 0 count from the end, so INDEX = -1 is the last"//LF// &
                         "argument.  This command is like ""M-."" in Bash and zsh.  HAS_INDEX"//LF// &
-                        "false is INDEX nil."
+                        ".false. means no INDEX."
         case ("comint_interrupt_subjob")
             entry%file = "comint_fm.f90"
             entry%command = .true.
@@ -4140,7 +4140,7 @@ contains
                         "The completion method is determined by `completion_at_point_functions'."//LF// &
                         ""//LF// &
                         "With a prefix argument, this command does completion within"//LF// &
-                        "the collection of symbols listed in the index of the manual for the"//LF// &
+                        "the collection of names listed in the index of the manual for the"//LF// &
                         "language you are using (info_complete_name, not ported yet)."
         case ("completing_read_multiple")
             entry%file = "crm_fm.f90"
@@ -4364,7 +4364,7 @@ contains
             entry%declarations = "type(abbrev_table_type), intent(in) :: table"//LF// &
                                  "type(abbrev_table_type), intent(out) :: new"
             entry%doc = "Make a new abbrev-table NEW with the same abbrevs as TABLE."//LF// &
-                        "This function does not copy property lists of the abbrevs."//LF// &
+                        "This function does not copy the attributes of the abbrevs."//LF// &
                         "See `define_abbrev' for the documentation of abbrev properties."
         case ("copy_category_table")
             entry%file = "category_fm.f90"
@@ -4420,7 +4420,7 @@ contains
                         ""//LF// &
                         "The optional argument OK_IF_ALREADY_EXISTS specifies what to do"//LF// &
                         "if file NEWNAME already exists.  If OK_IF_ALREADY_EXISTS is false,"//LF// &
-                        "signal a `file_already_exists' error without overwriting."//LF// &
+                        "a `file_already_exists' error condition occurs, without overwriting."//LF// &
                         "Otherwise overwrite the existing file."//LF// &
                         ""//LF// &
                         "KEEP_TIME true means give the output file the same"//LF// &
@@ -4749,7 +4749,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "logical, intent(in), optional :: multibyte"
             entry%doc = "Decode STRING (bytes, unless MULTIBYTE) by CODING-SYSTEM into RESULT."//LF// &
-                        "If CODING-SYSTEM is nil, it returns STRING itself.  The value is a"//LF// &
+                        "If CODING-SYSTEM is """", it returns STRING itself.  The value is a"//LF// &
                         "multibyte string.  This function sets `last_coding_system_used' to"//LF// &
                         "the precise coding system used to decode STRING, which may be"//LF// &
                         "different from CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided')."
@@ -5011,7 +5011,7 @@ contains
             entry%doc = "Delete specified WINDOW."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."//LF// &
                         ""//LF// &
-                        "Signal an error if WINDOW is the only window on its frame."//LF// &
+                        "An error condition occurs if WINDOW is the only window on its frame."//LF// &
                         ""//LF// &
                         "If WINDOW is the selected window on its frame, choose some other"//LF// &
                         "window as that frame's selected window: the most recently used one."
@@ -5325,7 +5325,7 @@ contains
             entry%command = .true.
             entry%doc = "Create a directory called DIRECTORY."//LF// &
                         "Parent directories of DIRECTORY are created as needed."//LF// &
-                        "If DIRECTORY already exists, signal an error."
+                        "If DIRECTORY already exists, an error condition occurs."
         case ("dired_create_empty_file")
             entry%file = "dired_aux_fm.f90"
             entry%command = .true.
@@ -5336,7 +5336,7 @@ contains
                         "If user option `dired_create_empty_file_in_current_directory' is"//LF// &
                         "true, act on the current subdirectory by default, otherwise act on"//LF// &
                         "the default directory by default."//LF// &
-                        "If FILE already exists, signal an error."
+                        "If FILE already exists, an error condition occurs."
         case ("dired_diff")
             entry%file = "dired_aux_fm.f90"
             entry%command = .true.
@@ -6092,7 +6092,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "logical, intent(in), optional :: multibyte"
             entry%doc = "Encode STRING (multibyte, unless MULTIBYTE is false) to CODING-SYSTEM"//LF// &
-                        "into RESULT, the bytes.  If CODING-SYSTEM is nil, it returns STRING"//LF// &
+                        "into RESULT, the bytes.  If CODING-SYSTEM is """", it returns STRING"//LF// &
                         "itself.  This function sets `last_coding_system_used' to the precise"//LF// &
                         "coding system used to encode STRING, which may be different from"//LF// &
                         "CODING-SYSTEM."
@@ -6154,20 +6154,20 @@ contains
                                  "type(value_type), intent(out) :: ev"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Convert the event description list EVENT_DESC to an event type."//LF// &
-                        "EVENT_DESC should contain one base event type (a character or symbol)"//LF// &
+                        "EVENT_DESC should contain one base event type (a character or name)"//LF// &
                         "and zero or more modifier names (control, meta, hyper, super, shift, alt,"//LF// &
                         "drag, down, double or triple).  The base must be last."//LF// &
                         ""//LF// &
-                        "The return value is an event type (a character or symbol) which has"//LF// &
+                        "The return value is an event type (a character or name) which has"//LF// &
                         "essentially the same base event type and all the specified modifiers."//LF// &
-                        "(Some compatibility base types, like symbols that represent a"//LF// &
+                        "(Some compatibility base types, like names that represent a"//LF// &
                         "character, are not returned verbatim.)"
         case ("event_symbol_parse_modifiers")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "event_symbol_parse_modifiers(symbol)"
             entry%declarations = "type(value_type), intent(in) :: symbol"//LF// &
                                  "type(value_type) :: v"
-            entry%doc = "Parse the event symbol.  For internal use.  The value is the list"//LF// &
+            entry%doc = "Parse the event name.  For internal use.  The value is the list"//LF// &
                         "(BASE MODIFIERS...), as the `event_symbol_elements' property of"//LF// &
                         "SYMBOL upstream."
         case ("exchange_point_and_mark")
@@ -6483,11 +6483,11 @@ contains
                                  "character(len=*), intent(in), optional :: color"//LF// &
                                  "integer, intent(in), optional :: style"//LF// &
                                  "type(face_box_type) :: box"
-            entry%doc = "A box given as upstream's property list (:line-width WIDTH :color"//LF// &
-                        "COLOR :style STYLE), for `faces%NAME%box = face_box(...)'."//LF// &
+            entry%doc = "A box given as upstream's attributes `:line-width' WIDTH, `:color'"//LF// &
+                        "COLOR and `:style' STYLE, for `faces%NAME%box = face_box(...)'."//LF// &
                         "LINE_WIDTH N is upstream's single number: vertical lines of width"//LF// &
                         "|N| and horizontal lines of width N; VERTICAL_WIDTH and"//LF// &
-                        "HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default"//LF// &
+                        "HORIZONTAL_WIDTH give upstream's two values, VWIDTH and HWIDTH, and default"//LF// &
                         "to 1.  A negative width draws the line over the text instead of"//LF// &
                         "beside it.  An absent COLOR is the face's background color for 3D"//LF// &
                         "boxes and FACE_BOX_FLAT_BUTTON and its foreground color otherwise;"//LF// &
@@ -6503,7 +6503,7 @@ contains
                                  "logical, intent(in), optional :: position"//LF// &
                                  "type(face_line_type) :: line"
             entry%doc = "An underline given as upstream's"//LF// &
-                        "property list (:color COLOR :style STYLE :position POSITION), for"//LF// &
+                        "attributes `:color', `:style' and `:position', as `color', `style' and `position', for"//LF// &
                         "`faces%NAME%underline = face_underline(...)'.  An absent COLOR is"//LF// &
                         "the face's foreground color (`foreground-color'); STYLE is one of"//LF// &
                         "FACE_STYLE_LINE (the default), FACE_STYLE_DOUBLE_LINE,"//LF// &
@@ -6944,7 +6944,7 @@ contains
                                  "integer(int64), intent(in), optional :: n"
             entry%command = .true.
             entry%doc = "Move point N characters forward (backward if N is negative)."//LF// &
-                        "On reaching end or beginning of buffer, stop and signal error."//LF// &
+                        "On reaching end or beginning of buffer, stop, and an error condition occurs."//LF// &
                         "Interactively, N is the numeric prefix argument."//LF// &
                         "If N is omitted, move point 1 character forward."//LF// &
                         ""//LF// &
@@ -6973,7 +6973,7 @@ contains
                         "backward across N balanced expressions.  This command assumes"//LF// &
                         "point is not in a string or comment.  Calls"//LF// &
                         "`forward_expression_function' to do the work, if that is set."//LF// &
-                        "If unable to move over an expression, signal `scan_error' with three"//LF// &
+                        "If unable to move over an expression, a `scan_error' error condition occurs with three"//LF// &
                         "arguments: a message, the start of the obstacle (usually a"//LF// &
                         "parenthesis or group marker of some kind), and end of the"//LF// &
                         "obstacle.  If INTERACTIVE is true, as it is interactively,"//LF// &
@@ -8168,7 +8168,7 @@ contains
             entry%declarations = "procedure(ibuffer_buffer_predicate_proc) :: predicate"//LF// &
                                  "type(ibuffer_filter_type) :: f"
             entry%doc = "Buffers for which PREDICATE, called with the buffer current, returns"//LF// &
-                        "true (predicate . FORM)."
+                        ".true.."
         case ("ibuffer_process")
             entry%file = "ibuf_macs_fm.f90"
             entry%fortran = "ibuffer_process()"
@@ -8347,7 +8347,7 @@ contains
         case ("ignore")
             entry%file = "subr_read_fm.f90"
             entry%command = .true.
-            entry%doc = "Ignore ARGUMENTS, do nothing, and return nil."//LF// &
+            entry%doc = "Ignore ARGUMENTS and do nothing."//LF// &
                         "This function accepts any number of arguments in ARGUMENTS."//LF// &
                         "Also see `always'."
         case ("increment_register")
@@ -8387,7 +8387,7 @@ contains
             entry%command = .true.
             entry%doc = "Indent the current line or region, or insert a tab, as appropriate."//LF// &
                         "This function either inserts a tab, or indents the current line,"//LF// &
-                        "or performs symbol completion, depending on `tab_always_indent'."//LF// &
+                        "or performs identifier completion, depending on `tab_always_indent'."//LF// &
                         "The function called to actually indent the line or insert a tab"//LF// &
                         "is given by the variable `indent_line_function'."//LF// &
                         ""//LF// &
@@ -8662,7 +8662,7 @@ contains
             entry%doc = "Add or update a help specification."//LF// &
                         "The arguments are the parts of the help data of a mode: help is"//LF// &
                         "about TOPIC (default ""symbol"") in MODE (default the current major"//LF// &
-                        "mode), for the symbols beginning with SYMBOL_PREFIX and a dash if"//LF// &
+                        "mode), for the names beginning with SYMBOL_PREFIX and a dash if"//LF// &
                         "present; the help items match REGEXP (default ""\w+""), case is"//LF// &
                         "ignored if IGNORE_CASE; DOC_SPEC lists the Info indexes to read,"//LF// &
                         "or DOC_SPEC_FUNCTION computes it when the user asks for info on"//LF// &
@@ -8715,7 +8715,7 @@ contains
                         "Interactively, prompt for SYMBOL; you can use"//LF// &
                         "\<minibuffer_local_completion_map>\[next_history_element] in the"//LF// &
                         "minibuffer to yank the default argument value into the minibuffer"//LF// &
-                        "so you can edit it.  The default symbol is the one found at point."//LF// &
+                        "so you can edit it.  The default identifier is the one found at point."//LF// &
                         ""//LF// &
                         "MODE is the major mode whose Info manuals to search for the"//LF// &
                         "documentation of SYMBOL.  It defaults to the current buffer's"//LF// &
@@ -8997,8 +8997,8 @@ contains
             entry%declarations = "integer(int64), intent(out) :: beg"//LF// &
                                  "integer(int64), intent(out) :: end"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "The region as the arguments of a command whose interactive spec"//LF// &
-                        "has `r': point and the mark, the smaller first (as they are, not"//LF// &
+            entry%doc = "The region as the arguments of a command that reads the region"//LF// &
+                        "(`r'): point and the mark, the smaller first (as they are, not"//LF// &
                         "limited to the accessible part).  `check_mark' reports a mark that"//LF// &
                         "is not set or inactive; rectangle_mark_mode's advice of"//LF// &
                         "`region_beginning' does not apply."
@@ -9138,7 +9138,7 @@ contains
             entry%fortran = "is_coding_system(object)"
             entry%declarations = "character(len=*), intent(in) :: object"//LF// &
                                  "logical :: is_coding_system"
-            entry%doc = "Return t if OBJECT is nil or a coding-system."//LF// &
+            entry%doc = "Return .true. if OBJECT is """" or a coding-system."//LF// &
                         "See the documentation of `define_coding_system' for information"//LF// &
                         "about coding-system objects."
         case ("is_derived_mode")
@@ -9232,7 +9232,7 @@ contains
             entry%fortran = "is_process(object)"
             entry%declarations = "type(handle_type), intent(in) :: object"//LF// &
                                  "logical :: is_process"
-            entry%doc = "Return t if OBJECT is a process."
+            entry%doc = "Return .true. if OBJECT is a process."
         case ("is_process_live")
             entry%file = "process_fm.f90"
             entry%fortran = "is_process_live(process)"
@@ -9274,9 +9274,9 @@ contains
         case ("isearch_abort")
             entry%file = "isearch_fm.f90"
             entry%command = .true.
-            entry%doc = "Abort incremental search mode if searching is successful, signaling"//LF// &
-                        "quit.  Otherwise, revert to previous successful search and continue"//LF// &
-                        "searching.  Use `isearch_exit' to quit without signaling."
+            entry%doc = "Abort incremental search mode if searching is successful, making a"//LF// &
+                        "`quit' occur.  Otherwise, revert to previous successful search and continue"//LF// &
+                        "searching.  Use `isearch_exit' to quit without that."
         case ("isearch_backward")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_backward_command(status)"
@@ -9616,7 +9616,7 @@ contains
                         "Optional second argument REPLACE true means that STRING will replace"//LF// &
                         "the front of the kill ring, rather than being added to the list."//LF// &
                         ""//LF// &
-                        "When the yank handler has a non-nil PARAM element, the original"//LF// &
+                        "When the yank handler has a PARAM element, the original"//LF// &
                         "STRING argument is not used by `insert_for_yank'.  However, since"//LF// &
                         "code may access and use elements from the kill ring directly, the"//LF// &
                         "STRING argument should still be a ""useful"" string for such uses."
@@ -9955,7 +9955,7 @@ contains
             entry%file = "bindings_fm.f90"
             entry%command = .true.
             entry%doc = "Move point N characters to the left (to the right if N is negative)."//LF// &
-                        "On reaching beginning or end of buffer, stop and signal error."//LF// &
+                        "On reaching beginning or end of buffer, stop, and an error condition occurs."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves backward in the buffer, like"//LF// &
                         "\[backward_char]."
@@ -10320,7 +10320,7 @@ contains
                                  "integer :: size_now"
             entry%command = .true.
             entry%doc = "Return or set the maximum number of keystrokes to save."//LF// &
-                        "If called with a non-nil ARG, set the limit to ARG and return it."//LF// &
+                        "If called with a prefix ARG, set the limit to ARG and return it."//LF// &
                         "Otherwise, return the current limit."//LF// &
                         ""//LF// &
                         "The saved keystrokes are shown by `view_lossage'."
@@ -10683,7 +10683,7 @@ contains
                                  "logical, intent(in), optional :: force"
             entry%doc = "Return this buffer's mark value as integer, or 0 if never set."//LF// &
                         ""//LF// &
-                        "In Transient Mark mode, this function signals an error if"//LF// &
+                        "In Transient Mark mode, an error condition occurs if"//LF// &
                         "the mark is not active.  However, if `mark_even_if_inactive' is true,"//LF// &
                         "or the argument FORCE is true, it disregards whether the mark"//LF// &
                         "is active, and returns an integer or 0 in the usual way."
@@ -10811,7 +10811,7 @@ contains
                         "`match_beginning(N)'; element 2N + 2 is the position of the end of"//LF// &
                         "the match of the Nth subexpression; it corresponds to `match_end(N)'."//LF// &
                         "See `match_beginning' and `match_end'.  Positions are"//LF// &
-                        "integers, 0 when the Nth pair didn't match; trailing zeros are"//LF// &
+                        "integers, 0 when the Nth subexpression didn't match; trailing zeros are"//LF// &
                         "left out."//LF// &
                         ""//LF// &
                         "Use `set_match_data' to reinstate the match data from the elements"//LF// &
@@ -10843,7 +10843,7 @@ contains
                         "means the entire text matched by the whole regexp or whole string."//LF// &
                         ""//LF// &
                         "The return value is an empty string (and `matched' false) if NUMth"//LF// &
-                        "pair didn't match, or there were less than NUM pairs."//LF// &
+                        "subexpression didn't match, or there were less than NUM subexpressions."//LF// &
                         ""//LF// &
                         "STRING should be given if the last search was by `string_match' on"//LF// &
                         "STRING.  If STRING is absent, the current buffer should be the same"//LF// &
@@ -10856,8 +10856,8 @@ contains
                                  "logical, intent(out), optional :: matched"
             entry%doc = "Return string of text matched by last search, without text"//LF// &
                         "properties.  NUM specifies which parenthesized expression in the"//LF// &
-                        "last regexp.  Value is an empty string if NUMth pair didn't match, or there"//LF// &
-                        "were less than NUM pairs.  Zero means the entire text matched by"//LF// &
+                        "last regexp.  Value is an empty string if NUMth subexpression didn't match, or there"//LF// &
+                        "were less than NUM subexpressions.  Zero means the entire text matched by"//LF// &
                         "the whole regexp or whole string.  STRING should be given if the"//LF// &
                         "last search was by `string_match' on STRING.  If STRING is absent, the"//LF// &
                         "current buffer should be the same buffer as the one in which the"//LF// &
@@ -10974,7 +10974,7 @@ contains
                         "The characters `from' to `to' (one character if equal) are changed."//LF// &
                         "The first character of NEWENTRY should be one of the following:"//LF// &
                         "  Space or -  whitespace syntax.    w   word constituent."//LF// &
-                        "  _           symbol constituent.   .   punctuation."//LF// &
+                        "  _           identifier constituent.   .   punctuation."//LF// &
                         "  (           open-parenthesis.     )   close-parenthesis."//LF// &
                         "  ""           string quote.         \   escape."//LF// &
                         "  $           paired delimiter.     \='   expression quote or prefix operator."//LF// &
@@ -12090,16 +12090,11 @@ contains
                         ""//LF// &
                         "For instance, if you have:"//LF// &
                         ""//LF// &
-                        "  (let ((foo 2))"//LF// &
-                        "    (progn"//LF// &
-                        "      (setq foo 3)"//LF// &
-                        "      (zot)"//LF// &
-                        "      (+ foo 2)))"//LF// &
+                        "  x = max(a, min(b, c))"//LF// &
                         ""//LF// &
-                        "and point is before (zot), \[raise_expression] will give you"//LF// &
+                        "and point is before min, \[raise_expression] will give you"//LF// &
                         ""//LF// &
-                        "  (let ((foo 2))"//LF// &
-                        "    (zot))"
+                        "  x = min(b, c)"
         case ("re_search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call re_search_backward(regexp, found, status, bound, noerror, count)"
@@ -12188,7 +12183,7 @@ contains
                         "to recover the character code with the modifiers removed."//LF// &
                         ""//LF// &
                         "If the user generates an event which is not a character (i.e. a mouse"//LF// &
-                        "click or function key event), `read_char' signals an error.  As an"//LF// &
+                        "click or function key event), an error condition occurs in `read_char'.  As an"//LF// &
                         "exception, switch-frame events are put off until non-character events"//LF// &
                         "can be read."//LF// &
                         "If you want to read non-character events, or ignore them, call"//LF// &
@@ -12201,8 +12196,8 @@ contains
                         "input arrives in that time, return false in HAVE.  SECONDS may be a"//LF// &
                         "floating-point value."//LF// &
                         ""//LF// &
-                        "If `inhibit_interaction' is true, this function will signal an"//LF// &
-                        "`inhibited_interaction' error."
+                        "If `inhibit_interaction' is true, an"//LF// &
+                        "`inhibited_interaction' error condition occurs."
         case ("read_char_exclusive")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "call read_char_exclusive(c, have, status, prompt, seconds)"
@@ -12227,8 +12222,8 @@ contains
                         "input arrives in that time, return false in HAVE.  SECONDS may be a"//LF// &
                         "floating-point value."//LF// &
                         ""//LF// &
-                        "If `inhibit_interaction' is true, this function will signal an"//LF// &
-                        "`inhibited_interaction' error."
+                        "If `inhibit_interaction' is true, an"//LF// &
+                        "`inhibited_interaction' error condition occurs."
         case ("read_char_from_minibuffer_insert_char")
             entry%file = "subr_read_fm.f90"
             entry%command = .true.
@@ -12264,8 +12259,8 @@ contains
                         "input arrives in that time, return false in HAVE.  SECONDS may be a"//LF// &
                         "floating-point value."//LF// &
                         ""//LF// &
-                        "If `inhibit_interaction' is true, this function will signal an"//LF// &
-                        "`inhibited_interaction' error."
+                        "If `inhibit_interaction' is true, an"//LF// &
+                        "`inhibited_interaction' error condition occurs."
         case ("read_file_name_default")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial, pre"// &
@@ -12393,7 +12388,7 @@ contains
                         ""//LF// &
                         "DEFAULTS, in place of DEFAULT, is an array of defaults: the first"//LF// &
                         "is the default, all are offered by M-n; with NO_DEFAULT, the list"//LF// &
-                        "starts with a nil default (there is none, the others are offered"//LF// &
+                        "starts with an empty default (there is none, the others are offered"//LF// &
                         "by M-n)."
         case ("read_only_mode")
             entry%file = "simple_fm.f90"
@@ -12704,7 +12699,7 @@ contains
             entry%declarations = "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "Invoke the editor command loop recursively."//LF// &
-                        "To get out of the recursive edit, a command can throw to `exit' --"//LF// &
+                        "To get out of the recursive edit, a command can return to `exit' with a status --"//LF// &
                         "for instance \[exit_recursive_edit] or \[abort_recursive_edit]."
         case ("redraw_display")
             entry%file = "dispnew_fm.f90"
@@ -12729,9 +12724,9 @@ contains
             entry%declarations = "integer(int64), allocatable, intent(out) :: starts(:)"//LF// &
                                  "integer(int64), allocatable, intent(out) :: ends(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "Return the boundaries of the region, one or more pairs"//LF// &
+            entry%doc = "Return the boundaries of the region, one or more ranges"//LF// &
                         "[STARTS(k), ENDS(k))."//LF// &
-                        "There is more than one pair when the region is non-contiguous, see"//LF// &
+                        "There is more than one range when the region is non-contiguous, see"//LF// &
                         "`is_region_noncontiguous' and `extract_rectangle_bounds'."
         case ("region_end")
             entry%file = "editfns_fm.f90"
@@ -12858,7 +12853,7 @@ contains
                         "  `\\' means insert one `\'."//LF// &
                         "  `\?' is treated literally"//LF// &
                         "       (for compatibility with `query_replace_regexp')."//LF// &
-                        "  Any other character following `\' signals an error."//LF// &
+                        "  Any other character following `\' makes an error condition occur."//LF// &
                         "Case conversion does not apply to these substitutions."//LF// &
                         ""//LF// &
                         "If optional fourth argument STRING is present, it should be a"//LF// &
@@ -13017,7 +13012,7 @@ contains
             entry%file = "bindings_fm.f90"
             entry%command = .true.
             entry%doc = "Move point N characters to the right (to the left if N is negative)."//LF// &
-                        "On reaching beginning or end of buffer, stop and signal error."//LF// &
+                        "On reaching beginning or end of buffer, stop, and an error condition occurs."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves forward in the buffer, like"//LF// &
                         "\[forward_char]."
@@ -13242,7 +13237,7 @@ contains
                         "Comments are ignored if `parse_expression_ignore_comments' is true."//LF// &
                         ""//LF// &
                         "If the beginning or end of (the accessible part of) the buffer is reached"//LF// &
-                        "in the middle of a parenthetical grouping, an error is signaled."//LF// &
+                        "in the middle of a parenthetical grouping, an error condition occurs."//LF// &
                         "If the beginning or end is reached between groupings"//LF// &
                         "but before count is used up, 0 is returned."
         case ("scan_groups")
@@ -13270,7 +13265,7 @@ contains
                         ""//LF// &
                         "If we reach the beginning or end of the accessible part of the buffer"//LF// &
                         "before we have scanned over COUNT groups, return 0 if the depth at"//LF// &
-                        "that point is zero, and signal an error if the depth is nonzero."
+                        "that point is zero, and an error condition occurs if the depth is nonzero."
         case ("scroll_down")
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
@@ -13292,7 +13287,7 @@ contains
                         ""//LF// &
                         "If `scroll_error_top_bottom' is true and `scroll_down' cannot"//LF// &
                         "scroll window further, move cursor to the top line."//LF// &
-                        "When point is already on that position, then signal an error."//LF// &
+                        "When point is already on that position, then an error condition occurs."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward."//LF// &
                         ""//LF// &
@@ -13331,7 +13326,7 @@ contains
                         ""//LF// &
                         "If `scroll_error_top_bottom' is true and `scroll_up' cannot"//LF// &
                         "scroll window further, move cursor to the bottom line."//LF// &
-                        "When point is already on that position, then signal an error."//LF// &
+                        "When point is already on that position, then an error condition occurs."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward."//LF// &
                         ""//LF// &
@@ -13623,7 +13618,7 @@ contains
                         "\[list_coding_systems].  The default is determined by the selected"//LF// &
                         "language environment or by the previous use of this command."//LF// &
                         ""//LF// &
-                        "If CODING_SYSTEM is nil or the coding-type of CODING_SYSTEM is"//LF// &
+                        "If CODING_SYSTEM is """" or the coding-type of CODING_SYSTEM is"//LF// &
                         "`raw-text', the decoding of keyboard input is disabled."//LF// &
                         ""//LF// &
                         "The setting has no effect on graphical terminals."
@@ -13632,7 +13627,7 @@ contains
             entry%fortran = "call set_local_abbrev_table(table)"
             entry%declarations = "type(abbrev_table_type), intent(in), target :: table"
             entry%doc = "Make TABLE the local abbrev table of the current buffer, as"//LF// &
-                        "`(setq local-abbrev-table TABLE)'."
+                        "assigning TABLE to `local_abbrev_table' does."
         case ("set_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call set_mark(pos)"
@@ -15055,7 +15050,7 @@ contains
             entry%file = "vc_dir_fm.f90"
             entry%command = .true.
             entry%doc = "Refresh the contents of the *VC-Dir* buffer."//LF// &
-                        "Throw an error if another update process is in progress."
+                        "An error condition occurs if another update process is in progress."
         case ("vc_dir_root")
             entry%file = "vc_dir_fm.f90"
             entry%command = .true.
@@ -15137,8 +15132,8 @@ contains
             entry%command = .true.
             entry%doc = "Do the next logical version control operation on the current fileset."//LF// &
                         "This requires that all files in the current VC fileset be in the"//LF// &
-                        "sufficiently similar states.  If they are not, signal an error."//LF// &
-                        "Also signal an error if files in the fileset are ignored by the VCS."//LF// &
+                        "sufficiently similar states.  If they are not, an error condition occurs."//LF// &
+                        "An error condition also occurs if files in the fileset are ignored by the VCS."//LF// &
                         ""//LF// &
                         "For modern merging-based version control systems:"//LF// &
                         "  If every file in the fileset is not registered for version"//LF// &
@@ -15926,8 +15921,8 @@ contains
             entry%fortran = "ansi_color_basic_faces"
             entry%value = repr(ansi_color_basic_faces)
             entry%doc = "Faces used for SGR control sequences determining a face."//LF// &
-                        "This array holds the faces used for SGR control sequence"//LF// &
-                        "parameters 0 to 7 ("""" is nil)."//LF// &
+                        "This vector holds the faces used for SGR control sequence"//LF// &
+                        "parameters 0 to 7 ("""" for none)."//LF// &
                         ""//LF// &
                         "Parameter  Description"//LF// &
                         "  0        default"//LF// &
@@ -16878,7 +16873,7 @@ contains
                         "and other functions that use `write_region'."//LF// &
                         "It does not apply to sending output to subprocesses, however."//LF// &
                         ""//LF// &
-                        "If this is nil, the buffer is saved without any code conversion"//LF// &
+                        "If this is unallocated, the buffer is saved without any code conversion"//LF// &
                         "unless some coding system is specified in `file_coding_system_table'"//LF// &
                         "for the buffer file."//LF// &
                         ""//LF// &
@@ -16989,17 +16984,17 @@ contains
             entry%fortran = "case_identifiers_as_words"
             entry%original = ".false."
             entry%value = repr(case_identifiers_as_words%value)
-            entry%doc = "If true, case functions treat symbol syntax as part of words."//LF// &
+            entry%doc = "If true, case functions treat identifier syntax as part of words."//LF// &
                         ""//LF// &
                         "Functions such as `upcase_initials' and `replace_match' check or"//LF// &
                         "modify the case pattern of sequences of characters.  Normally, these"//LF// &
                         "operate on sequences of characters whose syntax is word constituent."//LF// &
                         "If this variable is true, then they operate on sequences of"//LF// &
-                        "characters whose syntax is either word constituent or symbol"//LF// &
+                        "characters whose syntax is either word constituent or identifier"//LF// &
                         "constituent."//LF// &
                         ""//LF// &
                         "This is useful for programming languages and styles where only the"//LF// &
-                        "first letter of a symbol's name is ever capitalized."
+                        "first letter of an identifier's name is ever capitalized."
         case ("case_replace")
             entry%file = "replace_fm.f90"
             entry%fortran = "case_replace"
@@ -17842,7 +17837,7 @@ contains
             entry%user_option = .true.
             entry%original = "-1"
             entry%value = repr(comment_fill_column%value)
-            entry%doc = "Column to use for `comment_indent'.  If negative (nil), use"//LF// &
+            entry%doc = "Column to use for `comment_indent'.  If negative, use"//LF// &
                         "`fill_column' instead."
         case ("comment_indent_function")
             entry%file = "newcomment_fm.f90"
@@ -17851,8 +17846,8 @@ contains
                         "This function is called with no args with point at the beginning"//LF// &
                         "of the comment's starting delimiter and should return either the"//LF// &
                         "desired column indentation, a range of acceptable"//LF// &
-                        "indentation (MIN . MAX), or nil."//LF// &
-                        "If nil is returned, indentation is delegated to"//LF// &
+                        "indentation (MIN and MAX), or none."//LF// &
+                        "If none is returned, indentation is delegated to"//LF// &
                         "`indent_according_to_mode'."
         case ("comment_inline_offset")
             entry%file = "newcomment_fm.f90"
@@ -17945,9 +17940,9 @@ contains
             end if
 
             entry%doc = "Regexp to match the start of a comment plus everything up to its body."//LF// &
-                        "If there are any \(...\) pairs and `comment_use_syntax' is nil,"//LF// &
+                        "If there are any \(...\) groups and `comment_use_syntax' is COMMENT_USE_SYNTAX_NO,"//LF// &
                         "the comment delimiter text is held to begin at the place matched"//LF// &
-                        "by the close of the first pair."
+                        "by the close of the first group."
         case ("comment_style")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_style"
@@ -18004,7 +17999,7 @@ contains
                 entry%value = repr(comment_use_syntax%value)
             end select
 
-            entry%doc = "Non-nil if syntax-tables can be used instead of regexps."//LF// &
+            entry%doc = "True if syntax-tables can be used instead of regexps."//LF// &
                         "Can also be `undecided' which means that a somewhat expensive test will"//LF// &
                         "be used to try to determine whether syntax-tables should be trusted"//LF// &
                         "to understand comments or not in the given buffer."//LF// &
@@ -18082,7 +18077,7 @@ contains
             entry%doc = "A value for tracking when directories are entered or left."//LF// &
                         "If its regexp is unallocated, do not track directories, e.g. if all"//LF// &
                         "file names are absolute.  The REGEXP matches these messages.  It can"//LF// &
-                        "match any number of variants, e.g. different languages.  The pairs"//LF// &
+                        "match any number of variants, e.g. different languages.  The values"//LF// &
                         "DIR and LEAVE say: if the DIR'th subexpression matches, that is a"//LF// &
                         "directory name.  If LEAVE is 0 or the corresponding LEAVE'th"//LF// &
                         "subexpression doesn't match, this message is about going into"//LF// &
@@ -18149,7 +18144,7 @@ contains
 
             entry%doc = "Table that specifies how to match errors in compiler output."//LF// &
                         "On GNU and Unix, any string is a valid filename, so these"//LF// &
-                        "matchers must make some common sense assumptions, which catch"//LF// &
+                        "matchers must make some common sense assumptions, which handle"//LF// &
                         "normal cases.  A shorter list will be lighter on resource usage."//LF// &
                         ""//LF// &
                         "Each element is the name of a rule of"//LF// &
@@ -18416,7 +18411,7 @@ contains
             entry%fortran = "compilation_transform_file_match_table"
             entry%user_option = .true.
             entry%doc = "Table of regexp/replacements to alter file names in compiler"//LF// &
-                        "messages.  If the replacement is unallocated (nil), the matching"//LF// &
+                        "messages.  If the replacement is unallocated, the matching"//LF// &
                         "message will not be considered an error or warning.  If not, it"//LF// &
                         "should be a replacement string for the matched regexp."//LF// &
                         ""//LF// &
@@ -18463,7 +18458,7 @@ contains
                         "completion data (START END COLLECTION . PROPS), where:"//LF// &
                         " START and END delimit the entity to complete and should include point,"//LF// &
                         " COLLECTION is the completion table to use to complete the entity, and"//LF// &
-                        " PROPS is a property list for additional information."//LF// &
+                        " PROPS holds attributes for additional information."//LF// &
                         "Currently supported properties are:"//LF// &
                         " `predicate'        a predicate that completion candidates need to satisfy."//LF// &
                         " `exclusive'        false means that if the completion table fails to"//LF// &
@@ -18578,9 +18573,9 @@ contains
                         "See Info node `(elisp)Basic Completion', for a description of these"//LF// &
                         "functions."//LF// &
                         ""//LF// &
-                        "Do not set this variable to a non-nil value globally, as that is not"//LF// &
+                        "Do not set this variable to a value globally, as that is not"//LF// &
                         "safe and will probably cause errors in completion commands.  This"//LF// &
-                        "variable should be only let-bound to non-nil values around calls to"//LF// &
+                        "variable should only be set, then restored, around calls to"//LF// &
                         "basic completion functions like `try_completion' and `all_completions'."
         case ("completion_show_inline_help")
             entry%file = "minibuffer_fm.f90"
@@ -18924,7 +18919,7 @@ contains
                         "This regexp will be surrounded with \\( ... \\) when actually used."//LF// &
                         ""//LF// &
                         "Set this variable to ""\\sw"" if you want ordinary words or"//LF// &
-                        """\\sw\\|\\s_"" if you want symbols (including characters"//LF// &
+                        """\\sw\\|\\s_"" if you want identifiers (including characters"//LF// &
                         "whose syntax is ""symbol"" as well as those whose syntax is"//LF// &
                         """word"").  The abbreviation is from point to the start of the"//LF// &
                         "previous sequence of characters matching this variable."//LF// &
@@ -18933,7 +18928,7 @@ contains
                         ""//LF// &
                         "For instance, suppose the current buffer is in `c_mode'.  If this"//LF// &
                         "variable is unallocated or ""\\sw\\|\\s_"", then expanding"//LF// &
-                        "`debug_print_in_' looks for a symbol starting with"//LF// &
+                        "`debug_print_in_' looks for an identifier starting with"//LF// &
                         "`debug_print_in_'.  If you set this variable to ""\\sw"", that"//LF// &
                         "expansion looks for a word prefixed with `in_' (e.g., it would"//LF// &
                         "match `in_range', but not `in_close_range').  If expanding"//LF// &
@@ -19233,16 +19228,16 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "Default value of the keyboard coding system ("""" for nil).  This is"//LF// &
+            entry%doc = "Default value of the keyboard coding system ("""" for none).  This is"//LF// &
                         "normally set according to the selected language environment.  See"//LF// &
                         "also the command `set_keyboard_coding_system'."
         case ("default_process_coding_system")
             entry%file = "coding_fm.f90"
             entry%fortran = "default_process_coding_system"
             entry%value = repr(default_process_coding_system)
-            entry%doc = "Cons of coding systems used for process I/O by default."//LF// &
-                        "The first element is used for decoding a process output,"//LF// &
-                        "the second is used for encoding a text to be sent to a process."
+            entry%doc = "Coding systems used for process I/O by default."//LF// &
+                        "The first (`decoding') is used for decoding a process output,"//LF// &
+                        "the second (`encoding') is used for encoding a text to be sent to a process."
         case ("default_terminal_coding_system")
             entry%file = "mule_fm.f90"
             entry%fortran = "default_terminal_coding_system"
@@ -19253,7 +19248,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "Default value for the terminal coding system ("""" for nil).  This is"//LF// &
+            entry%doc = "Default value for the terminal coding system ("""" for none).  This is"//LF// &
                         "normally set according to the selected language environment.  See"//LF// &
                         "also the command `set_terminal_coding_system'."
         case ("define_ibuffer_column")
@@ -20765,7 +20760,7 @@ contains
             entry%fortran = "f90_cache_position"
             entry%original = "0"
             entry%value = repr(f90_cache_position)
-            entry%doc = "Temporary position used to speed up region operations (0 for nil)."
+            entry%doc = "Temporary position used to speed up region operations (0 for none)."
         case ("f90_comment_region")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_comment_region"
@@ -21019,8 +21014,8 @@ contains
                         "For example, change the END that closes an IF block to END IF."//LF// &
                         "If the block has a label, add it as well (unless `f90_smart_end_names'"//LF// &
                         "says not to).  Allowed values are F90_SMART_END_BLINK,"//LF// &
-                        "F90_SMART_END_NO_BLINK, and F90_SMART_END_NO.  If nil,"//LF// &
-                        "nothing is done.  The other two settings have the same effect, but `blink'"//LF// &
+                        "F90_SMART_END_NO_BLINK, and F90_SMART_END_NO.  If F90_SMART_END_NO,"//LF// &
+                        "nothing is done.  The other two settings have the same effect, but F90_SMART_END_BLINK"//LF// &
                         "additionally blinks the cursor to the start of the block."
         case ("f90_smart_end_names")
             entry%file = "f90_fm.f90"
@@ -21865,8 +21860,8 @@ contains
             entry%original = "8"
             entry%value = repr(help_char)
             entry%doc = "Character to recognize as meaning Help."//LF// &
-                        "When it is read, do `(eval help-form)', and display result if it's a string."//LF// &
-                        "If the value of `help_procedure' is nil, this char can be read normally."
+                        "When it is read, call `help_procedure', and display the result if it's a string."//LF// &
+                        "If the value of `help_procedure' is null, this char can be read normally."
         case ("help_event_list")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "help_event_list"
@@ -21925,7 +21920,7 @@ contains
                         "elements, and is done just after inserting a new element."//LF// &
                         ""//LF// &
                         "This variable only affects history lists that don't specify their own"//LF// &
-                        "maximum lengths.  Setting the `history_length' property of a history"//LF// &
+                        "maximum lengths.  Setting the `history_length' attribute of a history"//LF// &
                         "variable overrides this default."
         case ("ibuffer_always_compile_formats")
             entry%file = "ibuffer_fm.f90"
@@ -22135,9 +22130,9 @@ contains
             entry%fortran = "ibuffer_fontification_table"
             entry%user_option = .true.
             entry%doc = "An array describing how to fontify buffers."//LF// &
-                        "Each element has a PRIORITY, a FORM (a function evaluated in the"//LF// &
-                        "buffer), and the FACE to use for fontification.  If the FORM"//LF// &
-                        "returns true, then FACE will be put on the buffer name.  The"//LF// &
+                        "Each element has a PRIORITY, a PREDICATE (a logical function called in the"//LF// &
+                        "buffer), and the FACE to use for fontification.  If the PREDICATE"//LF// &
+                        "returns .true., then FACE will be put on the buffer name.  The"//LF// &
                         "element with the highest PRIORITY takes precedence."//LF// &
                         ""//LF// &
                         "If you change this variable, you must kill the Ibuffer buffer and"//LF// &
@@ -22730,7 +22725,7 @@ contains
                         "might want to use something like ""[ \t\r\n]+"" instead.  Don't add"//LF// &
                         "any capturing groups into this value; that can change the numbering"//LF// &
                         "of existing capture groups in unexpected ways.  (Unallocated for"//LF// &
-                        "nil.)"
+                        "none.)"
         case ("info_selection_hook")
             entry%file = "info_fm.f90"
             entry%fortran = "info_selection_hook"
@@ -22841,10 +22836,12 @@ contains
             entry%fortran = "inhibit_interaction"
             entry%original = ".false."
             entry%value = repr(inhibit_interaction)
-            entry%doc = "True means any user interaction will signal an error."//LF// &
+            entry%doc = "True means any user interaction will make an `inhibited_interaction' error condition occur"// &
+                        "."//LF// &
                         "This variable can be bound when user interaction can't be performed,"//LF// &
                         "for instance when running a headless Emacs server.  Functions like"//LF// &
-                        "`read_from_minibuffer' (and the like) will signal `inhibited_interaction'"//LF// &
+                        "`read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition"// &
+                        " occur"//LF// &
                         "instead."
         case ("inhibit_iso_escape_detection")
             entry%file = "coding_fm.f90"
@@ -22950,7 +22947,7 @@ contains
             entry%doc = "Table of paired characters inserted by `insert_pair'."//LF// &
                         "Each element looks like (OPEN-CHAR CLOSE-CHAR) or (COMMAND-CHAR"//LF// &
                         "OPEN-CHAR CLOSE-CHAR).  The characters OPEN-CHAR and CLOSE-CHAR"//LF// &
-                        "of the pair whose key is equal to the last input character with"//LF// &
+                        "of the entry whose key is equal to the last input character with"//LF// &
                         "or without modifiers, are inserted by `insert_pair'."//LF// &
                         ""//LF// &
                         "If COMMAND-CHAR is specified, it is a character that triggers the"//LF// &
@@ -22988,7 +22985,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "A string added to the Isearch prompt (unallocated for nil), as"//LF// &
+            entry%doc = "A string added to the Isearch prompt (unallocated for none), as"//LF// &
                         """history "" when searching a comint's input history."
         case ("isearch_mode_end_hook")
             entry%file = "isearch_fm.f90"
@@ -23100,7 +23097,7 @@ contains
             entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(kill_read_only_ok)
-            entry%doc = "True means don't signal an error for killing read-only text."
+            entry%doc = "True means no error condition occurs for killing read-only text."
         case ("kill_ring_max")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_ring_max"
@@ -23657,7 +23654,7 @@ contains
             end if
 
             entry%doc = "The name of this machine, for use in constructing email addresses."//LF// &
-                        "If this is unallocated (nil), Emacs uses `system_name'."
+                        "If this is unallocated, Emacs uses `system_name'."
         case ("make_backup_files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
@@ -24071,7 +24068,7 @@ contains
             entry%fortran = "multibyte_syntax_as_identifier"
             entry%original = ".false."
             entry%value = repr(multibyte_syntax_as_identifier)
-            entry%doc = "True means `scan_expressions' treats all multibyte characters as symbol."
+            entry%doc = "True means `scan_expressions' treats all multibyte characters as identifier."
         case ("narrow_to_subprogram_include_comments")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "narrow_to_subprogram_include_comments"
@@ -24359,7 +24356,7 @@ contains
             end if
 
             entry%doc = "A regexp of names to be disregarded during directory completion"//LF// &
-                        "(unallocated for nil)."
+                        "(unallocated when unset)."
         case ("pcomplete_expand_before_complete")
             entry%file = "pcomplete_fm.f90"
             entry%fortran = "pcomplete_expand_before_complete"
@@ -24385,7 +24382,7 @@ contains
             end if
 
             entry%doc = "A regexp of filenames to be disregarded during file completion"//LF// &
-                        "(unallocated for nil)."
+                        "(unallocated when unset)."
         case ("pcomplete_hosts_file")
             entry%file = "pcomplete_fm.f90"
             entry%fortran = "pcomplete_hosts_file"
@@ -24804,7 +24801,7 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_defaults"
             entry%doc = "Default values of FROM_STRING and TO_STRING for `query_replace'."//LF// &
-                        "This is an array of FROM_STRING and TO_STRING pairs, or unallocated"//LF// &
+                        "This is an array of entries with components `from' and `to', or unallocated"//LF// &
                         "if there are no default values."
         case ("query_replace_from_history_variable")
             entry%file = "replace_fm.f90"
@@ -24833,7 +24830,7 @@ contains
             end if
 
             entry%doc = "String that separates FROM and TO in the history of replacement"//LF// &
-                        "pairs.  When unallocated, the pair will not be added to the"//LF// &
+                        "strings.  When unallocated, FROM and TO will not be added to the"//LF// &
                         "history (same behavior as in Emacs 24.5)."
         case ("query_replace_show_replacement")
             entry%file = "replace_fm.f90"
@@ -25672,9 +25669,9 @@ contains
             entry%original = ".false."
             entry%value = repr(scroll_error_top_bottom)
             entry%doc = "Move point on scroll error if true."//LF// &
-                        "If false, scroll commands signal an error when no more scrolling is"//LF// &
+                        "If false, an error condition occurs in scroll commands when no more scrolling is"//LF// &
                         "possible.  If true, they move point to the beginning or end of"//LF// &
-                        "the buffer instead (and then signal at the edge)."
+                        "the buffer instead (and then an error condition occurs at the edge)."
         case ("search_exit_option")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_exit_option"
@@ -25699,8 +25696,8 @@ contains
             entry%user_option = .true.
             entry%original = "16"
             entry%value = repr(search_ring_max)
-            entry%doc = "Maximum length of search ring before oldest elements are thrown"//LF// &
-                        "away."
+            entry%doc = "Maximum length of search ring before oldest elements are"//LF// &
+                        "thrown away."
         case ("search_spaces_regexp")
             entry%file = "search_fm.f90"
             entry%fortran = "search_spaces_regexp"
@@ -25846,8 +25843,8 @@ contains
                         "Use this where the name of the executable doesn't correspond to"//LF// &
                         "the type of shell it really is.  Keys are regular expressions"//LF// &
                         "matched against the full path of the interpreter.  (For backward"//LF// &
-                        "compatibility, keys may also be symbols, which are matched"//LF// &
-                        "against the interpreter's basename.  The values are symbols"//LF// &
+                        "compatibility, keys may also be names, which are matched"//LF// &
+                        "against the interpreter's basename.  The values are names"//LF// &
                         "naming the shell."
         case ("sh_ancestor_table")
             entry%file = "sh_script_fm.f90"
@@ -25914,7 +25911,7 @@ contains
             entry%original = "4"
             entry%value = repr(sh_basic_offset%value)
             entry%doc = "The default indentation increment."//LF// &
-                        "This value is used for the `+' and `-' symbols in an indentation variable."
+                        "This value is used for the `+' and `-' values in an indentation variable."
         case ("sh_beginning_of_command")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_beginning_of_command"
@@ -27007,12 +27004,12 @@ contains
             entry%fortran = "smie_grammar"
             entry%doc = "List of token parsing info."//LF// &
                         "This list is normally built by `smie_prec2_to_grammar'."//LF// &
-                        "Each element is of the form (TOKEN LEFT-LEVEL RIGHT-LEVEL)."//LF// &
+                        "Each element holds a TOKEN, a LEFT-LEVEL and a RIGHT-LEVEL."//LF// &
                         "Parsing is done using an operator precedence parser."//LF// &
-                        "LEFT-LEVEL and RIGHT-LEVEL can be either numbers or a list, where a list"//LF// &
+                        "LEFT-LEVEL and RIGHT-LEVEL can be either numbers or SMIE_LEVEL_LIST, where SMIE_LEVEL_LIST"//LF// &
                         "means that this operator does not bind on the corresponding side,"//LF// &
-                        "e.g. a LEFT-LEVEL of nil means this is a token that behaves somewhat like"//LF// &
-                        "an open-paren, whereas a RIGHT-LEVEL of nil would correspond to something"//LF// &
+                        "e.g. a LEFT-LEVEL of SMIE_LEVEL_NONE means this is a token that behaves somewhat like"//LF// &
+                        "an open-paren, whereas a RIGHT-LEVEL of SMIE_LEVEL_NONE would correspond to something"//LF// &
                         "like a close-paren."
         case ("smie_indent_basic")
             entry%file = "smie_fm.f90"
@@ -27026,7 +27023,7 @@ contains
             entry%fortran = "smie_indent_functions"
             entry%doc = "Functions to compute the indentation."//LF// &
                         "Each function is called with no argument, shouldn't move point, and should"//LF// &
-                        "return either nil if it has no opinion, or an integer representing the column"//LF// &
+                        "return either SMIE_INDENT_NONE if it has no opinion, or an integer representing the column"//LF// &
                         "to which that point should be aligned, if we were to reindent it."
         case ("smie_rule_separator_outdent")
             entry%file = "smie_fm.f90"
@@ -27493,10 +27490,10 @@ contains
             entry%user_option = .true.
             entry%doc = "A string or list of strings specifying switches for annotate under VC."//LF// &
                         "When running annotate under a given BACKEND, VC uses the first"//LF// &
-                        "non-nil value of `vc_BACKEND_annotate_switches' and"//LF// &
-                        "`vc_annotate_switches', in that order.  Since nil means to check"//LF// &
+                        "value that is not VC_SWITCHES_UNSPECIFIED of `vc_BACKEND_annotate_switches' and"//LF// &
+                        "`vc_annotate_switches', in that order.  Since VC_SWITCHES_UNSPECIFIED means to check"//LF// &
                         "the next variable in the sequence, setting the first to the value"//LF// &
-                        "t means no switches at all.  `vc_annotate_switches' should"//LF// &
+                        "VC_SWITCHES_NONE means no switches at all.  `vc_annotate_switches' should"//LF// &
                         "contain switches that are specific to version control, but not"//LF// &
                         "specific to any particular backend."//LF// &
                         ""//LF// &
@@ -27596,10 +27593,11 @@ contains
             entry%user_option = .true.
             entry%doc = "A string or list of strings specifying switches for diff under VC."//LF// &
                         "When running diff under a given BACKEND, VC uses the first"//LF// &
-                        "non-nil value of `vc_BACKEND_diff_switches', `vc_diff_switches',"//LF// &
-                        "and `diff_switches', in that order.  Since nil means to check the"//LF// &
+                        "value that is not VC_SWITCHES_UNSPECIFIED of `vc_BACKEND_diff_switches', `vc_diff_switches"// &
+                        "',"//LF// &
+                        "and `diff_switches', in that order.  Since VC_SWITCHES_UNSPECIFIED means to check the"//LF// &
                         "next variable in the sequence, either of the first two may use"//LF// &
-                        "the value t to mean no switches at all.  `vc_diff_switches'"//LF// &
+                        "the value VC_SWITCHES_NONE to mean no switches at all.  `vc_diff_switches'"//LF// &
                         "should contain switches that are specific to version control, but"//LF// &
                         "not specific to any particular backend."
         case ("vc_dir_allow_mass_mark_changes")
@@ -27771,7 +27769,8 @@ contains
             entry%fortran = "vc_git_diff_switches"
             entry%user_option = .true.
             entry%doc = "String or list of strings specifying switches for Git diff under VC."//LF// &
-                        "If nil, use the value of `vc_diff_switches'.  If t, use no switches."
+                        "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use"// &
+                        " no switches."
         case ("vc_git_log_edit_mode_map")
             entry%file = "vc_git_fm.f90"
             entry%fortran = "vc_git_log_edit_mode_map"
@@ -28001,7 +28000,7 @@ contains
             entry%fortran = "vc_sentinel_movepoint"
             entry%original = "0"
             entry%value = repr(vc_sentinel_movepoint)
-            entry%doc = "Where a sentinel wants point to go afterwards (0 for nil)."
+            entry%doc = "Where a sentinel wants point to go afterwards (0 for none)."
         case ("vc_state_base")
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_state_base"

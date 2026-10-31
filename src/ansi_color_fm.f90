@@ -68,7 +68,7 @@ module ansi_color_fm
 
     abstract interface
         !> An `ansi_color_apply_face_function': apply face FACE (a face
-        !> value, nil for none) to the text between BEG and END.
+        !> value, empty for none) to the text between BEG and END.
         !> Not a port.
         recursive subroutine ansi_color_face_proc(beg, end, face)
             import :: int64, value_type
@@ -148,8 +148,8 @@ module ansi_color_fm
     type(named_face_type), target, public :: ansi_color_bright_white
 
     !> Faces used for SGR control sequences determining a face.
-    !> This array holds the faces used for SGR control sequence
-    !> parameters 0 to 7 ("" is nil).
+    !> This vector holds the faces used for SGR control sequence
+    !> parameters 0 to 7 ("" for none).
     !>
     !> Parameter  Description
     !>   0        default
@@ -286,7 +286,7 @@ module ansi_color_fm
         character(len=32) :: name = "ansi_color_apply_face_function"
         type(face_function_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure :: set_local => face_function_set_local
         !> The current buffer's value.
         procedure :: get => face_function_get
@@ -361,7 +361,7 @@ contains
     end function context_slot
 
     !> Set the current buffer's `ansi_color_context' and
-    !> `ansi_color_context_region' to nil (as `kill_all_local_variables'
+    !> `ansi_color_context_region' to empty (as `kill_all_local_variables'
     !> does).  Not a port.
     subroutine reset_ansi_color_context()
         type(status_type) :: st
@@ -598,7 +598,7 @@ contains
     !> Every call to this function will set and use the buffer-local
     !> variable `ansi_color_context' to save partial escape sequences.
     !> This information will be used for the next call to
-    !> `ansi_color_apply'.  Set `ansi_color_context' to nil if you don't
+    !> `ansi_color_apply'.  Set `ansi_color_context' to empty if you don't
     !> want this.
     !>
     !> This function can be added to `comint_preoutput_filter_functions'.
@@ -651,7 +651,7 @@ contains
     !> Every call to this function will set and use the buffer-local
     !> variable `ansi_color_context' to save partial escape sequences and
     !> current ansi codes.  This information will be used for the next
-    !> call to `ansi_color_apply'.  Set `ansi_color_context' to nil if you
+    !> call to `ansi_color_apply'.  Set `ansi_color_context' to empty if you
     !> don't want this.
     !>
     !> This function can be added to `comint_preoutput_filter_functions'.
@@ -910,7 +910,7 @@ contains
     !> information will be used for the next call to
     !> `ansi_color_apply_on_region'.  Specifically, it will override
     !> BEGIN, the start of the region.  Set `ansi_color_context_region'
-    !> to nil if you don't want this.  Port of
+    !> to empty if you don't want this.  Port of
     !> ansi-color.el:ansi-color-filter-region.
     recursive subroutine ansi_color_filter_region(begin, end)
         integer(int64), intent(in) :: begin, end
@@ -965,7 +965,7 @@ contains
     !> ansi codes.  This information will be used for the next call to
     !> `ansi_color_apply_on_region'.  Specifically, it will override
     !> BEGIN, the start of the region and set the face with which to
-    !> start.  Set `ansi_color_context_region' to nil if you don't want
+    !> start.  Set `ansi_color_context_region' to empty if you don't want
     !> this.
     !>
     !> If PRESERVE_SEQUENCES is true, the sequences are hidden instead of
@@ -1063,7 +1063,7 @@ contains
     end subroutine ansi_color_apply_on_region
 
     !> Make an overlay from BEG to END, and apply face FACE.
-    !> If FACE is nil, do nothing.  Port of
+    !> If FACE is empty, do nothing.  Port of
     !> ansi-color.el:ansi-color-apply-overlay-face.
     recursive subroutine ansi_color_apply_overlay_face(beg, end, face)
         integer(int64), intent(in) :: beg, end
@@ -1077,7 +1077,7 @@ contains
     end subroutine ansi_color_apply_overlay_face
 
     !> Set the `font_lock_face' property to FACE in region BEG..END.
-    !> If FACE is nil, do nothing.  Port of
+    !> If FACE is empty, do nothing.  Port of
     !> ansi-color.el:ansi-color-apply-text-property-face.
     recursive subroutine ansi_color_apply_text_property_face(beg, end, face)
         integer(int64), intent(in) :: beg, end

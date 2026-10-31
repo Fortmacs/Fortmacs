@@ -46,7 +46,7 @@
 !> forwarded by data_buffer_fm); other options can't be buffer-local.
 !>
 !> Deferred: user options holding hooks, procedures, arrays and other
-!> derived types (they are not offered), an unallocated (nil) string
+!> derived types (they are not offered), an unallocated string
 !> value, the default from the variable at point, `variable_interactive'
 !> properties, obsolescence messages, C-h in the minibuffer
 !> (`minibuffer_help_procedure'), the `custom_set' functions of options

@@ -284,7 +284,7 @@ contains
     !> Read short answers from the minibuffer.  Port of
     !> rmc.el:read-multiple-choice--from-minibuffer (the keymap's
     !> [remap self-insert-command] is flattened, as keymap_fm has no
-    !> remapping; its [help-char] binding binds a symbol event, which
+    !> remapping; its [help-char] binding binds a name event, which
     !> never arrives).
     recursive subroutine from_minibuffer(answer, status)
         type(value_type) :: key1(1)
@@ -358,7 +358,7 @@ contains
         call cmd_wrong%define()
     end subroutine define_commands
 
-    !> cmd-char: the key is the answer.  Port of the cmd-char lambda of
+    !> cmd-char: the key is the answer.  Port of the cmd-char procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_char(status)
         type(status_type), intent(out) :: status
@@ -368,7 +368,7 @@ contains
         call exit_minibuffer(status)
     end subroutine rmc_char
 
-    !> cmd-help: show the help.  Port of the cmd-help lambda of
+    !> cmd-help: show the help.  Port of the cmd-help procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_help(status)
         type(status_type), intent(out) :: status
@@ -377,7 +377,7 @@ contains
         call show_help_window()
     end subroutine rmc_help
 
-    !> cmd-wrong: an invalid choice.  Port of the cmd-wrong lambda of
+    !> cmd-wrong: an invalid choice.  Port of the cmd-wrong procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_wrong(status)
         type(status_type), intent(out) :: status

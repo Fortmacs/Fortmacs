@@ -775,8 +775,8 @@ contains
 
     !> What `try_completion' gives for STRING against the names
     !> COLLECTION (blank-padded): EXACT when STRING is the only completion
-    !> and matches exactly (t), else the longest common prefix of the
-    !> completions in COMPLETION ("" for none, nil).  Not a port.
+    !> and matches exactly (`exact' .true.), else the longest common prefix of the
+    !> completions in COMPLETION ("" for none).  Not a port.
     subroutine try_completion_list(string, collection, completion, exact)
         character(len=*), intent(in) :: string, collection(:)
         character(len=:), allocatable, intent(out) :: completion

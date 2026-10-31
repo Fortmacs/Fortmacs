@@ -56,7 +56,7 @@ module executable_fm
     !> Values of `executable_query'.
     integer, parameter, public :: EXECUTABLE_QUERY_NO = 0, EXECUTABLE_QUERY_FUNCTION = 1, EXECUTABLE_QUERY_ALWAYS = 2
 
-    !> The value of `executable_chmod' that is nil.
+    !> The value of `executable_chmod' that means not to change the modes.
     integer, parameter, public :: EXECUTABLE_CHMOD_NONE = -huge(0)
 
     !> True means offer to add a magic number to a file.
@@ -304,14 +304,14 @@ contains
         if (head /= "#!") return
 
         if (.not. allocated(buffers(cur)%filename)) then
-            call message("Unable to make file executable: Wrong type argument: stringp, nil")
+            call message("Unable to make file executable: Wrong type argument: expected character(len=*), unallocated")
             return
         end if
 
         current_mode = file_modes(buffers(cur)%filename)
 
         if (current_mode < 0) then
-            call message("Unable to make file executable: Wrong type argument: integerp, nil")
+            call message("Unable to make file executable: Wrong type argument: expected integer")
             return
         end if
 

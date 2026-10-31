@@ -29,10 +29,10 @@
 !> A completion function walks the arguments with `pcomplete_here': it
 !> returns true and moves to the next argument while the final argument
 !> is not reached, and at the final argument gives the completion table
-!> of its FORM and returns false (upstream's throw to
+!> of its FORM and returns false (upstream's return to
 !> `pcomplete-completions').  A completion function returns as soon as
 !> `pcomplete_here' returns false or `pcomplete_thrown' is true (no
-!> completions: upstream's throw to `pcompleted').
+!> completions: upstream's return to `pcompleted').
 !>
 !> Deferred: pcomplete's own UI (`pcomplete', `pcomplete_reverse',
 !> `pcomplete_expand_and_complete', `pcomplete_continue',
@@ -99,7 +99,7 @@ module pcomplete_fm
         end subroutine pcomplete_function_proc
 
         !> The FORM of `pcomplete_here': the completion TABLE for the
-        !> final argument (FOUND false for nil).
+        !> final argument (FOUND .false. for none).
         recursive subroutine pcomplete_form_proc(table, found)
             import :: completion_table_type
             implicit none(type, external)
@@ -139,8 +139,8 @@ module pcomplete_fm
 
     !> Values of PARING for `pcomplete_here': the argument is pared
     !> against previous arguments normalized with `file_truename' or the
-    !> PARING_FUNCTION (nil upstream); it does not participate in paring
-    !> (t); all previous arguments seen are cleared (0).
+    !> PARING_FUNCTION (PCOMPLETE_PARING_DEFAULT); it does not participate in paring
+    !> (PCOMPLETE_PARING_NONE); all previous arguments seen are cleared (PCOMPLETE_PARING_CLEAR).
     integer, parameter, public :: PCOMPLETE_PARING_DEFAULT = 0, PCOMPLETE_PARING_NONE = 1, PCOMPLETE_PARING_CLEAR = 2
 
     !> Values of WHICH for `pcomplete_arg' and `pcomplete_begin': an
@@ -152,11 +152,11 @@ module pcomplete_fm
     integer, parameter :: THROWN_NONE = 0, THROWN_COMPLETIONS = 1, THROWN_PCOMPLETED = 2
 
     !> A regexp of filenames to be disregarded during file completion
-    !> (unallocated for nil).  Port of pcomplete.el pcomplete-file-ignore.
+    !> (unallocated when unset).  Port of pcomplete.el pcomplete-file-ignore.
     type(string_setting), target, public :: pcomplete_file_ignore = string_setting(name="pcomplete_file_ignore")
 
     !> A regexp of names to be disregarded during directory completion
-    !> (unallocated for nil).  Port of pcomplete.el pcomplete-dir-ignore.
+    !> (unallocated when unset).  Port of pcomplete.el pcomplete-dir-ignore.
     type(string_setting), target, public :: pcomplete_dir_ignore = string_setting(name="pcomplete_dir_ignore")
 
     !> Whether to ignore remote file names.  Port of pcomplete.el
@@ -231,7 +231,7 @@ module pcomplete_fm
         character(len=48) :: name = ""
         procedure(pcomplete_function_proc), pointer, nopass :: value => null()
     contains
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure :: set_local => function_set_local
         !> The current buffer's value.
         procedure :: get => function_get
@@ -243,7 +243,7 @@ module pcomplete_fm
         character(len=48) :: name = ""
         procedure(pcomplete_parse_proc), pointer, nopass :: value => null()
     contains
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => parse_set_local
         !> The current buffer's value.
         procedure :: get => parse_get
@@ -563,7 +563,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether completion was abandoned (upstream, `pcompleted' was
-    !> thrown) or its table given (`pcomplete-completions' thrown): a
+    !> returned) or its table given (`pcomplete-completions' returned): a
     !> completion function returns at once when this is true.  Not a port.
     logical function pcomplete_thrown()
         pcomplete_thrown = thrown /= THROWN_NONE

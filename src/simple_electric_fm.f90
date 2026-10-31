@@ -68,7 +68,7 @@ contains
     end procedure syms_of_simple_electric
 
     !> The syntax descriptor of the character after POS (syntax-after):
-    !> FOUND false outside the accessible region (nil).  Port of
+    !> FOUND false outside the accessible region.  Port of
     !> subr.el:syntax-after.
     subroutine syntax_after(pos, d, found)
         integer(int64), intent(in) :: pos

@@ -383,7 +383,7 @@ contains
         call check(error,.not. allocated(v%a), "nil kept")
         if (allocated(error)) return
         call set_default(sym("fill_column"), make_string("x"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "integerp")
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer")
         fill_column = 70
     end subroutine test_exact
 
@@ -398,7 +398,7 @@ contains
         call setup(error, a, b)
         if (allocated(error)) return
         call makunbound(sym("fill_column"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: integerp")
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: expected integer")
         if (allocated(error)) return
         indent_tabs_mode = .false.
         call makunbound(sym("indent_tabs_mode"), st)

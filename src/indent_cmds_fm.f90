@@ -315,7 +315,7 @@ contains
 
     !> Return the smallest indentation in range from BEG to END.
     !> Blank lines are ignored.  Port of
-    !> indent.el:indent-rigidly--current-indentation (-1 for nil).
+    !> indent.el:indent-rigidly--current-indentation (-1 for none).
     integer(int64) function rigidly_current_indentation(beg, end) result(indent)
         integer(int64), intent(in) :: beg, end
         integer(int64) :: opoint, pos

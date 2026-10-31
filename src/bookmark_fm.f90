@@ -265,8 +265,8 @@ module bookmark_fm
     !> bookmark-watch-bookmark-file.
     integer, public :: bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_ASK
 
-    !> Values of `bookmark_version_control': t, nil, `never' and
-    !> `nospecial'.
+    !> Values of `bookmark_version_control': BOOKMARK_VERSION_CONTROL_NUMBERED, BOOKMARK_VERSION_CONTROL_EXISTING,
+    !> BOOKMARK_VERSION_CONTROL_NEVER and BOOKMARK_VERSION_CONTROL_NOSPECIAL.
     integer, parameter, public :: BOOKMARK_VERSION_CONTROL_NUMBERED = 1, BOOKMARK_VERSION_CONTROL_EXISTING = 0, &
                                   BOOKMARK_VERSION_CONTROL_NEVER = 2, BOOKMARK_VERSION_CONTROL_NOSPECIAL = 3
 
@@ -276,7 +276,7 @@ module bookmark_fm
     !> for the variable `version_control'; the value _NOSPECIAL (the
     !> default) means just use the value of `version_control'.  Port of
     !> bookmark.el bookmark-version-control (numbered backups are not
-    !> ported: saving makes a single backup, as with version-control nil).
+    !> ported: saving makes a single backup, as with `version_control' .false.).
     integer, public :: bookmark_version_control = BOOKMARK_VERSION_CONTROL_NOSPECIAL
 
     !> True means bookmark functions ignore case in completion.  Port of
@@ -371,7 +371,7 @@ module bookmark_fm
     !> should be treated specially, such as Info nodes, news posts,
     !> images, pdf documents, etc.
     !>
-    !> It should signal a user error if it is unable to construct a record
+    !> A `user_error' error condition should occur if it is unable to construct a record
     !> for the current location.
     !>
     !> The returned record is a `bookmark_type'.  Its name is a suggested
@@ -464,8 +464,8 @@ module bookmark_fm
     !> The idle timer of `bookmark_bmenu_search' and its minibuffer.
     type(handle_type) :: search_timer, search_minibuffer
 
-    !> Values of OVERWRITE_OR_PUSH for `bookmark_set_internal' (nil,
-    !> `overwrite' and `push').
+    !> Values of OVERWRITE_OR_PUSH for `bookmark_set_internal' (BOOKMARK_SET_ERROR,
+    !> BOOKMARK_SET_OVERWRITE and BOOKMARK_SET_PUSH).
     integer, parameter, public :: BOOKMARK_SET_ERROR = 0, BOOKMARK_SET_OVERWRITE = 1, BOOKMARK_SET_PUSH = 2
 
     !> The buffer-local variables: `bookmark_current_bookmark' (name of
@@ -553,7 +553,7 @@ contains
         if (allocated(locals(k)%current_bookmark)) name = locals(k)%current_bookmark
     end function bookmark_current_bookmark
 
-    !> Set the current buffer's `bookmark_current_bookmark' to NAME (nil if
+    !> Set the current buffer's `bookmark_current_bookmark' to NAME ("" if
     !> NAME is absent).  Not a port.
     subroutine set_bookmark_current_bookmark(name)
         character(len=*), intent(in), optional :: name
@@ -569,7 +569,7 @@ contains
         end if
     end subroutine set_bookmark_current_bookmark
 
-    ! Whether the current buffer's `bookmark_current_bookmark' is non-nil.
+    ! Whether the current buffer's `bookmark_current_bookmark' is allocated.
     ! Not a port.
     logical function have_current_bookmark()
         integer :: k
@@ -619,7 +619,7 @@ contains
 
     !> Return the index in `bookmark_table' of the bookmark named
     !> BOOKMARK_NAME; error if there is none.  If optional argument NOERROR
-    !> is true, return 0 instead of signaling an error.  Port of
+    !> is true, return 0 instead of making an error condition occur.  Port of
     !> bookmark.el:bookmark-get-bookmark (for a name).
     integer function bookmark_get_bookmark(bookmark_name, status, noerror) result(k)
         character(len=*), intent(in) :: bookmark_name
@@ -1138,8 +1138,8 @@ contains
 
     !> Store the bookmark NAME with data RECORD.
     !> If NO_OVERWRITE is true and another bookmark of the same name already
-    !> exists in `bookmark_table', record the new bookmark without throwing
-    !> away the old one.  Port of bookmark.el:bookmark-store.
+    !> exists in `bookmark_table', record the new bookmark without discarding
+    !> the old one.  Port of bookmark.el:bookmark-store.
     recursive subroutine bookmark_store(name, record, no_overwrite, status)
         character(len=*), intent(in) :: name
         type(bookmark_type), intent(in) :: record
@@ -1411,8 +1411,8 @@ contains
     !> default name in parentheses, a colon and a space.
     !>
     !> OVERWRITE_OR_PUSH controls what happens if there is already a
-    !> bookmark with the same name: BOOKMARK_SET_ERROR means signal an
-    !> error; BOOKMARK_SET_OVERWRITE means replace any existing bookmark;
+    !> bookmark with the same name: BOOKMARK_SET_ERROR means an error condition
+    !> occurs; BOOKMARK_SET_OVERWRITE means replace any existing bookmark;
     !> BOOKMARK_SET_PUSH means push the new bookmark onto the bookmark
     !> table.  The push behavior means that among bookmarks with the same
     !> name, this most recently set one becomes the one in effect, but the
@@ -2102,7 +2102,7 @@ contains
     end subroutine cmd_bookmark_jump_other_window
 
     !> Call BOOKMARK_NAME's handler, `bookmark_default_handler'.  This
-    !> changes current buffer and point, or signals a `file_error'.
+    !> changes current buffer and point, or a `file_error' error condition occurs.
     !>
     !> If BOOKMARK_NAME has a file, but that file no longer exists, then
     !> offer interactively to relocate BOOKMARK_NAME.  Port of
@@ -2155,8 +2155,8 @@ contains
 
     !> Default handler to jump to a particular bookmark location.
     !> BMK_RECORD is a bookmark record, not a bookmark name (i.e., not a
-    !> string).  Changes current buffer and point, or signals a
-    !> `file_error'.  Port of bookmark.el:bookmark-default-handler (no
+    !> string).  Changes current buffer and point, or a
+    !> `file_error' error condition occurs.  Port of bookmark.el:bookmark-default-handler (no
     !> `buffer' property).
     recursive subroutine bookmark_default_handler(bmk_record, status)
         type(bookmark_type), intent(in) :: bmk_record
@@ -2177,7 +2177,7 @@ contains
             end if
         else
             ! No file found.
-            call set_error(status, FM_BOOKMARK_ERROR_NO_FILENAME, "stringp, nil")
+            call set_error(status, FM_BOOKMARK_ERROR_NO_FILENAME, "expected character(len=*), got unallocated")
             return
         end if
 

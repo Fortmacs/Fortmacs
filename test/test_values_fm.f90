@@ -273,7 +273,7 @@ contains
         call plist_put(plist, sym(":zot"), make_fixnum(2_int64), st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
         if (allocated(error)) return
-        call check(error, st%detail, "plistp")
+        call check(error, st%detail, "expected array")
     end subroutine test_plist_put_odd
 
     !> fns-tests.el: test-plist (all four blocks, predicates included).

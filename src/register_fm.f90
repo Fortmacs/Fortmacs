@@ -145,7 +145,7 @@ module register_fm
     !> When collecting text with \[append_to_register] (or \[prepend_to_register]),
     !> contents of this register is added to the beginning (or end, respectively)
     !> of the marked text.  Port of register.el register-separator (-1
-    !> for nil).
+    !> for none).
     integer(int64), public :: register_separator = -1
 
     !> Set contents of Emacs register named REGISTER to VALUE (text, a
@@ -285,7 +285,7 @@ contains
     end subroutine set_register_number
 
     !> `set_register' with a rectangle (an empty one empties the register,
-    !> as nil).  Port of register.el:set-register (a rectangle).
+    !> as no value does).  Port of register.el:set-register (a rectangle).
     subroutine set_register_rectangle(register, value)
         integer(int64), intent(in) :: register
         type(rectangle_line_type), intent(in) :: value(:)
@@ -856,7 +856,7 @@ contains
     !> With a prefix-argument, prompt for FILE_NAME using `read_file_name',
     !> With no prefix-argument, use the currently visited file or directory
     !> for FILE_NAME.  Port of register.el:file-to-register (the command
-    !> does nothing when there is no FILE_NAME, as for nil).
+    !> does nothing when there is no FILE_NAME).
     subroutine file_to_register(file_name, register)
         character(len=*), intent(in) :: file_name
         integer(int64), intent(in) :: register
@@ -1122,13 +1122,13 @@ contains
         case (REGISTER_FILE)
             ! insert-rectangle of (file . NAME) gives insert-for-yank the
             ! symbol `file'.
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, file")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got file")
         case (REGISTER_FILE_QUERY)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, file_query")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got file_query")
         case (REGISTER_BUFFER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, buffer")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got buffer")
         case (REGISTER_WINDOW_CONFIGURATION)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, #<window-configuration>")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got #<window-configuration>")
         case default
             call set_error(status, FM_USER_ERROR, "Register does not contain text")
         end select
@@ -1197,19 +1197,20 @@ contains
         case (REGISTER_TEXT)
             text = sep%text
         case (REGISTER_NUMBER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//int_text(sep%number))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//int_text(sep%number))
         case (REGISTER_MARKER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//marker_repr(sep%marker))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//marker_repr(sep%marker))
         case (REGISTER_RECTANGLE)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//fortran_string(sep%rectangle(1)%text))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer (a character code), got "//fortran_string(sep%rectangle(1)%text))
         case (REGISTER_FILE)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, file")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got file")
         case (REGISTER_FILE_QUERY)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, file_query")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got file_query")
         case (REGISTER_BUFFER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, buffer")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got buffer")
         case (REGISTER_WINDOW_CONFIGURATION)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, #<window-configuration>")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got #<window-configuration>")
         case default
             continue
         end select
@@ -1325,7 +1326,7 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    !> Whether the prefix argument is given (a "P" argument that is not nil).
+    !> Whether the prefix argument is given (a raw prefix argument that is not empty).
     !> Not a port.
     logical function prefix_given()
         prefix_given = allocated(current_prefix_arg%a)

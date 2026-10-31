@@ -1,0 +1,25 @@
+rejected.f90:9: fortran-prose: non-nil
+rejected.f90:10: fortran-prose: nil
+rejected.f90:11: fortran-prose: is void
+rejected.f90:12: fortran-prose: Symbol's value
+rejected.f90:13: fortran-prose: constant symbol
+rejected.f90:14: fortran-prose: signal an error
+rejected.f90:15: fortran-prose: throw
+rejected.f90:16: fortran-prose: catch
+rejected.f90:17: fortran-prose: condition-case
+rejected.f90:18: fortran-prose: property list
+rejected.f90:19: fortran-prose: property list
+rejected.f90:20: fortran-prose: interactive spec
+rejected.f90:21: fortran-prose: byte compiler
+rejected.f90:22: fortran-prose: cons
+rejected.f90:23: fortran-prose: pair
+rejected.f90:23: fortran-prose: dotted pair
+rejected.f90:24: fortran-prose: car/cdr
+rejected.f90:25: fortran-prose: lambda
+rejected.f90:26: fortran-prose: funcall
+rejected.f90:27: fortran-prose: setq
+rejected.f90:28: fortran-prose: obarray
+rejected.f90:29: fortran-prose: Elisp
+rejected.f90:30: fortran-prose: pair
+rejected.f90:35: fortran-prose: nil
+rejected.f90:35: fortran-prose: wrong-type predicate

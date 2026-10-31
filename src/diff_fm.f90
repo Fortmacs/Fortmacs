@@ -460,8 +460,8 @@ contains
     end subroutine remember_revert_args
 
     !> The `revert_buffer_function' of *Diff* buffers: run the diff
-    !> again (the lambda of diff-no-select).  Port of the
-    !> revert-buffer-function lambda of diff.el:diff-no-select.
+    !> again (the anonymous procedure of diff-no-select).  Port of the
+    !> revert-buffer-function procedure of diff.el:diff-no-select.
     recursive subroutine diff_revert(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -542,7 +542,7 @@ contains
     end subroutine diff_process_filter
 
     !> The process sentinel of diff: run `diff_sentinel' in the process
-    !> buffer.  Port of the process sentinel lambda of
+    !> buffer.  Port of the process sentinel procedure of
     !> diff.el:diff-no-select.
     recursive subroutine diff_process_sentinel(proc, event, status)
         type(handle_type), intent(in) :: proc
@@ -629,7 +629,7 @@ contains
         call diff(bak, ori, status, switches)
     end subroutine diff_backup
 
-    !> Return the latest existing backup of file FN, or nil (FOUND false).
+    !> Return the latest existing backup of file FN, or FOUND .false. if there is none.
     !> Port of diff.el:diff-latest-backup-file (no file name handlers).
     subroutine diff_latest_backup_file(fn, backup, found)
         character(len=*), intent(in) :: fn

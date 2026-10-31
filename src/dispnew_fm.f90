@@ -61,7 +61,7 @@ module dispnew_fm
 
     !> The state `is_frame_or_buffer_changed' compares with: the buffers
     !> (by serial number, in the order of the buffer list) and their
-    !> read-only and modified flags; VALID false for none yet (nil).
+    !> read-only and modified flags; VALID .false. for none yet.
     type, public :: frame_buffer_state_type
         logical :: valid = .false.
         integer(int64), allocatable :: serials(:)
@@ -278,7 +278,7 @@ contains
         if (present(window)) w = window
 
         if (.not. is_window_valid(w)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
             return
         end if
 
@@ -299,7 +299,7 @@ contains
         if (present(window)) w = window
 
         if (.not. is_window_valid(w)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
             return
         end if
 

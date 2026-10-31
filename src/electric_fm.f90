@@ -190,7 +190,7 @@ contains
     end function electric_indent_chars_value
 
     !> Give the current buffer its own value CHARS of `electric_indent_chars'
-    !> (setq-local).
+    !> (set_local).
     !> Not a port.
     subroutine set_local_electric_indent_chars(chars)
         integer, intent(in) :: chars(:)
@@ -217,7 +217,7 @@ contains
     end function event_char
 
     !> Return the position after the char we just inserted.
-    !> Returns 0 (upstream's nil) when we can't find this char.  Port of
+    !> Returns 0 when we can't find this char.  Port of
     !> electric.el:electric--after-char-pos.
     integer(int64) function electric_after_char_pos() result(pos)
         integer(int64) :: opoint, moved
@@ -462,7 +462,7 @@ contains
     end function is_electric_indent_local_mode
 
     !> The body of Electric Indent Local mode with its new state VAL: the
-    !> setter (setq-local electric-indent-mode VAL), then the body.  Port of
+    !> setter (`electric_indent_mode' set locally to VAL), then the body.  Port of
     !> electric.el:electric-indent-local-mode (its body).
     subroutine electric_indent_local_mode_body(val, status)
         logical, intent(in) :: val
