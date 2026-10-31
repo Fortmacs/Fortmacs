@@ -28,7 +28,11 @@ module test_minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
-    use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR, FM_VOID_VARIABLE
+    use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR, FM_VOID_VARIABLE, FM_INHIBITED_INTERACTION
+    use minibuf_fm, only: completion_regexp_list, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
+                          minibuffer_setup_function, minibufferp, assoc_string
+    use keyboard_fm, only: inhibit_interaction
+    use lisp_fm, only: list, vtag, V_LIST
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nil, list_length, list_elt, xstring, make_string, make_list, &
                        list, list_elements, stringp, nilp, t_value
@@ -73,6 +77,10 @@ module test_minibuf_fm
 
     type(command_type), target :: cmd_test_nested_read, cmd_test_leave_and_read
     type(command_type), target :: cmd_test_record_completion
+    !> What the minibuffer-setup and minibuffer-exit functions saw.
+    integer :: seen_depth = -1
+    character(len=:), allocatable :: seen_prompt
+    logical :: exit_hook_ran = .false.
 
     !> What the nested-minibuffer command saw.
     type(status_type) :: nested_status
@@ -147,7 +155,23 @@ contains
                     new_unittest("test-completion-symbol-alist-predicate", test_test_symbol_alist_pred), &
                     new_unittest("test-completion-string-alist", test_test_string_alist), &
                     new_unittest("test-completion-string-alist-predicate", test_test_string_alist_pred), &
+                    new_unittest("try-completion-string-list-completion-regexp", test_try_regexp_1), &
+                    new_unittest("all-completions-string-list-completion-regexp", test_all_regexp_1), &
+                    new_unittest("test-completion-string-list-completion-regexp", test_test_regexp_1), &
+                    new_unittest("try-completion-symbol-list-completion-regexp", test_try_regexp_2), &
+                    new_unittest("all-completions-symbol-list-completion-regexp", test_all_regexp_2), &
+                    new_unittest("test-completion-symbol-list-completion-regexp", test_test_regexp_2), &
+                    new_unittest("try-completion-symbol-alist-completion-regexp", test_try_regexp_3), &
+                    new_unittest("all-completions-symbol-alist-completion-regexp", test_all_regexp_3), &
+                    new_unittest("test-completion-symbol-alist-completion-regexp", test_test_regexp_3), &
+                    new_unittest("try-completion-string-alist-completion-regexp", test_try_regexp_4), &
+                    new_unittest("all-completions-string-alist-completion-regexp", test_all_regexp_4), &
+                    new_unittest("test-completion-string-alist-completion-regexp", test_test_regexp_4), &
                     new_unittest("completion-obarray", test_obarray), &
+                    new_unittest("minibuf-depth-and-prompt", test_depth_prompt), &
+                    new_unittest("test-inhibit-interaction", test_inhibit_interaction), &
+                    new_unittest("assoc-string", test_assoc_string), &
+                    new_unittest("read-variable", test_read_variable), &
                     new_unittest("test-try-completion-ignore-case", test_try_completion_ignore_case), &
                     new_unittest("completion-auto-help-test", test_completion_auto_help), &
                     new_unittest("completions-list-buffer", test_completion_list_buffer), &
@@ -1444,4 +1468,235 @@ contains
         fill_column = 70_int64
         call check(error, answer, "aaa bbb ccc"//achar(10)//"ddd")
     end subroutine test_fill_minibuffer
+
+    !> minibuf-tests--try-completion-regexp, --all-completions-regexp and
+    !> --test-completion-regexp for collection kind KIND: with
+    !> completion_regexp_list (".") nothing changes, with ("X") nothing
+    !> matches.
+    subroutine check_regexp(error, kind, fn)
+        type(error_type), allocatable, intent(out) :: error
+        integer, intent(in) :: kind
+        character(len=*), intent(in) :: fn
+        type(completion_table_type) :: abcdef, abba
+        type(value_type) :: r
+        type(status_type) :: st
+
+        abcdef = collection(kind, [character(len=4) :: "abc", "def"])
+        abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
+        completion_regexp_list = [character(len=4) :: "."]
+
+        select case (fn)
+        case ("try")
+            call try_completion("a", abcdef, r, st)
+            call check(error, is_string(r, "abc"), "a in abcdef")
+            if (allocated(error)) return
+            call try_completion("a", abba, r, st)
+            call check(error, is_string(r, "ab"), "a in +abba")
+            if (allocated(error)) return
+            call try_completion("abc", abba, r, st)
+            call check(error, value_eq(r, t_value()), "abc is exact")
+            if (allocated(error)) return
+            call try_completion("abcd", abba, r, st)
+            call check(error, nilp(r), "abcd")
+        case ("all")
+            call all_completions("a", abcdef, r, st)
+            call check(error, list_length(r) == 1, "a in abcdef")
+            if (allocated(error)) return
+            call all_completions("a", abba, r, st)
+            call check(error, list_length(r) == 2, "a in +abba")
+            if (allocated(error)) return
+            call all_completions("abcd", abba, r, st)
+            call check(error, nilp(r), "abcd")
+        case default
+            call check(error, test_completion("abc", abcdef) .and. test_completion("abba", abba), "valid")
+            if (allocated(error)) return
+            call check(error,.not. test_completion("abcd", abba), "abcd")
+        end select
+
+        if (allocated(error)) then
+            deallocate (completion_regexp_list)
+            return
+        end if
+
+        completion_regexp_list = [character(len=4) :: "X"]
+
+        select case (fn)
+        case ("try")
+            call try_completion("a", abcdef, r, st)
+            call check(error, nilp(r), "a in abcdef")
+
+            if (allocated(error)) then
+                deallocate (completion_regexp_list)
+                return
+            end if
+
+            call try_completion("abc", abba, r, st)
+            call check(error, nilp(r), "abc")
+        case ("all")
+            call all_completions("a", abba, r, st)
+            call check(error, nilp(r), "a in +abba")
+        case default
+            call check(error,.not. test_completion("abc", abcdef) .and. .not. test_completion("def", abba), &
+                       "nothing matches X")
+        end select
+
+        deallocate (completion_regexp_list)
+    end subroutine check_regexp
+
+    subroutine test_try_regexp_1(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 1, "try")
+    end subroutine test_try_regexp_1
+
+    subroutine test_all_regexp_1(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 1, "all")
+    end subroutine test_all_regexp_1
+
+    subroutine test_test_regexp_1(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 1, "test")
+    end subroutine test_test_regexp_1
+
+    subroutine test_try_regexp_2(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 2, "try")
+    end subroutine test_try_regexp_2
+
+    subroutine test_all_regexp_2(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 2, "all")
+    end subroutine test_all_regexp_2
+
+    subroutine test_test_regexp_2(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 2, "test")
+    end subroutine test_test_regexp_2
+
+    subroutine test_try_regexp_3(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 3, "try")
+    end subroutine test_try_regexp_3
+
+    subroutine test_all_regexp_3(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 3, "all")
+    end subroutine test_all_regexp_3
+
+    subroutine test_test_regexp_3(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 3, "test")
+    end subroutine test_test_regexp_3
+
+    subroutine test_try_regexp_4(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 4, "try")
+    end subroutine test_try_regexp_4
+
+    subroutine test_all_regexp_4(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 4, "all")
+    end subroutine test_all_regexp_4
+
+    subroutine test_test_regexp_4(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_regexp(error, 4, "test")
+    end subroutine test_test_regexp_4
+
+    !> minibuffer-depth and minibuffer-prompt inside the minibuffer, and
+    !> minibuffer-exit-hook run as it exits.
+    subroutine test_depth_prompt(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        logical :: have
+
+        call minibuffer_prompt(seen_prompt, have)
+        call check(error,.not. have .and. minibuffer_depth() == 0, "none active")
+        if (allocated(error)) return
+        exit_hook_ran = .false.
+        call minibuffer_exit_hook%add(note_exit)
+        minibuffer_setup_function => note_depth
+        call type_text("x"//achar(13))
+        call read_from_minibuffer("Depth: ", answer, st)
+        call minibuffer_exit_hook%remove(note_exit)
+        call check(error, seen_depth == 1 .and. seen_prompt == "Depth: " .and. exit_hook_ran, "in the minibuffer")
+        if (allocated(error)) return
+        call check(error, minibuffer_depth() == 0 .and. answer == "x", "after")
+    end subroutine test_depth_prompt
+
+    !> Ports minibuf-tests.el's test-inhibit-interaction.
+    subroutine test_inhibit_interaction(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+
+        inhibit_interaction = .true.
+        call read_from_minibuffer("foo: ", answer, st)
+        inhibit_interaction = .false.
+        call check(error, st%code == FM_INHIBITED_INTERACTION, "read-from-minibuffer")
+    end subroutine test_inhibit_interaction
+
+    !> assoc-string: strings and symbols, conses and single strings, case
+    !> folding.
+    subroutine test_assoc_string(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: l, r
+
+        l = list(make_string("one"), list(sym("Two"), make_fixnum(2_int64)), make_fixnum(3_int64))
+        r = assoc_string("one", l)
+        call check(error, is_string(r, "one"), "single string")
+        if (allocated(error)) return
+        r = assoc_string("two", l)
+        call check(error, nilp(r), "case matters")
+        if (allocated(error)) return
+        r = assoc_string("two", l, case_fold=.true.)
+        call check(error, vtag(r) == V_LIST, "case folded")
+    end subroutine test_assoc_string
+
+    !> read-variable completes over the user options; RET with empty
+    !> input gives the default.
+    subroutine test_read_variable(error)
+        use simple_fm, only: read_variable
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: name
+        type(status_type) :: st
+
+        call fresh_scratch()
+        call type_text("fill_col"//achar(9)//achar(13))
+        call read_variable("Variable: ", name, st)
+        call check(error, st%ok() .and. name == "fill_column", name)
+        if (allocated(error)) return
+        call type_text(achar(13))
+        call read_variable("Variable: ", name, st, default_value="tab_width")
+        call check(error, name, "tab_width")
+    end subroutine test_read_variable
+
+    ! Minibuffer-setup function: note the depth and the prompt.
+    subroutine note_depth()
+        logical :: have
+
+        seen_depth = minibuffer_depth()
+        call minibuffer_prompt(seen_prompt, have)
+    end subroutine note_depth
+
+    ! minibuffer-exit-hook function.
+    subroutine note_exit(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        exit_hook_ran = minibufferp()
+    end subroutine note_exit
 end module test_minibuf_fm

@@ -56,7 +56,7 @@ module eval_fm
     implicit none(type, external)
     private
 
-    public :: funcall_noargs, kill_local_hooks
+    public :: funcall_noargs, kill_local_hooks, hook_error_proc
     public :: change_function, after_change_function, position_function, region_function, region_entry_type
     public :: string_function, string_filter_function, capf_function, capf_entry_type
     public :: overlay_change_function, call_property_function, call_overlay_change_function
@@ -112,6 +112,16 @@ module eval_fm
             integer(int64), intent(out) :: done_beg, done_end
             type(status_type), intent(out) :: status
         end subroutine region_function
+
+        !> Report the error STATUS that FN, a function of the hook named
+        !> HOOK_NAME, signaled (`hook_type%run_safe').  Not a port.
+        subroutine hook_error_proc(hook_name, fn, status)
+            import :: command_proc, status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: hook_name
+            procedure(command_proc) :: fn
+            type(status_type), intent(in) :: status
+        end subroutine hook_error_proc
 
         !> A function of a `string_hook_type' hook such as
         !> `comint_output_filter_functions': STRING is the text it is
@@ -253,6 +263,9 @@ module eval_fm
         procedure :: run => hook_run
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => hook_member
+        !> Run the hook's functions, reporting and removing the ones that
+        !> signal an error (keyboard.c's safe_run_hooks).
+        procedure :: run_safe => hook_run_safe
     end type hook_type
 
     !> A hook of functions taking the bounds of a change
@@ -1039,6 +1052,76 @@ contains
 
         call self%run_entries(0_int64, 0_int64, 0_int64, status)
     end subroutine hook_run
+
+    !> Run each function of the hook as `hook_run' does, but an error in
+    !> one doesn't stop the others: REPORT is told of it, and the function
+    !> is removed from the hook, from the current buffer's own functions
+    !> if it is one of them, else from the default ones.  Port of
+    !> keyboard.c:safe_run_hooks_error (the removal; keyboard_fm's
+    !> safe_run_hooks reports).
+    recursive subroutine hook_run_safe(self, report)
+        class(hook_type), intent(inout) :: self
+        procedure(hook_error_proc) :: report
+        type(hook_entry_type), allocatable :: entries(:), global(:)
+        type(status_type) :: status
+        integer :: i, j, k
+
+        k = local_index(self)
+
+        ! Copies, in case a function changes the hook.
+        if (k > 0) then
+            entries = self%locals(k)%entries
+        else if (allocated(self%entries)) then
+            entries = self%entries
+        else
+            return
+        end if
+
+        do i = 1, size(entries)
+            if (entries(i)%is_t) then
+                ! t indicates this hook has a local binding; it means to
+                ! run the global binding too.
+                if (.not. allocated(self%entries)) cycle
+                global = self%entries
+
+                do j = 1, size(global)
+                    ! In a global value, t should not occur.
+                    if (global(j)%is_t) cycle
+                    call call_entry(global(j), 0_int64, 0_int64, 0_int64, status)
+                    if (.not. status%ok()) call fail(global(j))
+                end do
+            else
+                call call_entry(entries(i), 0_int64, 0_int64, 0_int64, status)
+                if (.not. status%ok()) call fail(entries(i))
+            end if
+        end do
+
+    contains
+
+        !> Report the error of E's function and take it out of the hook:
+        !> out of the buffer's own functions if it is there, else out of
+        !> the default ones.
+        recursive subroutine fail(e)
+            type(hook_entry_type), intent(in) :: e
+            integer :: kk, n
+
+            call report(trim(self%name), e%fn, status)
+            kk = local_index(self)
+
+            if (kk > 0) then
+                n = find_entry(self%locals(kk)%entries, e)
+
+                if (n > 0) then
+                    call delete_entry(self%locals(kk)%entries, n)
+                    return
+                end if
+            end if
+
+            if (.not. allocated(self%entries)) return
+            n = find_entry(self%entries, e)
+            if (n > 0) call delete_entry(self%entries, n)
+        end subroutine fail
+    end subroutine hook_run_safe
 
     ! Not a port.
     logical function hook_member(self, fn) result(found)

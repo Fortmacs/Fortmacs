@@ -87,7 +87,7 @@ module replace_fm
     use isearch_fm, only: search_upper_case, UPPER_CASE_NIL, search_whitespace_regexp, &
                           isearch_no_upper_case_p, word_search_regexp
     use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input, minibuffer_string_type
-    use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit_1
+    use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use simple_fm, only: push_mark, use_region_p, deactivate_mark
     use window_fm, only: recenter_top_bottom, scroll_up, scroll_down
@@ -1565,7 +1565,7 @@ contains
                     call goto_char(match_beginning(0, st))
                     ! save-excursion
                     opoint = point()
-                    call recursive_edit_1(status)
+                    call recursive_edit(status)
 
                     if (.not. status%ok()) then
                         call free_marker(opos, st)
@@ -1615,7 +1615,7 @@ contains
                     call adjust_markers(real_data(1), real_data(2))
                     real_data = match_data()
                     opoint = point()
-                    call recursive_edit_1(status)
+                    call recursive_edit(status)
                     if (.not. status%ok()) exit main
                     call goto_char(opoint)
                     replaced = .true.
