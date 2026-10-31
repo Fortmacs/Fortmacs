@@ -602,6 +602,7 @@ kept until the owner decides:
 | `syntax_alist` (font-lock-defaults' SYNTAX-ALIST) | `syntax_table` is a syntax table | `syntax_modifications` |
 | `display_alist_type` (the display-buffer action alist) | `display_table_type` would be a display table (disptab.h) | `display_action_table_type` |
 | `alist`, `alist_count` in buffer_fm, buffer_ops_fm and process_fm (Vbuffer_alist, Vprocess_alist) | the modules already have a slot table named `table` | `buffer_order`, `process_order` |
+| `f90_beginning_of_defun`, `f90_end_of_defun` (f90_fm's adapters to `beginning_of_subprogram_function` and `end_of_subprogram_function`) | would become `f90_beginning_of_subprogram` and `f90_end_of_subprogram`, the f90.el commands they adapt | `f90_subprogram_start`, `f90_subprogram_end` |
 
 **A new upstream version** (31.2, 32.0) or a branch written before an
 entry: port or merge as usual, run `tools/fortran-names.sh` (on the new

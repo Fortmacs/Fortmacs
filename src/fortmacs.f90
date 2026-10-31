@@ -613,8 +613,8 @@ module fortmacs
                             conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
                             conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
     use expression_motion_fm, only: subprogram_prompt_regexp, parens_require_spaces, end_of_subprogram_moves_to_eol, &
-                            narrow_to_subprogram_include_comments, insert_pair_table, insert_pair_type, delete_pair_blink_delay, &
-                            delete_pair_push_mark, beginning_of_subprogram_function, end_of_subprogram_function
+                              narrow_to_subprogram_include_comments, insert_pair_table, insert_pair_type, delete_pair_blink_delay, &
+                                    delete_pair_push_mark, beginning_of_subprogram_function, end_of_subprogram_function
     use simple_fm, only: widen_automatically
     use make_mode_fm, only: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
                             makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &

@@ -71,10 +71,10 @@ module expression_motion_fm
 
     public :: forward_expression, backward_expression, forward_group, backward_group, down_group, backward_up_group, up_group, &
               kill_expression, backward_kill_expression, mark_expression, syms_of_expression_motion, &
-                  forward_expression_default_function, &
+              forward_expression_default_function, &
               forward_expression_proc, beginning_of_subprogram_proc, beginning_of_subprogram, beginning_of_subprogram_raw, &
               beginning_of_subprogram_comments, end_of_subprogram, mark_subprogram, narrow_to_subprogram, insert_pair, &
-                  insert_parentheses, &
+              insert_parentheses, &
               delete_pair, raise_expression, check_parens, buffer_end
 
     abstract interface

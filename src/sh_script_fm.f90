@@ -3314,8 +3314,8 @@ contains
         call syntax_propertize_function%set_local(sh_syntax_propertize_function)
         call syntax_propertize_extend_region_functions%add(syntax_propertize_multiline, depth=90, local=.true.)
         call subprogram_prompt_regexp%set_local("^\(\(function[ "//TAB//"]\)?[ "//TAB//"]*[[:alnum:]_]+[ "//TAB// &
-                                           "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
-                                           "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
+                                                "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
+                                                "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
         call completion_at_point_functions%add(sh_completion_at_point_function, local=.true.)
         call major_modes%sh_base_mode%finish(saved, status)
     end subroutine sh_base_mode

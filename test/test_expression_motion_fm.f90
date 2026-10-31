@@ -43,8 +43,8 @@ module test_expression_motion_fm
     use text_mode_fm, only: text_mode
     use simple_fm, only: deactivate_mark
     use expression_motion_fm, only: beginning_of_subprogram, end_of_subprogram, mark_subprogram, narrow_to_subprogram, &
-        insert_parentheses, &
-                            delete_pair, raise_expression, check_parens, subprogram_prompt_regexp
+                                    insert_parentheses, &
+                                    delete_pair, raise_expression, check_parens, subprogram_prompt_regexp
     implicit none(type, external)
     private
 

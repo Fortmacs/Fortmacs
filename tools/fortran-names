@@ -116,3 +116,8 @@ keep	"DEFUN"
 # collects the function names in a Lisp program, and window.el code.
 keep	"defun\s +\(\S +\)"
 keep	"(selected-window) alist)"
+# f90_fm's adapters of f90-beginning-of-subprogram and f90-end-of-subprogram
+# to beginning_of_subprogram_function and end_of_subprogram_function: their
+# Fortran names would be those of the f90.el commands they adapt.
+keep	f90_beginning_of_defun	src/f90_fm.f90
+keep	f90_end_of_defun	src/f90_fm.f90
