@@ -30,7 +30,7 @@ module test_css_mode_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
     use insdel_fm, only: insert
-    use lisp_fm, only: value_type, nilp, consp, symbolp, xsymbol, list_elements, stringp, xstring, symbols
+    use lisp_fm, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, xstring, symbols
     use lread_fm, only: sym
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, buffer_substring, line_end_position
     use simple_fm, only: backward_word
@@ -407,13 +407,13 @@ contains
         name = ""
         call get_text_property(point(), sym("face"), v, st)
 
-        if (consp(v)) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
             v = elts(1)
         end if
 
-        if (nilp(v)) return
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if (.not. allocated(v%a)) return
+        if (vtag(v) == V_NAME) name = symbols(xsymbol(v))%name
     end function face
 
     ! Fontify the current buffer (font-lock-debug-fontify).
@@ -1131,7 +1131,7 @@ contains
         call fontify()
         call goto_char(13_int64)
         call get_text_property(point(), sym("face"), v, st)
-        call check(error, consp(v), "no anonymous face on the color")
+        call check(error, vtag(v) == V_ARRAY, "no anonymous face on the color")
         if (allocated(error)) return
         call list_elements(v, elts)
         call check(error, xstring(elts(2)), "#ff0000")

@@ -85,6 +85,12 @@ name	kill_backward_up_list	kill_backward_up_group
 name	scan_lists	scan_groups
 name	smie_down_list	smie_down_group
 name	css_current_defun_name	css_current_rule_name
+name	js_beginning_of_defun	js_beginning_of_function
+name	js_beginning_of_subprogram	js_beginning_of_function
+name	js_end_of_defun	js_end_of_function
+name	js_end_of_subprogram	js_end_of_function
+name	JS_INDENT_FIRST_INIT_NIL	JS_INDENT_FIRST_INIT_NO
+name	JS_INDENT_FIRST_INIT_T	JS_INDENT_FIRST_INIT_YES
 
 # Modules.
 file	lisp_cmds_fm	expression_motion_fm
@@ -670,3 +676,15 @@ name	V_LIST	V_ARRAY
 
 # B1, after the value tag test windowp left lisp_fm: window.c's windowp.
 name	windowp	is_window
+name	colon_inside_selector_p	is_colon_inside_selector
+name	scss_smie_not_interpolation_p	is_scss_smie_not_interpolation
+name	color_dark_p	is_color_dark
+name	at_p	is_at
+name	inside_pitem_p	is_inside_pitem
+name	inside_param_list_p	is_inside_param_list
+name	inside_dojo_class_list_p	is_inside_dojo_class_list
+name	js_continued_expression_p	is_js_continued_expression
+name	chained_expression_p	is_chained_expression
+name	end_of_do_while_loop_p	is_end_of_do_while_loop
+name	broken_arrow_terminates_line_p	is_broken_arrow_line_end
+name	R_JS_INDENT_ALIGN_LIST_CONTINUATION_NIL	R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION

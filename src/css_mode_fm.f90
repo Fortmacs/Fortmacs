@@ -36,7 +36,7 @@ module css_mode_fm
     use, intrinsic :: ieee_arithmetic, only: ieee_rint
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, list, make_string, make_list, make_fixnum
+    use lisp_fm, only: value_type, list, make_string, make_list, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
@@ -94,7 +94,7 @@ module css_mode_fm
               css_prev_index_position, css_extract_index_name, css_current_rule_name, css_mdn_find_symbol, &
               css_rgb_color, css_hsl_color, css_hex_color, css_hex_alpha, css_named_color, css_compute_color, &
               css_fontify_region, css_smie_forward_token, css_smie_backward_token, css_smie_rules, css_fill_paragraph, &
-              css_adaptive_fill, scss_smie_not_interpolation_p, css_font_lock_keywords_of, scss_font_lock_keywords
+              css_adaptive_fill, is_scss_smie_not_interpolation, css_font_lock_keywords_of, scss_font_lock_keywords
     public :: css_list_proc
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
@@ -1655,7 +1655,7 @@ contains
         integer :: i
 
         status = status_type()
-        result = nil()
+        result = value_type()
         have = [merge_prop, merge_sel]
         if (merge_prop) tables(1)%list = string_list(css_property_ids)
         if (merge_sel) tables(2)%list = selector_candidates()
@@ -1671,7 +1671,7 @@ contains
 
                 if (is_t(v)) then
                     call push(elts, make_string(string))
-                else if (.not. is_nil(v)) then
+                else if (allocated(v%a)) then
                     if (string_of(v) == string) then
                         result = make_string(string)
                         return
@@ -1712,21 +1712,12 @@ contains
     ! Whether V is t.
     ! Not a port.
     logical function is_t(v)
-        use lisp_fm, only: symbolp, xsymbol, symbols
+        use lisp_fm, only: vtag, V_NAME, xsymbol, symbols
         type(value_type), intent(in) :: v
 
         is_t = .false.
-        if (symbolp(v)) is_t = symbols(xsymbol(v))%name == "t"
+        if (vtag(v) == V_NAME) is_t = symbols(xsymbol(v))%name == "t"
     end function is_t
-
-    ! Whether V is nil.
-    ! Not a port.
-    logical function is_nil(v)
-        use lisp_fm, only: nilp
-        type(value_type), intent(in) :: v
-
-        is_nil = nilp(v)
-    end function is_nil
 
     ! The elements of the list V.
     ! Not a port.
@@ -2907,15 +2898,15 @@ contains
     ! tokenization, but should not be regarded as a reliable function for
     ! determining whether point is within a selector.  Port of
     ! css-mode.el:css--colon-inside-selector-p.
-    logical function colon_inside_selector_p()
+    logical function is_colon_inside_selector()
         type(status_type) :: st
         integer(int64) :: opoint, pos
 
         opoint = point()
         call re_search_forward("[{};]", pos, st, noerror=SEARCH_NOERROR)
-        colon_inside_selector_p = preceding_char() == iachar("{")
+        is_colon_inside_selector = preceding_char() == iachar("{")
         call goto_char(opoint)
-    end function colon_inside_selector_p
+    end function is_colon_inside_selector
 
     ! Return true if point is inside a function call.  Port of
     ! css-mode.el:css--colon-inside-funcall.
@@ -2930,20 +2921,20 @@ contains
 
     !> Whether the "}" before point doesn't end an interpolation #{$...}.
     !> Port of css-mode.el:scss-smie--not-interpolation-p.
-    logical function scss_smie_not_interpolation_p()
+    logical function is_scss_smie_not_interpolation()
         type(status_type) :: st
         integer(int64) :: opoint
 
         opoint = point()
         call forward_char(st, -1_int64)
-        scss_smie_not_interpolation_p = skip_chars_backward("-[:alnum:]", st) == 0
+        is_scss_smie_not_interpolation = skip_chars_backward("-[:alnum:]", st) == 0
 
-        if (.not. scss_smie_not_interpolation_p) then
-            scss_smie_not_interpolation_p = .not. looking_back("#{\$", st, point() - 3)
+        if (.not. is_scss_smie_not_interpolation) then
+            is_scss_smie_not_interpolation = .not. looking_back("#{\$", st, point() - 3)
         end if
 
         call goto_char(opoint)
-    end function scss_smie_not_interpolation_p
+    end function is_scss_smie_not_interpolation
 
     ! The token of a colon after point: in a selector or function call, or
     ! of a property.
@@ -2951,7 +2942,7 @@ contains
     function colon_token() result(token)
         character(len=:), allocatable :: token
 
-        if (colon_inside_selector_p()) then
+        if (is_colon_inside_selector()) then
             token = ":"
         else if (colon_inside_function_call()) then
             token = ":"
@@ -2972,7 +2963,7 @@ contains
         hanging = .false.
 
         if (preceding_char() == iachar("}")) then
-            if (scss_smie_not_interpolation_p()) then
+            if (is_scss_smie_not_interpolation()) then
                 ! FIXME: If the next char is not whitespace, what should we do?
                 c = following_char()
 
@@ -3024,7 +3015,7 @@ contains
 
         if (c == iachar("}")) then
             ! FIXME: If the next char is not whitespace, what should we do?
-            if (scss_smie_not_interpolation_p()) then
+            if (is_scss_smie_not_interpolation()) then
                 if (pos > point()) then
                     token = ";"
                     return
@@ -3273,7 +3264,7 @@ contains
                 back = skip_chars_backward(" "//TAB, st)
 
                 if (.not. is_bol()) then
-                    if (scss_smie_not_interpolation_p()) call newline(st)
+                    if (is_scss_smie_not_interpolation()) call newline(st)
                 end if
 
                 call excursion_end(saved)

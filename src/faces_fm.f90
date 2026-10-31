@@ -58,11 +58,11 @@ module faces_fm
     public :: face_attrs, face_underline, face_box, display_when, face_named, face_count, face_at, face_spec_recalc_all
     public :: set_frame_display, faces_equal, face_weight_numeric, face_slant_numeric
     public :: init_faces
-    public :: color_values, color_dark_p, readable_foreground_color
+    public :: color_values, is_color_dark, readable_foreground_color
 
     !> The relative luminance below which a color is considered "dark".
     !> A "dark" color in this sense provides better contrast with white
-    !> than with black; see `color_dark_p'.  This value was determined
+    !> than with black; see `is_color_dark'.  This value was determined
     !> experimentally.  Port of faces.el color-luminance-dark-limit.
     real(real64), parameter, public :: COLOR_LUMINANCE_DARK_LIMIT = 0.325_real64
 
@@ -1556,12 +1556,12 @@ contains
     !> This predicate can be used both for determining a suitable (black or
     !> white) contrast color with RGB as background and as foreground.
     !> Port of faces.el:color-dark-p.
-    logical function color_dark_p(rgb, status)
+    logical function is_color_dark(rgb, status)
         real(real64), intent(in) :: rgb(3)
         type(status_type), intent(out) :: status
         real(real64) :: r, g, b, y
 
-        color_dark_p = .false.
+        is_color_dark = .false.
 
         if (.not. (minval(rgb) >= 0 .and. maxval(rgb) <= 1)) then
             call set_error(status, FM_GENERIC_ERROR, "RGB components not in [0,1]")
@@ -1576,8 +1576,8 @@ contains
         g = rgb(2)**2.2_real64
         b = rgb(3)**2.2_real64
         y = r*0.2126_real64 + g*0.7152_real64 + b*0.0722_real64
-        color_dark_p = y < COLOR_LUMINANCE_DARK_LIMIT
-    end function color_dark_p
+        is_color_dark = y < COLOR_LUMINANCE_DARK_LIMIT
+    end function is_color_dark
 
     !> Return a readable foreground color for background COLOR.
     !> The returned value is a string representing black or white, depending
@@ -1597,6 +1597,6 @@ contains
         ! ((color-dark-p nil) is an error; it is taken as black.)
         fg = "black"
         if (.not. found) return
-        if (color_dark_p([r, g, b]/65535.0_real64, st)) fg = "#ffffff"
+        if (is_color_dark([r, g, b]/65535.0_real64, st)) fg = "#ffffff"
     end function readable_foreground_color
 end module faces_fm

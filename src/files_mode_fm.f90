@@ -44,13 +44,15 @@ submodule(files_fm) files_mode_fm
 
     !> interpreter-mode-alist: (REGEXP . MODE) for the modes that exist so
     !> far, in files.el's order.
-    character(len=*), parameter :: interpreter_regexps(17) = [character(len=24) :: "python[0-9.]*", &
-                                                     "[acjkwz]sh", "r?bash2?", "dash", "mksh", "\(dt\|pd\|w\)ksh", "es", "i?tcsh", &
-                                                                  "oash", "rc", "rpm", "sh5?", "tail", "more", "less", "pg", "make"]
-    character(len=*), parameter :: interpreter_modes(17) = [character(len=19) :: "python_mode", &
-                                                      "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
-                                                "sh_mode", "sh_mode", "sh_mode", "sh_mode", "text_mode", "text_mode", "text_mode", &
-                                                                                                 "text_mode", "makefile_gmake_mode"]
+    character(len=*), parameter :: interpreter_regexps(21) = [character(len=24) :: "python[0-9.]*", "rhino", "gjs", &
+                                                                       "nodejs", "node", "[acjkwz]sh", "r?bash2?", "dash", "mksh", &
+                                                                  "\(dt\|pd\|w\)ksh", "es", "i?tcsh", "oash", "rc", "rpm", "sh5?", &
+                                                                                               "tail", "more", "less", "pg", "make"]
+    character(len=*), parameter :: interpreter_modes(21) = [character(len=19) :: "python_mode", "js_mode", "js_mode", &
+                                                                 "js_mode", "js_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
+                                                                 "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
+                                                                    "sh_mode", "text_mode", "text_mode", "text_mode", "text_mode", &
+                                                                                                              "makefile_gmake_mode"]
 
     !> How much of the buffer the -*- line is looked for in.
     integer(int64), parameter :: SPEC_LIMIT = 4096
@@ -122,6 +124,10 @@ contains
         call append_auto_mode("\`/tmp/Re", "text_mode")
         call append_auto_mode("/Message[0-9]*\'", "text_mode")
         call append_auto_mode("\`/tmp/fol/", "text_mode")
+        call append_auto_mode("\.js[mx]?\'", "javascript_mode")
+        ! https://en.wikipedia.org/wiki/.har
+        call append_auto_mode("\.har\'", "javascript_mode")
+        call append_auto_mode("\.json\'", "js_json_mode")
         call append_auto_mode("/crontab\.X*[0-9]+\'", "shell_script_mode")
         call append_auto_mode("/config\.\(?:bat\|log\)\'", "fundamental_mode")
         ! Windows candidates may be opened case sensitively on Unix

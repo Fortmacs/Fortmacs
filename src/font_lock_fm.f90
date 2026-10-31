@@ -48,7 +48,8 @@ module font_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list, make_string
+    use lisp_fm, only: value_type, t_value, list, symbols, xsymbol, list_elements, make_list, make_string, vtag, &
+                       V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified
@@ -89,6 +90,19 @@ module font_lock_fm
     implicit none(type, external)
     private
     public :: font_lock_forget_defaults, font_lock_fontify_region_proc, set_local_font_lock_fontify_region_function
+    public :: cpp_font_lock_keywords, font_lock_apply_highlight
+
+    !> Regular expression used in `cpp_font_lock_keywords'.  Port of
+    !> font-lock.el cpp-font-lock-keywords-source-directives.
+    character(len=*), parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES = &
+                                   "define\|e\(?:l\(?:if\|se\)\|ndif\|rror\)\|file\|i\(?:f\(?:n?def\)?\|mport\|nclude\)\|line\|"// &
+                                           "pragma\|undef\|warning"
+
+    !> Regular expression depth of
+    !> `CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES'.  Used in
+    !> `cpp_font_lock_keywords'.
+    !> Port of font-lock.el:cpp-font-lock-keywords.source-depth.
+    integer, parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH = 0
     public :: syms_of_font_lock, is_font_lock_specified, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
               font_lock_flush, font_lock_ensure, font_lock_update, font_lock_default_fontify_region, &
@@ -98,8 +112,7 @@ module font_lock_fm
               font_lock_remove_face_from_text_property, font_lock_keyword, font_lock_highlight, &
               font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer, set_font_lock_keywords
 
-    !> `font_lock_maximum_decoration' for the maximum decoration available
-    !> (upstream's t).
+    !> `font_lock_maximum_decoration' for the maximum decoration available.
     integer, parameter, public :: FONT_LOCK_DECORATION_MAX = huge(0)
 
     !> Maximum decoration level for fontification.
@@ -351,7 +364,7 @@ contains
         procedure(font_lock_face_proc), optional :: face_function
         !> Text properties to set to true along with the face.
         character(len=*), intent(in), optional :: true_properties(:)
-        !> Text properties to set to false along with the face.
+        !> Text properties to set to .false. along with the face.
         character(len=*), intent(in), optional :: nil_properties(:)
         !> The `display' property to give along with the face.
         character(len=*), intent(in), optional :: display
@@ -529,7 +542,8 @@ contains
         if (locals(k)%keywords_set) keywords = locals(k)%keywords
     end function font_lock_keywords_of_buffer
 
-    !> Make KEYWORDS the current buffer's `font_lock_keywords'.  Not a port.
+    !> Make KEYWORDS the current buffer's `font_lock_keywords'
+    !> (set_local).  Not a port.
     subroutine set_font_lock_keywords(keywords)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
@@ -667,6 +681,66 @@ contains
         call font_lock_fontify_region(beg, end, status, done_beg=done_beg, done_end=done_end)
     end subroutine jit_fontify_region
 
+    !> Font lock keywords for C preprocessor directives.
+    !> `c_mode', `c++_mode' and `objc_mode' have their own font lock
+    !> keywords for C preprocessor directives.  This definition is for the
+    !> other modes in which C preprocessor directives are used, e.g.
+    !> `asm_mode' and `ld_script_mode'.
+    !> Port of font-lock.el:cpp-font-lock-keywords.
+    function cpp_font_lock_keywords() result(kw)
+        type(font_lock_keyword_type), allocatable :: kw(:)
+        type(font_lock_highlight_type) :: h1(1), h2(2), a(1)
+        character(len=*), parameter :: P = "font_lock_variable_name_face"
+
+        ! (Allocated here, not a fixed-size result: gfortran leaves the
+        ! components of a fixed-size result uninitialized on the stack.)
+        allocate (kw(5))
+        ! Fontify error directives.
+        h1(1) = font_lock_highlight(1, "font_lock_warning_face", FONT_LOCK_OVERRIDE_PREPEND)
+        kw(1) = font_lock_keyword("^#[ "//achar(9)//"]*\(?:error\|warning\)[ "//achar(9)//"]+\(.+\)", highlights=h1)
+        ! Fontify filenames in #include <...> preprocessor directives as
+        ! strings.
+        h1(1) = font_lock_highlight(1, "font_lock_string_face", FONT_LOCK_OVERRIDE_PREPEND)
+        kw(2) = font_lock_keyword("^#[ "//achar(9)//"]*\(?:import\|include\)[ "//achar(9)//"]*\(<[^>""" &
+                                  //achar(10)//"]*>?\)", highlights=h1)
+        ! Fontify function macro names.
+        h2(1) = font_lock_highlight(1, "font_lock_function_name_face", FONT_LOCK_OVERRIDE_PREPEND)
+        ! Macro arguments.
+        h1(1) = font_lock_highlight(1, P, FONT_LOCK_OVERRIDE_PREPEND)
+        h2(2) = font_lock_anchored(h1, matcher=cpp_macro_argument)
+        kw(3) = font_lock_keyword("^#[ "//achar(9)//"]*define[ "//achar(9)//"]+\([[:alpha:]_][[:alnum:]_$]*\)(", &
+                                  highlights=h2)
+        ! Fontify symbol names in #elif or #if ... defined preprocessor
+        ! directives.
+        h2(1) = font_lock_highlight(1, "font_lock_builtin_face", FONT_LOCK_OVERRIDE_PREPEND)
+        h2(2) = font_lock_highlight(2, P, FONT_LOCK_OVERRIDE_PREPEND, laxmatch=.true.)
+        a(1) = font_lock_anchored(h2, regexp="\<\(defined\)\>[ "//achar(9)//"]*(?\([[:alpha:]_][[:alnum:]_]*\)?")
+        kw(4) = font_lock_keyword("^#[ "//achar(9)//"]*\(?:elif\|if\)\>", highlights=a)
+        ! Fontify otherwise as symbol names, and the preprocessor directive
+        ! names.
+        h2(1) = font_lock_highlight(1, "font_lock_preprocessor_face", FONT_LOCK_OVERRIDE_PREPEND)
+        h2(2) = font_lock_highlight(2 + CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH, P, laxmatch=.true.)
+        kw(5) = font_lock_keyword("^\(#[ "//achar(9)//"]*\(?:"//CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES &
+                                  //"\)\)\>[ "//achar(9)//"!]*\([[:alpha:]_][[:alnum:]_]*\)?", highlights=h2)
+    end function cpp_font_lock_keywords
+
+    ! The matcher of macro arguments in `cpp_font_lock_keywords'.
+    ! Port of font-lock.el:cpp-font-lock-keywords (in part: its macro argument matcher).
+    subroutine cpp_macro_argument(limit, found, status)
+        integer(int64), intent(in) :: limit
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint, close_pos, pos
+
+        opoint = point()
+        call re_search_forward(")", close_pos, status, bound=limit, noerror=SEARCH_NOERROR)
+        call goto_char(opoint)
+        if (close_pos == 0) close_pos = limit
+        call re_search_forward("\(?:\([[:alpha:]_][[:alnum:]_]*\)[,]?\)", pos, status, bound=close_pos, &
+                               noerror=SEARCH_NOERROR)
+        found = pos > 0
+    end subroutine cpp_macro_argument
+
     !> Function meant for `jit_lock_after_change_extend_region_functions'.
     !> This function does 2 things:
     !> - extend the region so that it not only includes the part that was
@@ -674,8 +748,9 @@ contains
     !>   change as a consequence.
     !> - anticipate (part of) the region extension that will happen later
     !>   in `font_lock_default_fontify_region', in order to avoid the need
-    !>   for double-redisplay in `jit_lock_fontify_now'.  Port of
-    !> font-lock.el:font-lock-extend-jit-lock-region-after-change.
+    !>   for double-redisplay in `jit_lock_fontify_now'.
+    !> Port of font-lock.el:font-lock-extend-jit-lock-region-after-change
+    !> (in part: without font-lock-extend-after-change-region-function).
     subroutine font_lock_extend_jit_lock_region_after_change(beg_in, end_in, old_len, status)
         integer(int64), intent(in) :: beg_in, end_in, old_len
         type(status_type), intent(out) :: status
@@ -694,7 +769,7 @@ contains
         if (beg > point_min()) then
             call get_text_property(beg - 1, sym("font_lock_multiline"), v, status)
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 call previous_single_property_change(beg, sym("font_lock_multiline"), pos, found, status)
                 beg = point_min()
                 if (found) beg = pos
@@ -704,8 +779,8 @@ contains
         if (end < point_max()) then
             call get_text_property(end, sym("font_lock_multiline"), v, status)
 
-            if (.not. nilp(v)) then
-                call text_property_any(end, point_max(), sym("font_lock_multiline"), nil(), pos, found, status)
+            if (allocated(v%a)) then
+                call text_property_any(end, point_max(), sym("font_lock_multiline"), value_type(), pos, found, status)
                 end = point_max()
                 if (found) end = pos
             else
@@ -853,7 +928,7 @@ contains
     end subroutine font_lock_set_defaults
 
     !> Make `font_lock_set_defaults' set the defaults up again in the
-    !> current buffer.  Not a port.
+    !> current buffer (clears `font_lock_set_defaults').  Not a port.
     subroutine font_lock_forget_defaults()
         integer :: k
 
@@ -1138,7 +1213,7 @@ contains
 
         pt = point()
 
-        if (nilp(current_prefix_arg) .and. font_lock_mode_enabled()) then
+        if (.not. allocated(current_prefix_arg%a) .and. font_lock_mode_enabled()) then
             call font_lock_fontify_region(point_min(), point_max(), status)
         else
             call font_lock_unfontify_region(point_min(), point_max(), status)
@@ -1242,7 +1317,7 @@ contains
         if (beg > point_min()) then
             call get_text_property(beg - 1, sym("font_lock_multiline"), v, st)
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 changed = .true.
                 call previous_change(beg, sym("font_lock_multiline"), pos, found)
                 beg = point_min()
@@ -1254,8 +1329,8 @@ contains
         before_end = max(point_min(), end - 1)
         call get_text_property(before_end, sym("font_lock_multiline"), v, st)
 
-        if (.not. nilp(v)) then
-            call text_property_any(before_end, point_max(), sym("font_lock_multiline"), nil(), pos, found, st)
+        if (allocated(v%a)) then
+            call text_property_any(before_end, point_max(), sym("font_lock_multiline"), value_type(), pos, found, st)
             new_end = point_max()
             if (found) new_end = pos
 
@@ -1405,7 +1480,7 @@ contains
 
         ! A single face (a plist of face attributes, or a name) or a list
         ! of faces.
-        if (consp(value) .and. .not. keyword_head(value)) then
+        if (vtag(value) == V_ARRAY .and. .not. keyword_head(value)) then
             call list_elements(value, val)
         else
             allocate (val(1))
@@ -1421,11 +1496,11 @@ contains
             call get_text_property(start, prop, prev, status)
             if (.not. status%ok()) return
             ! Canonicalize old forms of face property.
-            if (consp(prev) .and. keyword_head(prev)) prev = list(prev)
+            if (vtag(prev) == V_ARRAY .and. keyword_head(prev)) prev = list(prev)
 
-            if (nilp(prev)) then
+            if (.not. allocated(prev%a)) then
                 allocate (prev_items(0))
-            else if (consp(prev)) then
+            else if (vtag(prev) == V_ARRAY) then
                 call list_elements(prev, prev_items)
             else
                 allocate (prev_items(1))
@@ -1452,9 +1527,9 @@ contains
         type(value_type), allocatable :: elts(:)
 
         keyword_head = .false.
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
-        if (.not. symbolp(elts(1))) return
+        if ((vtag(elts(1)) /= V_NAME .and. vtag(elts(1)) /= V_NULL)) return
 
         associate (name => symbols(xsymbol(elts(1)))%name)
             if (len(name) > 0) keyword_head = name(1:1) == ":"
@@ -1496,14 +1571,14 @@ contains
         integer(int64) :: start, next
         logical :: found, found_next
 
-        call text_property_any(start_in, end, prop, nil(), start, found, status)
+        call text_property_any(start_in, end, prop, value_type(), start, found, status)
 
         do while (found .and. status%ok())
             call next_single_property_change(start, prop, next, found_next, status, end)
             if (.not. found_next) next = end
             call put_text_property(start, next, prop, value, status)
             if (.not. status%ok()) return
-            call text_property_any(next, end, prop, nil(), start, found, status)
+            call text_property_any(next, end, prop, value_type(), start, found, status)
         end do
     end subroutine font_lock_fillin_text_property
 
@@ -1524,14 +1599,14 @@ contains
         logical :: found, changed, member, atom
         integer :: i, n
 
-        call text_property_not_all(start_in, end, prop, nil(), start, found, status)
+        call text_property_not_all(start_in, end, prop, value_type(), start, found, status)
 
         do while (found .and. status%ok())
             call next_single_property_change(start, prop, next, found, status, end)
             if (.not. status%ok()) return
             if (.not. found) next = end
             call get_text_property(start, prop, prev, status)
-            atom = .not. consp(prev)
+            atom = vtag(prev) /= V_ARRAY
             if (.not. atom) atom = keyword_head(prev) .or. color_head(prev)
 
             if (atom) then
@@ -1565,7 +1640,7 @@ contains
             end if
 
             if (.not. status%ok()) return
-            call text_property_not_all(next, end, prop, nil(), start, found, status)
+            call text_property_not_all(next, end, prop, value_type(), start, found, status)
         end do
 
     contains
@@ -1578,7 +1653,7 @@ contains
             color_head = .false.
             call list_elements(v, e)
             if (size(e) == 0) return
-            if (.not. symbolp(e(1))) return
+            if ((vtag(e(1)) /= V_NAME .and. vtag(e(1)) /= V_NULL)) return
             color_head = symbols(xsymbol(e(1)))%name == "foreground_color" .or. &
                          symbols(xsymbol(e(1)))%name == "background_color"
         end function color_head
@@ -1640,7 +1715,7 @@ contains
 
         if (allocated(highlight%nil_properties)) then
             do k = 1, size(highlight%nil_properties)
-                call put_text_property(start, end, sym(trim(highlight%nil_properties(k))), nil(), status)
+                call put_text_property(start, end, sym(trim(highlight%nil_properties(k))), value_type(), status)
                 if (.not. status%ok()) return
             end do
         end if
@@ -1656,10 +1731,10 @@ contains
         end if
 
         face = highlight_face(highlight)
-        val = nil()
+        val = value_type()
         if (len(face) > 0) val = sym(face)
 
-        if (nilp(val) .and. highlight%override /= FONT_LOCK_OVERRIDE_YES) then
+        if (.not. allocated(val%a) .and. highlight%override /= FONT_LOCK_OVERRIDE_YES) then
             ! If `val' is nil, don't do anything.
             return
         end if
@@ -1667,7 +1742,7 @@ contains
         select case (highlight%override)
         case (FONT_LOCK_OVERRIDE_NO)
             ! Cannot override existing fontification.
-            call text_property_not_all(start, end, sym("face"), nil(), pos, found, status)
+            call text_property_not_all(start, end, sym("face"), value_type(), pos, found, status)
             if (.not. found .and. status%ok()) call put_text_property(start, end, sym("face"), val, status)
         case (FONT_LOCK_OVERRIDE_YES)
             ! Override existing fontification.
@@ -2022,8 +2097,8 @@ contains
         commands%font_lock_fontify_block%run => font_lock_fontify_block
         commands%font_lock_debug_fontify%run => font_lock_debug_fontify
         commands%font_lock_refresh_defaults%run => font_lock_refresh_defaults
-        commands%font_lock_refresh_defaults%interactive = .false.
-        commands%font_lock_change_mode%interactive = .false.
+        commands%font_lock_refresh_defaults%is_command = .false.
+        commands%font_lock_change_mode%is_command = .false.
     end subroutine syms_of_font_lock
 
     !> Fontify some lines the way `font_lock_fontify_buffer' would.
@@ -2044,7 +2119,7 @@ contains
         end if
 
         lines = 16
-        if (.not. nilp(current_prefix_arg)) lines = prefix_numeric_value(current_prefix_arg)
+        if (allocated(current_prefix_arg%a)) lines = prefix_numeric_value(current_prefix_arg)
         pt = point()
         saved_match = match_data()
         shortage = forward_line(-lines)

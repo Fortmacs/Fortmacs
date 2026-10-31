@@ -64,6 +64,9 @@ module modes_fm
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: ibuffer_mode
         type(major_mode_type) :: info_mode
+        type(major_mode_type) :: js_base_mode
+        type(major_mode_type) :: js_json_mode
+        type(major_mode_type) :: js_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
         type(major_mode_type) :: makefile_automake_mode

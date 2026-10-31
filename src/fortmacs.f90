@@ -671,6 +671,12 @@ module fortmacs
                              EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, EXECUTABLE_CHMOD_NONE
     use files_fm, only: before_save_hook, after_save_hook, write_file_functions
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
+    use js_fm, only: js_indent_level, js_expr_indent_offset, js_paren_indent_offset, js_square_indent_offset, &
+                     js_curly_indent_offset, js_switch_indent_offset, js_flat_functions, &
+                     js_indent_align_list_continuation, js_comment_lineup_func, js_enabled_frameworks, &
+                     js_indent_first_init, js_chain_indent, js_base_mode_hook, js_mode_hook, js_json_mode_hook, &
+                     js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, JS_INDENT_FIRST_INIT_NO, &
+                     JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC
     use css_mode_fm, only: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, &
                            css_class_list_function, css_id_list_function, css_base_mode_hook, css_mode_hook, &
                            scss_mode_hook, css_mode_map, css_base_mode_map, scss_mode_map, css_mode_syntax_table, &
@@ -1120,6 +1126,11 @@ module fortmacs
               EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, EXECUTABLE_CHMOD_NONE
     public :: before_save_hook, after_save_hook, write_file_functions
     public :: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
+    public :: js_indent_level, js_expr_indent_offset, js_paren_indent_offset, js_square_indent_offset, &
+              js_curly_indent_offset, js_switch_indent_offset, js_flat_functions, js_indent_align_list_continuation, &
+              js_comment_lineup_func, js_enabled_frameworks, js_indent_first_init, js_chain_indent, js_base_mode_hook, &
+              js_mode_hook, js_json_mode_hook, js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, &
+              JS_INDENT_FIRST_INIT_NO, JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC
     public :: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, css_class_list_function, &
               css_id_list_function, css_base_mode_hook, css_mode_hook, scss_mode_hook, css_mode_map, css_base_mode_map, &
               scss_mode_map, css_mode_syntax_table, scss_mode_syntax_table
