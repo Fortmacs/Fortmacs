@@ -64,7 +64,11 @@ jobs:
           pacman -Syu --noconfirm --needed gcc-fortran valgrind debuginfod python-pipx python-filelock git curl ncurses which
           echo "DEBUGINFOD_URLS=https://debuginfod.archlinux.org" >> "$GITHUB_ENV"
 
+      # Two commits: the checked-out merge commit and its first parent (main),
+      # which tools/lisp-candidates.sh compares with (LISP_CANDIDATES_BASE).
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - name: Show compiler
         run: gfortran --version | sed -n 1p
@@ -107,6 +111,9 @@ jobs:
           # On main, valgrind also runs all the suites in one process (a
           # leak one suite after another causes); a PR runs each suite
           # under valgrind on its own, the suites in parallel.
+          # The Lisp candidate scanner compares with main: the first parent of
+          # the merge commit a PR checks out, or of the merge pushed to main.
+          export LISP_CANDIDATES_BASE=HEAD^1
           memcheck=--valgrind
           if [ "${{ github.event_name }}" = push ]; then memcheck=--valgrind-combined; fi
           if ! tools/check.sh "$memcheck" 2>&1 | tee check.log; then

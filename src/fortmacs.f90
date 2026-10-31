@@ -666,7 +666,11 @@ module fortmacs
                              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
                              EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
     use files_fm, only: before_save_hook, after_save_hook, write_file_functions
-    use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment
+    use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
+    use css_mode_fm, only: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, &
+                           css_class_list_function, css_id_list_function, css_base_mode_hook, css_mode_hook, &
+                           scss_mode_hook, css_mode_map, css_base_mode_map, scss_mode_map, css_mode_syntax_table, &
+                           scss_mode_syntax_table
     implicit none(type, external)
     private
 
@@ -1111,7 +1115,10 @@ module fortmacs
               executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
               EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
     public :: before_save_hook, after_save_hook, write_file_functions
-    public :: fill_paragraph_function, fill_paragraph_handle_comment
+    public :: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
+    public :: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, css_class_list_function, &
+              css_id_list_function, css_base_mode_hook, css_mode_hook, scss_mode_hook, css_mode_map, css_base_mode_map, &
+              scss_mode_map, css_mode_syntax_table, scss_mode_syntax_table
     public :: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, help_event_list, &
               inhibit_interaction, num_nonmacro_input_events, read_char, read_char_exclusive, read_event, &
               read_key_sequence_vs, this_command_keys_vector, this_single_command_keys, this_single_command_raw_keys, &
