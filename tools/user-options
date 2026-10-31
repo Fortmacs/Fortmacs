@@ -154,6 +154,8 @@ dabbrev_upcase_means_case_search
 default_justification
 delete_active_region
 delete_exited_processes
+delete_pair_blink_delay
+delete_pair_push_mark
 diff_advance_after_apply_hunk
 diff_ask_before_revert_and_kill_hunk
 diff_command
@@ -341,6 +343,7 @@ info_warn_on_index_alternatives_wrap
 inhibit_eol_conversion
 insert_default_directory
 insert_directory_program
+insert_pair_table
 isearch_lax_whitespace
 jit_lock_chunk_size
 keyboard_coding_system
@@ -394,6 +397,7 @@ page_delimiter
 paragraph_ignore_fill_prefix
 paragraph_separate
 paragraph_start
+parens_require_spaces
 parse_expression_ignore_comments
 password_colon_equivalents
 password_word_equivalents
@@ -454,6 +458,7 @@ sh_backslash_column
 sh_basic_offset
 sh_beginning_of_command
 sh_builtins
+sh_dynamic_complete_functions
 sh_end_of_command
 sh_here_document_word
 sh_indent_after_case
@@ -522,6 +527,7 @@ split_height_threshold
 split_width_threshold
 split_window_preferred_direction
 standard_indent
+subprogram_prompt_regexp
 suggest_key_bindings
 tab_always_indent
 tab_stop_list

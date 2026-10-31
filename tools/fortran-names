@@ -94,8 +94,10 @@ keep	alist_count	src/buffer_fm.f90 src/buffer_ops_fm.f90 src/process_fm.f90
 # checks do not exist (not applicable, like the Lisp modes' own commands).
 keep	eval_last_sexp
 keep	eval_defun
-# Lisp source as buffer text in tests (test_paren_fm, test_simple_electric_fm).
-keep	"(defun foo ()"
+# Lisp source as buffer text in tests (test_paren_fm, test_simple_electric_fm,
+# test_expression_motion_fm).
+keep	"(defun "
+keep	";; Comment before a defun"
 # The upstream text tools/gen-tty-colors.sh looks for in tty-colors.el.
 keep	"An alist of X color names"
 # It counts upstream's C DEFUNs and Lisp (defun ...) forms.

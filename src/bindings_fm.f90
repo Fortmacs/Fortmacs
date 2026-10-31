@@ -136,6 +136,8 @@ module bindings_fm
                                  function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map
     !> bindings.el:goto-map, keymap for navigation commands (M-g).
     type(handle_type), public :: goto_map
+    !> bindings.el:narrow-map, keymap for narrowing commands (C-x n).
+    type(handle_type), public :: narrow_map
     !> bindings.el:search-map, keymap for search related commands (M-s).
     type(handle_type), public :: search_map
 
@@ -289,6 +291,7 @@ contains
         if (keymap_live_p(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
         if (keymap_live_p(goto_map)) call free_keymap(goto_map, status)
+        if (keymap_live_p(narrow_map)) call free_keymap(narrow_map, status)
         if (keymap_live_p(search_map)) call free_keymap(search_map, status)
         if (keymap_live_p(abbrev_map)) call free_keymap(abbrev_map, status)
         if (keymap_live_p(undo_repeat_map)) call free_keymap(undo_repeat_map, status)
@@ -366,6 +369,13 @@ contains
         call define_key(global_map, key, make_keymap_ref(esc_map), status)
         key(1) = make_fixnum(24_int64)
         call define_key(global_map, key, make_keymap_ref(ctl_x_map), status)
+        ! bindings.el: narrow-map.
+        call make_sparse_keymap(narrow_map)
+        call bind(narrow_map, "n", "narrow_to_region")
+        call bind(narrow_map, "w", "widen")
+        call bind(narrow_map, "g", "goto_line_relative")
+        key(1) = make_fixnum(int(iachar("n"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(narrow_map), status)
         call bind_char(global_map, 9_int64, "self_insert_command")
 
         do c = 32, 126
@@ -524,6 +534,9 @@ contains
         call syms_of_page()
         call bind(ctl_x_map, "[", "backward_page")
         call bind(ctl_x_map, "]", "forward_page")
+        call bind(ctl_x_map, "C-p", "mark_page")
+        call bind(ctl_x_map, "l", "count_lines_page")
+        call bind(ctl_x_map, "n p", "narrow_to_page")
         call make_sparse_keymap(page_navigation_repeat_map)
         call bind(page_navigation_repeat_map, "]", "forward_page")
         call bind(page_navigation_repeat_map, "[", "backward_page")
@@ -602,6 +615,15 @@ contains
         call bind(global_map, "C-M-<backspace>", "backward_kill_expression")
         call bind(esc_map, "C-<delete>", "backward_kill_expression")
         call bind(esc_map, "C-<backspace>", "backward_kill_expression")
+        call bind(global_map, "C-M-<home>", "beginning_of_subprogram")
+        call bind(esc_map, "C-<home>", "beginning_of_subprogram")
+        call bind(global_map, "C-M-<end>", "end_of_subprogram")
+        call bind(esc_map, "C-<end>", "end_of_subprogram")
+        call bind(esc_map, "C-a", "beginning_of_subprogram")
+        call bind(esc_map, "C-e", "end_of_subprogram")
+        call bind(esc_map, "C-h", "mark_subprogram")
+        call bind(ctl_x_map, "n d", "narrow_to_subprogram")
+        call bind(esc_map, "(", "insert_parentheses")
         call bind(esc_map, "C-n", "forward_group")
         call bind(esc_map, "C-p", "backward_group")
         call bind(esc_map, "%", "query_replace")
@@ -624,6 +646,10 @@ contains
         call bind(goto_map, "M-n", "next_error")
         call bind(goto_map, "p", "previous_error")
         call bind(goto_map, "M-p", "previous_error")
+        call bind(goto_map, "c", "goto_char")
+        call bind(goto_map, "g", "goto_line")
+        call bind(goto_map, "M-g", "goto_line")
+        call bind(goto_map, "TAB", "move_to_column")
         key(1) = make_fixnum(int(iachar("g"), int64))
         call define_key(esc_map, key, make_keymap_ref(goto_map), status)
         ! bindings.el: search-map (the keys of ported commands).
@@ -634,6 +660,7 @@ contains
         call bind(global_map, "C-t", "transpose_chars")
         call bind(esc_map, "t", "transpose_words")
         call bind(ctl_x_map, "C-b", "list_buffers")
+        call bind(esc_map, "=", "count_words_region")
         call bind(ctl_x_map, "C-t", "transpose_lines")
         call bind(esc_map, "SPC", "cycle_spacing")
         call bind(esc_map, "\", "delete_horizontal_space")
@@ -720,6 +747,7 @@ contains
         call register_keymap_name("comint_mode_map", comint_mode_map)
         call register_keymap_name("shell_mode_map", shell_mode_map)
         call register_keymap_name("goto_map", goto_map)
+        call register_keymap_name("narrow_map", narrow_map)
         call register_keymap_name("search_map", search_map)
         call register_keymap_name("minibuffer_local_completion_map", minibuffer_local_completion_map)
         call register_keymap_name("minibuffer_local_must_match_map", minibuffer_local_must_match_map)
