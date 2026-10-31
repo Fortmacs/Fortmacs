@@ -29,9 +29,9 @@ submodule(lisp_fm) lisp_names_fm
 
 contains
 
-    !> A name value for `name' (added to the name table; "nil" gives the
-    !> null value), or a string value holding `text' (already in the
-    !> internal encoding); with neither, the null value.  Port of
+    !> A name value for `name' (added to the name table), or a string
+    !> value holding `text' (already in the internal encoding); with
+    !> neither, the null value.  Port of
     !> lread.c:intern and alloc.c:build_string.
     module procedure value_of_string
     if (present(name)) then
