@@ -78,7 +78,7 @@ contains
         call t%resolve(null_handle(), i, st)
         call check(error, st%code, FM_INVALID_HANDLE)
         if (allocated(error)) return
-        ! A default-initialised handle is the null handle too.
+        ! A default-initialized handle is the null handle too.
         call t%resolve(d, i, st)
         call check(error, st%code, FM_INVALID_HANDLE)
         if (allocated(error)) return

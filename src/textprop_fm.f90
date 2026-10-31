@@ -1405,7 +1405,7 @@ contains
     !> all these hooks in lexicographic order, eliminating consecutive extra
     !> copies of the same hook.  Then call those hooks in order, with START
     !> and END as arguments.  For an insertion (START equal to END) the
-    !> stickiness of `read_only' on the neighbours decides, and the
+    !> stickiness of `read_only' on the neighbors decides, and the
     !> `insert_behind_hooks' and `insert_in_front_hooks' to run after it are
     !> recorded for `report_interval_modification'.
     !> Port of textprop.c:verify_interval_modification.

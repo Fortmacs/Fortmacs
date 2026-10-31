@@ -1,0 +1,77 @@
+# american-spelling -- the British spellings tools/spelling.awk reports
+# (CLAUDE.md: American spelling in all text, docstrings and comments).
+#
+# One entry per line, fields separated by one tab:
+#   BRITISH<TAB>AMERICAN   a word (any case) and its American spelling;
+#   keep<TAB>"TEXT"        TEXT left as it is wherever it occurs: color
+#                          names (data), titles and upstream messages
+#                          that Fortmacs reproduces byte for byte.
+# "grey" is not listed: it is mostly in color names (X's rgb.txt).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+
+behaviour	behavior
+behaviours	behaviors
+behavioural	behavioral
+colour	color
+colours	colors
+coloured	colored
+colouring	coloring
+honour	honor
+honours	honors
+honoured	honored
+honouring	honoring
+favour	favor
+favours	favors
+favoured	favored
+favourite	favorite
+neighbour	neighbor
+neighbours	neighbors
+neighbouring	neighboring
+labour	labor
+licence	license
+licences	licenses
+centre	center
+centres	centers
+centred	centered
+cancelled	canceled
+cancelling	canceling
+labelled	labeled
+labelling	labeling
+modelled	modeled
+modelling	modeling
+travelled	traveled
+travelling	traveling
+signalled	signaled
+signalling	signaling
+initialise	initialize
+initialises	initializes
+initialised	initialized
+initialising	initializing
+initialisation	initialization
+optimise	optimize
+optimised	optimized
+optimisation	optimization
+recognise	recognize
+recognises	recognizes
+recognised	recognized
+organise	organize
+organised	organized
+normalise	normalize
+normalised	normalized
+serialise	serialize
+serialised	serialized
+customise	customize
+customised	customized
+analyse	analyze
+analysed	analyzed
+analysing	analyzing
+catalogue	catalog
+
+# Upstream messages Fortmacs shows as Emacs does (fill.el, vc.el).
+keep	"fill_prefix cancelled"
+keep	"Revert cancelled"
+# A title: Thiadmer Riemersma's "Colour metric".
+keep	"Colour metric"

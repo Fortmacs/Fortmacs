@@ -2409,7 +2409,7 @@ contains
     end subroutine makefile_cleanup_continuations_function
 
     !> Ask whether to save a Makefile with a suspicious line (one of only
-    !> tabs, or spaces before a tab); DONE (cancelling the save) if not
+    !> tabs, or spaces before a tab); DONE (canceling the save) if not
     !> (a function of `write_file_functions').  Port of
     !> make-mode.el:makefile-warn-suspicious-lines.
     recursive subroutine makefile_warn_suspicious_lines(done, status)
@@ -2420,7 +2420,7 @@ contains
     end subroutine makefile_warn_suspicious_lines
 
     !> Ask whether to save a Makefile with whitespace after a trailing
-    !> backslash; DONE (cancelling the save) if not (a function of
+    !> backslash; DONE (canceling the save) if not (a function of
     !> `write_file_functions').  Port of
     !> make-mode.el:makefile-warn-continuations.
     recursive subroutine makefile_warn_continuations(done, status)

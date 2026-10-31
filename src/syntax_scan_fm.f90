@@ -30,7 +30,7 @@
 !> `comment_use_syntax_ppss' is true (as by default), else from an open
 !> paren in column 0 (`open_paren_in_column_0_is_subprogram_start').
 !>
-!> Upstream's gotos become a loop over labelled steps in
+!> Upstream's gotos become a loop over labeled steps in
 !> scan_expressions_forward and exits of named loops elsewhere.  A parse state is
 !> a `parse_state_type' outside and the internal `lisp_parse_state' here,
 !> as upstream converts between the list and struct lisp_parse_state.
@@ -86,7 +86,7 @@ submodule(syntax_fm) syntax_scan_fm
     integer(int64) :: find_start_pos = 0, find_start_value = 0, find_start_value_byte = 0
     integer(int64) :: find_start_buffer = 0, find_start_serial = -1, find_start_begv = 0, find_start_modiff = 0
 
-    !> The labelled steps of scan_expressions_forward.
+    !> The labeled steps of scan_expressions_forward.
     integer, parameter :: L_LOOP = 1, L_STARTQUOTED = 2, L_SYMSTARTED = 3, L_ATCOMMENT = 4, &
                           L_STARTINCOMMENT = 5, L_STARTINSTRING = 6, L_STARTQUOTEDINSTRING = 7, &
                           L_STOP = 8, L_ENDQUOTED = 9, L_DONE = 10

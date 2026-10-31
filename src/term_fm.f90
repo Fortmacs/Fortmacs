@@ -27,7 +27,7 @@
 !> the face table to draw with, indexed by face id from 0.
 !>
 !> Not ported: menus, mouse (GPM), glyph production (produce_glyphs, in
-!> the redisplay step), colour-mode switching (tty_setup_colors),
+!> the redisplay step), color-mode switching (tty_setup_colors),
 !> tty-mode-set-strings, the termscript, char_ins_del cost vectors, the
 !> DOS/Windows/Android branches.
 module term_fm

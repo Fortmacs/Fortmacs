@@ -256,7 +256,7 @@ contains
         call check(error, timer_active_p(a) .and. timer_check() > 0, "active")
         if (allocated(error)) return
         call cancel_timer(a)
-        call check(error,.not. timer_active_p(a) .and. timerp(a), "cancelled")
+        call check(error,.not. timer_active_p(a) .and. timerp(a), "canceled")
         if (allocated(error)) return
         call free_timer(a)
         call check(error,.not. timerp(a), "freed")

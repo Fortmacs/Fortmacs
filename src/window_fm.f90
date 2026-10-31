@@ -558,7 +558,7 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine split_window
 
-        !> Delete WINDOW: its space goes to a neighbour, and if it was
+        !> Delete WINDOW: its space goes to a neighbor, and if it was
         !> selected the most recently used window is selected.  Port of
         !> window.el:delete-window.
         module subroutine delete_window(window, status)

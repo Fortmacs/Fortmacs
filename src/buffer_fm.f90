@@ -1020,7 +1020,7 @@ contains
     end subroutine buffer_modified_p
 
     !> Mark the current buffer modified or unmodified.
-    !> Port of buffer.c:Frestore_buffer_modified_p (also the behaviour of
+    !> Port of buffer.c:Frestore_buffer_modified_p (also the behavior of
     !> Fset_buffer_modified_p, minus mode-line updates and file locks).
     subroutine restore_buffer_modified_p(flag)
         logical, intent(in) :: flag

@@ -300,7 +300,7 @@ contains
     !> (length < 0) at `start'.  Inserted text gets its own interval: with no
     !> properties, or with INHERIT true those `insertion_plist' gives it
     !> from its surroundings (upstream's adjust_intervals_for_insertion
-    !> puts it in a neighbouring interval by stickiness).  Port of
+    !> puts it in a neighboring interval by stickiness).  Port of
     !> intervals.c:offset_intervals, intervals.c:adjust_intervals_for_insertion
     !> and intervals.c:adjust_intervals_for_deletion.
     subroutine offset_intervals(iv, start, length, inherit)

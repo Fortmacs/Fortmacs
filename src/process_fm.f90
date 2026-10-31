@@ -1454,7 +1454,7 @@ contains
     end subroutine accept_process_output
 
     ! ------------------------------------------------------------------
-    ! Deleting and signalling
+    ! Deleting and signaling
     ! ------------------------------------------------------------------
 
     !> Delete PROCESS: kill it and forget about it immediately.

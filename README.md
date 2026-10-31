@@ -88,21 +88,20 @@ running. Each generation is kept with the `init.f90` it was built from in
 
 ## Differences from Emacs
 
-Fortmacs follows Emacs 31.1 exactly, except where being Fortran requires
-otherwise:
+Fortmacs behaves like Emacs: the same commands, keys and results, with
+Emacs's own tests ported to check it. It is not a 1:1 copy, though: its
+names, help and internals are Fortran-first.
 
-- Names use underscores: `M-x find_file`, `C-h v fill_column`,
-  `text_mode_hook`. Keys and mode-line text are unchanged.
-- Fortmacs leans Fortran-first rather than Lisp-first: Lisp terms like
-  defun, sexp and alist become subprogram, expression and table <!-- fortran-names: keep -->
-  (`C-M-f` is `forward_expression` and `auto-mode-alist` is
-  `auto_mode_table`). PORTING.md, "Fortran names for Lisp terms", lists
-  them.
+- Names use underscores (`M-x find_file`, `C-h v fill_column`,
+  `text_mode_hook`), and Lisp terms take Fortran names: defun, sexp and <!-- fortran-names: keep -->
+  alist become subprogram, expression and table (`C-M-f` is <!-- fortran-names: keep -->
+  `forward_expression`). Keys and mode-line text are unchanged.
+  PORTING.md, "Fortran names for Lisp terms", has the full list.
+- Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
+  names the Fortran file a definition lives in.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
   `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
   configuration means rebuilding.
-- Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
-  names the Fortran file a definition lives in.
 - Configuration and packages are Fortran modules compiled into the binary;
   commands that save settings write Fortran into `init.f90`.
 
@@ -126,7 +125,11 @@ Emacs's own tests and survive human review.
 Fortmacs is co-written with Claude Code, Anthropic's coding agent. It needs
 constant direction: left alone it drifted toward Lisp written in Fortran,
 such as `call put("upcase-region", "disabled", .false., status)` where
-Fortmacs now has `commands%upcase_region%disabled = .false.`. In return it:
+Fortmacs now has `commands%upcase_region%disabled = .false.`. It also let
+Lisp terms slip into Fortran names unremarked, such as <!-- fortran-names: keep -->
+`beginning_of_defun`, `forward_sexp` and `auto_mode_alist`; the renames <!-- fortran-names: keep -->
+are recorded in PORTING.md, and a check in CI keeps them from coming
+back. In return it:
 
 - reads C, Elisp and Fortran, porting each function with a citation to its
   source and porting Emacs's tests with it;

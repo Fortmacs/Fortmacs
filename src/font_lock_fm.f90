@@ -800,7 +800,7 @@ contains
                     end do
 
                     ! (Whether the changes affect syntax-ppss is not
-                    ! analysed: they are taken to.)
+                    ! analyzed: they are taken to.)
                     locals(k)%syntax_table_affects_ppss = .true.
                 end if
             end if
