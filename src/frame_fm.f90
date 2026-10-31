@@ -172,7 +172,8 @@ contains
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by
-    !> xdisp_fm:init_frame_windows.  Not a port.
+    !> xdisp_fm:init_frame_windows.  Port of window.c:init_window_once
+    !> (the initial frame's windows).
     subroutine ensure_frame_windows()
         if (.not. window_valid_p(selected_frame%root_window)) then
             call make_window(selected_frame%root_window)

@@ -420,6 +420,8 @@ contains
         selected_frame%minibuffer_window = null_handle()
         selected_frame%minibuffer_selected = .false.
         selected_frame%garbaged = .true.
+        ! dispnew.c:init_display and dispnew.c:init_display_interactive: the
+        ! terminal TERM names.
         call init_tty(selected_frame%tty, terminal_type, fd, status)
         if (.not. status%ok()) return
         ! startup.el:command-line registers the 8 default colors, then

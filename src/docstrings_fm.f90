@@ -51,6 +51,7 @@ module docstrings_fm
                              global_auto_revert_ignore_buffer, global_auto_revert_ignore_modes, &
                              global_auto_revert_mode_hook, global_auto_revert_mode_text, &
                              global_auto_revert_non_file_buffers
+    use bidi_fm, only: bidi_inhibit_bpa
     use bookmark_fm, only: bookmark_after_jump_hook, bookmark_after_load_file_hook, bookmark_alist, &
                            bookmark_alist_modification_count, bookmark_automatically_show_annotations, &
                            bookmark_bmenu_buffer, bookmark_bmenu_file_column, bookmark_bmenu_mode_hook, &
@@ -943,7 +944,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1112) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1113) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -965,22 +966,22 @@ module docstrings_fm
                                                                     "auto_revert_remote_files", "auto_revert_stop_on_user_input", &
                                              "auto_revert_tail_mode_hook", "auto_revert_tail_mode_text", "auto_revert_use_notify", &
                                          "auto_revert_verbose", "backward_delete_char_untabify_method", "before_change_functions", &
-                                         "before_revert_hook", "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
-                                                     "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
-                                                                    "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
-                                           "bookmark_after_load_file_hook", "bookmark_alist", "bookmark_alist_modification_count", &
-                                                               "bookmark_automatically_show_annotations", "bookmark_bmenu_buffer", &
-                                              "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", "bookmark_bmenu_mode_map", &
-                                                            "bookmark_bmenu_toggle_filenames", "bookmark_bmenu_type_column_width", &
-                                                                "bookmark_bookmarks_timestamp", "bookmark_completion_ignore_case", &
-                                         "bookmark_current_buffer", "bookmark_default_file", "bookmark_edit_annotation_mode_hook", &
-                                                       "bookmark_edit_annotation_mode_map", "bookmark_exit_hook", "bookmark_face", &
-                                                                    "bookmark_file_coding_system", "bookmark_fringe_mark", &
-                                                   "bookmark_inhibit_context_functions", "bookmark_map", "bookmark_menu_bookmark", &
-                                                            "bookmark_menu_confirm_deletion", "bookmark_minibuffer_read_name_map", &
-                                                            "bookmark_save_flag", "bookmark_search_delay", "bookmark_search_size", &
-                                                     "bookmark_sort_flag", "bookmark_use_annotations", "bookmark_version_control", &
-                                                                    "bookmark_watch_bookmark_file", "bookmark_yank_point", &
+                                             "before_revert_hook", "before_save_hook", "bidi_inhibit_bpa", "blink_matching_delay", &
+                                                                    "blink_matching_paren", "blink_matching_paren_distance", &
+                                                    "blink_matching_paren_dont_ignore_comments", "blink_matching_paren_on_screen", &
+                                                    "bookmark_after_jump_hook", "bookmark_after_load_file_hook", "bookmark_alist", &
+                                                   "bookmark_alist_modification_count", "bookmark_automatically_show_annotations", &
+                                                "bookmark_bmenu_buffer", "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", &
+                                                                    "bookmark_bmenu_mode_map", "bookmark_bmenu_toggle_filenames", &
+                                                               "bookmark_bmenu_type_column_width", "bookmark_bookmarks_timestamp", &
+                                            "bookmark_completion_ignore_case", "bookmark_current_buffer", "bookmark_default_file", &
+                                                        "bookmark_edit_annotation_mode_hook", "bookmark_edit_annotation_mode_map", &
+                                                             "bookmark_exit_hook", "bookmark_face", "bookmark_file_coding_system", &
+                                                     "bookmark_fringe_mark", "bookmark_inhibit_context_functions", "bookmark_map", &
+                                                                    "bookmark_menu_bookmark", "bookmark_menu_confirm_deletion", &
+                                               "bookmark_minibuffer_read_name_map", "bookmark_save_flag", "bookmark_search_delay", &
+                                                         "bookmark_search_size", "bookmark_sort_flag", "bookmark_use_annotations", &
+                                                "bookmark_version_control", "bookmark_watch_bookmark_file", "bookmark_yank_point", &
                                                                 "buffer_auto_revert_by_notification", "buffer_file_coding_system", &
                                                           "buffer_list_update_hook", "buffer_menu_buffer", "buffer_menu_del_char", &
                                            "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", "buffer_menu_mode_hook", &
@@ -14211,6 +14212,13 @@ contains
             entry%user_option = .true.
             entry%doc = "Normal hook that is run before a buffer is saved to its file."//LF// &
                         "Only used by `save_buffer'."
+        case ("bidi_inhibit_bpa")
+            entry%file = "bidi_fm.f90"
+            entry%fortran = "bidi_inhibit_bpa"
+            entry%original = ".false."
+            entry%value = repr(bidi_inhibit_bpa)
+            entry%doc = "Inhibit the bidi bracket pair algorithm (BPA).  If true, the paired"//LF// &
+                        "brackets are resolved as other neutral characters."
         case ("blink_matching_delay")
             entry%file = "simple_fm.f90"
             entry%fortran = "blink_matching_delay"

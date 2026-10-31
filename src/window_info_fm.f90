@@ -677,7 +677,7 @@ contains
 
     !> The window at column X and line Y of the frame, and in PART which
     !> part of it; the null handle for none.  Port of
-    !> window.c:window_from_coordinates (with check_window_containing;
+    !> window.c:window_from_coordinates (with window.c:check_window_containing;
     !> no menu bar, tab bar or tool bar windows).
     function window_from_coordinates(x, y, part) result(window)
         integer, intent(in) :: x, y
