@@ -229,10 +229,10 @@ module xdisp_fm
     !> text (while a prompt there waits for an answer).
     logical, public :: cursor_in_echo_area = .false.
 
-    !> The value of `tab_width' that is upstream's unset one: the display uses 8
-    !> (buffer.h:sanitize_tab_width), as for any value out of range.  (A
-    !> provisional name, for the owner to confirm.)  Not a port.
-    integer(int64), parameter, public :: TAB_WIDTH_NONE = -huge(0_int64)
+    !> The value of `tab_width' that is upstream's unset one: the display uses
+    !> the default width, 8 (buffer.h:sanitize_tab_width), as for any value
+    !> out of range.  Not a port.
+    integer(int64), parameter, public :: TAB_WIDTH_DEFAULT = -huge(0_int64)
 
     !> Distance between tab stops (for display of tab characters), in columns.
     !> This controls the width of a TAB character on display.

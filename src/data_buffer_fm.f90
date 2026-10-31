@@ -42,7 +42,7 @@ submodule(data_fm) data_buffer_fm
     use handle_fm, only: null_handle
     use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, FILL_COLUMN_NONE, left_margin, &
                          auto_fill_function, auto_fill_proc, is_buffer_live, buffer_handle, transient_mark_mode
-    use xdisp_fm, only: tab_width, TAB_WIDTH_NONE
+    use xdisp_fm, only: tab_width, TAB_WIDTH_DEFAULT
     use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
                          indent_line_setting, indent_line_function_name, indent_line_function_named
     use callint_fm, only: find_command, command_name_of
@@ -380,7 +380,7 @@ contains
         case ("left_margin")
             call setting_value(left_margin, make_fixnum(left_margin%value), v, bound)
         case ("tab_width")
-            call setting_value(tab_width, fixnum_or_none(tab_width%value, TAB_WIDTH_NONE), v, bound)
+            call setting_value(tab_width, fixnum_or_none(tab_width%value, TAB_WIDTH_DEFAULT), v, bound)
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(indent_tabs_mode%value)
@@ -503,7 +503,7 @@ contains
         case ("left_margin")
             call set_integer(left_margin, v, .true., status)
         case ("tab_width")
-            call set_integer(tab_width, v, .true., status, TAB_WIDTH_NONE)
+            call set_integer(tab_width, v, .true., status, TAB_WIDTH_DEFAULT)
         case ("indent_tabs_mode")
             indent_tabs_mode = allocated(v%a)
         case ("completion_ignore_case")

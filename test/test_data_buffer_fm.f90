@@ -387,7 +387,7 @@ contains
         if (allocated(error)) return
         ! fill-column and tab-width may be nil upstream: FILL_COLUMN_NONE
         ! (current_fill_column then gives the largest fixnum) and
-        ! TAB_WIDTH_NONE (tabs are 8 columns wide).
+        ! TAB_WIDTH_DEFAULT (tabs are 8 columns wide).
         call set_default(sym("fill_column"), value_type(), st)
         call check(error, st%ok() .and. fill_column%value == FILL_COLUMN_NONE, "fill-column may be nil")
         if (allocated(error)) return

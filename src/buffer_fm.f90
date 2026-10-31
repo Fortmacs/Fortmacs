@@ -273,8 +273,7 @@ module buffer_fm
 
     !> The value of `fill_column' that is upstream's unset fill column
     !> (obsolete upstream): no fill column; `current_fill_column' then gives the
-    !> largest fixnum.  (A provisional name, for the owner to confirm.)
-    !> Not a port.
+    !> largest fixnum.  Not a port.
     integer(int64), parameter, public :: FILL_COLUMN_NONE = -huge(0_int64)
 
     !> Column beyond which automatic line-wrapping should happen.
