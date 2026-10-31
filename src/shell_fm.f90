@@ -58,7 +58,7 @@ module shell_fm
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, is_eob
     use textprop_fm, only: get_text_property, put_text_property, next_single_property_change
-    use ansi_color_fm, only: ansi_color_apply_face_function
+    use ansi_color_fm, only: ansi_color_apply_face_function, ansi_color_face_type, ansi_color_face_value
     use insdel_fm, only: insert
     use search_fm, only: string_match, re_search_forward, re_search_backward, match_beginning, match_end, &
                          looking_at, SEARCH_NOERROR, SEARCH_MOVE
@@ -1534,12 +1534,14 @@ contains
     !> Port of shell.el:shell-apply-ansi-color.
     recursive subroutine shell_apply_ansi_color(beg, end, face)
         integer(int64), intent(in) :: beg, end
-        type(value_type), intent(in) :: face
+        type(ansi_color_face_type), intent(in) :: face
         type(status_type) :: st
+        type(value_type) :: v
 
-        if (.not. allocated(face%a)) return
-        call put_text_property(beg, end, sym("ansi_color_face"), face, st)
-        call put_text_property(beg, end, sym("font_lock_face"), face, st)
+        if (face%is_empty()) return
+        v = ansi_color_face_value(face)
+        call put_text_property(beg, end, sym("ansi_color_face"), v, st)
+        call put_text_property(beg, end, sym("font_lock_face"), v, st)
     end subroutine shell_apply_ansi_color
 
     !> Reapply ansi-color faces to the existing contents of the buffer.

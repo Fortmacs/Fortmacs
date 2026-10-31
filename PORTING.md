@@ -575,6 +575,7 @@ no rename is added without that.  The confirmed renames:
 | fboundp, keywordp | `associated(find_command(name))`; the name's first character | no wrapper |
 | cons (printing a keymap entry), a cons argument | `keymap_entry_repr(event, binding)`; newcomment's `universal_arg` | named for what they hold |
 | the exact Lisp value of a setting (`setting_type%exact`) | removed (A8) | a logical setting holds `.true.` or `.false.` (any allocated value is `.true.`); an integer or string setting given another value is a `wrong-type-argument` error condition except where upstream's nil means something: fill-column's nil is `FILL_COLUMN_NONE` (`current_fill_column` then gives the largest fixnum, as upstream; its obsolescence warning is Deferred with lwarn; set_fill_column shows and refuses it as upstream does), tab-width's nil is `TAB_WIDTH_NONE` (tabs are 8 columns, buffer.h:sanitize_tab_width); both names are provisional, for the owner to confirm; a function setting resolves the name when it is set (an undefined name is `void-function`, "Function is not defined") and keeps the resolved command (`%command`) for the name it reads back as; an unknown require-final-newline value is `FINAL_NEWLINE_ASK` |
+| the face an ansi-color face function receives | `type(ansi_color_face_type)` (A5): `faces(:)` of `ansi_color_face_ref_type` (a pointer to a named face; null for an entry of `ansi_color_basic_faces` that is ""), `foreground` and `background` ("" for a color face without the color); empty (`%is_empty()`) means none | no `value_type` in the face function's interface; `ansi_color_face_value` builds the text property value upstream's ansi-color--face-vec-face gives |
 | symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGEXP_OPT_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
@@ -705,8 +706,6 @@ named with it.
   `decoding` and `encoding` of `default_process_coding_system`), and
   `ibuffer_always_compile_formats` (the byte compiler) is removed as not
   applicable.
-- A5: an `ansi_color_face_type` record (`faces(:)` of `named_face`
-  pointers, plus foreground and background); empty means none.
 - A6: settings reached by a name string become typed setting objects;
   saving and restoring a value goes through a local copy.
 - A7: `this_command` and `last_command` become `type(command_type)`

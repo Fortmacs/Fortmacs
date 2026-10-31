@@ -389,7 +389,8 @@ module fortmacs
     use ansi_color_fm, only: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, &
                              ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces, &
                              ansi_color_normal_colors, ansi_color_bright_colors, &
-                             ansi_color_apply_face_function, ansi_color_face_proc, ansi_color_compilation_filter, &
+                             ansi_color_apply_face_function, ansi_color_face_proc, ansi_color_face_type, ansi_color_face_ref_type, &
+                             ansi_color_compilation_filter, &
                              ansi_color_process_output
     use minibuf_fm, only: read_hide_char
     use shell_fm, only: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
@@ -726,7 +727,8 @@ module fortmacs
     public :: password_word_equivalents, password_colon_equivalents, read_hide_char
     public :: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, ANSI_COLOR_FILTER, &
               ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces, ansi_color_normal_colors, &
-              ansi_color_bright_colors, ansi_color_apply_face_function, ansi_color_face_proc, &
+              ansi_color_bright_colors, ansi_color_apply_face_function, ansi_color_face_proc, ansi_color_face_type, &
+              ansi_color_face_ref_type, &
               ansi_color_compilation_filter, ansi_color_process_output
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
               shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &

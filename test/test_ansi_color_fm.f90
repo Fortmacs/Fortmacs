@@ -37,13 +37,17 @@ module test_ansi_color_fm
     use faces_fm, only: face_spec_recalc_all
     use ansi_color_fm, only: ansi_color_apply_on_region, ansi_color_filter_region, ansi_color_filter_apply, &
                              ansi_color_apply, ansi_color_bold_is_bright, reset_ansi_color_context, &
-                             ansi_color_apply_face_function, ansi_color_apply_text_property_face
+                             ansi_color_apply_face_function, ansi_color_apply_text_property_face, &
+                             ansi_color_face_type, ansi_color_bold
     implicit none(type, external)
     private
 
     public :: collect_ansi_color_fm
 
     character(len=*), parameter :: ESC = achar(27)
+
+    ! The faces test_face_record's face function was given.
+    type(ansi_color_face_type), allocatable :: seen(:)
 
     ! One of ansi-color-tests--strings: INPUT, TEXT and the faces
     ! expected (normal, and with `ansi_color_bold_is_bright').
@@ -63,7 +67,8 @@ contains
                     new_unittest("ansi-color-apply-on-region-test", test_apply_on_region), &
                     new_unittest("ansi-color-apply-on-region-bold-is-bright-test", test_bold_is_bright), &
                     new_unittest("ansi-color-apply-on-region-preserving-test", test_preserving), &
-                    new_unittest("ansi-color-incomplete-sequences-test", test_incomplete) &
+                    new_unittest("ansi-color-incomplete-sequences-test", test_incomplete), &
+                    new_unittest("ansi-color-face-function-record", test_face_record) &
                     ]
     end subroutine collect_ansi_color_fm
 
@@ -320,4 +325,44 @@ contains
         call end_temp_buffer(old, b)
         call reset_ansi_color_context()
     end subroutine test_incomplete
+
+    !> An `ansi_color_apply_face_function' receives the face as a record:
+    !> named faces and colors, empty for no face.  Ours (A5).
+    subroutine test_face_record(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old, b
+        type(status_type) :: st
+        integer(int64) :: opoint
+
+        allocate (seen(0))
+        call temp_buffer(old, b)
+        call ansi_color_apply_face_function%set_local(record_face)
+        opoint = point()
+        call insert(ESC//"[1;31mbold red"//ESC//"[0m plain", st)
+        call ansi_color_apply_on_region(opoint, point())
+        call end_temp_buffer(old, b)
+        call check(error, size(seen) >= 2, "two stretches")
+        if (allocated(error)) return
+        call check(error, size(seen(1)%faces) == 1, "one named face")
+        if (allocated(error)) return
+        call check(error, associated(seen(1)%faces(1)%face, ansi_color_bold), "ansi_color_bold")
+        if (allocated(error)) return
+        call check(error, allocated(seen(1)%foreground) .and. .not. allocated(seen(1)%background), "a foreground")
+        if (allocated(error)) return
+        call check(error, seen(size(seen))%is_empty(), "no face after the reset")
+    end subroutine test_face_record
+
+    recursive subroutine record_face(beg, end, face)
+        integer(int64), intent(in) :: beg, end
+        type(ansi_color_face_type), intent(in) :: face
+        type(ansi_color_face_type), allocatable :: grown(:)
+        integer :: n
+
+        if (end <= beg) return
+        n = size(seen)
+        allocate (grown(n + 1))
+        grown(1:n) = seen
+        grown(n + 1) = face
+        call move_alloc(grown, seen)
+    end subroutine record_face
 end module test_ansi_color_fm
