@@ -87,7 +87,8 @@ module python_fm
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use expression_motion_fm, only: forward_expression, forward_expression_function, forward_expression_default_function, up_group, mark_subprogram, &
+    use expression_motion_fm, only: forward_expression, forward_expression_function, forward_expression_default_function, &
+                                    up_group, mark_subprogram, &
                                     beginning_of_subprogram_function, end_of_subprogram_function
     use newcomment_fm, only: comment_start, comment_start_skip
     use paragraphs_fm, only: paragraph_start, paragraph_separate
@@ -607,7 +608,11 @@ contains
         if (.not. associated(python_fill_string_function)) python_fill_string_function => python_fill_string
         if (.not. associated(python_fill_decorator_function)) python_fill_decorator_function => python_fill_decorator
         if (.not. associated(python_fill_paren_function)) python_fill_paren_function => python_fill_paren
-        if (.not. allocated(python_nav_beginning_of_subprogram_regexp)) python_nav_beginning_of_subprogram_regexp = BEGINNING_OF_SUBPROGRAM_RE
+
+        if (.not. allocated(python_nav_beginning_of_subprogram_regexp)) then
+            python_nav_beginning_of_subprogram_regexp = BEGINNING_OF_SUBPROGRAM_RE
+        end if
+
         if (.not. allocated(python_nav_beginning_of_block_regexp)) python_nav_beginning_of_block_regexp = BEGINNING_OF_BLOCK_RE
         call init_syntax_tables()
         call init_keywords()
