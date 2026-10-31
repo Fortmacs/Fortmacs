@@ -113,7 +113,7 @@ module replace_fm
                          next_error_found, next_error_last_buffer, fundamental_mode
     use window_fm, only: windows, display_buffer, pop_to_buffer, switch_to_buffer_other_window, select_window, &
                          get_buffer_window, set_window_point, window_start, window_text_cols, recenter, &
-                         display_alist_type
+                         display_action_table_type
     use frame_fm, only: selected_frame
     use help_fm, only: substitute_command_keys
     use minibuffer_fm, only: read_buffer, REQUIRE_MATCH_T
@@ -2968,15 +2968,15 @@ contains
     recursive subroutine occur_mode_display_occurrence(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: marker, buffer, occur_buf, window, old_window
-        type(display_alist_type) :: alist
+        type(display_action_table_type) :: table
         type(status_type) :: st
         integer(int64) :: pos
 
         occur_buf = current_buffer()
         call occur_mode_find_occurrences(marker, buffer, status)
         if (.not. status%ok()) return
-        alist%inhibit_same_window = .true.
-        call display_buffer(buffer, window, status, alist=alist)
+        table%inhibit_same_window = .true.
+        call display_buffer(buffer, window, status, table=table)
         if (.not. status%ok()) return
         if (window%index == 0) return
         ! This is the way to set point in the proper window.
@@ -3123,7 +3123,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: prefix_beg, prefix_end
         type(handle_type) :: m, buf, win, old_window, occur_buf
-        type(display_alist_type) :: alist
+        type(display_action_table_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: text, buf_str
         integer(int64) :: opoint, line_beg, line_end, col, line, pos, beg_pos, end_pos, prefix_len, suffix_len, &
@@ -3170,8 +3170,8 @@ contains
         win = get_buffer_window(buf)
 
         if (win%index == 0) then
-            alist%inhibit_same_window = .true.
-            call display_buffer(buf, win, st, alist=alist)
+            table%inhibit_same_window = .true.
+            call display_buffer(buf, win, st, table=table)
             call set_buffer(occur_buf, st)
         end if
 

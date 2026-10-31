@@ -3108,7 +3108,7 @@ contains
 
     !> The modes part of buffer BI's mode line: `mode_name', " Narrow"
     !> if the buffer is narrowed (%n), and the lighters of
-    !> `minor_mode_alist' whose variables are non-nil there.  Not a port.
+    !> `minor_mode_table' whose variables are non-nil there.  Not a port.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s

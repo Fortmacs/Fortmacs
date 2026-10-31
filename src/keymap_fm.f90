@@ -3182,7 +3182,7 @@ contains
 
         call parse_modifiers(c, modifiers, base)
 
-        ! This alist includes elements such as ("RET" . "\r").
+        ! This table includes elements such as ("RET" . "\r").
         select case (base)
         case ("DEL")
             keystring = "\d"
@@ -3269,7 +3269,7 @@ contains
     end subroutine current_minor_mode_maps
 
     !> Find the visible minor mode bindings of KEY.
-    !> Return an alist of pairs (MODENAME . BINDING), where MODENAME is
+    !> Return a table of pairs (MODENAME . BINDING), where MODENAME is
     !> the symbol which names the minor mode binding KEY, and BINDING is
     !> KEY's definition in that mode.  In particular, if KEY has no
     !> minor-mode bindings, return nil.  If the first binding is a

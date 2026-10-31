@@ -527,7 +527,7 @@ contains
         call leave_frame()
     end subroutine test_other_window
 
-    !> C-x 0 gives the space to a neighbour and selects the most recently
+    !> C-x 0 gives the space to a neighbor and selects the most recently
     !> used window; C-x 1 keeps only the selected one.
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error

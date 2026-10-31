@@ -785,11 +785,11 @@ contains
     use files_fm, only: backup_file_name_p, delete_file
     use fns_fm, only: yes_or_no_p
     use subr_fm, only: y_or_n_p
-    use window_fm, only: display_buffer, display_alist_type, set_window_point, windows, pop_to_buffer
+    use window_fm, only: display_buffer, display_action_table_type, set_window_point, windows, pop_to_buffer
     use frame_fm, only: selected_frame
     type(diff_name_type), allocatable :: names(:)
     type(diff_source_location_type) :: loc
-    type(display_alist_type) :: alist
+    type(display_action_table_type) :: table
     type(handle_type) :: obuf, window, saved_window
     type(status_type) :: st
     integer(int64) :: x
@@ -899,8 +899,8 @@ contains
     if (status%ok()) call insert(loc%dst%text, status)
     call set_buffer(obuf, st)
     if (.not. status%ok()) return
-    alist%inhibit_same_window = .true.
-    call display_buffer(loc%buf, window, st, alist=alist)
+    table%inhibit_same_window = .true.
+    call display_buffer(loc%buf, window, st, table=table)
     if (window%index /= 0) call set_window_point(windows(window%index), loc%beg + loc%dst%offset, st)
     call diff_hunk_status_msg(.true., loc%line_offset, loc%switched .neqv. rev, .false.)
     if (diff_advance_after_apply_hunk) call diff_hunk_next(st)
@@ -1047,7 +1047,7 @@ contains
         end do
 
         if (i > size(edits)) then
-            ! Newest buffer first, as `push' onto the alist.
+            ! Newest buffer first, as `push' onto the table.
             m = size(edits)
             allocate (grown(m + 1))
             grown(2:m + 1) = edits

@@ -1040,7 +1040,7 @@ contains
     end function char_property
 
     !> The value of `prop' that a character inserted at `position' would
-    !> get from its neighbours.  Port of editfns.c:Fget_pos_property (text
+    !> get from its neighbors.  Port of editfns.c:Fget_pos_property (text
     !> properties only).
     function get_pos_property(position, prop) result(v)
         integer(int64), intent(in) :: position
@@ -1166,7 +1166,7 @@ contains
 
     !> `new_pos' moved, if needed, to stay in the field of `old_pos'.  With
     !> `escape_from_edge', `old_pos' at a field edge may count as in the
-    !> neighbouring field; with `only_in_line', constrain only if the
+    !> neighboring field; with `only_in_line', constrain only if the
     !> field edge is on the same line.  Port of
     !> editfns.c:Fconstrain_to_field (NEW-POS given; no
     !> INHIBIT-CAPTURE-PROPERTY).

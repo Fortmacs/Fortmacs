@@ -326,20 +326,20 @@ contains
     subroutine test_buffer_local_variables(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
-        type(value_type) :: alist, elt
+        type(value_type) :: table, elt
 
         call setup(error, a, b)
         if (allocated(error)) return
-        alist = buffer_local_variables()
+        table = buffer_local_variables()
         ! binding-test-some-local plus buffer-read-only, major-mode, mode-name.
-        call check(error, list_length(alist) == 4, "four entries")
+        call check(error, list_length(table) == 4, "four entries")
         if (allocated(error)) return
-        elt = list_elt(alist, 1_int64)
+        elt = list_elt(table, 1_int64)
         call check(error, value_eq(list_elt(elt, 1_int64), sym("binding-test-some-local")) .and. &
                    value_eq(list_elt(elt, 2_int64), sym("local")), "first entry")
         if (allocated(error)) return
-        alist = buffer_local_variables(b%index)
-        call check(error, list_length(alist) == 3, "only the slots in B")
+        table = buffer_local_variables(b%index)
+        call check(error, list_length(table) == 3, "only the slots in B")
         call teardown(a, b)
     end subroutine test_buffer_local_variables
 

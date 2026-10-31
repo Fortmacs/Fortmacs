@@ -225,7 +225,7 @@ module buffer_fm
         logical :: display_time_set = .false.
         integer(int64) :: display_time_sec = 0
         integer(int32) :: display_time_nsec = 0
-        !> BVAR local_var_alist: the variables local to this buffer (symbol
+        !> buffer.h:local_var_alist (BVAR): the variables local to this buffer (symbol
         !> ids) and, while the buffer is not current, their values (data_fm
         !> swaps them in and out).
         integer(int64), allocatable :: local_ids(:)
@@ -322,8 +322,8 @@ module buffer_fm
     !> Live buffers, least recently selected first (upstream Vbuffer_alist,
     !> most recent first): `record_buffer'ed ones go last, new and buried
     !> ones first.
-    type(handle_type), allocatable :: alist(:)
-    integer(int64) :: alist_count = 0
+    type(handle_type), allocatable :: buffer_order(:)
+    integer(int64) :: buffer_order_count = 0
 
     !> The selected frame's buffer lists (frame.h buffer_list and
     !> buried_buffer_list), most recent first: the buffers selected in
@@ -497,9 +497,9 @@ contains
 
         h = null_handle()
 
-        do k = 1, alist_count
-            if (alist(k)%index == cur) then
-                h = alist(k)
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == cur) then
+                h = buffer_order(k)
                 return
             end if
         end do
@@ -524,10 +524,10 @@ contains
 
         h = null_handle()
 
-        do k = 1, alist_count
-            if (buffers(alist(k)%index)%name == name .and. &
-                len(buffers(alist(k)%index)%name) == len(name)) then
-                h = alist(k)
+        do k = 1, buffer_order_count
+            if (buffers(buffer_order(k)%index)%name == name .and. &
+                len(buffers(buffer_order(k)%index)%name) == len(name)) then
+                h = buffer_order(k)
                 return
             end if
         end do
@@ -596,11 +596,11 @@ contains
         end if
 
         if (present(inhibit_buffer_hooks)) buffers(i)%inhibit_buffer_hooks = inhibit_buffer_hooks
-        ! Put this in the alist of all live buffers (at its end, the least
+        ! Put this in `buffer_order', the live buffers (at its end, the least
         ! recently selected one).
-        call alist_append(h)
-        alist(2:alist_count) = alist(1:alist_count - 1)
-        alist(1) = h
+        call buffer_order_append(h)
+        buffer_order(2:buffer_order_count) = buffer_order(1:buffer_order_count - 1)
+        buffer_order(1) = h
         if (cur == 0) call set_buffer_internal(i)
         call run_buffer_list_update_hook(i, status)
     end subroutine get_buffer_create
@@ -617,14 +617,14 @@ contains
 
         h = handle_type()
 
-        do k = 1, alist_count
-            call resolve_buffer(alist(k), i, status)
+        do k = 1, buffer_order_count
+            call resolve_buffer(buffer_order(k), i, status)
             if (.not. status%ok()) cycle
             if (.not. allocated(buffers(i)%filename)) cycle
 
             if (buffers(i)%filename == filename .and. &
                 len(buffers(i)%filename) == len(filename)) then
-                h = alist(k)
+                h = buffer_order(k)
                 return
             end if
         end do
@@ -770,10 +770,10 @@ contains
     function buffer_list() result(list)
         type(handle_type), allocatable :: list(:)
 
-        if (alist_count == 0) then
+        if (buffer_order_count == 0) then
             allocate (list(0))
         else
-            list = alist(alist_count:1:-1)
+            list = buffer_order(buffer_order_count:1:-1)
         end if
     end function buffer_list
 
@@ -882,10 +882,10 @@ contains
         integer(int64) :: k
         type(status_type) :: status
 
-        do k = 1, alist_count
-            if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
-                alist(2:k) = alist(1:k - 1)
-                alist(1) = h
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == h%index .and. buffer_order(k)%generation == h%generation) then
+                buffer_order(2:k) = buffer_order(1:k - 1)
+                buffer_order(1) = h
                 exit
             end if
         end do
@@ -941,13 +941,13 @@ contains
         integer(int64) :: k, j
         type(status_type) :: status
 
-        do k = 1, alist_count
-            if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
-                do j = k, alist_count - 1
-                    alist(j) = alist(j + 1)
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == h%index .and. buffer_order(k)%generation == h%generation) then
+                do j = k, buffer_order_count - 1
+                    buffer_order(j) = buffer_order(j + 1)
                 end do
 
-                alist(alist_count) = h
+                buffer_order(buffer_order_count) = h
                 exit
             end if
         end do
@@ -959,21 +959,21 @@ contains
     end subroutine record_buffer
 
     ! Not a port.
-    subroutine alist_append(h)
+    subroutine buffer_order_append(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
 
-        if (.not. allocated(alist)) allocate (alist(16))
+        if (.not. allocated(buffer_order)) allocate (buffer_order(16))
 
-        if (alist_count == size(alist, kind=int64)) then
-            allocate (grown(2*size(alist)))
-            grown(1:alist_count) = alist(1:alist_count)
-            call move_alloc(grown, alist)
+        if (buffer_order_count == size(buffer_order, kind=int64)) then
+            allocate (grown(2*size(buffer_order)))
+            grown(1:buffer_order_count) = buffer_order(1:buffer_order_count)
+            call move_alloc(grown, buffer_order)
         end if
 
-        alist_count = alist_count + 1
-        alist(alist_count) = h
-    end subroutine alist_append
+        buffer_order_count = buffer_order_count + 1
+        buffer_order(buffer_order_count) = h
+    end subroutine buffer_order_append
 
     ! ------------------------------------------------------------------
     ! Modification state
@@ -1028,7 +1028,7 @@ contains
     end subroutine buffer_modified_p
 
     !> Mark the current buffer modified or unmodified.
-    !> Port of buffer.c:Frestore_buffer_modified_p (also the behaviour of
+    !> Port of buffer.c:Frestore_buffer_modified_p (also the behavior of
     !> Fset_buffer_modified_p, minus mode-line updates and file locks).
     subroutine restore_buffer_modified_p(flag)
         logical, intent(in) :: flag

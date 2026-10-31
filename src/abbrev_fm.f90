@@ -46,7 +46,7 @@
 !>
 !> Deferred: abbrevs whose EXPANSION is not a string (special abbrevs
 !> that only run their hook), a list of tables as `local_abbrev_table',
-!> `abbrev_minor_mode_table_alist', the obsolete wrapper hook
+!> `abbrev_minor_mode_tables', the obsolete wrapper hook
 !> `abbrev_expand_functions', other properties of abbrevs and tables
 !> than the special ones (`abbrev_table_get', `abbrev_table_put',
 !> `abbrev_get', `abbrev_put'), `abbrev_suggest' (with

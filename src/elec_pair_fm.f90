@@ -56,8 +56,8 @@ module elec_pair_fm
     use insdel_fm, only: insert
     use cmds_fm, only: post_self_insert_hook, self_insert_command, delete_char, forward_char
     use keyboard_fm, only: last_command_event
-    use syntax_fm, only: char_syntax, matching_paren, syntax_ppss, parse_partial_sexp, parse_state_type, &
-                         scan_sexps, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
+    use syntax_fm, only: char_syntax, matching_paren, syntax_ppss, parse_partial_expression, parse_state_type, &
+                         scan_expressions, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
                          forward_comment, ST_STRING_STYLE
     use subr_fm, only: looking_back
     use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, use_region_p, mark, newline, &
@@ -125,7 +125,7 @@ module elec_pair_fm
         end function electric_pair_position_proc
     end interface
 
-    !> Alist of pairs that should be used regardless of major mode.
+    !> Table of pairs that should be used regardless of major mode.
     !>
     !> Pairs of delimiters in this list are a fallback in case they have
     !> no syntax relevant to `electric_pair_mode' in the mode's syntax
@@ -155,7 +155,7 @@ module elec_pair_fm
     !> elec-pair.el electric-pair-pairs (an array of `electric_pair_type').
     type(electric_pair_type), allocatable, public :: electric_pair_pairs(:)
 
-    !> Alist of pairs that should always be used in comments and strings.
+    !> Table of pairs that should always be used in comments and strings.
     !>
     !> Pairs of delimiters in this list are a fallback in case they have
     !> no syntax relevant to `electric_pair_mode' in the syntax table
@@ -591,10 +591,10 @@ contains
         minor_modes%electric_pair_mode%state%value = saved_mode
     end subroutine electric_pair_insert
 
-    !> Like `syntax_ppss', but maybe fall back to `parse_partial_sexp'.
+    !> Like `syntax_ppss', but maybe fall back to `parse_partial_expression'.
     !>
     !> IN_STRINGS and IN_COMMENTS (upstream's WHERE, by default both) say
-    !> when to fall back to `parse_partial_sexp'.  Port of
+    !> when to fall back to `parse_partial_expression'.  Port of
     !> elec-pair.el:electric-pair--syntax-ppss.
     subroutine electric_pair_syntax_ppss(state, pos, comments_only)
         type(parse_state_type), intent(out) :: state
@@ -629,7 +629,7 @@ contains
 
         if (s_or_c_start /= 0) then
             call with_syntax_begin(s_or_c_start, saved)
-            call parse_partial_sexp(s_or_c_start, p, state, st)
+            call parse_partial_expression(s_or_c_start, p, state, st)
             call with_syntax_end(saved)
         else
             state = quick_ppss
@@ -668,7 +668,7 @@ contains
             end if
 
             call with_syntax_begin(string_or_comment, saved)
-            r = scan_sexps(point(), count, st)
+            r = scan_expressions(point(), count, st)
             call with_syntax_end(saved)
 
             if (st%ok()) then
@@ -687,7 +687,7 @@ contains
                     ! came out of it.
                     call at_top_level_or_equivalent()
                 else
-                    ! Exit the sexp.
+                    ! Exit the expression.
                     call goto_char(end)
                     call ended_prematurely()
                 end if
@@ -698,7 +698,7 @@ contains
 
     contains
 
-        !> Called when `scan_sexps' ran perfectly, when it found a
+        !> Called when `scan_expressions' ran perfectly, when it found a
         !> parenthesis pointing in the direction of travel.  Also when
         !> travel started inside a comment and exited it.
         subroutine at_top_level_or_equivalent()
@@ -706,9 +706,9 @@ contains
             if (.not. innermost%set) innermost = balance_type(set=.true., matched=.true.)
         end subroutine at_top_level_or_equivalent
 
-        !> Called when `scan_sexps' crashed against a parenthesis pointing
+        !> Called when `scan_expressions' crashed against a parenthesis pointing
         !> opposite the direction of travel.  After traversing that
-        !> character, the idea is to travel one sexp in the opposite
+        !> character, the idea is to travel one expression in the opposite
         !> direction looking for a matching delimiter.
         subroutine ended_prematurely()
             type(parse_state_type) :: ppss
@@ -722,7 +722,7 @@ contains
             matched = .false.
 
             if (direction < 0) then
-                q = scan_sexps(point(), 1_int64, st2)
+                q = scan_expressions(point(), 1_int64, st2)
                 if (q == 0) q = point()
 
                 if (st2%ok()) then
@@ -732,7 +732,7 @@ contains
                     matched = after(p) == m
                 end if
             else
-                ! In this case, no need to use `scan_sexps', we can use
+                ! In this case, no need to use `scan_expressions', we can use
                 ! some `electric_pair_syntax_ppss' in this case (which
                 ! uses the quicker `syntax_ppss' in some cases).
                 call electric_pair_syntax_ppss(ppss, point() - 1)

@@ -37,7 +37,7 @@
 !> Overlays' `face' properties are merged (the active region stands in for
 !> redisplay's region overlay).
 !>
-!> Deferred: `face_remapping_alist', mouse faces, face filters
+!> Deferred: `face_remapping_table', mouse faces, face filters
 !> (`:filter'), the cons forms (FOREGROUND-COLOR . COLOR) of face
 !> references (no dotted pairs), the `reset' attribute value, relative
 !> (float) and functional heights in face references, fonts, fontsets,
@@ -368,7 +368,7 @@ contains
 
     !> The terminal color index of COLOR, a foreground (or underline)
     !> color if FOREGROUND, else a background color: the index of COLOR in
-    !> `tty_defined_color_alist', else of the color approximating it
+    !> `tty_defined_color_table', else of the color approximating it
     !> (load_color with tty_defined_color), else the default foreground or
     !> background.  Port of xfaces.c:map_tty_color.
     integer(int64) function map_tty_color(color, foreground) result(pixel)

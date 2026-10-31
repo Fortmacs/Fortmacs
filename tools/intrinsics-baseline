@@ -1,0 +1,60 @@
+# intrinsics-baseline -- the findings of tools/intrinsics.awk in the code
+# as of 2026-10-31, as FILE:NAME:RULE: thin wrappers of an intrinsic and
+# Lisp helper names, removed in PR 2 (PORTING.md, "Intrinsics first").
+# tools/check.sh fails on a finding not listed here and on a line here
+# that no longer occurs, so this file only shrinks.
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+src/apropos_fm.f90:member:lisp-helper
+src/autorevert_fm.f90:memq:lisp-helper
+src/bookmark_fm.f90:member:lisp-helper
+src/character_fm.f90:byte_at:wrapper
+src/coding_fm.f90:has:wrapper
+src/dabbrev_fm.f90:member:lisp-helper
+src/data_fm.f90:car:lisp-helper
+src/data_fm.f90:car_safe:lisp-helper
+src/data_fm.f90:cdr:lisp-helper
+src/data_fm.f90:cdr_safe:lisp-helper
+src/dired_mode_fm.f90:size_of:wrapper
+src/fns_fm.f90:length:lisp-helper
+src/fns_fm.f90:member:lisp-helper
+src/fns_fm.f90:memq:lisp-helper
+src/fns_fm.f90:nth:lisp-helper
+src/fns_fm.f90:nthcdr:lisp-helper
+src/frame_fm.f90:frame_window_p:wrapper
+src/lisp_fm.f90:bufferp:wrapper
+src/lisp_fm.f90:consp:lisp-helper
+src/lisp_fm.f90:consp:wrapper
+src/lisp_fm.f90:fixnump:lisp-helper
+src/lisp_fm.f90:fixnump:wrapper
+src/lisp_fm.f90:keymap_ref_p:wrapper
+src/lisp_fm.f90:make_fixnum:lisp-helper
+src/lisp_fm.f90:markerp:wrapper
+src/lisp_fm.f90:nil:lisp-helper
+src/lisp_fm.f90:nilp:lisp-helper
+src/lisp_fm.f90:nilp:wrapper
+src/lisp_fm.f90:stringp:wrapper
+src/lisp_fm.f90:syntax_table_ref_p:wrapper
+src/lisp_fm.f90:t_value:lisp-helper
+src/lisp_fm.f90:windowp:wrapper
+src/lisp_fm.f90:xfixnum:lisp-helper
+src/mule_fm.f90:member:lisp-helper
+src/regex_emacs_fm.f90:charset_bitmap_size:wrapper
+src/regexp_opt_fm.f90:all_differ:wrapper
+src/savehist_fm.f90:member:lisp-helper
+src/shell_fm.f90:member:lisp-helper
+src/smie_fm.f90:member:lisp-helper
+src/syntax_fm.f90:syntax_flags_comment_styleb:wrapper
+src/syntax_fm.f90:syntax_flags_comment_stylec:wrapper
+src/syntax_scan_fm.f90:comend_first:wrapper
+src/syntax_scan_fm.f90:comend_second:wrapper
+src/syntax_scan_fm.f90:comment_nested:wrapper
+src/syntax_scan_fm.f90:comstart_first:wrapper
+src/syntax_scan_fm.f90:comstart_second:wrapper
+src/syntax_scan_fm.f90:prefix_flag:wrapper
+src/undo_fm.f90:member:lisp-helper
+src/vc_fm.f90:member:lisp-helper
+src/window_display_fm.f90:member:lisp-helper
+test/test_tabulated_list_fm.f90:sort_car:wrapper

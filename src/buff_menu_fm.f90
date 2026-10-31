@@ -64,7 +64,7 @@ module buff_menu_fm
     use shell_fm, only: list_buffers_directory
     use frame_fm, only: selected_frame, selected_window, frame_lines
     use window_fm, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
-                         display_alist_type, delete_other_windows, split_window, other_window, bury_buffer, other_buffer
+                         display_action_table_type, delete_other_windows, split_window, other_window, bury_buffer, other_buffer
     use view_fm, only: view_buffer, view_buffer_other_window
     use replace_fm, only: multi_occur, occur_read_primary_args
     use keymap_fm, only: keymap_set
@@ -1066,7 +1066,7 @@ contains
 
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call display_buffer(buf, window, status, alist=display_alist_type(inhibit_same_window=.true.))
+        call display_buffer(buf, window, status, table=display_action_table_type(inhibit_same_window=.true.))
     end subroutine buffer_menu_switch_other_window
 
     !> Select this line's buffer, with previous buffer in second window.

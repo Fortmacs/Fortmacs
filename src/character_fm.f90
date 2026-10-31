@@ -44,7 +44,7 @@
 !>
 !> Where upstream takes a `check' flag and an end pointer, these procedures
 !> always bound-check against `len(str)'; the unchecked fast paths are an
-!> optimisation C needs and Fortran (with -fcheck=all) does not.
+!> optimization C needs and Fortran (with -fcheck=all) does not.
 module character_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR

@@ -228,7 +228,7 @@ contains
         if (allocated(error)) return
         call expect_key("C-x n g", "goto_line_relative", error)
         if (allocated(error)) return
-        call expect_key("C-x n d", "narrow_to_defun", error)
+        call expect_key("C-x n d", "narrow_to_subprogram", error)
         if (allocated(error)) return
         call expect_key("C-x n p", "narrow_to_page", error)
         if (allocated(error)) return
@@ -238,11 +238,11 @@ contains
         if (allocated(error)) return
         call expect_key("M-=", "count_words_region", error)
         if (allocated(error)) return
-        call expect_key("C-M-a", "beginning_of_defun", error)
+        call expect_key("C-M-a", "beginning_of_subprogram", error)
         if (allocated(error)) return
-        call expect_key("C-M-e", "end_of_defun", error)
+        call expect_key("C-M-e", "end_of_subprogram", error)
         if (allocated(error)) return
-        call expect_key("C-M-h", "mark_defun", error)
+        call expect_key("C-M-h", "mark_subprogram", error)
         if (allocated(error)) return
         call expect_key("M-(", "insert_parentheses", error)
     end subroutine test_keys

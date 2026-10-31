@@ -75,7 +75,7 @@ END {
     print ""
     print "!> X color names and associated 16-bit RGB values: entry I is named"
     print "!> `color_names(I)'"'"' (blank-padded) and has the red, green and blue values"
-    print "!> `color_rgbs(:, I)'"'"', in the order of upstream'"'"'s alist.  Used by"
+    print "!> `color_rgbs(:, I)'"'"', in the order of upstream'"'"'s table.  Used by"
     print "!> tty_colors_fm.  Port of term/tty-colors.el:color-name-rgb-alist."
     print "module tty_colors_rgb_fm"
     print "    implicit none(type, external)"

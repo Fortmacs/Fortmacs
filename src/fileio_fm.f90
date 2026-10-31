@@ -31,7 +31,7 @@
 !> Text is decoded on reading and encoded on writing by a coding system
 !> (coding_fm), chosen as upstream chooses it: `coding_system_for_read'
 !> or `coding_system_for_write', the coding system the file names in
-!> itself (`set_auto_coding_function'), `file_coding_system_alist', and
+!> itself (`set_auto_coding_function'), `file_coding_system_table', and
 !> `buffer_file_coding_system'; text that the chosen coding system cannot
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_fm
@@ -132,7 +132,7 @@ module fileio_fm
     !> Two arguments are passed to this function: the file name
     !> and the length of a file contents following the point.
     !> This function should return a coding system to decode the file contents.
-    !> It should check the file name against `auto_coding_alist'.
+    !> It should check the file name against `auto_coding_table'.
     !> If no coding system is decided, it should check a coding system
     !> specified in the heading lines with the format:
     !>         -*- ... coding: CODING-SYSTEM; ... -*-
@@ -1865,7 +1865,7 @@ contains
     !> The coding system for writing the text between START and END of
     !> the current buffer to FILENAME: `coding_system_for_write', else
     !> the buffer's own `buffer_file_coding_system', else
-    !> `file_coding_system_alist''s, else the default
+    !> `file_coding_system_table''s, else the default
     !> `buffer_file_coding_system', confirmed by
     !> `select_safe_coding_system_function' and given an end-of-line type.
     !> Port of fileio.c:choose_write_coding_system (no auto-saving).
@@ -1953,7 +1953,7 @@ contains
 
     !> Whether regexp PATTERN matches file name NAME, case-sensitively
     !> (search.c:fast_string_match, as `find_operation_coding_system' and
-    !> the auto-coding alists match).  Not a port.
+    !> the auto-coding tables match).  Not a port.
     logical function file_name_match_p(pattern, name)
         character(len=*), intent(in) :: pattern, name
         type(status_type) :: st

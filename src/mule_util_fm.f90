@@ -28,7 +28,7 @@
 !> `truncate_string_ellipsis_variable': a variable named like a function
 !> takes the suffix _variable).
 !>
-!> Deferred: `store_substring', the nested alists, the coding-system
+!> Deferred: `store_substring', the nested tables, the coding-system
 !> helpers, `with_coding_priority', `detect_coding_with_language_environment',
 !> `filepos_to_bufferpos' and `bufferpos_to_filepos'.
 module mule_util_fm

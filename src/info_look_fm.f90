@@ -153,7 +153,7 @@ module info_look_fm
     end type topic_type
 
     ! info-lookup-alist: the known help topics, the newest first.
-    type(topic_type), allocatable :: info_lookup_alist(:)
+    type(topic_type), allocatable :: info_lookup_table(:)
 
     ! A documented help item and its index entry (unallocated if the
     ! same as the item).
@@ -197,7 +197,7 @@ module info_look_fm
     !> info-lookup-highlight-face.
     character(len=:), allocatable, public :: info_lookup_highlight_face
 
-    !> Alist of file names handled specially.  If a file name matches
+    !> Table of file names handled specially.  If a file name matches
     !> `regexp', then use help mode `mode' instead of the buffer's major
     !> mode.  Port of info-look.el info-lookup-file-name-alist.
     type, public :: info_lookup_file_name_type
@@ -206,7 +206,7 @@ module info_look_fm
     end type info_lookup_file_name_type
 
     !> See the type.  Port of info-look.el info-lookup-file-name-alist.
-    type(info_lookup_file_name_type), allocatable, public :: info_lookup_file_name_alist(:)
+    type(info_lookup_file_name_type), allocatable, public :: info_lookup_file_name_table(:)
 
     ! The overlay highlighting the looked up item
     ! (info-lookup-highlight-overlay).
@@ -340,33 +340,33 @@ contains
         if (maybe .and. mi > 0) return
 
         if (ti == 0) then
-            if (.not. allocated(info_lookup_alist)) allocate (info_lookup_alist(0))
-            n = size(info_lookup_alist)
+            if (.not. allocated(info_lookup_table)) allocate (info_lookup_table(0))
+            n = size(info_lookup_table)
             allocate (grown(n + 1))
             grown(1)%topic = t
             allocate (grown(1)%modes(0))
 
             do i = 1, n
-                call move_alloc(info_lookup_alist(i)%topic, grown(i + 1)%topic)
-                call move_alloc(info_lookup_alist(i)%modes, grown(i + 1)%modes)
+                call move_alloc(info_lookup_table(i)%topic, grown(i + 1)%topic)
+                call move_alloc(info_lookup_table(i)%modes, grown(i + 1)%modes)
             end do
 
-            call move_alloc(grown, info_lookup_alist)
+            call move_alloc(grown, info_lookup_table)
             ti = 1
         end if
 
         if (mi == 0) then
-            n = size(info_lookup_alist(ti)%modes)
+            n = size(info_lookup_table(ti)%modes)
             allocate (modes(n + 1))
             modes(1) = data
 
             do i = 1, n
-                modes(i + 1) = info_lookup_alist(ti)%modes(i)
+                modes(i + 1) = info_lookup_table(ti)%modes(i)
             end do
 
-            call move_alloc(modes, info_lookup_alist(ti)%modes)
+            call move_alloc(modes, info_lookup_table(ti)%modes)
         else
-            info_lookup_alist(ti)%modes(mi) = data
+            info_lookup_table(ti)%modes(mi) = data
         end if
     end subroutine add_help_star
 
@@ -394,7 +394,7 @@ contains
         m%mode = name
     end function plain_mode
 
-    ! The indexes of TOPIC in `info_lookup_alist' and of MODE in it (0
+    ! The indexes of TOPIC in `info_lookup_table' and of MODE in it (0
     ! for none): info-lookup->topic-value and info-lookup->mode-value.
     ! Port of info-look.el:info-lookup->topic-value and
     ! info-look.el:info-lookup->mode-value.
@@ -406,10 +406,10 @@ contains
 
         ti = 0
         mi = 0
-        if (.not. allocated(info_lookup_alist)) return
+        if (.not. allocated(info_lookup_table)) return
 
-        do i = 1, size(info_lookup_alist)
-            if (info_lookup_alist(i)%topic == topic) then
+        do i = 1, size(info_lookup_table)
+            if (info_lookup_table(i)%topic == topic) then
                 ti = i
                 exit
             end if
@@ -417,8 +417,8 @@ contains
 
         if (ti == 0) return
 
-        do i = 1, size(info_lookup_alist(ti)%modes)
-            if (same_mode(info_lookup_alist(ti)%modes(i)%mode, mode)) then
+        do i = 1, size(info_lookup_table(ti)%modes)
+            if (same_mode(info_lookup_table(ti)%modes(i)%mode, mode)) then
                 mi = i
                 return
             end if
@@ -447,7 +447,7 @@ contains
         call find_mode_value(topic, mode, ti, mi)
         if (mi == 0) return
 
-        associate (v => info_lookup_alist(ti)%modes(mi))
+        associate (v => info_lookup_table(ti)%modes(mi))
             if (.not. v%has_doc_spec .and. associated(v%doc_spec_fn)) then
                 call v%doc_spec_fn(specs)
                 v%doc_spec = specs
@@ -465,7 +465,7 @@ contains
 
         call find_mode_value(topic, mode, ti, mi)
         ignore_case_of = .false.
-        if (mi > 0) ignore_case_of = info_lookup_alist(ti)%modes(mi)%ignore_case
+        if (mi > 0) ignore_case_of = info_lookup_table(ti)%modes(mi)%ignore_case
     end function ignore_case_of
 
     ! Port of info-look.el:info-lookup->doc-spec (none if not HAS).
@@ -480,9 +480,9 @@ contains
         has = .false.
         allocate (specs%specs(0))
         if (mi == 0) return
-        if (.not. info_lookup_alist(ti)%modes(mi)%has_doc_spec) return
+        if (.not. info_lookup_table(ti)%modes(mi)%has_doc_spec) return
         has = .true.
-        specs = info_lookup_alist(ti)%modes(mi)%doc_spec
+        specs = info_lookup_table(ti)%modes(mi)%doc_spec
         if (.not. allocated(specs%specs)) allocate (specs%specs(0))
     end subroutine doc_spec_of
 
@@ -496,7 +496,7 @@ contains
         call find_mode_value(topic, mode, ti, mi)
 
         if (mi > 0) then
-            others = info_lookup_alist(ti)%modes(mi)%other_modes
+            others = info_lookup_table(ti)%modes(mi)%other_modes
         else
             allocate (others(0))
         end if
@@ -809,7 +809,7 @@ contains
     end function items_value
 
     ! The help mode of the current buffer: the mode of its file name in
-    ! `info_lookup_file_name_alist', else the major mode or the first of
+    ! `info_lookup_file_name_table', else the major mode or the first of
     ! its parents with help data.  Sets `info_lookup_mode'.  Port of
     ! info-look.el:info-lookup-select-mode (the parents by
     ! `major_mode_type' parents).
@@ -825,10 +825,10 @@ contains
         if (.not. allocated(mode) .and. allocated(buffers(cur)%filename)) then
             file_name = file_name_nondirectory(buffers(cur)%filename)
 
-            if (allocated(info_lookup_file_name_alist)) then
-                do i = 1, size(info_lookup_file_name_alist)
-                    if (string_match(trim(info_lookup_file_name_alist(i)%regexp), file_name, st) > 0) then
-                        call set_info_lookup_mode(trim(info_lookup_file_name_alist(i)%mode))
+            if (allocated(info_lookup_file_name_table)) then
+                do i = 1, size(info_lookup_file_name_table)
+                    if (string_match(trim(info_lookup_file_name_table(i)%regexp), file_name, st) > 0) then
+                        call set_info_lookup_mode(trim(info_lookup_file_name_table(i)%mode))
                         exit
                     end if
                 end do
@@ -846,9 +846,9 @@ contains
             m => major_mode_named(major_mode_of_current())
 
             do while (associated(m))
-                if (allocated(info_lookup_alist)) then
-                    do t = 1, size(info_lookup_alist)
-                        if (has_mode_value(info_lookup_alist(t)%topic, plain_mode(trim(m%name)))) then
+                if (allocated(info_lookup_table)) then
+                    do t = 1, size(info_lookup_table)
+                        if (has_mode_value(info_lookup_table(t)%topic, plain_mode(trim(m%name)))) then
                             call set_info_lookup_mode(trim(m%name))
                         end if
                     end do
@@ -882,10 +882,10 @@ contains
         call find_mode_value(topic, plain_mode(""), ti, mi)
 
         if (ti > 0) then
-            allocate (elems(size(info_lookup_alist(ti)%modes)))
+            allocate (elems(size(info_lookup_table(ti)%modes)))
 
             do i = 1, size(elems)
-                elems(i) = make_string(info_lookup_alist(ti)%modes(i)%mode%mode)
+                elems(i) = make_string(info_lookup_table(ti)%modes(i)%mode%mode)
             end do
         else
             allocate (elems(0))
@@ -899,8 +899,8 @@ contains
         mi = 0
 
         if (ti > 0) then
-            do i = 1, size(info_lookup_alist(ti)%modes)
-                if (info_lookup_alist(ti)%modes(i)%mode%mode == input) mi = i
+            do i = 1, size(info_lookup_table(ti)%modes)
+                if (info_lookup_table(ti)%modes(i)%mode%mode == input) mi = i
             end do
         end if
 
@@ -950,7 +950,7 @@ contains
     !> to search: file name if TOPIC is "file", a symbol if TOPIC is
     !> "symbol", etc.  MODE is the `major_mode' whose Info manuals to
     !> search for documentation of ITEM; if it's absent, the function uses
-    !> `info_lookup_file_name_alist' and the current buffer's file name to
+    !> `info_lookup_file_name_table' and the current buffer's file name to
     !> guess the mode.
     !>
     !> If SAME_WINDOW, reuse the current window.  If false, pop to a
@@ -1218,7 +1218,7 @@ contains
                 end if
             end do
 
-            ! Build the full completion alist.
+            ! Build the full completion table.
             call info_lookup_make_completions(topic, mode, completions, st)
 
             if (.not. st%ok()) then
@@ -1259,7 +1259,7 @@ contains
         call move_alloc(refer, info_lookup_cache(k)%refer_modes)
     end function info_lookup_setup_mode
 
-    ! Create a unique alist from all index entries.  Port of
+    ! Create a unique table from all index entries.  Port of
     ! info-look.el:info-lookup-make-completions.
     recursive subroutine info_lookup_make_completions(topic, mode, result, status)
         character(len=*), intent(in) :: topic
@@ -1280,7 +1280,7 @@ contains
         allocate (result(0))
         call doc_spec_of(topic, mode, doc_spec, has)
         call find_mode_value(topic, mode, ti, mi)
-        regexp = "^\("//info_lookup_alist(ti)%modes(mi)%regexp//"\)\([ "//TAB//"].*\)?$"
+        regexp = "^\("//info_lookup_table(ti)%modes(mi)%regexp//"\)\([ "//TAB//"].*\)?$"
         ignore = ignore_case_of(topic, mode)
         doc_found = .false.
         saved_size = info_fontify_maximum_menu_size
@@ -1436,7 +1436,7 @@ contains
         case_fold_search = ignore_case_of(topic, mode)
         start = point()
 
-        associate (v => info_lookup_alist(ti)%modes(mi))
+        associate (v => info_lookup_table(ti)%modes(mi))
             if (associated(v%parse_fn)) then
                 call v%parse_fn(result, found)
             else
@@ -1890,13 +1890,13 @@ contains
         call add_local_variables_killer(kill_info_look_locals)
         if (.not. allocated(info_lookup_highlight_face)) info_lookup_highlight_face = "match"
 
-        if (.not. allocated(info_lookup_file_name_alist)) then
-            allocate (info_lookup_file_name_alist(1))
-            info_lookup_file_name_alist(1) = info_lookup_file_name_type(regexp="\`ac\(local\|site\|include\)\.m4\'", &
+        if (.not. allocated(info_lookup_file_name_table)) then
+            allocate (info_lookup_file_name_table(1))
+            info_lookup_file_name_table(1) = info_lookup_file_name_type(regexp="\`ac\(local\|site\|include\)\.m4\'", &
                                                                         mode="autoconf_mode")
         end if
 
-        if (allocated(info_lookup_alist)) return
+        if (allocated(info_lookup_table)) return
         s = info_lookup_doc_specs_type()
         call s%add("(libc)Function Index", prefix="^[ "//TAB//"]+-+ \(Function\|Macro\): .*\<", suffix="\>")
         ! prefix/suffix has to match things like

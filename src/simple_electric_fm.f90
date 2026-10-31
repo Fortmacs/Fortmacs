@@ -29,9 +29,9 @@
 !> the `shadow' face of "Matches " in the echo area
 !> and `noninteractive' (no batch mode).
 submodule(simple_fm) simple_electric_fm
-    use syntax_fm, only: syntax_entry, syntax_descriptor_type, skip_syntax_backward, parse_sexp_ignore_comments, &
+    use syntax_fm, only: syntax_entry, syntax_descriptor_type, skip_syntax_backward, parse_expression_ignore_comments, &
                          char_syntax, SCLOSE, SQUOTE
-    use lisp_cmds_fm, only: forward_sexp
+    use expression_motion_fm, only: forward_expression
     use syntax_propertize_fm, only: syntax_propertize
     use editfns_fm, only: narrow_to_region, widen
     use window_fm, only: window_pos_visible_p => pos_visible_in_window_p
@@ -111,7 +111,7 @@ contains
     end if
     end procedure blink_matching_check_mismatch
 
-    !> Momentarily highlight the beginning of the sexp before point.
+    !> Momentarily highlight the beginning of the expression before point.
     !> Port of simple.el:blink-matching-open (the command).
     subroutine cmd_blink_matching_open(status)
         type(status_type), intent(out) :: status
@@ -139,11 +139,11 @@ contains
         call narrow_to_region(max(minibuffer_prompt_end(), point() - blink_matching_paren_distance), oldpos, st)
     end if
 
-    saved_ignore = parse_sexp_ignore_comments%value
-    parse_sexp_ignore_comments%value = parse_sexp_ignore_comments%value .and. &
-                                       .not. blink_matching_paren_dont_ignore_comments
+    saved_ignore = parse_expression_ignore_comments%value
+    parse_expression_ignore_comments%value = parse_expression_ignore_comments%value .and. &
+                                             .not. blink_matching_paren_dont_ignore_comments
     blinkpos = 0
-    call forward_sexp(-1_int64, st)
+    call forward_expression(-1_int64, st)
 
     if (st%ok()) then
         ! backward-sexp skips backward over prefix chars, so move back to
@@ -158,7 +158,7 @@ contains
         blinkpos = point()
     end if
 
-    parse_sexp_ignore_comments%value = saved_ignore
+    parse_expression_ignore_comments%value = saved_ignore
     call widen()
     call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
     call goto_char(oldpos)
