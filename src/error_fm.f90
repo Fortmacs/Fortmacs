@@ -127,7 +127,17 @@ module error_fm
     !> out): a search of Info or Isearch found nothing.
     integer(int32), parameter, public :: FM_USER_SEARCH_FAILED = 34
 
-    integer(int32), parameter :: last_code = FM_USER_SEARCH_FAILED
+    !> data.c's `inhibited_interaction': user interaction while
+    !> `inhibit_interaction' is true.
+    integer(int32), parameter, public :: FM_INHIBITED_INTERACTION = 35
+
+    !> Not an error: a throw to the catch tag `top_level'
+    !> (keyboard.c:Ftop_level), which unwinds every recursive edit and
+    !> which only the top-level command loop takes; like `quit', no
+    !> handler for `error' catches it.
+    integer(int32), parameter, public :: FM_TOP_LEVEL = 36
+
+    integer(int32), parameter :: last_code = FM_TOP_LEVEL
     integer, parameter :: name_len = 26, msg_len = 48
 
     !> `error_conditions' symbol names, indexed by code.
@@ -145,7 +155,8 @@ module error_fm
                                                                 "file_date_error", "end_of_file", "invalid_read_syntax", &
                                                                 "coding_system_error", "vc_not_supported", &
                                                                 "file_notify_error", "bookmark_errors", &
-                                                                "bookmark_error_no_filename", "user_search_failed"]
+                                                                "bookmark_error_no_filename", "user_search_failed", &
+                                                                "inhibited_interaction", "top_level"]
 
     !> `error_message' strings, indexed by code.
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
@@ -168,7 +179,7 @@ module error_fm
                                                                   "VC method not implemented for backend", &
                                                                   "File notification error", "Bookmark error", &
                                                                   "Bookmark has no associated file (or directory)", &
-                                                                  "Search failed"]
+                                                                  "Search failed", "User interaction while inhibited", ""]
 
     !> Parent condition of each code (the next element of its
     !> `error_conditions' list); -1 ends the chain.  `quit' is deliberately
@@ -184,7 +195,7 @@ module error_fm
                                  FM_GENERIC_ERROR, FM_FILE_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
-                                 FM_GENERIC_ERROR, FM_BOOKMARK_ERRORS, FM_USER_ERROR]
+                                 FM_GENERIC_ERROR, FM_BOOKMARK_ERRORS, FM_USER_ERROR, FM_GENERIC_ERROR, -1_int32]
 
     !> Outcome of a fallible operation.  `detail' plays the role of the
     !> signal's DATA (e.g. the offending arguments).

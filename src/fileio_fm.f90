@@ -63,10 +63,11 @@ module fileio_fm
                          ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
                          emacs_umask, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, O_WRONLY, O_CREAT, O_EXCL, &
                          O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
+    use keyboard_fm, only: dribble_fd
     implicit none(type, external)
     private
 
-    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target
+    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target, open_dribble_file
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_proc, &
               copy_directory_proc
     public :: set_auto_coding_proc, after_insert_file_set_coding_proc, select_safe_coding_system_proc, &
@@ -2065,4 +2066,52 @@ contains
 
         call report_file_errno("Making symbolic link", target//", "//name, err, status)
     end subroutine make_symbolic_link
+
+    !> Start writing input events to a dribble file called FILE.
+    !> Any previously open dribble file will be closed first.  If FILE is
+    !> absent, just close the dribble file, if any.
+    !>
+    !> If the file is still open when Emacs exits, it will be closed then.
+    !>
+    !> The events written to the file include keyboard and mouse input
+    !> events, but not events from executing keyboard macros.  The events are
+    !> written to the dribble file immediately without line buffering.
+    !>
+    !> Be aware that this records ALL characters you type!
+    !> This may include sensitive information such as passwords.  Port of
+    !> keyboard.c:Fopen_dribble_file (here, as it expands FILE; keyboard_fm
+    !> writes the events).
+    recursive subroutine open_dribble_file(status, file)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: file
+        character(len=:), allocatable :: name
+        integer(int32) :: fd, err
+
+        status = status_type()
+
+        if (dribble_fd >= 0) then
+            call close_fd(dribble_fd)
+            dribble_fd = -1
+        end if
+
+        if (.not. present(file)) return
+        call expand_file_name(file, name, status)
+        if (.not. status%ok()) return
+        err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+
+        if (err == EEXIST) then
+            if (sys_unlink(name) == 0) then
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+            else if (sys_unlink(name) == ENOENT) then
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+            end if
+        end if
+
+        if (err /= 0) then
+            call report_file_errno("Opening dribble", name, err, status)
+            return
+        end if
+
+        dribble_fd = fd
+    end subroutine open_dribble_file
 end module fileio_fm

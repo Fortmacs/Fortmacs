@@ -38,7 +38,7 @@ module bindings_fm
                          key_parse, keymap_live_p, free_keymap, set_repeat_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_fm, only: syms_of_page
-    use keyboard_fm, only: local_function_key_map, syms_of_macros
+    use keyboard_fm, only: local_function_key_map, syms_of_macros, help_event_list
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use simple_fm, only: syms_of_simple, backward_word, region_bounds, region_noncontiguous_p
@@ -278,6 +278,8 @@ contains
         integer(int64) :: c
 
         call intern_command_names()
+        ! bindings.el's help-event-list.
+        help_event_list = [character(len=16) :: "<help>", "<f1>", "?"]
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(global_map)) call free_keymap(global_map, status)
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
@@ -378,6 +380,8 @@ contains
         call bind(global_map, "C-b", "backward_char")
         call bind(global_map, "C-e", "move_end_of_line")
         call bind(global_map, "C-f", "forward_char")
+        call bind(global_map, "C-M-c", "exit_recursive_edit")
+        call bind(global_map, "C-]", "abort_recursive_edit")
         call bind(global_map, "C-n", "next_line")
         call bind(global_map, "C-p", "previous_line")
         ! bindings.el
