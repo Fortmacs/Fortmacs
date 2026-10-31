@@ -89,6 +89,19 @@ module font_lock_fm
     implicit none(type, external)
     private
     public :: font_lock_forget_defaults, font_lock_fontify_region_proc, set_local_font_lock_fontify_region_function
+    public :: cpp_font_lock_keywords, font_lock_apply_highlight
+
+    !> Regular expression used in `cpp_font_lock_keywords'.  Port of
+    !> font-lock.el cpp-font-lock-keywords-source-directives.
+    character(len=*), parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES = &
+                                   "define\|e\(?:l\(?:if\|se\)\|ndif\|rror\)\|file\|i\(?:f\(?:n?def\)?\|mport\|nclude\)\|line\|"// &
+                                           "pragma\|undef\|warning"
+
+    !> Regular expression depth of
+    !> `CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES'.  Used in
+    !> `cpp_font_lock_keywords'.
+    !> Port of font-lock.el:cpp-font-lock-keywords.source-depth.
+    integer, parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH = 0
     public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
               font_lock_flush, font_lock_ensure, font_lock_update, font_lock_default_fontify_region, &
@@ -668,6 +681,66 @@ contains
         call font_lock_fontify_region(beg, end, status, done_beg=done_beg, done_end=done_end)
     end subroutine jit_fontify_region
 
+    !> Font lock keywords for C preprocessor directives.
+    !> `c_mode', `c++_mode' and `objc_mode' have their own font lock
+    !> keywords for C preprocessor directives.  This definition is for the
+    !> other modes in which C preprocessor directives are used, e.g.
+    !> `asm_mode' and `ld_script_mode'.
+    !> Port of font-lock.el:cpp-font-lock-keywords.
+    function cpp_font_lock_keywords() result(kw)
+        type(font_lock_keyword_type), allocatable :: kw(:)
+        type(font_lock_highlight_type) :: h1(1), h2(2), a(1)
+        character(len=*), parameter :: P = "font_lock_variable_name_face"
+
+        ! (Allocated here, not a fixed-size result: gfortran leaves the
+        ! components of a fixed-size result uninitialized on the stack.)
+        allocate (kw(5))
+        ! Fontify error directives.
+        h1(1) = font_lock_highlight(1, "font_lock_warning_face", FONT_LOCK_OVERRIDE_PREPEND)
+        kw(1) = font_lock_keyword("^#[ "//achar(9)//"]*\(?:error\|warning\)[ "//achar(9)//"]+\(.+\)", highlights=h1)
+        ! Fontify filenames in #include <...> preprocessor directives as
+        ! strings.
+        h1(1) = font_lock_highlight(1, "font_lock_string_face", FONT_LOCK_OVERRIDE_PREPEND)
+        kw(2) = font_lock_keyword("^#[ "//achar(9)//"]*\(?:import\|include\)[ "//achar(9)//"]*\(<[^>""" &
+                                  //achar(10)//"]*>?\)", highlights=h1)
+        ! Fontify function macro names.
+        h2(1) = font_lock_highlight(1, "font_lock_function_name_face", FONT_LOCK_OVERRIDE_PREPEND)
+        ! Macro arguments.
+        h1(1) = font_lock_highlight(1, P, FONT_LOCK_OVERRIDE_PREPEND)
+        h2(2) = font_lock_anchored(h1, matcher=cpp_macro_argument)
+        kw(3) = font_lock_keyword("^#[ "//achar(9)//"]*define[ "//achar(9)//"]+\([[:alpha:]_][[:alnum:]_$]*\)(", &
+                                  highlights=h2)
+        ! Fontify symbol names in #elif or #if ... defined preprocessor
+        ! directives.
+        h2(1) = font_lock_highlight(1, "font_lock_builtin_face", FONT_LOCK_OVERRIDE_PREPEND)
+        h2(2) = font_lock_highlight(2, P, FONT_LOCK_OVERRIDE_PREPEND, laxmatch=.true.)
+        a(1) = font_lock_anchored(h2, regexp="\<\(defined\)\>[ "//achar(9)//"]*(?\([[:alpha:]_][[:alnum:]_]*\)?")
+        kw(4) = font_lock_keyword("^#[ "//achar(9)//"]*\(?:elif\|if\)\>", highlights=a)
+        ! Fontify otherwise as symbol names, and the preprocessor directive
+        ! names.
+        h2(1) = font_lock_highlight(1, "font_lock_preprocessor_face", FONT_LOCK_OVERRIDE_PREPEND)
+        h2(2) = font_lock_highlight(2 + CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH, P, laxmatch=.true.)
+        kw(5) = font_lock_keyword("^\(#[ "//achar(9)//"]*\(?:"//CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES &
+                                  //"\)\)\>[ "//achar(9)//"!]*\([[:alpha:]_][[:alnum:]_]*\)?", highlights=h2)
+    end function cpp_font_lock_keywords
+
+    ! The matcher of macro arguments in `cpp_font_lock_keywords'.
+    ! Port of font-lock.el:cpp-font-lock-keywords (in part: its macro argument matcher).
+    subroutine cpp_macro_argument(limit, found, status)
+        integer(int64), intent(in) :: limit
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint, close_pos, pos
+
+        opoint = point()
+        call re_search_forward(")", close_pos, status, bound=limit, noerror=SEARCH_NOERROR)
+        call goto_char(opoint)
+        if (close_pos == 0) close_pos = limit
+        call re_search_forward("\(?:\([[:alpha:]_][[:alnum:]_]*\)[,]?\)", pos, status, bound=close_pos, &
+                               noerror=SEARCH_NOERROR)
+        found = pos > 0
+    end subroutine cpp_macro_argument
+
     !> Function meant for `jit_lock_after_change_extend_region_functions'.
     !> This function does 2 things:
     !> - extend the region so that it not only includes the part that was
@@ -675,8 +748,9 @@ contains
     !>   change as a consequence.
     !> - anticipate (part of) the region extension that will happen later
     !>   in `font_lock_default_fontify_region', in order to avoid the need
-    !>   for double-redisplay in `jit_lock_fontify_now'.  Port of
-    !> font-lock.el:font-lock-extend-jit-lock-region-after-change.
+    !>   for double-redisplay in `jit_lock_fontify_now'.
+    !> Port of font-lock.el:font-lock-extend-jit-lock-region-after-change
+    !> (in part: without font-lock-extend-after-change-region-function).
     subroutine font_lock_extend_jit_lock_region_after_change(beg_in, end_in, old_len, status)
         integer(int64), intent(in) :: beg_in, end_in, old_len
         type(status_type), intent(out) :: status
