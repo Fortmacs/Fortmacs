@@ -2,14 +2,16 @@ name: CI
 
 # Pull requests run the whole matrix, but not while they are drafts; main
 # runs it again after each merge.  Pushes that only touch documentation
-# run nothing, and a new push cancels the PR's older run.
+# run nothing, nor do pushes that only touch the progress tooling (used only
+# by the Progress workflow on main), and a new push cancels the PR's older
+# run.
 on:
   push:
     branches: [main]
-    paths-ignore: ["**.md", "docs/**"]
+    paths-ignore: ["**.md", "docs/**", tools/progress.sh, tools/package-totals, tools/ported-packages]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore: ["**.md", "docs/**"]
+    paths-ignore: ["**.md", "docs/**", tools/progress.sh, tools/package-totals, tools/ported-packages]
 
 # Draft runs (skipped) are in their own group, so they never cancel the
 # run started when a PR is marked ready.
