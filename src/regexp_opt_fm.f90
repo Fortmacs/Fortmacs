@@ -31,17 +31,17 @@ module regexp_opt_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use search_fm, only: regexp_quote, string_match, match_beginning, match_end, match_data, set_match_data
-    use subr_fm, only: subregexp_context_p
+    use subr_fm, only: is_subregexp_context
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     implicit none(type, external)
     private
 
     public :: regexp_opt, regexp_opt_charset, regexp_opt_depth
 
-    !> PAREN of `regexp_opt': nil (a shy group if a postfix operator
-    !> needs one), t (a group), `words' (\<\( ... \)\>) and `symbols'
+    !> PAREN of `regexp_opt': REGEXP_OPT_SHY (a shy group if a postfix operator
+    !> needs one), REGEXP_OPT_GROUP (a group), REGEXP_OPT_WORDS (\<\( ... \)\>) and REGEXP_OPT_IDENTIFIERS
     !> (\_<\( ... \)\_>).
-    integer, parameter, public :: REGEXP_OPT_NIL = 0, REGEXP_OPT_T = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_SYMBOLS = 3
+    integer, parameter, public :: REGEXP_OPT_SHY = 0, REGEXP_OPT_GROUP = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_IDENTIFIERS = 3
 
     !> A regexp that never matches anything.  Port of subr.el
     !> regexp-unmatchable.
@@ -86,9 +86,9 @@ contains
                 mb = match_beginning(0, status)
 
                 if (last > 0) then
-                    context = subregexp_context_p(regexp, mb, status, last)
+                    context = is_subregexp_context(regexp, mb, status, last)
                 else
-                    context = subregexp_context_p(regexp, mb, status)
+                    context = is_subregexp_context(regexp, mb, status)
                 end if
 
                 if (.not. status%ok()) exit
@@ -124,13 +124,13 @@ contains
     !> REGEXP_OPT_WORDS
     !>     the resulting regexp is surrounded by \<\( and \)\>.
     !>
-    !> REGEXP_OPT_SYMBOLS
+    !> REGEXP_OPT_IDENTIFIERS
     !>     the resulting regexp is surrounded by \_<\( and \)\_>.
     !>
-    !> REGEXP_OPT_T
+    !> REGEXP_OPT_GROUP
     !>     the resulting regexp is surrounded by \( and \).
     !>
-    !> REGEXP_OPT_NIL (the default)
+    !> REGEXP_OPT_SHY (the default)
     !>     the resulting regexp is surrounded by \(?: and \), if it is
     !>     necessary to ensure that a postfix operator appended to it will
     !>     apply to the whole expression.
@@ -148,13 +148,13 @@ contains
         integer :: p
         logical :: has_open
 
-        p = REGEXP_OPT_NIL
+        p = REGEXP_OPT_SHY
         if (present(paren)) p = paren
         has_open = .true.
 
         if (present(open)) then
             op = open
-        else if (p /= REGEXP_OPT_NIL) then
+        else if (p /= REGEXP_OPT_SHY) then
             op = "\("
         else
             has_open = .false.
@@ -181,7 +181,7 @@ contains
 
         if (p == REGEXP_OPT_WORDS) then
             re = "\<"//re//"\>"
-        else if (p == REGEXP_OPT_SYMBOLS) then
+        else if (p == REGEXP_OPT_IDENTIFIERS) then
             re = "\_<"//re//"\_>"
         end if
     end function regexp_opt

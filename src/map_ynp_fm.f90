@@ -19,12 +19,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `map_y_or_n_p': ask about each of a list of objects in turn.
+!> `map_read_y_or_n': ask about each of a list of objects in turn.
 !>
 !> Objects are numbered 1..n; the caller's prompter and actor procedures
 !> stand in for upstream's PROMPTER and ACTOR functions.  The answer is
 !> read in the minibuffer, or with `read_key' when
-!> `y_or_n_p_use_read_key' is set.  Not ported: ACTION-ALIST, dialog
+!> `read_y_or_n_use_read_key' is set.  Not ported: ACTION-ALIST, dialog
 !> boxes, NO-CURSOR-IN-ECHO-AREA, switch-frame events.
 !>
 !> `read_answer': a question with long answers or their one-character
@@ -38,30 +38,29 @@ module map_ynp_fm
     implicit none(type, external)
     private
 
-    public :: map_y_or_n_p, ynp_prompter, ynp_actor
+    public :: map_read_y_or_n, ynp_prompter, ynp_actor
     public :: YNP_SKIP, YNP_ASK, YNP_ACT
     public :: read_answer, read_answer_type
 
     !> What a prompter says about an object: skip it, ask about it (with
-    !> the prompt it returns), or act on it without asking (upstream: nil,
-    !> a string, or another non-nil value).
+    !> the prompt it returns), or act on it without asking (YNP_SKIP, YNP_ASK and YNP_ACT).
     integer, parameter :: YNP_SKIP = 0, YNP_ASK = 1, YNP_ACT = 2
 
-    !> Values of `read_answer_short' (upstream nil, t and `auto').
-    integer, parameter, public :: READ_ANSWER_SHORT_NIL = 0, READ_ANSWER_SHORT_T = 1, READ_ANSWER_SHORT_AUTO = 2
+    !> Values of `read_answer_short'.
+    integer, parameter, public :: READ_ANSWER_SHORT_NO = 0, READ_ANSWER_SHORT_YES = 1, READ_ANSWER_SHORT_AUTO = 2
 
     !> Whether the `read_answer' function accepts single-character answers.
-    !> If READ_ANSWER_SHORT_T, accept short (single key-press) answers to the
-    !> question.  If READ_ANSWER_SHORT_NIL, require long answers.  If
+    !> If READ_ANSWER_SHORT_YES, accept short (single key-press) answers to the
+    !> question.  If READ_ANSWER_SHORT_NO, require long answers.  If
     !> READ_ANSWER_SHORT_AUTO, accept short answers if
     !> `use_short_answers' is true.
     !>
     !> Note that this variable does not affect calls to the more
-    !> commonly-used `yes_or_no_p' function; it only affects calls to
-    !> the `read_answer' function.  To control whether `yes_or_no_p'
+    !> commonly-used `read_yes_or_no' function; it only affects calls to
+    !> the `read_answer' function.  To control whether `read_yes_or_no'
     !> requires a long or a short answer, see the `use_short_answers'
     !> variable.  Port of map-ynp.el read-answer-short
-    !> (READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T or
+    !> (READ_ANSWER_SHORT_NO, READ_ANSWER_SHORT_YES or
     !> READ_ANSWER_SHORT_AUTO).
     integer, public :: read_answer_short = READ_ANSWER_SHORT_AUTO
 
@@ -105,7 +104,7 @@ module map_ynp_fm
         !> "object", "objects", "act on") name the objects and the action for
         !> the help.  `actions' is the number of actions taken.  Port of
         !> map-ynp.el:map-y-or-n-p.  (In map_ynp_ask_fm.)
-        module subroutine map_y_or_n_p(n, prompter, actor, actions, status, help_object, help_objects, help_action)
+        module subroutine map_read_y_or_n(n, prompter, actor, actions, status, help_object, help_objects, help_action)
             implicit none(type, external)
             integer, intent(in) :: n
             procedure(ynp_prompter) :: prompter
@@ -113,7 +112,7 @@ module map_ynp_fm
             integer, intent(out) :: actions
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: help_object, help_objects, help_action
-        end subroutine map_y_or_n_p
+        end subroutine map_read_y_or_n
 
         !> Read an answer either as a complete word or its character abbreviation.
         !> Ask user a question and accept an answer from the list of possible answers.
@@ -144,7 +143,7 @@ module map_ynp_fm
         end subroutine read_answer
     end interface
 
-    !> The minibuffer keymap of `map_y_or_n_p': each key of
+    !> The minibuffer keymap of `map_read_y_or_n': each key of
     !> query-replace-map runs the command that records it and exits
     !> (cmd-char upstream), keys that would self-insert say "Type C-h for
     !> help" (cmd-help).  Made on first use.

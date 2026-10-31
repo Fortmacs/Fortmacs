@@ -25,13 +25,13 @@ module test_recentf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
-    use lisp_fm, only: value_type, nil, list_length, list_elt, xstring
+    use lisp_fm, only: value_type, list_length, list_elt, xstring
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use files_fm, only: make_temp_file, delete_file
     use bindings_fm, only: init_bindings
     use recentf_fm, only: recentf_list, recentf_add_file, recentf_exclude, recentf_check_type, recentf_keep, &
-                          recentf_keep_default_predicate, recentf_exclude_file_by_extension_p, &
+                          recentf_keep_default_predicate, is_recentf_exclude_file_by_extension, &
                           recentf_exclude_ignored_extensions, recentf_remove_if_non_kept, recentf_cleanup, &
                           recentf_save_list, recentf_load_list, recentf_save_file, recentf_open_most_recent_file, &
                           recentf_show_messages
@@ -103,14 +103,14 @@ contains
 
         call start()
         recentf_exclude = [recentf_check_type(regexp="\.tmp\'"), &
-                           recentf_check_type(predicate=recentf_exclude_file_by_extension_p)]
+                           recentf_check_type(predicate=is_recentf_exclude_file_by_extension)]
         recentf_exclude_ignored_extensions = [character(len=32) :: ".o"]
         call recentf_add_file("/tmp/a.tmp")
         call recentf_add_file("/tmp/a.o")
         call recentf_add_file("/tmp/a.f90")
         call check(error, joined(), "/tmp/a.f90")
         if (allocated(error)) return
-        call check(error, recentf_exclude_file_by_extension_p("x.o") .and. .not. recentf_exclude_file_by_extension_p("x.f90"), &
+        call check(error, is_recentf_exclude_file_by_extension("x.o") .and. .not. is_recentf_exclude_file_by_extension("x.f90"), &
                    "by extension")
     end subroutine test_exclude
 
@@ -161,7 +161,7 @@ contains
         call recentf_save_list()
         deallocate (recentf_list)
         allocate (recentf_list(0))
-        call set(sym("file_name_history"), nil(), st)
+        call set(sym("file_name_history"), value_type(), st)
         call recentf_load_list(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return

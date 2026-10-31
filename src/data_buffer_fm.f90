@@ -36,11 +36,12 @@
 !> A submodule because the Fortran settings live in modules that use
 !> data_fm.
 submodule(data_fm) data_buffer_fm
-    use lisp_fm, only: t_value, nilp, make_fixnum, make_string, make_symbol_ref, make_list, xfixnum, xstring
+    use lisp_fm, only: t_value, make_fixnum, make_string, make_symbol_ref, make_list, xfixnum, xstring, value_type, &
+                       vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: intern, sym
     use handle_fm, only: null_handle
     use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, left_margin, &
-                         auto_fill_function, auto_fill_proc, buffer_live_p, buffer_handle, transient_mark_mode
+                         auto_fill_function, auto_fill_proc, is_buffer_live, buffer_handle, transient_mark_mode
     use xdisp_fm, only: tab_width
     use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
                          indent_line_setting, indent_line_function_name, indent_line_function_named
@@ -58,7 +59,7 @@ submodule(data_fm) data_buffer_fm
     use easy_mmode_fm, only: minor_mode_type, minor_mode_index, minor_mode_at
     use text_mode_fm, only: text_mode_variant
     use syntax_fm, only: parse_expression_ignore_comments, comment_end_can_be_escaped
-    use casefiddle_fm, only: case_symbols_as_words
+    use casefiddle_fm, only: case_identifiers_as_words
     use insdel_fm, only: inhibit_modification_hooks
     use electric_fm, only: electric_indent_inhibit
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
@@ -83,7 +84,7 @@ submodule(data_fm) data_buffer_fm
                                            "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
                                                       "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
                                                       "parse_expression_ignore_comments", "require_final_newline", &
-                                                      "mode_require_final_newline", "case_symbols_as_words", &
+                                                      "mode_require_final_newline", "case_identifiers_as_words", &
                                                       "completion_ignore_case", "comment_end_can_be_escaped", &
                                                       "inhibit_modification_hooks", &
                                                       "electric_indent_inhibit"]
@@ -225,7 +226,7 @@ contains
         character(len=:), allocatable :: name
 
         if (.not. associated(p)) then
-            v = nil()
+            v = value_type()
             return
         end if
 
@@ -270,7 +271,7 @@ contains
         if (b) then
             v = t_value()
         else
-            v = nil()
+            v = value_type()
         end if
     end function bool_value
 
@@ -303,7 +304,7 @@ contains
     end subroutine keep_exact
 
     !> Set integer setting S to V.  With INTEGERP (a DEFVAR_PER_BUFFER with
-    !> predicate `integerp'), a non-nil V must be an integer; otherwise any
+    !> predicate `integerp'), a V that is not empty must be an integer; otherwise any
     !> value is kept.  Not a port.
     subroutine set_integer(s, v, integerp, status)
         type(integer_setting), intent(inout) :: s
@@ -313,23 +314,23 @@ contains
 
         status = status_type()
 
-        if (fixnump(v)) then
+        if (vtag(v) == V_INTEGER) then
             s = xfixnum(v)
-        else if (integerp .and. .not. nilp(v)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+        else if (integerp .and. allocated(v%a)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         else
             call keep_exact(s, v)
         end if
     end subroutine set_integer
 
     !> Set logical setting S to V (any value; the Fortran value is whether
-    !> it is non-nil).  Not a port.
+    !> it is not empty).  Not a port.
     subroutine set_logical(s, v)
         type(logical_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
 
-        s = .not. nilp(v)
-        if (.not. (nilp(v) .or. value_eq(v, t_value()))) call keep_exact(s, v)
+        s = allocated(v%a)
+        if (.not. (.not. allocated(v%a) .or. value_eq(v, t_value()))) call keep_exact(s, v)
     end subroutine set_logical
 
     !> Set string setting S to V (any value; the Fortran value is nil
@@ -338,11 +339,11 @@ contains
         type(string_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
 
-        if (stringp(v)) then
+        if (vtag(v) == V_STRING) then
             s = xstring(v)
         else
             call s%clear()
-            if (.not. nilp(v)) call keep_exact(s, v)
+            if (allocated(v%a)) call keep_exact(s, v)
         end if
     end subroutine set_string
 
@@ -369,7 +370,7 @@ contains
             type is (function_setting)
                 call setting_value(p, auto_fill_value(p%value), v, bound)
             class default
-                v = nil()
+                v = value_type()
             end select
 
             return
@@ -434,16 +435,16 @@ contains
                 if (allocated(buffers(b)%mode_name)) v = make_string(buffers(b)%mode_name)
             end if
         case ("buffer_read_only")
-            v = nil()
+            v = value_type()
             if (b > 0) v = bool_value(buffers(b)%read_only)
         case ("text_mode_variant")
             call setting_value(text_mode_variant, bool_value(text_mode_variant%value), v, bound)
         case ("parse_expression_ignore_comments")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(parse_expression_ignore_comments%value)
-        case ("case_symbols_as_words")
+        case ("case_identifiers_as_words")
             ! A DEFVAR_BOOL: always t or nil.
-            v = bool_value(case_symbols_as_words%value)
+            v = bool_value(case_identifiers_as_words%value)
         case ("comment_end_can_be_escaped")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(comment_end_can_be_escaped%value)
@@ -456,7 +457,7 @@ contains
             call setting_value(mode_require_final_newline, final_newline_value(mode_require_final_newline%value), &
                                v, bound)
         case default
-            v = nil()
+            v = value_type()
         end select
     end subroutine fwd_get
 
@@ -468,7 +469,7 @@ contains
         if (allocated(s)) then
             v = make_string(s)
         else
-            v = nil()
+            v = value_type()
         end if
     end function string_or_nil
 
@@ -512,9 +513,9 @@ contains
         case ("tab_width")
             call set_integer(tab_width, v, .true., status)
         case ("indent_tabs_mode")
-            indent_tabs_mode = .not. nilp(v)
+            indent_tabs_mode = allocated(v%a)
         case ("completion_ignore_case")
-            completion_ignore_case = .not. nilp(v)
+            completion_ignore_case = allocated(v%a)
         case ("case_fold_search")
             call set_logical(case_fold_search, v)
         case ("fill_prefix")
@@ -544,9 +545,9 @@ contains
         case ("major_mode")
             if (cur == 0) return
 
-            if (.not. symbolp(v)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
-            else if (nilp(v)) then
+            if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
+            else if (.not. allocated(v%a)) then
                 buffers(cur)%major_mode = "nil"
             else
                 buffers(cur)%major_mode = symbols(xsymbol(v))%name
@@ -554,23 +555,23 @@ contains
         case ("mode_name")
             if (cur == 0) return
 
-            if (stringp(v)) then
+            if (vtag(v) == V_STRING) then
                 buffers(cur)%mode_name = xstring(v)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
             end if
         case ("buffer_read_only")
-            if (cur > 0) buffers(cur)%read_only = .not. nilp(v)
+            if (cur > 0) buffers(cur)%read_only = allocated(v%a)
         case ("text_mode_variant")
             call set_logical(text_mode_variant, v)
         case ("parse_expression_ignore_comments")
-            parse_expression_ignore_comments = .not. nilp(v)
-        case ("case_symbols_as_words")
-            case_symbols_as_words = .not. nilp(v)
+            parse_expression_ignore_comments = allocated(v%a)
+        case ("case_identifiers_as_words")
+            case_identifiers_as_words = allocated(v%a)
         case ("comment_end_can_be_escaped")
-            comment_end_can_be_escaped = .not. nilp(v)
+            comment_end_can_be_escaped = allocated(v%a)
         case ("inhibit_modification_hooks")
-            inhibit_modification_hooks = .not. nilp(v)
+            inhibit_modification_hooks = allocated(v%a)
         case ("require_final_newline")
             call set_final_newline(require_final_newline, v)
         case ("mode_require_final_newline")
@@ -587,14 +588,14 @@ contains
         type(value_type), intent(in) :: v
         type(command_type), pointer :: c
 
-        if (nilp(v)) then
+        if (.not. allocated(v%a)) then
             s%value => null()
             call settle(s)
             return
         end if
 
         c => null()
-        if (symbolp(v)) c => find_command(symbols(xsymbol(v))%name)
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) c => find_command(symbols(xsymbol(v))%name)
 
         if (associated(c)) then
             s%value => c%run
@@ -610,7 +611,7 @@ contains
         type(indent_line_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
 
-        if (symbolp(v) .and. .not. nilp(v)) then
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then
             call indent_line_function_named(symbols(xsymbol(v))%name, s%value)
 
             if (len(indent_line_function_name(s%value)) > 0) then
@@ -625,14 +626,14 @@ contains
     end subroutine set_indent_line
 
     !> The value of a require-final-newline setting N: nil, t, `visit',
-    !> `visit_save' or (for any other non-nil value) `ask'.  Not a port.
+    !> `visit_save' or (for any other value) `ask'.  Not a port.
     function final_newline_value(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
 
         select case (n)
         case (FINAL_NEWLINE_NEVER)
-            v = nil()
+            v = value_type()
         case (FINAL_NEWLINE_SAVE)
             v = t_value()
         case (FINAL_NEWLINE_VISIT)
@@ -649,7 +650,7 @@ contains
         type(integer_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
 
-        if (nilp(v)) then
+        if (.not. allocated(v%a)) then
             s = FINAL_NEWLINE_NEVER
         else if (value_eq(v, t_value())) then
             s = FINAL_NEWLINE_SAVE
@@ -669,7 +670,7 @@ contains
 
         s%has_exact = .false.
         s%void = .false.
-        s%exact = nil()
+        s%exact = value_type()
     end subroutine settle
 
     !> makunbound on forwarded variable K: Fset with Qunbound, which
@@ -695,14 +696,14 @@ contains
 
         select case (trim(FWD_NAMES(k)))
         case ("fill_column", "left_margin", "tab_width")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             indent_tabs_mode = .true.
         case ("completion_ignore_case")
             completion_ignore_case = .true.
         case ("major_mode")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
         case ("mode_name", "buffer_read_only")
             continue
         case ("case_fold_search")
@@ -736,9 +737,9 @@ contains
         case ("parse_expression_ignore_comments")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             parse_expression_ignore_comments = .true.
-        case ("case_symbols_as_words")
+        case ("case_identifiers_as_words")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
-            case_symbols_as_words = .true.
+            case_identifiers_as_words = .true.
         case ("comment_end_can_be_escaped")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             comment_end_can_be_escaped = .true.
@@ -765,7 +766,7 @@ contains
     if (found) then
         call fwd_get(k, cur, v, is_bound)
     else
-        v = nil()
+        v = value_type()
     end if
 
     if (present(bound)) bound = is_bound
@@ -949,7 +950,7 @@ contains
         logical, intent(out) :: bound
         integer :: i
 
-        v = nil()
+        v = value_type()
         bound = .true.
         i = fn_index(b, resolve(id), .false.)
         if (i == 0) return
@@ -1116,7 +1117,7 @@ contains
     ! A void variable gets the default value nil.
     if (kind_of(id) == 0 .and. .not. local_in_current(id)) then
         if (.not. symbols(id)%bound) then
-            symbols(id)%val = nil()
+            symbols(id)%val = value_type()
             symbols(id)%bound = .true.
         end if
     end if
@@ -1164,7 +1165,7 @@ contains
     do i = buffers(cur)%nlocal, 1, -1
         if (.not. all) then
             call get(make_symbol_ref(buffers(cur)%local_ids(i)), sym("permanent_local"), prop, st)
-            if (.not. nilp(prop)) cycle
+            if (allocated(prop%a)) cycle
         end if
 
         call drop_local(i)
@@ -1179,37 +1180,40 @@ contains
     end if
     end procedure kill_all_local_variables
 
-    module procedure local_variable_p
+    module procedure is_local_variable
     integer(int64) :: b, id
 
-    local_variable_p = .false.
+    is_local_variable = .false.
     call ensure_obarray()
-    if (.not. symbolp(variable)) return
+    if ((vtag(variable) /= V_NAME .and. vtag(variable) /= V_NULL)) return
     id = xsymbol(variable)
     b = cur
     if (present(buffer)) b = buffer
 
     if (kind_of(id) == K_SLOT) then
-        local_variable_p = .true.
+        is_local_variable = .true.
     else
-        local_variable_p = local_index(b, id) > 0
+        is_local_variable = local_index(b, id) > 0
     end if
-    end procedure local_variable_p
+    end procedure is_local_variable
 
-    module procedure automatically_local_p
-    automatically_local_p = .false.
-    if (symbolp(variable)) automatically_local_p = auto_local(xsymbol(variable))
-    end procedure automatically_local_p
+    module procedure is_automatically_local
+    is_automatically_local = .false.
+    if ((vtag(variable) == V_NAME .or. vtag(variable) == V_NULL)) is_automatically_local = auto_local(xsymbol(variable))
+    end procedure is_automatically_local
 
-    module procedure forwarded_variable_p
-    forwarded_variable_p = .false.
-    if (symbolp(variable)) forwarded_variable_p = resolve(xsymbol(variable)) > 0
-    end procedure forwarded_variable_p
+    module procedure is_forwarded_variable
+    is_forwarded_variable = .false.
+    if ((vtag(variable) == V_NAME .or. vtag(variable) == V_NULL)) is_forwarded_variable = resolve(xsymbol(variable)) > 0
+    end procedure is_forwarded_variable
 
-    module procedure local_variable_if_set_p
-    local_variable_if_set_p = local_variable_p(variable, buffer)
-    if (.not. local_variable_if_set_p .and. symbolp(variable)) local_variable_if_set_p = auto_local(xsymbol(variable))
-    end procedure local_variable_if_set_p
+    module procedure is_local_variable_if_set
+    is_local_variable_if_set = is_local_variable(variable, buffer)
+
+    if (.not. is_local_variable_if_set .and. (vtag(variable) == V_NAME .or. vtag(variable) == V_NULL)) then
+        is_local_variable_if_set = auto_local(xsymbol(variable))
+    end if
+    end procedure is_local_variable_if_set
 
     !> The default value of symbol ID.  Not a port.
     subroutine get_default(id, v, bound)
@@ -1258,7 +1262,7 @@ contains
     fn => s%value
     call ensure_obarray()
     id = xsymbol(sym(trim(s%name)))
-    if (.not. local_variable_p(sym(trim(s%name)))) return
+    if (.not. is_local_variable(sym(trim(s%name)))) return
     ! The default is saved as (0, the setting's index) while the current
     ! buffer has its own value.
     i = fn_index(0_int64, resolve(id), .false.)
@@ -1282,7 +1286,7 @@ contains
 
     default_boundp = .false.
     call ensure_obarray()
-    if (.not. symbolp(symbol)) return
+    if ((vtag(symbol) /= V_NAME .and. vtag(symbol) /= V_NULL)) return
     call get_default(xsymbol(symbol), v, default_boundp)
     end procedure default_boundp
 
@@ -1348,12 +1352,12 @@ contains
     id = xsymbol(variable)
 
     if (buffer <= 0 .or. buffer > size(buffers, kind=int64)) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
         return
     end if
 
-    if (.not. buffer_live_p(buffer_handle(buffer))) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+    if (.not. is_buffer_live(buffer_handle(buffer))) then
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
         return
     end if
 
@@ -1398,7 +1402,7 @@ contains
 
     b = cur
     if (present(buffer)) b = buffer
-    table = nil()
+    table = value_type()
     if (b <= 0) return
     allocate (elts(buffers(b)%nlocal + size(SLOTS)))
     n = 0

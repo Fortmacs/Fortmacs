@@ -26,7 +26,7 @@
 !>
 !> Differences from upstream, for want of Lisp and of display features:
 !>
-!> - REPLACEMENTS as a (FUNCTION . DATA) cons is a Fortran function of
+!> - REPLACEMENTS as two values, FUNCTION and DATA, is a Fortran function of
 !>   the replacement count (`replacement_function'); `\,' (a Lisp
 !>   expression) in an interactive replacement is an error, while `\#'
 !>   (the replacement count) works;
@@ -51,7 +51,7 @@
 !> property holding their index; a region searched is markers, not an
 !> overlay.  Deferred: the overlay arrow, the highlighting of the visited
 !> occurrence (`next_error_highlight'), mouse events (mouse-2,
-!> `occur_word_at_mouse', `occur_symbol_at_mouse', the context menu), the
+!> `occur_word_at_mouse', `occur_identifier_at_mouse', the context menu), the
 !> menu, C-c C-f (`next_error_follow_minor_mode'), l
 !> (`recenter_current_error'), c (`clone_buffer'), the coding system of
 !> the buffers searched, `isearch_occur' and the isearch descriptions of
@@ -61,14 +61,14 @@ module replace_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, make_string, make_list, stringp, xstring, nilp, list_elements, &
-                       list_length, list_elt
+    use lisp_fm, only: value_type, make_string, make_list, xstring, list_elements, &
+                       list_length, list_elt, vtag, V_INTEGER, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use fns_fm, only: schars
     use data_fm, only: value_eq, symbol_value, set
     use buffer_fm, only: barf_if_buffer_read_only
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, buffer_substring, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
                           region_beginning, region_end
     use cmds_fm, only: forward_char
     use textprop_fm, only: text_property_not_all
@@ -78,30 +78,30 @@ module replace_fm
                          regexp_quote, string_match, SEARCH_NOERROR
     use subr_fm, only: read_key, add_to_history, defvar_nil, history_length, query_replace_answer, match_string, &
                        looking_back, match_substitute_replacement, find_tag_default, find_tag_default_as_regexp, &
-                       find_tag_default_as_symbol_regexp, &
+                       find_tag_default_as_identifier_regexp, &
                        ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, &
                        ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_EDIT_REPLACEMENT, &
                        ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
                        ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
                        ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
-    use isearch_fm, only: search_upper_case, UPPER_CASE_NIL, search_whitespace_regexp, &
-                          isearch_no_upper_case_p, word_search_regexp
+    use isearch_fm, only: search_upper_case, UPPER_CASE_NO, search_whitespace_regexp, &
+                          is_isearch_no_upper_case, word_search_regexp
     use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input, minibuffer_string_type
     use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use simple_fm, only: push_mark, use_region_p, deactivate_mark
+    use simple_fm, only: push_mark, is_use_region, deactivate_mark
     use window_fm, only: recenter_top_bottom, scroll_up, scroll_down
     use help_fm, only: with_help_window
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use handle_fm, only: null_handle
-    use lisp_fm, only: t_value, consp, fixnump, xfixnum, make_fixnum, list
+    use lisp_fm, only: t_value, xfixnum, make_fixnum, list
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, kill_buffer, &
-                         buffer_live_p, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
-                         restore_buffer_modified_p
+                         is_buffer_live, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
+                         restore_buffer_modified
     use marker_fm, only: copy_marker_at, marker_buffer
     use insdel_fm, only: insert, after_change_functions
-    use editfns_fm, only: bolp, eolp, line_beginning_position, line_end_position, delete_region
+    use editfns_fm, only: is_bol, is_eol, line_beginning_position, line_end_position, delete_region
     use cmds_fm, only: forward_line
     use indent_fm, only: current_column, move_to_column
     use textprop_fm, only: put_text_property, get_text_property, add_text_properties, add_face_text_property, &
@@ -116,18 +116,18 @@ module replace_fm
                          display_action_table_type
     use frame_fm, only: selected_frame
     use help_fm, only: substitute_command_keys
-    use minibuffer_fm, only: read_buffer, REQUIRE_MATCH_T
+    use minibuffer_fm, only: read_buffer, REQUIRE_MATCH_YES
 
     use files_fm, only: kill_buffer_hook, revert_buffer_function
     use eval_fm, only: hook_type
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set, set_keymap_parent
     use text_mode_fm, only: text_mode_map
     use font_core_fm, only: font_lock_mode_enabled, turn_on_font_lock
     use font_lock_fm, only: font_lock_ensure
     use regexp_opt_fm, only: regexp_opt_depth
-    use xfaces_fm, only: face_differs_from_default_p
+    use xfaces_fm, only: is_face_differs_from_default
     use faces_fm, only: named_face_type, display_when, face_attrs, init_faces, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     implicit none(type, external)
@@ -150,7 +150,7 @@ module replace_fm
     !> match.
     type(named_face_type), target, public :: match
 
-    !> A FROM_STRING and TO_STRING pair of `query_replace_defaults'.
+    !> An entry of `query_replace_defaults', with components `from' and `to'.
     type, public :: replace_pair_type
         character(len=:), allocatable :: from, to
     end type replace_pair_type
@@ -186,13 +186,13 @@ module replace_fm
     logical, public :: replace_regexp_lax_whitespace = .false.
 
     !> Default values of FROM_STRING and TO_STRING for `query_replace'.
-    !> This is an array of FROM_STRING and TO_STRING pairs, or unallocated
+    !> This is an array of entries with components `from' and `to', or unallocated
     !> if there are no default values.  Port of replace.el
     !> query-replace-defaults (most recent first).
     type(replace_pair_type), allocatable, public :: query_replace_defaults(:)
 
     !> String that separates FROM and TO in the history of replacement
-    !> pairs.  When unallocated, the pair will not be added to the
+    !> strings.  When unallocated, FROM and TO will not be added to the
     !> history (same behavior as in Emacs 24.5).  Port of replace.el
     !> query-replace-from-to-separator.
     character(len=:), allocatable, public :: query_replace_from_to_separator
@@ -246,7 +246,7 @@ module replace_fm
 
     ! The values of perform-replace's match-again: nil, t (a match is
     ! possible at point) and match data.
-    integer, parameter :: AGAIN_NIL = 0, AGAIN_T = 1, AGAIN_DATA = 2
+    integer, parameter :: AGAIN_NO = 0, AGAIN_AT_POINT = 1, AGAIN_DATA = 2
 
     ! An element of perform-replace's stack, (POINT REPLACED MATCH-DATA
     ! SEARCH-STR NEXT-REPLACE NEXT-REPLACEMENT MATCH-AGAIN), as
@@ -256,7 +256,7 @@ module replace_fm
         logical :: replaced = .false.
         integer(int64), allocatable :: data(:)
         character(len=:), allocatable :: search_str, next_replace, next_replacement
-        integer :: again = AGAIN_NIL
+        integer :: again = AGAIN_NO
         integer(int64), allocatable :: again_match(:)
     end type stack_entry_type
 
@@ -469,7 +469,7 @@ contains
     end function find_directive
 
     !> Maybe convert a regexp replacement TO for `perform_replace'.
-    !> REGEXP-FLAG non-nil means TO is a regexp.  `counted' is true when TO
+    !> REGEXP-FLAG .true. means TO is a regexp.  `counted' is true when TO
     !> contains `\#', which stands for the number of replacements done so
     !> far (`replace_expand_count' substitutes it).  `\,' (a Lisp
     !> expression) is an error: there is no Lisp.  Port of
@@ -545,14 +545,13 @@ contains
         if (.not. status%ok()) return
         if (list_length(list) == 0) return
         first = list_elt(list, 1_int64)
-        if (.not. stringp(first)) return
+        if (vtag(first) /= V_STRING) return
         head = xstring(first)
         found = .true.
     end subroutine history_head
 
-    !> Add (FROM . TO) to `query_replace_defaults'.  Port of the
-    !> (add-to-history 'query-replace-defaults (cons from to) nil t)
-    !> calls.
+    !> Add FROM and TO to `query_replace_defaults'.  Port of the
+    !> `add_to_history' calls on `query_replace_defaults' (KEEP-ALL .true.).
     subroutine push_defaults(from, to)
         character(len=*), intent(in) :: from, to
         type(replace_pair_type), allocatable :: longer(:)
@@ -600,14 +599,14 @@ contains
         list(n)%s = s
     end subroutine push_string
 
-    !> The region's text, if `use_region_p'.  Not a port.
+    !> The region's text, if `is_use_region'.  Not a port.
     subroutine region_text(text, found)
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
         integer(int64) :: b, e
         type(status_type) :: st
 
-        found = use_region_p()
+        found = is_use_region()
         text = ""
         if (.not. found) return
         call region_beginning(b, st)
@@ -644,7 +643,7 @@ contains
     !> (a.k.a. "tag") at point, the last isearch regexp, the last isearch
     !> string, and the last replacement regexp.  `read_regexp' appends the
     !> list returned by this function to the end of values available via
-    !> M-n.  Port of replace.el:read-regexp-suggestions (nil elements are
+    !> M-n.  Port of replace.el:read-regexp-suggestions (unallocated elements are
     !> left out, as read-regexp drops them).
     subroutine read_regexp_suggestions(list, n)
         type(minibuffer_string_type), allocatable, intent(out) :: list(:)
@@ -658,7 +657,7 @@ contains
         if (found) call push_string(list, n, s)
         call find_tag_default_as_regexp(s, found)
         if (found) call push_string(list, n, s)
-        call find_tag_default_as_symbol_regexp(s, found)
+        call find_tag_default_as_identifier_regexp(s, found)
         if (found) call push_string(list, n, s)
         call history_head("regexp_search_ring", s, found)
         if (found) call push_string(list, n, s)
@@ -678,8 +677,8 @@ contains
     !> rest come before `read_regexp_suggestions' in the values M-n
     !> offers.
     !>
-    !> The optional argument HISTORY is a symbol to use for the history list.
-    !> If nil, use `regexp_history'.  Port of replace.el:read-regexp
+    !> The optional argument HISTORY is a name to use for the history list.
+    !> If absent, use `regexp_history'.  Port of replace.el:read-regexp
     !> (DEFAULTS a list of strings; no read-regexp-defaults-function,
     !> read-regexp-map or case-fold toggle).
     recursive subroutine read_regexp(prompt, result, status, defaults, history)
@@ -772,8 +771,8 @@ contains
     end subroutine read_regexp
 
     !> Query and return the FROM argument of a `query_replace' operation.
-    !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should
-    !> be a regexp.  The return value can also be a pair (FROM . TO)
+    !> Prompt with PROMPT.  REGEXP-FLAG .true. means the response should
+    !> be a regexp.  The return value can also be two values, FROM and TO,
     !> indicating that the user wants to replace FROM with TO: then
     !> `have_to' is true, and `counted' says whether TO uses `\#'.
     !> Port of replace.el:query-replace-read-from.
@@ -798,9 +797,9 @@ contains
         have_separator = allocated(query_replace_from_to_separator)
         ! The minibuffer history: the default pairs, then the FROM history.
         call symbol_value(sym("minibuffer_history"), saved_history, st)
-        if (.not. st%ok()) saved_history = nil()
+        if (.not. st%ok()) saved_history = value_type()
         call symbol_value(sym(query_replace_from_history_variable), from_history, st)
-        if (.not. st%ok()) from_history = nil()
+        if (.not. st%ok()) from_history = value_type()
         call list_elements(from_history, older)
         n = 0
         if (have_separator .and. allocated(query_replace_defaults)) n = size(query_replace_defaults)
@@ -892,7 +891,7 @@ contains
     end subroutine query_replace_read_from
 
     !> Query and return the TO argument of a `query_replace' operation.
-    !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response
+    !> Prompt with PROMPT.  REGEXP-FLAG .true. means the response
     !> should a regexp.  `counted' says whether TO uses `\#'.  Port of
     !> replace.el:query-replace-read-to.
     recursive subroutine query_replace_read_to(from, prompt, regexp_flag, to, counted, status)
@@ -942,7 +941,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        delimited = .not. nilp(current_prefix_arg) .and. .not. value_eq(current_prefix_arg, sym("-"))
+        delimited = allocated(current_prefix_arg%a) .and. .not. value_eq(current_prefix_arg, sym("-"))
         backward = value_eq(current_prefix_arg, sym("-"))
         call query_replace_read_from(prompt, regexp_flag, from, to, have_to, counted, status)
         if (.not. status%ok()) return
@@ -1016,7 +1015,7 @@ contains
     !> as returned from the `match_data' function.  BACKWARD is
     !> used to reverse the replacement direction.
     !>
-    !> The return value is non-nil if there has been no `\?' or NOEDIT was
+    !> The return value is .true. if there has been no `\?' or NOEDIT was
     !> passed in.  If LITERAL is set, no checking is done, anyway.
     !> Port of replace.el:replace-match-maybe-edit (the edited text is read
     !> with point at its end).
@@ -1135,13 +1134,13 @@ contains
     !> see the documentation of `replace_match' to find out how to simulate
     !> `case_replace'.
     !>
-    !> This function returns nil if there were no matches to make, or
+    !> This function returns .false. if there were no matches to make, or
     !> the user canceled the call.
     !>
-    !> REPLACEMENTS is either a string, a list of strings, or a cons cell
-    !> containing a function and its first argument.  The function is
+    !> REPLACEMENTS is either a string, an array of strings, or two values,
+    !> a function and its first argument.  The function is
     !> called to generate each replacement like this:
-    !>   (funcall (car replacements) (cdr replacements) replace-count)
+    !>   call FUNCTION(DATA, replace_count)
     !> It must return a string.
     !>
     !> In Fortmacs, REPLACEMENTS is the string `replacements', unless
@@ -1185,8 +1184,8 @@ contains
         if (present(result)) result = .false.
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-            fold = isearch_no_upper_case_p(from_string, regexp_flag)
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
+            fold = is_isearch_no_upper_case(from_string, regexp_flag)
         end if
 
         nocasify = .not. (case_replace .and. fold)
@@ -1199,7 +1198,7 @@ contains
         update_stack = .true.
         replace_count = 0
         skip_read_only_count = 0
-        again = AGAIN_T
+        again = AGAIN_AT_POINT
         allocate (again_match(0), real_data(0))
         unread = .false.
 
@@ -1253,10 +1252,10 @@ contains
             if (have_limit) call marker_position(limit_marker, limit, st)
 
             if (back) then
-                if (bobp()) exit main
+                if (is_bob()) exit main
                 if (have_limit .and. point() <= limit) exit main
             else
-                if (eobp()) exit main
+                if (is_eob()) exit main
                 if (have_limit .and. point() >= limit) exit main
             end if
 
@@ -1273,8 +1272,8 @@ contains
 
                 real_data = again_match
                 found = .true.
-            case (AGAIN_T)
-                ! MATCH-AGAIN non-nil means accept an adjacent match.
+            case (AGAIN_AT_POINT)
+                ! MATCH-AGAIN .true. means accept an adjacent match.
                 found = replace_search(from_string, merge(limit, 0_int64, have_limit), regexp_flag, &
                                        delimited_flag, fold, status, back)
                 if (.not. status%ok()) exit main
@@ -1315,11 +1314,11 @@ contains
             ! the next match now, since the replacement for this match may
             ! affect whether the next match is adjacent to this one.  If
             ! that match is empty, don't use it.
-            again = AGAIN_NIL
+            again = AGAIN_NO
 
             if (nonempty_match) then
                 if (.not. regexp_flag) then
-                    again = AGAIN_T
+                    again = AGAIN_AT_POINT
                 else
                     if (back) then
                         matched = looking_back(from_string, st)
@@ -1336,7 +1335,7 @@ contains
 
             ! Optionally ignore matches that have a read-only property.
             if (query_replace_skip_read_only) then
-                call text_property_not_all(real_data(1), real_data(2), sym("read_only"), nil(), ro_pos, &
+                call text_property_not_all(real_data(1), real_data(2), sym("read_only"), value_type(), ro_pos, &
                                            ro_found, st)
 
                 if (ro_found) then
@@ -1557,7 +1556,7 @@ contains
                     done = .true.
                     update_stack = .not. last_was_act_and_show
                 case (ANSWER_RECENTER)
-                    call recenter_top_bottom(nil(), st)
+                    call recenter_top_bottom(value_type(), st)
                 case (ANSWER_EDIT)
                     opoint = point()
                     call make_marker(opos)
@@ -1580,7 +1579,7 @@ contains
                     ! Before we make the replacement, decide whether the
                     ! search string can match again just after this match.
                     if (regexp_flag .and. nonempty_match) then
-                        again = AGAIN_NIL
+                        again = AGAIN_NO
 
                         if (looking_at(from_string, st)) then
                             again = AGAIN_DATA
@@ -1624,11 +1623,11 @@ contains
                     call ding()
                     call sit_for(1000)
                 case (ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN)
-                    ! (commandp def t): (call-interactively def).
+                    ! (is_command def t): (call-interactively def).
                     if (def == ANSWER_SCROLL_UP) then
-                        call scroll_up(nil(), status)
+                        call scroll_up(value_type(), status)
                     else
-                        call scroll_down(nil(), status)
+                        call scroll_down(value_type(), status)
                     end if
 
                     if (.not. status%ok()) exit main
@@ -1748,8 +1747,8 @@ contains
     !> search string as the string to replace.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not UPPER_CASE_NIL) and FROM_STRING has no
-    !> uppercase letters; if `search_upper_case' is UPPER_CASE_NIL, then whether
+    !> and `search_upper_case' are true (not UPPER_CASE_NO) and FROM_STRING has no
+    !> uppercase letters; if `search_upper_case' is UPPER_CASE_NO, then whether
     !> matching ignores case depends on `case_fold_search' regardless
     !> of whether there are uppercase letters in FROM_STRING.
     !> Replacement transfers the case pattern of the old text to the
@@ -1798,8 +1797,8 @@ contains
     !> use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not UPPER_CASE_NIL) and REGEXP has no uppercase
-    !> letters; if `search_upper_case' is UPPER_CASE_NIL, then whether matching
+    !> and `search_upper_case' are true (not UPPER_CASE_NO) and REGEXP has no uppercase
+    !> letters; if `search_upper_case' is UPPER_CASE_NO, then whether matching
     !> ignores case depends on `case_fold_search' regardless of whether
     !> there are uppercase letters in REGEXP.
     !> Replacement transfers the case pattern of the old text to the new
@@ -2049,7 +2048,7 @@ contains
         if (present(rstart) .and. present(rend)) then
             call goto_char(min(rstart, rend))
             call set_marker(end_marker, max(rstart, rend), st)
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(limit, st)
             call set_marker(end_marker, limit, st)
             call region_beginning(limit, st)
@@ -2060,8 +2059,8 @@ contains
 
         saved_fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-            case_fold_search%value = isearch_no_upper_case_p(regexp, .true.)
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
+            case_fold_search%value = is_isearch_no_upper_case(regexp, .true.)
         end if
 
         call make_marker(opoint)
@@ -2107,7 +2106,7 @@ contains
 
         prompt = base
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             if (value_eq(current_prefix_arg, sym("-"))) then
                 prompt = prompt//" backward"
             else
@@ -2116,7 +2115,7 @@ contains
         end if
 
         prompt = prompt//what
-        if (use_region_p()) prompt = prompt//" in region"
+        if (is_use_region()) prompt = prompt//" in region"
     end function command_prompt
 
     ! The interactive commands: read the arguments, then operate on the
@@ -2134,7 +2133,7 @@ contains
                                      counted, status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, st)
             call region_end(e, st)
             call perform_replace(from, to, query, regexp_flag, delimited, status, start=b, end=e, &
@@ -2181,17 +2180,17 @@ contains
                                   to, status, history=query_replace_to_history_variable, default=from)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, st)
             call region_end(e, st)
 
-            if (nilp(current_prefix_arg)) then
+            if (.not. allocated(current_prefix_arg%a)) then
                 call map_query_replace_regexp(from, to, status, start=b, end=e)
             else
                 call map_query_replace_regexp(from, to, status, n=prefix_numeric_value(current_prefix_arg), &
                                               start=b, end=e)
             end if
-        else if (nilp(current_prefix_arg)) then
+        else if (.not. allocated(current_prefix_arg%a)) then
             call map_query_replace_regexp(from, to, status)
         else
             call map_query_replace_regexp(from, to, status, n=prefix_numeric_value(current_prefix_arg))
@@ -2227,7 +2226,7 @@ contains
         query_replace_to_history_variable = "query_replace_history"
         ! Default history list for `query_replace' commands.
         call symbol_value(sym("query_replace_history"), history, st)
-        if (.not. st%ok()) call set(sym("query_replace_history"), nil(), st)
+        if (.not. st%ok()) call set(sym("query_replace_history"), value_type(), st)
         commands%query_replace%run => cmd_query_replace
         commands%query_replace_regexp%run => cmd_query_replace_regexp
         commands%map_query_replace_regexp%run => cmd_map_query_replace_regexp
@@ -2256,8 +2255,8 @@ contains
 
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-            fold = isearch_no_upper_case_p(regexp, .true.)
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
+            fold = is_isearch_no_upper_case(regexp, .true.)
         end if
     end function lines_case_fold
 
@@ -2305,13 +2304,13 @@ contains
             call goto_char(min(rstart, rend))
             opoint = point()
             call goto_char(max(rstart, rend))
-            if (.not. (bolp() .or. eobp())) shortage = forward_line(0_int64)
+            if (.not. (is_bol() .or. is_eob())) shortage = forward_line(0_int64)
             call set_marker(rend_m, point(), st)
             call goto_char(opoint)
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(pos, st)
             call goto_char(pos)
-            if (.not. (bolp() .or. eobp())) shortage = forward_line(0_int64)
+            if (.not. (is_bol() .or. is_eob())) shortage = forward_line(0_int64)
             call set_marker(rend_m, point(), st)
             call region_beginning(pos, st)
             call goto_char(pos)
@@ -2320,7 +2319,7 @@ contains
         end if
 
         opoint = point()
-        if (.not. bolp()) shortage = forward_line(1_int64)
+        if (.not. is_bol()) shortage = forward_line(1_int64)
         start = point()
         saved_fold = case_fold_search%value
         case_fold_search = lines_case_fold(regexp)
@@ -2402,7 +2401,7 @@ contains
         if (present(rstart) .and. present(rend)) then
             call goto_char(min(rstart, rend))
             call set_marker(rend_m, max(rstart, rend), st)
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(pos, st)
             call set_marker(rend_m, pos, st)
             call region_beginning(pos, st)
@@ -2631,7 +2630,7 @@ contains
                 call goto_char(rstart)
                 limit = point_max()
             end if
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(limit, st)
             call region_beginning(pos, st)
             call goto_char(pos)
@@ -2646,7 +2645,7 @@ contains
             call re_search_forward(regexp, found, status, bound=limit, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. found == 0) exit
             ! Ensure forward progress on zero-length matches like "^$".
-            if (match_beginning(0, st) == match_end(0, st) .and. .not. eobp()) call goto_char(point() + 1)
+            if (match_beginning(0, st) == match_end(0, st) .and. .not. is_eob()) call goto_char(point() + 1)
             count = count + 1
         end do
 
@@ -2704,7 +2703,7 @@ contains
         if (.not. create) return
 
         do k = 1, size(occur_buffers)
-            if (.not. buffer_live_p(occur_buffers(k)%buffer)) then
+            if (.not. is_buffer_live(occur_buffers(k)%buffer)) then
                 call occur_reset_entry(k)
                 occur_buffers(k)%buffer = h
                 return
@@ -2863,7 +2862,7 @@ contains
 
         status = status_type()
 
-        if (derived_mode_p(major_modes%occur_edit_mode)) then
+        if (is_derived_mode(major_modes%occur_edit_mode)) then
             call occur_mode(status)
             if (status%ok()) call message("Switching to Occur mode.")
         end if
@@ -2879,7 +2878,7 @@ contains
 
         idx = 0
         call get_text_property(pos, sym("occur_target"), v, st)
-        if (.not. fixnump(v)) return
+        if (vtag(v) /= V_INTEGER) return
         k = occur_entry(current_buffer(), .false.)
         if (k == 0) return
         idx = int(xfixnum(v))
@@ -2907,7 +2906,7 @@ contains
         marker = occur_buffers(k)%targets(idx)%beg(1)
         call marker_buffer(marker, buffer, st)
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "Buffer for this occurrence was killed")
         end if
     end subroutine occur_mode_find_occurrences
@@ -3010,7 +3009,7 @@ contains
             if (found) then
                 call get_text_property(r, sym("occur_match"), v, st)
 
-                if (.not. nilp(v)) then
+                if (allocated(v%a)) then
                     r1 = r
                     call search(r1, r, found)
                 end if
@@ -3148,7 +3147,7 @@ contains
         call get_text_property(line_beg, sym("occur_prefix"), prefix_beg, st)
         call get_text_property(end, sym("occur_prefix"), prefix_end, st)
 
-        if (nilp(prefix_beg) .or. .not. nilp(prefix_end) .or. .not. buffer_live_p(buf)) then
+        if (.not. allocated(prefix_beg%a) .or. allocated(prefix_end%a) .or. .not. is_buffer_live(buf)) then
             call goto_char(opoint)
             return
         end if
@@ -3280,7 +3279,7 @@ contains
         logical :: found
         integer :: depth
 
-        has_collect = consp(current_prefix_arg)
+        has_collect = vtag(current_prefix_arg) == V_ARRAY
         has_nlines = .false.
         nlines = 0
         ! 'regexp-history-last.
@@ -3318,7 +3317,7 @@ contains
                 call read_regexp(format_prompt("Regexp to collect", default), collect, status, defaults, &
                                  OCCUR_COLLECT_HISTORY)
             end if
-        else if (.not. nilp(current_prefix_arg)) then
+        else if (allocated(current_prefix_arg%a)) then
             ! Otherwise normal occur takes numerical prefix argument.
             has_nlines = .true.
             nlines = prefix_numeric_value(current_prefix_arg)
@@ -3437,7 +3436,7 @@ contains
         call occur_read_primary_args(regexp, has_nlines, nlines, has_collect, collect, status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, st)
             call region_end(e, st)
 
@@ -3504,12 +3503,12 @@ contains
         integer(int64) :: nlines
         integer :: i
 
-        call read_buffer("First buffer to search: ", name, status, buffers(cur)%name, REQUIRE_MATCH_T)
+        call read_buffer("First buffer to search: ", name, status, buffers(cur)%name, REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         names = [character(len=64) :: name]
 
         do
-            call read_buffer("Next buffer to search (RET to end): ", name, status, require_match=REQUIRE_MATCH_T)
+            call read_buffer("Next buffer to search (RET to end): ", name, status, require_match=REQUIRE_MATCH_YES)
             if (.not. status%ok()) return
             if (len(name) == 0) exit
             dup = .false.
@@ -3603,7 +3602,7 @@ contains
 
         call history_head("regexp_history", default, found)
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call read_regexp("List lines in buffers whose names match regexp: ", bufregexp, status)
         else
             call read_regexp("List lines in buffers whose filenames match regexp: ", bufregexp, status)
@@ -3615,10 +3614,10 @@ contains
         if (.not. status%ok()) return
 
         if (has_collect) then
-            call multi_occur_in_matching_buffers(bufregexp, regexp, status,.not. nilp(current_prefix_arg), &
+            call multi_occur_in_matching_buffers(bufregexp, regexp, status, allocated(current_prefix_arg%a), &
                                                  collect=collect)
         else
-            call multi_occur_in_matching_buffers(bufregexp, regexp, status,.not. nilp(current_prefix_arg))
+            call multi_occur_in_matching_buffers(bufregexp, regexp, status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_multi_occur_in_matching_buffers
 
@@ -3653,7 +3652,7 @@ contains
             buf = get_buffer("*Occur*")
         end if
 
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         call set_buffer(buf, st)
         name = "*Occur: "
         k = occur_entry(buf, .false.)
@@ -3663,7 +3662,7 @@ contains
                 do i = 1, size(occur_buffers(k)%sources)
                     if (i > 1) name = name//"/"
 
-                    if (buffer_live_p(occur_buffers(k)%sources(i)%buffer)) then
+                    if (is_buffer_live(occur_buffers(k)%sources(i)%buffer)) then
                         name = name//buffers(occur_buffers(k)%sources(i)%buffer%index)%name
                     end if
                 end do
@@ -3682,7 +3681,7 @@ contains
     recursive subroutine cmd_occur_rename_buffer(status)
         type(status_type), intent(out) :: status
 
-        call occur_rename_buffer(status,.not. nilp(current_prefix_arg), .true.)
+        call occur_rename_buffer(status, allocated(current_prefix_arg%a), .true.)
     end subroutine cmd_occur_rename_buffer
 
     !> The description of REGEXP in Occur's headers: its control
@@ -3736,7 +3735,7 @@ contains
         integer :: i
 
         do i = 1, size(sources)
-            live(i) = buffer_live_p(sources(i)%buffer)
+            live(i) = is_buffer_live(sources(i)%buffer)
         end do
 
         active = pack(sources, live)
@@ -3861,15 +3860,15 @@ contains
             call set_buffer(old, st)
             fold = case_fold_search%value
 
-            if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-                fold = isearch_no_upper_case_p(regexp, .true.)
+            if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
+                fold = is_isearch_no_upper_case(regexp, .true.)
             end if
 
             call set_buffer(occur_buf, st)
             saved_fold = .false.
 
             if (len(list_matching_lines_prefix_face) > 0) then
-                saved_fold = face_differs_from_default_p(list_matching_lines_prefix_face)
+                saved_fold = is_face_differs_from_default(list_matching_lines_prefix_face)
             end if
 
             if (saved_fold) then
@@ -3938,11 +3937,11 @@ contains
 
             next_error_last_buffer = occur_buf
             buffers(cur)%read_only = .true.
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call occur_hook%run(status)
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
 
     contains
 
@@ -4105,9 +4104,9 @@ contains
             if (count == 0) exit
 
             if (forwardp) then
-                if (eobp()) exit
+                if (is_eob()) exit
             else
-                if (bobp() .and. .not. moved) exit
+                if (is_bob() .and. .not. moved) exit
             end if
 
             if (forwardp) then
@@ -4163,7 +4162,7 @@ contains
 
         do s = 1, size(sources)
             src = sources(s)%buffer
-            if (.not. buffer_live_p(src)) cycle
+            if (.not. is_buffer_live(src)) cycle
             lines = 0
             matches = 0
             call set_buffer(out_buf, st)
@@ -4373,7 +4372,7 @@ contains
                     curr_line = curr_line + count_lines(begpt, endpt)
                     ! Add 1 for empty last match line since count-lines
                     ! returns one line less.
-                    if (bolp() .and. eolp()) curr_line = curr_line + 1
+                    if (is_bol() .and. is_eol()) curr_line = curr_line + 1
                     ! On to the next match...
                     shortage = forward_line(1_int64)
                 else

@@ -24,8 +24,8 @@
 !> characters, strings and buffer regions, with Unicode title case and the
 !> unconditional special casings (uni_special_casing_fm: ß upcases to SS,
 !> ﬁ to FI), and the Greek final sigma rule.  Words are runs of
-!> word-constituent characters (and symbol constituents with
-!> `case_symbols_as_words') by the current syntax table.
+!> word-constituent characters (and identifier constituents with
+!> `case_identifiers_as_words') by the current syntax table.
 !>
 !> Strings are always multibyte here (casefiddle.c's unibyte string paths
 !> are Not applicable); unibyte buffers are cased byte by byte, as
@@ -64,21 +64,21 @@ module casefiddle_fm
     !> The case actions (enum case_action).
     integer, parameter, public :: CASE_UP = 0, CASE_DOWN = 1, CASE_CAPITALIZE = 2, CASE_CAPITALIZE_UP = 3
 
-    !> If true, case functions treat symbol syntax as part of words.
+    !> If true, case functions treat identifier syntax as part of words.
     !>
     !> Functions such as `upcase_initials' and `replace_match' check or
     !> modify the case pattern of sequences of characters.  Normally, these
     !> operate on sequences of characters whose syntax is word constituent.
     !> If this variable is true, then they operate on sequences of
-    !> characters whose syntax is either word constituent or symbol
+    !> characters whose syntax is either word constituent or identifier
     !> constituent.
     !>
     !> This is useful for programming languages and styles where only the
-    !> first letter of a symbol's name is ever capitalized.  Port of
+    !> first letter of an identifier's name is ever capitalized.  Port of
     !> casefiddle.c case-symbols-as-words (automatically buffer-local
     !> when set).
-    type(logical_setting), public :: case_symbols_as_words = &
-                                     logical_setting(name="case_symbols_as_words", value=.false.)
+    type(logical_setting), public :: case_identifiers_as_words = &
+                                     logical_setting(name="case_identifiers_as_words", value=.false.)
 
     !> In Greek, lower case sigma has two forms: one when used in the middle
     !> and one when used at the end of a word.
@@ -115,7 +115,7 @@ module casefiddle_fm
             type(status_type), intent(out) :: status
         end subroutine region_bounds_proc
 
-        !> simple.el's `region_noncontiguous_p'.  Not a port.
+        !> simple.el's `is_region_noncontiguous'.  Not a port.
         recursive logical function region_noncontiguous_proc()
             implicit none(type, external)
         end function region_noncontiguous_proc
@@ -125,8 +125,8 @@ module casefiddle_fm
     !> after this module).
     procedure(region_bounds_proc), pointer, public :: region_bounds => null()
 
-    !> simple_fm's `region_noncontiguous_p' (set by bindings_fm).
-    procedure(region_noncontiguous_proc), pointer, public :: region_noncontiguous_p => null()
+    !> simple_fm's `is_region_noncontiguous' (set by bindings_fm).
+    procedure(region_noncontiguous_proc), pointer, public :: is_region_noncontiguous => null()
 
 contains
 
@@ -146,18 +146,18 @@ contains
     logical function case_ch_is_word(syntax)
         integer, intent(in) :: syntax
 
-        case_ch_is_word = syntax == SWORD .or. (case_symbols_as_words%value .and. syntax == SSYMBOL)
+        case_ch_is_word = syntax == SWORD .or. (case_identifiers_as_words%value .and. syntax == SSYMBOL)
     end function case_ch_is_word
 
     !> Whether C has the syntax prefix flag `p'.  Port of
     !> syntax.c:syntax_prefix_flag_p.
-    logical function syntax_prefix_flag_p(c)
+    logical function is_syntax_prefix_flag(c)
         integer(int32), intent(in) :: c
         type(syntax_descriptor_type) :: d
 
         d = syntax_entry(c)
-        syntax_prefix_flag_p = btest(d%code, 20)
-    end function syntax_prefix_flag_p
+        is_syntax_prefix_flag = btest(d%code, 20)
+    end function is_syntax_prefix_flag
 
     !> The value for C in the sorted table KEYS/VALUES, or -1.  Not a port.
     pure integer(int32) function lookup(c, keys, values) result(v)
@@ -254,7 +254,7 @@ contains
         ! Update inword state.
         was_inword = ctx%inword
         ctx%inword = case_ch_is_word(char_syntax_class(ch))
-        if (ctx%inword .and. ctx%inbuffer .and. .not. was_inword) ctx%inword = .not. syntax_prefix_flag_p(ch)
+        if (ctx%inword .and. ctx%inbuffer .and. .not. was_inword) ctx%inword = .not. is_syntax_prefix_flag(ch)
 
         ! Normalize flag so its one of CASE_UP, CASE_DOWN or
         ! CASE_CAPITALIZE.
@@ -271,7 +271,7 @@ contains
         end if
 
         ! Look through the special casing entries.
-        if (present(buf) .and. special_table_p(flag)) then
+        if (present(buf) .and. is_special_table(flag)) then
             if (special_casing(flag, ch, buf)) then
                 if (present(changed)) changed = .true.
                 cased = ch
@@ -297,18 +297,18 @@ contains
         !> Whether the special casing table for normalized FLAG is in use:
         !> upper case unless downcasing, lower case unless upcasing, title
         !> case when capitalizing.
-        logical function special_table_p(normalized)
+        logical function is_special_table(normalized)
             integer, intent(in) :: normalized
 
             select case (normalized)
             case (CASE_UP)
-                special_table_p = ctx%flag /= CASE_DOWN
+                is_special_table = ctx%flag /= CASE_DOWN
             case (CASE_DOWN)
-                special_table_p = ctx%flag /= CASE_UP
+                is_special_table = ctx%flag /= CASE_UP
             case default
-                special_table_p = ctx%flag >= CASE_CAPITALIZE
+                is_special_table = ctx%flag >= CASE_CAPITALIZE
             end select
-        end function special_table_p
+        end function is_special_table
 
         subroutine done()
             if (present(buf)) then
@@ -825,7 +825,7 @@ contains
         call region_end(e, status)
         if (.not. status%ok()) return
         noncontiguous = .false.
-        if (associated(region_noncontiguous_p)) noncontiguous = region_noncontiguous_p()
+        if (associated(is_region_noncontiguous)) noncontiguous = is_region_noncontiguous()
         call casify_pnc_region(flag, b, e, status, noncontiguous)
     end subroutine region_command
 

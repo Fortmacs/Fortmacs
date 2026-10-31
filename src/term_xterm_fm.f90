@@ -39,7 +39,7 @@ module term_xterm_fm
     use lisp_fm, only: value_type, make_fixnum, list
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_CTL
     use keymap_fm, only: make_sparse_keymap, define_key, set_keymap_parent, &
-                         keymap_live_p, apply_modifiers
+                         is_keymap_live, apply_modifiers
     use keyboard_fm, only: input_decode_map
     use tty_colors_fm, only: tty_color_clear, tty_color_define, tty_display_color_cells, clear_face_cache_hook
     use tty_colors_rgb_fm, only: color_name_count, color_names, color_rgbs
@@ -154,7 +154,7 @@ contains
         character(len=4), parameter :: arrow_finals = "ABCD"
         integer :: k
 
-        if (keymap_live_p(rxvt_map)) then
+        if (is_keymap_live(rxvt_map)) then
             map = rxvt_map
             return
         end if
@@ -198,7 +198,7 @@ contains
         integer :: k, j, m
         character(len=3) :: fname
 
-        if (keymap_live_p(xterm_map)) then
+        if (is_keymap_live(xterm_map)) then
             map = xterm_map
             return
         end if
@@ -344,7 +344,7 @@ contains
 
         map = xterm_function_map()
 
-        if (.not. keymap_live_p(input_decode_map)) then
+        if (.not. is_keymap_live(input_decode_map)) then
             call make_sparse_keymap(input_decode_map)
         end if
 

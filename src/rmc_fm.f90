@@ -30,7 +30,7 @@ module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, fixnump, xfixnum, make_fixnum
+    use lisp_fm, only: value_type, xfixnum, make_fixnum, vtag, V_INTEGER
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
                          kill_buffer
     use insdel_fm, only: insert
@@ -38,9 +38,9 @@ module rmc_fm
     use keymap_fm, only: single_key_description
     use subr_fm, only: read_key, query_replace_answer, ANSWER_RECENTER, ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN, &
                        ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_EDIT
-    use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, window_live_p, &
+    use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, is_window_live, &
                          recenter, scroll_up_command, scroll_down_command
-    use lisp_fm, only: make_keymap_ref, nilp, make_string, make_list, command_type
+    use lisp_fm, only: make_keymap_ref, make_string, make_list, command_type
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
@@ -49,7 +49,7 @@ module rmc_fm
     use keyboard_fm, only: recursive_edit, this_command, real_this_command, last_command_event, sit_for
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, &
                           completion_list_table
-    use minibuffer_fm, only: exit_minibuffer, minibuffer_message, completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: exit_minibuffer, minibuffer_message, completing_read, REQUIRE_MATCH_YES
     use frame_fm, only: selected_frame, selected_window
     use dispnew_fm, only: ding
     use xdisp_fm, only: message
@@ -181,7 +181,7 @@ contains
             end if
 
             if (rmc_shown) then
-                if (window_live_p(rmc_help_window)) call delete_window(rmc_help_window, st)
+                if (is_window_live(rmc_help_window)) call delete_window(rmc_help_window, st)
                 call kill_buffer(rmc_buf, st)
             end if
         end if
@@ -236,7 +236,7 @@ contains
 
             if (.not. status%ok()) return
             c = -1
-            if (fixnump(key)) c = int(xfixnum(key))
+            if (vtag(key) == V_INTEGER) c = int(xfixnum(key))
 
             if (c == 7) then
                 call set_error(status, FM_QUIT)
@@ -247,11 +247,11 @@ contains
 
             select case (query_replace_answer(key))
             case (ANSWER_RECENTER)
-                call recenter(nil(), .false., st)
+                call recenter(value_type(), .false., st)
             case (ANSWER_SCROLL_UP)
-                call scroll_up_command(nil(), st)
+                call scroll_up_command(value_type(), st)
             case (ANSWER_SCROLL_DOWN)
-                call scroll_down_command(nil(), st)
+                call scroll_down_command(value_type(), st)
             case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
                 ! scroll-other-window and scroll-other-window-down are not
                 ! ported (Deferred).
@@ -284,7 +284,7 @@ contains
     !> Read short answers from the minibuffer.  Port of
     !> rmc.el:read-multiple-choice--from-minibuffer (the keymap's
     !> [remap self-insert-command] is flattened, as keymap_fm has no
-    !> remapping; its [help-char] binding binds a symbol event, which
+    !> remapping; its [help-char] binding binds a name event, which
     !> never arrives).
     recursive subroutine from_minibuffer(answer, status)
         type(value_type) :: key1(1)
@@ -309,7 +309,7 @@ contains
         do c = 0, 127
             key1(1) = make_fixnum(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
-            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+            if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
             if (value_eq(b, sym("self_insert_command"))) then
                 call define_key(map, key1, sym("rmc__wrong"), st)
@@ -358,17 +358,17 @@ contains
         call cmd_wrong%define()
     end subroutine define_commands
 
-    !> cmd-char: the key is the answer.  Port of the cmd-char lambda of
+    !> cmd-char: the key is the answer.  Port of the cmd-char procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_char(status)
         type(status_type), intent(out) :: status
 
         rmc_tchar = -1
-        if (fixnump(last_command_event)) rmc_tchar = int(xfixnum(last_command_event))
+        if (vtag(last_command_event) == V_INTEGER) rmc_tchar = int(xfixnum(last_command_event))
         call exit_minibuffer(status)
     end subroutine rmc_char
 
-    !> cmd-help: show the help.  Port of the cmd-help lambda of
+    !> cmd-help: show the help.  Port of the cmd-help procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_help(status)
         type(status_type), intent(out) :: status
@@ -377,7 +377,7 @@ contains
         call show_help_window()
     end subroutine rmc_help
 
-    !> cmd-wrong: an invalid choice.  Port of the cmd-wrong lambda of
+    !> cmd-wrong: an invalid choice.  Port of the cmd-wrong procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_wrong(status)
         type(status_type), intent(out) :: status
@@ -411,7 +411,7 @@ contains
 
         full = full//") "
         call completing_read(full, completion_list_table(make_list(names)), result, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         do k = 1, size(choices)
@@ -449,7 +449,7 @@ contains
         call set_buffer(previous, st)
 
         if (rmc_shown) then
-            if (window_live_p(rmc_help_window)) return
+            if (is_window_live(rmc_help_window)) return
         end if
 
         rmc_shown = .true.
@@ -476,7 +476,7 @@ contains
         type(window_type), pointer :: w
 
         columns = 80/25
-        if (.not. window_live_p(selected_window())) return
+        if (.not. is_window_live(selected_window())) return
         w => window_ref(selected_window())
         if (w%total_cols > 0) columns = max(1, w%total_cols/25)
     end function help_columns

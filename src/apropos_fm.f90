@@ -31,8 +31,8 @@
 !> stand for upstream's buttons.
 !>
 !> Deferred: `apropos' itself and `apropos_value', `apropos_library',
-!> `apropos_local_variable', `apropos_local_value' (they need symbol
-!> property lists, faces, libraries or values of every symbol), the
+!> `apropos_local_variable', `apropos_local_value' (they need name
+!> attributes, faces, libraries or values of every name), the
 !> scores of `apropos_sort_by_scores' (the default, false, sorts by
 !> name; `apropos_documentation' sorts by score as upstream), faces of
 !> entries and matches, mouse buttons, `apropos_compact_layout',
@@ -43,16 +43,16 @@ module apropos_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, symbols, nsymbols, list_elements, make_string, xstring, stringp
+    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, make_string, xstring, vtag, V_STRING
     use lread_fm, only: sym
-    use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, buffer_live_p, get_buffer_create, &
+    use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, is_buffer_live, get_buffer_create, &
                          kill_buffer, generate_new_buffer_name
     use editfns_fm, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
     use insdel_fm, only: insert
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change
     use search_fm, only: string_match, regexp_quote, match_end
     use keymap_fm, only: key_description, where_is_internal, keymap_set, make_sparse_keymap
-    use callint_fm, only: commandp, current_prefix_arg, fboundp
+    use callint_fm, only: is_command, current_prefix_arg, fboundp
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use fill_fm, only: fill_region
@@ -70,7 +70,7 @@ module apropos_fm
 
     public :: apropos_command, apropos_documentation, apropos_read_pattern, apropos_parse_pattern, apropos_mode, &
               apropos_words_to_regexp, apropos_true_hit, apropos_calc_scores, apropos_pattern, apropos_regexp, &
-              apropos_all_words_regexp, syms_of_apropos, apropos_score_doc, apropos_score_symbol, button_at
+              apropos_all_words_regexp, syms_of_apropos, apropos_score_doc, apropos_score_name, button_at
     public :: VAR_NONE, VAR_USER_OPTION, VAR_ANY
 
     !> What `apropos_command' lists: functions (VAR_NONE), user options or
@@ -117,7 +117,7 @@ module apropos_fm
                                                                                                                  "region selection"]
 
     !> An entry of the apropos accumulator: SYMBOL SCORE FN-DOC VAR-DOC
-    !> (the docs unallocated for nil).
+    !> (the docs unallocated when there are none).
     type :: apropos_item_type
         character(len=:), allocatable :: name
         integer(int64) :: score = 0
@@ -150,7 +150,7 @@ module apropos_fm
             type(status_type), intent(out) :: status
         end subroutine apropos_command
 
-        !> Show symbols whose documentation contains matches for PATTERN.
+        !> Show names whose documentation contains matches for PATTERN.
         !> PATTERN can be a word, a list of words (separated by spaces),
         !> or a regexp (using some regexp special characters).  If it is a word,
         !> search for matches for that word as a substring.  If it is a list of words,
@@ -442,7 +442,7 @@ contains
 
     !> Return apropos score for SYMBOL (a name), times WEIGHT.  Port of
     !> apropos.el:apropos-score-symbol.
-    integer(int64) function apropos_score_symbol(name, weight) result(score)
+    integer(int64) function apropos_score_name(name, weight) result(score)
         character(len=*), intent(in) :: name
         integer, intent(in) :: weight
         integer(int64), allocatable :: scores(:)
@@ -458,7 +458,7 @@ contains
         end do
 
         score = score*weight
-    end function apropos_score_symbol
+    end function apropos_score_name
 
     ! ------------------------------------------------------------------
     ! Apropos mode
@@ -487,10 +487,10 @@ contains
         type = ""
         name = ""
         call get_text_property(pos, sym(P_BUTTON), v, st)
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         type = symbols_name(v)
         call get_text_property(pos, sym(P_NAME), v, st)
-        if (stringp(v)) name = xstring(v)
+        if (vtag(v) == V_STRING) name = xstring(v)
     end subroutine button_at
 
     ! Not a port.
@@ -505,40 +505,40 @@ contains
     end function symbols_name
 
     !> Whether the line at point starts with an entry's name.  Not a port.
-    logical function at_symbol_p()
+    logical function is_at_name()
         character(len=:), allocatable :: type, name
 
         call button_at(buffers(cur)%pt, type, name)
-        at_symbol_p = type == "apropos_symbol"
-    end function at_symbol_p
+        is_at_name = type == "apropos_symbol"
+    end function is_at_name
 
-    !> Move cursor down to the next symbol in an `apropos_mode' buffer.
+    !> Move cursor down to the next name in an `apropos_mode' buffer.
     !> Port of apropos.el:apropos-next-symbol.
-    subroutine apropos_next_symbol(status)
+    subroutine apropos_next_name(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
         status = status_type()
         shortage = forward_line(1_int64)
 
-        do while (.not. at_symbol_p() .and. buffers(cur)%pt < point_max())
+        do while (.not. is_at_name() .and. buffers(cur)%pt < point_max())
             shortage = forward_line(1_int64)
         end do
-    end subroutine apropos_next_symbol
+    end subroutine apropos_next_name
 
-    !> Move cursor back to the last symbol in an `apropos_mode' buffer.
+    !> Move cursor back to the last name in an `apropos_mode' buffer.
     !> Port of apropos.el:apropos-previous-symbol.
-    subroutine apropos_previous_symbol(status)
+    subroutine apropos_previous_name(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
         status = status_type()
         shortage = forward_line(-1_int64)
 
-        do while (.not. at_symbol_p() .and. buffers(cur)%pt > point_min())
+        do while (.not. is_at_name() .and. buffers(cur)%pt > point_min())
             shortage = forward_line(-1_int64)
         end do
-    end subroutine apropos_previous_symbol
+    end subroutine apropos_previous_name
 
     ! ------------------------------------------------------------------
     ! Interactive commands
@@ -558,7 +558,7 @@ contains
         type(apropos_word_type), allocatable :: words(:)
         logical :: do_all
 
-        do_all = .not. nilp(current_prefix_arg)
+        do_all = allocated(current_prefix_arg%a)
 
         if (do_all) then
             call apropos_read_pattern("command or function", pattern, words, status)
@@ -602,7 +602,7 @@ contains
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call apropos_read_pattern("variable", pattern, words, status)
             if (.not. status%ok()) return
             call apropos_command(pattern, words, .true., VAR_ANY, status)
@@ -622,7 +622,7 @@ contains
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call apropos_read_pattern("user option", pattern, words, status)
             if (.not. status%ok()) return
             call apropos_command(pattern, words, .false., VAR_USER_OPTION, status)
@@ -633,13 +633,13 @@ contains
         end if
     end subroutine cmd_apropos_variable
 
-    !> Show symbols whose documentation contains matches for PATTERN.
+    !> Show names whose documentation contains matches for PATTERN.
     !> PATTERN can be a word, a list of words (separated by spaces),
     !> or a regexp (using some regexp special characters).  If it is a word,
     !> search for matches for that word as a substring.  If it is a list of words,
     !> search for matches for any two (or more) of those words.
     !>
-    !> Returns list of symbols and documentation found.  Port of
+    !> Returns list of names and documentation found.  Port of
     !> apropos.el:apropos-documentation (the command).
     recursive subroutine cmd_apropos_documentation(status)
         type(status_type), intent(out) :: status
@@ -662,13 +662,13 @@ contains
         ! of RET, so that users can use it anywhere in an apropos item.
         call keymap_set(apropos_mode_map, "C-m", "apropos_follow", st)
         ! Movement keys.
-        call keymap_set(apropos_mode_map, "n", "apropos_next_symbol", st)
-        call keymap_set(apropos_mode_map, "p", "apropos_previous_symbol", st)
+        call keymap_set(apropos_mode_map, "n", "apropos_next_name", st)
+        call keymap_set(apropos_mode_map, "p", "apropos_previous_name", st)
         call register_keymap_name("apropos_mode_map", apropos_mode_map)
         commands%apropos_mode%run => apropos_mode
         commands%apropos_follow%run => apropos_follow
-        commands%apropos_next_symbol%run => apropos_next_symbol
-        commands%apropos_previous_symbol%run => apropos_previous_symbol
+        commands%apropos_next_name%run => apropos_next_name
+        commands%apropos_previous_name%run => apropos_previous_name
         commands%apropos_command%run => cmd_apropos_command
         commands%apropos_function%run => cmd_apropos_function
         commands%apropos_user_option%run => cmd_apropos_user_option

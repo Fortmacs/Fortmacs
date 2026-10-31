@@ -26,7 +26,7 @@
 !> `revert_buffer': a submodule because they use callproc_fm and dired_fm,
 !> which use files_fm.
 submodule(files_fm) files_dir_fm
-    use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value, nil
+    use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value, value_type
     use lread_fm, only: read_string_literal
     use callproc_fm, only: call_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files
@@ -34,10 +34,10 @@ submodule(files_fm) files_dir_fm
     use subr_fm, only: match_string
     use textprop_fm, only: put_text_property
     use cmds_fm, only: forward_line
-    use editfns_fm, only: line_end_position, char_after, bolp, eolp
-    use fileio_fm, only: file_name_absolute_p, delete_file_internal, delete_directory_internal, file_system_info, &
+    use editfns_fm, only: line_end_position, char_after, is_bol, is_eol
+    use fileio_fm, only: is_file_name_absolute, delete_file_internal, delete_directory_internal, file_system_info, &
                          emacs_wd
-    use character_fm, only: string_char_and_length, char_byte8_p
+    use character_fm, only: string_char_and_length, is_char_byte8
     use casefiddle_fm, only: downcase_string
     use minibuffer_fm, only: read_file_name_completion_ignore_case
     use sysdep_fm, only: emacs_readlink, emacs_mkostemp, close_fd
@@ -89,10 +89,10 @@ contains
         sh = shell_file_name%value
     end function shell_name
 
-    recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory_p)
+    recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory)
         character(len=*), intent(in) :: file, switches
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: wildcard, full_directory_p
+        logical, intent(in), optional :: wildcard, full_directory
         character(len=:), allocatable :: errfile, dir, pattern, command, sw, f, saved_dir
         type(value_type) :: result, parts, args
         type(value_type), allocatable :: elems(:), argv(:)
@@ -106,7 +106,7 @@ contains
         wild = .false.
         if (present(wildcard)) wild = wildcard
         full = .false.
-        if (present(full_directory_p)) full = full_directory_p
+        if (present(full_directory)) full = full_directory
         beg = point()
         call make_temp_file("lserr", errfile, status)
         if (.not. status%ok()) return
@@ -117,10 +117,10 @@ contains
             ! argument.  Otherwise, run ls in the longest subdirectory of the
             ! directory part free of wildcards; use the remaining of the file
             ! pattern as argument.
-            if (insert_directory_wildcard_in_dir_p(file, dir, pattern)) then
+            if (is_insert_directory_wildcard_in_dir(file, dir, pattern)) then
                 continue
             else
-                if (file_name_absolute_p(file)) then
+                if (is_file_name_absolute(file)) then
                     dir = file_name_directory(file)
                 else
                     call expand_file_name(file, f, status)
@@ -316,7 +316,7 @@ contains
                 c = buf_fetch_char(buffers(cur), char_to_byte(pos))
                 n = buf_next_char_len(buffers(cur), char_to_byte(pos))
                 ext = n
-                if (char_byte8_p(c)) ext = 1
+                if (is_char_byte8(c)) ext = 1
                 byte = byte + ext
                 pos = pos + 1
             end do
@@ -348,7 +348,7 @@ contains
         end subroutine next_number
     end subroutine insert_directory_clean
 
-    module function insert_directory_wildcard_in_dir_p(dir, directory, wildcard) result(found)
+    module function is_insert_directory_wildcard_in_dir(dir, directory, wildcard) result(found)
         character(len=*), intent(in) :: dir
         character(len=:), allocatable, intent(out), optional :: directory, wildcard
         logical :: found
@@ -357,12 +357,12 @@ contains
         found = .false.
         if (string_match("[[?*]", file_name_directory(dir), st, inhibit_modify=.true.) == 0) return
         ! Prefer an existing file to wildcards.
-        if (file_exists_p(dir)) return
+        if (file_exists(dir)) return
         if (string_match("\`\([^[?*]*/\)\([^[?*]*[[?*].*\)", dir, st) == 0) return
         found = .true.
         if (present(directory)) directory = match_string(1, dir)
         if (present(wildcard)) wildcard = match_string(2, dir)
-    end function insert_directory_wildcard_in_dir_p
+    end function is_insert_directory_wildcard_in_dir
 
     module subroutine split_string_and_unquote(string, parts, status)
         character(len=*), intent(in) :: string
@@ -469,7 +469,7 @@ contains
         end do
     end function shell_quote_wildcard_pattern
 
-    module function string_prefix_p(prefix, string, ignore_case) result(p)
+    module function is_string_prefix(prefix, string, ignore_case) result(p)
         character(len=*), intent(in) :: prefix, string
         logical, intent(in), optional :: ignore_case
         logical :: p
@@ -485,7 +485,7 @@ contains
         else
             p = prefix == string(1:len(prefix))
         end if
-    end function string_prefix_p
+    end function is_string_prefix
 
     ! ------------------------------------------------------------------
     ! File names
@@ -600,7 +600,7 @@ contains
                 ! Is the file name the name of a link?
                 target = ""
                 err = -1
-                if (file_symlink_p(filename)) err = emacs_readlink(filename, target)
+                if (is_file_symlink(filename)) err = emacs_readlink(filename, target)
 
                 if (err == 0) then
                     ! Yes => chase that link, then start all over since the
@@ -773,13 +773,13 @@ contains
         end if
     end function file_name_sans_extension
 
-    module function auto_save_file_name_p(filename) result(p)
+    module function is_auto_save_file_name(filename) result(p)
         character(len=*), intent(in) :: filename
         logical :: p
         type(status_type) :: st
 
         p = string_match("\`#.*#\'", filename, st) > 0
-    end function auto_save_file_name_p
+    end function is_auto_save_file_name
 
     module function file_size_human_readable(file_size, flavor, space, unit) result(text)
         real(real64), intent(in) :: file_size
@@ -878,7 +878,7 @@ contains
 
         status = status_type()
 
-        if (file_directory_p(filename) .and. .not. file_symlink_p(filename)) then
+        if (is_file_directory(filename) .and. .not. is_file_symlink(filename)) then
             call set_error(status, FM_FILE_ERROR, "Removing old name: is a directory: "//filename)
             return
         end if
@@ -907,7 +907,7 @@ contains
         ! Call ourselves recursively if needed.
         proceed = .true.
 
-        if (rec .and. .not. file_symlink_p(dir)) then
+        if (rec .and. .not. is_file_symlink(dir)) then
             call directory_files(dir, files, st, full=.true.)
 
             if (.not. st%ok()) then
@@ -927,7 +927,7 @@ contains
 
                     ! This test is equivalent to but more efficient than
                     ! (and (file-directory-p fn) (not (file-symlink-p fn))).
-                    if (file_directory_p(name) .and. .not. file_symlink_p(name)) then
+                    if (is_file_directory(name) .and. .not. is_file_symlink(name)) then
                         call delete_directory(name, status, rec)
                         if (.not. status%ok()) return
                     else
@@ -997,7 +997,7 @@ contains
     !> The arguments IGNORE_AUTO and NOCONFIRM are as described for `revert_buffer'.
     !> Runs the hooks `before_revert_hook' and `after_revert_hook' at the
     !> start and end.
-    !> The function signals an error if the buffer is not associated with
+    !> An error condition occurs if the buffer is not associated with
     !> a file.
     !>
     !> Calls `revert_buffer_insert_file_contents__default_function' to
@@ -1011,8 +1011,8 @@ contains
     !> are no auto-save files or indirect buffers, so it always reverts
     !> from the visited file).
     recursive subroutine revert_buffer_default(ignore_auto, noconfirm, status)
-        use fns_fm, only: yes_or_no_p
-        use buffer_fm, only: buffer_modified_p, inhibit_read_only
+        use fns_fm, only: read_yes_or_no
+        use buffer_fm, only: is_buffer_modified, inhibit_read_only
         use data_fm, only: set
         use lisp_fm, only: value_type
         logical, intent(in) :: ignore_auto, noconfirm
@@ -1034,7 +1034,7 @@ contains
         end if
 
         file_name = buffers(cur)%filename
-        call buffer_modified_p(current_buffer(), modified, st)
+        call is_buffer_modified(current_buffer(), modified, st)
         proceed = noconfirm
 
         if (.not. proceed .and. .not. modified .and. allocated(revert_without_query)) then
@@ -1048,9 +1048,9 @@ contains
 
         if (.not. proceed) then
             if (modified) then
-                call yes_or_no_p("Discard edits and reread from "//file_name//"? ", proceed, status)
+                call read_yes_or_no("Discard edits and reread from "//file_name//"? ", proceed, status)
             else
-                call yes_or_no_p("Revert buffer from file "//file_name//"? ", proceed, status)
+                call read_yes_or_no("Revert buffer from file "//file_name//"? ", proceed, status)
             end if
 
             if (.not. status%ok() .or. .not. proceed) return
@@ -1098,7 +1098,7 @@ contains
         ! buffer_file_number: the file existed when last visited or saved.
         file_number = buffers(cur)%modtime_known .and. buffers(cur)%modtime_nsec /= NONEXISTENT_MODTIME_NSECS
 
-        if (.not. file_exists_p(file_name)) then
+        if (.not. file_exists(file_name)) then
             if (file_number) then
                 call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer exists!")
             else
@@ -1108,7 +1108,7 @@ contains
             return
         end if
 
-        if (.not. file_readable_p(file_name)) then
+        if (.not. is_file_readable(file_name)) then
             if (file_number) then
                 call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer readable!")
             else
@@ -1143,7 +1143,7 @@ contains
 
     module procedure file_backup_file_names
     use dired_fm, only: file_name_all_completions
-    use fileio_fm, only: file_directory_p, file_newer_than_file_p, expand_file_name, file_name_directory, &
+    use fileio_fm, only: is_file_directory, is_file_newer_than_file, expand_file_name, file_name_directory, &
                          file_name_nondirectory
     character(len=:), allocatable :: name, expanded, dir, candidate, tmp
     type(value_type) :: all
@@ -1156,14 +1156,14 @@ contains
     type(status_type) :: st
     integer :: k, n, i, j
 
-    names = nil()
+    names = value_type()
     ! `make-backup-file-name' will get us the right directory for
     ! ordinary or numeric backups.
     call expand_file_name(filename, expanded, st)
     if (.not. st%ok()) return
     name = file_name_sans_versions(make_backup_file_name(expanded))
     dir = file_name_directory(name)
-    if (.not. file_directory_p(dir)) return
+    if (.not. is_file_directory(dir)) return
     call file_name_all_completions(file_name_nondirectory(name), dir, all, st)
     if (.not. st%ok()) return
     call list_elements(all, elts)
@@ -1172,7 +1172,7 @@ contains
 
     do k = 1, size(elts)
         candidate = dir//xstring(elts(k))
-        if (.not. backup_file_name_p(candidate)) cycle
+        if (.not. is_backup_file_name(candidate)) cycle
         s1 = file_name_sans_versions(candidate)
         if (s1 /= name .or. len(s1) /= len(name)) cycle
         n = n + 1
@@ -1185,7 +1185,7 @@ contains
         j = i - 1
 
         do while (j >= 1)
-            if (.not. file_newer_than_file_p(tmp, kept(j)%s)) exit
+            if (.not. is_file_newer_than_file(tmp, kept(j)%s)) exit
             kept(j + 1)%s = kept(j)%s
             j = j - 1
         end do

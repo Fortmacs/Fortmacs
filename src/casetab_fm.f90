@@ -43,7 +43,7 @@ module casetab_fm
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
     use buffer_fm, only: buffers, cur
-    use chartab_fm, only: make_char_table, char_table_p, char_table_subtype, char_table_extra_table, &
+    use chartab_fm, only: make_char_table, is_char_table, char_table_subtype, char_table_extra_table, &
                           set_char_table_extra_table, char_table_ref, char_table_set, set_char_table_range, &
                           map_char_table, copy_char_table
     use uni_case_fm, only: down_count, down_keys, down_values, up_count, up_keys, up_values, &
@@ -51,8 +51,8 @@ module casetab_fm
     implicit none(type, external)
     private
 
-    public :: downcase, upcase, case_canon, uppercasep, lowercasep
-    public :: case_table_p, current_case_table, standard_case_table, set_case_table, set_standard_case_table
+    public :: downcase, upcase, case_canon, is_uppercase, is_lowercase
+    public :: is_case_table, current_case_table, standard_case_table, set_case_table, set_standard_case_table
 
     !> The standard case table and its companions (casetab.c
     !> Vascii_downcase_table, Vascii_upcase_table, Vascii_canon_table,
@@ -132,7 +132,7 @@ contains
 
         h = buffer_table(1)
 
-        if (char_table_p(h)) then
+        if (is_char_table(h)) then
             down = char_table_ref(h, c)
             downcase = c
             if (down >= 0) downcase = int(down, int32)
@@ -153,7 +153,7 @@ contains
 
         h = buffer_table(2)
 
-        if (char_table_p(h)) then
+        if (is_char_table(h)) then
             up = char_table_ref(h, c)
             upcase = c
             if (up >= 0) upcase = int(up, int32)
@@ -176,7 +176,7 @@ contains
 
         h = buffer_table(3)
 
-        if (char_table_p(h)) then
+        if (is_char_table(h)) then
             ch = char_table_ref(h, c)
             case_canon = c
             if (ch >= 0) case_canon = int(ch, int32)
@@ -188,61 +188,54 @@ contains
     end function case_canon
 
     !> True if C is upper case.  Port of buffer.h:uppercasep.
-    elemental logical function uppercasep(c)
+    elemental logical function is_uppercase(c)
         integer(int32), intent(in) :: c
 
-        uppercasep = downcase(c) /= c
-    end function uppercasep
+        is_uppercase = downcase(c) /= c
+    end function is_uppercase
 
     !> True if C is lower case.  Port of buffer.h:lowercasep.
-    elemental logical function lowercasep(c)
+    elemental logical function is_lowercase(c)
         integer(int32), intent(in) :: c
 
-        lowercasep = .not. uppercasep(c) .and. upcase(c) /= c
-    end function lowercasep
+        is_lowercase = .not. is_uppercase(c) .and. upcase(c) /= c
+    end function is_lowercase
 
     ! ------------------------------------------------------------------
     ! Case tables
     ! ------------------------------------------------------------------
 
-    !> Whether H is the null handle (nil in an extra slot).  Not a port.
-    pure logical function null_p(h)
-        type(handle_type), intent(in) :: h
-
-        null_p = h%index == 0
-    end function null_p
-
     !> Return true if OBJECT is a case table.
     !> See `set_case_table' for more information on these data structures.
     !> Port of casetab.c:Fcase_table_p.
-    logical function case_table_p(object)
+    logical function is_case_table(object)
         type(handle_type), intent(in) :: object
         type(handle_type) :: up, canon, eqv
         type(status_type) :: status
 
-        case_table_p = .false.
-        if (.not. char_table_p(object)) return
+        is_case_table = .false.
+        if (.not. is_char_table(object)) return
         if (char_table_subtype(object, status) /= "case_table") return
         up = char_table_extra_table(object, 0, status)
         if (.not. status%ok()) return
         canon = char_table_extra_table(object, 1, status)
         eqv = char_table_extra_table(object, 2, status)
-        case_table_p = null_p(up) .or. char_table_p(up)
+        is_case_table = up%index == 0 .or. is_char_table(up)
 
-        if (case_table_p) then
-            case_table_p = null_p(canon) .and. null_p(eqv)
-            if (.not. case_table_p .and. char_table_p(canon)) case_table_p = null_p(eqv) .or. char_table_p(eqv)
+        if (is_case_table) then
+            is_case_table = canon%index == 0 .and. eqv%index == 0
+            if (.not. is_case_table .and. is_char_table(canon)) is_case_table = eqv%index == 0 .or. is_char_table(eqv)
         end if
-    end function case_table_p
+    end function is_case_table
 
-    !> Signal wrong-type-argument unless OBJ is a case table.  Port of
+    !> A `wrong_type_argument' error condition occurs unless OBJ is a case table.  Port of
     !> casetab.c:check_case_table.
     subroutine check_case_table(obj, status)
         type(handle_type), intent(in) :: obj
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. case_table_p(obj)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "case_table_p")
+        if (.not. is_case_table(obj)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected case table type(char_table_type)")
     end subroutine check_case_table
 
     !> Return the case table of the current buffer.  Port of
@@ -261,7 +254,7 @@ contains
     function standard_case_table() result(h)
         type(handle_type) :: h
 
-        if (.not. char_table_p(ascii_downcase_table)) call init_casetab_once()
+        if (.not. is_char_table(ascii_downcase_table)) call init_casetab_once()
         h = ascii_downcase_table
     end function standard_case_table
 
@@ -286,7 +279,7 @@ contains
         type(handle_type), intent(in) :: table
         type(status_type), intent(out) :: status
 
-        if (.not. char_table_p(ascii_downcase_table)) call init_casetab_once()
+        if (.not. is_char_table(ascii_downcase_table)) call init_casetab_once()
         call set_case_table_1(table, .false., status)
     end subroutine set_case_table
 
@@ -298,7 +291,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        if (.not. char_table_p(ascii_downcase_table)) call init_casetab_once()
+        if (.not. is_char_table(ascii_downcase_table)) call init_casetab_once()
         call check_case_table(table, status)
         if (.not. status%ok()) return
 
@@ -332,14 +325,14 @@ contains
         canon = char_table_extra_table(table, 1, st)
         eqv = char_table_extra_table(table, 2, st)
 
-        if (null_p(up)) then
+        if (up%index == 0) then
             call make_char_table(up, "case_table", st)
             call map_char_table(set_identity, table, st, up)
             call map_char_table(shuffle, table, st, up)
             call set_char_table_extra_table(table, 0, up, st)
         end if
 
-        if (null_p(canon)) then
+        if (canon%index == 0) then
             call make_char_table(canon, "case_table", st)
             call set_char_table_extra_table(table, 1, canon, st)
             map_status = status_type()
@@ -351,7 +344,7 @@ contains
             end if
         end if
 
-        if (null_p(eqv)) then
+        if (eqv%index == 0) then
             call make_char_table(eqv, "case_table", st)
             call map_char_table(set_identity, canon, st, eqv)
             call map_char_table(shuffle, canon, st, eqv)
@@ -393,7 +386,7 @@ contains
         u = char_table_ref(up, int(elt))
 
         if (u < 0) then
-            call set_error(map_status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(map_status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 

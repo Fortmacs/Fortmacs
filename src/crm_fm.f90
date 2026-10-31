@@ -31,21 +31,20 @@ module crm_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_list, list, stringp, xstring
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
-    use editfns_fm, only: point, goto_char, point_max, eobp, buffer_string
+    use editfns_fm, only: point, goto_char, point_max, is_eob, buffer_string
     use search_fm, only: re_search_forward, re_search_backward, looking_at, match_beginning, match_end, string_match, &
                          string_index_to_offset, string_chars
-    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, use_local_map, keymap_live_p, free_keymap
-    use lisp_fm, only: list_elements
+    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, use_local_map, is_keymap_live, free_keymap
+    use lisp_fm, only: list_elements, value_type, make_list, list, xstring
     use commands_fm, only: commands
     use minibuf_fm, only: minibuffer_prompt_end, minibuffer_setup_function, minibuffer_setup_proc, minibuf_level
     use minibuf_table_fm, only: completion_table_type, completion_predicate, TABLE_FUNCTION
     use minibuffer_fm, only: completing_read, completion_table_with_context, completion_in_region, &
                              minibuffer_completion_help, completion_complete_and_exit, completion_do_completion, &
                              minibuffer_completion_table, minibuffer_completion_predicate, exit_minibuffer, &
-                             minibuffer_local_completion_map, minibuffer_local_must_match_map, REQUIRE_MATCH_NIL
+                             minibuffer_local_completion_map, minibuffer_local_must_match_map, REQUIRE_MATCH_NO
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     implicit none(type, external)
     private
@@ -207,7 +206,6 @@ contains
     !> crm.el:crm-complete-and-exit (NO_EXIT is the prefix argument).
     recursive subroutine crm_complete_and_exit(status)
         use callint_fm, only: current_prefix_arg
-        use lisp_fm, only: nilp
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end, m, endpos
         type(handle_type) :: endm
@@ -215,7 +213,7 @@ contains
         logical :: more
 
         status = status_type()
-        doexit = nilp(current_prefix_arg)
+        doexit = .not. allocated(current_prefix_arg%a)
         call goto_char(minibuffer_prompt_end())
 
         do
@@ -229,7 +227,7 @@ contains
             call free_marker(endm, st)
             call goto_char(endpos)
             if (.not. status%ok()) return
-            more = .not. eobp()
+            more = .not. is_eob()
             if (.not. more) exit
             if (.not. looking_at(crm_separator, st)) exit
             ! Skip to the next element.
@@ -292,12 +290,12 @@ contains
         character(len=:), allocatable :: input
         integer :: match
 
-        match = REQUIRE_MATCH_NIL
+        match = REQUIRE_MATCH_NO
         if (present(require_match)) match = require_match
         saved_table = crm_completion_table
         saved_map = crm_map
 
-        if (match /= REQUIRE_MATCH_NIL) then
+        if (match /= REQUIRE_MATCH_NO) then
             crm_map = crm_local_must_match_map
         else
             crm_map = crm_local_completion_map
@@ -447,14 +445,14 @@ contains
         commands%crm_complete_word%run => crm_complete_word
         commands%crm_completion_help%run => crm_completion_help
         commands%crm_complete_and_exit%run => crm_complete_and_exit
-        if (keymap_live_p(crm_local_completion_map)) call free_keymap(crm_local_completion_map, st)
+        if (is_keymap_live(crm_local_completion_map)) call free_keymap(crm_local_completion_map, st)
         call make_sparse_keymap(crm_local_completion_map)
         call set_keymap_parent(crm_local_completion_map, minibuffer_local_completion_map, st)
         call remap(crm_local_completion_map, "minibuffer_complete", "crm_complete")
         call remap(crm_local_completion_map, "minibuffer_complete_word", "crm_complete_word")
         call remap(crm_local_completion_map, "minibuffer_completion_help", "crm_completion_help")
         ! We'd want to have multiple inheritance here.
-        if (keymap_live_p(crm_local_must_match_map)) call free_keymap(crm_local_must_match_map, st)
+        if (is_keymap_live(crm_local_must_match_map)) call free_keymap(crm_local_must_match_map, st)
         call make_sparse_keymap(crm_local_must_match_map)
         call set_keymap_parent(crm_local_must_match_map, minibuffer_local_must_match_map, st)
         call remap(crm_local_must_match_map, "minibuffer_complete", "crm_complete")

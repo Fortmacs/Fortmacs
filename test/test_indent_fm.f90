@@ -43,13 +43,12 @@ module test_indent_fm
     use keymap_fm, only: key_parse
     use simple_fm, only: line_move, goal_column, line_move_visual
     use keyboard_fm, only: unread_command_events, discard_input, command_loop, last_command
-    use lisp_fm, only: nil
     use bindings_fm, only: init_bindings
     use keyboard_fm, only: last_message
     use data_fm, only: kill_local_variable
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
-    use simple_fm, only: region_active_p
+    use simple_fm, only: is_region_active
     use indent_fm, only: indent_line_function, indent_for_tab_command, indent_region_line_by_line
     implicit none(type, external)
     private
@@ -114,7 +113,7 @@ contains
         call insert(text, st)
         call goto_char(1_int64)
         ! A fresh goal column: the last command wasn't a line move.
-        last_command = nil()
+        last_command = value_type()
         selected_frame%minibuffer_selected = .false.
         sw => frame_selected_window_ref()
         sw%total_cols = cols
@@ -461,14 +460,14 @@ contains
         call key_parse("<right>", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, buffer_string() == "  a"//LF//"  b" .and. region_active_p() .and. &
+        call check(error, buffer_string() == "  a"//LF//"  b" .and. is_region_active() .and. &
                    last_message == "Type TAB, <left>, <right>, S-<left>, S-<right> to indent region interactively", &
                    buffer_string()//"|"//last_message)
         if (allocated(error)) return
         call key_parse("C-e", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error,.not. region_active_p() .and. last_message == "", "exit: "//last_message)
+        call check(error,.not. is_region_active() .and. last_message == "", "exit: "//last_message)
         if (allocated(error)) return
         ! The second <right> removed the undo boundary after the first:
         ! one undo takes back both.
@@ -501,7 +500,7 @@ contains
         indent_tabs_mode = .false.
         call goto_char(7_int64)
         call indent_line_function%set_local(cannot_indent)
-        call indent_for_tab_command(nil(), st)
+        call indent_for_tab_command(value_type(), st)
         call kill_local_variable(sym("indent_line_function"), st)
         call check(error, buffer_string(), "    a"//LF//"    b")
         indent_tabs_mode = .true.

@@ -41,7 +41,7 @@ contains
     pt = point()
     w => selected_window_ref()
     visible = .false.
-    if (shows_current_buffer(w)) visible = pos_visible_in_window_p(mk, w)
+    if (shows_current_buffer(w)) visible = is_pos_visible_in_window(mk, w)
 
     if (visible) then
         ! Swap point-and-mark quickly so as to show the region that was

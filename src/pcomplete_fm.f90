@@ -29,10 +29,10 @@
 !> A completion function walks the arguments with `pcomplete_here': it
 !> returns true and moves to the next argument while the final argument
 !> is not reached, and at the final argument gives the completion table
-!> of its FORM and returns false (upstream's throw to
+!> of its FORM and returns false (upstream's return to
 !> `pcomplete-completions').  A completion function returns as soon as
 !> `pcomplete_here' returns false or `pcomplete_thrown' is true (no
-!> completions: upstream's throw to `pcompleted').
+!> completions: upstream's return to `pcompleted').
 !>
 !> Deferred: pcomplete's own UI (`pcomplete', `pcomplete_reverse',
 !> `pcomplete_expand_and_complete', `pcomplete_continue',
@@ -51,18 +51,18 @@
 module pcomplete_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nil, nilp, make_string, make_list, list, list_elements, list_length, list_elt, &
-                       stringp, xstring, fixnump, xfixnum, make_fixnum
+    use lisp_fm, only: value_type, make_string, make_list, list, list_elements, list_length, list_elt, &
+                       xstring, xfixnum, make_fixnum, vtag, V_INTEGER
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur
-    use editfns_fm, only: point, point_max, goto_char, buffer_substring, delete_region, eolp, char_after
+    use editfns_fm, only: point, point_max, goto_char, buffer_substring, delete_region, is_eol, char_after
     use insdel_fm, only: insert
     use syntax_fm, only: skip_chars_forward
     use search_fm, only: string_match, match_beginning, match_end, looking_at, regexp_quote
     use subr_fm, only: match_string
     use fns_fm, only: substring, schars
     use env_fm, only: getenv
-    use fileio_fm, only: file_exists_p, file_directory_p, file_executable_p, directory_file_name, &
+    use fileio_fm, only: file_exists, is_file_directory, is_file_executable, directory_file_name, &
                          file_name_nondirectory
     use files_fm, only: file_truename
     use eval_fm, only: hook_type
@@ -99,7 +99,7 @@ module pcomplete_fm
         end subroutine pcomplete_function_proc
 
         !> The FORM of `pcomplete_here': the completion TABLE for the
-        !> final argument (FOUND false for nil).
+        !> final argument (FOUND .false. for none).
         recursive subroutine pcomplete_form_proc(table, found)
             import :: completion_table_type
             implicit none(type, external)
@@ -139,8 +139,8 @@ module pcomplete_fm
 
     !> Values of PARING for `pcomplete_here': the argument is pared
     !> against previous arguments normalized with `file_truename' or the
-    !> PARING_FUNCTION (nil upstream); it does not participate in paring
-    !> (t); all previous arguments seen are cleared (0).
+    !> PARING_FUNCTION (PCOMPLETE_PARING_DEFAULT); it does not participate in paring
+    !> (PCOMPLETE_PARING_NONE); all previous arguments seen are cleared (PCOMPLETE_PARING_CLEAR).
     integer, parameter, public :: PCOMPLETE_PARING_DEFAULT = 0, PCOMPLETE_PARING_NONE = 1, PCOMPLETE_PARING_CLEAR = 2
 
     !> Values of WHICH for `pcomplete_arg' and `pcomplete_begin': an
@@ -152,11 +152,11 @@ module pcomplete_fm
     integer, parameter :: THROWN_NONE = 0, THROWN_COMPLETIONS = 1, THROWN_PCOMPLETED = 2
 
     !> A regexp of filenames to be disregarded during file completion
-    !> (unallocated for nil).  Port of pcomplete.el pcomplete-file-ignore.
+    !> (unallocated when unset).  Port of pcomplete.el pcomplete-file-ignore.
     type(string_setting), target, public :: pcomplete_file_ignore = string_setting(name="pcomplete_file_ignore")
 
     !> A regexp of names to be disregarded during directory completion
-    !> (unallocated for nil).  Port of pcomplete.el pcomplete-dir-ignore.
+    !> (unallocated when unset).  Port of pcomplete.el pcomplete-dir-ignore.
     type(string_setting), target, public :: pcomplete_dir_ignore = string_setting(name="pcomplete_dir_ignore")
 
     !> Whether to ignore remote file names.  Port of pcomplete.el
@@ -231,7 +231,7 @@ module pcomplete_fm
         character(len=48) :: name = ""
         procedure(pcomplete_function_proc), pointer, nopass :: value => null()
     contains
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure :: set_local => function_set_local
         !> The current buffer's value.
         procedure :: get => function_get
@@ -243,7 +243,7 @@ module pcomplete_fm
         character(len=48) :: name = ""
         procedure(pcomplete_parse_proc), pointer, nopass :: value => null()
     contains
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => parse_set_local
         !> The current buffer's value.
         procedure :: get => parse_get
@@ -563,7 +563,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether completion was abandoned (upstream, `pcompleted' was
-    !> thrown) or its table given (`pcomplete-completions' thrown): a
+    !> returned) or its table given (`pcomplete-completions' returned): a
     !> completion function returns at once when this is true.  Not a port.
     logical function pcomplete_thrown()
         pcomplete_thrown = thrown /= THROWN_NONE
@@ -802,7 +802,7 @@ contains
                 call char_after(c, have)
                 if (.not. have .or. c /= iachar("\")) exit
                 call goto_char(point() + 1)
-                if (eolp()) exit
+                if (is_eol()) exit
                 call goto_char(point() + 1)
             end do
 
@@ -923,7 +923,7 @@ contains
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regexp
 
-        call pcomplete_entries(table, regexp, directory_p)
+        call pcomplete_entries(table, regexp, is_directory)
     end subroutine pcomplete_dirs
 
     !> Complete amongst a list of directories and executables.  Port of
@@ -932,7 +932,7 @@ contains
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regexp
 
-        call pcomplete_entries(table, regexp, executable_p)
+        call pcomplete_entries(table, regexp, is_executable)
     end subroutine pcomplete_executables
 
     !> Return either directories, or qualified entries.  Port of
@@ -946,30 +946,30 @@ contains
         if (present(regexp)) doe_regexp = regexp
         doe_predicate => null()
         if (present(predicate)) doe_predicate => predicate
-        call pcomplete_entries(table, predicate=dir_or_entry_p)
+        call pcomplete_entries(table, predicate=is_dir_or_entry)
     end subroutine pcomplete_dirs_or_entries
 
-    ! `file_directory_p' as a file predicate.  Not a port.
-    recursive logical function directory_p(file)
+    ! `is_file_directory' as a file predicate.  Not a port.
+    recursive logical function is_directory(file)
         character(len=*), intent(in) :: file
 
-        directory_p = file_directory_p(file)
-    end function directory_p
+        is_directory = is_file_directory(file)
+    end function is_directory
 
-    ! `file_executable_p' as a file predicate.  Not a port.
-    recursive logical function executable_p(file)
+    ! `is_file_executable' as a file predicate.  Not a port.
+    recursive logical function is_executable(file)
         character(len=*), intent(in) :: file
 
-        executable_p = file_executable_p(file)
-    end function executable_p
+        is_executable = is_file_executable(file)
+    end function is_executable
 
     ! The predicate of `pcomplete_dirs_or_entries'.  Port of
     ! pcomplete.el:pcomplete-dirs-or-entries, in part.
-    recursive logical function dir_or_entry_p(file) result(ok)
+    recursive logical function is_dir_or_entry(file) result(ok)
         character(len=*), intent(in) :: file
         type(status_type) :: st
 
-        ok = file_directory_p(file)
+        ok = is_file_directory(file)
         if (ok) return
 
         if (doe_has_regexp) then
@@ -981,10 +981,10 @@ contains
         else
             ok = .true.
         end if
-    end function dir_or_entry_p
+    end function is_dir_or_entry
 
     ! The predicate of the table of `pcomplete_entries' (ign-pred,
-    ! reg-pred and PREDICATE or `file_exists_p').  Port of
+    ! reg-pred and PREDICATE or `file_exists').  Port of
     ! pcomplete.el:pcomplete--entries, in part.
     recursive logical function entries_filter(elt) result(ok)
         type(value_type), intent(in) :: elt
@@ -1011,7 +1011,7 @@ contains
         if (associated(entries_predicate)) then
             ok = entries_predicate(file)
         else
-            ok = file_exists_p(file)
+            ok = file_exists(file)
         end if
     end function entries_filter
 
@@ -1035,10 +1035,10 @@ contains
         type(completion_table_type) :: table
         character(len=len(completion_ignored_extensions)) :: saved_extensions(size(completion_ignored_extensions))
 
-        ! `completion_file_name_table' calls `file_exists_p' when the
+        ! `completion_file_name_table' calls `file_exists' when the
         ! predicate is absent.  So likewise, defer to PREDICATE if it's
         ! there, else take ourselves to be responsible for calling
-        ! `file_exists_p'.
+        ! `file_exists'.
         saved_extensions = completion_ignored_extensions
         completion_ignored_extensions = ""
         table = completion_function_table(comint_completion_file_name_table)
@@ -1107,7 +1107,7 @@ contains
         bstart = 0
 
         if (list_length(bounds) == 2) then
-            if (fixnump(list_elt(bounds, 1_int64))) bstart = xfixnum(list_elt(bounds, 1_int64))
+            if (vtag(list_elt(bounds, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(bounds, 1_int64))
         end if
 
         status = status_type()

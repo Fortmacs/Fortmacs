@@ -46,10 +46,10 @@
 !> forwarded by data_buffer_fm); other options can't be buffer-local.
 !>
 !> Deferred: user options holding hooks, procedures, arrays and other
-!> derived types (they are not offered), an unallocated (nil) string
+!> derived types (they are not offered), an unallocated string
 !> value, the default from the variable at point, `variable_interactive'
 !> properties, obsolescence messages, C-h in the minibuffer
-!> (`minibuffer_help_form'), the `custom_set' functions of options
+!> (`minibuffer_help_procedure'), the `custom_set' functions of options
 !> (upstream ignores them too) and buffer-local values of options that
 !> are not setting objects.
 submodule(simple_fm) simple_setvar_fm
@@ -57,7 +57,7 @@ submodule(simple_fm) simple_setvar_fm
                              set_user_option_real, set_user_option_string, set_user_option_choice, variable_doc, &
                              doc_entry_type, OPTION_NONE, OPTION_LOGICAL, OPTION_INTEGER, OPTION_REAL, OPTION_STRING, &
                              OPTION_CHOICE
-    use data_fm, only: local_variable_p, local_variable_if_set_p, forwarded_variable_p
+    use data_fm, only: is_local_variable, is_local_variable_if_set, is_forwarded_variable
     use error_fm, only: FM_END_OF_FILE, FM_INVALID_READ_SYNTAX
     use minibuf_fm, only: read_from_minibuffer, completion_list_table
     use casetab_fm, only: upcase
@@ -69,14 +69,14 @@ contains
 
     !> Whether the user option called `name' can be set by `set_variable'.
     !> Not a port.
-    logical function settable_option_p(name)
+    logical function is_settable_option(name)
         character(len=*), intent(in) :: name
         integer :: kind
         logical :: setting
 
         call user_option_info(name, kind, setting)
-        settable_option_p = kind /= OPTION_NONE
-    end function settable_option_p
+        is_settable_option = kind /= OPTION_NONE
+    end function is_settable_option
 
     module procedure set_variable
     integer :: kind, n
@@ -94,9 +94,9 @@ contains
     end if
 
     local = make_local
-    if (.not. local) local = local_variable_if_set_p(sym(variable))
+    if (.not. local) local = is_local_variable_if_set(sym(variable))
 
-    if (local .and. .not. (setting .and. forwarded_variable_p(sym(variable)))) then
+    if (local .and. .not. (setting .and. is_forwarded_variable(sym(variable)))) then
         call set_error(status, FM_GENERIC_ERROR, "Symbol "//variable//" may not be buffer-local")
         return
     end if
@@ -317,10 +317,10 @@ contains
 
     if (present(default_value)) then
         call completing_read(prompt, completion_list_table(make_list(names)), name, status, &
-                             require_match=REQUIRE_MATCH_T, history="custom_variable_history", default=default_value)
+                             require_match=REQUIRE_MATCH_YES, history="custom_variable_history", default=default_value)
     else
         call completing_read(prompt, completion_list_table(make_list(names)), name, status, &
-                             require_match=REQUIRE_MATCH_T, history="custom_variable_history")
+                             require_match=REQUIRE_MATCH_YES, history="custom_variable_history")
     end if
     end procedure read_variable
 
@@ -332,20 +332,20 @@ contains
     integer :: k, n
 
     ! current-prefix-arg, before the minibuffer's commands change it.
-    make_local = .not. nilp(current_prefix_arg)
+    make_local = allocated(current_prefix_arg%a)
     ! (read-variable "Set variable: "): the user options set_variable
     ! can set (custom-variable-p).
     allocate (names(size(user_option_names)))
     n = 0
 
     do k = 1, size(user_option_names)
-        if (.not. settable_option_p(trim(user_option_names(k)))) cycle
+        if (.not. is_settable_option(trim(user_option_names(k)))) cycle
         n = n + 1
         names(n) = make_string(trim(user_option_names(k)))
     end do
 
     call completing_read("Set variable: ", completion_list_table(make_list(names(1:n))), name, status, &
-                         require_match=REQUIRE_MATCH_T, history="custom_variable_history")
+                         require_match=REQUIRE_MATCH_YES, history="custom_variable_history")
     if (.not. status%ok()) return
 
     if (len(name) == 0) then
@@ -353,9 +353,9 @@ contains
         return
     end if
 
-    if (local_variable_p(sym(name))) then
+    if (is_local_variable(sym(name))) then
         scope = "(buffer-local)"
-    else if (make_local .or. local_variable_if_set_p(sym(name))) then
+    else if (make_local .or. is_local_variable_if_set(sym(name))) then
         scope = "buffer-locally"
     else
         scope = "globally"

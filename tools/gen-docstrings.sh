@@ -48,8 +48,10 @@ trap 'rm -f "$tmp".*' EXIT
 
 # Pass 1: one record per entry, fields separated by \037 and docstring
 # lines by \036:
-#   F  lisp-name  file  fortran-call  interactive(0/1)  doc
-#   V  lisp-name  file  fortran-name  type  array(0/1)  init  enum  doc
+#   F  help-name  file  fortran-call  command(0/1)  declarations  doc
+# (declarations: the dummy arguments' and the result's declaration lines,
+# separated by \036, for the declaration block C-h f shows)
+#   V  help-name  file  fortran-name  type  array(0/1)  init  enum  doc
 # (The program is in a file, to be run with tools/fortran-names-lib.awk,
 # which gives the cited upstream names their Fortran names.)
 cat >"$tmp.pass1" <<'EOF'
@@ -121,7 +123,7 @@ function citation(b, var,    flat, k, rest, file, name) {
     return rename(name)
 }
 
-FNR == 1 { block = ""; sig = ""; insig = 0; base = FILENAME; sub(/.*\//, "", base) }
+FNR == 1 { block = ""; sig = ""; insig = 0; indecl = 0; base = FILENAME; sub(/.*\//, "", base) }
 # Submodules (their variables are not accessible) and the names in
 # `public ::` statements.
 /^submodule/ { submod[base] = 1 }
@@ -144,6 +146,11 @@ insig {
     finish_sig()
     next
 }
+
+# The declarations after a procedure header: those of its dummy arguments
+# and result go into the declaration block of C-h f (B6), in argument
+# order; the first executable statement (or contains, or end) ends them.
+indecl { collect_decl() }
 
 /^[ \t]*!>/ {
     line = $0
@@ -199,7 +206,7 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
 }
 
 # Built-in commands (not in comments): `commands%NAME%run => PROC`, and
-# `commands%NAME%interactive = .false.` for a function that is not a
+# `commands%NAME%is_command = .false.` for a function that is not a
 # command.
 /^[ \t]*commands%[a-z0-9_]+%run[ \t]*=>/ {
     line = $0
@@ -208,11 +215,11 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
     proc = line; sub(/^[^>]*>[ \t]*/, "", proc); sub(/[^a-z0-9_].*/, "", proc)
     if (!(name in cmd)) { cmd[name] = proc; cmdfile[name] = base }
 }
-/^[ \t]*commands%[a-z0-9_]+%interactive[ \t]*=[ \t]*\.false\./ {
+/^[ \t]*commands%[a-z0-9_]+%is_command[ \t]*=[ \t]*\.false\./ {
     line = $0
     sub(/^[ \t]*commands%/, "", line)
     name = line; sub(/%.*/, "", name)
-    noninteractive[help_name(name)] = 1
+    noncommand[help_name(name)] = 1
 }
 
 {
@@ -220,6 +227,11 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
     if (!abstract && match(line, /^[ \t]*((pure|elemental|impure|recursive|module|non_recursive)[ \t]+|(integer|logical|real|character|type)(\([^)]*\))?[ \t]+)*(subroutine|function)[ \t]+[a-z0-9_]+/)) {
         head = substr(line, 1, RLENGTH)
         kind = (head ~ /subroutine[ \t]+[a-z0-9_]+$/) ? "subroutine" : "function"
+        # A function's result type written in its header.
+        ptype = head
+        sub(/[ \t]*(subroutine|function)[ \t]+[a-z0-9_]+$/, "", ptype)
+        gsub(/(pure|elemental|impure|recursive|module|non_recursive)[ \t]+/, "", ptype)
+        ptype = trim(ptype)
         pname = head; sub(/.*[ \t]/, "", pname)
         pblock = block
         sig = trim(substr($0, RLENGTH + 1))
@@ -270,13 +282,89 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
     block = ""
 }
 
-function finish_sig(    s, key, c) {
+# The dummy argument names of signature S, and the result name RES, as
+# the declarations to collect for KEY.
+function start_decl(key, s, res,    a, n, i, nm) {
+    for (i in dpos) delete dpos[i]
+    for (i in dline) delete dline[i]
+    dn = 0
+    a = s
+    if (!sub(/^[^(]*\(/, "", a)) a = ""
+    sub(/\).*$/, "", a)
+    n = split(a, parts, ",")
+    for (i = 1; i <= n; i++) {
+        nm = tolower(trim(parts[i]))
+        if (nm != "") dpos[nm] = ++dn
+    }
+    if (res != "") dpos[tolower(res)] = ++dn
+    if (res != "" && ptype != "") dline[dn] = ptype " :: " res
+    dkey = key
+    indecl = 1
+}
+
+# One line inside the declaration part (see `indecl').
+function collect_decl(    l, attrs, names, out, i, c, d, cur, n, nm, base0, k, j, joined) {
+    l = $0
+    sub(/[ \t]*![^"']*$/, "", l)
+    while (l ~ /&[ \t]*$/ && (getline nextl) > 0) {
+        sub(/[ \t]*&[ \t]*$/, " ", l)
+        sub(/^[ \t]*&?[ \t]*/, "", nextl)
+        sub(/[ \t]*![^"']*$/, "", nextl)
+        l = l nextl
+    }
+    if (l ~ /^[ \t]*$/ || l ~ /^[ \t]*!/ || tolower(l) ~ /^[ \t]*(use|implicit|import)([ \t,]|$)/) return
+    if (l !~ /::/ || tolower(l) !~ /^[ \t]*(integer|logical|real|complex|character|type[ \t]*\(|class[ \t]*\(|procedure[ \t]*\()/) {
+        joined = ""
+        for (k = 1; k <= dn; k++) if (k in dline) joined = joined (joined == "" ? "" : "\036") dline[k]
+        if (!(dkey in pdecl)) pdecl[dkey] = joined
+        split(dkey, kp, SUBSEP)
+        if (!(kp[1] in anydecl)) anydecl[kp[1]] = joined
+        indecl = 0
+        return
+    }
+    attrs = l
+    sub(/[ \t]*::.*/, "", attrs)
+    sub(/^[ \t]+/, "", attrs)
+    gsub(/[ \t]*,[ \t]*/, ", ", attrs)
+    names = l
+    sub(/^[^:]*::[ \t]*/, "", names)
+    # The names at parenthesis depth 0, each with its array spec.
+    cur = ""
+    d = 0
+    n = 0
+    for (i = 1; i <= length(names); i++) {
+        c = substr(names, i, 1)
+        if (c == "(" || c == "[") d++
+        if (c == ")" || c == "]") d--
+        if (c == "," && d == 0) { item[++n] = cur; cur = ""; continue }
+        cur = cur c
+    }
+    item[++n] = cur
+    for (j = 1; j <= n; j++) {
+        nm = trim(item[j])
+        sub(/[ \t]*=.*$/, "", nm)
+        base0 = tolower(nm)
+        sub(/[ \t]*\(.*$/, "", base0)
+        if (base0 in dpos) dline[dpos[base0]] = attrs " :: " nm
+    }
+}
+
+function finish_sig(    s, key, c, res) {
     s = sig
+    res = ""
+    if (kind == "function") {
+        res = pname
+        if (match(tolower(s), /result[ \t]*\([ \t]*[a-z0-9_]+/)) {
+            res = substr(s, RSTART, RLENGTH)
+            sub(/.*\([ \t]*/, "", res)
+        }
+    }
     sub(/[ \t]*result[ \t]*\(.*$/, "", s)
     sub(/[ \t]*bind[ \t]*\(.*$/, "", s)
     sub(/[ \t]*!.*$/, "", s)
     gsub(/[ \t]*,[ \t]*/, ", ", s)
     key = pname SUBSEP base
+    start_decl(key, s, res)
     if (!(pname in anycall)) anycall[pname] = (kind == "subroutine" ? "call " : "") s
     if (pblock == "") return
     if (!(key in pdoc)) {
@@ -295,6 +383,7 @@ END {
         split(key, kp, SUBSEP)
         pcall[key] = (gfirst[key] in anycall) ? anycall[gfirst[key]] : ""
         sub(gfirst[key] "\\(", kp[1] "(", pcall[key])
+        pdecl[key] = (gfirst[key] in anydecl) ? anydecl[gfirst[key]] : ""
     }
 
     # The config API: names src/fortmacs.f90 takes from each module.
@@ -322,19 +411,19 @@ END {
     for (nm in api) {
         key = nm SUBSEP api[nm]
         if (key in pdoc) {
-            lisp = pcite[key]
-            if (lisp == "") lisp = help_name(nm)
+            hname = pcite[key]
+            if (hname == "") hname = help_name(nm)
             # Several API procedures can port one function (capitalize_char
             # and capitalize_string): the first by name, whatever order
             # this awk visits the array in.
-            if ((lisp in fowner) && fowner[lisp] < nm) continue
-            fowner[lisp] = nm
-            fdoc[lisp] = pdoc[key]; ffile[lisp] = api[nm]; fcall[lisp] = pcall[key]
-            finter[lisp] = 0
+            if ((hname in fowner) && fowner[hname] < nm) continue
+            fowner[hname] = nm
+            fdoc[hname] = pdoc[key]; ffile[hname] = api[nm]; fcall[hname] = pcall[key]; fdecl[hname] = pdecl[key]
+            fcommand[hname] = 0
         } else if (key in vdoc) {
-            lisp = vcite[key]
-            if (lisp == "") lisp = help_name(nm)
-            printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", lisp, api[nm], nm, vtype[key], \
+            hname = vcite[key]
+            if (hname == "") hname = help_name(nm)
+            printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", hname, api[nm], nm, vtype[key], \
                 varr[key], vinit[key], vdoc[key]
         }
     }
@@ -358,8 +447,8 @@ END {
         if (d == "" && (name in fdoc)) d = fdoc[name]
         if (d == "" && (name in cited)) d = pdoc[cited[name]]
         fdoc[name] = d
-        if (!(name in ffile)) { ffile[name] = cmdfile[name]; fcall[name] = "" }
-        finter[name] = (name in noninteractive) ? 0 : 1
+        if (!(name in ffile)) { ffile[name] = cmdfile[name]; fcall[name] = ""; fdecl[name] = "" }
+        fcommand[name] = (name in noncommand) ? 0 : 1
     }
     # A command without a docstring of its own that runs the procedure of
     # another command is an alias of it (join_line of delete_indentation):
@@ -374,8 +463,8 @@ END {
         if (best != "") alias_doc[name] = fdoc[best]
     }
     for (name in alias_doc) fdoc[name] = alias_doc[name]
-    for (lisp in fdoc)
-        printf "F\037%s\037%s\037%s\037%d\037%s\n", lisp, ffile[lisp], fcall[lisp], finter[lisp], fdoc[lisp]
+    for (hname in fdoc)
+        printf "F\037%s\037%s\037%s\037%d\037%s\037%s\n", hname, ffile[hname], fcall[hname], fcommand[hname], fdecl[hname], fdoc[hname]
 }
 EOF
 find src -name '*.f90' ! -name docstrings_fm.f90 | sort |
@@ -473,7 +562,7 @@ BEGIN {
     }
 }
 
-$1 == "F" { nf++; fname[nf] = $2; ffile[nf] = $3; fcall[nf] = $4; finter[nf] = $5; fdoc[nf] = $6 }
+$1 == "F" { nf++; fname[nf] = $2; ffile[nf] = $3; fcall[nf] = $4; fcommand[nf] = $5; fdecl[nf] = $6; fdoc[nf] = $7 }
 $1 == "V" {
     nv++; vname[nv] = $2; vfile[nv] = $3; vfort[nv] = $4; vtype[nv] = $5; varr[nv] = $6
     vinit[nv] = $7; vdoc[nv] = $8
@@ -570,8 +659,11 @@ END {
     print "        !> A function: how Fortran calls it (\"\" for a command only)."
     print "        !> A variable: its Fortran name."
     print "        character(len=:), allocatable :: fortran"
+    print "        !> A function: the declarations of its dummy arguments and"
+    print "        !> result, one per line (\"\" if none), as C-h f shows them."
+    print "        character(len=:), allocatable :: declarations"
     print "        !> A function that is a command."
-    print "        logical :: interactive = .false."
+    print "        logical :: command = .false."
     print "        !> A variable: its value and its value at startup (\"\" when"
     print "        !> unknown), as Fortran."
     print "        character(len=:), allocatable :: value, original"
@@ -629,13 +721,15 @@ END {
     print ""
     print "        found = .true."
     print "        entry%fortran = \"\""
+    print "        entry%declarations = \"\""
     print ""
     print "        select case (name)"
     for (i = 1; i <= nf; i++) {
         print "        case (" q(fname[i]) ")"
         print "            entry%file = " q(ffile[i])
         if (fcall[i] != "") print "            entry%fortran = " lit(fcall[i], "                ")
-        if (finter[i]) print "            entry%interactive = .true."
+        if (fdecl[i] != "") print "            entry%declarations = " docexpr(fdecl[i], "                                    ")
+        if (fcommand[i]) print "            entry%command = .true."
         print "            entry%doc = " docexpr(fdoc[i], "                        ")
     }
     print "        case default"

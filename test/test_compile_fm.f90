@@ -31,14 +31,14 @@ module test_compile_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
-                         buffer_live_p, set_buffer_read_only
+                         is_buffer_live, set_buffer_read_only
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point_max
     use keyboard_fm, only: last_message
     use fileio_fm, only: file_name_as_directory
     use files_fm, only: temporary_file_directory, abbreviate_file_name
     use keymap_fm, only: key_binding, key_parse
-    use lisp_fm, only: value_type, symbolp, xsymbol, symbols
+    use lisp_fm, only: value_type, xsymbol, symbols, vtag, V_NULL, V_NAME
     use bindings_fm, only: init_bindings
     use process_fm, only: accept_process_output, get_buffer_process, num_processors
     use compile_fm, only: compile, recompile, kill_compilation, compile_command, comint_carriage_motion, &
@@ -124,7 +124,7 @@ contains
 
         text = ""
         buf = get_buffer("*compilation*")
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         old = buffers_current()
         call set_buffer(buf, st)
         text = buffer_string()
@@ -322,7 +322,7 @@ contains
         if (.not. allocated(error)) then
             call key_parse("g", key, st)
             call key_binding(key, b, st)
-            call check(error, symbolp(b), "bound")
+            call check(error, (vtag(b) == V_NAME .or. vtag(b) == V_NULL), "bound")
             if (.not. allocated(error)) call check(error, trim(symbols(xsymbol(b))%name), "recompile")
         end if
 

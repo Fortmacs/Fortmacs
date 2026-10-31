@@ -40,29 +40,29 @@ module vc_dir_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, nil, nilp
+    use lisp_fm, only: value_type, t_value
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, buffer_serial_live, erase_buffer, &
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, erase_buffer, &
                          get_buffer_create, generate_new_buffer_name, kill_buffer, deactivate_mark_variable
     use commands_fm, only: commands
     use modes_fm, only: major_modes
-    use derived_fm, only: derived_mode_p
-    use editfns_fm, only: point, goto_char, point_min, eolp, region_beginning, region_end
+    use derived_fm, only: is_derived_mode
+    use editfns_fm, only: point, goto_char, point_min, is_eol, region_beginning, region_end
     use insdel_fm, only: insert
     use cmds_fm, only: beginning_of_line, forward_char
     use textprop_fm, only: put_text_property
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use simple_fm, only: use_region_p, line_number_at_pos
-    use subr_fm, only: y_or_n_p, string_match_p
+    use simple_fm, only: is_use_region, line_number_at_pos
+    use subr_fm, only: read_y_or_n, string_matches
     use xdisp_fm, only: message, clear_mode_line_process
     use faces_fm, only: named_face_type, display_when, face_attrs
     use keymap_fm, only: keymap_set, make_sparse_keymap
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_as_directory, directory_file_name, &
-                         file_directory_p, file_exists_p
+                         is_file_directory, file_exists
     use files_fm, only: abbreviate_file_name, create_file_buffer, find_file, find_file_other_window, &
-                        find_file_noselect, revert_buffer_function, file_truename, file_in_directory_p, file_relative_name
+                        find_file_noselect, revert_buffer_function, file_truename, is_file_in_directory, file_relative_name
     use process_fm, only: get_buffer_process, delete_process
     use ewoc_fm, only: ewoc_type, ewoc_part_type, ewoc_create, ewoc_data, ewoc_set_data, ewoc_enter_last, &
                        ewoc_enter_before, ewoc_next, ewoc_prev, ewoc_nth, ewoc_map, ewoc_delete, ewoc_filter, &
@@ -70,7 +70,7 @@ module vc_dir_fm
                        ewoc_set_hf_parts
     use vc_hooks_fm, only: vc_string_type, vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, vc_dir_buffers, &
                            vc_dir_resynch_file, vc_state, vc_state_name, vc_backend_name, vc_file_set_backend, &
-                           VC_STATE_NIL, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
+                           VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
                            VC_MISSING, VC_CONFLICT, VC_NEEDS_UPDATE, VC_UNLOCKED_CHANGES, VC_BACKEND_NONE
     use vc_dispatcher_fm, only: vc_setup_buffer, set_vc_parent_buffer, vc_parent_buffer, vc_set_mode_line_busy_indicator
     use vc_fm, only: vc_fileset_type, vc_responsible_backend, vc_root_dir, vc_only_files_state_and_model, vc_ignore, &
@@ -92,10 +92,10 @@ module vc_dir_fm
               insert_with_face
 
     !> Values of `vc_dir_allow_mass_mark_changes'.
-    integer, parameter, public :: VC_DIR_MASS_MARK_NIL = 0, VC_DIR_MASS_MARK_ASK = 1, VC_DIR_MASS_MARK_T = 2
+    integer, parameter, public :: VC_DIR_MASS_MARK_NO = 0, VC_DIR_MASS_MARK_ASK = 1, VC_DIR_MASS_MARK_ALWAYS = 2
 
     !> Values of `vc_dir_auto_hide_up_to_date'.
-    integer, parameter, public :: VC_DIR_AUTO_HIDE_NIL = 0, VC_DIR_AUTO_HIDE_T = 1, VC_DIR_AUTO_HIDE_REVERT = 2
+    integer, parameter, public :: VC_DIR_AUTO_HIDE_NO = 0, VC_DIR_AUTO_HIDE_YES = 1, VC_DIR_AUTO_HIDE_REVERT = 2
 
     !> Normal hook run by `vc_dir_mode'.
     !> See `run_mode_hooks'.  Port of vc-dir.el vc-dir-mode-hook.
@@ -121,18 +121,18 @@ module vc_dir_fm
     !> unmarked too, Fortmacs will prompt you to confirm that you do mean
     !> for the other items to be marked or unmarked.
     !>
-    !> If this variable is VC_DIR_MASS_MARK_NIL, the commands will refuse to
+    !> If this variable is VC_DIR_MASS_MARK_NO, the commands will refuse to
     !> do anything if they would need to mark or unmark other entries too.
-    !> If this variable is VC_DIR_MASS_MARK_T, the commands will always
+    !> If this variable is VC_DIR_MASS_MARK_ALWAYS, the commands will always
     !> proceed to mark and unmark other entries, without asking.  Port of
     !> vc-dir.el vc-dir-allow-mass-mark-changes.
     integer, public :: vc_dir_allow_mass_mark_changes = VC_DIR_MASS_MARK_ASK
 
     !> Whether VC-Dir auto-removes `up-to-date'/`ignored' files from display.
     !>
-    !> If the value is VC_DIR_AUTO_HIDE_NIL, files shown in the VC-Dir buffer
+    !> If the value is VC_DIR_AUTO_HIDE_NO, files shown in the VC-Dir buffer
     !> will remain on display if they become `up-to-date' or `ignored'.
-    !> If the value is VC_DIR_AUTO_HIDE_T, files are automatically removed
+    !> If the value is VC_DIR_AUTO_HIDE_YES, files are automatically removed
     !> from display when they become `up-to-date' or `ignored'.
     !> If the value is VC_DIR_AUTO_HIDE_REVERT, any displayed files that
     !> are `up-to-date' or `ignored' are removed from display
@@ -147,7 +147,7 @@ module vc_dir_fm
     !> You can still use `vc_dir_show_fileentry' to manually add an entry for
     !> an `up-to-date' or `ignored' file.  Port of vc-dir.el
     !> vc-dir-auto-hide-up-to-date.
-    integer, public :: vc_dir_auto_hide_up_to_date = VC_DIR_AUTO_HIDE_NIL
+    integer, public :: vc_dir_auto_hide_up_to_date = VC_DIR_AUTO_HIDE_NO
 
     !> If true, first offer to save relevant buffers when refreshing VC-Dir.
     !> Port of vc-dir.el vc-dir-save-some-buffers-on-revert.
@@ -179,7 +179,7 @@ module vc_dir_fm
     type(local_type), allocatable :: locals(:)
 
     ! The backend `vc_dir_mode' gives the buffer (use-vc-backend,
-    ! dynamically bound by `vc_dir').
+    ! saved and restored by `vc_dir').
     integer :: use_vc_backend = 0
 
     ! `vc_dir_allow_mass_mark_changes' as bound by `vc_dir_mark_unmark'.
@@ -247,7 +247,7 @@ contains
         if (k > 0) locals(k) = local_type()
     end subroutine kill_vc_dir_locals
 
-    !> The current buffer's `vc_ewoc' (HAS false for nil).  Not a port.
+    !> The current buffer's `vc_ewoc' (HAS .false. for none).  Not a port.
     subroutine vc_dir_ewoc(ewoc, has)
         type(ewoc_type), intent(out) :: ewoc
         logical, intent(out) :: has
@@ -271,7 +271,7 @@ contains
     end function ew
 
     !> The current buffer's `vc_dir_backend': the backend used by the
-    !> current *vc-dir* buffer (0 for nil).  Not a port.
+    !> current *vc-dir* buffer (0 for none).  Not a port.
     integer function vc_dir_backend()
         integer :: k
 
@@ -395,28 +395,28 @@ contains
 
     ! (string< A B): A sorts before B (a prefix before the longer string).
     ! Not a port.
-    logical function string_lessp(a, b)
+    logical function is_string_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
 
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
-                string_lessp = iachar(a(k:k)) < iachar(b(k:k))
+                is_string_less = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
 
-        string_lessp = len(a) < len(b)
-    end function string_lessp
+        is_string_less = len(a) < len(b)
+    end function is_string_less
 
     ! (string-prefix-p PREFIX STRING).  Not a port.
-    logical function string_prefix_p(prefix, string)
+    logical function is_string_prefix(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
-        string_prefix_p = .false.
+        is_string_prefix = .false.
         if (len(prefix) > len(string)) return
-        string_prefix_p = string(1:len(prefix)) == prefix
-    end function string_prefix_p
+        is_string_prefix = string(1:len(prefix)) == prefix
+    end function is_string_prefix
 
     ! (expand-file-name NAME): relative to the current buffer's directory.
     ! Not a port.
@@ -443,7 +443,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
+        if (.not. st%ok()) saved = value_type()
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine bind_inhibit_read_only
 
@@ -459,7 +459,7 @@ contains
     ! `vc_dir_mark_unmark').  Not a port.
     integer function mass_mark()
         mass_mark = vc_dir_allow_mass_mark_changes
-        if (mass_mark_bound_nil) mass_mark = VC_DIR_MASS_MARK_NIL
+        if (mass_mark_bound_nil) mass_mark = VC_DIR_MASS_MARK_NO
     end function mass_mark
 
     ! ------------------------------------------------------------------
@@ -474,7 +474,7 @@ contains
 
         call beginning_of_line()
 
-        if (.not. eolp()) then
+        if (.not. is_eol()) then
             ! Must be in sync with vc-default-dir-printer.
             do k = 1, 25
                 call forward_char(st, 1_int64)
@@ -509,10 +509,10 @@ contains
         ! Look for another buffer name BNAME visiting the same directory.
         if (.not. new .and. allocated(vc_dir_buffers)) then
             do k = 1, size(vc_dir_buffers)
-                if (.not. buffer_live_p(vc_dir_buffers(k))) cycle
+                if (.not. is_buffer_live(vc_dir_buffers(k))) cycle
                 call set_buffer(vc_dir_buffers(k), st)
 
-                if (derived_mode_p("vc_dir_mode") .and. vc_dir_backend() == backend .and. &
+                if (is_derived_mode("vc_dir_mode") .and. vc_dir_backend() == backend .and. &
                     buffers(cur)%directory == dir) then
                     buf = vc_dir_buffers(k)
                     exit
@@ -646,7 +646,7 @@ contains
             entrydir = entry_directory(entryfile)
             nodedir = vc_dir_node_directory(node)
 
-            if (string_lessp(nodedir, entrydir)) then
+            if (is_string_less(nodedir, entrydir)) then
                 ! First try to find the directory.
                 node = ewoc_next(e, node)
             else if (nodedir == entrydir) then
@@ -655,13 +655,13 @@ contains
 
                 if (nodefile == dotname) then
                     node = ewoc_next(e, node)
-                else if (string_lessp(nodefile, entryfile)) then
+                else if (is_string_less(nodefile, entryfile)) then
                     node = ewoc_next(e, node)
                 else if (nodefile == entryfile) then
                     id = did(node)
 
-                    if (entries(k)%state == VC_STATE_NIL .or. &
-                        (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NIL .and. &
+                    if (entries(k)%state == VC_STATE_UNKNOWN .or. &
+                        (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NO .and. &
                          vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_REVERT .and. &
                          up_to_date_state(entries(k)%state))) then
                         to_remove = [node, to_remove]
@@ -775,12 +775,12 @@ contains
         logical function before(a, b)
             integer, intent(in) :: a, b
 
-            if (string_lessp(dirs(a)%s, dirs(b)%s)) then
+            if (is_string_less(dirs(a)%s, dirs(b)%s)) then
                 before = .true.
             else if (dirs(a)%s /= dirs(b)%s) then
                 before = .false.
             else
-                before = string_lessp(entries_in(a)%name, entries_in(b)%name)
+                before = is_string_less(entries_in(a)%name, entries_in(b)%name)
             end if
         end function before
 
@@ -801,7 +801,7 @@ contains
         type(handle_type) :: buf, proc
 
         buf = process_buffer()
-        vc_dir_busy = buffer_live_p(buf)
+        vc_dir_busy = is_buffer_live(buf)
 
         if (vc_dir_busy) then
             proc = get_buffer_process(buf)
@@ -818,7 +818,7 @@ contains
 
         status = status_type()
         buf = process_buffer()
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         proc = get_buffer_process(buf)
         if (proc%index /= 0) call delete_process(proc, status)
         k = local_index(.true.)
@@ -918,7 +918,7 @@ contains
 
         status = status_type()
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             processed_line = -1
             call region_end(pos, st)
             lastl = line_number_at_pos(pos)
@@ -968,7 +968,7 @@ contains
             if (crt == 0) exit
             dir = vc_dir_node_directory(crt)
 
-            if (allocated(infos(did(crt))%directory) .and. string_prefix_p(dir, argdir)) then
+            if (allocated(infos(did(crt))%directory) .and. is_string_prefix(dir, argdir)) then
                 if (.not. if_marked .or. infos(did(crt))%marked) found = crt
             end if
         end do
@@ -991,7 +991,7 @@ contains
             crt = ewoc_next(ew(), crt)
             if (crt == 0) exit
             ! We are done, we got to an entry that is not a child of `arg'.
-            if (.not. string_prefix_p(argdir, vc_dir_node_directory(crt))) exit
+            if (.not. is_string_prefix(argdir, vc_dir_node_directory(crt))) exit
             if (.not. only_marked .or. infos(did(crt))%marked) found = [crt, found]
         end do
     end subroutine vc_dir_children
@@ -1026,10 +1026,10 @@ contains
             ! are already marked.  Although the user's intent is clear, by
             ! default we still ask them before unmarking in order to avoid
             ! accidental erasure of complex patterns of marks.
-            yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+            yes = mass_mark() /= VC_DIR_MASS_MARK_NO
 
             if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
-                call y_or_n_p("Replace marks on subitems with marking `"//name//"' itself?", yes, status)
+                call read_y_or_n("Replace marks on subitems with marking `"//name//"' itself?", yes, status)
                 if (.not. status%ok()) return
             end if
 
@@ -1050,10 +1050,10 @@ contains
                 ! The user seems to want to mark an entry whose directory is
                 ! already marked.  As the file is already implicitly marked for
                 ! most VCS, they may not really intend this.
-                yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+                yes = mass_mark() /= VC_DIR_MASS_MARK_NO
 
                 if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
-                    call y_or_n_p("`"//name//"' is already marked; unmark it?", yes, status)
+                    call read_y_or_n("`"//name//"' is already marked; unmark it?", yes, status)
                     if (.not. status%ok()) return
                 end if
 
@@ -1182,7 +1182,7 @@ contains
 
         ! We don't want to match on the part of the file
         ! that's above the current directory.
-        if (string_match_p(map_regexp, file_relative_name(infos(data)%entry%name, buffers(cur)%directory), st) == 0) then
+        if (.not. string_matches(map_regexp, file_relative_name(infos(data)%entry%name, buffers(cur)%directory), st)) then
             return
         end if
 
@@ -1239,7 +1239,7 @@ contains
             j = k - 1
 
             do while (j >= 1)
-                if (.not. string_lessp(tmp%s, sorted(j)%s)) exit
+                if (.not. is_string_less(tmp%s, sorted(j)%s)) exit
                 sorted(j + 1) = sorted(j)
                 j = j - 1
             end do
@@ -1260,7 +1260,7 @@ contains
             if (len(sorted(k)%s) > 0) then
                 if (sorted(k)%s(len(sorted(k)%s):) == "/") then
                     do while (j <= size(sorted))
-                        if (.not. string_prefix_p(sorted(k)%s, sorted(j)%s)) exit
+                        if (.not. is_string_prefix(sorted(k)%s, sorted(j)%s)) exit
                         j = j + 1
                     end do
                 end if
@@ -1337,11 +1337,11 @@ contains
             if (parent /= 0) call vc_dir_children(parent, .false., all_children)
 
             if (parent /= 0 .and. size(all_children) > 0) then
-                yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+                yes = mass_mark() /= VC_DIR_MASS_MARK_NO
 
                 if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
-                    call y_or_n_p("Replace mark on `"//infos(id)%entry%name// &
-                                  "' with marks on all subitems but this one?", yes, status)
+                    call read_y_or_n("Replace mark on `"//infos(id)%entry%name// &
+                                     "' with marks on all subitems but this one?", yes, status)
                     if (.not. status%ok()) return
                 end if
 
@@ -1367,11 +1367,11 @@ contains
                 ! Offer to unmark those.
                 call vc_dir_children(crt, .true., children)
 
-                if (size(children) > 0 .and. mass_mark() /= VC_DIR_MASS_MARK_NIL) then
+                if (size(children) > 0 .and. mass_mark() /= VC_DIR_MASS_MARK_NO) then
                     yes = .true.
 
                     if (mass_mark() == VC_DIR_MASS_MARK_ASK) then
-                        call y_or_n_p("Unmark all items within `"//infos(id)%entry%name//"'?", yes, status)
+                        call read_y_or_n("Unmark all items within `"//infos(id)%entry%name//"'?", yes, status)
                         if (.not. status%ok()) return
                     end if
 
@@ -1703,8 +1703,8 @@ contains
         end do
     end subroutine vc_dir_marked_files
 
-    !> Return the list of (FILE . STATE) for the marked files.
-    !> For marked directories return the corresponding pairs for the
+    !> Return the FILE and STATE of each marked file.
+    !> For marked directories return the FILE and STATE of the
     !> child files.  Port of vc-dir.el:vc-dir-marked-only-files-and-states.
     subroutine vc_dir_marked_only_files_and_states(files, states)
         type(vc_string_type), allocatable, intent(out) :: files(:)
@@ -1728,7 +1728,7 @@ contains
                         crt = ewoc_next(ew(), crt)
                         if (crt == 0) exit
                         data = did(crt)
-                        if (.not. string_prefix_p(dir, vc_dir_node_directory(crt))) exit
+                        if (.not. is_string_prefix(dir, vc_dir_node_directory(crt))) exit
 
                         if (.not. allocated(infos(data)%directory)) then
                             call push_pair(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
@@ -1767,8 +1767,8 @@ contains
 
     !> Return the state of one or more files for the current entry.
     !> If the entry is a directory, return the list of states of its child
-    !> files, where each file is described by a pair (FILE . STATE).
-    !> If the entry is a file, return a single pair (FILE . STATE) for
+    !> files, where each file is described by two values, FILE and STATE.
+    !> If the entry is a file, return its FILE and STATE for
     !> that file.  Port of vc-dir.el:vc-dir-child-files-and-states.
     subroutine vc_dir_child_files_and_states(files, states)
         type(vc_string_type), allocatable, intent(out) :: files(:)
@@ -1789,7 +1789,7 @@ contains
                 crt = ewoc_next(ew(), crt)
                 if (crt == 0) exit
                 data = did(crt)
-                if (.not. string_prefix_p(dir, vc_dir_node_directory(crt))) exit
+                if (.not. is_string_prefix(dir, vc_dir_node_directory(crt))) exit
 
                 if (.not. allocated(infos(data)%directory)) then
                     call push_pair(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
@@ -1823,8 +1823,8 @@ contains
 
         ! Ensure we return a nil state if the file does not exist and is
         ! not tracked so that it disappears from VC-Dir (bug#81191).
-        if (entry%state == VC_UP_TO_DATE .and. .not. file_exists_p(fname)) then
-            entry%state = VC_STATE_NIL
+        if (entry%state == VC_UP_TO_DATE .and. .not. file_exists(fname)) then
+            entry%state = VC_STATE_UNKNOWN
             entry%has_extra = .false.
         end if
     end subroutine vc_dir_recompute_file_state
@@ -1843,12 +1843,12 @@ contains
 
         ! Find DIR
         do while (crt /= 0)
-            if (string_prefix_p(dirname, vc_dir_node_directory(crt))) exit
+            if (is_string_prefix(dirname, vc_dir_node_directory(crt))) exit
             crt = ewoc_next(ew(), crt)
         end do
 
         do while (crt /= 0)
-            if (.not. string_prefix_p(dirname, vc_dir_node_directory(crt))) exit
+            if (.not. is_string_prefix(dirname, vc_dir_node_directory(crt))) exit
 
             if (.not. allocated(infos(did(crt))%directory)) then
                 ! (push ...)
@@ -1907,18 +1907,18 @@ contains
         ! look for a vc-dir buffer that might show this file.
         do k = 1, size(vc_dir_buffers)
             status_buf = vc_dir_buffers(k)
-            if (.not. buffer_live_p(status_buf)) cycle
+            if (.not. is_buffer_live(status_buf)) cycle
             call set_buffer(status_buf, st)
-            if (.not. derived_mode_p("vc_dir_mode")) cycle
+            if (.not. is_derived_mode("vc_dir_mode")) cycle
             n = n + 1
             keep(n) = status_buf
             ! The actual contents of this VC-Dir buffer,
             ! which is what we care about here, is always
             ! relative to the toplevel value.
             call expand_file_name(buffers(cur)%directory, ddir, st)
-            if (.not. file_in_directory_p(file, ddir)) cycle
+            if (.not. is_file_in_directory(file, ddir)) cycle
 
-            if (file_directory_p(file)) then
+            if (is_file_directory(file)) then
                 call vc_dir_resync_directory_files(file)
                 call vc_dir_headers(vc_dir_backend(), ddir, header)
                 call ewoc_set_hf_parts(ew(), header, none)
@@ -1928,7 +1928,7 @@ contains
                 if (.not. st%ok()) truedir = ddir
                 call vc_dir_recompute_file_state(file, truedir, complete_state(1))
                 call vc_dir_update(complete_state, status_buf, &
-                                   complete_state(1)%state == VC_STATE_NIL .or. &
+                                   complete_state(1)%state == VC_STATE_UNKNOWN .or. &
                                    complete_state(1)%state == VC_UP_TO_DATE)
             end if
         end do
@@ -2094,7 +2094,7 @@ contains
             call restore_inhibit_read_only(saved)
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine refresh_files_update
 
     ! The predicate of `ewoc_filter' in `refresh_files_update'.  Not a port.
@@ -2107,7 +2107,7 @@ contains
         ! next time.
         ! FIXME: There should be a more elegant way to do this.
         if (allocated(infos(data)%directory) .and. infos(data)%entry%state == VC_UP_TO_DATE) then
-            infos(data)%entry%state = VC_STATE_NIL
+            infos(data)%entry%state = VC_STATE_UNKNOWN
         end if
 
         not_needs_update = .not. infos(data)%needs_update
@@ -2123,7 +2123,7 @@ contains
 
         k = local_index(.true.)
 
-        if (.not. buffer_live_p(locals(k)%process_buffer)) then
+        if (.not. is_buffer_live(locals(k)%process_buffer)) then
             call get_buffer_create(generate_new_buffer_name(" *VC-"//vc_backend_name(backend)//"* tmp status"), &
                                    locals(k)%process_buffer, st)
         end if
@@ -2172,7 +2172,7 @@ contains
         if (ignore_auto .and. noconfirm .and. .false.) return
         call vc_dir_refresh(status)
         if (.not. status%ok()) return
-        if (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NIL) call vc_dir_hide_state()
+        if (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NO) call vc_dir_hide_state()
     end subroutine vc_dir_revert_buffer_function
 
     ! The update function of `vc_dir_refresh'.  Not a port.
@@ -2207,7 +2207,7 @@ contains
             end if
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine refresh_update
 
     ! Not a port.
@@ -2219,7 +2219,7 @@ contains
     end function set_needs_update
 
     !> Refresh the contents of the *VC-Dir* buffer.
-    !> Throw an error if another update process is in progress.  Port of
+    !> An error condition occurs if another update process is in progress.  Port of
     !> vc-dir.el:vc-dir-refresh.
     recursive subroutine vc_dir_refresh(status)
         type(status_type), intent(out) :: status
@@ -2291,7 +2291,7 @@ contains
     !> Hide items that are in STATE from display.
     !> See `vc_state' for valid values of STATE.
     !>
-    !> If STATE is absent (nil), hide both `up-to-date' and `ignored' items.
+    !> If STATE is absent, hide both `up-to-date' and `ignored' items.
     !>
     !> Interactively, if `current_prefix_arg' is true, set STATE to
     !> state of item at point, if any.  Port of vc-dir.el:vc-dir-hide-state.
@@ -2417,7 +2417,7 @@ contains
         yes = .false.
 
         if (n_up > 0 .and. size(other) > 0) then
-            call y_or_n_p("Clear up-to-date items before proceeding?", yes, status)
+            call read_y_or_n("Clear up-to-date items before proceeding?", yes, status)
             if (.not. status%ok()) return
         end if
 
@@ -2518,7 +2518,7 @@ contains
         old = current_buffer()
         call set_buffer(buffer, st)
 
-        if (derived_mode_p("vc_dir_mode")) then
+        if (is_derived_mode("vc_dir_mode")) then
             call vc_dir_refresh(status)
         else
             ! FIXME: find a better way to pass the backend to `vc-dir-mode'.
@@ -2621,7 +2621,7 @@ contains
 
     recursive subroutine cmd_vc_dir(status)
         use minibuffer_fm, only: read_file_name
-        use minibuffer_fm, only: REQUIRE_MATCH_T
+        use minibuffer_fm, only: REQUIRE_MATCH_YES
         use vc_hooks_fm, only: vc_backend_named
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root, dir, truename, name
@@ -2636,13 +2636,13 @@ contains
         ! therefore it makes sense to always do that.
         ! Otherwise if you do C-x v d -> C-x C-f -> C-x v d
         ! you may get a new *vc-dir* buffer, different from the original
-        call read_file_name("VC status for directory: ", dir, status, dir=root, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("VC status for directory: ", dir, status, dir=root, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call file_truename(dir, truename, status)
         if (.not. status%ok()) return
         b = 0
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call read_backend(name, status)
             if (.not. status%ok()) return
             b = vc_backend_named(name)
@@ -2655,7 +2655,7 @@ contains
     ! Not a port.
     recursive subroutine read_backend(name, status)
         use minibuf_fm, only: completion_list_table
-        use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+        use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
         use lisp_fm, only: make_string, make_list
         use vc_hooks_fm, only: vc_handled_backends
         character(len=:), allocatable, intent(out) :: name
@@ -2670,7 +2670,7 @@ contains
         end do
 
         call completing_read("Use VC backend: ", completion_list_table(make_list(names)), name, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
     end subroutine read_backend
 
     recursive subroutine cmd_vc_dir_next_line(status)
@@ -2703,14 +2703,14 @@ contains
     recursive subroutine cmd_vc_dir_mark_all_files(status)
         type(status_type), intent(out) :: status
 
-        call vc_dir_mark_all_files(.not. nilp(current_prefix_arg), status)
+        call vc_dir_mark_all_files(allocated(current_prefix_arg%a), status)
     end subroutine cmd_vc_dir_mark_all_files
 
     recursive subroutine cmd_vc_dir_unmark_all_files(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call vc_dir_unmark_all_files(.not. nilp(current_prefix_arg))
+        call vc_dir_unmark_all_files(allocated(current_prefix_arg%a))
     end subroutine cmd_vc_dir_unmark_all_files
 
     recursive subroutine cmd_vc_dir_mark_by_regexp(status)
@@ -2719,13 +2719,13 @@ contains
         character(len=:), allocatable :: regexp
 
         call read_string("Mark files matching: ", regexp, status)
-        if (status%ok()) call vc_dir_mark_by_regexp(regexp,.not. nilp(current_prefix_arg))
+        if (status%ok()) call vc_dir_mark_by_regexp(regexp, allocated(current_prefix_arg%a))
     end subroutine cmd_vc_dir_mark_by_regexp
 
     recursive subroutine cmd_vc_dir_ignore(status)
         type(status_type), intent(out) :: status
 
-        call vc_dir_ignore(.not. nilp(current_prefix_arg), status)
+        call vc_dir_ignore(allocated(current_prefix_arg%a), status)
     end subroutine cmd_vc_dir_ignore
 
     recursive subroutine cmd_vc_dir_hide_up_to_date(status)
@@ -2734,7 +2734,7 @@ contains
 
         status = status_type()
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             ! Command is prefixed.  Infer STATE from point.
             node = ewoc_locate(ew())
 
@@ -2749,11 +2749,11 @@ contains
 
     recursive subroutine cmd_vc_dir_show_fileentry(status)
         use minibuffer_fm, only: read_file_name
-        use minibuffer_fm, only: REQUIRE_MATCH_T
+        use minibuffer_fm, only: REQUIRE_MATCH_YES
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
-        call read_file_name("Show file: ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("Show file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (status%ok()) call vc_dir_show_fileentry(file)
     end subroutine cmd_vc_dir_show_fileentry
 

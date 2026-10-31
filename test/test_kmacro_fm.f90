@@ -26,7 +26,7 @@ module test_kmacro_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, xfixnum
+    use lisp_fm, only: value_type, make_fixnum, list, xfixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only, current_buffer
@@ -34,11 +34,11 @@ module test_kmacro_fm
     use keymap_fm, only: key_parse, key_binding
     use callint_fm, only: current_prefix_arg, prefix_arg
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message, unread_command_events, &
-                           defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
+                           defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
                            this_command_keys, last_input_event, store_kbd_macro_event, finalize_kbd_macro_chars, &
                            kbd_macro_termination_hook, last_command, store_event
     use bindings_fm, only: init_bindings
-    use register_fm, only: set_register, get_register, register_value_type, REGISTER_NUMBER
+    use register_fm, only: set_register, get_register, register_contents_type, REGISTER_NUMBER
     use rect_fm, only: rectangle_line_type
     use xdisp_fm, only: mode_line_modes_faces, face_span_type
     use edmacro_fm, only: format_kbd_macro
@@ -50,7 +50,7 @@ module test_kmacro_fm
                          kmacro_initial_counter_value, kmacro_counter_format, kmacro_default_counter_format, &
                          kmacro_counter_format_start, kmacro_counter_value_start, kmacro_last_counter, &
                          kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_CALL_REPEAT_DISABLED, &
-                         KMACRO_CALL_REPEAT_LAST_KEY, KMACRO_NO_REPEAT_T
+                         KMACRO_CALL_REPEAT_LAST_KEY, KMACRO_REPEAT_NO
     implicit none(type, external)
     private
 
@@ -110,10 +110,10 @@ contains
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
         call show_alone()
-        defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+        defining_kbd_macro = DEFINING_KBD_MACRO_NO
         call discard_input()
-        prefix_arg = nil()
-        current_prefix_arg = nil()
+        prefix_arg = value_type()
+        current_prefix_arg = value_type()
         call init_bindings()
         kmacro_execute_before_append = .true.
         kmacro_ring_max = 8
@@ -203,15 +203,15 @@ contains
         type(status_type) :: st
         integer :: k
 
-        current_prefix_arg = nil()
-        call kmacro_start_macro(nil(), st)
+        current_prefix_arg = value_type()
+        call kmacro_start_macro(value_type(), st)
 
         do k = 1, size(evs)
             call store_kbd_macro_event(evs(k))
         end do
 
         call finalize_kbd_macro_chars()
-        call kmacro_end_macro(nil(), st)
+        call kmacro_end_macro(value_type(), st)
     end subroutine define_macro
 
     !> Insert the counter as kmacro-tests-simulate-command does, with
@@ -222,7 +222,7 @@ contains
 
         current_prefix_arg = arg
         call kmacro_insert_counter(arg, st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
     end subroutine insert_counter
 
     !> Set the counter as kmacro-tests-simulate-command does.
@@ -234,7 +234,7 @@ contains
         current_prefix_arg = make_fixnum(n)
         if (present(arg)) current_prefix_arg = arg
         call kmacro_set_counter(n, st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
     end subroutine set_counter
 
     !> The text of the current buffer.
@@ -255,8 +255,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(nil())
-        call insert_counter(nil())
+        call insert_counter(value_type())
+        call insert_counter(value_type())
         call check(error, text(), "01")
         call kill_buffer(h, st)
     end subroutine test_insert_counter_01
@@ -270,7 +270,7 @@ contains
         call fresh(h)
         call insert_counter(make_fixnum(2_int64))
         call insert_counter(make_fixnum(3_int64))
-        call insert_counter(nil())
+        call insert_counter(value_type())
         call check(error, text(), "025")
         call kill_buffer(h, st)
     end subroutine test_insert_counter_02
@@ -296,7 +296,7 @@ contains
 
         call fresh(h)
         call insert_counter(sym("-"))
-        call insert_counter(nil())
+        call insert_counter(value_type())
         call check(error, text(), "0-1")
         call kill_buffer(h, st)
     end subroutine test_insert_counter_04
@@ -309,11 +309,11 @@ contains
 
         call fresh(h)
         call set_counter(10_int64)
-        call insert_counter(nil())
-        call insert_counter(nil())
+        call insert_counter(value_type())
+        call insert_counter(value_type())
         call kmacro_set_format("c=%s")
         call set_counter(50_int64)
-        call insert_counter(nil())
+        call insert_counter(value_type())
         call check(error, text(), "1011c=50")
         call kill_buffer(h, st)
     end subroutine test_start_format_counter
@@ -325,12 +325,12 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call kmacro_start_macro(nil(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
+        call kmacro_start_macro(value_type(), st)
+        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "recording")
         if (allocated(error)) return
-        call kmacro_start_macro(nil(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
+        call kmacro_start_macro(value_type(), st)
+        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "still recording")
         if (allocated(error)) return
         call check(error, last_message, "Already defining keyboard macro.")
@@ -347,13 +347,13 @@ contains
         call fresh(h)
         current_prefix_arg = make_fixnum(5_int64)
         call kmacro_start_macro(make_fixnum(5_int64), st)
-        current_prefix_arg = nil()
-        call insert_counter(nil())
+        current_prefix_arg = value_type()
+        call insert_counter(value_type())
         call set_counter(1_int64)
-        call insert_counter(nil())
+        call insert_counter(value_type())
         ! Using universal arg to set counter should reset to starting value.
         call set_counter(4_int64, list(make_fixnum(4_int64)))
-        call insert_counter(nil())
+        call insert_counter(value_type())
         call check(error, text(), "515")
         call discard_input()
         call kill_buffer(h, st)
@@ -366,19 +366,19 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call kmacro_start_macro_or_insert_counter(nil(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL, "recording")
+        call kmacro_start_macro_or_insert_counter(value_type(), st)
+        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO, "recording")
         if (allocated(error)) return
         ! Call it again and it should insert the counter.
-        call kmacro_start_macro_or_insert_counter(nil(), st)
+        call kmacro_start_macro_or_insert_counter(value_type(), st)
         call check(error, text(), "0")
         if (allocated(error)) return
         ! The macro recorded is "hello" (kmacro-tests-end-macro-advice).
         call record(chars("hello"))
         current_prefix_arg = make_fixnum(3_int64)
         call kmacro_end_or_call_macro(make_fixnum(3_int64), st)
-        current_prefix_arg = nil()
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "finished")
+        current_prefix_arg = value_type()
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "finished")
         if (allocated(error)) return
         call check(error, text(), "0hellohello", "the definition repeated")
         if (allocated(error)) return
@@ -387,7 +387,7 @@ contains
         ! This should run the previous macro first.
         current_prefix_arg = list(make_fixnum(4_int64))
         call kmacro_start_macro_or_insert_counter(current_prefix_arg, st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error, text(), "hello")
         if (allocated(error)) return
         call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_APPEND, "append")
@@ -476,7 +476,7 @@ contains
         call define_macro(kbd(mac))
         current_prefix_arg = make_fixnum(count)
         call kmacro_end_or_call_macro(make_fixnum(count), st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error, st%ok(), name//": "//format_error(st))
         if (allocated(error)) return
         call check(error, text(), expected, name)
@@ -510,7 +510,7 @@ contains
 
         current_prefix_arg = make_fixnum(1_int64)
         call kmacro_end_or_call_macro(make_fixnum(1_int64), st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error, (st%code == FM_QUIT) .eqv. quits, name//": quit")
         if (allocated(error)) return
         if (.not. quits) call check(error, kmacro_counter == after, name//": counter")
@@ -527,7 +527,7 @@ contains
         call define_macro(chars("macro #1"))
         call define_macro(chars("macro #2"))
         ! With no prefix arg, it should call the second macro.
-        call kmacro_end_or_call_macro(nil(), st)
+        call kmacro_end_or_call_macro(value_type(), st)
         call check(error, text(), "macro #2")
         if (allocated(error)) return
         ! With universal arg, it should call the first one.
@@ -544,17 +544,17 @@ contains
 
         call fresh(h)
         ! First, try it with no macro to record.
-        call kmacro_start_macro(nil(), st)
+        call kmacro_start_macro(value_type(), st)
         call kmacro_end_and_call_macro(make_fixnum(2_int64), st)
         call check(error, format_error(st), "No kbd macro has been defined")
         if (allocated(error)) return
         ! Check that it stopped defining and that no macro was recorded.
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "no macro")
         if (allocated(error)) return
-        ! Now try it while not recording, but first record a non-nil macro.
+        ! Now try it while not recording, but first record a macro.
         call define_macro(chars("macro"))
-        call kmacro_end_and_call_macro(nil(), st)
+        call kmacro_end_and_call_macro(value_type(), st)
         call check(error, text(), "macro")
         call kill_buffer(h, st)
     end subroutine test_end_and_call_macro
@@ -592,11 +592,11 @@ contains
         ! Record one macro, with count.
         current_prefix_arg = make_fixnum(1_int64)
         call kmacro_start_macro(make_fixnum(1_int64), st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call record(kbd("C-x C-k C-i C-u C-x C-k C-i"))
-        call kmacro_end_macro(nil(), st)
+        call kmacro_end_macro(value_type(), st)
         ! Check that execute and display do nothing with no 2nd macro.
-        call kmacro_call_ring_2nd(nil(), st)
+        call kmacro_call_ring_2nd(value_type(), st)
         call check(error, text(), "")
         if (allocated(error)) return
         call kmacro_view_ring_2nd(st)
@@ -606,7 +606,7 @@ contains
         call kmacro_set_format("=%d=")
         call define_macro(chars("bar"))
         ! Execute the first one; should get default format.
-        call kmacro_call_ring_2nd(nil(), st)
+        call kmacro_call_ring_2nd(value_type(), st)
         call check(error, text(), "11")
         if (allocated(error)) return
         ! Now display the 2nd ring macro and check result.
@@ -634,7 +634,7 @@ contains
         call check(error, last_message, "Macro: bb")
         if (allocated(error)) return
         ! Execute the current macro and check arguments.
-        call kmacro_call_macro(make_fixnum(2_int64), st, KMACRO_NO_REPEAT_T)
+        call kmacro_call_macro(make_fixnum(2_int64), st, KMACRO_REPEAT_NO)
         call check(error, text(), "bbbb")
         if (allocated(error)) return
         ! Cycle the ring the other way; #5 expected.
@@ -675,7 +675,7 @@ contains
             case (5)
                 call kmacro_view_ring_2nd(st)
             case (6)
-                call kmacro_call_ring_2nd(nil(), st)
+                call kmacro_call_ring_2nd(value_type(), st)
             case default
                 ! kmacro-view-macro says so, then that there are none.
                 call kmacro_view_macro(st)
@@ -702,7 +702,7 @@ contains
         call define_macro(chars("b"))
         call define_macro(chars("c"))
         call define_macro(chars("d"))
-        last_command = nil()
+        last_command = value_type()
         ! 6 views (the first plus 5 repeats) should cycle through the ring
         ! and get to the second-to-last macro defined; C-k runs it.
         call type_events(kbd("C-x C-k C-v C-v C-v C-v C-v C-v C-k"))
@@ -715,7 +715,7 @@ contains
 
     !> The text of *Messages*.
     function messages_text() result(t)
-        use buffer_fm, only: get_buffer, buffer_live_p, set_buffer, current_buffer
+        use buffer_fm, only: get_buffer, is_buffer_live, set_buffer, current_buffer
         use editfns_fm, only: buffer_string
         character(len=:), allocatable :: t
         type(handle_type) :: old
@@ -723,7 +723,7 @@ contains
 
         old = current_buffer()
         t = ""
-        if (.not. buffer_live_p(get_buffer("*Messages*"))) return
+        if (.not. is_buffer_live(get_buffer("*Messages*"))) return
         call set_buffer(get_buffer("*Messages*"), st)
         t = buffer_string()
         call set_buffer(old, st)
@@ -747,7 +747,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message, "Keyboard macro defined")
         if (allocated(error)) return
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "no longer defining")
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "no longer defining")
         if (allocated(error)) return
         call type_events(kbd("C-x e"))
         call check(error, text(), "abab")
@@ -805,7 +805,7 @@ contains
         call fresh(h)
         call type_events(kbd("C-x ( a C-x )"))
         call type_events(kbd("C-x ( b C-g"))
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "not defining")
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "not defining")
         if (allocated(error)) return
         call check(error, last_macro_is(chars("a")), "previous macro")
         if (allocated(error)) return
@@ -824,7 +824,7 @@ contains
 
         call fresh(h)
         call type_events(kbd("C-x ( b C-a C-b"))
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "not defining")
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "not defining")
         if (allocated(error)) return
         call check(error, last_macro_is(kbd("b C-a")), "macro b C-a")
         if (allocated(error)) return
@@ -868,7 +868,7 @@ contains
         call define_macro(chars("a"))
         call kmacro_call_macro(make_fixnum(2_int64), st)
         call define_macro(kbd("C-a C-b"))
-        call kmacro_call_macro(nil(), st)
+        call kmacro_call_macro(value_type(), st)
         call kbd_macro_termination_hook%remove(count_termination)
         call check(error, terminations, 2)
         if (allocated(error)) return
@@ -890,7 +890,7 @@ contains
         call mode_line_modes_faces(h%index, modes, spans, faces)
         call check(error, modes, "Fundamental")
         if (allocated(error)) return
-        call kmacro_start_macro(nil(), st)
+        call kmacro_start_macro(value_type(), st)
         call mode_line_modes_faces(h%index, modes, spans, faces)
         call check(error, modes, "Fundamental Def")
         if (allocated(error)) return

@@ -26,7 +26,7 @@
 !> input-decode-map, local-function-key-map and key-translation-map)
 !> -> `command_loop_step', which runs the bound command.
 !>
-!> Events are fixnums (characters with modifier bits) and symbols
+!> Events are fixnums (characters with modifier bits) and names
 !> (function keys).  Without a terminal (`set_input_fd' not called) the
 !> event queue is the only source, which is how tests drive the loop;
 !> `read_event' then reports end of input instead of blocking.
@@ -47,26 +47,27 @@
 !>
 !> Not ported yet: idle hooks, mouse and
 !> switch-frame events, the (t . EVENT) and (no-record . EVENT) forms of
-!> `unread_command_events', `help_form' and `prefix_help_command', quit
+!> `unread_command_events', `help_procedure' and `prefix_help_command', quit
 !> while computing (C-g is an ordinary key), `ring_bell_function', the
 !> `minibuffer_quit' condition (a quit in the minibuffer is handled as any
 !> quit) and `minibuffer_error_function'.
 module keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: V_NULL, V_INTEGER, V_NAME, V_STRING
     use error_fm, only: status_type, set_error, format_error, error_name, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR, &
                         FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
     use data_fm, only: value_eq
-    use lisp_fm, only: value_type, V_LIST, nil, make_fixnum, &
-                       make_keymap_ref, vtag, nilp, fixnump, symbolp, &
-                       stringp, xfixnum, xsymbol, xstring, list_elements, list_elt, make_list, symbols, &
+    use lisp_fm, only: value_type, V_ARRAY, make_fixnum, &
+                       make_keymap_ref, vtag, &
+                       xfixnum, xsymbol, xstring, list_elements, list_elt, make_list, symbols, &
                        command_proc
     use lread_fm, only: intern, sym
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_MODIFIER_MASK, CHAR_CTL, CHAR_ALT, CHAR_SUPER, CHAR_HYPER, &
                             bytes_by_char_head, byte8_to_char, &
-                            multibyte_length, string_char_and_length, char_byte8_p, char_to_byte8, &
+                            multibyte_length, string_char_and_length, is_char_byte8, char_to_byte8, &
                             char_resolve_modifier_mask, MAX_CHAR
-    use keymap_fm, only: keymapp, keymap_live_p, access_keymap, &
+    use keymap_fm, only: is_keymap, is_keymap_live, access_keymap, &
                          current_active_maps, &
                          key_description, parse_modifiers, apply_modifiers, &
                          overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
@@ -74,7 +75,7 @@ module keyboard_fm
     use callint_fm, only: call_interactively, funcall, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, this_command, command_name_of
     use buffer_fm, only: buffers, cur, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer
-    use casetab_fm, only: downcase, uppercasep
+    use casetab_fm, only: downcase, is_uppercase
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                        buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending, inputs_available, emacs_write
@@ -90,22 +91,22 @@ module keyboard_fm
 
     public :: current_input_meta_mode, set_input_meta_mode, set_input_fd, kbd_store_bytes, &
               tty_read_avail_input, unread_command_events, &
-              discard_input, input_pending_p, read_event, unread_command_events_p, read_input_event, store_event
+              discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event
     public :: read_key_sequence, command_loop_step, command_loop, &
-              request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
+              request_exit, is_exit_requested, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
     public :: exit_transient_map
-    public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, special_events_pending_p, &
+    public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, has_pending_special_events, &
               read_fd_proc, special_event_proc
-    public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
+    public :: execute_kbd_macro, ring_bell, bitch_at_user, is_executing_kbd_macro
     public :: start_kbd_macro, end_kbd_macro, call_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
-              finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, defining_kbd_macro_p, &
+              finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, is_defining_kbd_macro, &
               syms_of_macros
     public :: recent_keys, lossage_size, message_log_proc
     public :: read_char, read_char_exclusive, read_filtered_event, read_key_sequence_vs, barf_if_interaction_inhibited
     public :: this_command_keys_vector, this_single_command_keys, this_single_command_raw_keys, &
               set__this_command_keys, clear_this_command_keys, recursion_depth, top_level, recursive_edit
-    public :: cancel_echoing, echo_now, prefix_command_update, internal_echo_keystrokes_prefix, help_char_p
+    public :: cancel_echoing, echo_now, prefix_command_update, internal_echo_keystrokes_prefix, is_help_char
     public :: event_convert_list, event_symbol_parse_modifiers, parse_solitary_modifier, lispy_modifier_list, &
               make_ctrl_char, ascii_character, safe_run_hooks
     public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc, kbd_macro_loop_proc
@@ -267,8 +268,8 @@ module keyboard_fm
 
     !> keyboard.c:recent_keys, a ring of the last `lossage_limit' input
     !> events not from keyboard macros, and of the commands run, as
-    !> upstream's pseudo-events (nil . COMMAND): `recent_is_command' marks
-    !> those, whose command (nil for an undefined key) is in
+    !> upstream's pseudo-events (no event, then COMMAND): `recent_is_command' marks
+    !> those, whose command (unallocated for an undefined key) is in
     !> `recent_events'.  The next entry goes at `recent_keys_index'
     !> (1-based); `total_keys' entries are filled.
     type(value_type), allocatable :: recent_events(:)
@@ -330,7 +331,7 @@ module keyboard_fm
 
     !> A command to execute in place of the command about to be executed,
     !> which it is given: a function of `pre_command_hook' sets it (upstream,
-    !> such a function sets `this_command' to a lambda calling the command),
+    !> such a function sets `this_command' to a procedure calling the command),
     !> and the command loop clears it before executing it.
     procedure(command_wrapper_proc), pointer, public :: this_command_wrapper => null()
 
@@ -366,20 +367,19 @@ module keyboard_fm
     logical :: macro_active = .false., macro_string = .false., macro_forced_end = .false.
     !> macros.c:executing_kbd_macro_index, the index of the next event.
     integer(int64), public, protected :: executing_kbd_macro_index = 0
-    !> macros.c:executing_kbd_macro (non-nil): the most recently started
+    !> macros.c:executing_kbd_macro (set): the most recently started
     !> macro, for the "After N kbd macro iterations" error context.
     logical :: macro_started = .false.
     !> macros.c:executing_kbd_macro_iterations.
     integer(int64), public, protected :: executing_kbd_macro_iterations = 0
-    !> Values of `defining_kbd_macro': nil, t and `append'.
-    integer, parameter, public :: DEFINING_KBD_MACRO_NIL = 0, DEFINING_KBD_MACRO_T = 1, DEFINING_KBD_MACRO_APPEND = 2
+    !> Values of `defining_kbd_macro': DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_YES and DEFINING_KBD_MACRO_APPEND.
+    integer, parameter, public :: DEFINING_KBD_MACRO_NO = 0, DEFINING_KBD_MACRO_YES = 1, DEFINING_KBD_MACRO_APPEND = 2
 
-    !> Not `DEFINING_KBD_MACRO_NIL' while a keyboard macro is being defined.
+    !> Not `DEFINING_KBD_MACRO_NO' while a keyboard macro is being defined.
     !> Don't set this!
     !> The value is `DEFINING_KBD_MACRO_APPEND' while appending to the
-    !> definition of an existing macro.  Port of macros.c defining-kbd-macro
-    !> (DEFINING_KBD_MACRO_NIL for nil, DEFINING_KBD_MACRO_T for t).
-    integer, public :: defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+    !> definition of an existing macro.  Port of macros.c defining-kbd-macro.
+    integer, public :: defining_kbd_macro = DEFINING_KBD_MACRO_NO
 
     !> Last kbd macro defined, as an array of events; not allocated if none
     !> defined.  Port of macros.c last-kbd-macro (a vector: no string
@@ -407,10 +407,10 @@ module keyboard_fm
     !> re-exports it).
     integer, public :: minibuf_level = 0
 
-    !> True means any user interaction will signal an error.
+    !> True means any user interaction will make an `inhibited_interaction' error condition occur.
     !> This variable can be bound when user interaction can't be performed,
     !> for instance when running a headless Emacs server.  Functions like
-    !> `read_from_minibuffer' (and the like) will signal `inhibited_interaction'
+    !> `read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition occur
     !> instead.  Port of minibuf.c inhibit-interaction (here because
     !> keyboard.c's `read_event' reads it too).
     logical, public :: inhibit_interaction = .false.
@@ -438,8 +438,8 @@ module keyboard_fm
     integer(int64), public, protected :: num_nonmacro_input_events = 0
 
     !> The keyboard's echo state (struct kboard's echo_string, echo_prompt
-    !> and immediate_echo): the text being echoed (unallocated for nil),
-    !> the prompt it begins with (unallocated for nil), and whether
+    !> and immediate_echo): the text being echoed (unallocated for none),
+    !> the prompt it begins with (unallocated for none), and whether
     !> keystrokes are echoed as they come.
     character(len=:), allocatable :: echo_string, echo_prompt
     logical :: immediate_echo = .false.
@@ -463,13 +463,13 @@ module keyboard_fm
     integer(int32), public :: dribble_fd = -1
 
     !> Character to recognize as meaning Help.
-    !> When it is read, do `(eval help-form)', and display result if it's a string.
-    !> If the value of `help_form' is nil, this char can be read normally.
+    !> When it is read, call `help_procedure', and display the result if it's a string.
+    !> If the value of `help_procedure' is null, this char can be read normally.
     !> Port of keyboard.c help-char (a character).
     integer(int64), public :: help_char = 8
     !> List of input events to recognize as meaning Help.
     !> These work just like the value of `help_char' (see that).  Port of
-    !> keyboard.c help-event-list (the events as `key_valid_p' strings;
+    !> keyboard.c help-event-list (the events as `is_key_valid' strings;
     !> bindings.el's value is set by bindings_fm).
     character(len=16), allocatable, public :: help_event_list(:)
     !> Whether to append help text to echoed commands.
@@ -478,10 +478,10 @@ module keyboard_fm
     logical, public :: echo_keystrokes_help = .true.
     !> simple.el's prefix-command--needs-update and prefix-command--last-echo:
     !> whether a prefix command changed the prefix state, and the last
-    !> description of it (unallocated for nil).
+    !> description of it (unallocated for none).
     logical :: prefix_command_needs_update = .false.
     character(len=:), allocatable :: prefix_command_last_echo
-    !> A throw to `top_level' is unwinding the recursive edits.
+    !> A return to `top_level' with a status is unwinding the recursive edits.
     logical :: top_level_pending = .false.
 
     !> Whether errors of the innermost command loop are handled there
@@ -499,12 +499,12 @@ module keyboard_fm
     logical :: exit_requested = .false.
     !> keyboard.c:command_loop_level, the depth of recursive edits.
     integer, public, protected :: command_loop_level = 0
-    !> A (throw 'exit VALUE) is pending; `exit_abort' for VALUE t.
+    !> A return to `exit' with a status is pending; `exit_abort' for an abort.
     logical :: exit_pending = .false., exit_abort = .false.
     !> How many recursive edits the pending abort leaves
     !> (minibuffer-quit-recursive-edit's LEVELS).
     integer :: exit_levels = 1
-    !> VALUE is this string: the recursive edit signals it as an error.
+    !> VALUE is this string: an error condition with it as the message occurs in the recursive edit.
     character(len=:), allocatable :: exit_string
     !> overriding-terminal-local-map holds a transient map, to be dropped
     !> before the next command runs.
@@ -526,7 +526,7 @@ module keyboard_fm
     !> If MACRO is a string or vector, then the events in it are executed
     !> exactly as if they had been input by the user.
     !>
-    !> COUNT is a repeat count, or nil for once, or 0 for infinite loop.
+    !> COUNT is a repeat count, or absent for once, or 0 for infinite loop.
     !>
     !> Optional third arg LOOPFUNC may be a function that is called prior to
     !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
@@ -578,8 +578,8 @@ module keyboard_fm
         !>
         !> Optional second arg LOOPFUNC may be a function that is called prior to
         !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
-        !> false.  Port of macros.c:Fend_kbd_macro (REPEAT is nil or a
-        !> fixnum).
+        !> false.  Port of macros.c:Fend_kbd_macro (REPEAT is absent or an
+        !> integer).
         recursive module subroutine end_kbd_macro(repeat, status, loopfunc)
             implicit none(type, external)
             type(value_type), intent(in) :: repeat
@@ -644,16 +644,16 @@ module keyboard_fm
 contains
 
     !> Whether a keyboard macro is being defined (`defining_kbd_macro' is
-    !> not nil).  Not a port.
-    logical function defining_kbd_macro_p()
-        defining_kbd_macro_p = defining_kbd_macro /= DEFINING_KBD_MACRO_NIL
-    end function defining_kbd_macro_p
+    !> not DEFINING_KBD_MACRO_NO).  Not a port.
+    logical function is_defining_kbd_macro()
+        is_defining_kbd_macro = defining_kbd_macro /= DEFINING_KBD_MACRO_NO
+    end function is_defining_kbd_macro
 
     ! ------------------------------------------------------------------
     ! Input
     ! ------------------------------------------------------------------
 
-    !> Port of keyboard.c:Fset_input_meta_mode (META: 0 nil, 1 t, 2
+    !> Port of keyboard.c:Fset_input_meta_mode (META: 0 off, 1 on, 2
     !> encoded).
     subroutine set_input_meta_mode(mode)
         integer, intent(in) :: mode
@@ -661,8 +661,8 @@ contains
         meta_key = mode
     end subroutine set_input_meta_mode
 
-    !> The META element of `current_input_mode': 0 (nil: the 8th bit is
-    !> stripped), 1 (t: it is Meta) or 2 (encoded: bytes go on to keyboard
+    !> The META element of `current_input_mode': 0 (off: the 8th bit is
+    !> stripped), 1 (on: it is Meta) or 2 (encoded: bytes go on to keyboard
     !> decoding).  Port of the META part of keyboard.c:Fcurrent_input_mode.
     integer function current_input_meta_mode()
         current_input_meta_mode = meta_key
@@ -877,7 +877,7 @@ contains
     !> Also end any kbd macro being defined.  Port of
     !> keyboard.c:Fdiscard_input.
     subroutine discard_input()
-        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL) then
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
             ! Discard the last command from the macro.
             call cancel_kbd_macro_events()
             call finish_kbd_macro()
@@ -892,10 +892,10 @@ contains
     end subroutine discard_input
 
     !> Whether `unread_command_events' holds events (the variable is
-    !> non-nil).  Not a port.
-    logical function unread_command_events_p()
-        unread_command_events_p = nunread > 0
-    end function unread_command_events_p
+    !> not empty).  Not a port.
+    logical function has_unread_command_events()
+        has_unread_command_events = nunread > 0
+    end function has_unread_command_events
 
     !> Whether input is waiting: unread events, queued events or bytes
     !> from the terminal.  Port of keyboard.c:Finput_pending_p with
@@ -903,11 +903,11 @@ contains
     !> keyboard.c:detect_input_pending, keyboard.c:requeued_events_pending_p,
     !> keyboard.c:requeued_command_events_pending_p and
     !> keyboard.c:kbd_buffer_events_waiting (no input methods).
-    logical function input_pending_p()
-        input_pending_p = nunread > 0 .or. tail >= head
-        if (input_pending_p .or. input_fd < 0) return
-        input_pending_p = input_available(input_fd, 0_int32)
-    end function input_pending_p
+    logical function is_input_pending()
+        is_input_pending = nunread > 0 .or. tail >= head
+        if (is_input_pending .or. input_fd < 0) return
+        is_input_pending = input_available(input_fd, 0_int32)
+    end function is_input_pending
 
     !> The next input event.  Waits for terminal input if there is a
     !> terminal; otherwise `have' is false when the queue is empty (end of
@@ -986,7 +986,7 @@ contains
     end subroutine record_char
 
     !> Write event C to the dribble file, if one is open: a character
-    !> below 256 as its byte, a larger one as " 0xHEX", a symbol (or the
+    !> below 256 as its byte, a larger one as " 0xHEX", a name (or the
     !> head of a composite event) as <NAME>.  Port of keyboard.c:record_char
     !> (the dribble part).
     subroutine record_dribble(c)
@@ -997,7 +997,7 @@ contains
 
         if (dribble_fd < 0) return
 
-        if (fixnump(c)) then
+        if (vtag(c) == V_INTEGER) then
             if (xfixnum(c) >= 0 .and. xfixnum(c) < 256) then
                 call emacs_write(dribble_fd, achar(xfixnum(c)), st)
             else
@@ -1007,8 +1007,9 @@ contains
         else
             ! If it's a structured event, take the event header.
             head = c
-            if (vtag(c) == V_LIST) head = list_elt(c, 1_int64)
-            if (symbolp(head)) call emacs_write(dribble_fd, "<"//symbols(xsymbol(head))%name//">", st)
+            if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
+            if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) call emacs_write(dribble_fd, &
+                                                                                   "<"//symbols(xsymbol(head))%name//">", st)
         end if
 
     contains
@@ -1110,7 +1111,7 @@ contains
             if (nunread > 0) then
                 ev = unread(1)
                 unread(1:nunread - 1) = unread(2:nunread)
-                unread(nunread) = nil()
+                unread(nunread) = value_type()
                 nunread = nunread - 1
                 have = .true.
                 reread = .true.
@@ -1120,11 +1121,11 @@ contains
             ! If we're executing a macro, process it unless we are at its
             ! end.
             if (macro_active) then
-                if (.not. at_end_of_macro_p()) then
+                if (.not. is_at_end_of_macro()) then
                     executing_kbd_macro_index = executing_kbd_macro_index + 1
                     ev = macro_events(executing_kbd_macro_index)
 
-                    if (macro_string .and. fixnump(ev)) then
+                    if (macro_string .and. vtag(ev) == V_INTEGER) then
                         if (iand(xfixnum(ev), 128_int64) /= 0 .and. xfixnum(ev) <= 255) then
                             ev = make_fixnum(ior(M_META, iand(xfixnum(ev), not(128_int64))))
                         end if
@@ -1149,7 +1150,7 @@ contains
 
             if (tail >= head) then
                 ev = events(head)
-                events(head) = nil()
+                events(head) = value_type()
                 head = head + 1
 
                 if (head > tail) then
@@ -1241,23 +1242,24 @@ contains
         type(handle_type), intent(in) :: km
         type(value_type) :: v
 
-        if (keymap_live_p(km)) v = make_keymap_ref(km)
+        if (is_keymap_live(km)) v = make_keymap_ref(km)
     end function map_value
 
-    !> Whether BINDING is undefined: nil, `undefined', or a command
+    !> Whether BINDING is undefined: empty, `undefined', or a command
     !> remapped to `undefined'.  Port of keyboard.c:test_undefined.
     logical function test_undefined(binding)
         type(value_type), intent(in) :: binding
         type(value_type) :: remapped
 
-        test_undefined = nilp(binding)
+        test_undefined = .not. allocated(binding%a)
 
-        if (.not. test_undefined .and. symbolp(binding)) then
+        if (.not. test_undefined .and. (vtag(binding) == V_NAME .or. vtag(binding) == V_NULL)) then
             test_undefined = xsymbol(binding) == intern("undefined")
 
             if (.not. test_undefined) then
                 call command_remapping(binding, remapped)
-                if (symbolp(remapped)) test_undefined = xsymbol(remapped) == intern("undefined")
+                if ((vtag(remapped) == V_NAME .or. vtag(remapped) == V_NULL)) test_undefined = xsymbol(remapped) &
+                                                                                               == intern("undefined")
             end if
         end if
     end function test_undefined
@@ -1271,7 +1273,7 @@ contains
         integer(int64) :: pos, n
         integer(int32) :: ch, length
 
-        if (vtag(next) == V_LIST) then
+        if (vtag(next) == V_ARRAY) then
             call list_elements(next, seq)
             return
         end if
@@ -1313,10 +1315,10 @@ contains
         diff = 0
         key = keybuf(fk%end + 1)
         fk%end = fk%end + 1
-        if (keymapp(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
+        if (is_keymap(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
 
-        if (doit .and. (stringp(next) .or. (vtag(next) == V_LIST .and. &
-                                            .not. keymapp(next)))) then
+        if (doit .and. (vtag(next) == V_STRING .or. (vtag(next) == V_ARRAY .and. &
+                                                     .not. is_keymap(next)))) then
             call sequence_events(next, seq)
             n = size(seq)
             diff = n - (fk%end - fk%start)
@@ -1344,7 +1346,7 @@ contains
             return
         end if
 
-        if (keymapp(next)) then
+        if (is_keymap(next)) then
             fk%map = next
         else
             fk%start = fk%start + 1
@@ -1366,7 +1368,7 @@ contains
     !> Read a key sequence: events until the active keymaps give a
     !> non-prefix binding (or none), with terminal escape sequences and
     !> other translations applied.  `keys' is the sequence and `binding'
-    !> its binding (nil if undefined).  `eof' is set when input ended;
+    !> its binding (unallocated if undefined).  `eof' is set when input ended;
     !> `keys' then holds what was read.  PROMPT begins the echo of the
     !> keys; with DONT_DOWNCASE_LAST, an upper-case last event that was
     !> looked up in lower case is returned as it was typed.  The events
@@ -1407,7 +1409,7 @@ contains
             echo_prompt = prompt
             immediate_echo = .false.
             call echo_now()
-            if (.not. echo_keystrokes_p()) immediate_echo = .false.
+            if (.not. is_echo_keystrokes()) immediate_echo = .false.
         end if
 
         ! Record the initial state of the echo area and this_command_keys;
@@ -1434,9 +1436,9 @@ contains
             if (t < mock_input) call echo_truncate(echo_start)
 
             keyloop: do
-                if (nilp(current_binding)) then
+                if (.not. allocated(current_binding%a)) then
                     if (keytran%start >= t) exit replay
-                else if (.not. keymapp(current_binding)) then
+                else if (.not. is_keymap(current_binding)) then
                     exit replay
                 end if
 
@@ -1460,7 +1462,7 @@ contains
                 end if
 
                 macro_end = .false.
-                if (macro_active .and. nunread == 0) macro_end = at_end_of_macro_p()
+                if (macro_active .and. nunread == 0) macro_end = is_at_end_of_macro()
 
                 if (t < mock_input) then
                     key = keybuf(t + 1)
@@ -1494,7 +1496,7 @@ contains
                 ! keyboard.c:follow_key
                 new_binding = access_keymap(current_binding, key, .true., .false.)
 
-                if (.not. nilp(new_binding)) then
+                if (allocated(new_binding%a)) then
                     first_unbound = max(t + 1, first_unbound)
                 else
                     first_unbound = min(t, first_unbound)
@@ -1520,7 +1522,7 @@ contains
                 end do
 
                 ! local-function-key-map: only for undefined sequences.
-                if (.not. keymapp(current_binding) .and. &
+                if (.not. is_keymap(current_binding) .and. &
                     .not. test_undefined(current_binding) .and. indec%start >= t) then
                     if (fkey%start < t) call reset_remap(fkey, t)
                 else
@@ -1559,7 +1561,7 @@ contains
                 ! If KEY is not defined in any of the keymaps, and cannot be
                 ! part of a function key or translation, and is an upper case
                 ! letter, use the corresponding lower-case letter instead.
-                if (nilp(current_binding) .and. keytran%start >= t .and. fixnump(key) .and. &
+                if (.not. allocated(current_binding%a) .and. keytran%start >= t .and. vtag(key) == V_INTEGER .and. &
                     translate_upper_case_key_bindings) then
                     k = xfixnum(key)
                     c = iand(k, not(M_MASK))
@@ -1589,19 +1591,19 @@ contains
                 ! part of a function key or translation, and is a shifted
                 ! function key, use the corresponding unshifted function key
                 ! instead.
-                if (nilp(current_binding) .and. keytran%start >= t .and. translate_upper_case_key_bindings) then
+                if (.not. allocated(current_binding%a) .and. keytran%start >= t .and. translate_upper_case_key_bindings) then
                     bits = 0
-                    if (symbolp(key)) call parse_modifiers(key, bits, base)
-                    if (fixnump(key)) bits = iand(xfixnum(key), M_MASK)
+                    if ((vtag(key) == V_NAME .or. vtag(key) == V_NULL)) call parse_modifiers(key, bits, base)
+                    if (vtag(key) == V_INTEGER) bits = iand(xfixnum(key), M_MASK)
                     c = -1
-                    if (fixnump(key)) c = iand(xfixnum(key), not(M_MASK))
+                    if (vtag(key) == V_INTEGER) c = iand(xfixnum(key), not(M_MASK))
 
                     ! Treat uppercase keys as shifted.
                     if (iand(bits, M_SHIFT) /= 0 .or. uppercase_key(c)) then
                         original_uppercase = key
                         original_uppercase_position = t - 1
 
-                        if (iand(bits, M_SHIFT) /= 0 .and. symbolp(key)) then
+                        if (iand(bits, M_SHIFT) /= 0 .and. (vtag(key) == V_NAME .or. vtag(key) == V_NULL)) then
                             keybuf(t) = apply_modifiers(bits - M_SHIFT, base)
                         else if (iand(bits, M_SHIFT) /= 0) then
                             keybuf(t) = make_fixnum(xfixnum(key) - M_SHIFT)
@@ -1626,7 +1628,7 @@ contains
 
         ! Don't downcase the last character if the caller says don't.
         ! Don't downcase it if the result is undefined, either.
-        if ((keep_case .or. nilp(current_binding)) .and. t > 0 .and. &
+        if ((keep_case .or. .not. allocated(current_binding%a)) .and. t > 0 .and. &
             t - 1 == original_uppercase_position) then
             keybuf(t) = original_uppercase
             shift_translated = .false.
@@ -1634,7 +1636,7 @@ contains
 
         if (shift_translated) this_command_keys_shift_translated = .true.
         binding = current_binding
-        if (keymapp(binding)) binding = nil()
+        if (is_keymap(binding)) binding = value_type()
 
         ! Occasionally we fabricate events, perhaps by expanding something
         ! according to function-key-map.  In this case, return the entire
@@ -1658,7 +1660,7 @@ contains
 
             uppercase_key = .false.
             if (c < 0 .or. c > MAX_CHAR) return
-            uppercase_key = uppercasep(int(c, int32))
+            uppercase_key = is_uppercase(int(c, int32))
         end function uppercase_key
     end subroutine read_key_sequence
 
@@ -1762,7 +1764,7 @@ contains
         if (transient_keep) then
             call lookup_key(map_value(overriding_terminal_local_map), keys, mc, st)
 
-            if (st%ok() .and. .not. nilp(mc) .and. value_eq(this_command, mc)) then
+            if (st%ok() .and. allocated(mc%a) .and. value_eq(this_command, mc)) then
                 ! Repeat the message for the next command.
                 if (allocated(transient_message)) last_message = transient_message
                 return
@@ -1785,11 +1787,11 @@ contains
     end subroutine clear_transient_map
 
     !> Run the ripe timers (keyboard.c:timer_check), show the error a
-    !> timer function signaled, and redisplay if any timer ran, as
+    !> timer function returned with, and redisplay if any timer ran, as
     !> process.c:wait_reading_process_output does.  The result is the
     !> number of milliseconds to wait for the next timer, or -1 for none.
     !> Port of keyboard.c:detect_input_pending_run_timers (the timers and
-    !> the redisplay; `input_pending_p' checks for input).
+    !> the redisplay; `is_input_pending' checks for input).
     recursive integer(int32) function run_timers() result(ms)
         integer(int64) :: old_timers_run
 
@@ -1827,7 +1829,7 @@ contains
 
         timed_out = .false.
         if (associated(redisplay_hook)) call redisplay_hook()
-        if (input_pending_p()) return
+        if (is_input_pending()) return
         call system_clock(start, rate)
 
         do
@@ -1838,7 +1840,7 @@ contains
             if (timed_out) return
 
             if (input_fd < 0 .and. .not. associated(process_output_hook) .and. n_read_fds() == 0) then
-                timed_out = .not. input_pending_p()
+                timed_out = .not. is_input_pending()
                 return
             end if
 
@@ -1846,7 +1848,7 @@ contains
             next_timer = run_timers()
             if (next_timer >= 0) timeout = min(timeout, next_timer)
             if (wait_for_input(timeout)) return
-            if (input_pending_p()) return
+            if (is_input_pending()) return
         end do
     end function sit_for_input
 
@@ -1968,9 +1970,9 @@ contains
     end subroutine insert_special_event
 
     !> Whether special events are waiting to be handled.  Not a port.
-    logical function special_events_pending_p()
-        special_events_pending_p = n_special_events > 0
-    end function special_events_pending_p
+    logical function has_pending_special_events()
+        has_pending_special_events = n_special_events > 0
+    end function has_pending_special_events
 
     !> Handle the queued special events, oldest first, including those
     !> queued meanwhile; an error is reported as the command loop does.
@@ -1994,40 +1996,40 @@ contains
     end subroutine request_exit
 
     !> Whether a command asked the command loop to stop.  Not a port.
-    logical function exit_requested_p()
-        exit_requested_p = exit_requested
-    end function exit_requested_p
+    logical function is_exit_requested()
+        is_exit_requested = exit_requested
+    end function is_exit_requested
 
     !> Whether the execution of a macro has reached its end.
     !> This should be called only while executing a macro.  Port of
     !> macros.c:at_end_of_macro_p.
-    logical function at_end_of_macro_p()
-        at_end_of_macro_p = macro_forced_end .or. .not. allocated(macro_events)
+    logical function is_at_end_of_macro()
+        is_at_end_of_macro = macro_forced_end .or. .not. allocated(macro_events)
 
-        if (.not. at_end_of_macro_p) then
-            at_end_of_macro_p = executing_kbd_macro_index >= size(macro_events, kind=int64)
+        if (.not. is_at_end_of_macro) then
+            is_at_end_of_macro = executing_kbd_macro_index >= size(macro_events, kind=int64)
         end if
-    end function at_end_of_macro_p
+    end function is_at_end_of_macro
 
     !> Whether a keyboard macro is executing (`executing_kbd_macro'
     !> true).  Not a port.
-    logical function executing_kbd_macro_p()
-        executing_kbd_macro_p = macro_active
-    end function executing_kbd_macro_p
+    logical function is_executing_kbd_macro()
+        is_executing_kbd_macro = macro_active
+    end function is_executing_kbd_macro
 
     !> Make the selected window's buffer current (set_buffer_internal
     !> (XBUFFER (XWINDOW (selected_window)->contents)) in
     !> keyboard.c:command_loop_1).  Not a port.
     subroutine select_window_buffer()
         use frame_fm, only: selected_window
-        use window_fm, only: windows, window_live_p
-        use buffer_fm, only: set_buffer, buffer_live_p
+        use window_fm, only: windows, is_window_live
+        use buffer_fm, only: set_buffer, is_buffer_live
         type(handle_type) :: sw
         type(status_type) :: st
 
         sw = selected_window()
-        if (.not. window_live_p(sw)) return
-        if (buffer_live_p(windows(sw%index)%buffer)) call set_buffer(windows(sw%index)%buffer, st)
+        if (.not. is_window_live(sw)) return
+        if (is_buffer_live(windows(sw%index)%buffer)) call set_buffer(windows(sw%index)%buffer, st)
     end subroutine select_window_buffer
 
     !> Ring the bell (flash the screen with `visible_bell').  Port of
@@ -2066,8 +2068,8 @@ contains
             macro_active = .false.
             macro_started = .false.
             if (allocated(macro_events)) deallocate (macro_events)
-            prefix_arg = nil()
-            last_prefix_arg = nil()
+            prefix_arg = value_type()
+            last_prefix_arg = value_type()
             return
         end if
 
@@ -2085,8 +2087,8 @@ contains
         macro_active = .false.
         macro_started = .false.
         if (allocated(macro_events)) deallocate (macro_events)
-        prefix_arg = nil()
-        last_prefix_arg = nil()
+        prefix_arg = value_type()
+        last_prefix_arg = value_type()
         ! command-error-default-function
         call discard_input()
         call bitch_at_user(st)
@@ -2113,8 +2115,8 @@ contains
         done = .false.
         ! Make sure the current window's buffer is selected.
         call select_window_buffer()
-        this_command = nil()
-        real_this_command = nil()
+        this_command = value_type()
+        real_this_command = value_type()
         this_command_keys_shift_translated = .false.
         ! Read next key sequence.
         raw_keybuf_count = 0
@@ -2133,12 +2135,12 @@ contains
         ! minibuffer--delete-message-overlay runs from pre-command-hook.
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
         ! Input ended in the middle of a key sequence: it is unbound.
-        if (eof) cmd = nil()
+        if (eof) cmd = value_type()
 
         ! Remap command through active keymaps (read_key_sequence_remapped).
-        if (symbolp(cmd) .and. .not. nilp(cmd)) then
+        if ((vtag(cmd) == V_NAME .or. vtag(cmd) == V_NULL) .and. allocated(cmd%a)) then
             call command_remapping(cmd, remapped)
-            if (.not. nilp(remapped)) cmd = remapped
+            if (allocated(remapped%a)) cmd = remapped
         end if
 
         last_command_event = keys(size(keys))
@@ -2180,17 +2182,17 @@ contains
 
         deactivate_mark_variable = .false.
 
-        if (nilp(cmd)) then
+        if (.not. allocated(cmd%a)) then
             ! nil means key is undefined.
             call funcall(sym("undefined"), status)
         else
             ! simple.el:command-execute
             current_prefix_arg = prefix_arg
-            prefix_arg = nil()
+            prefix_arg = value_type()
 
             if (associated(wrapper)) then
                 call wrapper(cmd, status)
-            else if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
+            else if (vtag(cmd) == V_STRING .or. vtag(cmd) == V_ARRAY) then
                 call execute_kbd_macro(cmd, current_prefix_arg, status)
             else
                 handled = .false.
@@ -2212,7 +2214,7 @@ contains
             call safe_run_hooks_maybe_narrowed(post_command_hook)
             last_command = this_command
             real_last_command = real_this_command
-            if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
+            if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
             done = eof
             return
         end if
@@ -2221,7 +2223,7 @@ contains
         call safe_run_hooks_maybe_narrowed(post_command_hook)
         last_command = this_command
         real_last_command = real_this_command
-        if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
+        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
         call set_command_key_count(0)
         this_single_command_key_start = 0
         call internal_echo_keystrokes_prefix(prefix, have_prefix)
@@ -2257,19 +2259,19 @@ contains
         end if
 
         ! Install chars successfully executed in kbd macro.
-        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. nilp(prefix_arg)) call finalize_kbd_macro_chars()
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(prefix_arg%a)) call finalize_kbd_macro_chars()
         done = eof
     end subroutine command_loop_step
 
     !> Whether the selected window shows the current buffer.  Not a port.
     logical function selected_window_shows_current() result(shows)
         use frame_fm, only: selected_window
-        use window_fm, only: windows, window_live_p
+        use window_fm, only: windows, is_window_live
         type(handle_type) :: sw
 
         shows = .false.
         sw = selected_window()
-        if (.not. window_live_p(sw)) return
+        if (.not. is_window_live(sw)) return
         shows = windows(sw%index)%buffer%index == buffer_handle_index()
     end function selected_window_shows_current
 
@@ -2286,15 +2288,15 @@ contains
     !> string or a space spec; the other replacing specs, such as
     !> images, are not shown yet).  Port of
     !> xdisp.c:display_prop_intangible_p.
-    logical function display_prop_intangible_p(prop) result(replaces)
+    logical function is_display_prop_intangible(prop) result(replaces)
         type(value_type), intent(in) :: prop
         type(value_type), allocatable :: elts(:)
 
-        replaces = stringp(prop)
-        if (replaces .or. vtag(prop) /= V_LIST) return
+        replaces = vtag(prop) == V_STRING
+        if (replaces .or. vtag(prop) /= V_ARRAY) return
         call list_elements(prop, elts)
         if (size(elts) > 0) replaces = value_eq(elts(1), sym("space"))
-    end function display_prop_intangible_p
+    end function is_display_prop_intangible
 
     !> Adjust point to a boundary of a region that has such a property
     !> that should be treated intangible (`display' replacing text, and
@@ -2322,7 +2324,7 @@ contains
             if (check_display .and. pt() > begv .and. pt() < zv) then
                 call get_char_property_and_overlay(pt(), sym("display"), val, overlay)
                 ok = .false.
-                if (.not. nilp(val)) ok = display_prop_intangible_p(val)
+                if (allocated(val%a)) ok = is_display_prop_intangible(val)
 
                 if (ok) then
                     if (overlay%index == 0) then
@@ -2360,19 +2362,19 @@ contains
                 ! any.
                 do while (end < zv)
                     call get_char_property_and_overlay(end, sym("invisible"), val, overlay)
-                    if (nilp(val)) exit
+                    if (.not. allocated(val%a)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
-                    ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
+                    ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
                     end = next_single_char_property_change(end, sym("invisible"))
                 end do
 
                 do while (beg > begv)
                     call get_char_property_and_overlay(beg - 1, sym("invisible"), val, overlay)
-                    if (nilp(val)) exit
+                    if (.not. allocated(val%a)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
-                    ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
+                    ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
                     beg = previous_single_char_property_change(beg, sym("invisible"))
                 end do
 
@@ -2413,7 +2415,7 @@ contains
                 ! there's a replacing display property on the same text.
                 call get_char_property_and_overlay(beg, sym("display"), val, overlay)
                 shown = .false.
-                if (.not. nilp(val)) shown = display_prop_intangible_p(val)
+                if (allocated(val%a)) shown = is_display_prop_intangible(val)
                 ! If the "invisible" text is shown, undo any point
                 ! adjustments due to invisible property, as cursor
                 ! positioning by the display engine will do a better job.
@@ -2454,18 +2456,18 @@ contains
             type(value_type), intent(in) :: v
 
             empty_string = .false.
-            if (stringp(v)) empty_string = len(xstring(v)) == 0
+            if (vtag(v) == V_STRING) empty_string = len(xstring(v)) == 0
         end function empty_string
 
         !> Whether OVERLAY has an after-string or a before-string.
-        logical function overlay_strings_p(ov)
+        logical function has_overlay_strings(ov)
             type(handle_type), intent(in) :: ov
 
-            overlay_strings_p = .false.
+            has_overlay_strings = .false.
             if (ov%index == 0) return
-            overlay_strings_p = .not. nilp(overlay_get(ov, "after_string")) .or. &
-                                .not. nilp(overlay_get(ov, "before_string"))
-        end function overlay_strings_p
+            has_overlay_strings = vtag(overlay_get(ov, "after_string")) /= V_NULL .or. &
+                                  vtag(overlay_get(ov, "before_string")) /= V_NULL
+        end function has_overlay_strings
     end subroutine adjust_point_for_property
 
     !> Run commands until input ends or `request_exit' is called.  Command
@@ -2496,11 +2498,11 @@ contains
         exit_requested = .false.
     end subroutine command_loop
 
-    !> Run a command loop until a command throws to `exit': return when
-    !> it throws nil, signal quit when it throws t.  End of input, or a
+    !> Run a command loop until a command returns to `exit' with a status: return
+    !> for a plain exit, and a `quit' error condition occurs for an abort.  End of input, or a
     !> request to leave Emacs, also ends it with a quit; the end of the
     !> keyboard macro being executed ends it as an exit.  Its command loop
-    !> handles errors (internal_catch (Qexit, command_loop_2, Qerror)).
+    !> checks the status of each command (keyboard.c's internal_catch of Qexit).
     !> Minibuffers call it directly; `recursive_edit' counts the level.
     !> Port of keyboard.c:recursive_edit_1 with keyboard.c:command_loop.
     recursive subroutine recursive_edit_1(status)
@@ -2518,7 +2520,7 @@ contains
 
         do
             call command_loop_step(done, step_status)
-            if (done .and. macro_active) macro_end = at_end_of_macro_p()
+            if (done .and. macro_active) macro_end = is_at_end_of_macro()
             if (exit_pending .or. done .or. exit_requested) exit
         end do
 
@@ -2554,7 +2556,7 @@ contains
         end if
     end subroutine recursive_edit_1
 
-    !> (throw 'exit nil), or with `abort' (throw 'exit t): end the
+    !> Return to `exit' with a status (an abort with `abort', else a plain exit): end the
     !> innermost recursive edit once the current command returns.  With
     !> `abort', `levels' (default 1) is the number of nested recursive
     !> edits to quit (as minibuffer.el:minibuffer-quit-recursive-edit).
@@ -2569,9 +2571,9 @@ contains
         if (present(levels)) exit_levels = max(1, levels)
     end subroutine throw_exit
 
-    !> (throw 'exit STRING): end the innermost recursive edit once the
-    !> current command returns; it signals an error with message `msg'.
-    !> Port of keyboard.c:Frecursive_edit's handling of a string thrown
+    !> Return to `exit' with a status carrying a message: end the innermost recursive edit once the
+    !> current command returns; an error condition occurs there with message `msg'.
+    !> Port of keyboard.c:Frecursive_edit's handling of a string returned
     !> to `exit'.
     subroutine throw_exit_string(msg)
         character(len=*), intent(in) :: msg
@@ -2612,12 +2614,12 @@ contains
 
     !> Whether echoing is on: `echo_keystrokes' is positive.  Port of
     !> keyboard.c:echo_keystrokes_p.
-    logical function echo_keystrokes_p()
-        echo_keystrokes_p = echo_keystrokes > 0.0
-    end function echo_keystrokes_p
+    logical function is_echo_keystrokes()
+        is_echo_keystrokes = echo_keystrokes > 0.0
+    end function is_echo_keystrokes
 
     !> Add C to the echo string, without echoing it immediately.  C can
-    !> be a character, which is pretty-printed, or a symbol, whose name is
+    !> be a character, which is pretty-printed, or a name, whose name is
     !> printed.  Port of keyboard.c:echo_add_key.
     subroutine echo_add_key(c)
         type(value_type), intent(in) :: c
@@ -2632,15 +2634,15 @@ contains
         if (.not. empty) new_string = " "
         ! If someone has passed us a composite event, use its head symbol.
         head = c
-        if (vtag(c) == V_LIST) head = list_elt(c, 1_int64)
+        if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
 
-        if (fixnump(head)) then
+        if (vtag(head) == V_INTEGER) then
             new_string = new_string//push_key_description(xfixnum(head))
-        else if (symbolp(head)) then
+        else if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) then
             new_string = new_string//symbols(xsymbol(head))%name
         end if
 
-        if (empty .and. help_char_p(head)) then
+        if (empty .and. is_help_char(head)) then
             new_string = new_string//" (Type ? for further options, C-q for quick help)"
         end if
 
@@ -2790,7 +2792,7 @@ contains
 
         ! If in middle of key sequence and minibuffer not active, start
         ! echoing if enough time elapses.
-        if (minibuf_level /= 0 .or. end_time .or. immediate_echo .or. .not. echo_keystrokes_p()) return
+        if (minibuf_level /= 0 .or. end_time .or. immediate_echo .or. .not. is_echo_keystrokes()) return
         ok = .false.
         if (allocated(this_command_keys)) ok = size(this_command_keys) > 0
 
@@ -2811,17 +2813,17 @@ contains
 
     !> Whether event C means help: `help_char' or one of
     !> `help_event_list'.  Port of keyboard.c:help_char_p.
-    logical function help_char_p(c)
+    logical function is_help_char(c)
         type(value_type), intent(in) :: c
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: k
 
-        help_char_p = .false.
+        is_help_char = .false.
 
-        if (fixnump(c)) then
-            help_char_p = xfixnum(c) == help_char
-            if (help_char_p) return
+        if (vtag(c) == V_INTEGER) then
+            is_help_char = xfixnum(c) == help_char
+            if (is_help_char) return
         end if
 
         if (.not. allocated(help_event_list)) return
@@ -2831,11 +2833,11 @@ contains
             if (.not. st%ok() .or. size(evs) /= 1) cycle
 
             if (value_eq(evs(1), c)) then
-                help_char_p = .true.
+                is_help_char = .true.
                 return
             end if
         end do
-    end function help_char_p
+    end function is_help_char
 
     !> STR followed by a hint naming the first help key (`help_char' for
     !> `help', or a `help_event_list' event) that the maps the keys of the
@@ -2862,7 +2864,7 @@ contains
 
             do k = 1, size(maps)
                 call lookup_key(maps(k), keys, b, st, accept_default=.true.)
-                if (.not. st%ok() .or. nilp(b)) cycle
+                if (.not. st%ok() .or. .not. allocated(b%a)) cycle
                 n = n + 1
                 bindings(n) = b
             end do
@@ -2888,9 +2890,9 @@ contains
             bound = .false.
 
             do j = 1, size(bindings)
-                if (.not. keymapp(bindings(j))) cycle
+                if (.not. is_keymap(bindings(j))) cycle
                 call lookup_key(bindings(j), key, def, st)
-                if (st%ok() .and. .not. nilp(def)) bound = .true.
+                if (st%ok() .and. allocated(def%a)) bound = .true.
             end do
 
             if (.not. bound) then
@@ -2901,7 +2903,7 @@ contains
     end function append_keystrokes_help
 
     !> The description of the current prefix state, if a prefix command
-    !> has updated it (`have' is false for nil): what the functions of
+    !> has updated it (`have' is .false. for none): what the functions of
     !> prefix-command-echo-keystrokes-functions return, here
     !> `universal_argument_description'.  Port of
     !> simple.el:internal-echo-keystrokes-prefix.
@@ -2936,16 +2938,16 @@ contains
         character(len=24) :: buf
         integer(int64) :: n
 
-        have = .not. nilp(prefix_arg)
+        have = allocated(prefix_arg%a)
         if (.not. have) return
         s = "C-u"
 
         if (value_eq(prefix_arg, sym("-"))) then
             s = s//" -"
-        else if (vtag(prefix_arg) == V_LIST) then
+        else if (vtag(prefix_arg) == V_ARRAY) then
             head = list_elt(prefix_arg, 1_int64)
 
-            if (fixnump(head)) then
+            if (vtag(head) == V_INTEGER) then
                 n = xfixnum(head)
                 str = ""
 
@@ -2961,7 +2963,7 @@ contains
                     s = s//" ("//trim(buf)//")"
                 end if
             end if
-        else if (fixnump(prefix_arg)) then
+        else if (vtag(prefix_arg) == V_INTEGER) then
             write (buf, "(i0)") xfixnum(prefix_arg)
             s = s//" "//trim(buf)
         end if
@@ -3066,7 +3068,7 @@ contains
         do while (pos <= len(keys, kind=int64))
             call string_char_and_length(keys, pos, c, length)
             pos = pos + length
-            if (char_byte8_p(c)) c = char_to_byte8(c)
+            if (is_char_byte8(c)) c = char_to_byte8(c)
 
             ! Kludge alert: this makes M-x be in the form expected by
             ! novice.el.  (248 is \370, a.k.a. "Meta-x".)
@@ -3148,7 +3150,7 @@ contains
             if (.not. ascii_required) return
 
             ! Convert certain symbols to their ASCII equivalents.
-            if (symbolp(ev)) then
+            if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) then
                 call parse_modifiers(ev, bits, base)
                 c = ascii_character(sym(base))
                 ! Merge this symbol's modifier bits with the ASCII
@@ -3157,7 +3159,7 @@ contains
             end if
 
             ! If we don't have a character now, deal with it appropriately.
-            if (fixnump(ev)) return
+            if (vtag(ev) == V_INTEGER) return
 
             if (error_nonascii) then
                 call unread_command_events([ev])
@@ -3177,7 +3179,7 @@ contains
     !> to recover the character code with the modifiers removed.
     !>
     !> If the user generates an event which is not a character (i.e. a mouse
-    !> click or function key event), `read_char' signals an error.  As an
+    !> click or function key event), an error condition occurs in `read_char'.  As an
     !> exception, switch-frame events are put off until non-character events
     !> can be read.
     !> If you want to read non-character events, or ignore them, call
@@ -3190,8 +3192,8 @@ contains
     !> input arrives in that time, return false in HAVE.  SECONDS may be a
     !> floating-point value.
     !>
-    !> If `inhibit_interaction' is true, this function will signal an
-    !> `inhibited_interaction' error.  Port of keyboard.c:Fread_char (no
+    !> If `inhibit_interaction' is true, an
+    !> `inhibited_interaction' error condition occurs.  Port of keyboard.c:Fread_char (no
     !> input methods).
     recursive subroutine read_char(c, have, status, prompt, seconds)
         integer(int64), intent(out) :: c
@@ -3208,7 +3210,7 @@ contains
         call show_read_prompt(prompt)
         call read_filtered_event(.true., .true., ev, have, status, seconds)
         if (.not. status%ok() .or. .not. have) return
-        have = fixnump(ev)
+        have = vtag(ev) == V_INTEGER
         if (have) c = int(char_resolve_modifier_mask(int(xfixnum(ev), int32)), int64)
     end subroutine read_char
 
@@ -3226,8 +3228,8 @@ contains
     !> input arrives in that time, return false in HAVE.  SECONDS may be a
     !> floating-point value.
     !>
-    !> If `inhibit_interaction' is true, this function will signal an
-    !> `inhibited_interaction' error.  Port of keyboard.c:Fread_event (no
+    !> If `inhibit_interaction' is true, an
+    !> `inhibited_interaction' error condition occurs.  Port of keyboard.c:Fread_event (no
     !> input methods).
     recursive subroutine read_event(ev, have, status, seconds, prompt)
         type(value_type), intent(out) :: ev
@@ -3259,8 +3261,8 @@ contains
     !> input arrives in that time, return false in HAVE.  SECONDS may be a
     !> floating-point value.
     !>
-    !> If `inhibit_interaction' is true, this function will signal an
-    !> `inhibited_interaction' error.  Port of
+    !> If `inhibit_interaction' is true, an
+    !> `inhibited_interaction' error condition occurs.  Port of
     !> keyboard.c:Fread_char_exclusive (no input methods).
     recursive subroutine read_char_exclusive(c, have, status, prompt, seconds)
         integer(int64), intent(out) :: c
@@ -3277,7 +3279,7 @@ contains
         call show_read_prompt(prompt)
         call read_filtered_event(.true., .false., ev, have, status, seconds)
         if (.not. status%ok() .or. .not. have) return
-        have = fixnump(ev)
+        have = vtag(ev) == V_INTEGER
         if (have) c = int(char_resolve_modifier_mask(int(xfixnum(ev), int32)), int64)
     end subroutine read_char_exclusive
 
@@ -3314,7 +3316,7 @@ contains
     ! Event symbols
     ! ------------------------------------------------------------------
 
-    !> The modifier bit that symbol SYMBOL names by itself (A, alt, C,
+    !> The modifier bit that name SYMBOL names by itself (A, alt, C,
     !> ctrl, control, click, H, hyper, M, meta, S, shift, s, super, drag,
     !> down, double, triple, up), or 0.  Port of
     !> keyboard.c:parse_solitary_modifier.
@@ -3322,7 +3324,7 @@ contains
         type(value_type), intent(in) :: symbol
 
         bit = 0
-        if (.not. symbolp(symbol)) return
+        if ((vtag(symbol) /= V_NAME .and. vtag(symbol) /= V_NULL)) return
 
         select case (symbols(xsymbol(symbol))%name)
         case ("A", "alt")
@@ -3354,7 +3356,7 @@ contains
         end select
     end function parse_solitary_modifier
 
-    !> The list of modifier symbols for the bits MODIFIERS, the highest
+    !> The list of modifier names for the bits MODIFIERS, the highest
     !> bit first: (meta control) for C-M-.  Port of
     !> keyboard.c:lispy_modifier_list.
     function lispy_modifier_list(modifiers) result(v)
@@ -3379,7 +3381,7 @@ contains
         v = make_list(syms(1:n))
     end function lispy_modifier_list
 
-    !> Parse the event symbol.  For internal use.  The value is the list
+    !> Parse the event name.  For internal use.  The value is the list
     !> (BASE MODIFIERS...), as the `event_symbol_elements' property of
     !> SYMBOL upstream.  Port of keyboard.c:Fevent_symbol_parse_modifiers.
     function event_symbol_parse_modifiers(symbol) result(v)
@@ -3436,13 +3438,13 @@ contains
     end function make_ctrl_char
 
     !> Convert the event description list EVENT_DESC to an event type.
-    !> EVENT_DESC should contain one base event type (a character or symbol)
+    !> EVENT_DESC should contain one base event type (a character or name)
     !> and zero or more modifier names (control, meta, hyper, super, shift, alt,
     !> drag, down, double or triple).  The base must be last.
     !>
-    !> The return value is an event type (a character or symbol) which has
+    !> The return value is an event type (a character or name) which has
     !> essentially the same base event type and all the specified modifiers.
-    !> (Some compatibility base types, like symbols that represent a
+    !> (Some compatibility base types, like names that represent a
     !> character, are not returned verbatim.)  Port of
     !> keyboard.c:Fevent_convert_list (EVENT_DESC as an array).
     subroutine event_convert_list(event_desc, ev, status)
@@ -3455,16 +3457,19 @@ contains
         integer :: k
 
         modifiers = 0
-        base = nil()
+        base = value_type()
 
         do k = 1, size(event_desc)
             this = 0
+
             ! Given a symbol, see if it is a modifier name.
-            if (symbolp(event_desc(k)) .and. k < size(event_desc)) this = parse_solitary_modifier(event_desc(k))
+            if ((vtag(event_desc(k)) == V_NAME .or. vtag(event_desc(k)) == V_NULL) .and. k < size(event_desc)) then
+                this = parse_solitary_modifier(event_desc(k))
+            end if
 
             if (this /= 0) then
                 modifiers = ior(modifiers, this)
-            else if (.not. nilp(base)) then
+            else if (allocated(base%a)) then
                 call set_error(status, FM_GENERIC_ERROR, "Two bases given in one event")
                 return
             else
@@ -3473,12 +3478,12 @@ contains
         end do
 
         ! Let the symbol A refer to the character A.
-        if (symbolp(base) .and. .not. nilp(base)) then
+        if ((vtag(base) == V_NAME .or. vtag(base) == V_NULL) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name
             if (len(name) == 1) base = make_fixnum(int(iachar(name), int64))
         end if
 
-        if (fixnump(base)) then
+        if (vtag(base) == V_INTEGER) then
             c = xfixnum(base)
 
             ! Turn (shift a) into A.
@@ -3493,7 +3498,7 @@ contains
             else
                 ev = make_fixnum(ior(modifiers, c))
             end if
-        else if (symbolp(base) .and. .not. nilp(base)) then
+        else if ((vtag(base) == V_NAME .or. vtag(base) == V_NULL) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name
             ev = apply_modifiers(modifiers, name)
         else
@@ -3501,16 +3506,16 @@ contains
         end if
     end subroutine event_convert_list
 
-    !> The `ascii_character' property of function-key symbol EVENT: the
+    !> The `ascii_character' property of function-key name EVENT: the
     !> character a keypad or other key with a character equivalent stands
-    !> for, or -1 (nil).  The properties bindings.el and simple.el's
+    !> for, or -1 for none.  The properties bindings.el and simple.el's
     !> keypad support give.  Not a port.
     integer(int64) function ascii_character(event) result(c)
         type(value_type), intent(in) :: event
         character(len=:), allocatable :: name
 
         c = -1
-        if (.not. symbolp(event)) return
+        if ((vtag(event) /= V_NAME .and. vtag(event) /= V_NULL)) return
         name = symbols(xsymbol(event))%name
 
         if (len(name) == 4) then
@@ -3559,12 +3564,12 @@ contains
     ! ------------------------------------------------------------------
 
     !> Run HOOK's functions, catching their errors: an error is shown as
-    !> "Error in HOOK (FUNCTION): ERROR" and the function that signaled it
+    !> "Error in HOOK (FUNCTION): ERROR" and the function where it occurred
     !> is removed from the hook (from the current buffer's own functions
     !> if it is one of them, else from the default ones), the other
     !> functions still running.  Port of keyboard.c:safe_run_hooks, with
     !> keyboard.c:safe_run_hook_funcall, keyboard.c:safe_run_hooks_1 and
-    !> keyboard.c:safe_run_hooks_error (the error as its symbol and
+    !> keyboard.c:safe_run_hooks_error (the error as its name and
     !> message, a status having no other data).
     recursive subroutine safe_run_hooks(hook)
         type(hook_type), intent(inout) :: hook
@@ -3600,7 +3605,7 @@ contains
 
     !> Exit all recursive editing levels.
     !> This also exits all active minibuffers.  Port of
-    !> keyboard.c:Ftop_level: the throw to `top_level' is the status
+    !> keyboard.c:Ftop_level: the return to `top_level' is the status
     !> `FM_TOP_LEVEL', which the recursive edits pass on and the top-level
     !> command loop takes without a message.
     subroutine top_level(status)
@@ -3616,19 +3621,19 @@ contains
     end subroutine top_level
 
     !> Invoke the editor command loop recursively.
-    !> To get out of the recursive edit, a command can throw to `exit' --
-    !> for instance (throw \='exit nil).
+    !> To get out of the recursive edit, a command can return to `exit' with a status --
+    !> for instance with `exit_recursive_edit'.
     !>
-    !> The following values (last argument to `throw') can be used when
-    !> throwing to \='exit:
+    !> The following statuses can be used when
+    !> returning to `exit':
     !>
-    !> - t causes `recursive_edit' to quit, so that control returns to the
+    !> - An abort causes `recursive_edit' to quit, so that control returns to the
     !> command loop one level up.
     !>
-    !> - A string causes `recursive_edit' to signal an error, printing that
+    !> - A message makes an error condition occur in `recursive_edit', printing that
     !> string as the error message.
     !>
-    !> - False causes `recursive_edit' to return normally to the
+    !> - A plain exit causes `recursive_edit' to return normally to the
     !> function that called it.
     !>
     !> This function is called by the editor initialization to begin editing.
@@ -3724,8 +3729,8 @@ contains
     !> and `last_command' set.  Port of keyboard.c:command_loop_1 (its
     !> start).
     recursive subroutine command_loop_1_start()
-        prefix_arg = nil()
-        last_prefix_arg = nil()
+        prefix_arg = value_type()
+        last_prefix_arg = value_type()
         deactivate_mark_variable = .false.
         call cancel_echoing()
         call set_command_key_count(0)
@@ -3736,6 +3741,6 @@ contains
         ! Do this after running Vpost_command_hook, for consistency.
         last_command = this_command
         real_last_command = real_this_command
-        if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
+        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
     end subroutine command_loop_1_start
 end module keyboard_fm

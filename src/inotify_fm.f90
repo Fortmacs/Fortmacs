@@ -47,7 +47,7 @@ module inotify_fm
     private
 
     public :: watch_descriptor_type, inotify_event_type, inotify_callback_proc
-    public :: inotify_add_watch, inotify_rm_watch, inotify_valid_p, operator(==)
+    public :: inotify_add_watch, inotify_rm_watch, is_inotify_valid, operator(==)
 
     !> Aspects: what a watch looks for, and what an event reports.
     integer(int32), parameter, public :: INOTIFY_ACCESS = IN_ACCESS, INOTIFY_ATTRIB = IN_ATTRIB, &
@@ -592,11 +592,11 @@ contains
     !> deleted, or if the watcher thread exits abnormally for any other
     !> reason.  Removing the watch by calling `inotify_rm_watch' also makes
     !> it invalid.  Port of inotify.c:Finotify_valid_p.
-    logical function inotify_valid_p(watch_descriptor)
+    logical function is_inotify_valid(watch_descriptor)
         type(watch_descriptor_type), intent(in) :: watch_descriptor
 
-        inotify_valid_p = .false.
+        is_inotify_valid = .false.
         if (.not. valid_watch_descriptor(watch_descriptor)) return
-        inotify_valid_p = id_in_use(watch_descriptor%wd, watch_descriptor%id)
-    end function inotify_valid_p
+        is_inotify_valid = id_in_use(watch_descriptor%wd, watch_descriptor%id)
+    end function is_inotify_valid
 end module inotify_fm

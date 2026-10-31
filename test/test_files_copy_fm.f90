@@ -31,12 +31,12 @@ module test_files_copy_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer
     use insdel_fm, only: insert
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists_p, file_directory_p, &
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                          write_region, make_directory_internal, copy_file, rename_file, add_name_to_file, &
                          make_symbolic_link, set_file_modes, file_modes, set_file_times, file_attributes, &
                          file_stat_type, file_symlink_target, default_file_modes
     use files_fm, only: delete_directory, copy_directory, file_modes_symbolic_to_number, &
-                        file_modes_number_to_symbolic, file_in_directory_p, make_empty_file
+                        file_modes_number_to_symbolic, is_file_in_directory, make_empty_file
     implicit none(type, external)
     private
 
@@ -74,14 +74,14 @@ contains
 
         call init_bindings()
         call init_fileio()
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call make_directory_internal(tdir(), st)
     end subroutine setup
 
     subroutine teardown()
         type(status_type) :: st
 
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
     end subroutine teardown
 
     !> Write TEXT to file NAME (relative to the test directory).
@@ -173,12 +173,12 @@ contains
             call make_directory_internal(source, st)
             call make_file("source/file", "")
             call copy_directory(source, dest, st, keep_time=.true., parents=.true., copy_contents=.true.)
-            call check(error, st%ok() .and. file_exists_p(dest//"file"), format_error(st))
+            call check(error, st%ok() .and. file_exists(dest//"file"), format_error(st))
             if (allocated(error)) exit body
             call make_directory_internal(source2, st)
             call make_directory_internal(source2//"/a", st)
             call copy_directory(source2, dest2, st)
-            call check(error, st%ok() .and. file_directory_p(dest2//"/a"), format_error(st))
+            call check(error, st%ok() .and. is_file_directory(dest2//"/a"), format_error(st))
             if (allocated(error)) exit body
             call make_directory_internal(dirname//"source3", st)
             call make_directory_internal(source3, st)
@@ -214,7 +214,7 @@ contains
             if (allocated(error)) exit body
             call make_directory_internal(tdir()//"d", st)
             call copy_file(tdir()//"a", tdir()//"d/", st)
-            call check(error, st%ok() .and. file_exists_p(tdir()//"d/a"), format_error(st))
+            call check(error, st%ok() .and. file_exists(tdir()//"d/a"), format_error(st))
             if (allocated(error)) exit body
             call copy_file(tdir()//"d", tdir()//"e", st)
             call check(error, format_error(st), "Non-regular file: Is a directory, "//tdir()//"d")
@@ -262,14 +262,14 @@ contains
             call make_file("a", "1")
             call make_file("b", "2")
             call rename_file(tdir()//"a", tdir()//"b", st)
-            call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. file_exists_p(tdir()//"a"), format_error(st))
+            call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. file_exists(tdir()//"a"), format_error(st))
             if (allocated(error)) exit body
             call rename_file(tdir()//"a", tdir()//"b", st, ok_if_already_exists=.true.)
-            call check(error, st%ok() .and. .not. file_exists_p(tdir()//"a"), format_error(st))
+            call check(error, st%ok() .and. .not. file_exists(tdir()//"a"), format_error(st))
             if (allocated(error)) exit body
             call make_directory_internal(tdir()//"d", st)
             call rename_file(tdir()//"b", tdir()//"d/", st)
-            call check(error, st%ok() .and. file_exists_p(tdir()//"d/b"), format_error(st))
+            call check(error, st%ok() .and. file_exists(tdir()//"d/b"), format_error(st))
         end block body
 
         call teardown()
@@ -309,13 +309,13 @@ contains
 
         body: block
             call make_directory_internal(tdir()//"d", st)
-            call check(error, file_in_directory_p(tdir()//"d/x", tdir()//"d"), "inside")
+            call check(error, is_file_in_directory(tdir()//"d/x", tdir()//"d"), "inside")
             if (allocated(error)) exit body
-            call check(error, file_in_directory_p(tdir()//"d", tdir()//"d"), "itself")
+            call check(error, is_file_in_directory(tdir()//"d", tdir()//"d"), "itself")
             if (allocated(error)) exit body
-            call check(error,.not. file_in_directory_p(tdir()//"dd", tdir()//"d"), "dd is not in d")
+            call check(error,.not. is_file_in_directory(tdir()//"dd", tdir()//"d"), "dd is not in d")
             if (allocated(error)) exit body
-            call check(error,.not. file_in_directory_p(tdir(), tdir()//"d"), "parent")
+            call check(error,.not. is_file_in_directory(tdir(), tdir()//"d"), "parent")
         end block body
 
         call teardown()
@@ -333,7 +333,7 @@ contains
             call check(error,.not. st%ok(), "no parent")
             if (allocated(error)) exit body
             call make_empty_file(tdir()//"x/y", st, parents=.true.)
-            call check(error, st%ok() .and. file_exists_p(tdir()//"x/y"), format_error(st))
+            call check(error, st%ok() .and. file_exists(tdir()//"x/y"), format_error(st))
             if (allocated(error)) exit body
             call make_empty_file(tdir()//"x/y", st)
             call check(error, format_error(st), "File exists: "//tdir()//"x/y")

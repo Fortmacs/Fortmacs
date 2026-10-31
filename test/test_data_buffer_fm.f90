@@ -29,17 +29,17 @@ module test_data_buffer_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, FM_VOID_FUNCTION
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, t_value, xfixnum, xstring, &
+    use lisp_fm, only: value_type, make_fixnum, make_string, t_value, xfixnum, xstring, &
                        list_length, list_elt
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column, &
                          auto_fill_function
     use search_fm, only: case_fold_search
     use indent_fm, only: indent_tabs_mode
-    use casefiddle_fm, only: case_symbols_as_words
+    use casefiddle_fm, only: case_identifiers_as_words
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
                        make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
-                       local_variable_p, local_variable_if_set_p, default_value, set_default, &
+                       is_local_variable, is_local_variable_if_set, default_value, set_default, &
                        default_boundp, buffer_local_value, buffer_local_variables, setq_local
     use fns_fm, only: put
     implicit none(type, external)
@@ -179,12 +179,12 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call check(error, local_variable_if_set_p(sym("binding-test-always-local")), "local if set")
+        call check(error, is_local_variable_if_set(sym("binding-test-always-local")), "local if set")
         if (allocated(error)) return
-        call check(error,.not. local_variable_p(sym("binding-test-always-local")), "not yet local")
+        call check(error,.not. is_local_variable(sym("binding-test-always-local")), "not yet local")
         if (allocated(error)) return
         call set(sym("binding-test-always-local"), sym("in-a"), st)
-        call check(error, local_variable_p(sym("binding-test-always-local")), "local after set")
+        call check(error, is_local_variable(sym("binding-test-always-local")), "local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check_value(error, "binding-test-always-local", "always")
@@ -211,7 +211,7 @@ contains
         call set(sym("fill_column"), make_fixnum(50_int64), st)
         call check(error, fill_column%value == 50, "fill_column set")
         if (allocated(error)) return
-        call check(error, local_variable_p(sym("fill_column")), "fill-column local after set")
+        call check(error, is_local_variable(sym("fill_column")), "fill-column local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error, fill_column%value == saved, "default in B")
@@ -244,20 +244,20 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call set(sym("case_symbols_as_words"), t_value(), st)
-        call check(error, st%ok() .and. case_symbols_as_words%value, "set in A")
+        call set(sym("case_identifiers_as_words"), t_value(), st)
+        call check(error, st%ok() .and. case_identifiers_as_words%value, "set in A")
         if (allocated(error)) return
-        call check(error, local_variable_p(sym("case_symbols_as_words")), "local after set")
+        call check(error, is_local_variable(sym("case_identifiers_as_words")), "local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error,.not. case_symbols_as_words%value, "default in B")
+        call check(error,.not. case_identifiers_as_words%value, "default in B")
         if (allocated(error)) return
-        call buffer_local_value(sym("case_symbols_as_words"), a%index, v, st)
+        call buffer_local_value(sym("case_identifiers_as_words"), a%index, v, st)
         call check(error, value_eq(v, t_value()), "buffer-local-value of A")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call kill_local_variable(sym("case_symbols_as_words"), st)
-        call check(error,.not. case_symbols_as_words%value, "default after kill-local-variable")
+        call kill_local_variable(sym("case_identifiers_as_words"), st)
+        call check(error,.not. case_identifiers_as_words%value, "default after kill-local-variable")
         call teardown(a, b)
     end subroutine test_case_symbols_local
 
@@ -317,8 +317,8 @@ contains
         if (.not. allocated(error)) call check(error, xstring(v) == "Fundamental", "mode_name")
         if (allocated(error)) return
         call kill_all_local_variables(.true.)
-        call check(error,.not. local_variable_p(sym("binding-test-permanent")), "permanent killed too")
-        call put(sym("binding-test-permanent"), sym("permanent_local"), nil(), st)
+        call check(error,.not. is_local_variable(sym("binding-test-permanent")), "permanent killed too")
+        call put(sym("binding-test-permanent"), sym("permanent_local"), value_type(), st)
         call teardown(a, b)
     end subroutine test_kill_all
 
@@ -376,14 +376,14 @@ contains
         call symbol_value(sym("case_fold_search"), v, st)
         call check(error, value_eq(v, t_value()) .eqv. saved, "Fortran assignment wins")
         if (allocated(error)) return
-        call set_default(sym("fill_column"), nil(), st)
+        call set_default(sym("fill_column"), value_type(), st)
         call check(error, st%ok(), "fill-column may be nil")
         if (allocated(error)) return
         call symbol_value(sym("fill_column"), v, st)
-        call check(error, nilp(v), "nil kept")
+        call check(error,.not. allocated(v%a), "nil kept")
         if (allocated(error)) return
         call set_default(sym("fill_column"), make_string("x"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "integerp")
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer")
         fill_column = 70
     end subroutine test_exact
 
@@ -398,7 +398,7 @@ contains
         call setup(error, a, b)
         if (allocated(error)) return
         call makunbound(sym("fill_column"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: integerp")
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: expected integer")
         if (allocated(error)) return
         indent_tabs_mode = .false.
         call makunbound(sym("indent_tabs_mode"), st)

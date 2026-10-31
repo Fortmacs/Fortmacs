@@ -24,10 +24,11 @@
 !> namelist file instead of its setq forms).
 module test_savehist_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: vtag, V_NULL
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string, nil, nilp
+    use lisp_fm, only: value_type, list, make_string
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use fns_fm, only: value_equal
@@ -146,15 +147,15 @@ contains
         call savehist_save(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call set(sym("savehist_tests__t1"), nil(), st)
-        call set(sym("savehist_tests__t2"), nil(), st)
-        call set(sym("t3"), nil(), st)
+        call set(sym("savehist_tests__t1"), value_type(), st)
+        call set(sym("savehist_tests__t2"), value_type(), st)
+        call set(sym("t3"), value_type(), st)
         call reload()
         call check(error, value_equal(value_of("savehist_tests__t1"), t1_copy), "t1")
         if (allocated(error)) return
         call check(error, value_equal(value_of("savehist_tests__t2"), t2_copy), "t2")
         if (allocated(error)) return
-        call check(error, nilp(value_of("t3")), "t3")
+        call check(error, vtag(value_of("t3")) == V_NULL, "t3")
         call teardown(tmpfile)
     end subroutine test_saved_variables
 

@@ -34,7 +34,7 @@ module indent_fm
     use category_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nilp, consp, stringp, xstring, fixnump, xfixnum, list_elements
+    use lisp_fm, only: value_type, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
@@ -108,7 +108,7 @@ module indent_fm
     !> For example, [1, 2, 5] is equivalent to [1, 2, 5, 8, 11, ...].  If the array has
     !> fewer than 2 elements, `tab_width' is used as the "last step".
     !> An unallocated or empty value means a tab stop every `tab_width' columns.  Port of
-    !> indent.el tab-stop-list (unallocated or empty is nil).
+    !> indent.el tab-stop-list (unallocated or empty for none).
     integer(int64), allocatable, public :: tab_stop_list(:)
 
     !> A setting whose value is an indent-line function; null is the
@@ -142,7 +142,7 @@ module indent_fm
         procedure(indent_region_proc), pointer, nopass :: value => null()
         type(indent_region_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => indent_region_set_local
         !> The current buffer's function (null for the default).
         procedure :: get => indent_region_get
@@ -174,7 +174,7 @@ module indent_fm
 
         !> Indent the current line or region, or insert a tab, as appropriate.
         !> This function either inserts a tab, or indents the current line,
-        !> or performs symbol completion, depending on `tab_always_indent'.
+        !> or performs identifier completion, depending on `tab_always_indent'.
         !> The function called to actually indent the line or insert a tab
         !> is given by the variable `indent_line_function'.
         !>
@@ -389,7 +389,7 @@ module indent_fm
         end function indent_line_function_name
 
         !> Point P at the indent-line function named NAME; any other
-        !> function is called by name with `funcall'.  (In indent_cmds_fm.)
+        !> function is called through its name.  (In indent_cmds_fm.)
         !> Not a port.
         module subroutine indent_line_function_named(name, p)
             implicit none(type, external)
@@ -410,7 +410,7 @@ module indent_fm
         end subroutine indent_relative_first_indent_point
 
         !> Return the next tab stop after COLUMN.
-        !> If PREV is non-nil, return the previous one instead.  Port of
+        !> If PREV is .true., return the previous one instead.  Port of
         !> indent.el:indent-next-tab-stop.
         module integer(int64) function indent_next_tab_stop(column, prev)
             implicit none(type, external)
@@ -616,7 +616,7 @@ contains
     !> If the text at POS is invisible (not shown as an ellipsis), the
     !> position to skip to, else POS; NEXT_BOUNDARY gets the next position
     !> where the invisibility might change.  Port of indent.c:skip_invisible
-    !> for columns (WINDOW nil).
+    !> for columns (WINDOW absent).
     integer(int64) function skip_invisible(pos, next_boundary, to) result(newpos)
         integer(int64), intent(in) :: pos, to
         integer(int64), intent(out) :: next_boundary
@@ -667,16 +667,16 @@ contains
         width = -1
         endpos = pos
         call get_char_property_and_overlay(pos, sym("display"), val, overlay)
-        if (nilp(val)) return
+        if (.not. allocated(val%a)) return
 
-        if (consp(val)) then
+        if (vtag(val) == V_ARRAY) then
             call list_elements(val, elts)
 
             ! Handle '(space ...)' display specs.
             if (value_eq(elts(1), sym("space"))) then
                 do k = 2, size(elts) - 1, 2
                     if (value_eq(elts(k), sym(":width")) .or. value_eq(elts(k), sym(":relative-width"))) then
-                        if (fixnump(elts(k + 1))) then
+                        if (vtag(elts(k + 1)) == V_INTEGER) then
                             if (xfixnum(elts(k + 1)) >= 0) width = xfixnum(elts(k + 1))
                         end if
 
@@ -687,7 +687,7 @@ contains
                 if (width < 0) then
                     do k = 2, size(elts) - 1, 2
                         if (value_eq(elts(k), sym(":align-to"))) then
-                            if (fixnump(elts(k + 1))) then
+                            if (vtag(elts(k + 1)) == V_INTEGER) then
                                 if (xfixnum(elts(k + 1)) >= col) width = xfixnum(elts(k + 1)) - col
                             end if
 
@@ -696,7 +696,7 @@ contains
                     end do
                 end if
             end if
-        else if (stringp(val)) then
+        else if (vtag(val) == V_STRING) then
             ! Handle 'display' strings.
             width = display_string_width(xstring(val))
         end if
@@ -737,15 +737,15 @@ contains
     !> If specified column is within a character, point goes after that character.
     !> If it's past end of line, point goes to end of line.
     !>
-    !> Optional argument FORCE non-nil means if COLUMN is in the
+    !> Optional argument FORCE .true. means if COLUMN is in the
     !> middle of a tab character, either change it to spaces (when
-    !> `indent_tabs_mode' is nil), or insert enough spaces before it to reach
-    !> COLUMN (otherwise).  In addition, if FORCE is t, and the line is too short
+    !> `indent_tabs_mode' is .false.), or insert enough spaces before it to reach
+    !> COLUMN (otherwise).  In addition, if FORCE is .true., and the line is too short
     !> to reach COLUMN, add spaces/tabs to get there.
     !>
     !> The return value is the current column (`reached').  Port of
-    !> indent.c:Fmove_to_column.  FORCE true is a FORCE of t; COERCE true
-    !> (without FORCE) is a FORCE that is neither nil nor t, such as the
+    !> indent.c:Fmove_to_column.  FORCE .true. is upstream's FORCE t; COERCE true
+    !> (without FORCE) is upstream's other FORCE values, such as the
     !> `coerce' rect.el passes: a tab is split, but a short line is not
     !> padded.
     recursive subroutine move_to_column(column, reached, force, status, coerce)

@@ -29,7 +29,7 @@ module test_dispnew_fm
     use dispextern_fm, only: glyph_type
     use frame_fm, only: frame_type
     use dispnew_fm, only: adjust_frame_glyphs, set_desired_row, update_frame, internal_show_cursor, &
-                          internal_show_cursor_p, send_string_to_terminal, redraw_frame
+                          is_internal_show_cursor, send_string_to_terminal, redraw_frame
     use frame_fm, only: selected_frame
     implicit none(type, external)
     private
@@ -234,14 +234,14 @@ contains
 
         call frame_showing(f, "abc")
         call internal_show_cursor(.false., st)
-        call check(error,.not. internal_show_cursor_p(st) .and. st%ok(), "flag off")
+        call check(error,.not. is_internal_show_cursor(st) .and. st%ok(), "flag off")
         if (allocated(error)) return
         out = update_row0(f, "abd")
         call check(error, index(out, SHOW) == 0, "cursor not shown")
         if (allocated(error)) return
         call internal_show_cursor(.true., st)
         out = update_row0(f, "abe")
-        call check(error, index(out, SHOW) > 0 .and. internal_show_cursor_p(st), "cursor shown again")
+        call check(error, index(out, SHOW) > 0 .and. is_internal_show_cursor(st), "cursor shown again")
     end subroutine test_show_cursor
 
     !> send-string-to-terminal writes the string as it is.

@@ -40,17 +40,17 @@ module vc_dispatcher_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_list, make_buffer_ref, fixnump, xfixnum, &
-                       stringp, xstring
+    use lisp_fm, only: value_type, t_value, make_string, make_list, make_buffer_ref, xfixnum, &
+                       xstring, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, kill_all_local_variables
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, buffer_live_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
                          erase_buffer, kill_buffer, get_file_buffer, buffer_list, resolve_buffer
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, buffer_substring, mark_position
     use insdel_fm, only: insert
     use marker_fm, only: marker_position, set_marker
     use search_fm, only: search_forward, SEARCH_NOERROR
-    use fileio_fm, only: expand_file_name, file_name_absolute_p, file_exists_p, file_directory_p
+    use fileio_fm, only: expand_file_name, is_file_name_absolute, file_exists, is_file_directory
     use files_fm, only: file_relative_name, revert_buffer, save_buffer
     use callproc_fm, only: call_process
     use process_fm, only: make_process, process_arg_type, get_buffer_process, delete_process, process_status, &
@@ -59,7 +59,7 @@ module vc_dispatcher_fm
     use window_fm, only: pop_to_buffer, shrink_window_if_larger_than_buffer
     use xdisp_fm, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
                         add_minor_mode_lighter
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use vc_hooks_fm, only: vc_string_type, vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
     use lisp_fm, only: command_proc
     use eval_fm, only: hook_type
@@ -74,17 +74,17 @@ module vc_dispatcher_fm
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
               set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, &
               vc_set_mode_line_busy_indicator
-    public :: VC_OKSTATUS_NIL, VC_OKSTATUS_T, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
-              VC_NOQUERY_NIL, VC_NOQUERY_T, VC_NOQUERY_UNLESS_MODIFIED
+    public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
+              VC_NOQUERY_NO, VC_NOQUERY_YES, VC_NOQUERY_UNLESS_MODIFIED
 
-    !> Values of `vc_command_messages' (nil, t, `log').
-    integer, parameter, public :: VC_COMMAND_MESSAGES_NIL = 0, VC_COMMAND_MESSAGES_T = 1, VC_COMMAND_MESSAGES_LOG = 2
+    !> Values of `vc_command_messages' (VC_COMMAND_MESSAGES_NO, VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG).
+    integer, parameter, public :: VC_COMMAND_MESSAGES_NO = 0, VC_COMMAND_MESSAGES_YES = 1, VC_COMMAND_MESSAGES_LOG = 2
 
     !> If true, display and log messages about running back-end commands.
     !> If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are
     !> logged in the *Messages* buffer, but not displayed.  Port of
     !> vc-dispatcher.el vc-command-messages.
-    integer, public :: vc_command_messages = VC_COMMAND_MESSAGES_NIL
+    integer, public :: vc_command_messages = VC_COMMAND_MESSAGES_NO
 
     !> If true, treat user as expert; suppress yes-no prompts on some things.
     !> Port of vc-dispatcher.el vc-suppress-confirm.
@@ -96,26 +96,26 @@ module vc_dispatcher_fm
     !> vc-dispatcher.el vc-display-failed-async-commands.
     logical, public :: vc_display_failed_async_commands = .false.
 
-    !> Where a sentinel wants point to go afterwards (0 for nil).  Port
+    !> Where a sentinel wants point to go afterwards (0 for none).  Port
     !> of vc-dispatcher.el vc-sentinel-movepoint.
     integer(int64), public :: vc_sentinel_movepoint = 0
 
     !> `vc_do_command' OKSTATUS values besides a maximum exit status:
-    !> nil (an error only if the command is killed by a signal), t
-    !> (never an error) and `async' (don't wait for the process).
-    integer, parameter :: VC_OKSTATUS_NIL = -1, VC_OKSTATUS_T = -2, VC_OKSTATUS_ASYNC = -3
+    !> VC_OKSTATUS_UNLESS_SIGNAL (an error only if the command is killed by a signal), VC_OKSTATUS_ANY
+    !> (never an error) and VC_OKSTATUS_ASYNC (don't wait for the process).
+    integer, parameter :: VC_OKSTATUS_UNLESS_SIGNAL = -1, VC_OKSTATUS_ANY = -2, VC_OKSTATUS_ASYNC = -3
 
-    !> `vc_do_command' destinations besides a buffer: nil (discard the
-    !> output) and t (the current buffer).
+    !> `vc_do_command' destinations besides a buffer: VC_DEST_DISCARD (discard the
+    !> output) and VC_DEST_CURRENT (the current buffer).
     integer, parameter :: VC_DEST_DISCARD = 0, VC_DEST_CURRENT = 1
 
-    !> `vc_resynch_buffer' NOQUERY values: nil, t and `unless-modified'.
-    integer, parameter :: VC_NOQUERY_NIL = 0, VC_NOQUERY_T = 1, VC_NOQUERY_UNLESS_MODIFIED = 2
+    !> `vc_resynch_buffer' NOQUERY values: VC_NOQUERY_NO, VC_NOQUERY_YES and VC_NOQUERY_UNLESS_MODIFIED.
+    integer, parameter :: VC_NOQUERY_NO = 0, VC_NOQUERY_YES = 1, VC_NOQUERY_UNLESS_MODIFIED = 2
 
     !> Code run after a command's process is done (the closure CODE of
     !> `vc_exec_after'): its procedure, given the action itself and so the
     !> buffers and strings it captured, and OKSTATUS (a maximum exit
-    !> status, or VC_OKSTATUS_NIL for none).
+    !> status, or VC_OKSTATUS_UNLESS_SIGNAL for none).
     type :: vc_action_type
         procedure(vc_action_proc), pointer, nopass :: run => null()
         type(handle_type) :: buffer, buffer2
@@ -123,7 +123,7 @@ module vc_dispatcher_fm
         type(vc_string_type), allocatable :: files(:)
         integer :: n = 0
         logical :: flag = .false.
-        integer :: okstatus = VC_OKSTATUS_NIL
+        integer :: okstatus = VC_OKSTATUS_UNLESS_SIGNAL
     end type vc_action_type
 
     abstract interface
@@ -319,7 +319,7 @@ contains
     end function parent_index
 
     !> The current buffer's `vc_parent_buffer': in a log entry or output
-    !> buffer, the buffer for which it was made (a null handle for nil).
+    !> buffer, the buffer for which it was made (a null handle for none).
     !> Not a port.
     function vc_parent_buffer() result(h)
         type(handle_type) :: h
@@ -449,7 +449,7 @@ contains
         log_locals(k)%fileset = files
     end subroutine set_vc_log_fileset
 
-    !> The current buffer's `vc_patch_string' (unallocated for nil).
+    !> The current buffer's `vc_patch_string' (unallocated for none).
     !> Not a port.
     subroutine vc_patch_string(patch)
         character(len=:), allocatable, intent(out) :: patch
@@ -460,7 +460,7 @@ contains
         if (allocated(log_locals(k)%patch_string)) patch = log_locals(k)%patch_string
     end subroutine vc_patch_string
 
-    !> Set the current buffer's `vc_patch_string' to PATCH (nil if absent).
+    !> Set the current buffer's `vc_patch_string' to PATCH (unallocated if absent).
     !> Not a port.
     subroutine set_vc_patch_string(patch)
         character(len=*), intent(in), optional :: patch
@@ -482,7 +482,7 @@ contains
         log_locals(k)%operation = operation
     end subroutine set_vc_log_operation
 
-    !> Set the current buffer's `vc_log_after_operation_hook' to HOOK (nil
+    !> Set the current buffer's `vc_log_after_operation_hook' to HOOK (empty
     !> if absent).  Not a port.
     subroutine set_vc_log_after_operation_hook(hook)
         type(hook_type), intent(in), target, optional :: hook
@@ -496,9 +496,9 @@ contains
     !> Are we in a directory browser buffer?  Port of
     !> vc-dispatcher.el:vc-dispatcher-browsing.
     logical function vc_dispatcher_browsing() result(browsing)
-        use derived_fm, only: derived_mode_p
+        use derived_fm, only: is_derived_mode
 
-        browsing = derived_mode_p([character(len=13) :: "vc_dir_mode", "dired_mode", "diff_mode", "log_view_mode"])
+        browsing = is_derived_mode([character(len=13) :: "vc_dir_mode", "dired_mode", "diff_mode", "log_view_mode"])
     end function vc_dispatcher_browsing
 
     !> Set the current buffer's `vc_parent_buffer' to PARENT and its
@@ -533,7 +533,7 @@ contains
 
         status = status_type()
         buffer = process_buffer(proc)
-        if (.not. buffer_live_p(buffer)) return
+        if (.not. is_buffer_live(buffer)) return
         old = current_buffer()
         call set_buffer(buffer, st)
         opoint = point()
@@ -579,7 +579,7 @@ contains
 
         ! If we are refreshing an existing view,
         ! don't throw away where we really came from (bug#59457).
-        if (camefrom%index /= cur .and. buffer_live_p(camefrom)) then
+        if (camefrom%index /= cur .and. is_buffer_live(camefrom)) then
             call set_vc_parent_buffer(camefrom, " from "//buffers(camefrom%index)%name)
         end if
 
@@ -603,7 +603,7 @@ contains
 
     !> Execute ACTION when PROC, or the current buffer's process, is done.
     !>
-    !> ACTION's OKSTATUS, if not VC_OKSTATUS_NIL, is a non-negative integer.
+    !> ACTION's OKSTATUS, if not VC_OKSTATUS_UNLESS_SIGNAL, is a non-negative integer.
     !> Run ACTION only if PROC (or, if PROC is absent, the current buffer's
     !> process) exits normally (i.e. does not die to a signal) with exit
     !> status not exceeding OKSTATUS.
@@ -613,7 +613,7 @@ contains
     !> If PROC is absent and the current buffer has no process, just run
     !> ACTION.  Otherwise, add ACTION to the process's sentinel.  Port of
     !> vc-dispatcher.el:vc-exec-after (vc-run-delayed and
-    !> vc-run-delayed-success are this with OKSTATUS nil or given).
+    !> vc-run-delayed-success are this with OKSTATUS absent or given).
     recursive subroutine vc_exec_after(action, status, proc)
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
@@ -646,7 +646,7 @@ contains
             call run_action(action, p, status)
         else if (pstatus == "run") then
             buf = process_buffer(p)
-            if (buffer_live_p(buf)) call in_buffer_busy(buf)
+            if (is_buffer_live(buf)) call in_buffer_busy(buf)
             call queue_action(p, action)
         else
             call set_error(status, FM_GENERIC_ERROR, "Unexpected process state")
@@ -675,7 +675,7 @@ contains
         status = status_type()
         if (.not. associated(action%run)) return
 
-        if (action%okstatus /= VC_OKSTATUS_NIL .and. p%index /= 0) then
+        if (action%okstatus /= VC_OKSTATUS_UNLESS_SIGNAL .and. p%index /= 0) then
             if (process_status(p) /= "exit") return
             if (action%okstatus < process_exit_status(p)) return
         end if
@@ -746,7 +746,7 @@ contains
         buf = process_buffer(proc)
         ! Impatient users sometime kill "slow" buffers; check liveness to
         ! avoid "error in process sentinel: Selecting deleted buffer".
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         old = current_buffer()
         call set_buffer(buf, st)
         call clear_mode_line_process()
@@ -762,7 +762,7 @@ contains
             ! Each sentinel may move point and the next one should be run
             ! from that new position.
             call run_action(actions(j), proc, status)
-            if (.not. buffer_live_p(buf)) exit
+            if (.not. is_buffer_live(buf)) exit
             call set_buffer(buf, st)
             call set_marker(m, point(), st)
             call goto_char(min(opoint, point_max()))
@@ -818,7 +818,7 @@ contains
     subroutine vc_command_message(text)
         character(len=*), intent(in) :: text
 
-        if (vc_command_messages /= VC_COMMAND_MESSAGES_NIL) call message(text)
+        if (vc_command_messages /= VC_COMMAND_MESSAGES_NO) call message(text)
     end subroutine vc_command_message
 
     !> Execute an inferior command, notifying user and checking for errors.
@@ -833,16 +833,16 @@ contains
     !>
     !> OKSTATUS VC_OKSTATUS_ASYNC means not to wait for termination of the
     !> subprocess and give the process object as PROCESS.  Otherwise, OKSTATUS
-    !> determines when to signal an error instead of giving a numeric exit
+    !> determines when an error condition occurs instead of giving a numeric exit
     !> status as EXIT_STATUS (or a signal description).  OKSTATUS an integer
-    !> means to signal an error if the command's exit status exceeds that
-    !> value or the command is killed by a signal, VC_OKSTATUS_NIL means to
-    !> signal an error only if the command is killed by a signal, and
-    !> VC_OKSTATUS_T means never to signal an error.
+    !> means an error condition occurs if the command's exit status exceeds that
+    !> value or the command is killed by a signal, VC_OKSTATUS_UNLESS_SIGNAL means to
+    !> an error condition occurs only if the command is killed by a signal, and
+    !> VC_OKSTATUS_ANY means no error condition ever occurs.
     !>
     !> FILES are the working files (none to execute commands that don't
     !> expect a file name or set of files).  FLAGS are inserted into the
-    !> command line before the filename (an unallocated one is nil and
+    !> command line before the filename (an unallocated one
     !> passes nothing).  ENVIRONMENT are "NAME=VALUE" entries put first in
     !> the process's environment (as `process_environment').  Port of
     !> vc-dispatcher.el:vc-do-command.
@@ -984,18 +984,18 @@ contains
 
             if (status%ok()) then
                 code = 0
-                if (fixnump(result)) code = int(xfixnum(result))
+                if (vtag(result) == V_INTEGER) code = int(xfixnum(result))
                 if (present(exit_status)) exit_status = code
 
-                if (okstatus /= VC_OKSTATUS_T .and. (.not. fixnump(result) .or. &
-                                                     (okstatus >= 0 .and. okstatus < code))) then
+                if (okstatus /= VC_OKSTATUS_ANY .and. (vtag(result) /= V_INTEGER .or. &
+                                                       (okstatus >= 0 .and. okstatus < code))) then
                     if (buffers(cur)%name(1:min(1, len(buffers(cur)%name))) /= " ") then
                         call pop_to_buffer(current_buffer(), st)
                         call goto_char(point_min())
                         call shrink_window_if_larger_than_buffer()
                     end if
 
-                    if (fixnump(result)) then
+                    if (vtag(result) == V_INTEGER) then
                         desc = "status "//itoa(code)
                     else
                         desc = xstring(result)
@@ -1013,7 +1013,7 @@ contains
 
     contains
 
-        !> The flags as `vc_delistify' smashes them, a nil one as "".
+        !> The flags as `vc_delistify' smashes them, an unallocated one as "".
         function flag_list(list) result(s)
             type(vc_string_type), intent(in) :: list(:)
             character(len=:), allocatable :: s
@@ -1106,7 +1106,7 @@ contains
 
     !> Return true if POSN matches CONTEXT, false otherwise.  Port of
     !> vc-dispatcher.el:vc-context-matches-p.
-    logical function vc_context_matches_p(posn, context) result(r)
+    logical function vc_context_matches(posn, context) result(r)
         integer(int64), intent(in) :: posn
         type(vc_context_type), intent(in) :: context
         character(len=:), allocatable :: s
@@ -1120,7 +1120,7 @@ contains
         call buffer_substring(posn, endp, s, st)
         if (.not. st%ok()) return
         r = s == context%text .and. len(s) == len(context%text)
-    end function vc_context_matches_p
+    end function vc_context_matches
 
     !> Revert buffer keeping point and the mark where the user expects them.
     !> Try to be clever in the face of changes due to expanded VCS
@@ -1152,7 +1152,7 @@ contains
         call goto_char(min(max(saved, point_min()), point_max()))
 
         ! if necessary, restore point and mark
-        if (.not. vc_context_matches_p(point(), point_context)) then
+        if (.not. vc_context_matches(point(), point_context)) then
             newpos = vc_find_position_by_context(point_context)
             if (newpos /= 0) call goto_char(newpos)
         end if
@@ -1160,7 +1160,7 @@ contains
         if (mark_context%valid .and. buffers(cur)%mark_active) then
             m = mark_position()
 
-            if (.not. vc_context_matches_p(m, mark_context)) then
+            if (.not. vc_context_matches(m, mark_context)) then
                 newpos = vc_find_position_by_context(mark_context)
                 if (newpos /= 0) call set_mark_at(newpos)
             end if
@@ -1189,7 +1189,7 @@ contains
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        if (file_name_absolute_p(file)) then
+        if (is_file_name_absolute(file)) then
             name = file
         else
             call expand_file_name(file, name, st, root)
@@ -1220,7 +1220,7 @@ contains
 
         if (.not. k) then
             call kill_buffer(current_buffer(), status)
-        else if (file_exists_p(file)) then
+        else if (file_exists(file)) then
             if (present(reset_vc_info)) then
                 if (reset_vc_info) call vc_file_clearprops(file)
             end if
@@ -1249,7 +1249,7 @@ contains
         old = current_buffer()
 
         do k = 1, size(all)
-            if (.not. buffer_live_p(all(k))) cycle
+            if (.not. is_buffer_live(all(k))) cycle
             if (.not. allocated(buffers(all(k)%index)%filename)) cycle
             fname = buffers(all(k)%index)%filename
             if (index(fname, directory) /= 1) cycle
@@ -1258,13 +1258,13 @@ contains
             if (.not. status%ok()) exit
         end do
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine vc_resynch_buffers_in_directory
 
     !> If FILE is currently visited, resynch its buffer.
     !> If NOQUERY is VC_NOQUERY_UNLESS_MODIFIED then silently skip reverting or
-    !> unvisiting if the buffer is modified.  VC_NOQUERY_T inhibits
-    !> getting confirmation before reverting.  NOQUERY should be VC_NOQUERY_T
+    !> unvisiting if the buffer is modified.  VC_NOQUERY_YES inhibits
+    !> getting confirmation before reverting.  NOQUERY should be VC_NOQUERY_YES
     !> only if it is known that the only
     !> difference between the buffer and the file is due to modifications by
     !> the dispatcher client code, rather than user editing.  ROOT is
@@ -1281,7 +1281,7 @@ contains
         logical :: here
 
         status = status_type()
-        nq = VC_NOQUERY_NIL
+        nq = VC_NOQUERY_NO
         if (present(noquery)) nq = noquery
         here = .false.
 
@@ -1291,9 +1291,9 @@ contains
 
         if (here) then
             if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
-                call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+                call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NO, reset_vc_info)
             end if
-        else if (file_directory_p(file)) then
+        else if (is_file_directory(file)) then
             call vc_resynch_buffers_in_directory(file, root, status, keep, noquery, reset_vc_info)
         else
             buffer = get_file_buffer(resynch_name(file, root))
@@ -1303,10 +1303,10 @@ contains
                 call set_buffer(buffer, st)
 
                 if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
-                    call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+                    call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NO, reset_vc_info)
                 end if
 
-                if (buffer_live_p(old)) call set_buffer(old, st)
+                if (is_buffer_live(old)) call set_buffer(old, st)
             end if
         end if
 
@@ -1339,7 +1339,7 @@ contains
 
         if (.not. need) then
             if (allocated(buffers(cur)%filename)) then
-                missing = .not. file_exists_p(buffers(cur)%filename)
+                missing = .not. file_exists(buffers(cur)%filename)
                 need = missing
             end if
         end if
@@ -1349,9 +1349,9 @@ contains
 
         if (.not. yes) then
             if (missing) then
-                call y_or_n_p("Buffer "//buffers(cur)%name//" is missing on disk; save it? ", yes, status)
+                call read_y_or_n("Buffer "//buffers(cur)%name//" is missing on disk; save it? ", yes, status)
             else
-                call y_or_n_p("Buffer "//buffers(cur)%name//" modified; save it? ", yes, status)
+                call read_y_or_n("Buffer "//buffers(cur)%name//" modified; save it? ", yes, status)
             end if
 
             if (.not. status%ok()) return

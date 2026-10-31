@@ -27,13 +27,13 @@
 !> from their forms).
 module test_python_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
-    use lisp_fm, only: nil
-    use editfns_fm, only: point, point_min, point_max, goto_char, widen, bobp, eobp, bolp, eolp, line_beginning_position, &
+    use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                           line_end_position
     use simple_fm, only: back_to_indentation, line_number_at_pos
     use indent_fm, only: current_column, indent_for_tab_command
@@ -43,21 +43,21 @@ module test_python_fm
     use indent_fm, only: current_indentation
     use bindings_fm, only: init_bindings
     use python_fm, only: python_mode, python_indent_context, python_indent_calculate_indentation, python_indent_line, &
-                         python_indent_guess_indent_offset_variable, python_syntax_context, python_nav_beginning_of_subprogram, &
-                         python_nav_end_of_subprogram, python_nav_backward_subprogram, python_nav_forward_subprogram, &
+                         python_indent_guess_indent_offset_variable, python_syntax_context, python_nav_beginning_of_definition, &
+                         python_nav_end_of_definition, python_nav_backward_definition, python_nav_forward_definition, &
                          python_nav_beginning_of_statement, python_nav_end_of_statement, python_nav_forward_statement, &
                          python_nav_backward_statement, python_nav_beginning_of_block, python_nav_end_of_block, &
                python_nav_forward_block, python_nav_backward_block, python_nav_forward_expression, python_nav_backward_expression, &
                          python_nav_forward_expression_safe, python_nav_backward_expression_safe, python_nav_up_group, &
-                         python_nav_backward_up_group, python_info_current_subprogram, python_info_statement_starts_block_p, &
-                         python_info_statement_ends_block_p, python_info_beginning_of_statement_p, &
-                         python_info_end_of_statement_p, python_info_beginning_of_block_p, python_info_end_of_block_p, &
-                         python_info_dedenter_opening_block_position, python_info_dedenter_statement_p, &
-                         python_info_line_ends_backslash_p, python_info_beginning_of_backslash, python_info_continuation_line_p, &
-                         python_info_block_continuation_line_p, python_info_assignment_continuation_line_p, &
-                         python_info_looking_at_beginning_of_subprogram, python_info_looking_at_beginning_of_block, &
-                         python_info_current_line_comment_p, python_info_current_line_empty_p, python_info_docstring_p, &
-                         python_info_triple_quoted_string_p, python_info_encoding_from_cookie, python_util_forward_comment, &
+                         python_nav_backward_up_group, python_info_current_definition, is_python_info_statement_starts_block, &
+                         is_python_info_statement_ends_block, is_python_info_beginning_of_statement, &
+                         is_python_info_end_of_statement, is_python_info_beginning_of_block, is_python_info_end_of_block, &
+                         python_info_dedenter_opening_block_position, is_python_info_dedenter_statement, &
+                         is_python_info_line_ends_backslash, python_info_beginning_of_backslash, is_python_info_continuation_line, &
+                         is_python_info_block_continuation_line, is_python_info_assignment_continuation_line, &
+                         python_info_looking_at_beginning_of_definition, python_info_looking_at_beginning_of_block, &
+                         is_python_info_current_line_comment, is_python_info_current_line_empty, is_python_info_docstring, &
+                         is_python_info_triple_quoted_string, python_info_encoding_from_cookie, python_util_forward_comment, &
                          python_nav_if_name_main, PYTHON_CONTEXT_COMMENT, PYTHON_CONTEXT_STRING, &
                          PYTHON_CONTEXT_SINGLE_QUOTED_STRING, PYTHON_CONTEXT_TRIPLE_QUOTED_STRING, PYTHON_CONTEXT_PAREN, &
                          PYTHON_INDENT_NO_INDENT, PYTHON_INDENT_AFTER_COMMENT, PYTHON_INDENT_INSIDE_STRING, &
@@ -138,21 +138,21 @@ contains
                     new_unittest("python-indent-after-bare-match", test_python_indent_after_bare_match), &
                     new_unittest("python-indent-badly-indented-block-end", test_python_indent_badly_indented_block_end), &
                     new_unittest("python-syntax-context-1", test_python_syntax_context_1), &
-                    new_unittest("python-nav-beginning-of-defun-1", test_python_nav_beginning_of_subprogram_1), &
-                    new_unittest("python-nav-beginning-of-defun-2", test_python_nav_beginning_of_subprogram_2), &
-                    new_unittest("python-nav-beginning-of-defun-3", test_python_nav_beginning_of_subprogram_3), &
-                    new_unittest("python-nav-beginning-of-defun-4", test_python_nav_beginning_of_subprogram_4), &
-                    new_unittest("python-nav-beginning-of-defun-5", test_python_nav_beginning_of_subprogram_5), &
-                    new_unittest("python-nav-beginning-of-defun-6", test_python_nav_beginning_of_subprogram_6), &
-                    new_unittest("python-nav-end-of-defun-1", test_python_nav_end_of_subprogram_1), &
-                    new_unittest("python-nav-end-of-defun-2", test_python_nav_end_of_subprogram_2), &
-                    new_unittest("python-nav-end-of-defun-3", test_python_nav_end_of_subprogram_3), &
-                    new_unittest("python-nav-backward-defun-1", test_python_nav_backward_subprogram_1), &
-                    new_unittest("python-nav-backward-defun-2", test_python_nav_backward_subprogram_2), &
-                    new_unittest("python-nav-backward-defun-4", test_python_nav_backward_subprogram_4), &
-                    new_unittest("python-nav-forward-defun-1", test_python_nav_forward_subprogram_1), &
-                    new_unittest("python-nav-forward-defun-2", test_python_nav_forward_subprogram_2), &
-                    new_unittest("python-nav-forward-defun-4", test_python_nav_forward_subprogram_4), &
+                    new_unittest("python-nav-beginning-of-defun-1", test_python_nav_beginning_of_definition_1), &
+                    new_unittest("python-nav-beginning-of-defun-2", test_python_nav_beginning_of_definition_2), &
+                    new_unittest("python-nav-beginning-of-defun-3", test_python_nav_beginning_of_definition_3), &
+                    new_unittest("python-nav-beginning-of-defun-4", test_python_nav_beginning_of_definition_4), &
+                    new_unittest("python-nav-beginning-of-defun-5", test_python_nav_beginning_of_definition_5), &
+                    new_unittest("python-nav-beginning-of-defun-6", test_python_nav_beginning_of_definition_6), &
+                    new_unittest("python-nav-end-of-defun-1", test_python_nav_end_of_definition_1), &
+                    new_unittest("python-nav-end-of-defun-2", test_python_nav_end_of_definition_2), &
+                    new_unittest("python-nav-end-of-defun-3", test_python_nav_end_of_definition_3), &
+                    new_unittest("python-nav-backward-defun-1", test_python_nav_backward_definition_1), &
+                    new_unittest("python-nav-backward-defun-2", test_python_nav_backward_definition_2), &
+                    new_unittest("python-nav-backward-defun-4", test_python_nav_backward_definition_4), &
+                    new_unittest("python-nav-forward-defun-1", test_python_nav_forward_definition_1), &
+                    new_unittest("python-nav-forward-defun-2", test_python_nav_forward_definition_2), &
+                    new_unittest("python-nav-forward-defun-4", test_python_nav_forward_definition_4), &
                     new_unittest("python-nav-beginning-of-statement-1", test_python_nav_beginning_of_statement_1), &
                     new_unittest("python-nav-end-of-statement-1", test_python_nav_end_of_statement_1), &
                     new_unittest("python-nav-end-of-statement-2", test_python_nav_end_of_statement_2), &
@@ -168,51 +168,51 @@ contains
                     new_unittest("python-nav-forward-sexp-2", test_python_nav_forward_expression_2), &
                     new_unittest("python-nav-forward-sexp-3", test_python_nav_forward_expression_3), &
                     new_unittest("python-nav-up-list-1", test_python_nav_up_group_1), &
-                    new_unittest("python-info-current-defun-1", test_python_info_current_subprogram_1), &
-                    new_unittest("python-info-current-defun-4", test_python_info_current_subprogram_4), &
-                    new_unittest("python-info-statement-starts-block-p-1", test_python_info_statement_starts_block_p_1), &
-                    new_unittest("python-info-statement-starts-block-p-2", test_python_info_statement_starts_block_p_2), &
-                    new_unittest("python-info-statement-ends-block-p-1", test_python_info_statement_ends_block_p_1), &
-                    new_unittest("python-info-statement-ends-block-p-2", test_python_info_statement_ends_block_p_2), &
-                    new_unittest("python-info-statement-ends-block-p-3", test_python_info_statement_ends_block_p_3), &
-                    new_unittest("python-info-beginning-of-statement-p-1", test_python_info_beginning_of_statement_p_1), &
-                    new_unittest("python-info-beginning-of-statement-p-2", test_python_info_beginning_of_statement_p_2), &
-                    new_unittest("python-info-end-of-statement-p-1", test_python_info_end_of_statement_p_1), &
-                    new_unittest("python-info-end-of-statement-p-2", test_python_info_end_of_statement_p_2), &
-                    new_unittest("python-info-beginning-of-block-p-1", test_python_info_beginning_of_block_p_1), &
-                    new_unittest("python-info-beginning-of-block-p-2", test_python_info_beginning_of_block_p_2), &
-                    new_unittest("python-info-end-of-block-p-3", test_python_info_end_of_block_p_3), &
+                    new_unittest("python-info-current-defun-1", test_python_info_current_definition_1), &
+                    new_unittest("python-info-current-defun-4", test_python_info_current_definition_4), &
+                    new_unittest("python-info-statement-starts-block-p-1", test_is_python_info_statement_starts_block_1), &
+                    new_unittest("python-info-statement-starts-block-p-2", test_is_python_info_statement_starts_block_2), &
+                    new_unittest("python-info-statement-ends-block-p-1", test_is_python_info_statement_ends_block_1), &
+                    new_unittest("python-info-statement-ends-block-p-2", test_is_python_info_statement_ends_block_2), &
+                    new_unittest("python-info-statement-ends-block-p-3", test_is_python_info_statement_ends_block_3), &
+                    new_unittest("python-info-beginning-of-statement-p-1", test_is_python_info_beginning_of_statement_1), &
+                    new_unittest("python-info-beginning-of-statement-p-2", test_is_python_info_beginning_of_statement_2), &
+                    new_unittest("python-info-end-of-statement-p-1", test_is_python_info_end_of_statement_1), &
+                    new_unittest("python-info-end-of-statement-p-2", test_is_python_info_end_of_statement_2), &
+                    new_unittest("python-info-beginning-of-block-p-1", test_is_python_info_beginning_of_block_1), &
+                    new_unittest("python-info-beginning-of-block-p-2", test_is_python_info_beginning_of_block_2), &
+                    new_unittest("python-info-end-of-block-p-3", test_is_python_info_end_of_block_3), &
                     new_unittest("python-info-dedenter-opening-block-position-1", &
                                  test_python_info_dedenter_opening_block_position_1), &
                     new_unittest("python-info-dedenter-opening-block-position-2", &
                                  test_python_info_dedenter_opening_block_position_2), &
-                    new_unittest("python-info-dedenter-statement-p-1", test_python_info_dedenter_statement_p_1), &
-                    new_unittest("python-info-dedenter-statement-p-2", test_python_info_dedenter_statement_p_2), &
-                    new_unittest("python-info-dedenter-statement-p-3", test_python_info_dedenter_statement_p_3), &
-                    new_unittest("python-info-dedenter-statement-p-4", test_python_info_dedenter_statement_p_4), &
-                    new_unittest("python-info-dedenter-statement-p-5", test_python_info_dedenter_statement_p_5), &
-                    new_unittest("python-info-dedenter-statement-p-6", test_python_info_dedenter_statement_p_6), &
-                    new_unittest("python-info-line-ends-backslash-p-1", test_python_info_line_ends_backslash_p_1), &
-                    new_unittest("python-info-continuation-line-p-1", test_python_info_continuation_line_p_1), &
-                    new_unittest("python-info-block-continuation-line-p-1", test_python_info_block_continuation_line_p_1), &
-                    new_unittest("python-info-block-continuation-line-p-2", test_python_info_block_continuation_line_p_2), &
+                    new_unittest("python-info-dedenter-statement-p-1", test_is_python_info_dedenter_statement_1), &
+                    new_unittest("python-info-dedenter-statement-p-2", test_is_python_info_dedenter_statement_2), &
+                    new_unittest("python-info-dedenter-statement-p-3", test_is_python_info_dedenter_statement_3), &
+                    new_unittest("python-info-dedenter-statement-p-4", test_is_python_info_dedenter_statement_4), &
+                    new_unittest("python-info-dedenter-statement-p-5", test_is_python_info_dedenter_statement_5), &
+                    new_unittest("python-info-dedenter-statement-p-6", test_is_python_info_dedenter_statement_6), &
+                    new_unittest("python-info-line-ends-backslash-p-1", test_is_python_info_line_ends_backslash_1), &
+                    new_unittest("python-info-continuation-line-p-1", test_is_python_info_continuation_line_1), &
+                    new_unittest("python-info-block-continuation-line-p-1", test_is_python_info_block_continuation_line_1), &
+                    new_unittest("python-info-block-continuation-line-p-2", test_is_python_info_block_continuation_line_2), &
                     new_unittest("python-info-assignment-continuation-line-p-1", &
-                                 test_python_info_assignment_continuation_line_p_1), &
+                                 test_is_python_info_assignment_continuation_line_1), &
                     new_unittest("python-info-assignment-continuation-line-p-2", &
-                                 test_python_info_assignment_continuation_line_p_2), &
-               new_unittest("python-info-looking-at-beginning-of-defun-1", test_python_info_looking_at_beginning_of_subprogram_1), &
-               new_unittest("python-info-looking-at-beginning-of-defun-2", test_python_info_looking_at_beginning_of_subprogram_2), &
-               new_unittest("python-info-looking-at-beginning-of-defun-3", test_python_info_looking_at_beginning_of_subprogram_3), &
-                    new_unittest("python-info-current-line-comment-p-1", test_python_info_current_line_comment_p_1), &
-                    new_unittest("python-info-current-line-empty-p", test_python_info_current_line_empty_p), &
-                    new_unittest("python-info-docstring-p-1", test_python_info_docstring_p_1), &
-                    new_unittest("python-info-docstring-p-2", test_python_info_docstring_p_2), &
-                    new_unittest("python-info-docstring-p-3", test_python_info_docstring_p_3), &
-                    new_unittest("python-info-docstring-p-4", test_python_info_docstring_p_4), &
-                    new_unittest("python-info-docstring-p-5", test_python_info_docstring_p_5), &
-                    new_unittest("python-info-docstring-p-6", test_python_info_docstring_p_6), &
-                    new_unittest("python-info-docstring-p-7", test_python_info_docstring_p_7), &
-                    new_unittest("python-info-docstring-p-8", test_python_info_docstring_p_8), &
+                                 test_is_python_info_assignment_continuation_line_2), &
+               new_unittest("python-info-looking-at-beginning-of-defun-1", test_python_info_looking_at_beginning_of_definition_1), &
+               new_unittest("python-info-looking-at-beginning-of-defun-2", test_python_info_looking_at_beginning_of_definition_2), &
+               new_unittest("python-info-looking-at-beginning-of-defun-3", test_python_info_looking_at_beginning_of_definition_3), &
+                    new_unittest("python-info-current-line-comment-p-1", test_is_python_info_current_line_comment_1), &
+                    new_unittest("python-info-current-line-empty-p", test_is_python_info_current_line_empty), &
+                    new_unittest("python-info-docstring-p-1", test_is_python_info_docstring_1), &
+                    new_unittest("python-info-docstring-p-2", test_is_python_info_docstring_2), &
+                    new_unittest("python-info-docstring-p-3", test_is_python_info_docstring_3), &
+                    new_unittest("python-info-docstring-p-4", test_is_python_info_docstring_4), &
+                    new_unittest("python-info-docstring-p-5", test_is_python_info_docstring_5), &
+                    new_unittest("python-info-docstring-p-6", test_is_python_info_docstring_6), &
+                    new_unittest("python-info-docstring-p-7", test_is_python_info_docstring_7), &
+                    new_unittest("python-info-docstring-p-8", test_is_python_info_docstring_8), &
                     new_unittest("python-info-encoding-from-cookie-3", test_python_info_encoding_from_cookie_3) &
                     ]
     end subroutine collect_python_fm
@@ -2070,7 +2070,7 @@ contains
         if (.false.) name = ""
     end subroutine test_python_syntax_context_1
 
-    subroutine test_python_nav_beginning_of_subprogram_1(error)
+    subroutine test_python_nav_beginning_of_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2099,7 +2099,7 @@ contains
                        //"    return wwrap"//LF)
         v(1) = look_pos("return wwrap", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(1), st)
+        call python_nav_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(2))
@@ -2113,7 +2113,7 @@ contains
         if (allocated(error)) return
         v(9) = look_pos("return wrap", -1_int64, .false.)
         v(10) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(2), st)
+        call python_nav_beginning_of_definition(1_int64, b(2), st)
         v(11) = point()
         v(12) = v(11)
         call goto_char(v(10))
@@ -2127,7 +2127,7 @@ contains
         if (allocated(error)) return
         v(17) = look_pos("def wrapped_f(*args):", -1_int64, .false.)
         v(18) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(3), st)
+        call python_nav_beginning_of_definition(1_int64, b(3), st)
         v(19) = point()
         v(20) = v(19)
         call goto_char(v(18))
@@ -2141,7 +2141,7 @@ contains
         if (allocated(error)) return
         v(25) = look_pos("def wwrap(f):", -1_int64, .false.)
         v(26) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(4), st)
+        call python_nav_beginning_of_definition(1_int64, b(4), st)
         v(27) = point()
         v(28) = v(27)
         call goto_char(v(26))
@@ -2155,9 +2155,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_subprogram_1
+    end subroutine test_python_nav_beginning_of_definition_1
 
-    subroutine test_python_nav_beginning_of_subprogram_2(error)
+    subroutine test_python_nav_beginning_of_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2183,7 +2183,7 @@ contains
                        //"        pass"//LF)
         v(1) = look_pos("def c(self):", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(1), st)
+        call python_nav_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(2))
@@ -2197,7 +2197,7 @@ contains
         if (allocated(error)) return
         shortage = forward_line(-1_int64)
         v(9) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(2), st)
+        call python_nav_beginning_of_definition(1_int64, b(2), st)
         v(10) = point()
         v(11) = v(10)
         call goto_char(v(9))
@@ -2212,7 +2212,7 @@ contains
         v(16) = look_pos("if True:", -1_int64, .false.)
         shortage = forward_line(-1_int64)
         v(17) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(3), st)
+        call python_nav_beginning_of_definition(1_int64, b(3), st)
         v(18) = point()
         v(19) = v(18)
         call goto_char(v(17))
@@ -2226,7 +2226,7 @@ contains
         if (allocated(error)) return
         v(24) = look_pos("def a():", -1_int64, .false.)
         v(25) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(4), st)
+        call python_nav_beginning_of_definition(1_int64, b(4), st)
         v(26) = point()
         v(27) = v(26)
         call goto_char(v(25))
@@ -2240,7 +2240,7 @@ contains
         if (allocated(error)) return
         v(32) = look_pos("def b():", -1_int64, .false.)
         v(33) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(5), st)
+        call python_nav_beginning_of_definition(1_int64, b(5), st)
         v(34) = point()
         v(35) = v(34)
         call goto_char(v(33))
@@ -2254,7 +2254,7 @@ contains
         if (allocated(error)) return
         shortage = forward_line(-1_int64)
         v(40) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(6), st)
+        call python_nav_beginning_of_definition(1_int64, b(6), st)
         v(41) = point()
         v(42) = v(41)
         call goto_char(v(40))
@@ -2268,7 +2268,7 @@ contains
         if (allocated(error)) return
         v(47) = look_pos("def m(self):", -1_int64, .false.)
         v(48) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(7), st)
+        call python_nav_beginning_of_definition(1_int64, b(7), st)
         v(49) = point()
         v(50) = v(49)
         call goto_char(v(48))
@@ -2282,9 +2282,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_subprogram_2
+    end subroutine test_python_nav_beginning_of_definition_2
 
-    subroutine test_python_nav_beginning_of_subprogram_3(error)
+    subroutine test_python_nav_beginning_of_definition_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2301,7 +2301,7 @@ contains
                        //"        pass"//LF)
         v(1) = look_pos("self.c()", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(1), st)
+        call python_nav_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(2))
@@ -2315,9 +2315,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_subprogram_3
+    end subroutine test_python_nav_beginning_of_definition_3
 
-    subroutine test_python_nav_beginning_of_subprogram_4(error)
+    subroutine test_python_nav_beginning_of_definition_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2336,7 +2336,7 @@ contains
                        //"    pass"//LF)
         v(1) = look_pos("def c():", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(1), st)
+        call python_nav_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(2))
@@ -2350,7 +2350,7 @@ contains
         if (allocated(error)) return
         v(9) = look_pos("return 0", -1_int64, .false.)
         v(10) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(2), st)
+        call python_nav_beginning_of_definition(1_int64, b(2), st)
         v(11) = point()
         v(12) = v(11)
         call goto_char(v(10))
@@ -2364,7 +2364,7 @@ contains
         if (allocated(error)) return
         v(17) = look_pos("b():", -1_int64, .false.)
         v(18) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(3), st)
+        call python_nav_beginning_of_definition(1_int64, b(3), st)
         v(19) = point()
         v(20) = v(19)
         call goto_char(v(18))
@@ -2378,7 +2378,7 @@ contains
         if (allocated(error)) return
         v(25) = look_pos("def a():", -1_int64, .false.)
         v(26) = point()
-        call python_nav_beginning_of_subprogram(-1_int64, b(4), st)
+        call python_nav_beginning_of_definition(-1_int64, b(4), st)
         v(27) = point()
         v(28) = v(27)
         call goto_char(v(26))
@@ -2392,9 +2392,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_subprogram_4
+    end subroutine test_python_nav_beginning_of_definition_4
 
-    subroutine test_python_nav_beginning_of_subprogram_5(error)
+    subroutine test_python_nav_beginning_of_definition_5(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2409,7 +2409,7 @@ contains
                        //"        pass"//LF)
         v(1) = look_pos("m(self):", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(1), st)
+        call python_nav_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(2))
@@ -2423,7 +2423,7 @@ contains
         if (allocated(error)) return
         v(9) = look_pos("class C:", -1_int64, .false.)
         v(10) = point()
-        call python_nav_beginning_of_subprogram(-1_int64, b(2), st)
+        call python_nav_beginning_of_definition(-1_int64, b(2), st)
         v(11) = point()
         v(12) = v(11)
         call goto_char(v(10))
@@ -2437,9 +2437,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_subprogram_5
+    end subroutine test_python_nav_beginning_of_definition_5
 
-    subroutine test_python_nav_beginning_of_subprogram_6(error)
+    subroutine test_python_nav_beginning_of_definition_6(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2452,7 +2452,7 @@ contains
                        //"        pass"//LF)
         v(1) = look_pos("self", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_subprogram(1_int64, b(1), st)
+        call python_nav_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(2))
@@ -2465,9 +2465,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_subprogram_6
+    end subroutine test_python_nav_beginning_of_definition_6
 
-    subroutine test_python_nav_end_of_subprogram_1(error)
+    subroutine test_python_nav_end_of_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2490,7 +2490,7 @@ contains
                        //"        pass"//LF)
         v(1) = point()
         v(2) = look_pos("class C(object):", 1_int64, .false.)
-        b(1) = python_nav_end_of_subprogram()
+        b(1) = python_nav_end_of_definition()
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(1))
@@ -2502,7 +2502,7 @@ contains
         if (allocated(error)) return
         v(8) = point()
         v(9) = look_pos("def m(self):", 1_int64, .false.)
-        b(2) = python_nav_end_of_subprogram()
+        b(2) = python_nav_end_of_definition()
         v(10) = point()
         v(11) = v(10)
         call goto_char(v(8))
@@ -2517,7 +2517,7 @@ contains
         v(16) = point()
         v(17) = look_pos("def b():", 1_int64, .false.)
         shortage = forward_line(-1_int64)
-        b(3) = python_nav_end_of_subprogram()
+        b(3) = python_nav_end_of_definition()
         v(18) = point()
         v(19) = v(18)
         call goto_char(v(16))
@@ -2531,7 +2531,7 @@ contains
         if (allocated(error)) return
         v(24) = point()
         v(25) = look_pos("def b():", 1_int64, .false.)
-        b(4) = python_nav_end_of_subprogram()
+        b(4) = python_nav_end_of_definition()
         v(26) = point()
         v(27) = v(26)
         call goto_char(v(24))
@@ -2546,14 +2546,14 @@ contains
         v(32) = point()
         v(33) = look_pos("def a():", 1_int64, .false.)
         shortage = forward_line(-1_int64)
-        b(5) = python_nav_end_of_subprogram()
+        b(5) = python_nav_end_of_definition()
         b(6) = b(5)
         call goto_char(v(32))
         call check(error,.not. (b(6)), "(not (save-excursion (python-tests-look-at 'def a():') (forw")
         if (allocated(error)) return
         v(34) = point()
         v(35) = look_pos("def c(self):", 1_int64, .false.)
-        b(7) = python_nav_end_of_subprogram()
+        b(7) = python_nav_end_of_definition()
         v(36) = point()
         v(37) = v(36)
         call goto_char(v(34))
@@ -2565,9 +2565,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_subprogram_1
+    end subroutine test_python_nav_end_of_definition_1
 
-    subroutine test_python_nav_end_of_subprogram_2(error)
+    subroutine test_python_nav_end_of_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2596,7 +2596,7 @@ contains
                        //"    return wwrap"//LF)
         v(1) = point()
         v(2) = look_pos("def decoratorFunctionWithArguments", 1_int64, .false.)
-        b(1) = python_nav_end_of_subprogram()
+        b(1) = python_nav_end_of_definition()
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(1))
@@ -2608,7 +2608,7 @@ contains
         if (allocated(error)) return
         v(8) = point()
         v(9) = look_pos("@decoratorFunctionWithArguments", 1_int64, .false.)
-        b(2) = python_nav_end_of_subprogram()
+        b(2) = python_nav_end_of_definition()
         v(10) = point()
         v(11) = v(10)
         call goto_char(v(8))
@@ -2620,7 +2620,7 @@ contains
         if (allocated(error)) return
         v(15) = point()
         v(16) = look_pos("def wwrap(f):", 1_int64, .false.)
-        b(3) = python_nav_end_of_subprogram()
+        b(3) = python_nav_end_of_definition()
         v(17) = point()
         v(18) = v(17)
         call goto_char(v(15))
@@ -2633,7 +2633,7 @@ contains
         if (allocated(error)) return
         v(23) = point()
         v(24) = look_pos("def wrapped_f(*args):", 1_int64, .false.)
-        b(4) = python_nav_end_of_subprogram()
+        b(4) = python_nav_end_of_definition()
         v(25) = point()
         v(26) = v(25)
         call goto_char(v(23))
@@ -2646,7 +2646,7 @@ contains
         if (allocated(error)) return
         v(31) = point()
         v(32) = look_pos("f(*args)", 1_int64, .false.)
-        b(5) = python_nav_end_of_subprogram()
+        b(5) = python_nav_end_of_definition()
         v(33) = point()
         v(34) = v(33)
         call goto_char(v(31))
@@ -2659,9 +2659,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_subprogram_2
+    end subroutine test_python_nav_end_of_definition_2
 
-    subroutine test_python_nav_end_of_subprogram_3(error)
+    subroutine test_python_nav_end_of_definition_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2674,7 +2674,7 @@ contains
                        //"    return 0"//LF)
         v(1) = point()
         v(2) = look_pos("def \", 1_int64, .false.)
-        b(1) = python_nav_end_of_subprogram()
+        b(1) = python_nav_end_of_definition()
         v(3) = point()
         v(4) = v(3)
         call goto_char(v(1))
@@ -2686,9 +2686,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_subprogram_3
+    end subroutine test_python_nav_end_of_definition_3
 
-    subroutine test_python_nav_backward_subprogram_1(error)
+    subroutine test_python_nav_backward_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2722,62 +2722,62 @@ contains
         v(1) = point_max()
         call goto_char(v(1))
         v(2) = point()
-        v(3) = python_nav_backward_subprogram(1_int64)
+        v(3) = python_nav_backward_definition(1_int64)
         v(4) = v(3)
         call goto_char(v(2))
         v(5) = look_pos("    def c(self): # c", -1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_backward_subprogram(1_int64)
+        v(7) = python_nav_backward_definition(1_int64)
         v(8) = v(7)
         call goto_char(v(6))
         v(9) = look_pos("            def d(self): # d", -1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_backward_subprogram(1_int64)
+        v(11) = python_nav_backward_definition(1_int64)
         v(12) = v(11)
         call goto_char(v(10))
         v(13) = look_pos("        class C(object): # C", -1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(14) = point()
-        v(15) = python_nav_backward_subprogram(1_int64)
+        v(15) = python_nav_backward_definition(1_int64)
         v(16) = v(15)
         call goto_char(v(14))
         v(17) = look_pos("    class B(object): # B", -1_int64, .false.)
         call check(error, v(16) == v(17), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(18) = point()
-        v(19) = python_nav_backward_subprogram(1_int64)
+        v(19) = python_nav_backward_definition(1_int64)
         v(20) = v(19)
         call goto_char(v(18))
         v(21) = look_pos("    def b(self): # b", -1_int64, .false.)
         call check(error, v(20) == v(21), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(22) = point()
-        v(23) = python_nav_backward_subprogram(1_int64)
+        v(23) = python_nav_backward_definition(1_int64)
         v(24) = v(23)
         call goto_char(v(22))
         v(25) = look_pos("    def a(self): # a", -1_int64, .false.)
         call check(error, v(24) == v(25), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(26) = point()
-        v(27) = python_nav_backward_subprogram(1_int64)
+        v(27) = python_nav_backward_definition(1_int64)
         v(28) = v(27)
         call goto_char(v(26))
         v(29) = look_pos("class A(object): # A", -1_int64, .false.)
         call check(error, v(28) == v(29), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
-        v(30) = python_nav_backward_subprogram(1_int64)
+        v(30) = python_nav_backward_definition(1_int64)
         call check(error,.not. (v(30) /= 0), "(not (python-nav-backward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_backward_subprogram_1
+    end subroutine test_python_nav_backward_definition_1
 
-    subroutine test_python_nav_backward_subprogram_2(error)
+    subroutine test_python_nav_backward_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2807,34 +2807,34 @@ contains
         v(1) = point_max()
         call goto_char(v(1))
         v(2) = point()
-        v(3) = python_nav_backward_subprogram(1_int64)
+        v(3) = python_nav_backward_definition(1_int64)
         v(4) = v(3)
         call goto_char(v(2))
         v(5) = look_pos("        def wrapped_f(*args):", -1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_backward_subprogram(1_int64)
+        v(7) = python_nav_backward_definition(1_int64)
         v(8) = v(7)
         call goto_char(v(6))
         v(9) = look_pos("    def wwrap(f):", -1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_backward_subprogram(1_int64)
+        v(11) = python_nav_backward_definition(1_int64)
         v(12) = v(11)
         call goto_char(v(10))
         v(13) = look_pos("def decoratorFunctionWithArguments(arg1, arg2, arg3):", -1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
-        v(14) = python_nav_backward_subprogram(1_int64)
+        v(14) = python_nav_backward_definition(1_int64)
         call check(error,.not. (v(14) /= 0), "(not (python-nav-backward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_backward_subprogram_2
+    end subroutine test_python_nav_backward_definition_2
 
-    subroutine test_python_nav_backward_subprogram_4(error)
+    subroutine test_python_nav_backward_definition_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2848,20 +2848,20 @@ contains
         v(1) = point_max()
         call goto_char(v(1))
         v(2) = point()
-        v(3) = python_nav_backward_subprogram(1_int64)
+        v(3) = python_nav_backward_definition(1_int64)
         v(4) = v(3)
         call goto_char(v(2))
         v(5) = look_pos("def \", -1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
-        v(6) = python_nav_backward_subprogram(1_int64)
+        v(6) = python_nav_backward_definition(1_int64)
         call check(error,.not. (v(6) /= 0), "(not (python-nav-backward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_backward_subprogram_4
+    end subroutine test_python_nav_backward_definition_4
 
-    subroutine test_python_nav_forward_subprogram_1(error)
+    subroutine test_python_nav_forward_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2895,62 +2895,62 @@ contains
         v(1) = point_min()
         call goto_char(v(1))
         v(2) = point()
-        v(3) = python_nav_forward_subprogram(1_int64)
+        v(3) = python_nav_forward_definition(1_int64)
         v(4) = v(3)
         call goto_char(v(2))
         v(5) = look_pos("(object): # A", 1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_forward_subprogram(1_int64)
+        v(7) = python_nav_forward_definition(1_int64)
         v(8) = v(7)
         call goto_char(v(6))
         v(9) = look_pos("(self): # a", 1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_forward_subprogram(1_int64)
+        v(11) = python_nav_forward_definition(1_int64)
         v(12) = v(11)
         call goto_char(v(10))
         v(13) = look_pos("(self): # b", 1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(14) = point()
-        v(15) = python_nav_forward_subprogram(1_int64)
+        v(15) = python_nav_forward_definition(1_int64)
         v(16) = v(15)
         call goto_char(v(14))
         v(17) = look_pos("(object): # B", 1_int64, .false.)
         call check(error, v(16) == v(17), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(18) = point()
-        v(19) = python_nav_forward_subprogram(1_int64)
+        v(19) = python_nav_forward_definition(1_int64)
         v(20) = v(19)
         call goto_char(v(18))
         v(21) = look_pos("(object): # C", 1_int64, .false.)
         call check(error, v(20) == v(21), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(22) = point()
-        v(23) = python_nav_forward_subprogram(1_int64)
+        v(23) = python_nav_forward_definition(1_int64)
         v(24) = v(23)
         call goto_char(v(22))
         v(25) = look_pos("(self): # d", 1_int64, .false.)
         call check(error, v(24) == v(25), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(26) = point()
-        v(27) = python_nav_forward_subprogram(1_int64)
+        v(27) = python_nav_forward_definition(1_int64)
         v(28) = v(27)
         call goto_char(v(26))
         v(29) = look_pos("(self): # c", 1_int64, .false.)
         call check(error, v(28) == v(29), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
-        v(30) = python_nav_forward_subprogram(1_int64)
+        v(30) = python_nav_forward_definition(1_int64)
         call check(error,.not. (v(30) /= 0), "(not (python-nav-forward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_subprogram_1
+    end subroutine test_python_nav_forward_definition_1
 
-    subroutine test_python_nav_forward_subprogram_2(error)
+    subroutine test_python_nav_forward_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2980,34 +2980,34 @@ contains
         v(1) = point_min()
         call goto_char(v(1))
         v(2) = point()
-        v(3) = python_nav_forward_subprogram(1_int64)
+        v(3) = python_nav_forward_definition(1_int64)
         v(4) = v(3)
         call goto_char(v(2))
         v(5) = look_pos("(arg1, arg2, arg3):", 1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_forward_subprogram(1_int64)
+        v(7) = python_nav_forward_definition(1_int64)
         v(8) = v(7)
         call goto_char(v(6))
         v(9) = look_pos("(f):", 1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_forward_subprogram(1_int64)
+        v(11) = python_nav_forward_definition(1_int64)
         v(12) = v(11)
         call goto_char(v(10))
         v(13) = look_pos("(*args):", 1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
-        v(14) = python_nav_forward_subprogram(1_int64)
+        v(14) = python_nav_forward_definition(1_int64)
         call check(error,.not. (v(14) /= 0), "(not (python-nav-forward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_subprogram_2
+    end subroutine test_python_nav_forward_definition_2
 
-    subroutine test_python_nav_forward_subprogram_4(error)
+    subroutine test_python_nav_forward_definition_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3021,18 +3021,18 @@ contains
         v(1) = point_min()
         call goto_char(v(1))
         v(2) = point()
-        v(3) = python_nav_forward_subprogram(1_int64)
+        v(3) = python_nav_forward_definition(1_int64)
         v(4) = v(3)
         call goto_char(v(2))
         v(5) = look_pos("():", 1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
-        v(6) = python_nav_forward_subprogram(1_int64)
+        v(6) = python_nav_forward_definition(1_int64)
         call check(error,.not. (v(6) /= 0), "(not (python-nav-forward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_subprogram_4
+    end subroutine test_python_nav_forward_definition_4
 
     subroutine test_python_nav_beginning_of_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
@@ -3852,7 +3852,7 @@ contains
         if (.false.) name = ""
     end subroutine test_python_nav_up_group_1
 
-    subroutine test_python_info_current_subprogram_1(error)
+    subroutine test_python_info_current_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3862,28 +3862,28 @@ contains
         call py_buffer(LF &
                        //"def foo(a, b):"//LF)
         shortage = forward_line(1_int64)
-        call python_info_current_subprogram(name)
+        call python_info_current_definition(name)
         call check(error, name_is(name, "foo"), "(string= 'foo' (python-info-current-defun))")
         if (allocated(error)) return
-        call python_info_current_subprogram(name, .true.)
+        call python_info_current_definition(name, .true.)
         call check(error, name_is(name, "def foo"), "(string= 'def foo' (python-info-current-defun t))")
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call python_info_current_subprogram(name)
+        call python_info_current_definition(name)
         call check(error,.not. (allocated(name)), "(not (python-info-current-defun))")
         if (allocated(error)) return
-        call indent_for_tab_command(nil(), st)
-        call python_info_current_subprogram(name)
+        call indent_for_tab_command(value_type(), st)
+        call python_info_current_definition(name)
         call check(error, name_is(name, "foo"), "(string= 'foo' (python-info-current-defun))")
         if (allocated(error)) return
-        call python_info_current_subprogram(name, .true.)
+        call python_info_current_definition(name, .true.)
         call check(error, name_is(name, "def foo"), "(string= 'def foo' (python-info-current-defun t))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_current_subprogram_1
+    end subroutine test_python_info_current_definition_1
 
-    subroutine test_python_info_current_subprogram_4(error)
+    subroutine test_python_info_current_definition_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3895,17 +3895,17 @@ contains
                        //"    ' """""""//LF &
                        //"    v = 1"//LF)
         v(1) = look_pos("v = 1", 1_int64, .false.)
-        call python_info_current_subprogram(name)
+        call python_info_current_definition(name)
         call check(error, name_is(name, "func"), "(string= (python-info-current-defun) 'func')")
         if (allocated(error)) return
-        call python_info_current_subprogram(name, .true.)
+        call python_info_current_definition(name, .true.)
         call check(error, name_is(name, "def func"), "(string= (python-info-current-defun t) 'def func')")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_current_subprogram_4
+    end subroutine test_python_info_current_definition_4
 
-    subroutine test_python_info_statement_starts_block_p_1(error)
+    subroutine test_is_python_info_statement_starts_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3918,19 +3918,19 @@ contains
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
         v(1) = look_pos("def long_function_name", 1_int64, .false.)
-        b(1) = python_info_statement_starts_block_p()
+        b(1) = is_python_info_statement_starts_block()
         call check(error, b(1), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
         v(2) = look_pos("print (var_one)", 1_int64, .false.)
         b(300) = python_util_forward_comment(-1)
-        b(2) = python_info_statement_starts_block_p()
+        b(2) = is_python_info_statement_starts_block()
         call check(error, b(2), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_statement_starts_block_p_1
+    end subroutine test_is_python_info_statement_starts_block_1
 
-    subroutine test_python_info_statement_starts_block_p_2(error)
+    subroutine test_is_python_info_statement_starts_block_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3943,19 +3943,19 @@ contains
                        //"   highlight > 100:"//LF &
                        //"    raise ValueError('sorry, you lose')"//LF)
         v(1) = look_pos("if width == 0 and", 1_int64, .false.)
-        b(1) = python_info_statement_starts_block_p()
+        b(1) = is_python_info_statement_starts_block()
         call check(error, b(1), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
         v(2) = look_pos("raise ValueError(", 1_int64, .false.)
         b(300) = python_util_forward_comment(-1)
-        b(2) = python_info_statement_starts_block_p()
+        b(2) = is_python_info_statement_starts_block()
         call check(error, b(2), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_statement_starts_block_p_2
+    end subroutine test_is_python_info_statement_starts_block_2
 
-    subroutine test_python_info_statement_ends_block_p_1(error)
+    subroutine test_is_python_info_statement_ends_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3968,14 +3968,14 @@ contains
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
         v(1) = look_pos("print (var_one)", 1_int64, .false.)
-        b(1) = python_info_statement_ends_block_p()
+        b(1) = is_python_info_statement_ends_block()
         call check(error, b(1), "(python-info-statement-ends-block-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_statement_ends_block_p_1
+    end subroutine test_is_python_info_statement_ends_block_1
 
-    subroutine test_python_info_statement_ends_block_p_2(error)
+    subroutine test_is_python_info_statement_ends_block_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3991,14 +3991,14 @@ contains
                        //LF &
                        //")"//LF)
         v(1) = look_pos("raise ValueError(", 1_int64, .false.)
-        b(1) = python_info_statement_ends_block_p()
+        b(1) = is_python_info_statement_ends_block()
         call check(error, b(1), "(python-info-statement-ends-block-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_statement_ends_block_p_2
+    end subroutine test_is_python_info_statement_ends_block_2
 
-    subroutine test_python_info_statement_ends_block_p_3(error)
+    subroutine test_is_python_info_statement_ends_block_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4009,14 +4009,14 @@ contains
                        //"def function():"//LF &
                        //"    print()  # Comment"//LF)
         v(1) = look_pos("print()", 1_int64, .false.)
-        b(1) = python_info_statement_ends_block_p()
+        b(1) = is_python_info_statement_ends_block()
         call check(error, b(1), "(python-info-statement-ends-block-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_statement_ends_block_p_3
+    end subroutine test_is_python_info_statement_ends_block_3
 
-    subroutine test_python_info_beginning_of_statement_p_1(error)
+    subroutine test_is_python_info_beginning_of_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4029,27 +4029,27 @@ contains
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
         v(1) = look_pos("def long_function_name", 1_int64, .false.)
-        b(1) = python_info_beginning_of_statement_p()
+        b(1) = is_python_info_beginning_of_statement()
         call check(error, b(1), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
         call forward_char(st, 10_int64)
-        b(2) = python_info_beginning_of_statement_p()
+        b(2) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
         v(2) = look_pos("print (var_one)", 1_int64, .false.)
-        b(3) = python_info_beginning_of_statement_p()
+        b(3) = is_python_info_beginning_of_statement()
         call check(error, b(3), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
         v(3) = line_beginning_position()
         call goto_char(v(3))
-        b(4) = python_info_beginning_of_statement_p()
+        b(4) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_beginning_of_statement_p_1
+    end subroutine test_is_python_info_beginning_of_statement_1
 
-    subroutine test_python_info_beginning_of_statement_p_2(error)
+    subroutine test_is_python_info_beginning_of_statement_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4065,27 +4065,27 @@ contains
                        //LF &
                        //")"//LF)
         v(1) = look_pos("if width == 0 and", 1_int64, .false.)
-        b(1) = python_info_beginning_of_statement_p()
+        b(1) = is_python_info_beginning_of_statement()
         call check(error, b(1), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
         call forward_char(st, 10_int64)
-        b(2) = python_info_beginning_of_statement_p()
+        b(2) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
         v(2) = look_pos("raise ValueError(", 1_int64, .false.)
-        b(3) = python_info_beginning_of_statement_p()
+        b(3) = is_python_info_beginning_of_statement()
         call check(error, b(3), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
         v(3) = line_beginning_position()
         call goto_char(v(3))
-        b(4) = python_info_beginning_of_statement_p()
+        b(4) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_beginning_of_statement_p_2
+    end subroutine test_is_python_info_beginning_of_statement_2
 
-    subroutine test_python_info_end_of_statement_p_1(error)
+    subroutine test_is_python_info_end_of_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4098,31 +4098,31 @@ contains
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
         v(1) = look_pos("def long_function_name", 1_int64, .false.)
-        b(1) = python_info_end_of_statement_p()
+        b(1) = is_python_info_end_of_statement()
         call check(error,.not. (b(1)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
         call end_of_line()
-        b(2) = python_info_end_of_statement_p()
+        b(2) = is_python_info_end_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
         v(2) = look_pos("print (var_one)", 1_int64, .false.)
         b(300) = python_util_forward_comment(-1)
-        b(3) = python_info_end_of_statement_p()
+        b(3) = is_python_info_end_of_statement()
         call check(error, b(3), "(python-info-end-of-statement-p)")
         if (allocated(error)) return
         v(3) = look_pos("print (var_one)", 1_int64, .false.)
-        b(4) = python_info_end_of_statement_p()
+        b(4) = is_python_info_end_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
         call end_of_line()
-        b(5) = python_info_end_of_statement_p()
+        b(5) = is_python_info_end_of_statement()
         call check(error, b(5), "(python-info-end-of-statement-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_end_of_statement_p_1
+    end subroutine test_is_python_info_end_of_statement_1
 
-    subroutine test_python_info_end_of_statement_p_2(error)
+    subroutine test_is_python_info_end_of_statement_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4138,37 +4138,37 @@ contains
                        //LF &
                        //")"//LF)
         v(1) = look_pos("if width == 0 and", 1_int64, .false.)
-        b(1) = python_info_end_of_statement_p()
+        b(1) = is_python_info_end_of_statement()
         call check(error,.not. (b(1)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
         call end_of_line()
-        b(2) = python_info_end_of_statement_p()
+        b(2) = is_python_info_end_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
         v(2) = look_pos("raise ValueError(", 1_int64, .false.)
         b(300) = python_util_forward_comment(-1)
-        b(3) = python_info_end_of_statement_p()
+        b(3) = is_python_info_end_of_statement()
         call check(error, b(3), "(python-info-end-of-statement-p)")
         if (allocated(error)) return
         v(3) = look_pos("raise ValueError(", 1_int64, .false.)
-        b(4) = python_info_end_of_statement_p()
+        b(4) = is_python_info_end_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
         call end_of_line()
-        b(5) = python_info_end_of_statement_p()
+        b(5) = is_python_info_end_of_statement()
         call check(error,.not. (b(5)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
         v(4) = point_max()
         call goto_char(v(4))
         b(300) = python_util_forward_comment(-1)
-        b(6) = python_info_end_of_statement_p()
+        b(6) = is_python_info_end_of_statement()
         call check(error, b(6), "(python-info-end-of-statement-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_end_of_statement_p_2
+    end subroutine test_is_python_info_end_of_statement_2
 
-    subroutine test_python_info_beginning_of_block_p_1(error)
+    subroutine test_is_python_info_beginning_of_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4181,22 +4181,22 @@ contains
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
         v(1) = look_pos("def long_function_name", 1_int64, .false.)
-        b(1) = python_info_beginning_of_block_p()
+        b(1) = is_python_info_beginning_of_block()
         call check(error, b(1), "(python-info-beginning-of-block-p)")
         if (allocated(error)) return
         v(2) = look_pos("var_one, var_two, var_three,", 1_int64, .false.)
-        b(2) = python_info_beginning_of_block_p()
+        b(2) = is_python_info_beginning_of_block()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
         v(3) = look_pos("print (var_one)", 1_int64, .false.)
-        b(3) = python_info_beginning_of_block_p()
+        b(3) = is_python_info_beginning_of_block()
         call check(error,.not. (b(3)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_beginning_of_block_p_1
+    end subroutine test_is_python_info_beginning_of_block_1
 
-    subroutine test_python_info_beginning_of_block_p_2(error)
+    subroutine test_is_python_info_beginning_of_block_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4212,22 +4212,22 @@ contains
                        //LF &
                        //")"//LF)
         v(1) = look_pos("if width == 0 and", 1_int64, .false.)
-        b(1) = python_info_beginning_of_block_p()
+        b(1) = is_python_info_beginning_of_block()
         call check(error, b(1), "(python-info-beginning-of-block-p)")
         if (allocated(error)) return
         v(2) = look_pos("color == 'red' and emphasis", 1_int64, .false.)
-        b(2) = python_info_beginning_of_block_p()
+        b(2) = is_python_info_beginning_of_block()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
         v(3) = look_pos("raise ValueError(", 1_int64, .false.)
-        b(3) = python_info_beginning_of_block_p()
+        b(3) = is_python_info_beginning_of_block()
         call check(error,.not. (b(3)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_beginning_of_block_p_2
+    end subroutine test_is_python_info_beginning_of_block_2
 
-    subroutine test_python_info_end_of_block_p_3(error)
+    subroutine test_is_python_info_end_of_block_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4238,12 +4238,12 @@ contains
                        //"def function():"//LF &
                        //"    print()  # Comment"//LF)
         v(1) = look_pos("  # Comment", 1_int64, .false.)
-        b(1) = python_info_end_of_block_p()
+        b(1) = is_python_info_end_of_block()
         call check(error, b(1), "(python-info-end-of-block-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_end_of_block_p_3
+    end subroutine test_is_python_info_end_of_block_3
 
     subroutine test_python_info_dedenter_opening_block_position_1(error)
         type(error_type), allocatable, intent(out) :: error
@@ -4327,7 +4327,7 @@ contains
         if (.false.) name = ""
     end subroutine test_python_info_dedenter_opening_block_position_2
 
-    subroutine test_python_info_dedenter_statement_p_1(error)
+    subroutine test_is_python_info_dedenter_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4341,14 +4341,14 @@ contains
                        //"    logger.exception('something went wrong')"//LF &
                        //"'''"//LF)
         v(1) = look_pos("except"//LF, 1_int64, .false.)
-        v(2) = python_info_dedenter_statement_p()
+        v(2) = is_python_info_dedenter_statement()
         call check(error,.not. (v(2) /= 0), "(not (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_dedenter_statement_p_1
+    end subroutine test_is_python_info_dedenter_statement_1
 
-    subroutine test_python_info_dedenter_statement_p_2(error)
+    subroutine test_is_python_info_dedenter_statement_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4362,7 +4362,7 @@ contains
                        //"    logger.exception('something went wrong')"//LF)
         v(1) = look_pos("except:", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_info_dedenter_statement_p()
+        v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         call end_of_line()
@@ -4371,14 +4371,14 @@ contains
         v(5) = point()
         v(6) = v(5)
         call goto_char(v(4))
-        v(7) = python_info_dedenter_statement_p()
+        v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_dedenter_statement_p_2
+    end subroutine test_is_python_info_dedenter_statement_2
 
-    subroutine test_python_info_dedenter_statement_p_3(error)
+    subroutine test_is_python_info_dedenter_statement_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4394,7 +4394,7 @@ contains
                        //"    logger.debug('all good')"//LF)
         v(1) = look_pos("else:", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_info_dedenter_statement_p()
+        v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         call end_of_line()
@@ -4403,14 +4403,14 @@ contains
         v(5) = point()
         v(6) = v(5)
         call goto_char(v(4))
-        v(7) = python_info_dedenter_statement_p()
+        v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_dedenter_statement_p_3
+    end subroutine test_is_python_info_dedenter_statement_3
 
-    subroutine test_python_info_dedenter_statement_p_4(error)
+    subroutine test_is_python_info_dedenter_statement_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4428,7 +4428,7 @@ contains
                        //"    clean()"//LF)
         v(1) = look_pos("finally:", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_info_dedenter_statement_p()
+        v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         call end_of_line()
@@ -4437,14 +4437,14 @@ contains
         v(5) = point()
         v(6) = v(5)
         call goto_char(v(4))
-        v(7) = python_info_dedenter_statement_p()
+        v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_dedenter_statement_p_4
+    end subroutine test_is_python_info_dedenter_statement_4
 
-    subroutine test_python_info_dedenter_statement_p_5(error)
+    subroutine test_is_python_info_dedenter_statement_5(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4457,7 +4457,7 @@ contains
                        //"elif b:"//LF)
         v(1) = look_pos("elif b:", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_info_dedenter_statement_p()
+        v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         call end_of_line()
@@ -4466,14 +4466,14 @@ contains
         v(5) = point()
         v(6) = v(5)
         call goto_char(v(4))
-        v(7) = python_info_dedenter_statement_p()
+        v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_dedenter_statement_p_5
+    end subroutine test_is_python_info_dedenter_statement_5
 
-    subroutine test_python_info_dedenter_statement_p_6(error)
+    subroutine test_is_python_info_dedenter_statement_6(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4488,23 +4488,23 @@ contains
                        //"                something()"//LF &
                        //"            case 3:"//LF)
         v(1) = look_pos("case 1:", 1_int64, .false.)
-        v(2) = python_info_dedenter_statement_p()
+        v(2) = is_python_info_dedenter_statement()
         call check(error,.not. (v(2) /= 0), "(not (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         v(3) = look_pos("case 2:", 1_int64, .false.)
-        v(4) = python_info_dedenter_statement_p()
+        v(4) = is_python_info_dedenter_statement()
         call check(error,.not. (v(4) /= 0), "(not (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         v(5) = look_pos("case 3:", 1_int64, .false.)
         v(6) = point()
-        v(7) = python_info_dedenter_statement_p()
+        v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (point) (python-info-dedenter-statement-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_dedenter_statement_p_6
+    end subroutine test_is_python_info_dedenter_statement_6
 
-    subroutine test_python_info_line_ends_backslash_p_1(error)
+    subroutine test_is_python_info_line_ends_backslash_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4521,38 +4521,38 @@ contains
                        //"                           Sum('amount')"//LF &
                        //"                       ) \"//LF &
                        //"                       .values_list()"//LF)
-        v(1) = python_info_line_ends_backslash_p(2_int64)
+        v(1) = is_python_info_line_ends_backslash(2_int64)
         call check(error, v(1) /= 0, "(python-info-line-ends-backslash-p 2)")
         if (allocated(error)) return
-        v(2) = python_info_line_ends_backslash_p(3_int64)
+        v(2) = is_python_info_line_ends_backslash(3_int64)
         call check(error, v(2) /= 0, "(python-info-line-ends-backslash-p 3)")
         if (allocated(error)) return
-        v(3) = python_info_line_ends_backslash_p(4_int64)
+        v(3) = is_python_info_line_ends_backslash(4_int64)
         call check(error, v(3) /= 0, "(python-info-line-ends-backslash-p 4)")
         if (allocated(error)) return
-        v(4) = python_info_line_ends_backslash_p(5_int64)
+        v(4) = is_python_info_line_ends_backslash(5_int64)
         call check(error, v(4) /= 0, "(python-info-line-ends-backslash-p 5)")
         if (allocated(error)) return
-        v(5) = python_info_line_ends_backslash_p(6_int64)
+        v(5) = is_python_info_line_ends_backslash(6_int64)
         call check(error, v(5) /= 0, "(python-info-line-ends-backslash-p 6)")
         if (allocated(error)) return
-        v(6) = python_info_line_ends_backslash_p(7_int64)
+        v(6) = is_python_info_line_ends_backslash(7_int64)
         call check(error, v(6) /= 0, "(python-info-line-ends-backslash-p 7)")
         if (allocated(error)) return
-        v(7) = python_info_line_ends_backslash_p(8_int64)
+        v(7) = is_python_info_line_ends_backslash(8_int64)
         call check(error, v(7) /= 0, "(python-info-line-ends-backslash-p 8)")
         if (allocated(error)) return
-        v(8) = python_info_line_ends_backslash_p(9_int64)
+        v(8) = is_python_info_line_ends_backslash(9_int64)
         call check(error, v(8) /= 0, "(python-info-line-ends-backslash-p 9)")
         if (allocated(error)) return
-        v(9) = python_info_line_ends_backslash_p(10_int64)
+        v(9) = is_python_info_line_ends_backslash(10_int64)
         call check(error,.not. (v(9) /= 0), "(not (python-info-line-ends-backslash-p 10))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_line_ends_backslash_p_1
+    end subroutine test_is_python_info_line_ends_backslash_1
 
-    subroutine test_python_info_continuation_line_p_1(error)
+    subroutine test_is_python_info_continuation_line_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4568,42 +4568,42 @@ contains
                        //LF &
                        //")"//LF)
         v(1) = look_pos("if width == 0 and height == 0 and", 1_int64, .false.)
-        v(2) = python_info_continuation_line_p()
+        v(2) = is_python_info_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-continuation-line-p))")
         if (allocated(error)) return
         v(3) = look_pos("color == 'red' and emphasis == 'strong' or", 1_int64, .false.)
-        v(4) = python_info_continuation_line_p()
+        v(4) = is_python_info_continuation_line()
         call check(error, v(4) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
         v(5) = look_pos("highlight > 100:", 1_int64, .false.)
-        v(6) = python_info_continuation_line_p()
+        v(6) = is_python_info_continuation_line()
         call check(error, v(6) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
         v(7) = look_pos("raise ValueError(", 1_int64, .false.)
-        v(8) = python_info_continuation_line_p()
+        v(8) = is_python_info_continuation_line()
         call check(error,.not. (v(8) /= 0), "(not (python-info-continuation-line-p))")
         if (allocated(error)) return
         v(9) = look_pos("'sorry, you lose'", 1_int64, .false.)
-        v(10) = python_info_continuation_line_p()
+        v(10) = is_python_info_continuation_line()
         call check(error, v(10) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        v(11) = python_info_continuation_line_p()
+        v(11) = is_python_info_continuation_line()
         call check(error, v(11) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
         v(12) = look_pos(")", 1_int64, .false.)
-        v(13) = python_info_continuation_line_p()
+        v(13) = is_python_info_continuation_line()
         call check(error, v(13) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        v(14) = python_info_continuation_line_p()
+        v(14) = is_python_info_continuation_line()
         call check(error,.not. (v(14) /= 0), "(not (python-info-continuation-line-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_continuation_line_p_1
+    end subroutine test_is_python_info_continuation_line_1
 
-    subroutine test_python_info_block_continuation_line_p_1(error)
+    subroutine test_is_python_info_block_continuation_line_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4619,23 +4619,23 @@ contains
                        //LF &
                        //")"//LF)
         v(1) = look_pos("if width == 0 and", 1_int64, .false.)
-        v(2) = python_info_block_continuation_line_p()
+        v(2) = is_python_info_block_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
         v(3) = look_pos("color == 'red' and emphasis == 'strong' or", 1_int64, .false.)
-        v(4) = python_info_block_continuation_line_p()
+        v(4) = is_python_info_block_continuation_line()
         v(5) = look_pos("if width == 0 and", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-block-continuation-line-p) (python-tests-loo")
         if (allocated(error)) return
         v(6) = look_pos("highlight > 100:", 1_int64, .false.)
-        v(7) = python_info_block_continuation_line_p()
+        v(7) = is_python_info_block_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_block_continuation_line_p_1
+    end subroutine test_is_python_info_block_continuation_line_1
 
-    subroutine test_python_info_block_continuation_line_p_2(error)
+    subroutine test_is_python_info_block_continuation_line_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4648,23 +4648,23 @@ contains
                        //"        c):"//LF &
                        //"    pass"//LF)
         v(1) = look_pos("def foo(a,", 1_int64, .false.)
-        v(2) = python_info_block_continuation_line_p()
+        v(2) = is_python_info_block_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
         v(3) = look_pos("b,", 1_int64, .false.)
-        v(4) = python_info_block_continuation_line_p()
+        v(4) = is_python_info_block_continuation_line()
         v(5) = look_pos("def foo(a,", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-block-continuation-line-p) (python-tests-loo")
         if (allocated(error)) return
         v(6) = look_pos("c):", 1_int64, .false.)
-        v(7) = python_info_block_continuation_line_p()
+        v(7) = is_python_info_block_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_block_continuation_line_p_2
+    end subroutine test_is_python_info_block_continuation_line_2
 
-    subroutine test_python_info_assignment_continuation_line_p_1(error)
+    subroutine test_is_python_info_assignment_continuation_line_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4676,23 +4676,23 @@ contains
                        //"       baz(), 4 \"//LF &
                        //"       5, 6"//LF)
         v(1) = look_pos("data = foo(), bar()", 1_int64, .false.)
-        v(2) = python_info_assignment_continuation_line_p()
+        v(2) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
         v(3) = look_pos("baz(), 4", 1_int64, .false.)
-        v(4) = python_info_assignment_continuation_line_p()
+        v(4) = is_python_info_assignment_continuation_line()
         v(5) = look_pos("foo(),", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-assignment-continuation-line-p) (python-test")
         if (allocated(error)) return
         v(6) = look_pos("5, 6", 1_int64, .false.)
-        v(7) = python_info_assignment_continuation_line_p()
+        v(7) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_assignment_continuation_line_p_1
+    end subroutine test_is_python_info_assignment_continuation_line_1
 
-    subroutine test_python_info_assignment_continuation_line_p_2(error)
+    subroutine test_is_python_info_assignment_continuation_line_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4704,23 +4704,23 @@ contains
                        //"        baz(), 4"//LF &
                        //"        5, 6)"//LF)
         v(1) = look_pos("data = (foo(), bar()", 1_int64, .false.)
-        v(2) = python_info_assignment_continuation_line_p()
+        v(2) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
         v(3) = look_pos("baz(), 4", 1_int64, .false.)
-        v(4) = python_info_assignment_continuation_line_p()
+        v(4) = is_python_info_assignment_continuation_line()
         v(5) = look_pos("(foo(),", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-assignment-continuation-line-p) (python-test")
         if (allocated(error)) return
         v(6) = look_pos("5, 6)", 1_int64, .false.)
-        v(7) = python_info_assignment_continuation_line_p()
+        v(7) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_assignment_continuation_line_p_2
+    end subroutine test_is_python_info_assignment_continuation_line_2
 
-    subroutine test_python_info_looking_at_beginning_of_subprogram_1(error)
+    subroutine test_python_info_looking_at_beginning_of_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4739,26 +4739,26 @@ contains
                        //"        deff()"//LF &
                        //"    return wwrap"//LF)
         v(1) = look_pos("def decorat0r(deff):", 1_int64, .false.)
-        b(1) = python_info_looking_at_beginning_of_subprogram()
+        b(1) = python_info_looking_at_beginning_of_definition()
         call check(error, b(1), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
         v(2) = look_pos("def foo(arg):", 1_int64, .false.)
-        b(2) = python_info_looking_at_beginning_of_subprogram()
+        b(2) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(2)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
         v(3) = look_pos("def wrap():", 1_int64, .false.)
-        b(3) = python_info_looking_at_beginning_of_subprogram()
+        b(3) = python_info_looking_at_beginning_of_definition()
         call check(error, b(3), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
         v(4) = look_pos("deff()", 1_int64, .false.)
-        b(4) = python_info_looking_at_beginning_of_subprogram()
+        b(4) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(4)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_looking_at_beginning_of_subprogram_1
+    end subroutine test_python_info_looking_at_beginning_of_definition_1
 
-    subroutine test_python_info_looking_at_beginning_of_subprogram_2(error)
+    subroutine test_python_info_looking_at_beginning_of_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4770,31 +4770,31 @@ contains
                        //"        foo(arg):"//LF &
                        //"    pass"//LF)
         v(1) = look_pos("def \", 1_int64, .false.)
-        b(1) = python_info_looking_at_beginning_of_subprogram()
+        b(1) = python_info_looking_at_beginning_of_definition()
         call check(error, b(1), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
-        b(2) = python_info_looking_at_beginning_of_subprogram(check_statement=.true.)
+        b(2) = python_info_looking_at_beginning_of_definition(check_statement=.true.)
         call check(error, b(2), "(python-info-looking-at-beginning-of-defun nil t)")
         if (allocated(error)) return
         v(2) = look_pos("foo(arg):", 1_int64, .false.)
-        b(3) = python_info_looking_at_beginning_of_subprogram()
+        b(3) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(3)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
-        b(4) = python_info_looking_at_beginning_of_subprogram(check_statement=.true.)
+        b(4) = python_info_looking_at_beginning_of_definition(check_statement=.true.)
         call check(error, b(4), "(python-info-looking-at-beginning-of-defun nil t)")
         if (allocated(error)) return
         v(3) = look_pos("pass", 1_int64, .false.)
-        b(5) = python_info_looking_at_beginning_of_subprogram()
+        b(5) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(5)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
-        b(6) = python_info_looking_at_beginning_of_subprogram(check_statement=.true.)
+        b(6) = python_info_looking_at_beginning_of_definition(check_statement=.true.)
         call check(error,.not. (b(6)), "(not (python-info-looking-at-beginning-of-defun nil t))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_looking_at_beginning_of_subprogram_2
+    end subroutine test_python_info_looking_at_beginning_of_definition_2
 
-    subroutine test_python_info_looking_at_beginning_of_subprogram_3(error)
+    subroutine test_python_info_looking_at_beginning_of_definition_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4805,22 +4805,22 @@ contains
                        //"def foo(arg=""default""):  # Comment"//LF &
                        //"    pass"//LF)
         v(1) = look_pos("arg", 1_int64, .false.)
-        b(1) = python_info_looking_at_beginning_of_subprogram()
+        b(1) = python_info_looking_at_beginning_of_definition()
         call check(error, b(1), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
         v(2) = look_pos("default", 1_int64, .false.)
-        b(2) = python_info_looking_at_beginning_of_subprogram()
+        b(2) = python_info_looking_at_beginning_of_definition()
         call check(error, b(2), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
         v(3) = look_pos("Comment", 1_int64, .false.)
-        b(3) = python_info_looking_at_beginning_of_subprogram()
+        b(3) = python_info_looking_at_beginning_of_definition()
         call check(error, b(3), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_looking_at_beginning_of_subprogram_3
+    end subroutine test_python_info_looking_at_beginning_of_definition_3
 
-    subroutine test_python_info_current_line_comment_p_1(error)
+    subroutine test_is_python_info_current_line_comment_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4835,30 +4835,30 @@ contains
                        //"    # more comments"//LF &
                        //"    print ('bar') # print bar"//LF)
         v(1) = look_pos("# this is a comment", 1_int64, .false.)
-        b(1) = python_info_current_line_comment_p()
+        b(1) = is_python_info_current_line_comment()
         call check(error, b(1), "(python-info-current-line-comment-p)")
         if (allocated(error)) return
         v(2) = look_pos("foo = True  # another comment", 1_int64, .false.)
-        b(2) = python_info_current_line_comment_p()
+        b(2) = is_python_info_current_line_comment()
         call check(error,.not. (b(2)), "(not (python-info-current-line-comment-p))")
         if (allocated(error)) return
         v(3) = look_pos("'#this is a string'", 1_int64, .false.)
-        b(3) = python_info_current_line_comment_p()
+        b(3) = is_python_info_current_line_comment()
         call check(error,.not. (b(3)), "(not (python-info-current-line-comment-p))")
         if (allocated(error)) return
         v(4) = look_pos("# more comments", 1_int64, .false.)
-        b(4) = python_info_current_line_comment_p()
+        b(4) = is_python_info_current_line_comment()
         call check(error, b(4), "(python-info-current-line-comment-p)")
         if (allocated(error)) return
         v(5) = look_pos("print ('bar') # print bar", 1_int64, .false.)
-        b(5) = python_info_current_line_comment_p()
+        b(5) = is_python_info_current_line_comment()
         call check(error,.not. (b(5)), "(not (python-info-current-line-comment-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_current_line_comment_p_1
+    end subroutine test_is_python_info_current_line_comment_1
 
-    subroutine test_python_info_current_line_empty_p(error)
+    subroutine test_is_python_info_current_line_empty(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4869,22 +4869,22 @@ contains
                        //"# this is a comment"//LF &
                        //LF &
                        //"foo = True  # another comment"//LF)
-        b(1) = python_info_current_line_empty_p()
+        b(1) = is_python_info_current_line_empty()
         call check(error, b(1), "(python-info-current-line-empty-p)")
         if (allocated(error)) return
         v(1) = look_pos("# this is a comment", 1_int64, .false.)
-        b(2) = python_info_current_line_empty_p()
+        b(2) = is_python_info_current_line_empty()
         call check(error,.not. (b(2)), "(not (python-info-current-line-empty-p))")
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        b(3) = python_info_current_line_empty_p()
+        b(3) = is_python_info_current_line_empty()
         call check(error, b(3), "(python-info-current-line-empty-p)")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_current_line_empty_p
+    end subroutine test_is_python_info_current_line_empty
 
-    subroutine test_python_info_docstring_p_1(error)
+    subroutine test_is_python_info_docstring_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4900,22 +4900,22 @@ contains
                        //"u'''Additional module docstring.'''"//LF &
                        //"'''Not a module docstring.'''"//LF)
         v(1) = look_pos("Module Docstring Django style.", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(2) = look_pos("u'''Additional module docstring.'''", 1_int64, .false.)
-        b(2) = python_info_docstring_p()
+        b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(3) = look_pos("'''Not a module docstring.'''", 1_int64, .false.)
-        b(3) = python_info_docstring_p()
+        b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_1
+    end subroutine test_is_python_info_docstring_1
 
-    subroutine test_python_info_docstring_p_2(error)
+    subroutine test_is_python_info_docstring_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4928,22 +4928,22 @@ contains
                        //"'''Additional variable docstring.'''"//LF &
                        //"'''Not a variable docstring.'''"//LF)
         v(1) = look_pos("Variable docstring.", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(2) = look_pos("u'''Additional variable docstring.'''", 1_int64, .false.)
-        b(2) = python_info_docstring_p()
+        b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(3) = look_pos("'''Not a variable docstring.'''", 1_int64, .false.)
-        b(3) = python_info_docstring_p()
+        b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_2
+    end subroutine test_is_python_info_docstring_2
 
-    subroutine test_python_info_docstring_p_3(error)
+    subroutine test_is_python_info_docstring_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4961,22 +4961,22 @@ contains
                        //"    '''Not a function docstring.'''"//LF &
                        //"    return a + b"//LF)
         v(1) = look_pos("Function docstring.", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(2) = look_pos("R'''Additional function docstring.'''", 1_int64, .false.)
-        b(2) = python_info_docstring_p()
+        b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(3) = look_pos("'''Not a function docstring.'''", 1_int64, .false.)
-        b(3) = python_info_docstring_p()
+        b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_3
+    end subroutine test_is_python_info_docstring_3
 
-    subroutine test_python_info_docstring_p_4(error)
+    subroutine test_is_python_info_docstring_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -4996,22 +4996,22 @@ contains
                        //"    '''Not a class docstring.'''"//LF &
                        //"    pass"//LF)
         v(1) = look_pos("Class docstring.", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(2) = look_pos("uR'''", 1_int64, .false.)
-        b(2) = python_info_docstring_p()
+        b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(3) = look_pos("'''Not a class docstring.'''", 1_int64, .false.)
-        b(3) = python_info_docstring_p()
+        b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_4
+    end subroutine test_is_python_info_docstring_4
 
-    subroutine test_python_info_docstring_p_5(error)
+    subroutine test_is_python_info_docstring_5(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -5033,22 +5033,22 @@ contains
                        //"    '''Not a class attribute docstring.'''"//LF &
                        //"    pass"//LF)
         v(1) = look_pos("Class attribute docstring.", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(2) = look_pos("UR'''", 1_int64, .false.)
-        b(2) = python_info_docstring_p()
+        b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(3) = look_pos("'''Not a class attribute docstring.'''", 1_int64, .false.)
-        b(3) = python_info_docstring_p()
+        b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_5
+    end subroutine test_is_python_info_docstring_5
 
-    subroutine test_python_info_docstring_p_6(error)
+    subroutine test_is_python_info_docstring_6(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -5071,22 +5071,22 @@ contains
                        //"        '''Not a method docstring.'''"//LF &
                        //"        return self.a + self.b"//LF)
         v(1) = look_pos("Method docstring.", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(2) = look_pos("'''Additional method docstring.'''", 1_int64, .false.)
-        b(2) = python_info_docstring_p()
+        b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
         v(3) = look_pos("'''Not a method docstring.'''", 1_int64, .false.)
-        b(3) = python_info_docstring_p()
+        b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_6
+    end subroutine test_is_python_info_docstring_6
 
-    subroutine test_python_info_docstring_p_7(error)
+    subroutine test_is_python_info_docstring_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -5097,18 +5097,18 @@ contains
                        //"{'Not a docstring': 1}"//LF &
                        //"'Also not a docstring'"//LF)
         v(1) = look_pos("Not a docstring", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error,.not. (b(1)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         v(2) = look_pos("Also not a docstring", 1_int64, .false.)
-        b(2) = python_info_docstring_p()
+        b(2) = is_python_info_docstring()
         call check(error,.not. (b(2)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_7
+    end subroutine test_is_python_info_docstring_7
 
-    subroutine test_python_info_docstring_p_8(error)
+    subroutine test_is_python_info_docstring_8(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -5118,12 +5118,12 @@ contains
         call py_buffer("import sys"//LF &
                        //"'''Not a docstring.'''"//LF)
         v(1) = look_pos("Not a docstring", 1_int64, .false.)
-        b(1) = python_info_docstring_p()
+        b(1) = is_python_info_docstring()
         call check(error,.not. (b(1)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_info_docstring_p_8
+    end subroutine test_is_python_info_docstring_8
 
     subroutine test_python_info_encoding_from_cookie_3(error)
         type(error_type), allocatable, intent(out) :: error

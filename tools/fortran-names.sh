@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-# Usage: tools/fortran-names.sh [--table FILE] [PATH...]
+# Usage: tools/fortran-names.sh [--table FILE] [--merge] [PATH...]
 #
 # Applies the table to each PATH (a file, or every file under a
 # directory), relative to the current directory; with no PATH, to the
@@ -29,6 +29,15 @@
 # other upstream names are kept (see the table's header).  Running it
 # again changes nothing.  Afterwards run the generators (tools/gen-*.sh)
 # and tools/check.sh --fix: generated files and line lengths follow.
+# A Fortran line the renames push past 132 columns is reported as
+# FILE:LINE (fprettify does not split it), and the exit status is 3.  A
+# Fortran file where a new name already exists as an identifier (an
+# imported forward_sexp renamed onto the file's own forward_expression)
+# is not changed: the clash is reported as FILE:LINE, and the exit status
+# is 4; rename the file's own identifier, then run the script again.
+# With --merge (after merging a renamed branch with an unrenamed one, so a
+# file holds both an old name and its new one for the same entity), the
+# clash check is skipped.
 #
 # Use it on this tree when the table gains an entry, on a branch written
 # before an entry (after merging main), and on code freshly ported from a
@@ -48,6 +57,11 @@ if [ "${1:-}" = --table ]; then
     table=$2
     shift 2
 fi
+merge=false
+if [ "${1:-}" = --merge ]; then
+    merge=true
+    shift
+fi
 
 if [ $# -eq 0 ]; then
     cd "$here/.."
@@ -65,7 +79,7 @@ list_files() {
             echo "fortran-names.sh: no such file: $p" >&2
             exit 1
         fi
-    done | grep -v -e '/fortran-names$' -e '/fortran-names\.awk$' -e '/fortran-names-lib\.awk$' -e '/fortran-names\.sh$' \
+    done | grep -v -e '/fortran-names$' -e '/fortran-names\.awk$' -e '/fortran-names-lib\.awk$' -e '/fortran-names-clash\.awk$' -e '/fortran-names\.sh$' \
         -e '/test-fortran-names\.sh$' -e '/fortran-names-test/' -e '\.\(svg\|png\|jpg\|ico\)$' || true
 }
 
@@ -74,6 +88,8 @@ trap 'rm -f "$tmp" "$tmp.paths"' EXIT
 list_files "$@" >"$tmp.paths"
 nrenamed=0
 nchanged=0
+nlong=0
+nclash=0
 
 while IFS= read -r f; do
     new=$(printf '%s\n' "$f" | awk -v mode=path -v table="$table" -f "$lib" -f "$engine" -)
@@ -96,6 +112,30 @@ while IFS= read -r f; do
         awk -v mode=apply -v table="$table" -f "$lib" -f "$engine" "$f" >"$tmp"
         if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
             "$f" "$tmp"; then
+            # A new name that the file already has (an import renamed onto a
+            # local procedure of that name): the file is left as it is.
+            case $merge:$f in
+            false:*.f90)
+                clash=$(awk -v f="$f" -f "$here/fortran-names-clash.awk" "$f" "$tmp")
+                if [ -n "$clash" ]; then
+                    printf 'fortran-names.sh: %s\n' "$clash" >&2
+                    nclash=$((nclash + 1))
+                    continue
+                fi
+                ;;
+            esac
+            # Lines the renames pushed past 132 columns (fortitude S001).
+            case $f in
+            *.f90)
+                long=$(awk -v f="$f" 'NR == FNR { n[FNR] = length($0); next }
+                    length($0) > 132 && n[FNR] <= 132 { print f ":" FNR ": longer than 132 columns; split it" }' \
+                    "$f" "$tmp")
+                if [ -n "$long" ]; then
+                    printf 'fortran-names.sh: %s\n' "$long" >&2
+                    nlong=$((nlong + $(printf '%s\n' "$long" | wc -l)))
+                fi
+                ;;
+            esac
             cat "$tmp" >"$f"
             nchanged=$((nchanged + 1))
         fi
@@ -103,3 +143,11 @@ while IFS= read -r f; do
 done <"$tmp.paths"
 
 echo "fortran-names.sh: $nrenamed file(s) renamed, $nchanged changed"
+if [ "$nclash" -gt 0 ]; then
+    echo "fortran-names.sh: $nclash file(s) left as they were: a new name clashes; rename the local one first" >&2
+    exit 4
+fi
+if [ "$nlong" -gt 0 ]; then
+    echo "fortran-names.sh: $nlong line(s) now longer than 132 columns" >&2
+    exit 3
+fi

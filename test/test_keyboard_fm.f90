@@ -24,14 +24,14 @@ module test_keyboard_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, format_error, FM_USER_ERROR, FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: fixnump, list, make_fixnum, make_string, nil, nilp, value_type, xfixnum
+    use lisp_fm, only: list, make_fixnum, make_string, value_type, xfixnum, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: define_key, free_keymap, key_description, key_parse, make_keymap, &
                          make_sparse_keymap, use_global_map, overriding_terminal_local_map, key_binding
-    use callint_fm, only: commandp, current_prefix_arg, command_type, prefix_arg, prefix_numeric_value
+    use callint_fm, only: is_command, current_prefix_arg, command_type, prefix_arg, prefix_numeric_value
     use keyboard_fm, only: command_loop, command_loop_step, discard_input, input_decode_map, &
-                           input_pending_p, kbd_store_bytes, key_translation_map, last_command, &
+                           is_input_pending, kbd_store_bytes, key_translation_map, last_command, &
                            last_command_event, last_message, local_function_key_map, read_event, &
                            read_key_sequence, request_exit, set_input_fd, set_input_meta_mode, &
                            this_command_keys, this_command_keys_shift_translated, &
@@ -327,7 +327,7 @@ contains
 
         next_char = -1
         call read_event(ev, have, st)
-        if (have .and. fixnump(ev)) next_char = xfixnum(ev)
+        if (have .and. vtag(ev) == V_INTEGER) next_char = xfixnum(ev)
     end function next_char
 
     subroutine test_input_decoding(error)
@@ -368,7 +368,7 @@ contains
         evs(1) = make_fixnum(120_int64)
         evs(2) = make_fixnum(121_int64)
         call unread_command_events(evs)
-        call check(error, input_pending_p(), "pending")
+        call check(error, is_input_pending(), "pending")
         if (allocated(error)) return
         call check(error, next_char(), 120_int64)
         if (allocated(error)) return
@@ -376,13 +376,13 @@ contains
         if (allocated(error)) return
         call check(error, next_char(), 122_int64)
         if (allocated(error)) return
-        call check(error,.not. input_pending_p(), "drained")
+        call check(error,.not. is_input_pending(), "drained")
     end subroutine test_unread
 
     subroutine test_prefix_numeric_value(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, prefix_numeric_value(nil()), 1_int64)
+        call check(error, prefix_numeric_value(value_type()), 1_int64)
         if (allocated(error)) return
         call check(error, prefix_numeric_value(sym("-")), -1_int64)
         if (allocated(error)) return
@@ -418,7 +418,7 @@ contains
         ! Input ending in the middle of a prefix.
         call kbd_store_bytes(char(24))
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, eof .and. size(keys) == 1 .and. nilp(binding), "eof")
+        call check(error, eof .and. size(keys) == 1 .and. .not. allocated(binding%a), "eof")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
         call check(error, eof .and. size(keys) == 0, "empty eof")
@@ -437,7 +437,7 @@ contains
         call fresh_global(global)
         call kbd_store_bytes(char(3)//"z")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, size(keys) == 1 .and. nilp(binding), "C-c")
+        call check(error, size(keys) == 1 .and. .not. allocated(binding%a), "C-c")
         if (allocated(error)) return
         call check(error, next_char(), 122_int64)
         call free(global)
@@ -516,7 +516,7 @@ contains
                    .and. this_command_keys_shift_translated, "A -> a")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, nilp(binding) .and. xfixnum(keys(1)) == 66, "B stays")
+        call check(error,.not. allocated(binding%a) .and. xfixnum(keys(1)) == 66, "B stays")
         if (allocated(error)) return
         key(1) = sym("S-f2")
         call unread_command_events(key)
@@ -545,7 +545,7 @@ contains
         call define_key(global, kbd("f"), sym("cmd-fail"), st)
         call define_key(global, kbd("q"), sym("cmd-exit"), st)
         call define_key(global, kbd("v"), sym("void-command"), st)
-        call check(error, commandp(sym("cmd-a")) .and. .not. commandp(sym("void-command")), "commandp")
+        call check(error, is_command(sym("cmd-a")) .and. .not. is_command(sym("void-command")), "is_command")
         if (allocated(error)) return
         count_a = 0
         count_b = 0
@@ -570,7 +570,7 @@ contains
         if (allocated(error)) return
         call kbd_store_bytes("v")
         call command_loop_step(done, st)
-        call check(error, last_message, "Wrong type argument: commandp, void-command")
+        call check(error, last_message, "Wrong type argument: expected type(command_type), got void-command")
         if (allocated(error)) return
         ! Errors don't stop the loop; cmd-exit does.  An error discards
         ! the input typed ahead and rings the bell.
@@ -579,7 +579,7 @@ contains
         call command_loop(st)
         call check(error, count_a == 3 .and. .not. associated(ring_bell_hook), "exit")
         if (allocated(error)) return
-        call check(error, input_pending_p(), "input left")
+        call check(error, is_input_pending(), "input left")
         call discard_input()
         call free(global)
     end subroutine test_command_loop
@@ -969,7 +969,7 @@ contains
         call check(error, have .and. c == 53, "kp-5")
         if (allocated(error)) return
         call read_char(c, have, st)
-        call check(error, format_error(st) == "Non-character input-event" .and. input_pending_p(), "f1")
+        call check(error, format_error(st) == "Non-character input-event" .and. is_input_pending(), "f1")
         if (allocated(error)) return
         call kbd_store_bytes("x")
         call read_char_exclusive(c, have, st)

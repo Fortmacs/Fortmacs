@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `describe_function', `describe_variable', `describe_symbol' (C-h o),
+!> `describe_function', `describe_variable', `describe_name' (C-h o),
 !> `describe_command' (C-h x) and `describe_mode' (C-h m), from the
 !> documentation docstrings_fm collects.  The functions are the commands
 !> and the procedures of the config API (module `fortmacs'), the
@@ -31,21 +31,21 @@
 !> buffer-local when set and whether it is a user option ("You can
 !> customize this variable.").
 !>
-!> Deferred: the default from the symbol at point, cross-reference
+!> Deferred: the default from the identifier at point, cross-reference
 !> buttons, "Probably introduced at" lines, obsolescence, aliases,
 !> buffer-local values and the other help-fns-describe-variable-functions
 !> (safe and risky local variables, file-local values, watchpoints), the
 !> values of hooks, keymaps, syntax tables and other derived-type
 !> variables (the value line is left out), faces and types in
-!> `describe_symbol', `describe_mode''s BUFFER and Outline minor mode
+!> `describe_name', `describe_mode''s BUFFER and Outline minor mode
 !> (`describe_mode_outline': the layout is that of its default, true),
 !> and the Customize interface the customize line refers to.
 module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR
-    use lisp_fm, only: value_type, nilp, make_string, make_list, list_elements, V_LIST, vtag, list_elt, fixnump, &
-                       xfixnum, symbolp
+    use lisp_fm, only: value_type, make_string, make_list, list_elements, V_ARRAY, vtag, list_elt, &
+                       xfixnum, V_NULL, V_INTEGER, V_NAME
     use handle_fm, only: handle_type
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, kill_buffer, &
@@ -55,23 +55,23 @@ module help_fns_fm
     use fill_fm, only: fill_region_as_paragraph
     use lread_fm, only: sym
     use data_fm, only: symbol_name
-    use callint_fm, only: command_defined_p, fboundp
+    use callint_fm, only: is_command_defined, fboundp
     use keymap_fm, only: key_description, where_is_internal, parse_modifiers
     use minibuf_fm, only: completion_obarray_table, completion_list_table
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use docstrings_fm, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
     use help_fm, only: substitute_command_keys, with_help_window, describe_function_1_hook, documentation_hook, &
                        make_separator_line
-    use data_fm, only: automatically_local_p
+    use data_fm, only: is_automatically_local
     use easy_mmode_fm, only: minor_mode_type, minor_mode_count, minor_mode_at
     use casefiddle_fm, only: capitalize_string
-    use callint_fm, only: commandp
+    use callint_fm, only: is_command
     implicit none(type, external)
     private
 
     public :: describe_function, describe_function_1, describe_variable, describe_variable_text, &
-              syms_of_help_fns, describe_mode, describe_mode_text, describe_symbol, describe_symbol_text, &
-              function_known_p, variable_known_p
+              syms_of_help_fns, describe_mode, describe_mode_text, describe_name, describe_name_text, &
+              is_function_known, is_variable_known
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -88,33 +88,33 @@ contains
 
     !> Whether `name' is a function help knows: a documented one or a
     !> command.  Not a port.
-    logical function function_known_p(name)
+    logical function is_function_known(name)
         character(len=*), intent(in) :: name
         integer :: k
 
-        function_known_p = .true.
+        is_function_known = .true.
 
         do k = 1, size(function_names)
             if (trim(function_names(k)) == name) return
         end do
 
-        function_known_p = fboundp(sym(name))
-    end function function_known_p
+        is_function_known = fboundp(sym(name))
+    end function is_function_known
 
     !> Completion predicate for `describe_function'.  Not a port.
-    logical function function_symbol_p(elt)
+    logical function is_function_name(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
         type(status_type) :: status
 
         call symbol_name(elt, name, status)
-        function_symbol_p = status%ok()
-        if (function_symbol_p) function_symbol_p = function_known_p(name)
-    end function function_symbol_p
+        is_function_name = status%ok()
+        if (is_function_name) is_function_name = is_function_known(name)
+    end function is_function_name
 
     !> Whether event `ev' has no modifiers but shift: its
-    !> `event_modifiers' are nil or (shift).  Not a port.
-    logical function unmodified_event_p(ev)
+    !> `event_modifiers' are none or only shift.  Not a port.
+    logical function is_unmodified_event(ev)
         type(value_type), intent(in) :: ev
         type(value_type) :: head
         character(len=:), allocatable :: base
@@ -122,21 +122,21 @@ contains
 
         head = ev
         ! A list (a character interval here): its car.
-        if (vtag(ev) == V_LIST) head = list_elt(ev, 1_int64)
-        unmodified_event_p = .false.
+        if (vtag(ev) == V_ARRAY) head = list_elt(ev, 1_int64)
+        is_unmodified_event = .false.
 
-        if (fixnump(head)) then
+        if (vtag(head) == V_INTEGER) then
             ! subr.el:event-modifiers for a character.
             bits = iand(xfixnum(head), M_MODS)
             c = iand(xfixnum(head), not(M_MODS))
             if (iand(bits, not(M_SHIFT)) /= 0) return
             if (c < 32) return
-            unmodified_event_p = .true.
-        else if (symbolp(head)) then
+            is_unmodified_event = .true.
+        else if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) then
             call parse_modifiers(head, bits, base)
-            unmodified_event_p = bits == 0 .or. bits == M_SHIFT
+            is_unmodified_event = bits == 0 .or. bits == M_SHIFT
         end if
-    end function unmodified_event_p
+    end function is_unmodified_event
 
     !> The key sequences in `keys' joined as "A, B and C".  Port of
     !> help-fns.el:help-fns--insert-bindings.
@@ -182,7 +182,7 @@ contains
             call list_elements(keys(1), events)
 
             if (size(events) > 0) then
-                if (vtag(events(1)) == V_LIST) then
+                if (vtag(events(1)) == V_ARRAY) then
                     s = "It is bound to many ordinary text characters."//LF
                     return
                 end if
@@ -195,7 +195,7 @@ contains
         do k = 1, size(keys)
             call list_elements(keys(k), events)
             unmodified(k) = .false.
-            if (size(events) > 0) unmodified(k) = unmodified_event_p(events(1))
+            if (size(events) > 0) unmodified(k) = is_unmodified_event(events(1))
         end do
 
         nunmod = count(unmodified)
@@ -267,8 +267,8 @@ contains
         logical :: found, interactive, subroutine_p
 
         call function_doc(name, entry, found)
-        interactive = command_defined_p(sym(name))
-        if (found) interactive = interactive .or. entry%interactive
+        interactive = is_command_defined(sym(name))
+        if (found) interactive = interactive .or. entry%command
         subroutine_p = .true.
         if (found) subroutine_p = len(entry%fortran) == 0 .or. index(entry%fortran, "call ") == 1
         text = ""
@@ -299,7 +299,13 @@ contains
         end if
 
         if (found) then
-            if (len(entry%fortran) > 0) text = text//entry%fortran//LF//LF
+            ! The call line, then the declaration block of its arguments.
+            if (len(entry%fortran) > 0) then
+                text = text//entry%fortran//LF
+                if (len(entry%declarations) > 0) text = text//entry%declarations//LF
+                text = text//LF
+            end if
+
             doc = entry%doc
         else
             doc = ""
@@ -333,7 +339,7 @@ contains
         call variable_doc(name, entry, found)
 
         if (.not. found) then
-            text = name//" is void as a variable."//LF
+            text = name//" has no value as a variable."//LF
             return
         end if
 
@@ -369,7 +375,7 @@ contains
         ! (help-fns-describe-variable-functions), after an empty line.
         extra = ""
         ! help-fns--var-bufferlocal
-        if (automatically_local_p(sym(name))) extra = extra//"  Automatically becomes buffer-local when set."//LF
+        if (is_automatically_local(sym(name))) extra = extra//"  Automatically becomes buffer-local when set."//LF
         ! help-fns--customize-variable
         if (entry%user_option) extra = extra//"  You can customize this variable."//LF
         if (len(extra) > 0) text = text//LF//extra
@@ -395,13 +401,13 @@ contains
         character(len=:), allocatable :: name
 
         call completing_read("Describe function: ", completion_obarray_table("symbol-help"), name, status, &
-                             function_symbol_p, require_match=REQUIRE_MATCH_T)
+                             is_function_name, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         ! help-fns--describe-function-or-command-prompt (no function at
         ! point yet)
         if (len(name) == 0) then
-            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function symbol"))
+            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function name"))
             return
         end if
 
@@ -423,7 +429,7 @@ contains
         end do
 
         call completing_read("Describe variable: ", completion_list_table(make_list(names), "symbol-help"), name, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         ! (No variable at point yet.)
@@ -437,18 +443,18 @@ contains
 
     !> Whether `name' is a variable help knows (a documented one).
     !> Not a port.
-    logical function variable_known_p(name)
+    logical function is_variable_known(name)
         character(len=*), intent(in) :: name
         integer :: k
 
-        variable_known_p = .true.
+        is_variable_known = .true.
 
         do k = 1, size(variable_names)
             if (trim(variable_names(k)) == name) return
         end do
 
-        variable_known_p = .false.
-    end function variable_known_p
+        is_variable_known = .false.
+    end function is_variable_known
 
     !> Display documentation of current major mode and minor modes.
     !> The major mode description comes first, followed by the local
@@ -605,19 +611,19 @@ contains
         pretty = capitalize_string(pretty)
     end function pretty_minor_mode
 
-    !> The text `describe_symbol' shows about `name': its documentation as
+    !> The text `describe_name' shows about `name': its documentation as
     !> a function, then as a variable; `found' false if it is neither.
     !> Port of the text help-fns.el:describe-symbol makes (the function
     !> and variable backends).
-    subroutine describe_symbol_text(name, text, found)
+    subroutine describe_name_text(name, text, found)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
         character(len=:), allocatable :: ftext, vtext
         logical :: is_function, is_variable, vfound
 
-        is_function = function_known_p(name)
-        is_variable = variable_known_p(name)
+        is_function = is_function_known(name)
+        is_variable = is_variable_known(name)
         found = is_function .or. is_variable
         text = ""
         if (is_function) call describe_function_1(name, ftext, name//" is ")
@@ -636,50 +642,50 @@ contains
         else if (is_variable) then
             text = vtext
         end if
-    end subroutine describe_symbol_text
+    end subroutine describe_name_text
 
     !> Display the full documentation of SYMBOL (a name).
     !> Will show the info of SYMBOL as a function, variable, and/or face.
     !> Port of help-fns.el:describe-symbol (no faces or types; no BUFFER or
     !> FRAME).
-    subroutine describe_symbol(name, status)
+    subroutine describe_name(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         logical :: found
 
-        call describe_symbol_text(name, text, found)
+        call describe_name_text(name, text, found)
 
         if (.not. found) then
-            call set_error(status, FM_USER_ERROR, "Unknown symbol: "//name)
+            call set_error(status, FM_USER_ERROR, "Unknown name: "//name)
             return
         end if
 
         call with_help_window(text, status)
-    end subroutine describe_symbol
+    end subroutine describe_name
 
-    !> Completion predicate for `describe_symbol': a function or a
+    !> Completion predicate for `describe_name': a function or a
     !> variable.  Not a port.
-    logical function symbol_known_p(elt)
+    logical function is_name_known(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
         type(status_type) :: st
 
         call symbol_name(elt, name, st)
-        symbol_known_p = st%ok()
-        if (symbol_known_p) symbol_known_p = function_known_p(name) .or. variable_known_p(name)
-    end function symbol_known_p
+        is_name_known = st%ok()
+        if (is_name_known) is_name_known = is_function_known(name) .or. is_variable_known(name)
+    end function is_name_known
 
     !> Display the full documentation of SYMBOL (a name).
     !> Will show the info of SYMBOL as a function, variable, and/or face.
     !> Port of help-fns.el:describe-symbol (the command; no default from
     !> point).
-    recursive subroutine cmd_describe_symbol(status)
+    recursive subroutine cmd_describe_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
-        call completing_read("Describe symbol: ", completion_obarray_table("symbol-help"), name, status, symbol_known_p, &
-                             require_match=REQUIRE_MATCH_T)
+        call completing_read("Describe symbol: ", completion_obarray_table("symbol-help"), name, status, is_name_known, &
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         if (len(name) == 0) then
@@ -687,8 +693,8 @@ contains
             return
         end if
 
-        call describe_symbol(name, status)
-    end subroutine cmd_describe_symbol
+        call describe_name(name, status)
+    end subroutine cmd_describe_name
 
     !> Display the full documentation of COMMAND (a name).  Port of
     !> help-fns.el:describe-command (with
@@ -698,8 +704,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
-        call completing_read("Describe command: ", completion_obarray_table("symbol-help"), name, status, commandp, &
-                             require_match=REQUIRE_MATCH_T)
+        call completing_read("Describe command: ", completion_obarray_table("symbol-help"), name, status, is_command, &
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         if (len(name) == 0) then
@@ -747,7 +753,7 @@ contains
         commands%describe_function%run => cmd_describe_function
         commands%describe_variable%run => cmd_describe_variable
         commands%describe_mode%run => cmd_describe_mode
-        commands%describe_symbol%run => cmd_describe_symbol
+        commands%describe_name%run => cmd_describe_name
         commands%describe_command%run => cmd_describe_command
     end subroutine syms_of_help_fns
 

@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Completion tables (COLLECTION arguments: lists, the obarray and
+!> Completion tables (COLLECTION arguments: arrays, the name table and
 !> functions) and the completion data the functions of
 !> `completion_at_point_functions' return.  Split from minibuf_fm so
 !> eval_fm's hooks can hold such functions (minibuf_fm re-exports the
@@ -36,13 +36,13 @@ module minibuf_table_fm
               completion_requote_proc, completion_exit_function_proc, capf_perform_proc
 
     !> Actions passed to a completion function (programmed completion): as
-    !> `try_completion' (nil), `all_completions' (t), `test_completion'
-    !> (lambda), and `(boundaries . SUFFIX)'.
+    !> `try_completion' (COMPLETE_TRY), `all_completions' (COMPLETE_ALL), `test_completion'
+    !> (COMPLETE_TEST), and the boundaries of SUFFIX (COMPLETE_BOUNDARIES).
     integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
                                   COMPLETE_BOUNDARIES = 3
 
-    !> Kinds of completion table: a list (an array of strings or symbols,
-    !> or a table of (string, value) entries), the obarray, a function, or
+    !> Kinds of completion table: a list (an array of strings or names,
+    !> or a table of (string, value) entries), the name table, a function, or
     !> a function operating on quoted text (`completion_table_with_quoting').
     integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2, TABLE_QUOTING = 3
 
@@ -55,7 +55,7 @@ module minibuf_table_fm
 
     abstract interface
         !> A completion predicate: whether the element `elt' (the list
-        !> element or the symbol) is an acceptable completion.  Not a port.
+        !> element or the name) is an acceptable completion.  Not a port.
         logical function completion_predicate(elt)
             import :: value_type
             implicit none(type, external)
@@ -63,10 +63,10 @@ module minibuf_table_fm
         end function completion_predicate
 
         !> A function completion table.  ACTION says what to compute for
-        !> STRING: COMPLETE_TRY (the `try_completion' value: nil, t or a
-        !> string), COMPLETE_ALL (a list of strings), COMPLETE_TEST (t or
-        !> nil) or COMPLETE_BOUNDARIES (a list (START END) for STRING and
-        !> SUFFIX, or nil for the default).  Not a port.
+        !> STRING: COMPLETE_TRY (the `try_completion' value: none, exact or a
+        !> string), COMPLETE_ALL (an array of strings), COMPLETE_TEST (.true. or
+        !> .false.) or COMPLETE_BOUNDARIES (START and END for STRING and
+        !> SUFFIX, or nothing for the default).  Not a port.
         recursive subroutine completion_function(string, action, result, status, pred, suffix)
             import :: value_type, status_type, completion_predicate
             implicit none(type, external)
@@ -172,7 +172,7 @@ module minibuf_table_fm
 
 contains
 
-    !> A completion table holding the list `list' (strings, symbols, or
+    !> A completion table holding the list `list' (strings, names, or
     !> lists whose first element is the completion), in completion
     !> category `category'.  Not a port.
     function completion_list_table(list, category) result(table)
@@ -191,12 +191,12 @@ contains
     !> function of 2 args (UPOS QSTR) where QSTR is a string entered by the
     !> user (and hence indicating the user's preferred form of quoting);
     !> and UPOS is a position within the unquoted form of QSTR.  REQUOTE
-    !> should return a pair (QPOS . QFUN) such that QPOS is the position
+    !> should return two values, QPOS and QFUN, such that QPOS is the position
     !> corresponding to UPOS but in QSTR, and QFUN is a function of one
     !> argument (a string) which returns that argument appropriately
     !> quoted for use at QPOS.  Port of
     !> minibuffer.el:completion-table-with-quoting (TABLE a function; its
-    !> lambda is minibuf_fm's `quoting_table_call').
+    !> procedure is minibuf_fm's `quoting_table_call').
     function completion_table_with_quoting(table, unquote, requote) result(qtable)
         procedure(completion_function) :: table
         procedure(completion_unquote_proc) :: unquote
@@ -209,7 +209,7 @@ contains
         qtable%requote => requote
     end function completion_table_with_quoting
 
-    !> A completion table holding the names of all interned symbols, in
+    !> A completion table holding the names of all interned names, in
     !> completion category `category'.  Not a port.
     function completion_obarray_table(category) result(table)
         character(len=*), intent(in), optional :: category

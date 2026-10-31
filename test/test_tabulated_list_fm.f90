@@ -28,7 +28,7 @@ module test_tabulated_list_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, stringp, xstring
+    use lisp_fm, only: value_type, xstring, vtag, V_STRING
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer_create, &
                          generate_new_buffer_name
@@ -236,7 +236,7 @@ contains
             moved = skip_chars_forward("^[:blank:]", st)
             moved = skip_chars_forward("[:blank:]", st)
             call get_text_property(point(), sym("tabulated_list_column_name"), v, st)
-            call check(error, stringp(v), "a column name")
+            call check(error, vtag(v) == V_STRING, "a column name")
             if (allocated(error)) exit steps
             call check(error, xstring(v), "name-2")
             if (allocated(error)) exit steps

@@ -24,6 +24,7 @@
 !> `set_fill_column' (C-x f): a submodule because they use fill_fm,
 !> which uses simple_fm.
 submodule(simple_fm) simple_fill_fm
+    use lisp_fm, only: vtag, V_INTEGER, V_ARRAY, value_type
     use commands_fm, only: commands
     use buffer_fm, only: fill_column, auto_fill_function
     use cmds_fm, only: internal_auto_fill_hook, end_of_line, post_self_insert_hook
@@ -122,12 +123,12 @@ contains
         call goto_char(opoint)
         ! See whether the place we found is any good.
         call goto_char(fill_point)
-        no_good = bolp()
+        no_good = is_bol()
 
         if (.not. no_good) then
             ! There is no use breaking at end of line.
             moved = skip_chars_forward(" ", st)
-            no_good = eolp()
+            no_good = is_eol()
         end if
 
         call goto_char(opoint)
@@ -272,7 +273,7 @@ contains
     ! Set last-command-event to tell self-insert what to insert.
     call init_paragraph_variables()
     newline_was_page_start = .false.
-    if (bolp()) newline_was_page_start = looking_at(page_delimiter%value, st)
+    if (is_bol()) newline_was_page_start = looking_at(page_delimiter%value, st)
     newline_beforepos = point()
     saved_event = last_command_event
     last_command_event = make_fixnum(10_int64)
@@ -339,8 +340,8 @@ contains
     type(handle_type) :: loc
     type(status_type) :: st
 
-    do_fill_prefix = allocated(fill_prefix%value) .and. bolp()
-    do_left_margin = bolp()
+    do_fill_prefix = allocated(fill_prefix%value) .and. is_bol()
+    do_left_margin = is_bol()
     if (do_left_margin) do_left_margin = current_left_margin() > 0
     call point_marker(loc)
     ! Don't expand an abbrev before point.
@@ -360,7 +361,7 @@ contains
         k = n
 
         do while (k > 0)
-            if (bolp()) then
+            if (is_bol()) then
                 if (do_left_margin) col = indent_to(current_left_margin(), status)
                 if (do_fill_prefix .and. status%ok()) call insert(fill_prefix%value, status)
                 if (.not. status%ok()) exit
@@ -409,11 +410,11 @@ contains
 
     status = status_type()
 
-    if (consp(arg)) then
+    if (vtag(arg) == V_ARRAY) then
         n = current_column()
-    else if (fixnump(arg)) then
+    else if (vtag(arg) == V_INTEGER) then
         n = xfixnum(arg)
-    else if (nilp(arg)) then
+    else if (.not. allocated(arg%a)) then
         ! We used to use current-column silently, but C-x f is too easily
         ! typed as a typo for C-x C-f, so we turned it into an error and
         ! now an interactive prompt.
@@ -446,7 +447,7 @@ contains
     end subroutine cmd_default_indent_new_line
 
     !> auto-fill-mode's :variable setter: set `auto_fill_function'
-    !> (buffer-locally) to `normal_auto_fill_function' or nil.
+    !> (buffer-locally) to `normal_auto_fill_function' or null.
     !> Port of simple.el:auto-fill-mode, in part (its :variable setter).
     subroutine auto_fill_body(enable, status)
         logical, intent(in) :: enable
@@ -472,11 +473,11 @@ contains
     ! turn-on-auto-fill, turn-off-auto-fill and do-auto-fill are
     ! functions, not commands.
     commands%turn_on_auto_fill%run => turn_on_auto_fill
-    commands%turn_on_auto_fill%interactive = .false.
+    commands%turn_on_auto_fill%is_command = .false.
     commands%turn_off_auto_fill%run => turn_off_auto_fill
-    commands%turn_off_auto_fill%interactive = .false.
+    commands%turn_off_auto_fill%is_command = .false.
     commands%do_auto_fill%run => do_auto_fill
-    commands%do_auto_fill%interactive = .false.
+    commands%do_auto_fill%is_command = .false.
     commands%set_fill_column%run => cmd_set_fill_column
     commands%default_indent_new_line%run => cmd_default_indent_new_line
     end procedure syms_of_simple_fill

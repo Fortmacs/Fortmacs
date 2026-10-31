@@ -35,10 +35,10 @@ module diff_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, t_value, nilp, fixnump, xfixnum, make_string, list
+    use lisp_fm, only: value_type, t_value, xfixnum, make_string, list, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, buffer_live_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live, &
                          resolve_buffer, erase_buffer
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, current_time_string, narrow_to_region
     use insdel_fm, only: insert
@@ -47,9 +47,9 @@ module diff_fm
     use callint_fm, only: current_prefix_arg
     use subr_fm, only: shell_quote_argument
     use minibuf_fm, only: read_string
-    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_T
-    use fileio_fm, only: expand_file_name, file_exists_p, file_name_directory, file_name_nondirectory, write_region
-    use files_fm, only: make_temp_file, file_newest_backup, backup_file_name_p, file_name_sans_versions, &
+    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
+    use fileio_fm, only: expand_file_name, file_exists, file_name_directory, file_name_nondirectory, write_region
+    use files_fm, only: make_temp_file, file_newest_backup, is_backup_file_name, file_name_sans_versions, &
                         delete_file, revert_buffer_function, temporary_file_directory
     use callproc_fm, only: call_process, shell_file_name, init_callproc
     use process_fm, only: make_process, process_arg_type, process_buffer, process_mark, process_exit_status, &
@@ -128,7 +128,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        given = .not. nilp(current_prefix_arg)
+        given = allocated(current_prefix_arg%a)
         if (given) call read_string("Diff switches: ", switches, status, initial=diff_switches)
     end subroutine read_diff_switches
 
@@ -412,7 +412,7 @@ contains
                               args=list(make_string(shell_command_switch%value), make_string(command)))
             buffers(cur)%directory = olddir
             k = 2
-            if (fixnump(code)) k = int(xfixnum(code))
+            if (vtag(code) == V_INTEGER) k = int(xfixnum(code))
 
             if (allocated(old_alt) .and. allocated(new_alt)) then
                 call diff_sentinel(k, old_alt, new_alt)
@@ -460,8 +460,8 @@ contains
     end subroutine remember_revert_args
 
     !> The `revert_buffer_function' of *Diff* buffers: run the diff
-    !> again (the lambda of diff-no-select).  Port of the
-    !> revert-buffer-function lambda of diff.el:diff-no-select.
+    !> again (the anonymous procedure of diff-no-select).  Port of the
+    !> revert-buffer-function procedure of diff.el:diff-no-select.
     recursive subroutine diff_revert(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -516,7 +516,7 @@ contains
 
         status = status_type()
         pbuf = process_buffer(proc)
-        if (.not. buffer_live_p(pbuf)) return
+        if (.not. is_buffer_live(pbuf)) return
         obuf = current_buffer()
         call set_buffer(pbuf, st)
         mark = process_mark(proc)
@@ -542,7 +542,7 @@ contains
     end subroutine diff_process_filter
 
     !> The process sentinel of diff: run `diff_sentinel' in the process
-    !> buffer.  Port of the process sentinel lambda of
+    !> buffer.  Port of the process sentinel procedure of
     !> diff.el:diff-no-select.
     recursive subroutine diff_process_sentinel(proc, event, status)
         type(handle_type), intent(in) :: proc
@@ -555,7 +555,7 @@ contains
         status = status_type()
         if (len(event) < 0) return
         pbuf = process_buffer(proc)
-        if (.not. buffer_live_p(pbuf)) return
+        if (.not. is_buffer_live(pbuf)) return
 
         do k = 1, size(diff_processes)
             if (diff_processes(k)%process%index == proc%index .and. &
@@ -611,7 +611,7 @@ contains
 
         status = status_type()
 
-        if (backup_file_name_p(file)) then
+        if (is_backup_file_name(file)) then
             bak%file = file
             ori%file = file_name_sans_versions(file)
         else
@@ -629,7 +629,7 @@ contains
         call diff(bak, ori, status, switches)
     end subroutine diff_backup
 
-    !> Return the latest existing backup of file FN, or nil (FOUND false).
+    !> Return the latest existing backup of file FN, or FOUND .false. if there is none.
     !> Port of diff.el:diff-latest-backup-file (no file name handlers).
     subroutine diff_latest_backup_file(fn, backup, found)
         character(len=*), intent(in) :: fn
@@ -703,26 +703,26 @@ contains
         logical :: given, found
 
         if (allocated(buffers(cur)%filename)) then
-            if (file_exists_p(buffers(cur)%filename)) then
+            if (file_exists(buffers(cur)%filename)) then
                 call read_file_name("Diff new file (default "//file_name_nondirectory(buffers(cur)%filename)//"): ", &
-                                    newf, status, default_filename=buffers(cur)%filename, mustmatch=REQUIRE_MATCH_T)
+                                    newf, status, default_filename=buffers(cur)%filename, mustmatch=REQUIRE_MATCH_YES)
             else
-                call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_T)
+                call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_YES)
             end if
         else
-            call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_T)
+            call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
         call file_newest_backup(newf, backup, found)
-        if (found) found = file_exists_p(backup)
+        if (found) found = file_exists(backup)
 
         if (found) then
             call read_file_name("Diff original file (default "//file_name_nondirectory(backup)//"): ", oldf, status, &
-                                dir=file_name_directory(backup), default_filename=backup, mustmatch=REQUIRE_MATCH_T)
+                                dir=file_name_directory(backup), default_filename=backup, mustmatch=REQUIRE_MATCH_YES)
         else
             call read_file_name("Diff original file: ", oldf, status, dir=file_name_directory(newf), &
-                                mustmatch=REQUIRE_MATCH_T)
+                                mustmatch=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -743,7 +743,7 @@ contains
         character(len=:), allocatable :: file, sw
         logical :: given
 
-        call read_file_name("Diff (file with backup): ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("Diff (file with backup): ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call read_diff_switches(sw, given, status)
         if (.not. status%ok()) return
@@ -760,7 +760,7 @@ contains
         character(len=:), allocatable :: name
 
         ! (interactive "bBuffer: ")
-        call read_buffer("Buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_T)
+        call read_buffer("Buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call diff_buffer_with_file(status, get_buffer(name))
     end subroutine cmd_diff_buffer_with_file
@@ -774,14 +774,14 @@ contains
         logical :: given
 
         call read_buffer("Diff new buffer (default "//buffers(cur)%name//"): ", newb, status, def=buffers(cur)%name, &
-                         require_match=REQUIRE_MATCH_T)
+                         require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         ob = other_buffer(current_buffer(), .true.)
         call resolve_buffer(ob, bi, st)
         other = ""
         if (st%ok()) other = buffers(bi)%name
         call read_buffer("Diff original buffer (default "//other//"): ", oldb, status, def=other, &
-                         require_match=REQUIRE_MATCH_T)
+                         require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call read_diff_switches(sw, given, status)
         if (.not. status%ok()) return

@@ -34,7 +34,7 @@ module test_info_look_fm
                          switch_to_buffer
     use bindings_fm, only: init_bindings
     use info_fm, only: info_directory_list, info_current_node, info_display_manual
-    use info_look_fm, only: info_lookup_add_help, info_lookup_doc_specs_type, info_lookup_symbol, &
+    use info_look_fm, only: info_lookup_add_help, info_lookup_doc_specs_type, info_lookup_name, &
                             info_lookup_reset, info_lookup_guess_default
     implicit none(type, external)
     private
@@ -119,7 +119,7 @@ contains
         call setup()
         old = current_buffer()
         call current_window_configuration(config)
-        call info_lookup_symbol("section", st, mode="test_look_mode")
+        call info_lookup_name("section", st, mode="test_look_mode")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, info_node(), "Section One")
         ! The window of the buffer looked up from is selected again.
@@ -128,14 +128,14 @@ contains
 
         ! Only the first word of "first chapter" is an item.
         if (.not. allocated(error)) then
-            call info_lookup_symbol("first", st, mode="test_look_mode")
+            call info_lookup_name("first", st, mode="test_look_mode")
             call check(error, st%ok(), format_error(st))
         end if
 
         if (.not. allocated(error)) call check(error, info_node(), "First Chapter")
 
         if (.not. allocated(error)) then
-            call info_lookup_symbol("nothing", st, mode="test_look_mode")
+            call info_lookup_name("nothing", st, mode="test_look_mode")
             call check(error, format_error(st), "Not documented as a symbol: nothing")
         end if
 

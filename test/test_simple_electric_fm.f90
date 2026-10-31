@@ -25,10 +25,10 @@
 !> kills its buffer.
 module test_simple_electric_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, goto_char, buffer_string
@@ -37,7 +37,7 @@ module test_simple_electric_fm
     use frame_fm, only: selected_window_ref
     use window_fm, only: set_window_start
     use simple_fm, only: fundamental_mode, blink_matching_check_mismatch, blink_matching_paren, &
-                         BLINK_MATCHING_PAREN_NIL, BLINK_MATCHING_PAREN_T, newline_and_indent, &
+                         BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, newline_and_indent, &
                          backward_delete_char_untabify, backward_delete_char_untabify_method, &
                          UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_UNTABIFY
     use modes_fm, only: minor_modes
@@ -70,7 +70,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call get_buffer_create("*blink-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)
@@ -124,10 +124,10 @@ contains
         call check(error, last_message, "")
         call kill_buffer(h, st)
         if (allocated(error)) return
-        blink_matching_paren = BLINK_MATCHING_PAREN_NIL
+        blink_matching_paren = BLINK_MATCHING_PAREN_NO
         call fresh(h, "(foo")
         call keys("]")
-        blink_matching_paren = BLINK_MATCHING_PAREN_T
+        blink_matching_paren = BLINK_MATCHING_PAREN_YES
         call check(error, last_message, "")
         call kill_buffer(h, st)
     end subroutine test_messages

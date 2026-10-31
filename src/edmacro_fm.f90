@@ -30,22 +30,22 @@
 module edmacro_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, symbolp, stringp, xfixnum, xsymbol, xstring, symbols, vtag, &
-                       V_LIST, list_elements, make_fixnum, make_keymap_ref, make_symbol_ref
+    use lisp_fm, only: value_type, xfixnum, xsymbol, xstring, symbols, vtag, &
+                       V_ARRAY, list_elements, make_fixnum, make_keymap_ref, make_symbol_ref, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: sym, intern_soft
     use data_fm, only: value_eq
     use character_fm, only: CHAR_ALT, CHAR_CTL, CHAR_HYPER, CHAR_META, CHAR_SUPER, CHAR_SHIFT, &
                             string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
-    use keymap_fm, only: current_active_maps, lookup_key, key_binding, keymapp, keymap_live_p
-    use callint_fm, only: commandp
+    use keymap_fm, only: current_active_maps, lookup_key, key_binding, is_keymap, is_keymap_live
+    use callint_fm, only: is_command
     use keyboard_fm, only: local_function_key_map
     implicit none(type, external)
     private
 
     public :: format_kbd_macro
 
-    !> Values of `format_kbd_macro''s VERBOSE: nil (a compact 80-column
-    !> format), 1 (everything on one line) and t (one command per line,
+    !> Values of `format_kbd_macro''s VERBOSE: EDMACRO_COMPACT (a compact 80-column
+    !> format), EDMACRO_ONE_LINE (everything on one line) and EDMACRO_VERBOSE (one command per line,
     !> with comments).
     integer, parameter, public :: EDMACRO_COMPACT = 0, EDMACRO_ONE_LINE = 1, EDMACRO_VERBOSE = 2
 
@@ -171,39 +171,39 @@ contains
 
             do k = 1, size(maps)
                 call lookup_key(maps(k), rest(pos:n + 1), b, st)
-                if (fixnump(b)) bind_len = max(bind_len, xfixnum(b))
+                if (vtag(b) == V_INTEGER) bind_len = max(bind_len, xfixnum(b))
             end do
 
             key = rest(pos:pos + bind_len - 1)
-            bind = nil()
+            bind = value_type()
             found = .false.
             use_fkey = .false.
 
             do k = 1, size(maps)
                 call lookup_key(maps(k), key, b, st)
 
-                if (.not. nilp(b) .and. .not. fixnump(b)) then
+                if (allocated(b%a) .and. vtag(b) /= V_INTEGER) then
                     bind = b
                     found = .true.
                     exit
                 end if
             end do
 
-            if (.not. found .and. keymap_live_p(local_function_key_map)) then
+            if (.not. found .and. is_keymap_live(local_function_key_map)) then
                 call lookup_key(make_keymap_ref(local_function_key_map), rest(pos:n + 1), fk, st)
 
-                if (fixnump(fk)) then
+                if (vtag(fk) == V_INTEGER) then
                     tlen = xfixnum(fk)
                     tkey = rest(pos:pos + tlen - 1)
                     call lookup_key(make_keymap_ref(local_function_key_map), tkey, fk, st)
 
-                    if (.not. nilp(fk) .and. .not. fixnump(fk) .and. .not. keymapp(fk)) then
+                    if (allocated(fk%a) .and. vtag(fk) /= V_INTEGER .and. .not. is_keymap(fk)) then
                         call translation_events(fk, fkey)
 
                         do k = 1, size(maps)
                             call lookup_key(maps(k), fkey, b, st)
 
-                            if (.not. nilp(b) .and. .not. fixnump(b)) then
+                            if (allocated(b%a) .and. vtag(b) /= V_INTEGER) then
                                 bind_len = tlen
                                 key = tkey
                                 bind = b
@@ -235,8 +235,8 @@ contains
 
             text = i
             bind_name = ""
-            if (symbolp(bind) .and. .not. nilp(bind)) bind_name = symbols(xsymbol(bind))%name
-            if (stringp(bind)) bind = nil()
+            if ((vtag(bind) == V_NAME .or. vtag(bind) == V_NULL) .and. allocated(bind%a)) bind_name = symbols(xsymbol(bind))%name
+            if (vtag(bind) == V_STRING) bind = value_type()
             done = .false.
             ch = int_event(first)
 
@@ -279,7 +279,7 @@ contains
                     k = intern_soft(desc)
 
                     if (k > 0) then
-                        if (commandp(make_symbol_ref(k))) then
+                        if (is_command(make_symbol_ref(k))) then
                             bind_name = desc
                             desc = "<<"//desc//">>"
                             bind_len = text + 1
@@ -371,7 +371,7 @@ contains
 
         all = current_active_maps()
 
-        if (vtag(all) == V_LIST) then
+        if (vtag(all) == V_ARRAY) then
             call list_elements(all, maps)
         else
             allocate (maps(1))
@@ -388,12 +388,12 @@ contains
         integer(int64) :: pos, n
         integer(int32) :: c, length
 
-        if (vtag(v) == V_LIST) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, evs)
             return
         end if
 
-        if (.not. stringp(v)) then
+        if (vtag(v) /= V_STRING) then
             allocate (evs(1))
             evs(1) = v
             return
@@ -420,7 +420,7 @@ contains
         type(value_type), intent(in) :: ev
 
         int_event = -1
-        if (fixnump(ev)) int_event = xfixnum(ev)
+        if (vtag(ev) == V_INTEGER) int_event = xfixnum(ev)
     end function int_event
 
     !> Whether EV is one of M-- M-0 ... M-9 (only M-0 ... M-9 if DIGITS_ONLY).
@@ -531,7 +531,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        if (symbolp(ev)) then
+        if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) then
             s = "<"//symbols(xsymbol(ev))%name//">"
             return
         end if

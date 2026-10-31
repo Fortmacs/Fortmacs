@@ -32,7 +32,7 @@ module test_casetab_fm
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use chartab_fm, only: make_char_table, char_table_ref, char_table_set, char_table_extra_table, &
                           set_char_table_extra_table, copy_char_table, free_char_table
-    use casetab_fm, only: downcase, upcase, case_canon, uppercasep, lowercasep, case_table_p, current_case_table, &
+    use casetab_fm, only: downcase, upcase, case_canon, is_uppercase, is_lowercase, is_case_table, current_case_table, &
                           standard_case_table, set_case_table
     use uni_case_fm, only: canon_count, canon_keys, canon_values
     implicit none(type, external)
@@ -51,7 +51,7 @@ contains
                     new_unittest("casefiddle-tests-char-casing", test_char_casing), &
                     new_unittest("case-canon", test_canon), &
                     new_unittest("case-canon-standard-table", test_canon_table), &
-                    new_unittest("case-table-p", test_case_table_p), &
+                    new_unittest("case-table-p", test_is_case_table), &
                     new_unittest("set-case-table", test_set_case_table) &
                     ]
     end subroutine collect_casetab_fm
@@ -108,8 +108,8 @@ contains
         if (allocated(error)) return
         call check(error, case_canon(8490_int32) == 8490 .and. downcase(8490_int32) == 8490, "Kelvin sign")
         if (allocated(error)) return
-        call check(error, uppercasep(931_int32) .and. lowercasep(962_int32) .and. &
-                   .not. uppercasep(49_int32) .and. .not. lowercasep(49_int32), "predicates")
+        call check(error, is_uppercase(931_int32) .and. is_lowercase(962_int32) .and. &
+                   .not. is_uppercase(49_int32) .and. .not. is_lowercase(49_int32), "predicates")
     end subroutine test_canon
 
     !> The canonicalize table `set_case_table' computes for the standard
@@ -142,25 +142,25 @@ contains
         end do
     end subroutine test_canon_table
 
-    subroutine test_case_table_p(error)
+    subroutine test_is_case_table(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: tbl, other
         type(status_type) :: st
 
-        call check(error, case_table_p(standard_case_table()))
+        call check(error, is_case_table(standard_case_table()))
         if (allocated(error)) return
         call make_char_table(tbl, "case_table", st)
-        call check(error, case_table_p(tbl))
+        call check(error, is_case_table(tbl))
         if (allocated(error)) return
         call make_char_table(other, "foo", st)
-        call check(error,.not. case_table_p(other))
+        call check(error,.not. is_case_table(other))
         if (allocated(error)) return
         ! An EQUIVALENCES table without a CANONICALIZE table.
         call set_char_table_extra_table(tbl, 2, other, st)
-        call check(error,.not. case_table_p(tbl))
+        call check(error,.not. is_case_table(tbl))
         call free_char_table(other, st)
         call free_char_table(tbl, st)
-    end subroutine test_case_table_p
+    end subroutine test_is_case_table
 
     subroutine test_set_case_table(error)
         type(error_type), allocatable, intent(out) :: error
@@ -183,7 +183,7 @@ contains
         if (allocated(error)) return
         call check(error, case_canon(iachar("b")) == iachar("a") .and. downcase(iachar("B")) == iachar("B"))
         if (allocated(error)) return
-        call check(error, uppercasep(iachar("b")) .and. lowercasep(iachar("a")))
+        call check(error, is_uppercase(iachar("b")) .and. is_lowercase(iachar("a")))
         if (allocated(error)) return
         call kill_buffer(h, st)
         ! Other buffers keep the standard table.

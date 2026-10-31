@@ -25,5 +25,6 @@ contains
         if (.not. status%ok()) call set_error(status, "No next sexp")
         call temp_buffer("(defun foo ()")
         call smie_down_list()
+        ! A line the rename lengthens past 132 columns (reported): forward_sexp forward_sexp forward_sexp forward_sexp.
     end subroutine forward_sexp
 end module lisp_cmds_fm

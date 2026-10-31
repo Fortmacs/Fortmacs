@@ -25,7 +25,7 @@ module test_ansi_color_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_string, list, xstring
+    use lisp_fm, only: value_type, make_string, list, xstring
     use lread_fm, only: sym
     use fns_fm, only: value_equal
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer
@@ -79,7 +79,7 @@ contains
         bright_yellow = make_string("yellow2")
         custom_color = make_string("#87FFFF")
         allocate (cases(14))
-        call set(1, "Hello World", "Hello World", nil())
+        call set(1, "Hello World", "Hello World", value_type())
         call set(2, ESC//"[33mHello World"//ESC//"[0m", "Hello World", list(sym(":foreground"), yellow))
         call set(3, ESC//"[43mHello World"//ESC//"[0m", "Hello World", list(sym(":background"), yellow))
         call set(4, ESC//"[93mHello World"//ESC//"[0m", "Hello World", list(sym(":foreground"), bright_yellow))
@@ -92,7 +92,7 @@ contains
                  bold_fg(bright_yellow))
         call set(10, ESC//"[1m"//ESC//"[3m"//ESC//"[5mbold italics blink"//ESC//"[0m", "bold italics blink", &
                  list(sym("ansi_color_bold"), sym("ansi_color_italic"), sym("ansi_color_slow_blink")))
-        call set(11, ESC//"[10munrecognized"//ESC//"[0m", "unrecognized", nil())
+        call set(11, ESC//"[10munrecognized"//ESC//"[0m", "unrecognized", value_type())
         call set(12, ESC//"[38;5;3;1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
         call set(13, ESC//"[48;5;123;1mHello World"//ESC//"[0m", "Hello World", &
                  list(sym("ansi_color_bold"), list(sym(":background"), custom_color)))
@@ -172,7 +172,7 @@ contains
                            "face of: "//cases(k)%text)
             end if
 
-            if (.not. allocated(error) .and. .not. nilp(cases(k)%face)) then
+            if (.not. allocated(error) .and. allocated(cases(k)%face%a)) then
                 call check(error, overlays_at_start(), "an overlay")
             end if
 
@@ -207,7 +207,7 @@ contains
                            "face of: "//cases(k)%text)
             end if
 
-            if (.not. allocated(error) .and. .not. nilp(face)) call check(error, overlays_at_start(), "an overlay")
+            if (.not. allocated(error) .and. allocated(face%a)) call check(error, overlays_at_start(), "an overlay")
             call end_temp_buffer(old, b)
             if (allocated(error)) exit
         end do

@@ -27,7 +27,7 @@ module test_sh_script_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, consp, symbolp, symbols, xsymbol, list_elements
+    use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
@@ -43,7 +43,7 @@ module test_sh_script_fm
     use sh_script_fm, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                             sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
                             sh_builtins, sh_string_type, sh_canonicalize_shell, sh_shell, &
-                            SH_PLUS_PLUS, SH_CONTINUATION_NIL, SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, &
+                            SH_PLUS_PLUS, SH_CONTINUATION_NO, SH_CONTINUATION_DEEPER, SH_CONTINUATION_ALWAYS, &
                             sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
                             sh_styles_table, sh_basic_offset, sh_indent_for_do, SH_PLUS
     use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
@@ -130,7 +130,7 @@ contains
 
             call goto_char(point_min())
             shortage = forward_line(1_int64)
-            call indent_for_tab_command(nil(), st)
+            call indent_for_tab_command(value_type(), st)
             call check(error, buffer_string(), "relative-path/to/configure --prefix=$prefix\"//LF// &
                        TAB//TAB//TAB//"   --with-x")
         end block checks
@@ -217,7 +217,7 @@ contains
             end if
 
             sh_indent_for_continuation = SH_PLUS_PLUS
-            sh_indent_after_continuation = SH_CONTINUATION_T
+            sh_indent_after_continuation = SH_CONTINUATION_DEEPER
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//"    toto; \"//LF//"    done"//LF)
             if (allocated(error)) exit checks
@@ -225,7 +225,7 @@ contains
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//TAB//"toto; \"//LF//TAB//"done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = SH_CONTINUATION_NIL
+            sh_indent_after_continuation = SH_CONTINUATION_NO
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks
@@ -279,13 +279,13 @@ contains
         name = ""
         call get_text_property(point(), sym("face"), v, st)
 
-        if (consp(v)) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
             v = elts(1)
         end if
 
-        if (nilp(v)) return
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if (.not. allocated(v%a)) return
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function face
 
     !> Test that "do" gets fontified correctly, even with no ";".

@@ -28,7 +28,7 @@ module test_marker_fm
     use error_fm, only: status_type, FM_GENERIC_ERROR, FM_INVALID_HANDLE
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, &
-                         set_buffer, current_buffer, buffer_live_p, buf_bytes, &
+                         set_buffer, current_buffer, is_buffer_live, buf_bytes, &
                          temp_set_point_both, erase_buffer
     use marker_fm, only: byte_to_char, char_to_byte, copy_marker, copy_marker_at, count_markers, &
                          free_marker, make_marker, marker_buffer, marker_byte_position, &
@@ -36,7 +36,7 @@ module test_marker_fm
                          set_marker_insertion_type, set_marker_to
     use insdel_fm, only: insert, insert_before_markers, del_range
     use lisp_fm, only: make_marker_ref
-    use print_fm, only: prin1_to_string
+    use print_fm, only: readable_repr
     implicit none(type, external)
     private
 
@@ -80,7 +80,7 @@ contains
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -250,13 +250,13 @@ contains
         call enter("tm-print", h, old)
         call insert("hello", st)
         call copy_marker_at(4_int64, m, .false., st)
-        call check(error, prin1_to_string(make_marker_ref(m)), "#<marker at 4 in tm-print>")
+        call check(error, readable_repr(make_marker_ref(m)), "#<marker at 4 in tm-print>")
         if (allocated(error)) return
         call set_marker_insertion_type(m, .true., st)
-        call check(error, prin1_to_string(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
+        call check(error, readable_repr(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
         if (allocated(error)) return
         call make_marker(nowhere)
-        call check(error, prin1_to_string(make_marker_ref(nowhere)), "#<marker in no buffer>")
+        call check(error, readable_repr(make_marker_ref(nowhere)), "#<marker in no buffer>")
         call free_marker(m, st)
         call free_marker(nowhere, st)
         call leave(h, old)

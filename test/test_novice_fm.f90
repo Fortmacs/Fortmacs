@@ -27,7 +27,7 @@ module test_novice_fm
     use test_support, only: show_alone
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp
+    use lisp_fm, only: value_type
     use lread_fm, only: sym
     use callint_fm, only: find_command, command_type
     use commands_fm, only: commands
@@ -67,7 +67,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         disabled_command_function_p = .true.
         commands%upcase_region%disabled = .true.
         call get_buffer_create("novice-test", h, st)

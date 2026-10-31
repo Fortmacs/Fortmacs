@@ -25,5 +25,6 @@ contains
         if (.not. status%ok()) call set_error(status, "No next expression")
         call temp_buffer("(defun foo ()")
         call smie_down_group()
+        ! A line the rename lengthens past 132 columns (reported): forward_expression forward_expression forward_expression forward_expression.
     end subroutine forward_expression
 end module expression_motion_fm

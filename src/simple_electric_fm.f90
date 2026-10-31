@@ -29,21 +29,22 @@
 !> the `shadow' face of "Matches " in the echo area
 !> and `noninteractive' (no batch mode).
 submodule(simple_fm) simple_electric_fm
+    use lisp_fm, only: vtag, V_INTEGER, value_type
     use syntax_fm, only: syntax_entry, syntax_descriptor_type, skip_syntax_backward, parse_expression_ignore_comments, &
                          char_syntax, SCLOSE, SQUOTE
     use expression_motion_fm, only: forward_expression
     use syntax_propertize_fm, only: syntax_propertize
     use editfns_fm, only: narrow_to_region, widen
-    use window_fm, only: window_pos_visible_p => pos_visible_in_window_p
+    use window_fm, only: window_pos_visible_p => is_pos_visible_in_window
     use frame_fm, only: selected_window
-    use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, overlayp
+    use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, is_overlay
     use paren_fm, only: show_paren_context_when_offscreen
     use modes_fm, only: minor_modes
     use minibuffer_fm, only: minibuffer_message
     use font_lock_fm, only: font_lock_ensure
     use cmds_fm, only: post_self_insert_hook
     use indent_fm, only: indent_according_to_mode
-    use keyboard_fm, only: executing_kbd_macro_p, sit_for
+    use keyboard_fm, only: is_executing_kbd_macro, sit_for
     implicit none(type, external)
 
     !> Overlay used to highlight the matching paren.  Port of simple.el
@@ -67,7 +68,7 @@ contains
     end procedure syms_of_simple_electric
 
     !> The syntax descriptor of the character after POS (syntax-after):
-    !> FOUND false outside the accessible region (nil).  Port of
+    !> FOUND false outside the accessible region.  Port of
     !> subr.el:syntax-after.
     subroutine syntax_after(pos, d, found)
         integer(int64), intent(in) :: pos
@@ -127,7 +128,7 @@ contains
     procedure(blink_matching_check_proc), pointer :: check
 
     status = status_type()
-    if (bobp() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NIL) return
+    if (is_bob() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NO) return
     oldpos = point()
     ! (save-excursion (save-restriction ...))
     savedb = buffers(cur)%begv
@@ -168,13 +169,13 @@ contains
 
     if (mismatch) then
         if (blinkpos /= 0) then
-            if (minibufferp()) then
+            if (is_minibuffer()) then
                 call minibuffer_message("Mismatched parentheses")
             else
                 call message("Mismatched parentheses")
             end if
         else
-            if (minibufferp()) then
+            if (is_minibuffer()) then
                 call minibuffer_message("No matching parenthesis found")
             else
                 call message("No matching parenthesis found")
@@ -201,7 +202,7 @@ contains
             call sit_for(int(blink_matching_delay*1000, int32))
             call goto_char(opoint)
         else
-            if (.not. overlayp(blink_matching_overlay)) then
+            if (.not. is_overlay(blink_matching_overlay)) then
                 call make_overlay(blink_matching_overlay, point(), point(), st, front_advance=.true.)
                 call overlay_put(blink_matching_overlay, "face", sym("show_paren_match"), st)
                 call delete_overlay(blink_matching_overlay)
@@ -229,7 +230,7 @@ contains
     ! Capture the regions in terms of (beg . end) pairs whose
     ! buffer-substrings we want to show as a context string.
     moved = skip_chars_backward(" "//TAB, st)
-    not_bol = .not. bolp()
+    not_bol = .not. is_bol()
     call goto_char(pos)
 
     if (not_bol) then
@@ -240,7 +241,7 @@ contains
     else
         call goto_char(pos + 1)
         moved = skip_chars_forward(" "//TAB, st)
-        not_eol = .not. eolp()
+        not_eol = .not. is_eol()
         call goto_char(pos)
 
         if (not_eol) then
@@ -249,7 +250,7 @@ contains
             regions(:, 1) = [pos, line_end_position()]
         else
             moved = skip_chars_backward(LF//" "//TAB, st)
-            not_bob = .not. bobp()
+            not_bob = .not. is_bob()
             call goto_char(pos)
 
             if (not_bob) then
@@ -292,14 +293,14 @@ contains
 
     status = status_type()
     ! Sanity check.
-    if (.not. fixnump(last_command_event)) return
+    if (vtag(last_command_event) /= V_INTEGER) return
     ev = xfixnum(last_command_event)
     call char_before(c, found)
     if (.not. found .or. int(c, int64) /= ev) return
     if (ev < 0 .or. ev > int(huge(0_int32), int64)) return
     if (char_syntax(int(ev)) /= ")" .and. char_syntax(int(ev)) /= "$") return
     if (.not. associated(blink_paren_function)) return
-    if (executing_kbd_macro_p()) return
+    if (is_executing_kbd_macro()) return
     ! Verify an even number of quoting characters precede the close.
     opoint = point()
     call goto_char(opoint - 1)
@@ -427,7 +428,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call backward_delete_char_untabify(prefix_numeric_value(current_prefix_arg), status, &
-                                           .not. nilp(current_prefix_arg))
+                                           allocated(current_prefix_arg%a))
     end subroutine cmd_backward_delete_char_untabify
 
     module procedure backward_delete_char_untabify
@@ -443,7 +444,7 @@ contains
     kill = .false.
     if (present(killp)) kill = killp
 
-    if (use_region_p() .and. delete_active_region .and. arg == 1) then
+    if (is_use_region() .and. delete_active_region .and. arg == 1) then
         ! Delete the text of the region and deactivate the mark, in the
         ! same way that `delete_backward_char' does.
         call region_extract_function(REGION_EXTRACT_DELETE_ONLY, extracted, starts, ends, status)
@@ -454,7 +455,7 @@ contains
         count = arg
         call copy_marker_at(point(), here, .false., st)
 
-        do while (count > 0 .and. .not. bobp())
+        do while (count > 0 .and. .not. is_bob())
             call char_before(c, found)
 
             if (found .and. c == 9) then

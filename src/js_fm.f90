@@ -39,17 +39,17 @@ module js_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, list, make_list, make_fixnum, fixnump, xfixnum, list_elements, consp
+    use lisp_fm, only: value_type, list, make_list, make_fixnum, xfixnum, list_elements
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
     use buffer_fm, only: buffers, cur, buffer_serial_live
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
-    use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, syntax_ppss, parse_state_type, &
+    use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                          parse_partial_expression, forward_comment, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          skip_syntax_backward, parse_expression_ignore_comments, ST_STRING_STYLE, COMMENTSTOP_SYNTAX_TABLE
-    use editfns_fm, only: point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
                           line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line
     use insdel_fm, only: insert, del_range, before_change_functions
@@ -63,7 +63,7 @@ module js_fm
                            previous_single_property_change, remove_text_properties
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                             font_lock_keywords_type, font_lock_keywords_level, font_lock_match_highlight_type, &
-                            FONT_LOCK_OVERRIDE_T
+                            FONT_LOCK_OVERRIDE_YES
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, cpp_font_lock_keywords, &
                             font_lock_apply_highlight, CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES
     use expression_motion_fm, only: forward_expression, backward_expression, forward_group, backward_group, up_group, &
@@ -80,12 +80,12 @@ module js_fm
 
     public :: syms_of_js, js_base_mode, js_mode, js_json_mode, js_indent_line, js_beginning_of_function, &
               js_end_of_function, js_syntactic_context, js_syntax_propertize, js_font_lock_syntactic_face_function, &
-              js_re_search_forward, js_re_search_backward, js_continued_expression_p, js_proper_indentation, &
+              js_re_search_forward, js_re_search_backward, is_js_continued_expression, js_proper_indentation, &
               js_flush_caches, js_ensure_cache
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> Values of `js_indent_first_init': nil, t and `dynamic'.
+    !> Values of `js_indent_first_init' (JS_INDENT_FIRST_INIT_NO, _YES and _DYNAMIC).
     integer, parameter, public :: JS_INDENT_FIRST_INIT_NO = 0, JS_INDENT_FIRST_INIT_YES = 1, &
                                   JS_INDENT_FIRST_INIT_DYNAMIC = 2
 
@@ -750,7 +750,7 @@ contains
         integer :: i
 
         allocate (items(0))
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         call list_elements(v, elts)
         deallocate (items)
         allocate (items(size(elts)))
@@ -784,14 +784,14 @@ contains
 
         next_value = prop_at(point(), propname)
 
-        if (.not. nilp(next_value)) then
+        if (allocated(next_value%a)) then
             call forward_char(st, 1_int64)
         else
             call next_single_property_change(point(), sym(propname), pos, found, st, limit=point_max())
             if (.not. found) pos = point_max()
             call goto_char(pos)
 
-            if (.not. eobp()) then
+            if (.not. is_eob()) then
                 next_value = prop_at(point(), propname)
                 call forward_char(st, 1_int64)
             end if
@@ -809,18 +809,18 @@ contains
         integer(int64) :: pos
         logical :: found
 
-        prev_value = nil()
-        if (bobp()) return
+        prev_value = value_type()
+        if (is_bob()) return
         prev_value = prop_at(point() - 1, propname)
 
-        if (.not. nilp(prev_value)) then
+        if (allocated(prev_value%a)) then
             call forward_char(st, -1_int64)
         else
             call previous_single_property_change(point(), sym(propname), pos, found, st, limit=point_min())
             if (.not. found) pos = point_min()
             call goto_char(pos)
 
-            if (.not. bobp()) then
+            if (.not. is_bob()) then
                 call forward_char(st, -1_int64)
                 prev_value = prop_at(point(), propname)
             end if
@@ -923,12 +923,12 @@ contains
 
     ! looking-at-p REGEXP.
     ! Not a port.
-    recursive logical function at_p(regexp)
+    recursive logical function is_at(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
 
-        at_p = looking_at(regexp, st, inhibit_modify=.true.)
-    end function at_p
+        is_at = looking_at(regexp, st, inhibit_modify=.true.)
+    end function is_at
 
     ! The parse state at point (syntax-ppss).
     ! Not a port.
@@ -1169,7 +1169,7 @@ contains
         do
             do
                 call end_of_line()
-                if (.not. (prev_char() == iachar("\") .and. .not. eobp())) exit
+                if (.not. (prev_char() == iachar("\") .and. .not. is_eob())) exit
                 call forward_char(st, 1_int64)
             end do
 
@@ -1266,7 +1266,7 @@ contains
 
     ! Move forward over symbol ARG times (backward if negative).  Port of
     ! thingatpt.el:forward-symbol.
-    recursive subroutine forward_symbol(arg)
+    recursive subroutine forward_identifier(arg)
         integer, intent(in) :: arg
         type(status_type) :: st
         integer(int64) :: pos, moved
@@ -1284,7 +1284,7 @@ contains
             if (pos > 0) moved = skip_syntax_backward("w_")
             n = n + 1
         end do
-    end subroutine forward_symbol
+    end subroutine forward_identifier
 
     ! ------------------------------------------------------------------
     ! Functions and the parse cache
@@ -1303,7 +1303,7 @@ contains
         do
             ! non-continued case; simplistic, but good enough?
             do
-                if (eolp()) exit
+                if (is_eol()) exit
                 moved = forward_comment(huge(1_int64))
                 c = next_char()
                 if (c == iachar(",") .or. c == iachar(";") .or. c == iachar("]") .or. c == iachar(")") &
@@ -1314,7 +1314,7 @@ contains
 
             if (next_char() /= 10) exit
             call goto_char(point() + 1)
-            continued = js_continued_expression_p()
+            continued = is_js_continued_expression()
             call goto_char(point() - 1)
             if (.not. continued) exit
         end do
@@ -1431,7 +1431,7 @@ contains
             if (pitem_type_of(pstate(1)) == PITEM_FUNCTION) exit
         end do
 
-        if (bobp()) then
+        if (is_bob()) then
             deallocate (pstate)
             allocate (pstate(0))
         end if
@@ -1470,7 +1470,7 @@ contains
 
         do i = 1, size(pstate)
             if (pitem_type_of(pstate(i)) == PITEM_FUNCTION) then
-                if (inside_pitem_p(pstate(i))) then
+                if (is_inside_pitem(pstate(i))) then
                     call goto_char(pitem_h_begin(pstate(i)))
                     pitem = pstate(i)
                     return
@@ -1515,7 +1515,7 @@ contains
         n = arg
         found = .false.
 
-        do while (.not. eobp() .and. n < 0)
+        do while (.not. is_eob() .and. n < 0)
             n = n + 1
 
             if (.not. js_flat_functions%value) then
@@ -1705,7 +1705,7 @@ contains
 
         do
             end_prop = forward_text_property("js__pend")
-            if (nilp(end_prop)) exit
+            if (.not. allocated(end_prop%a)) exit
             locals(k)%pitems(int(xfixnum(end_prop)))%b_end = 0
         end do
 
@@ -1747,14 +1747,14 @@ contains
         call goto_char(locals(k)%cache_end)
         allocate (open_items(0))
 
-        if (.not. bobp()) then
+        if (.not. is_bob()) then
             open_items = pstate_items(prop_at(point() - 1, "js__pstate"))
 
             if (size(open_items) == 0) then
                 call previous_single_property_change(point(), sym("js__pstate"), pos, found, st, limit=point_min())
                 if (.not. found) pos = point_min()
                 call goto_char(pos)
-                if (.not. bobp()) open_items = pstate_items(prop_at(point() - 1, "js__pstate"))
+                if (.not. is_bob()) open_items = pstate_items(prop_at(point() - 1, "js__pstate"))
             end if
         end if
 
@@ -1906,7 +1906,7 @@ contains
             call js_ensure_cache()
             v = prop_at(point() - 1, "js__pend")
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 if (pitem_type_of(int(xfixnum(v))) == PITEM_FUNCTION) return
             end if
         end do
@@ -1970,11 +1970,11 @@ contains
 
         n = arg
 
-        do while (.not. bobp() .and. n < 0)
+        do while (.not. is_bob() .and. n < 0)
             n = n + 1
             call js_beginning_of_function(1_int64, found)
             call js_beginning_of_function(1_int64, found)
-            if (.not. bobp()) call js_end_of_function(1_int64)
+            if (.not. is_bob()) call js_end_of_function(1_int64)
         end do
 
         do while (n > 0)
@@ -2016,17 +2016,17 @@ contains
 
     ! Return whether point is inside the given pitem's header or body.
     ! Port of js.el:js--inside-pitem-p.
-    recursive logical function inside_pitem_p(pitem)
+    recursive logical function is_inside_pitem(pitem)
         integer, intent(in) :: pitem
         integer :: k
 
         call js_ensure_cache()
         k = here()
-        inside_pitem_p = .false.
+        is_inside_pitem = .false.
         if (.not. point() > locals(k)%pitems(pitem)%h_begin) return
-        inside_pitem_p = locals(k)%pitems(pitem)%b_end == 0
-        if (.not. inside_pitem_p) inside_pitem_p = locals(k)%pitems(pitem)%b_end > point()
-    end function inside_pitem_p
+        is_inside_pitem = locals(k)%pitems(pitem)%b_end == 0
+        if (.not. is_inside_pitem) is_inside_pitem = locals(k)%pitems(pitem)%b_end > point()
+    end function is_inside_pitem
 
     ! Parse the JavaScript program state at point.
     ! Return a list of pitems that apply to point, most specific first.
@@ -2050,7 +2050,7 @@ contains
         ! (or at point if we're at eob)
         do
             if (pitem_type_of(pstate(1)) == PITEM_TOPLEVEL) exit
-            if (inside_pitem_p(pstate(1))) exit
+            if (is_inside_pitem(pstate(1))) exit
             pstate = pstate(2:)
         end do
 
@@ -2101,36 +2101,36 @@ contains
 
     ! Return non-nil if point is in a function parameter list.  Port of
     ! js.el:js--inside-param-list-p.
-    recursive logical function inside_param_list_p()
+    recursive logical function is_inside_param_list()
         type(status_type) :: st
         integer(int64) :: opoint
 
-        inside_param_list_p = .false.
+        is_inside_param_list = .false.
         opoint = point()
         call up_nearby_list(st)
 
         if (st%ok()) then
             if (at("(")) then
-                call forward_symbol(-1)
-                inside_param_list_p = at("function")
+                call forward_identifier(-1)
+                is_inside_param_list = at("function")
 
-                if (.not. inside_param_list_p) then
-                    call forward_symbol(-1)
-                    inside_param_list_p = at("function")
+                if (.not. is_inside_param_list) then
+                    call forward_identifier(-1)
+                    is_inside_param_list = at("function")
                 end if
             end if
         end if
 
         call goto_char(opoint)
-    end function inside_param_list_p
+    end function is_inside_param_list
 
     ! Return non-nil if point is in a Dojo multiple-inheritance class
     ! block.  Port of js.el:js--inside-dojo-class-list-p.
-    recursive logical function inside_dojo_class_list_p()
+    recursive logical function is_inside_dojo_class_list()
         type(status_type) :: st
         integer(int64) :: opoint, list_begin
 
-        inside_dojo_class_list_p = .false.
+        is_inside_dojo_class_list = .false.
         opoint = point()
         call up_nearby_list(st)
 
@@ -2140,12 +2140,12 @@ contains
 
             if (at(JS_DOJO_CLASS_DECL_RE)) then
                 call goto_char(me(0))
-                if (at("""\s-*,\s-*\[")) inside_dojo_class_list_p = me(0) == list_begin + 1
+                if (at("""\s-*,\s-*\[")) is_inside_dojo_class_list = me(0) == list_begin + 1
             end if
         end if
 
         call goto_char(opoint)
-    end function inside_dojo_class_list_p
+    end function is_inside_dojo_class_list
 
     ! Move forward over a JavaScript destructuring spec.
     ! If APPLY, highlight every variable name in the spec.  Return true if
@@ -2449,11 +2449,11 @@ contains
 
         limit = 0
         call goto_char(point() - 1)
-        inside = inside_dojo_class_list_p()
+        inside = is_inside_dojo_class_list()
         call goto_char(point() + 1)
 
         if (inside) then
-            call forward_symbol(-1)
+            call forward_identifier(-1)
         else
             call end_of_line()
         end if
@@ -2467,11 +2467,11 @@ contains
 
         limit = 0
         call goto_char(point() - 1)
-        inside = inside_param_list_p()
+        inside = is_inside_param_list()
         call goto_char(point() + 1)
 
         if (inside) then
-            call forward_symbol(-1)
+            call forward_identifier(-1)
         else
             call end_of_line()
         end if
@@ -2535,7 +2535,7 @@ contains
         h1(1) = h(2, TY, lax=.true.)
         kw(4) = font_lock_keyword(matcher=class_decl_matcher, highlights=h1)
         ! Dojo needs its own matcher to override the string highlighting
-        h2(1) = h(1, TY, FONT_LOCK_OVERRIDE_T)
+        h2(1) = h(1, TY, FONT_LOCK_OVERRIDE_YES)
         h2(2) = h(2, TY, lax=.true.)
         kw(5) = font_lock_keyword(matcher=dojo_matcher_1, highlights=h2)
         ! Match Dojo base classes. Of course Mojo has to be different from
@@ -2696,7 +2696,7 @@ contains
 
     ! Return non-nil if point is on a JavaScript operator, other than a
     ! comma.  Port of js.el:js--looking-at-operator-p.
-    recursive logical function looking_at_operator_p() result(op)
+    recursive logical function looking_at_is_operator() result(op)
         type(status_type) :: st
         type(parse_state_type) :: state
         integer(int64) :: opoint
@@ -2759,7 +2759,7 @@ contains
 
         op = .true.
         call restore_match(saved)
-    end function looking_at_operator_p
+    end function looking_at_is_operator
 
     ! save-match-data: the match data, in SAVED.
     ! Not a port.
@@ -2817,7 +2817,7 @@ contains
 
     !> Return true if the current line continues an expression.  Port of
     !> js.el:js--continued-expression-p.
-    recursive logical function js_continued_expression_p() result(continued)
+    recursive logical function is_js_continued_expression() result(continued)
         type(parse_state_type) :: state
         integer(int64) :: opoint
         type(status_type) :: st
@@ -2828,7 +2828,7 @@ contains
         call back_to_indentation()
         continued = .false.
 
-        if (looking_at_operator_p()) then
+        if (looking_at_is_operator()) then
             if (next_char() == iachar("/")) then
                 state = ppss_at(point() + 1)
                 continued = state%instring < 0
@@ -2844,7 +2844,7 @@ contains
             end if
         else if (find_newline_backward()) then
             moved = skip_chars_backward(" "//TAB, st) < 0
-            if (.not. bobp()) call goto_char(point() - 1)
+            if (.not. is_bob()) call goto_char(point() - 1)
 
             if (point() > point_min()) then
                 call goto_char(point() - 1)
@@ -2852,7 +2852,7 @@ contains
                 call goto_char(point() + 1)
 
                 if (ok) then
-                    if (looking_at_operator_p()) then
+                    if (looking_at_is_operator()) then
                         call goto_char(point() - 1)
                         continued = .not. at("\+\+\|--\|/[/*]")
                     end if
@@ -2861,7 +2861,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end function js_continued_expression_p
+    end function is_js_continued_expression
 
     ! Skip a term before point; return t if a term was skipped.  Port of
     ! js.el:js--skip-term-backward.
@@ -2935,7 +2935,7 @@ contains
     ! the indentation of the current line if it is a chained expression
     ! line (`found'), when `js_chain_indent' is true.  Port of
     ! js.el:js--chained-expression-p.
-    recursive subroutine chained_expression_p(column, found)
+    recursive subroutine is_chained_expression(column, found)
         integer, intent(out) :: column
         logical, intent(out) :: found
         integer(int64) :: opoint
@@ -2946,7 +2946,7 @@ contains
         opoint = point()
 
         if (next_char() == iachar(".")) then
-            if (js_continued_expression_p()) then
+            if (is_js_continued_expression()) then
                 if (find_newline_backward()) then
                     if (skip_terms_backward()) then
                         column = int(current_column())
@@ -2957,13 +2957,13 @@ contains
         end if
 
         call goto_char(opoint)
-    end subroutine chained_expression_p
+    end subroutine is_chained_expression
 
     ! Return true if point is on the "while" of a do-while statement.  A
     ! braceless do-while statement spanning several lines requires that
     ! the start of the loop is indented to the same column as the current
     ! line.  Port of js.el:js--end-of-do-while-loop-p.
-    recursive logical function end_of_do_while_loop_p() result(found)
+    recursive logical function is_end_of_do_while_loop() result(found)
         type(status_type) :: st
         integer(int64) :: opoint, moved, saved_indent, pos
         integer, allocatable :: saved(:)
@@ -2980,7 +2980,7 @@ contains
 
             if (brace) then
                 call backward_group(1_int64, st)
-                call forward_symbol(-1)
+                call forward_identifier(-1)
                 found = at("\_<do\_>")
             else
                 pos = line_beginning_position()
@@ -3007,7 +3007,7 @@ contains
 
         call goto_char(opoint)
         call restore_match(saved)
-    end function end_of_do_while_loop_p
+    end function is_end_of_do_while_loop
 
     ! Helper function for `js_proper_indentation'.
     ! Return the proper indentation of the current line if it starts the
@@ -3031,7 +3031,7 @@ contains
         if (ok) ok = js_re_search_backward("[[:graph:]]")
 
         if (ok) then
-            if (.not. eobp()) call forward_char(st, 1_int64)
+            if (.not. is_eob()) call forward_char(st, 1_int64)
             if (prev_char() == iachar(")")) call backward_group(1_int64, st)
             moved = skip_syntax_backward(" ")
             moved = skip_syntax_backward("w_")
@@ -3045,7 +3045,7 @@ contains
 
         if (ok) then
             call goto_char(start)
-            ok = .not. end_of_do_while_loop_p()
+            ok = .not. is_end_of_do_while_loop()
         end if
 
         if (ok) then
@@ -3090,7 +3090,7 @@ contains
             if (state%instring >= 0) call goto_char(pt)
 
             do
-                if (at_opening_bracket .or. bobp()) exit
+                if (at_opening_bracket .or. is_bob()) exit
                 pos = point()
 
                 backward_check: block
@@ -3225,7 +3225,7 @@ contains
                     if (.not. forward_comment(1_int64)) exit
                 end do
 
-                comma_p = at_p(",")
+                comma_p = is_at(",")
             end if
 
             call goto_char(opoint)
@@ -3241,15 +3241,15 @@ contains
     ! Return true if the last non-comment, non-whitespace token of the
     ! current line is the "=>" token (of an arrow function).  Port of
     ! js.el:js--broken-arrow-terminates-line-p.
-    recursive logical function broken_arrow_terminates_line_p()
+    recursive logical function is_broken_arrow_line_end()
         type(status_type) :: st
         integer(int64) :: from, pos
 
         from = point()
         call end_of_line()
         call re_search_backward(LINE_TERMINATING_ARROW_RE, pos, st, bound=from, noerror=SEARCH_NOERROR)
-        broken_arrow_terminates_line_p = pos > 0
-    end function broken_arrow_terminates_line_p
+        is_broken_arrow_line_end = pos > 0
+    end function is_broken_arrow_line_end
 
     ! The column of a line inside a comment starting at START
     ! (js--get-c-offset 'c START): the comment line-up function's.  Port of
@@ -3295,7 +3295,7 @@ contains
 
         if (next_char() == iachar("#")) then
             call forward_char(st, 1_int64)
-            found = at_p(CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES)
+            found = is_at(CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES)
             call forward_char(st, -1_int64)
 
             if (found) then
@@ -3331,7 +3331,7 @@ contains
             end if
         end if
 
-        call chained_expression_p(column, found)
+        call is_chained_expression(column, found)
         if (.not. found) call ctrl_statement_indentation(column, found)
         if (.not. found) call multi_line_declaration_indentation(column, found)
 
@@ -3346,7 +3346,7 @@ contains
             ! "default".
             same_indent_p = at("[]})]")
             switch_keyword_p = at("default\_>\|case\_>[^:]")
-            continued_expr_p = js_continued_expression_p()
+            continued_expr_p = is_js_continued_expression()
             ! go to the opening char
             call goto_char(bracket)
             nothing_after = .not. js_indent_align_list_continuation%value
@@ -3354,7 +3354,7 @@ contains
 
             if (.not. nothing_after) then
                 call forward_char(st, 1_int64)
-                nothing_after = broken_arrow_terminates_line_p()
+                nothing_after = is_broken_arrow_line_end()
                 call goto_char(bracket)
             end if
 
@@ -3398,7 +3398,7 @@ contains
 
                 column = int(current_column())
             end if
-        else if (js_continued_expression_p()) then
+        else if (is_js_continued_expression()) then
             column = int(js_indent_level%value + js_expr_indent_offset%value)
         else
             column = int(prog_first_column())
@@ -3480,7 +3480,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(js_mode_syntax_table)) call syms_of_js()
+        if (.not. is_syntax_table_live(js_mode_syntax_table)) call syms_of_js()
         call major_modes%js_base_mode%begin(saved, status)
         if (.not. status%ok()) return
         call major_modes%js_base_mode%finish(saved, status)
@@ -3520,7 +3520,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(js_mode_syntax_table)) call syms_of_js()
+        if (.not. is_syntax_table_live(js_mode_syntax_table)) call syms_of_js()
         call major_modes%js_mode%begin(saved, status)
         if (.not. status%ok()) return
         call mode_setup()
@@ -3534,7 +3534,7 @@ contains
         logical :: saved
         integer :: k
 
-        if (.not. syntax_table_live_p(js_mode_syntax_table)) call syms_of_js()
+        if (.not. is_syntax_table_live(js_mode_syntax_table)) call syms_of_js()
         call major_modes%js_json_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! Reuse most of `js-mode', but not as parent (bug#67463).
@@ -3579,7 +3579,7 @@ contains
     !> Define JavaScript mode: its variables, tables and commands.
     !> Not a port.
     recursive subroutine syms_of_js()
-        if (syntax_table_live_p(js_mode_syntax_table)) return
+        if (is_syntax_table_live(js_mode_syntax_table)) return
         call forward_setting(js_indent_level)
         call forward_setting(js_expr_indent_offset)
         call forward_setting(js_paren_indent_offset)

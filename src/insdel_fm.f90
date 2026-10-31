@@ -53,7 +53,7 @@ module insdel_fm
     use buffer_fm, only: buffers, cur, BEG, BUF_BYTES_MAX, GAP_BYTES_DFL, &
                          GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
                          buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, buf_next_char_len, &
-                         current_buffer, set_buffer, set_buffer_if_live, buffer_live_p, set_buffer_internal
+                         current_buffer, set_buffer, set_buffer_if_live, is_buffer_live, set_buffer_internal
     use marker_fm, only: char_to_byte, byte_to_char, markers, clear_charpos_cache, copy_marker_at, &
                          marker_position, free_marker, buf_charpos_to_bytepos
     use undo_fm, only: record_insert, record_delete, record_first_change, undo_auto_undoable_change
@@ -1457,7 +1457,7 @@ contains
 
         ! It is rare for combine_after_change_buffer to be invalid, but
         ! possible.
-        if (.not. buffer_live_p(combine_after_change_buffer)) then
+        if (.not. is_buffer_live(combine_after_change_buffer)) then
             combine_count = 0
             return
         end if

@@ -25,10 +25,10 @@ module test_register_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, value_type
+    use lisp_fm, only: value_type
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only, &
-                         current_buffer, get_buffer, buffer_live_p
+                         current_buffer, get_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, buffer_string, mark_position, buffer_substring
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message, unread_command_events
@@ -36,13 +36,13 @@ module test_register_fm
     use bindings_fm, only: init_bindings
     use simple_fm, only: deactivate_mark, set_mark
     use frame_fm, only: selected_frame, selected_window
-    use window_fm, only: split_window, delete_other_windows, window_leaves, windows, get_buffer_window, window_live_p
+    use window_fm, only: split_window, delete_other_windows, window_leaves, windows, get_buffer_window, is_window_live
     use rect_fm, only: rectangle_line_type
-    use register_fm, only: register_table, register_value_type, get_register, set_register, point_to_register, &
+    use register_fm, only: register_table, register_contents_type, get_register, set_register, point_to_register, &
                            jump_to_register, window_configuration_to_register, copy_to_register, insert_register, &
                            append_to_register, prepend_to_register, copy_rectangle_to_register, number_to_register, &
-                           increment_register, file_to_register, buffer_to_register, register_jumpable_p, &
-                           register_insertable_p, describe_register_1, register_describe_oneline, &
+                           increment_register, file_to_register, buffer_to_register, is_register_jumpable, &
+                           is_register_insertable, describe_register_1, register_describe_oneline, &
                            register_preview_default, view_register, list_registers, register_separator, &
                            REGISTER_EMPTY, REGISTER_MARKER, REGISTER_TEXT, REGISTER_NUMBER, REGISTER_RECTANGLE, &
                            REGISTER_FILE_QUERY
@@ -105,14 +105,14 @@ contains
 
         register_separator = -1
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
     end subroutine fresh
 
     !> The contents of register R.
     function value_of(r) result(v)
         integer(int64), intent(in) :: r
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
     end function value_of
@@ -120,7 +120,7 @@ contains
     !> The kind of the contents of register R.
     integer function kind_of(r)
         integer(int64), intent(in) :: r
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
         kind_of = v%kind
@@ -130,7 +130,7 @@ contains
     function text_of(r) result(s)
         integer(int64), intent(in) :: r
         character(len=:), allocatable :: s
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
         s = ""
@@ -140,7 +140,7 @@ contains
     !> The number in register R.
     integer(int64) function number_of(r)
         integer(int64), intent(in) :: r
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
         number_of = v%number
@@ -206,31 +206,31 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call fresh(h, "text")
         call point_to_register(ra, st)
-        call check(error, register_jumpable_p(value_of(ra)), "marker")
+        call check(error, is_register_jumpable(value_of(ra)), "marker")
         if (allocated(error)) return
         call window_configuration_to_register(rb)
-        call check(error, register_jumpable_p(value_of(rb)), "window configuration")
+        call check(error, is_register_jumpable(value_of(rb)), "window configuration")
         if (allocated(error)) return
         call file_to_register("foo", rc)
-        call check(error, register_jumpable_p(value_of(rc)), "file")
+        call check(error, is_register_jumpable(value_of(rc)), "file")
         if (allocated(error)) return
         call buffer_to_register(current_buffer(), rc)
-        call check(error, register_jumpable_p(value_of(rc)), "buffer")
+        call check(error, is_register_jumpable(value_of(rc)), "buffer")
         if (allocated(error)) return
         v%kind = REGISTER_FILE_QUERY
         v%text = "quux"
         v%number = 1
-        call check(error, register_jumpable_p(v), "file-query")
+        call check(error, is_register_jumpable(v), "file-query")
         if (allocated(error)) return
         call set_register(rc, "test")
-        call check(error,.not. register_jumpable_p(value_of(rc)), "string")
+        call check(error,.not. is_register_jumpable(value_of(rc)), "string")
         if (allocated(error)) return
-        call check(error, register_insertable_p(value_of(rc)) .and. register_insertable_p(value_of(ra)) .and. &
-                   .not. register_insertable_p(value_of(rb)), "insertable")
+        call check(error, is_register_insertable(value_of(rc)) .and. is_register_insertable(value_of(ra)) .and. &
+                   .not. is_register_insertable(value_of(rb)), "insertable")
         call kill_buffer(h, st)
     end subroutine test_jumpable_p
 
@@ -308,7 +308,8 @@ contains
         if (allocated(error)) return
         call file_to_register("foo", rc)
         call insert_register(rc, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT .and. format_error(st) == "Wrong type argument: stringp, file", &
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT .and. &
+                   format_error(st) == "Wrong type argument: expected character(len=*), got file", &
                    format_error(st))
         if (allocated(error)) return
         call insert_register(iachar("z", int64), st)
@@ -387,7 +388,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call fresh(h, "abcdef"//nl//"ghijkl"//nl//"mnopqr")
         call copy_rectangle_to_register(ra, 2_int64, 19_int64, st)
@@ -520,7 +521,7 @@ contains
 
         s = ""
         b = get_buffer(name)
-        if (.not. buffer_live_p(b)) return
+        if (.not. is_buffer_live(b)) return
         old = current_buffer()
         call set_buffer(b, st)
         s = buffer_string()
@@ -541,7 +542,7 @@ contains
         call view_register(rb, st)
         call check(error, contents_of("*Output*"), "Register b contains the text:"//nl//"some text")
         if (allocated(error)) return
-        call check(error, window_live_p(get_buffer_window(get_buffer("*Output*"))), "shown")
+        call check(error, is_window_live(get_buffer_window(get_buffer("*Output*"))), "shown")
         if (allocated(error)) return
         ! Sorted by name; empty registers left out.
         call list_registers(st)
@@ -568,7 +569,7 @@ contains
         call command_loop(st)
         call check(error, buffer_string(), "beehello")
         if (allocated(error)) return
-        call check(error,.not. buffer_live_p(get_buffer("*Register Preview*")), "preview killed")
+        call check(error,.not. is_buffer_live(get_buffer("*Register Preview*")), "preview killed")
         if (allocated(error)) return
         call window_leaves(selected_frame%root_window, leaves)
         call check(error, size(leaves), 1)
@@ -582,7 +583,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call fresh(h, "alpha beta")
         ! C-x r SPC a at 3, M-> then C-x r j a.
