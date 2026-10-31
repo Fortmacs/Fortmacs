@@ -10,7 +10,6 @@
 # Copyright (C) 2026 The Fortmacs authors
 #
 # This file is part of Fortmacs, under the GNU GPL version 3 or later.
-
 abbrev_all_caps
 abbrev_file_name
 abbrev_mode
@@ -136,6 +135,10 @@ conf_javaprop_assignment_column
 copy_directory_create_symlink
 copy_region_blink_delay
 crm_prompt
+css_electric_keys
+css_fontify_colors
+css_indent_offset
+css_lookup_url_format
 cycle_spacing_actions
 dabbrev_abbrev_char_regexp
 dabbrev_abbrev_skip_leading_regexp
@@ -347,6 +350,17 @@ insert_directory_program
 insert_pair_table
 isearch_lax_whitespace
 jit_lock_chunk_size
+js_chain_indent
+js_curly_indent_offset
+js_enabled_frameworks
+js_expr_indent_offset
+js_flat_functions
+js_indent_align_list_continuation
+js_indent_first_init
+js_indent_level
+js_paren_indent_offset
+js_square_indent_offset
+js_switch_indent_offset
 keyboard_coding_system
 kill_read_only_ok
 kill_ring_max

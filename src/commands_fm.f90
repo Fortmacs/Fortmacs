@@ -259,6 +259,9 @@ module commands_fm
         type(command_type) :: crm_complete_and_exit
         type(command_type) :: crm_complete_word
         type(command_type) :: crm_completion_help
+        type(command_type) :: css_base_mode
+        type(command_type) :: css_cycle_color_format
+        type(command_type) :: css_mode
         type(command_type) :: cycle_spacing
         type(command_type) :: dabbrev_completion
         type(command_type) :: dabbrev_expand
@@ -711,7 +714,13 @@ module commands_fm
         type(command_type) :: isearch_yank_line
         type(command_type) :: isearch_yank_pop_only
         type(command_type) :: isearch_yank_word_or_char
+        type(command_type) :: javascript_mode
         type(command_type) :: join_line
+        type(command_type) :: js_base_mode
+        type(command_type) :: js_indent_line
+        type(command_type) :: js_json_mode
+        type(command_type) :: js_mode
+        type(command_type) :: js_syntactic_context
         type(command_type) :: jump_to_register
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
@@ -990,6 +999,7 @@ module commands_fm
         type(command_type) :: scroll_other_window_down
         type(command_type) :: scroll_up
         type(command_type) :: scroll_up_command
+        type(command_type) :: scss_mode
         type(command_type) :: search_backward
         type(command_type) :: search_forward
         type(command_type) :: self_insert_command
@@ -1177,7 +1187,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1138) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1148) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1404,6 +1414,9 @@ module commands_fm
                                                                   "crm_complete_and_exit", &
                                                                   "crm_complete_word", &
                                                                   "crm_completion_help", &
+                                                                  "css_base_mode", &
+                                                                  "css_cycle_color_format", &
+                                                                  "css_mode", &
                                                                   "cycle_spacing", &
                                                                   "dabbrev_completion", &
                                                                   "dabbrev_expand", &
@@ -1856,7 +1869,13 @@ module commands_fm
                                                                   "isearch_yank_line", &
                                                                   "isearch_yank_pop_only", &
                                                                   "isearch_yank_word_or_char", &
+                                                                  "javascript_mode", &
                                                                   "join_line", &
+                                                                  "js_base_mode", &
+                                                                  "js_indent_line", &
+                                                                  "js_json_mode", &
+                                                                  "js_mode", &
+                                                                  "js_syntactic_context", &
                                                                   "jump_to_register", &
                                                                   "just_one_space", &
                                                                   "justify_current_line", &
@@ -2135,6 +2154,7 @@ module commands_fm
                                                                   "scroll_other_window_down", &
                                                                   "scroll_up", &
                                                                   "scroll_up_command", &
+                                                                  "scss_mode", &
                                                                   "search_backward", &
                                                                   "search_forward", &
                                                                   "self_insert_command", &
@@ -2780,6 +2800,12 @@ contains
             p => commands%crm_complete_word
         case ("crm_completion_help")
             p => commands%crm_completion_help
+        case ("css_base_mode")
+            p => commands%css_base_mode
+        case ("css_cycle_color_format")
+            p => commands%css_cycle_color_format
+        case ("css_mode")
+            p => commands%css_mode
         case ("cycle_spacing")
             p => commands%cycle_spacing
         case ("dabbrev_completion")
@@ -3684,8 +3710,20 @@ contains
             p => commands%isearch_yank_pop_only
         case ("isearch_yank_word_or_char")
             p => commands%isearch_yank_word_or_char
+        case ("javascript_mode")
+            p => commands%javascript_mode
         case ("join_line")
             p => commands%join_line
+        case ("js_base_mode")
+            p => commands%js_base_mode
+        case ("js_indent_line")
+            p => commands%js_indent_line
+        case ("js_json_mode")
+            p => commands%js_json_mode
+        case ("js_mode")
+            p => commands%js_mode
+        case ("js_syntactic_context")
+            p => commands%js_syntactic_context
         case ("jump_to_register")
             p => commands%jump_to_register
         case ("just_one_space")
@@ -4242,6 +4280,8 @@ contains
             p => commands%scroll_up
         case ("scroll_up_command")
             p => commands%scroll_up_command
+        case ("scss_mode")
+            p => commands%scss_mode
         case ("search_backward")
             p => commands%search_backward
         case ("search_forward")

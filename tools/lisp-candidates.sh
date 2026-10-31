@@ -21,8 +21,9 @@
 
 # Usage: tools/lisp-candidates.sh [BASE]   (run by tools/check.sh)
 #
-# Compares the working tree with BASE (default: where the branch left
-# origin/main) and prints each Lisp candidate word in an added line.  It
+# Compares the working tree with BASE (default: $LISP_CANDIDATES_BASE,
+# which CI sets to the merge commit's first parent, else where the branch
+# left origin/main) and prints each Lisp candidate word in an added line.  It
 # only warns and always exits 0.  Without a base (a shallow checkout with
 # no origin/main) it says so and does nothing.
 
@@ -30,7 +31,7 @@ set -u
 
 cd "$(dirname "$0")/.."
 
-base=${1:-}
+base=${1:-${LISP_CANDIDATES_BASE:-}}
 
 if [ -z "$base" ]; then
     base=$(git merge-base HEAD origin/main 2>/dev/null) || base=
@@ -43,7 +44,7 @@ fi
 
 git diff -U0 "$base" -- '*.f90' '*.md' '*.sh' '*.awk' \
     ':(exclude)docs/log' ':(exclude)tools/lisp-candidates' ':(exclude)tools/lisp-candidates.*' \
-    ':(exclude)tools/lisp-candidates-test' |
+    ':(exclude)tools/lisp-candidates-test' ':(exclude)src/docstrings_fm.f90' |
     awk -v words=tools/lisp-candidates -v keep=tools/fortran-names -f tools/lisp-candidates.awk
 
 exit 0

@@ -47,6 +47,9 @@
 !> the `cursor' face's face-no-inherit property (no face may inherit
 !> from it; xfaces.c).
 module faces_fm
+    use, intrinsic :: iso_fortran_env, only: real64
+    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
+    use tty_colors_fm, only: tty_color_values
     implicit none(type, external)
     private
 
@@ -55,6 +58,13 @@ module faces_fm
     public :: face_attrs, face_underline, face_box, display_when, face_named, face_count, face_at, face_spec_recalc_all
     public :: set_frame_display, faces_equal, face_weight_numeric, face_slant_numeric
     public :: init_faces
+    public :: color_values, is_color_dark, readable_foreground_color
+
+    !> The relative luminance below which a color is considered "dark".
+    !> A "dark" color in this sense provides better contrast with white
+    !> than with black; see `is_color_dark'.  This value was determined
+    !> experimentally.  Port of faces.el color-luminance-dark-limit.
+    real(real64), parameter, public :: COLOR_LUMINANCE_DARK_LIMIT = 0.325_real64
 
     !> States of a face attribute: unspecified, .false., .true., a color,
     !> typed attributes, an array (of face names), a value (number).
@@ -1516,4 +1526,77 @@ contains
             a%box%color = box_color
         end function key_box
     end subroutine init_faces
+
+    ! ------------------------------------------------------------------
+    ! Colors
+    ! ------------------------------------------------------------------
+
+    !> Return a description of the color named COLOR on the selected frame.
+    !> The value is R, G and B, integers that range from 0 to 65535; white
+    !> is 65535 65535 65535.  If COLOR is not directly supported by the
+    !> display, the values are those of the supported color that is its
+    !> best approximation.  `found' is false when the color is not defined
+    !> (or is "unspecified-fg" or "unspecified-bg").  Port of
+    !> faces.el:color-values (a character terminal's `tty_color_values').
+    subroutine color_values(color, found, r, g, b)
+        character(len=*), intent(in) :: color
+        logical, intent(out) :: found
+        integer, intent(out) :: r, g, b
+
+        r = 0
+        g = 0
+        b = 0
+        found = .false.
+        if (color == "unspecified-fg" .or. color == "unspecified-bg") return
+        call tty_color_values(color, found, r, g, b)
+    end subroutine color_values
+
+    !> Whether RGB is more readable against white than black.
+    !> RGB is a 3-element array (R G B), each component in the range [0,1].
+    !> This predicate can be used both for determining a suitable (black or
+    !> white) contrast color with RGB as background and as foreground.
+    !> Port of faces.el:color-dark-p.
+    logical function is_color_dark(rgb, status)
+        real(real64), intent(in) :: rgb(3)
+        type(status_type), intent(out) :: status
+        real(real64) :: r, g, b, y
+
+        is_color_dark = .false.
+
+        if (.not. (minval(rgb) >= 0 .and. maxval(rgb) <= 1)) then
+            call set_error(status, FM_GENERIC_ERROR, "RGB components not in [0,1]")
+            return
+        end if
+
+        ! Compute the relative luminance after gamma-correcting (assuming
+        ! sRGB), and compare to a cut-off value determined experimentally.
+        ! Use the power 2.2 as an approximation to sRGB gamma; it should be
+        ! good enough for the purpose of this function.
+        r = rgb(1)**2.2_real64
+        g = rgb(2)**2.2_real64
+        b = rgb(3)**2.2_real64
+        y = r*0.2126_real64 + g*0.7152_real64 + b*0.0722_real64
+        is_color_dark = y < COLOR_LUMINANCE_DARK_LIMIT
+    end function is_color_dark
+
+    !> Return a readable foreground color for background COLOR.
+    !> The returned value is a string representing black or white, depending
+    !> on which one provides better contrast with COLOR.  Port of
+    !> faces.el:readable-foreground-color.
+    function readable_foreground_color(color) result(fg)
+        character(len=*), intent(in) :: color
+        character(len=:), allocatable :: fg
+        type(status_type) :: st
+        logical :: found
+        integer :: r, g, b
+
+        ! We use #ffffff instead of "white", because the latter is
+        ! sometimes less than white.  That way, we get the best contrast
+        ! possible.
+        call color_values(color, found, r, g, b)
+        ! ((color-dark-p nil) is an error; it is taken as black.)
+        fg = "black"
+        if (.not. found) return
+        if (is_color_dark([r, g, b]/65535.0_real64, st)) fg = "#ffffff"
+    end function readable_foreground_color
 end module faces_fm

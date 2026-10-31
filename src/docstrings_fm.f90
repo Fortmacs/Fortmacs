@@ -134,6 +134,10 @@ module docstrings_fm
                             conf_toml_mode_syntax_table, conf_unix_mode_hook, conf_unix_mode_syntax_table, &
                             conf_windows_mode_hook, conf_xdefaults_mode_hook, conf_xdefaults_mode_syntax_table
     use crm_fm, only: crm_local_completion_map, crm_local_must_match_map, crm_prompt, crm_separator
+    use css_mode_fm, only: css_base_mode_hook, css_base_mode_map, css_class_list_function, &
+                           css_electric_keys, css_font_lock_keywords, css_fontify_colors, css_id_list_function, &
+                           css_indent_offset, css_lookup_url_format, css_mode_hook, css_mode_map, css_mode_syntax_table, &
+                           css_smie_grammar, scss_mode_hook, scss_mode_map, scss_mode_syntax_table
     use dabbrev_fm, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_OFF, DABBREV_ON, &
                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
@@ -225,9 +229,9 @@ module docstrings_fm
                         FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
                         revert_buffer_in_progress, revert_buffer_preserve_modes, revert_without_query, &
                         save_some_buffers_functions, view_read_only, write_file_functions
-    use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
-                       colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
-                       JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_CURRENT, fill_indent_according_to_mode, &
+    use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_function, adaptive_fill_mode, &
+                       adaptive_fill_regexp, colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, &
+                       JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_CURRENT, fill_indent_according_to_mode, &
                        fill_nobreak_predicate, fill_paragraph_function, fill_paragraph_handle_comment, &
                        fill_separate_heterogeneous_words_with_space
     use fns_fm, only: use_short_answers, yes_or_no_prompt
@@ -304,6 +308,12 @@ module docstrings_fm
                           search_ring_max, search_upper_case, UPPER_CASE_NO, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS, &
                           search_whitespace_regexp
     use jit_lock_fm, only: jit_lock_chunk_size
+    use js_fm, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_curly_indent_offset, &
+                     js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
+                     js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NO, &
+                     JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC, js_indent_level, js_json_mode_hook, &
+                     js_json_mode_map, js_mode_hook, js_mode_map, js_mode_syntax_table, js_paren_indent_offset, &
+                     js_square_indent_offset, js_switch_indent_offset
     use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_YES, &
                            DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, echo_keystrokes, echo_keystrokes_help, &
                            global_disable_point_adjustment, help_char, help_event_list, inhibit_interaction, &
@@ -572,7 +582,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1443) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1453) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                       "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
@@ -660,26 +670,26 @@ module docstrings_fm
                                                          "copy_rectangle_to_register", "copy_region_as_kill", "copy_syntax_table", &
                                             "copy_to_register", "count_lines", "count_lines_page", "count_matches", "count_words", &
                                                "count_words_region", "crm_complete", "crm_complete_and_exit", "crm_complete_word", &
-                                             "crm_completion_help", "current_buffer", "current_case_table", "current_fill_column", &
-                                             "current_global_map", "current_indentation", "current_justification", "current_kill", &
-                                                             "current_left_margin", "cycle_spacing", "dabbrev__same_major_mode_p", &
-                                             "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
-                                                        "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
-                                                          "define_category", "define_coding_system_alias", "define_global_abbrev", &
-                                                        "define_ibuffer_column", "define_ibuffer_filter", "define_ibuffer_sorter", &
-                                           "define_mode_abbrev", "delete_all_space", "delete_backward_char", "delete_blank_lines", &
-                                                                 "delete_char", "delete_extract_rectangle", "delete_forward_char", &
-                                                         "delete_horizontal_space", "delete_indentation", "delete_matching_lines", &
-                                             "delete_non_matching_lines", "delete_other_windows", "delete_pair", "delete_process", &
-                                              "delete_rectangle", "delete_region", "delete_whitespace_rectangle", "delete_window", &
-                                                                "describe_bindings", "describe_coding_system", "describe_command", &
-                                                            "describe_current_coding_system", "describe_function", "describe_key", &
-                                                    "describe_key_briefly", "describe_mode", "describe_name", "describe_variable", &
-                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
-                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
-                                                  "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", "diff_file_prev", &
-                                                      "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", "diff_hunk_next", &
-                                                            "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
+                                                     "crm_completion_help", "css_base_mode", "css_cycle_color_format", "css_mode", &
+                                              "current_buffer", "current_case_table", "current_fill_column", "current_global_map", &
+                                            "current_indentation", "current_justification", "current_kill", "current_left_margin", &
+                                                         "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
+                                                "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_coding_region", &
+                                                             "decode_coding_string", "default_indent_new_line", "define_category", &
+                                                    "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
+                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
+                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
+                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
+                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
+                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
+                                             "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
+                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
+                                                     "describe_function", "describe_key", "describe_key_briefly", "describe_mode", &
+                                             "describe_name", "describe_variable", "detect_coding_region", "detect_coding_string", &
+                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
+                                                    "diff_buffers", "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", &
+                                                      "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", &
+                                          "diff_hunk_next", "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
                                                "diff_revert_and_kill_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                    "dired", "dired_backup_diff", "dired_build_subdir_table", "dired_change_marks", &
                                                "dired_copy_filename_as_kill", "dired_create_directory", "dired_create_empty_file", &
@@ -833,24 +843,25 @@ module docstrings_fm
                                                          "isearch_repeat_forward", "isearch_ring_advance", "isearch_ring_retreat", &
                                              "isearch_toggle_case_fold", "isearch_toggle_lax_whitespace", "isearch_toggle_regexp", &
                                            "isearch_yank_char", "isearch_yank_kill", "isearch_yank_line", "isearch_yank_pop_only", &
-                                                   "isearch_yank_word_or_char", "join_line", "jump_to_register", "just_one_space", &
-                                         "justify_current_line", "keep_lines", "keyboard_quit", "keymap_global_set", "keymap_set", &
-                                            "kill_all_abbrevs", "kill_buffer", "kill_compilation", "kill_expression", "kill_grep", &
-                                                 "kill_line", "kill_matching_lines", "kill_new", "kill_paragraph", "kill_process", &
-                                            "kill_rectangle", "kill_region", "kill_ring_save", "kill_sentence", "kill_whole_line", &
-                                               "kill_word", "kmacro_add_counter", "kmacro_call_macro", "kmacro_call_macro_repeat", &
-                                                  "kmacro_call_ring_2nd", "kmacro_call_ring_2nd_repeat", "kmacro_cycle_ring_next", &
-                                             "kmacro_cycle_ring_previous", "kmacro_delete_ring_head", "kmacro_end_and_call_macro", &
-                                                "kmacro_end_macro", "kmacro_end_or_call_macro", "kmacro_end_or_call_macro_repeat", &
-                                              "kmacro_insert_counter", "kmacro_quit_counter_equal", "kmacro_quit_counter_greater", &
-                                                   "kmacro_quit_counter_less", "kmacro_redisplay", "kmacro_reg_add_counter_equal", &
-                                                                  "kmacro_reg_add_counter_greater", "kmacro_reg_add_counter_less", &
-                                                       "kmacro_reg_load_counter", "kmacro_reg_save_counter", "kmacro_set_counter", &
-                                                "kmacro_set_format", "kmacro_start_macro", "kmacro_start_macro_or_insert_counter", &
-                                                              "kmacro_swap_ring", "kmacro_view_macro", "kmacro_view_macro_repeat", &
-                                                  "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", "line_number_at_pos", &
-                                                          "list_abbrevs", "list_bookmarks", "list_buffers", "list_matching_lines", &
-                                                                    "list_processes", "list_registers", "local_abbrev_table", &
+                                                      "isearch_yank_word_or_char", "javascript_mode", "join_line", "js_base_mode", &
+                                          "js_indent_line", "js_json_mode", "js_mode", "js_syntactic_context", "jump_to_register", &
+                                                          "just_one_space", "justify_current_line", "keep_lines", "keyboard_quit", &
+                                         "keymap_global_set", "keymap_set", "kill_all_abbrevs", "kill_buffer", "kill_compilation", &
+                                                   "kill_expression", "kill_grep", "kill_line", "kill_matching_lines", "kill_new", &
+                                              "kill_paragraph", "kill_process", "kill_rectangle", "kill_region", "kill_ring_save", &
+                                                            "kill_sentence", "kill_whole_line", "kill_word", "kmacro_add_counter", &
+                                                          "kmacro_call_macro", "kmacro_call_macro_repeat", "kmacro_call_ring_2nd", &
+                                            "kmacro_call_ring_2nd_repeat", "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", &
+                                                       "kmacro_delete_ring_head", "kmacro_end_and_call_macro", "kmacro_end_macro", &
+                                           "kmacro_end_or_call_macro", "kmacro_end_or_call_macro_repeat", "kmacro_insert_counter", &
+                                           "kmacro_quit_counter_equal", "kmacro_quit_counter_greater", "kmacro_quit_counter_less", &
+                                             "kmacro_redisplay", "kmacro_reg_add_counter_equal", "kmacro_reg_add_counter_greater", &
+                                              "kmacro_reg_add_counter_less", "kmacro_reg_load_counter", "kmacro_reg_save_counter", &
+                                                                  "kmacro_set_counter", "kmacro_set_format", "kmacro_start_macro", &
+                                                  "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
+                                            "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
+                                                           "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
+                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
                                                             "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
                                                         "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
                                                                    "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
@@ -940,7 +951,7 @@ module docstrings_fm
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
                                          "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
                                               "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                                          "search_backward", "search_forward", "select_window", "selected_window", &
+                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
                                                              "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
                                             "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
                                                        "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
@@ -1009,15 +1020,15 @@ module docstrings_fm
                                                                     "write_file", "yank", "yank_pop", "yank_rectangle", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1182) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1217) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
-                                                  "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
-                                             "add_log_dont_create_changelog_file", "add_log_full_name", "add_log_mailing_address", &
-                                                    "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
-                                                 "after_save_hook", "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
-                                          "ansi_color_apply_face_function", "ansi_color_basic_faces", "ansi_color_bold_is_bright", &
-                                                                    "ansi_color_bright_colors", "ansi_color_for_comint_mode", &
+                                                "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
+                                                "adaptive_fill_regexp", "add_log_dont_create_changelog_file", "add_log_full_name", &
+                                              "add_log_mailing_address", "after_change_functions", "after_change_major_mode_hook", &
+                                                       "after_revert_hook", "after_save_hook", "after_set_visited_file_name_hook", &
+                                            "amalgamating_undo_limit", "ansi_color_apply_face_function", "ansi_color_basic_faces", &
+                                            "ansi_color_bold_is_bright", "ansi_color_bright_colors", "ansi_color_for_comint_mode", &
                                                                     "ansi_color_for_compilation_mode", "ansi_color_normal_colors", &
                                            "apropos_all_words_regexp", "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", &
                                              "apropos_regexp", "async_shell_command_buffer", "async_shell_command_display_buffer", &
@@ -1116,7 +1127,11 @@ module docstrings_fm
                                               "conf_toml_mode_syntax_table", "conf_unix_mode_hook", "conf_unix_mode_syntax_table", &
                                          "conf_windows_mode_hook", "conf_xdefaults_mode_hook", "conf_xdefaults_mode_syntax_table", &
                                            "copy_directory_create_symlink", "copy_region_blink_delay", "crm_local_completion_map", &
-                                          "crm_local_must_match_map", "crm_prompt", "crm_separator", "current_minibuffer_command", &
+                                                  "crm_local_must_match_map", "crm_prompt", "crm_separator", "css_base_mode_hook", &
+                                                              "css_base_mode_map", "css_class_list_function", "css_electric_keys", &
+                                                           "css_font_lock_keywords", "css_fontify_colors", "css_id_list_function", &
+                                                    "css_indent_offset", "css_lookup_url_format", "css_mode_hook", "css_mode_map", &
+                                                        "css_mode_syntax_table", "css_smie_grammar", "current_minibuffer_command", &
                                                       "current_prefix_arg", "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
                                                                     "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
                                                    "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
@@ -1247,11 +1262,16 @@ module docstrings_fm
                                                             "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
                                                                    "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
                                                     "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
-                                                       "kbd_macro_termination_hook", "keyboard_coding_system", "kill_buffer_hook", &
-                                                "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
-                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
-                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
-                                                                    "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                             "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_curly_indent_offset", &
+                                                            "js_enabled_frameworks", "js_expr_indent_offset", "js_flat_functions", &
+                                                   "js_indent_align_list_continuation", "js_indent_first_init", "js_indent_level", &
+                                                           "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", "js_mode_map", &
+                                                      "js_mode_syntax_table", "js_paren_indent_offset", "js_square_indent_offset", &
+                                                "js_switch_indent_offset", "kbd_macro_termination_hook", "keyboard_coding_system", &
+                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
+                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
+                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
+                                             "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
@@ -1346,7 +1366,8 @@ module docstrings_fm
                                                           "savehist_autosave_interval", "savehist_coding_system", "savehist_file", &
                                                            "savehist_file_modes", "savehist_ignored_variables", "savehist_loaded", &
                                               "savehist_minibuffer_history_variables", "savehist_mode_hook", "savehist_save_hook", &
-                                              "savehist_save_minibuffer_history", "scroll_error_top_bottom", "search_exit_option", &
+                                                  "savehist_save_minibuffer_history", "scroll_error_top_bottom", "scss_mode_hook", &
+                                                                  "scss_mode_map", "scss_mode_syntax_table", "search_exit_option", &
                                                        "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
                                                                     "search_upper_case", "search_whitespace_regexp", &
                                                 "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
@@ -1426,7 +1447,7 @@ module docstrings_fm
                                                                     "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(578) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(593) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1552,6 +1573,10 @@ module docstrings_fm
                                                                       "copy_directory_create_symlink", &
                                                                       "copy_region_blink_delay", &
                                                                       "crm_prompt", &
+                                                                      "css_electric_keys", &
+                                                                      "css_fontify_colors", &
+                                                                      "css_indent_offset", &
+                                                                      "css_lookup_url_format", &
                                                                       "cycle_spacing_actions", &
                                                                       "dabbrev_abbrev_char_regexp", &
                                                                       "dabbrev_abbrev_skip_leading_regexp", &
@@ -1763,6 +1788,17 @@ module docstrings_fm
                                                                       "insert_pair_table", &
                                                                       "isearch_lax_whitespace", &
                                                                       "jit_lock_chunk_size", &
+                                                                      "js_chain_indent", &
+                                                                      "js_curly_indent_offset", &
+                                                                      "js_enabled_frameworks", &
+                                                                      "js_expr_indent_offset", &
+                                                                      "js_flat_functions", &
+                                                                      "js_indent_align_list_continuation", &
+                                                                      "js_indent_first_init", &
+                                                                      "js_indent_level", &
+                                                                      "js_paren_indent_offset", &
+                                                                      "js_square_indent_offset", &
+                                                                      "js_switch_indent_offset", &
                                                                       "keyboard_coding_system", &
                                                                       "kill_read_only_ok", &
                                                                       "kill_ring_max", &
@@ -4575,6 +4611,34 @@ contains
             entry%command = .true.
             entry%doc = "Display a list of possible completions of the current minibuffer"//LF// &
                         "element."
+        case ("css_base_mode")
+            entry%file = "css_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Generic mode to edit Cascading Style Sheets (CSS)."//LF// &
+                        ""//LF// &
+                        "This is a generic major mode intended to be inherited by a concrete"//LF// &
+                        "implementation.  Currently there is one concrete implementation:"//LF// &
+                        "`css_mode'."
+        case ("css_cycle_color_format")
+            entry%file = "css_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Cycle the color at point between different CSS color formats."//LF// &
+                        "Supported formats are by name (if possible), hexadecimal, and"//LF// &
+                        "rgb()/rgba()."
+        case ("css_mode")
+            entry%file = "css_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Major mode to edit Cascading Style Sheets (CSS)."//LF// &
+                        "This mode provides syntax highlighting, indentation, completion, and"//LF// &
+                        "documentation lookup for CSS."//LF// &
+                        ""//LF// &
+                        "Use `\[completion_at_point]' to complete CSS properties, property"//LF// &
+                        "values, pseudo-elements, pseudo-classes, at-rules, bang-rules, and"//LF// &
+                        "HTML tags, classes and IDs.  Completion candidates for HTML class"//LF// &
+                        "names and IDs are found by looking through open HTML mode buffers."//LF// &
+                        ""//LF// &
+                        "Use `\[fill_paragraph]' to reformat CSS declaration blocks.  It can"//LF// &
+                        "also be used to fill comments."
         case ("current_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
@@ -9447,6 +9511,10 @@ contains
             entry%command = .true.
             entry%doc = "Pull next character or word from buffer into search string."//LF// &
                         "If optional ARG is given, pull in the next ARG characters/words."
+        case ("javascript_mode")
+            entry%file = "js_fm.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing JavaScript."
         case ("join_line")
             entry%file = "simple_fm.f90"
             entry%command = .true.
@@ -9458,6 +9526,30 @@ contains
                         "define.  Interactively, BEG and END are, respectively, the start"//LF// &
                         "and end of the region if it is active, else absent.  (The region is"//LF// &
                         "ignored if prefix ARG is given.)"
+        case ("js_base_mode")
+            entry%file = "js_fm.f90"
+            entry%command = .true.
+            entry%doc = "Generic major mode for editing JavaScript."//LF// &
+                        ""//LF// &
+                        "This mode is intended to be inherited by concrete major modes."//LF// &
+                        "Currently there is `js_mode'."
+        case ("js_indent_line")
+            entry%file = "js_fm.f90"
+            entry%command = .true.
+            entry%doc = "Indent the current line as JavaScript."
+        case ("js_json_mode")
+            entry%file = "js_fm.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing JSON."
+        case ("js_mode")
+            entry%file = "js_fm.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing JavaScript."
+        case ("js_syntactic_context")
+            entry%file = "js_fm.f90"
+            entry%command = .true.
+            entry%doc = "Return the JavaScript syntactic context at point (a JS_CONTEXT_*"//LF// &
+                        "value)."
         case ("jump_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call jump_to_register(register, status, delete)"
@@ -13334,6 +13426,10 @@ contains
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
+        case ("scss_mode")
+            entry%file = "css_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Major mode to edit ""Sassy CSS"" files."
         case ("search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_backward(string, found, status, bound, noerror, count)"
@@ -15804,6 +15900,12 @@ contains
                         ""//LF// &
                         "However, we never use a prefix from a one-line paragraph"//LF// &
                         "if it would act as a paragraph-starter on the second line."
+        case ("adaptive_fill_function")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "adaptive_fill_function"
+            entry%doc = "Function to call to choose a fill prefix for a paragraph."//LF// &
+                        "A null value (`ignore') means the function has not determined the"//LF// &
+                        "fill prefix."
         case ("adaptive_fill_mode")
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_mode"
@@ -18851,6 +18953,90 @@ contains
                         "`description' (`crm_separator_string' and"//LF// &
                         "`crm_separator_description') are shown as part of the prompt.  See"//LF// &
                         "the user option `crm_prompt'."
+        case ("css_base_mode_hook")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_base_mode_hook"
+            entry%doc = "Hook run after entering `css_base_mode'."
+        case ("css_base_mode_map")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_base_mode_map"
+            entry%doc = "Keymap for `css_base_mode'."
+        case ("css_class_list_function")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_class_list_function"
+            entry%doc = "Called to provide completions of class names."//LF// &
+                        "This can be bound by buffers that are able to suggest class name"//LF// &
+                        "completions, such as HTML mode buffers."
+        case ("css_electric_keys")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_electric_keys"
+            entry%user_option = .true.
+
+            if (allocated(css_electric_keys)) then
+                entry%value = repr(css_electric_keys)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Self inserting keys which should trigger re-indentation."
+        case ("css_font_lock_keywords")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_font_lock_keywords"
+            entry%doc = "The Font Lock keywords of `css_mode'."
+        case ("css_fontify_colors")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_fontify_colors"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(css_fontify_colors%value)
+            entry%doc = "Whether CSS colors should be fontified using the color as the"//LF// &
+                        "background.  When true, a text representing CSS color will be"//LF// &
+                        "fontified such that its background is the color itself.  E.g.,"//LF// &
+                        "#ff0000 will be fontified with a red background."
+        case ("css_id_list_function")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_id_list_function"
+            entry%doc = "Called to provide completions of IDs."//LF// &
+                        "This can be bound by buffers that are able to suggest ID"//LF// &
+                        "completions, such as HTML mode buffers."
+        case ("css_indent_offset")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_indent_offset"
+            entry%user_option = .true.
+            entry%original = "4"
+            entry%value = repr(css_indent_offset%value)
+            entry%doc = "Basic size of one indentation step."
+        case ("css_lookup_url_format")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_lookup_url_format"
+            entry%user_option = .true.
+
+            if (allocated(css_lookup_url_format%value)) then
+                entry%value = repr(css_lookup_url_format%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Format for a URL where CSS documentation can be found."//LF// &
+                        "The format should include a single ""%s"" substitution."//LF// &
+                        "The name of the CSS property, @-id, pseudo-class, or pseudo-element"//LF// &
+                        "to look up will be substituted there."
+        case ("css_mode_hook")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_mode_hook"
+            entry%doc = "Hook run after entering `css_mode'."
+        case ("css_mode_map")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_mode_map"
+            entry%doc = "Keymap used in `css_mode'."
+        case ("css_mode_syntax_table")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_mode_syntax_table"
+            entry%doc = "Syntax table used in `css_mode'."
+        case ("css_smie_grammar")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_smie_grammar"
+            entry%doc = "The SMIE grammar of CSS mode."
         case ("current_minibuffer_command")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_minibuffer_command"
@@ -23051,6 +23237,179 @@ contains
                         ""//LF// &
                         "The optimum value is a little over the typical number of buffer"//LF// &
                         "characters which fit in a typical window."
+        case ("js_base_mode_hook")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_base_mode_hook"
+            entry%doc = "Hook run after entering `js_base_mode'."
+        case ("js_base_mode_map")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_base_mode_map"
+            entry%doc = "Keymap for `js_base_mode'."
+        case ("js_chain_indent")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_chain_indent"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(js_chain_indent%value)
+            entry%doc = "Use ""chained"" indentation."//LF// &
+                        "Chained indentation applies when the current line starts with "".""."//LF// &
+                        "If the previous expression also contains a ""."" at the same level,"//LF// &
+                        "then the "".""s will be lined up:"//LF// &
+                        ""//LF// &
+                        "    let x = svg.mumble()"//LF// &
+                        "               .chained;"
+        case ("js_curly_indent_offset")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_curly_indent_offset"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(js_curly_indent_offset%value)
+            entry%doc = "Number of additional spaces for indenting expressions in curly"//LF// &
+                        "braces.  The value must be no less than minus `js_indent_level'."
+        case ("js_enabled_frameworks")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_enabled_frameworks"
+            entry%user_option = .true.
+
+            if (allocated(js_enabled_frameworks)) then
+                entry%value = repr(js_enabled_frameworks)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Frameworks recognized by `js_mode'."//LF// &
+                        "To improve performance, you may turn off some frameworks you seldom"//LF// &
+                        "use, either globally or on a per-buffer basis."
+        case ("js_expr_indent_offset")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_expr_indent_offset"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(js_expr_indent_offset%value)
+            entry%doc = "Number of additional spaces for indenting continued expressions."//LF// &
+                        "The value must be no less than minus `js_indent_level'."
+        case ("js_flat_functions")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_flat_functions"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(js_flat_functions%value)
+            entry%doc = "Treat nested functions as top-level functions in `js_mode'."//LF// &
+                        "This applies to function movement, marking, and so on."
+        case ("js_indent_align_list_continuation")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_indent_align_list_continuation"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(js_indent_align_list_continuation%value)
+            entry%doc = "Align continuation of non-empty ([{ lines in `js_mode'."
+        case ("js_indent_first_init")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_indent_first_init"
+            entry%user_option = .true.
+            entry%original = "JS_INDENT_FIRST_INIT_NO"
+
+            select case (js_indent_first_init%value)
+            case (JS_INDENT_FIRST_INIT_NO)
+                entry%value = "JS_INDENT_FIRST_INIT_NO"
+            case (JS_INDENT_FIRST_INIT_YES)
+                entry%value = "JS_INDENT_FIRST_INIT_YES"
+            case (JS_INDENT_FIRST_INIT_DYNAMIC)
+                entry%value = "JS_INDENT_FIRST_INIT_DYNAMIC"
+            case default
+                entry%value = repr(js_indent_first_init%value)
+            end select
+
+            entry%doc = "True means specially indent the first variable declaration's"//LF// &
+                        "initializer.  Normally, the first declaration's initializer is"//LF// &
+                        "unindented, and subsequent declarations have their identifiers"//LF// &
+                        "aligned with it:"//LF// &
+                        ""//LF// &
+                        "    var o = {"//LF// &
+                        "        foo: 3"//LF// &
+                        "    };"//LF// &
+                        ""//LF// &
+                        "    var o = {"//LF// &
+                        "        foo: 3"//LF// &
+                        "    },"//LF// &
+                        "        bar = 2;"//LF// &
+                        ""//LF// &
+                        "If this option has the value JS_INDENT_FIRST_INIT_YES, indent the"//LF// &
+                        "first declaration's initializer by an additional level:"//LF// &
+                        ""//LF// &
+                        "    var o = {"//LF// &
+                        "            foo: 3"//LF// &
+                        "        };"//LF// &
+                        ""//LF// &
+                        "    var o = {"//LF// &
+                        "            foo: 3"//LF// &
+                        "        },"//LF// &
+                        "        bar = 2;"//LF// &
+                        ""//LF// &
+                        "If this option has the value JS_INDENT_FIRST_INIT_DYNAMIC, if there"//LF// &
+                        "is only one declaration, don't indent the first one's initializer;"//LF// &
+                        "otherwise, indent it."//LF// &
+                        ""//LF// &
+                        "    var o = {"//LF// &
+                        "        foo: 3"//LF// &
+                        "    };"//LF// &
+                        ""//LF// &
+                        "    var o = {"//LF// &
+                        "            foo: 3"//LF// &
+                        "        },"//LF// &
+                        "        bar = 2;"
+        case ("js_indent_level")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_indent_level"
+            entry%user_option = .true.
+            entry%original = "4"
+            entry%value = repr(js_indent_level%value)
+            entry%doc = "Number of spaces for each indentation step in `js_mode'."
+        case ("js_json_mode_hook")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_json_mode_hook"
+            entry%doc = "Hook run after entering `js_json_mode'."
+        case ("js_json_mode_map")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_json_mode_map"
+            entry%doc = "Keymap for `js_json_mode'."
+        case ("js_mode_hook")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_mode_hook"
+            entry%doc = "Hook run after entering `js_mode'."
+        case ("js_mode_map")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_mode_map"
+            entry%doc = "Keymap for `js_mode'."
+        case ("js_mode_syntax_table")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_mode_syntax_table"
+            entry%doc = "Syntax table for `js_mode'."
+        case ("js_paren_indent_offset")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_paren_indent_offset"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(js_paren_indent_offset%value)
+            entry%doc = "Number of additional spaces for indenting expressions in"//LF// &
+                        "parentheses.  The value must be no less than minus"//LF// &
+                        "`js_indent_level'."
+        case ("js_square_indent_offset")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_square_indent_offset"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(js_square_indent_offset%value)
+            entry%doc = "Number of additional spaces for indenting expressions in square"//LF// &
+                        "braces.  The value must be no less than minus `js_indent_level'."
+        case ("js_switch_indent_offset")
+            entry%file = "js_fm.f90"
+            entry%fortran = "js_switch_indent_offset"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(js_switch_indent_offset%value)
+            entry%doc = "Number of additional spaces for indenting the contents of a switch"//LF// &
+                        "block.  The value must not be negative."
         case ("kbd_macro_termination_hook")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "kbd_macro_termination_hook"
@@ -25672,6 +26031,18 @@ contains
                         "If false, an error condition occurs in scroll commands when no more scrolling is"//LF// &
                         "possible.  If true, they move point to the beginning or end of"//LF// &
                         "the buffer instead (and then an error condition occurs at the edge)."
+        case ("scss_mode_hook")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "scss_mode_hook"
+            entry%doc = "Hook run after entering `scss_mode'."
+        case ("scss_mode_map")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "scss_mode_map"
+            entry%doc = "Keymap for `scss_mode'."
+        case ("scss_mode_syntax_table")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "scss_mode_syntax_table"
+            entry%doc = "Syntax table used in `scss_mode'."
         case ("search_exit_option")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_exit_option"
@@ -28461,6 +28832,15 @@ contains
             kind = OPTION_REAL
         case ("crm_prompt")
             kind = OPTION_STRING
+        case ("css_fontify_colors")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("css_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("css_lookup_url_format")
+            kind = OPTION_STRING
+            setting = .true.
         case ("dabbrev_abbrev_char_regexp")
             kind = OPTION_STRING
         case ("dabbrev_abbrev_skip_leading_regexp")
@@ -28821,6 +29201,36 @@ contains
             kind = OPTION_LOGICAL
         case ("jit_lock_chunk_size")
             kind = OPTION_INTEGER
+        case ("js_chain_indent")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("js_curly_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("js_expr_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("js_flat_functions")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("js_indent_align_list_continuation")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("js_indent_first_init")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("js_indent_level")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("js_paren_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("js_square_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("js_switch_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
         case ("keyboard_coding_system")
             kind = OPTION_STRING
         case ("kill_read_only_ok")
@@ -29519,6 +29929,12 @@ contains
             end if
         case ("copy_directory_create_symlink")
             copy_directory_create_symlink = v
+        case ("css_fontify_colors")
+            if (local) then
+                call css_fontify_colors%set_local(v)
+            else
+                css_fontify_colors = v
+            end if
         case ("dabbrev_backward_only")
             dabbrev_backward_only = v
         case ("dabbrev_check_all_buffers")
@@ -29711,6 +30127,24 @@ contains
             insert_default_directory = v
         case ("isearch_lax_whitespace")
             isearch_lax_whitespace = v
+        case ("js_chain_indent")
+            if (local) then
+                call js_chain_indent%set_local(v)
+            else
+                js_chain_indent = v
+            end if
+        case ("js_flat_functions")
+            if (local) then
+                call js_flat_functions%set_local(v)
+            else
+                js_flat_functions = v
+            end if
+        case ("js_indent_align_list_continuation")
+            if (local) then
+                call js_indent_align_list_continuation%set_local(v)
+            else
+                js_indent_align_list_continuation = v
+            end if
         case ("kill_read_only_ok")
             kill_read_only_ok = v
         case ("kill_whole_line")
@@ -30115,6 +30549,12 @@ contains
             else
                 conf_javaprop_assignment_column = v
             end if
+        case ("css_indent_offset")
+            if (local) then
+                call css_indent_offset%set_local(v)
+            else
+                css_indent_offset = v
+            end if
         case ("dabbrev_limit")
             dabbrev_limit = v
         case ("executable_chmod")
@@ -30211,6 +30651,42 @@ contains
             info_fontify_maximum_menu_size = int(v)
         case ("jit_lock_chunk_size")
             jit_lock_chunk_size = v
+        case ("js_curly_indent_offset")
+            if (local) then
+                call js_curly_indent_offset%set_local(v)
+            else
+                js_curly_indent_offset = v
+            end if
+        case ("js_expr_indent_offset")
+            if (local) then
+                call js_expr_indent_offset%set_local(v)
+            else
+                js_expr_indent_offset = v
+            end if
+        case ("js_indent_level")
+            if (local) then
+                call js_indent_level%set_local(v)
+            else
+                js_indent_level = v
+            end if
+        case ("js_paren_indent_offset")
+            if (local) then
+                call js_paren_indent_offset%set_local(v)
+            else
+                js_paren_indent_offset = v
+            end if
+        case ("js_square_indent_offset")
+            if (local) then
+                call js_square_indent_offset%set_local(v)
+            else
+                js_square_indent_offset = v
+            end if
+        case ("js_switch_indent_offset")
+            if (local) then
+                call js_switch_indent_offset%set_local(v)
+            else
+                js_switch_indent_offset = v
+            end if
         case ("kill_ring_max")
             kill_ring_max = v
         case ("kmacro_ring_max")
@@ -30512,6 +30988,12 @@ contains
             completion_pcm_word_delimiters = v
         case ("crm_prompt")
             crm_prompt = v
+        case ("css_lookup_url_format")
+            if (local) then
+                call css_lookup_url_format%set_local(v)
+            else
+                css_lookup_url_format = v
+            end if
         case ("dabbrev_abbrev_char_regexp")
             dabbrev_abbrev_char_regexp = v
         case ("dabbrev_abbrev_skip_leading_regexp")
@@ -31638,6 +32120,29 @@ contains
                 info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_HIDE
             case ("INFO_HIDE_NOTE_REFERENCES_TAG")
                 info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_TAG
+            case default
+                ok = .false.
+            end select
+        case ("js_indent_first_init")
+            select case (constant)
+            case ("JS_INDENT_FIRST_INIT_NO")
+                if (local) then
+                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_NO)
+                else
+                    js_indent_first_init = JS_INDENT_FIRST_INIT_NO
+                end if
+            case ("JS_INDENT_FIRST_INIT_YES")
+                if (local) then
+                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_YES)
+                else
+                    js_indent_first_init = JS_INDENT_FIRST_INIT_YES
+                end if
+            case ("JS_INDENT_FIRST_INIT_DYNAMIC")
+                if (local) then
+                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_DYNAMIC)
+                else
+                    js_indent_first_init = JS_INDENT_FIRST_INIT_DYNAMIC
+                end if
             case default
                 ok = .false.
             end select

@@ -204,6 +204,41 @@ module fill_fm
     !> fill-paragraph-function (its value t is internal).
     type(fill_paragraph_function_type), public :: fill_paragraph_function
 
+    abstract interface
+        !> An `adaptive_fill_function': the fill prefix at point, with
+        !> `found' false for none.
+        subroutine adaptive_fill_proc(prefix, found)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: prefix
+            logical, intent(out) :: found
+        end subroutine adaptive_fill_proc
+    end interface
+
+    !> One buffer's `adaptive_fill_function'.
+    type :: adaptive_fill_entry_type
+        integer(int64) :: serial = 0
+        procedure(adaptive_fill_proc), pointer, nopass :: fn => null()
+    end type adaptive_fill_entry_type
+
+    !> The type of `adaptive_fill_function': a default `value' (assign
+    !> with `=>'; null is `ignore') and buffers' own (`set_local').
+    type, public :: adaptive_fill_function_type
+        procedure(adaptive_fill_proc), pointer, nopass :: value => null()
+        type(adaptive_fill_entry_type), allocatable :: entries(:)
+    contains
+        !> Make FN the current buffer's function (set_local).
+        procedure :: set_local => adaptive_fill_set_local
+        !> The current buffer's function (null for `ignore').
+        procedure :: get => adaptive_fill_get
+        !> Make the current buffer use the default again.
+        procedure :: kill_local => adaptive_fill_kill_local
+    end type adaptive_fill_function_type
+
+    !> Function to call to choose a fill prefix for a paragraph.
+    !> A null value (`ignore') means the function has not determined the
+    !> fill prefix.  Port of fill.el adaptive-fill-function.
+    type(adaptive_fill_function_type), public :: adaptive_fill_function
+
     !> True means paragraph filling will try to pay attention to comments.
     !> Port of fill.el fill-paragraph-handle-comment.
     logical, public :: fill_paragraph_handle_comment = .true.
@@ -469,13 +504,19 @@ contains
         character(len=:), allocatable, intent(out) :: str
         logical, intent(out) :: found
         type(status_type) :: st
+        procedure(adaptive_fill_proc), pointer :: fn
 
         str = ""
         found = .false.
-        if (.not. allocated(adaptive_fill_regexp)) return
-        if (.not. looking_at(adaptive_fill_regexp, st)) return
-        str = match_string(0)
-        found = .true.
+        fn => adaptive_fill_function%get()
+        if (associated(fn)) call fn(str, found)
+
+        if (.not. found) then
+            if (.not. allocated(adaptive_fill_regexp)) return
+            if (.not. looking_at(adaptive_fill_regexp, st)) return
+            str = match_string(0)
+            found = .true.
+        end if
 
         ! Death to insanely long prefixes.
         if (current_left_margin() + nchars(str) >= current_fill_column()) then
@@ -2068,10 +2109,83 @@ contains
         end do
     end subroutine fill_paragraph_kill_local
 
+    ! Not a port.
+    subroutine adaptive_fill_set_local(self, fn)
+        class(adaptive_fill_function_type), intent(inout) :: self
+        procedure(adaptive_fill_proc) :: fn
+        type(adaptive_fill_entry_type), allocatable :: grown(:)
+        integer :: i, n
+
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+
+        ! Reuse the entry of a dead buffer.
+        do i = 1, size(self%entries)
+            if (.not. buffer_serial_live(self%entries(i)%serial)) then
+                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+
+        n = size(self%entries)
+        allocate (grown(n + 1))
+
+        do i = 1, n
+            grown(i)%serial = self%entries(i)%serial
+            grown(i)%fn => self%entries(i)%fn
+        end do
+
+        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%fn => fn
+        call move_alloc(grown, self%entries)
+    end subroutine adaptive_fill_set_local
+
+    ! Not a port.
+    function adaptive_fill_get(self) result(fn)
+        class(adaptive_fill_function_type), intent(in) :: self
+        procedure(adaptive_fill_proc), pointer :: fn
+        integer :: i
+
+        fn => self%value
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+            end if
+        end do
+    end function adaptive_fill_get
+
+    ! Not a port.
+    subroutine adaptive_fill_kill_local(self)
+        class(adaptive_fill_function_type), intent(inout) :: self
+        integer :: i
+
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%serial = 0
+                self%entries(i)%fn => null()
+            end if
+        end do
+    end subroutine adaptive_fill_kill_local
+
     !> kill-all-local-variables: forget the current buffer's
     !> `fill_paragraph_function'.  Not a port.
     subroutine kill_fill_locals()
         call fill_paragraph_function%kill_local()
+        call adaptive_fill_function%kill_local()
     end subroutine kill_fill_locals
 
     !> Set up fill.el's variables and commands.  Not a port: upstream

@@ -53,6 +53,8 @@ module modes_fm
         type(major_mode_type) :: conf_unix_mode
         type(major_mode_type) :: conf_windows_mode
         type(major_mode_type) :: conf_xdefaults_mode
+        type(major_mode_type) :: css_base_mode
+        type(major_mode_type) :: css_mode
         type(major_mode_type) :: diff_mode
         type(major_mode_type) :: dired_mode
         type(major_mode_type) :: edit_abbrevs_mode
@@ -62,6 +64,9 @@ module modes_fm
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: ibuffer_mode
         type(major_mode_type) :: info_mode
+        type(major_mode_type) :: js_base_mode
+        type(major_mode_type) :: js_json_mode
+        type(major_mode_type) :: js_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
         type(major_mode_type) :: makefile_automake_mode
@@ -77,6 +82,7 @@ module modes_fm
         type(major_mode_type) :: prog_mode
         type(major_mode_type) :: python_base_mode
         type(major_mode_type) :: python_mode
+        type(major_mode_type) :: scss_mode
         type(major_mode_type) :: sh_base_mode
         type(major_mode_type) :: sh_mode
         type(major_mode_type) :: shell_command_mode
