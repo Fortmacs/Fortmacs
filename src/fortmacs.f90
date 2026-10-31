@@ -611,6 +611,10 @@ module fortmacs
                             conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
                             conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
                             conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
+    use lisp_cmds_fm, only: defun_prompt_regexp, parens_require_spaces, end_of_defun_moves_to_eol, &
+                            narrow_to_defun_include_comments, insert_pair_alist, insert_pair_type, delete_pair_blink_delay, &
+                            delete_pair_push_mark, beginning_of_defun_function, end_of_defun_function
+    use simple_fm, only: widen_automatically
     use make_mode_fm, only: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
                             makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
                             makefile_backslash_align, makefile_pickup_everything_picks_up_filenames_p, &
@@ -644,12 +648,13 @@ module fortmacs
                             sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
                             sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS
+                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_alist, &
+                            sh_style_type, sh_var_list
     use executable_fm, only: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
                              executable_prefix_env, executable_chmod, executable_self_display, &
                              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
                              EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
-    use files_fm, only: before_save_hook, after_save_hook
+    use files_fm, only: before_save_hook, after_save_hook, write_file_functions
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment
     implicit none(type, external)
     private
@@ -1039,6 +1044,10 @@ module fortmacs
               conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
               conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
               conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
+    public :: defun_prompt_regexp, parens_require_spaces, end_of_defun_moves_to_eol, &
+              narrow_to_defun_include_comments, insert_pair_alist, insert_pair_type, delete_pair_blink_delay, &
+              delete_pair_push_mark, beginning_of_defun_function, end_of_defun_function
+    public :: widen_automatically
     public :: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
               makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
               makefile_backslash_align, makefile_pickup_everything_picks_up_filenames_p, &
@@ -1072,12 +1081,13 @@ module fortmacs
               sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
               sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
               SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS
+              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_alist, &
+              sh_style_type, sh_var_list
     public :: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
               executable_prefix_env, executable_chmod, executable_self_display, &
               executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
               EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
-    public :: before_save_hook, after_save_hook
+    public :: before_save_hook, after_save_hook, write_file_functions
     public :: fill_paragraph_function, fill_paragraph_handle_comment
     public :: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, help_event_list, &
               inhibit_interaction, num_nonmacro_input_events, read_char, read_char_exclusive, read_event, &
