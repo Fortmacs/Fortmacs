@@ -43,8 +43,8 @@ module isearch_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_INVALID_REGEXP, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, error_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_fixnum, fixnump, xfixnum, stringp, xstring, make_keymap_ref, &
-                       list_length, list_elt, list_elements, make_list
+    use lisp_fm, only: value_type, make_fixnum, xfixnum, xstring, make_keymap_ref, &
+                       list_length, list_elt, list_elements, make_list, vtag, V_INTEGER, V_STRING
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
@@ -679,7 +679,7 @@ contains
             search_ring_yank_pointer = yank_pointer
         end if
 
-        if (stringp(ring(yank_pointer + 1))) then
+        if (vtag(ring(yank_pointer + 1)) == V_STRING) then
             isearch_string = xstring(ring(yank_pointer + 1))
             isearch_message = isearch_string
         end if
@@ -1058,7 +1058,7 @@ contains
         if (allocated(this_command_keys)) then
             if (size(this_command_keys) > 0) then
                 call lookup_key(make_keymap_ref(isearch_mode_map), this_command_keys, binding, status)
-                if (status%ok() .and. .not. fixnump(binding) .and. is_command(binding)) return
+                if (status%ok() .and. vtag(binding) /= V_INTEGER .and. is_command(binding)) return
             end if
         end if
 
@@ -1584,7 +1584,7 @@ contains
                 if (size(ring) == 0) then
                     isearch_error = "No previous search string"
                 else
-                    if (stringp(ring(1))) isearch_string = xstring(ring(1))
+                    if (vtag(ring(1)) == V_STRING) isearch_string = xstring(ring(1))
                     isearch_message = isearch_string
                     isearch_case_fold_search = isearch_last_case_fold_search
                     ! After taking the last element, adjust ring to
@@ -2291,7 +2291,7 @@ contains
         call read_event(ev, have, status)
         if (.not. status%ok() .or. .not. have) return
         c = -1
-        if (fixnump(ev)) c = xfixnum(ev)
+        if (vtag(ev) == V_INTEGER) c = xfixnum(ev)
 
         if (c < 0 .or. c > MAX_CHAR) then
             call set_error(status, FM_USER_ERROR, "Not a valid character")
@@ -2360,7 +2360,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. fixnump(last_command_event)) return
+        if (vtag(last_command_event) /= V_INTEGER) return
         call isearch_printing_char(xfixnum(last_command_event), arg_p())
     end subroutine cmd_isearch_printing_char
 

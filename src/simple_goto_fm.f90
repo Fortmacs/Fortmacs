@@ -31,6 +31,7 @@
 !> Deferred: `goto_line_history_local' (buffer-local minibuffer
 !> histories), `selective_display'.
 submodule(simple_fm) simple_goto_fm
+    use lisp_fm, only: vtag, V_ARRAY
     use editfns_fm, only: point_min, widen, narrow_to_region, is_buffer_narrowed, interactive_region, region_beginning, &
                           region_end, inhibit_field_text_motion
     use buffer_fm, only: current_buffer
@@ -57,7 +58,7 @@ contains
         status = status_type()
         line = 1
 
-        if (allocated(current_prefix_arg%a) .and. .not. consp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a) .and. vtag(current_prefix_arg) /= V_ARRAY) then
             line = prefix_numeric_value(current_prefix_arg)
             return
         end if
@@ -69,7 +70,7 @@ contains
         ! Decide if we're switching buffers.
         buffer_prompt = ""
 
-        if (consp(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_ARRAY) then
             buffer = other_buffer(current_buffer(), .true.)
             if (buffer%index /= 0) buffer_prompt = " in "//buffers(buffer%index)%name
         end if
@@ -203,7 +204,7 @@ contains
 
         status = status_type()
 
-        if (allocated(current_prefix_arg%a) .and. .not. consp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a) .and. vtag(current_prefix_arg) /= V_ARRAY) then
             n = prefix_numeric_value(current_prefix_arg)
             return
         end if

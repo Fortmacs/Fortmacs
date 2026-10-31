@@ -48,8 +48,8 @@ module ibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT, format_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, fixnump, xfixnum, make_fixnum, stringp, xstring, make_string, t_value, &
-                       list, consp
+    use lisp_fm, only: value_type, xfixnum, make_fixnum, xstring, make_string, t_value, &
+                       list, vtag, V_INTEGER, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use eval_fm, only: hook_type, change_major_mode_hook
     use data_fm, only: add_local_variables_killer
@@ -1134,7 +1134,7 @@ contains
         s = ""
         if (pos < point_min() .or. pos >= point_max()) return
         call get_text_property(pos, sym(name), v, st)
-        if (st%ok() .and. stringp(v)) s = xstring(v)
+        if (st%ok() .and. vtag(v) == V_STRING) s = xstring(v)
     end function string_prop
 
     !> Whether there is a string text property NAME at POS.  Not a port.
@@ -1147,7 +1147,7 @@ contains
         has_string_prop = .false.
         if (pos < point_min() .or. pos >= point_max()) return
         call get_text_property(pos, sym(name), v, st)
-        has_string_prop = st%ok() .and. stringp(v)
+        has_string_prop = st%ok() .and. vtag(v) == V_STRING
     end function has_string_prop
 
     !> The serial number of the buffer of the line at POS (0 for none).
@@ -1160,7 +1160,7 @@ contains
         serial = 0
         if (pos < point_min() .or. pos >= point_max()) return
         call get_text_property(pos, sym("ibuffer_properties"), v, st)
-        if (st%ok() .and. fixnump(v)) serial = xfixnum(v)
+        if (st%ok() .and. vtag(v) == V_INTEGER) serial = xfixnum(v)
     end function line_serial
 
     !> The live buffer with serial number SERIAL (the null handle for
@@ -1191,7 +1191,7 @@ contains
         pos = pos_bol()
         if (pos < point_min() .or. pos >= point_max()) return
         call get_text_property(pos, sym("ibuffer_mark"), v, st)
-        if (st%ok() .and. fixnump(v)) mark = achar(xfixnum(v))
+        if (st%ok() .and. vtag(v) == V_INTEGER) mark = achar(xfixnum(v))
     end function ibuffer_current_mark
 
     !> Return the buffer on the current line (the null handle for none or
@@ -2106,9 +2106,9 @@ contains
         type(status_type), intent(out) :: status
 
         ! (integerp ARG): a numeric prefix argument, not C-u.
-        if (fixnump(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_INTEGER) then
             call ibuffer_do_toggle_read_only(status, xfixnum(current_prefix_arg))
-        else if (allocated(current_prefix_arg%a) .and. .not. consp(current_prefix_arg)) then
+        else if (allocated(current_prefix_arg%a) .and. vtag(current_prefix_arg) /= V_ARRAY) then
             call ibuffer_do_toggle_read_only(status, prefix_numeric_value(current_prefix_arg))
         else
             call ibuffer_do_toggle_read_only(status)
@@ -5021,7 +5021,7 @@ contains
 
         if (.not. have) then
             call set_error(status, FM_QUIT)
-        else if (.not. fixnump(ev)) then
+        else if (vtag(ev) /= V_INTEGER) then
             call set_error(status, FM_GENERIC_ERROR, "Non-character input-event")
         else if (xfixnum(ev) == 7) then
             call set_error(status, FM_QUIT)

@@ -33,8 +33,8 @@ module callint_fm
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: value_type, V_ARRAY, V_STRING, nsymbols, vtag, &
-                       fixnump, symbolp, consp, xfixnum, xsymbol, symbols, &
-                       list_elt
+                       xfixnum, xsymbol, symbols, &
+                       list_elt, V_NULL, V_INTEGER, V_NAME
     use lread_fm, only: intern, sym
     use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of
     use commands_fm, only: builtin_command, BUILTIN_COMMAND_NAMES
@@ -99,7 +99,7 @@ contains
         type(command_type), pointer :: p
 
         p => null()
-        if (.not. symbolp(v) .or. .not. allocated(v%a)) return
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL) .or. .not. allocated(v%a)) return
         p => find_command(symbols(xsymbol(v))%name)
     end function symbol_command
 
@@ -210,7 +210,7 @@ contains
         end if
 
         if (.not. associated(p)) then
-            if (symbolp(cmd)) then
+            if ((vtag(cmd) == V_NAME .or. vtag(cmd) == V_NULL)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_command, "//symbols(xsymbol(cmd))%name)
             else
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_command")
@@ -235,7 +235,7 @@ contains
         p => symbol_command(fn)
 
         if (.not. associated(p)) then
-            if (symbolp(fn)) then
+            if ((vtag(fn) == V_NAME .or. vtag(fn) == V_NULL)) then
                 call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(fn))%name)
             else
                 call set_error(status, FM_GENERIC_ERROR, "Invalid function")
@@ -258,10 +258,10 @@ contains
 
         if (value_eq(raw, sym("-"))) then
             n = -1
-        else if (consp(raw)) then
+        else if (vtag(raw) == V_ARRAY) then
             head = list_elt(raw, 1_int64)
-            if (fixnump(head)) n = xfixnum(head)
-        else if (fixnump(raw)) then
+            if (vtag(head) == V_INTEGER) n = xfixnum(head)
+        else if (vtag(raw) == V_INTEGER) then
             n = xfixnum(raw)
         end if
     end function prefix_numeric_value

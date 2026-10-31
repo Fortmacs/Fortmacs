@@ -51,7 +51,7 @@
 module eval_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
-    use lisp_fm, only: value_type, command_proc, symbolp, symbols, xsymbol
+    use lisp_fm, only: value_type, command_proc, symbols, xsymbol, vtag, V_NULL, V_NAME
     use handle_fm, only: handle_type
     use callint_fm, only: funcall, current_prefix_arg
     use buffer_fm, only: buffers, cur
@@ -1720,7 +1720,7 @@ contains
 
         p => null()
 
-        if (.not. symbolp(fn) .or. .not. allocated(fn%a)) then
+        if ((vtag(fn) /= V_NAME .and. vtag(fn) /= V_NULL) .or. .not. allocated(fn%a)) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid function")
             return
         end if

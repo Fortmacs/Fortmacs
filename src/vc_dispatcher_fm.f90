@@ -40,8 +40,8 @@ module vc_dispatcher_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, make_list, make_buffer_ref, fixnump, xfixnum, &
-                       stringp, xstring
+    use lisp_fm, only: value_type, t_value, make_string, make_list, make_buffer_ref, xfixnum, &
+                       xstring, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, kill_all_local_variables
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
@@ -984,10 +984,10 @@ contains
 
             if (status%ok()) then
                 code = 0
-                if (fixnump(result)) code = int(xfixnum(result))
+                if (vtag(result) == V_INTEGER) code = int(xfixnum(result))
                 if (present(exit_status)) exit_status = code
 
-                if (okstatus /= VC_OKSTATUS_ANY .and. (.not. fixnump(result) .or. &
+                if (okstatus /= VC_OKSTATUS_ANY .and. (vtag(result) /= V_INTEGER .or. &
                                                        (okstatus >= 0 .and. okstatus < code))) then
                     if (buffers(cur)%name(1:min(1, len(buffers(cur)%name))) /= " ") then
                         call pop_to_buffer(current_buffer(), st)
@@ -995,7 +995,7 @@ contains
                         call shrink_window_if_larger_than_buffer()
                     end if
 
-                    if (fixnump(result)) then
+                    if (vtag(result) == V_INTEGER) then
                         desc = "status "//itoa(code)
                     else
                         desc = xstring(result)

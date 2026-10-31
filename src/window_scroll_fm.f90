@@ -28,10 +28,9 @@
 !> submodule.  Scrolling is line based, as upstream on text terminals,
 !> with `scroll_margin' 0 and `scroll_preserve_screen_position' nil.
 submodule(window_fm) window_scroll_fm
-    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
-    use lisp_fm, only: consp, make_fixnum
+    use lisp_fm, only: make_fixnum, value_type, vtag, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, buffer_list
@@ -240,7 +239,7 @@ contains
             ! recenter-redisplay is `tty': erase and redraw the frame.
             if (redisplay) selected_frame%garbaged = .true.
             center_p = .true.
-        else if (consp(arg)) then
+        else if (vtag(arg) == V_ARRAY) then
             ! Just C-u.
             center_p = .true.
         else

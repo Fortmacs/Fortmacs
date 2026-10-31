@@ -55,7 +55,7 @@ module kmacro_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, consp, fixnump, symbolp, xfixnum, make_fixnum, make_list, list_elt
+    use lisp_fm, only: value_type, xfixnum, make_fixnum, make_list, list_elt, vtag, V_INTEGER, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, free_keymap
@@ -246,7 +246,7 @@ contains
         call ensure_formats()
         call take_initial_counter_value()
 
-        if (consp(arg)) then
+        if (vtag(arg) == V_ARRAY) then
             call format_integer(kmacro_counter_format, kmacro_last_counter, text, status)
             if (status%ok()) call insert(text, status)
         else
@@ -318,7 +318,7 @@ contains
         else
             kmacro_last_counter = kmacro_counter
 
-            if (consp(current_prefix_arg)) then
+            if (vtag(current_prefix_arg) == V_ARRAY) then
                 kmacro_counter = kmacro_counter_value_start
             else
                 kmacro_counter = arg
@@ -341,7 +341,7 @@ contains
         last = kmacro_last_counter
         kmacro_last_counter = kmacro_counter
 
-        if (consp(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_ARRAY) then
             kmacro_counter = last
         else
             kmacro_counter = kmacro_counter + arg
@@ -1057,7 +1057,7 @@ contains
             return
         end if
 
-        append = consp(arg)
+        append = vtag(arg) == V_ARRAY
 
         if (.not. append) then
             if (allocated(last_kbd_macro)) call kmacro_push_ring()
@@ -1195,14 +1195,14 @@ contains
         end if
 
         a = arg
-        if (consp(a)) a = list_elt(a, 1_int64)
+        if (vtag(a) == V_ARRAY) a = list_elt(a, 1_int64)
 
-        if (.not. (.not. allocated(a%a) .or. fixnump(a))) then
+        if (.not. (.not. allocated(a%a) .or. vtag(a) == V_INTEGER)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, -")
             return
         end if
 
-        if (fixnump(a)) then
+        if (vtag(a) == V_INTEGER) then
             if (xfixnum(a) <= 0) return
         end if
 
@@ -1221,7 +1221,7 @@ contains
         if (.not. is_current_message()) then
             times = ""
 
-            if (kmacro_call_repeat_with_arg .and. fixnump(a)) then
+            if (kmacro_call_repeat_with_arg .and. vtag(a) == V_INTEGER) then
                 if (xfixnum(a) > 1) times = " "//int_text(xfixnum(a))//" times"
             end if
 
@@ -1329,7 +1329,7 @@ contains
         else if (value_eq(this_command, sym("kmacro_view_macro")) .and. kmacro_view_last_item > 0) then
             ! We are in repeat mode!
             if (kmacro_view_last_item <= ring_size()) call call_ring_element(kmacro_view_last_item, arg, status)
-        else if (consp(arg)) then
+        else if (vtag(arg) == V_ARRAY) then
             call kmacro_call_ring_2nd(make_fixnum(1_int64), status)
         else
             call kmacro_call_macro(arg, status, nr)

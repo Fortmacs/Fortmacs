@@ -47,8 +47,8 @@
 module xfaces_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, symbols, symbolp, stringp, consp, fixnump, xsymbol, xstring, &
-                       xfixnum, list_elements, windowp, xhandle
+    use lisp_fm, only: value_type, symbols, xsymbol, xstring, &
+                       xfixnum, list_elements, xhandle, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_WINDOW
     use lread_fm, only: sym
     use dispextern_fm, only: face_type, FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FG_COLOR, &
                              FACE_TTY_DEFAULT_BG_COLOR, FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
@@ -648,7 +648,7 @@ contains
 
         if (.not. allocated(face_ref%a)) return
 
-        if (consp(face_ref)) then
+        if (vtag(face_ref) == V_ARRAY) then
             call list_elements(face_ref, elts)
 
             if (keywordp(elts(1))) then
@@ -668,7 +668,7 @@ contains
             return
         end if
 
-        if (symbolp(face_ref)) then
+        if ((vtag(face_ref) == V_NAME .or. vtag(face_ref) == V_NULL)) then
             ! FACE_REF ought to be a face name.
             call merge_named_face(symbols(xsymbol(face_ref))%name, to, d + 1, filter, ok)
             return
@@ -683,7 +683,7 @@ contains
         type(value_type), intent(in) :: v
 
         keywordp = .false.
-        if (.not. symbolp(v)) return
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) return
 
         associate (name => symbols(xsymbol(v))%name)
             if (len(name) > 0) keywordp = name(1:1) == ":"
@@ -696,7 +696,7 @@ contains
         character(len=*), intent(in) :: name
 
         is_symbol = .false.
-        if (symbolp(v)) is_symbol = symbols(xsymbol(v))%name == name
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) is_symbol = symbols(xsymbol(v))%name == name
     end function is_symbol
 
     !> The name of symbol V, or "" if V is not a symbol.  Not a port.
@@ -705,7 +705,7 @@ contains
         character(len=:), allocatable :: name
 
         name = ""
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function symbol_name
 
     !> Merge the property list ELTS (keyword, value, ...) of a face
@@ -788,13 +788,13 @@ contains
 
         select case (keyword)
         case (":family")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%family = xstring(value)
             else
                 err = .true.
             end if
         case (":foundry")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%foundry = xstring(value)
             else
                 err = .true.
@@ -808,7 +808,7 @@ contains
             end if
         case (":height")
             ! An absolute height (a relative one is a float).
-            if (fixnump(value)) then
+            if (vtag(value) == V_INTEGER) then
                 to%height = int(xfixnum(value))
             else
                 err = .true.
@@ -832,9 +832,9 @@ contains
                 to%underline = .false.
             else if (is_symbol(value, "t")) then
                 to%underline = .true.
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%underline = xstring(value)
-            else if (consp(value)) then
+            else if (vtag(value) == V_ARRAY) then
                 call underline_from_plist(value, to)
             else
                 err = .true.
@@ -844,7 +844,7 @@ contains
                 to%overline = .false.
             else if (is_symbol(value, "t")) then
                 to%overline = .true.
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%overline = xstring(value)
             else
                 err = .true.
@@ -854,7 +854,7 @@ contains
                 to%strike_through = .false.
             else if (is_symbol(value, "t")) then
                 to%strike_through = .true.
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%strike_through = xstring(value)
             else
                 err = .true.
@@ -864,18 +864,18 @@ contains
                 to%box = .false.
             else if (is_symbol(value, "t")) then
                 to%box = .true.
-            else if (fixnump(value)) then
+            else if (vtag(value) == V_INTEGER) then
                 if (xfixnum(value) /= 0) then
                     to%box = .true.
                     to%box%line_width = int(xfixnum(value))
                 else
                     err = .true.
                 end if
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%box = .true.
                 to%box%state = FACE_COLOR
                 to%box%color = xstring(value)
-            else if (consp(value)) then
+            else if (vtag(value) == V_ARRAY) then
                 ! A box property list: drawn on window systems only.
                 to%box = .true.
                 to%box%state = FACE_PLIST
@@ -891,19 +891,19 @@ contains
                 err = .true.
             end if
         case (":foreground")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%foreground = xstring(value)
             else
                 err = .true.
             end if
         case (":distant_foreground")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%distant_foreground = xstring(value)
             else
                 err = .true.
             end if
         case (":background")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%background = xstring(value)
             else
                 err = .true.
@@ -944,7 +944,7 @@ contains
         do while (k + 1 <= size(elts))
             select case (symbol_name(elts(k)))
             case (":color")
-                if (stringp(elts(k + 1))) then
+                if (vtag(elts(k + 1)) == V_STRING) then
                     to%underline%color = xstring(elts(k + 1))
                 else if (is_symbol(elts(k + 1), "foreground_color")) then
                     to%underline%color = ""
@@ -1209,7 +1209,7 @@ contains
             do k = 1, size(overlay_vec)
                 owner = overlay_get(overlay_vec(k), "window")
 
-                if (windowp(owner)) then
+                if (vtag(owner) == V_WINDOW) then
                     h = xhandle(owner)
                     if (h%index /= window%index .or. h%generation /= window%generation) cycle
                 else if (allocated(owner%a)) then

@@ -24,12 +24,11 @@
 !> default is `eq' (data_fm:value_eq), as upstream.
 module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use lisp_fm, only: V_NULL
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
     use print_fm, only: fortran_string
     use character_fm, only: multibyte_chars_in_text, string_char_and_length
     use casetab_fm, only: upcase
-    use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
+    use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, &
                        make_list, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                        v_string, V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol
     use lread_fm, only: ensure_obarray
@@ -591,7 +590,7 @@ contains
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k, n
 
-        if (.not. listp(plist)) then
+        if ((vtag(plist) /= V_ARRAY .and. vtag(plist) /= V_NULL)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
             return
         end if

@@ -48,7 +48,8 @@ module font_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list, make_string
+    use lisp_fm, only: value_type, t_value, list, symbols, xsymbol, list_elements, make_list, make_string, vtag, &
+                       V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified
@@ -1368,7 +1369,7 @@ contains
 
         ! A single face (a plist of face attributes, or a name) or a list
         ! of faces.
-        if (consp(value) .and. .not. keyword_head(value)) then
+        if (vtag(value) == V_ARRAY .and. .not. keyword_head(value)) then
             call list_elements(value, val)
         else
             allocate (val(1))
@@ -1384,11 +1385,11 @@ contains
             call get_text_property(start, prop, prev, status)
             if (.not. status%ok()) return
             ! Canonicalize old forms of face property.
-            if (consp(prev) .and. keyword_head(prev)) prev = list(prev)
+            if (vtag(prev) == V_ARRAY .and. keyword_head(prev)) prev = list(prev)
 
             if (.not. allocated(prev%a)) then
                 allocate (prev_items(0))
-            else if (consp(prev)) then
+            else if (vtag(prev) == V_ARRAY) then
                 call list_elements(prev, prev_items)
             else
                 allocate (prev_items(1))
@@ -1415,9 +1416,9 @@ contains
         type(value_type), allocatable :: elts(:)
 
         keyword_head = .false.
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
-        if (.not. symbolp(elts(1))) return
+        if ((vtag(elts(1)) /= V_NAME .and. vtag(elts(1)) /= V_NULL)) return
 
         associate (name => symbols(xsymbol(elts(1)))%name)
             if (len(name) > 0) keyword_head = name(1:1) == ":"
@@ -1494,7 +1495,7 @@ contains
             if (.not. status%ok()) return
             if (.not. found) next = end
             call get_text_property(start, prop, prev, status)
-            atom = .not. consp(prev)
+            atom = vtag(prev) /= V_ARRAY
             if (.not. atom) atom = keyword_head(prev) .or. color_head(prev)
 
             if (atom) then
@@ -1541,7 +1542,7 @@ contains
             color_head = .false.
             call list_elements(v, e)
             if (size(e) == 0) return
-            if (.not. symbolp(e(1))) return
+            if ((vtag(e(1)) /= V_NAME .and. vtag(e(1)) /= V_NULL)) return
             color_head = symbols(xsymbol(e(1)))%name == "foreground_color" .or. &
                          symbols(xsymbol(e(1)))%name == "background_color"
         end function color_head

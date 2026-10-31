@@ -47,7 +47,7 @@ module fileio_fm
     use insdel_fm, only: insert, del_range, del_range_byte, inhibit_modification_hooks
     use editfns_fm, only: point, goto_char, validate_region, point_marker
     use data_fm, only: default_value
-    use lisp_fm, only: value_type, stringp, xstring
+    use lisp_fm, only: value_type, xstring, vtag, V_STRING
     use lread_fm, only: sym
     use search_fm, only: string_match, case_fold_search
     use coding_fm, only: coding_system_for_read, coding_system_for_write, last_coding_system_used, &
@@ -1939,7 +1939,7 @@ contains
             if (.not. using_default_coding) then
                 call default_value(sym("buffer_file_coding_system"), v, vst)
                 dflt = ""
-                if (stringp(v)) dflt = xstring(v)
+                if (vtag(v) == V_STRING) dflt = xstring(v)
                 if (len(dflt) > 0) val = coding_inherit_eol_type(val, dflt)
             end if
 

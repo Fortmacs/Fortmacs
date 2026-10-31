@@ -45,8 +45,8 @@ module tabulated_list_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_fixnum, make_list, stringp, fixnump, xstring, xfixnum, &
-                       t_value, string_intervals
+    use lisp_fm, only: value_type, make_string, make_fixnum, make_list, xstring, xfixnum, &
+                       t_value, string_intervals, vtag, V_INTEGER, V_STRING
     use lread_fm, only: sym
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type
@@ -466,7 +466,7 @@ contains
         if (present(pos)) p = pos
         if (p < point_min() .or. p >= point_max()) return
         call get_text_property(p, sym("tabulated_list_id"), v, st)
-        if (st%ok() .and. stringp(v)) id = xstring(v)
+        if (st%ok() .and. vtag(v) == V_STRING) id = xstring(v)
     end function tabulated_list_get_id
 
     !> Return in ENTRY the Tabulated List entry at POS; FOUND false if
@@ -499,7 +499,7 @@ contains
         if (present(pos)) p = pos
         if (p < point_min() .or. p >= point_max()) return
         call get_text_property(p, sym("tabulated_list_entry"), v, st)
-        if (.not. st%ok() .or. .not. fixnump(v)) return
+        if (.not. st%ok() .or. vtag(v) /= V_INTEGER) return
         i = local_index(.false.)
         if (i == 0) return
         if (.not. allocated(locals(i)%entries)) return
@@ -1337,7 +1337,7 @@ contains
         call get_text_property(pos, sym("tabulated_list_entry"), entry_prop, st)
         call get_text_property(pos, sym("tabulated_list_column_name"), v, st)
         found = .false.
-        if (stringp(v)) found = same(xstring(v), name)
+        if (vtag(v) == V_STRING) found = same(xstring(v), name)
 
         do while (.not. found)
             call next_single_property_change(pos, sym("tabulated_list_column_name"), next, found, st, eol)
@@ -1346,7 +1346,7 @@ contains
             found = .false.
             if (pos >= eol) exit
             call get_text_property(pos, sym("tabulated_list_column_name"), v, st)
-            if (stringp(v)) found = same(xstring(v), name)
+            if (vtag(v) == V_STRING) found = same(xstring(v), name)
         end do
 
         status = status_type()
@@ -1446,7 +1446,7 @@ contains
             name = format(n + 1)%name
         else
             call get_text_property(point(), sym("tabulated_list_column_name"), v, st)
-            if (stringp(v)) name = xstring(v)
+            if (vtag(v) == V_STRING) name = xstring(v)
         end if
 
         c = 0

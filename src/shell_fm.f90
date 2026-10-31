@@ -50,7 +50,7 @@ module shell_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, consp, stringp, xstring
+    use lisp_fm, only: value_type, xstring, vtag, V_NULL, V_NAME
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, kill_buffer, &
@@ -513,12 +513,12 @@ contains
 
     ! Not a port.
     logical function symbol_is(v, name)
-        use lisp_fm, only: symbolp, symbols, xsymbol
+        use lisp_fm, only: symbols, xsymbol
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
 
         symbol_is = .false.
-        if (.not. symbolp(v)) return
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) return
         if (.not. allocated(v%a)) return
         symbol_is = symbols(xsymbol(v))%name == name
     end function symbol_is

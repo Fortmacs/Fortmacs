@@ -40,8 +40,8 @@ module minibuf_fm
     use handle_fm, only: handle_type, null_handle
     use eval_fm, only: hook_type
     use lisp_fm, only: value_type, t_value, list, make_string, make_list, list_elements, make_fixnum, &
-                       list_length, list_elt, fixnump, xfixnum, make_symbol_ref, stringp, xstring, symbolp, &
-                       xsymbol, symbols, nsymbols, V_ARRAY, vtag
+                       list_length, list_elt, xfixnum, make_symbol_ref, xstring, &
+                       xsymbol, symbols, nsymbols, V_ARRAY, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use search_fm, only: string_match, match_end, regexp_quote
@@ -739,9 +739,9 @@ contains
             thiscar = elts(k)
             if (vtag(elts(k)) == V_ARRAY) thiscar = list_elt(elts(k), 1_int64)
 
-            if (symbolp(thiscar)) then
+            if ((vtag(thiscar) == V_NAME .or. vtag(thiscar) == V_NULL)) then
                 s = symbols(xsymbol(thiscar))%name
-            else if (stringp(thiscar)) then
+            else if (vtag(thiscar) == V_STRING) then
                 s = xstring(thiscar)
             else
                 cycle
@@ -862,9 +862,9 @@ contains
 
             ok(k) = .true.
 
-            if (stringp(eltstring)) then
+            if (vtag(eltstring) == V_STRING) then
                 names(k)%s = xstring(eltstring)
-            else if (symbolp(eltstring)) then
+            else if ((vtag(eltstring) == V_NAME .or. vtag(eltstring) == V_NULL)) then
                 names(k)%s = symbols(xsymbol(eltstring))%name
             else
                 ok(k) = .false.
@@ -1262,7 +1262,7 @@ contains
             call try_completion(ustring, inner, completion, status, predicate)
             if (.not. status%ok()) return
 
-            if (.not. stringp(completion)) then
+            if (vtag(completion) /= V_STRING) then
                 result = completion
             else
                 call twq_try(table, string, ustring, xstring(completion), 0_int64, qstring, qpoint)
@@ -1293,8 +1293,8 @@ contains
         bend = schars(suffix)
         call inner%fn(string, COMPLETE_BOUNDARIES, boundaries, status, predicate, suffix)
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
-        if (fixnump(list_elt(boundaries, 1_int64))) bstart = xfixnum(list_elt(boundaries, 1_int64))
-        if (fixnump(list_elt(boundaries, 2_int64))) bend = xfixnum(list_elt(boundaries, 2_int64))
+        if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
+        if (vtag(list_elt(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(boundaries, 2_int64))
     end subroutine inner_boundaries
 
     ! Whether PREFIX is a prefix of STRING (string-prefix-p).  Not a port.
@@ -1402,7 +1402,7 @@ contains
         prefix_table = completion_list_table(make_list(quoted))
         call try_completion("", prefix_table, tried, st)
 
-        if (stringp(tried)) then
+        if (vtag(tried) == V_STRING) then
             prefix = xstring(tried)
         else
             prefix = substring(ustring, boundary)
@@ -1518,7 +1518,7 @@ contains
             beg = 0
 
             if (list_length(res) == 2) then
-                if (fixnump(list_elt(res, 1_int64))) beg = xfixnum(list_elt(res, 1_int64))
+                if (vtag(list_elt(res, 1_int64)) == V_INTEGER) beg = xfixnum(list_elt(res, 1_int64))
                 result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
                               list_elt(res, 2_int64))
             else
@@ -1531,7 +1531,7 @@ contains
 
         if (.not. allocated(res%a)) return
 
-        if (stringp(res)) then
+        if (vtag(res) == V_STRING) then
             if (is_prefix(s2, xstring(res), completion_ignore_case%value)) then
                 result = make_string(s1//substring(xstring(res), schars(s2)))
             end if

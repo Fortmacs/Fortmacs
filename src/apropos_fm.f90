@@ -43,7 +43,7 @@ module apropos_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, make_string, xstring, stringp
+    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, make_string, xstring, vtag, V_STRING
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, is_buffer_live, get_buffer_create, &
                          kill_buffer, generate_new_buffer_name
@@ -490,7 +490,7 @@ contains
         if (.not. allocated(v%a)) return
         type = symbols_name(v)
         call get_text_property(pos, sym(P_NAME), v, st)
-        if (stringp(v)) name = xstring(v)
+        if (vtag(v) == V_STRING) name = xstring(v)
     end subroutine button_at
 
     ! Not a port.

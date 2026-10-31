@@ -44,10 +44,9 @@
 !> and directory-local variables.
 module log_view_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, stringp, xstring
+    use lisp_fm, only: value_type, t_value, make_string, xstring, vtag, V_NULL
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use eval_fm, only: hook_type

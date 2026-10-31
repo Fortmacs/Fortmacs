@@ -41,7 +41,7 @@ module ansi_color_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, list, xstring, stringp, make_list
+    use lisp_fm, only: value_type, t_value, make_string, list, xstring, make_list
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, add_local_variables_killer, set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer

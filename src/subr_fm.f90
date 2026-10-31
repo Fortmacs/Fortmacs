@@ -25,9 +25,9 @@
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use lisp_fm, only: value_type, fixnump, xfixnum, listp, make_string, cons, list_length, list_elt, &
-                       make_keymap_ref, symbolp, xsymbol, symbols, &
-                       list_elements, make_list, stringp, xstring, t_value
+    use lisp_fm, only: value_type, xfixnum, make_string, cons, list_length, list_elt, &
+                       make_keymap_ref, xsymbol, symbols, &
+                       list_elements, make_list, xstring, t_value, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, value_eq
     use fns_fm, only: get
@@ -706,7 +706,7 @@ contains
         answer = ANSWER_NONE
         call init_query_replace_map()
         call lookup_key(make_keymap_ref(query_replace_map), [key], def, st, .true.)
-        if (.not. st%ok() .or. .not. symbolp(def)) return
+        if (.not. st%ok() .or. (vtag(def) /= V_NAME .and. vtag(def) /= V_NULL)) return
         name = symbols(xsymbol(def))%name
 
         select case (name)
@@ -793,7 +793,7 @@ contains
         else
             call get(sym(history_var), sym("history_length"), prop, st)
 
-            if (fixnump(prop)) then
+            if (vtag(prop) == V_INTEGER) then
                 limit = int(xfixnum(prop))
             else if (allocated(prop%a)) then
                 ! A non-integer MAXELT: no truncation.
@@ -810,13 +810,13 @@ contains
             return
         end if
 
-        if (.not. listp(history)) return
+        if ((vtag(history) /= V_ARRAY .and. vtag(history) /= V_NULL)) return
         if (.not. all .and. len(newelt) == 0) return
 
         if (.not. all .and. list_length(history) > 0) then
             first = list_elt(history, 1_int64)
 
-            if (stringp(first)) then
+            if (vtag(first) == V_STRING) then
                 if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
             end if
         end if
@@ -829,7 +829,7 @@ contains
         do k = 1, size(elems)
             if (history_delete_duplicates) then
                 ! (delete newelt history)
-                if (stringp(elems(k))) then
+                if (vtag(elems(k)) == V_STRING) then
                     if (xstring(elems(k)) == newelt .and. len(xstring(elems(k))) == len(newelt)) cycle
                 end if
             end if

@@ -32,7 +32,7 @@
 submodule(vc_fm) vc_log_fm
     use log_view_fm, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
     use vc_dispatcher_fm, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
-    use lisp_fm, only: t_value
+    use lisp_fm, only: t_value, vtag, V_INTEGER, value_type
     use callint_fm, only: current_prefix_arg
     use fileio_fm, only: is_file_directory
     implicit none(type, external)
@@ -322,12 +322,12 @@ contains
     end procedure cmd_vc_print_log
 
     module procedure cmd_vc_print_root_log
-    use lisp_fm, only: fixnump, xfixnum
+    use lisp_fm, only: xfixnum
     use minibuf_fm, only: read_string
     character(len=:), allocatable :: default, revision, prompt
     integer(int64) :: lim
 
-    if (fixnump(current_prefix_arg)) then
+    if (vtag(current_prefix_arg) == V_INTEGER) then
         if (xfixnum(current_prefix_arg) == 1) then
             default = word_at_point()
             prompt = "Revision to show: "

@@ -24,9 +24,8 @@
 !> by the module.
 submodule(map_ynp_fm) map_ynp_ask_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: value_type
     use error_fm, only: set_error, FM_QUIT
-    use lisp_fm, only: symbolp, make_fixnum, make_keymap_ref, fixnump, xfixnum
+    use lisp_fm, only: make_fixnum, make_keymap_ref, xfixnum, value_type, vtag, V_NULL, V_INTEGER, V_NAME
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_description, make_sparse_keymap, set_keymap_parent, define_key, define_key_range, &
@@ -203,7 +202,7 @@ contains
                                           "or . (period) to "//action//" the current "//object//" and exit.", st)
                     again = .true.
                 case default
-                    if (symbolp(def) .and. allocated(def%a) .and. is_command(def)) then
+                    if ((vtag(def) == V_NAME .or. vtag(def) == V_NULL) .and. allocated(def%a) .and. is_command(def)) then
                         call call_interactively(def, status)
                         if (.not. status%ok()) exit objects_loop
                     else
@@ -478,6 +477,6 @@ contains
         type(value_type), intent(in) :: ev
 
         c = 0
-        if (fixnump(ev)) c = xfixnum(ev)
+        if (vtag(ev) == V_INTEGER) c = xfixnum(ev)
     end function xfixnum_or_zero
 end submodule map_ynp_ask_fm

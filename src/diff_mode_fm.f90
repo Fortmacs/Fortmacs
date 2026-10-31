@@ -49,13 +49,12 @@ module diff_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: logical_setting, forward_setting, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer
     use data_fm, only: symbol_value, set
-    use lisp_fm, only: t_value, make_keymap_ref
+    use lisp_fm, only: t_value, make_keymap_ref, value_type, xfixnum
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
                           line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
                           char_after, delete_region

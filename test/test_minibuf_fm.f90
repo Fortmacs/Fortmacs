@@ -32,10 +32,10 @@ module test_minibuf_fm
     use minibuf_fm, only: completion_regexp_list, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
                           minibuffer_setup_function, is_minibuffer, assoc_string
     use keyboard_fm, only: inhibit_interaction
-    use lisp_fm, only: list, vtag, V_ARRAY
+    use lisp_fm, only: list, vtag, V_ARRAY, V_STRING
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, list_length, list_elt, xstring, make_string, make_list, &
-                       list, list_elements, stringp, t_value
+                       list, list_elements, t_value
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
     use lread_fm, only: sym
@@ -689,7 +689,7 @@ contains
         call init_fileio()
         dir = file_name_as_directory(emacs_wd)//"build/test-rfn-dir/"
         call read_file_name_internal("/nonexistent/"//dir//"only-f", COMPLETE_TRY, result, st)
-        call check(error, stringp(result), "a completion")
+        call check(error, vtag(result) == V_STRING, "a completion")
         if (allocated(error)) return
         call check(error, xstring(result) == "/nonexistent/"//dir//"only-file.txt", xstring(result))
         if (allocated(error)) return
@@ -898,7 +898,7 @@ contains
         character(len=*), intent(in) :: s
 
         is_string = .false.
-        if (stringp(v)) is_string = xstring(v) == s .and. len(xstring(v)) == len(s)
+        if (vtag(v) == V_STRING) is_string = xstring(v) == s .and. len(xstring(v)) == len(s)
     end function is_string
 
     !> minibuf-tests--try-completion and -pred for collection kind `kind`.
@@ -1429,18 +1429,18 @@ contains
         call kill_buffer(buf, st)
         call fresh_scratch()
         call file_name_completion("al", dir, r, st)
-        call check(error, stringp(r) .and. xstring(r) == "alp", "file_name_completion")
+        call check(error, vtag(r) == V_STRING .and. xstring(r) == "alp", "file_name_completion")
         if (allocated(error)) return
         ! completion-ignored-extensions.
         call file_name_completion("be", dir, r, st)
-        call check(error, stringp(r) .and. xstring(r) == "beta.c", "ignored .o")
+        call check(error, vtag(r) == V_STRING .and. xstring(r) == "beta.c", "ignored .o")
         if (allocated(error)) return
         call file_name_all_completions("alp", dir, r, st)
         call check(error, list_length(r) == 2, "all")
         if (allocated(error)) return
         ! The minibuffer table: the directory part stays.
         call try_completion(dir//"alpi", completion_function_table(read_file_name_internal), r, st)
-        call check(error, stringp(r) .and. xstring(r) == dir//"alpine/", "read_file_name_internal")
+        call check(error, vtag(r) == V_STRING .and. xstring(r) == dir//"alpine/", "read_file_name_internal")
         if (allocated(error)) return
         call check(error, test_completion(dir//"alpha.txt", completion_function_table(read_file_name_internal)), &
                    "exists")

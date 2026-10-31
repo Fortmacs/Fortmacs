@@ -29,7 +29,7 @@ module test_timer_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use timer_fm, only: run_with_idle_timer, run_with_timer, run_at_time, cancel_timer, free_timer, is_timer, &
                         timer_check, timer_start_idle, timer_stop_idle, is_timer_active, is_timer_triggered, &
                         cancel_function_timers, current_idle_time
@@ -150,7 +150,7 @@ contains
 
         next_char = -1
         call read_event(ev, have, st)
-        if (have .and. fixnump(ev)) next_char = int(xfixnum(ev))
+        if (have .and. vtag(ev) == V_INTEGER) next_char = int(xfixnum(ev))
     end function next_char
 
     !> An idle timer runs once Emacs has been idle long enough while

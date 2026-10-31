@@ -39,7 +39,7 @@ module config_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, t_value, fixnump, xfixnum, xstring, list_elements
+    use lisp_fm, only: value_type, make_string, make_list, t_value, xfixnum, xstring, list_elements, vtag, V_INTEGER
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer
     use editfns_fm, only: buffer_string
     use env_fm, only: getenv
@@ -302,7 +302,7 @@ contains
             return
         end if
 
-        if (.not. fixnump(result)) then
+        if (vtag(result) /= V_INTEGER) then
             call set_error(status, FM_GENERIC_ERROR, compiler//" was killed: "//xstring(result))
         else if (xfixnum(result) /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Compiling "//init//" failed")

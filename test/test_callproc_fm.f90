@@ -26,7 +26,7 @@ module test_callproc_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error, FM_FILE_MISSING
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, t_value, list, fixnump, xfixnum, stringp, xstring
+    use lisp_fm, only: value_type, make_string, t_value, list, xfixnum, xstring, vtag, V_INTEGER, V_STRING
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
                          current_buffer
     use insdel_fm, only: insert
@@ -89,7 +89,7 @@ contains
         call fresh_buffer("*callproc-test*", "Buffer contents"//new_line("a"), h)
         call call_process_region("true", r, st, delete=.true.)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, fixnump(r) .and. xfixnum(r) == 0, "status 0")
+        if (.not. allocated(error)) call check(error, vtag(r) == V_INTEGER .and. xfixnum(r) == 0, "status 0")
         if (.not. allocated(error)) call check(error, buffer_size(), 0_int64)
         call done(h)
     end subroutine test_region_delete
@@ -138,7 +138,7 @@ contains
         type(status_type) :: st
 
         call call_process("false", r, st)
-        call check(error, st%ok() .and. fixnump(r) .and. xfixnum(r) == 1, "false")
+        call check(error, st%ok() .and. vtag(r) == V_INTEGER .and. xfixnum(r) == 1, "false")
         if (allocated(error)) return
         call call_process("sh", r, st, args=list(make_string("-c"), make_string("exit 42")))
         call check(error, xfixnum(r), 42_int64)
@@ -151,7 +151,7 @@ contains
         type(status_type) :: st
 
         call call_process("sh", r, st, args=list(make_string("-c"), make_string("kill -TERM $$")))
-        call check(error, st%ok() .and. stringp(r), "a string")
+        call check(error, st%ok() .and. vtag(r) == V_STRING, "a string")
         if (.not. allocated(error)) call check(error, xstring(r), "Terminated")
     end subroutine test_signal
 

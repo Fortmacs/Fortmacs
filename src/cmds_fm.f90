@@ -36,7 +36,7 @@ module cmds_fm
     use insdel_fm, only: del_range
     use editfns_fm, only: line_beginning_position, line_end_position, goto_char, &
                           insert_char_n
-    use lisp_fm, only: value_type, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use character_fm, only: MAX_CHAR
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command_event, this_command, last_command
@@ -480,7 +480,7 @@ contains
 
         status = status_type()
 
-        if (fixnump(last_command_event)) then
+        if (vtag(last_command_event) == V_INTEGER) then
             call self_insert_command(arg_p(), xfixnum(last_command_event), status)
         else
             ! Not a character: self_insert_command barfs.

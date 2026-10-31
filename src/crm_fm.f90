@@ -31,14 +31,13 @@ module crm_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_list, list, stringp, xstring
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
     use editfns_fm, only: point, goto_char, point_max, is_eob, buffer_string
     use search_fm, only: re_search_forward, re_search_backward, looking_at, match_beginning, match_end, string_match, &
                          string_index_to_offset, string_chars
     use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, use_local_map, is_keymap_live, free_keymap
-    use lisp_fm, only: list_elements
+    use lisp_fm, only: list_elements, value_type, make_list, list, xstring
     use commands_fm, only: commands
     use minibuf_fm, only: minibuffer_prompt_end, minibuffer_setup_function, minibuffer_setup_proc, minibuf_level
     use minibuf_table_fm, only: completion_table_type, completion_predicate, TABLE_FUNCTION

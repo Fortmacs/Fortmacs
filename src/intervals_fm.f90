@@ -33,8 +33,8 @@
 !> `next_property_change' with LIMIT t, as upstream.
 module intervals_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: consp, list_elements, list_length, make_symbol_ref, symbolp, symbols, make_list, &
-                       value_type, xsymbol, string_intervals, set_string_intervals
+    use lisp_fm, only: list_elements, list_length, make_symbol_ref, symbols, make_list, &
+                       value_type, xsymbol, string_intervals, set_string_intervals, vtag, V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: intern, ensure_obarray
     use data_fm, only: value_eq
     implicit none(type, external)
@@ -220,7 +220,7 @@ contains
             if (value_eq(elems(k), category)) then
                 tem = elems(k + 1)
 
-                if (symbolp(tem)) then
+                if ((vtag(tem) == V_NAME .or. vtag(tem) == V_NULL)) then
                     call ensure_obarray()
                     call plist_get_eq(symbols(xsymbol(tem))%plist, prop, fallback, found)
                 end if
@@ -233,11 +233,11 @@ contains
         call ensure_obarray()
         id = intern("char_property_alias_table")
         if (.not. symbols(id)%bound) return
-        if (.not. consp(symbols(id)%val)) return
+        if (vtag(symbols(id)%val) /= V_ARRAY) return
         call list_elements(symbols(id)%val, aliases)
 
         do k = 1, size(aliases, kind=int64)
-            if (.not. consp(aliases(k))) cycle
+            if (vtag(aliases(k)) /= V_ARRAY) cycle
             call list_elements(aliases(k), alias)
             if (.not. value_eq(alias(1), prop)) cycle
 
@@ -257,7 +257,7 @@ contains
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
 
-        if (consp(set)) then
+        if (vtag(set) == V_ARRAY) then
             tmem = .false.
             call list_elements(set, elems)
 
@@ -535,7 +535,7 @@ contains
             ! t, we don't need to set up a detailed one.
             found = .false.
 
-            if (allocated(cat%a) .and. symbolp(cat)) then
+            if (allocated(cat%a) .and. (vtag(cat) == V_NAME .or. vtag(cat) == V_NULL)) then
                 call ensure_obarray()
                 call plist_get_eq(symbols(xsymbol(cat))%plist, qsym("front_sticky"), tem, found)
                 found = found .and. value_eq(tem, qsym("t"))
@@ -618,10 +618,10 @@ contains
             rear = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
             front = textget(iv%runs(k)%plist, qsym("front_sticky"))
 
-            if (.not. consp(rear) .and. allocated(rear%a)) then
+            if (vtag(rear) /= V_ARRAY .and. allocated(rear%a)) then
                 ! All properties are nonsticky.  We split the interval.
                 problem = .true.
-            else if (.not. consp(front) .and. allocated(front%a)) then
+            else if (vtag(front) /= V_ARRAY .and. allocated(front%a)) then
                 ! All properties are sticky.  We don't split the interval.
                 problem = .false.
             else
@@ -631,10 +631,10 @@ contains
 
                 do pos = 1, size(elems, kind=int64) - 1, 2
                     ! Is this particular property front-sticky?
-                    if (consp(front) .and. tmem(elems(pos), front)) cycle
+                    if (vtag(front) == V_ARRAY .and. tmem(elems(pos), front)) cycle
 
                     ! Is this particular property rear-nonsticky?
-                    if ((consp(rear) .and. tmem(elems(pos), rear)) .or. default_nonsticky(elems(pos))) then
+                    if ((vtag(rear) == V_ARRAY .and. tmem(elems(pos), rear)) .or. default_nonsticky(elems(pos))) then
                         problem = .true.
                         exit
                     end if

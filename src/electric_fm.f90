@@ -37,7 +37,7 @@ module electric_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: logical_setting, default_value, set_default, kill_local_variable, buffer_local_value, &
                        add_local_variables_killer
@@ -213,7 +213,7 @@ contains
     !> The character `last_command_event' is, or -1.  Not a port.
     integer function event_char()
         event_char = -1
-        if (fixnump(last_command_event)) event_char = int(xfixnum(last_command_event))
+        if (vtag(last_command_event) == V_INTEGER) event_char = int(xfixnum(last_command_event))
     end function event_char
 
     !> Return the position after the char we just inserted.

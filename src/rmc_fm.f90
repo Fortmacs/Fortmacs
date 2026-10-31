@@ -30,7 +30,7 @@ module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, fixnump, xfixnum, make_fixnum
+    use lisp_fm, only: value_type, xfixnum, make_fixnum, vtag, V_INTEGER
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
                          kill_buffer
     use insdel_fm, only: insert
@@ -236,7 +236,7 @@ contains
 
             if (.not. status%ok()) return
             c = -1
-            if (fixnump(key)) c = int(xfixnum(key))
+            if (vtag(key) == V_INTEGER) c = int(xfixnum(key))
 
             if (c == 7) then
                 call set_error(status, FM_QUIT)
@@ -364,7 +364,7 @@ contains
         type(status_type), intent(out) :: status
 
         rmc_tchar = -1
-        if (fixnump(last_command_event)) rmc_tchar = int(xfixnum(last_command_event))
+        if (vtag(last_command_event) == V_INTEGER) rmc_tchar = int(xfixnum(last_command_event))
         call exit_minibuffer(status)
     end subroutine rmc_char
 

@@ -91,12 +91,12 @@ contains
         end if
     end function decoded
 
-    module function windowp(object) result(p)
+    module function is_window(object) result(p)
         type(handle_type), intent(in) :: object
         logical :: p
 
         p = wtable%issued(object)
-    end function windowp
+    end function is_window
 
     module function window_buffer(window, status) result(b)
         type(handle_type), intent(in), optional :: window
@@ -108,7 +108,7 @@ contains
         b = null_handle()
 
         if (.not. wtable%issued(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
             return
         end if
 
@@ -610,7 +610,7 @@ contains
         if (present(window)) then
             if (.not. wtable%issued(window)) then
                 allocate (list(0))
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
                 return
             end if
         end if

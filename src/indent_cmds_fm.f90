@@ -33,10 +33,9 @@ submodule(indent_fm) indent_cmds_fm
     use commands_fm, only: commands
     use error_fm, only: set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: fixnump, xfixnum, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq, default_value, add_local_variables_killer
-    use lisp_fm, only: value_type, symbolp, xsymbol, symbols, t_value
+    use lisp_fm, only: value_type, xsymbol, symbols, t_value, xfixnum, make_keymap_ref, vtag, V_NULL, V_INTEGER, V_NAME
     use marker_fm, only: copy_marker_at, marker_position, free_marker
   use editfns_fm, only: interactive_region, point_min, point_max, is_bob, is_eob, is_bol, is_eol, delete_region, buffer_substring, &
                           char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
@@ -261,7 +260,7 @@ contains
         call default_value(sym("indent_line_function"), v, st)
         status = status_type()
 
-        if (.not. st%ok() .or. .not. symbolp(v) .or. value_eq(v, t_value())) then
+        if (.not. st%ok() .or. (vtag(v) /= V_NAME .and. vtag(v) /= V_NULL) .or. value_eq(v, t_value())) then
             call call_indent_line_function(status, noindent)
         else
             select case (symbols(xsymbol(v))%name)
@@ -445,7 +444,7 @@ contains
     if (is_eob() .and. .not. is_bob()) pos = pos - 1
     call get_text_property(pos, sym("left_margin"), v, st)
     current_left_margin = left_margin%value
-    if (fixnump(v)) current_left_margin = left_margin%value + xfixnum(v)
+    if (vtag(v) == V_INTEGER) current_left_margin = left_margin%value + xfixnum(v)
     current_left_margin = max(0_int64, current_left_margin)
     call goto_char(opoint)
     end procedure current_left_margin

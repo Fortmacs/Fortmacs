@@ -38,7 +38,7 @@ module test_compile_fm
     use fileio_fm, only: file_name_as_directory
     use files_fm, only: temporary_file_directory, abbreviate_file_name
     use keymap_fm, only: key_binding, key_parse
-    use lisp_fm, only: value_type, symbolp, xsymbol, symbols
+    use lisp_fm, only: value_type, xsymbol, symbols, vtag, V_NULL, V_NAME
     use bindings_fm, only: init_bindings
     use process_fm, only: accept_process_output, get_buffer_process, num_processors
     use compile_fm, only: compile, recompile, kill_compilation, compile_command, comint_carriage_motion, &
@@ -322,7 +322,7 @@ contains
         if (.not. allocated(error)) then
             call key_parse("g", key, st)
             call key_binding(key, b, st)
-            call check(error, symbolp(b), "bound")
+            call check(error, (vtag(b) == V_NAME .or. vtag(b) == V_NULL), "bound")
             if (.not. allocated(error)) call check(error, trim(symbols(xsymbol(b))%name), "recompile")
         end if
 

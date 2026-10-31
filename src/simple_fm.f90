@@ -41,8 +41,9 @@ module simple_fm
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, list, fixnump, consp, &
-                       xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc
+    use lisp_fm, only: value_type, make_fixnum, list, &
+                       xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc, vtag, V_NULL, &
+                       V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting, &
                        add_local_variables_killer
@@ -71,7 +72,7 @@ module simple_fm
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
     use insdel_fm, only: insert, del_range
     use data_fm, only: symbol_value, set
-    use lisp_fm, only: list_length, xstring, stringp, symbolp, xsymbol, symbols, make_keymap_ref
+    use lisp_fm, only: list_length, xstring, xsymbol, symbols, make_keymap_ref
     use editfns_fm, only: insert_char_n
     use minibuf_fm, only: minibuffer_history_position, minibuffer_history_variable, &
                           minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
@@ -1847,7 +1848,7 @@ contains
             if (.not. status%ok() .or. .not. have) return
 
             ! Only the first event is read with inhibit-quit.
-            if (.not. first .and. fixnump(ev)) then
+            if (.not. first .and. vtag(ev) == V_INTEGER) then
                 if (xfixnum(ev) == 7) then
                     call set_error(status, FM_QUIT)
                     return
@@ -1864,9 +1865,9 @@ contains
 
             translated = -1
 
-            if (consp(translation)) then
-                if (fixnump(list_elt(translation, 1_int64))) translated = xfixnum(list_elt(translation, 1_int64))
-            else if (fixnump(ev)) then
+            if (vtag(translation) == V_ARRAY) then
+                if (vtag(list_elt(translation, 1_int64)) == V_INTEGER) translated = xfixnum(list_elt(translation, 1_int64))
+            else if (vtag(ev) == V_INTEGER) then
                 translated = xfixnum(ev)
             end if
 
@@ -1978,7 +1979,7 @@ contains
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (consp(arg)) then
+        if (vtag(arg) == V_ARRAY) then
             prefix_arg = list(make_fixnum(4*xfixnum(list_elt(arg, 1_int64))))
         else if (value_eq(arg, sym("-"))) then
             prefix_arg = list(make_fixnum(-4_int64))
@@ -1986,7 +1987,7 @@ contains
             prefix_arg = arg
         end if
 
-        if (consp(prefix_arg)) call universal_argument_mode()
+        if (vtag(prefix_arg) == V_ARRAY) call universal_argument_mode()
     end subroutine cmd_universal_argument_more
 
     !> Begin a negative numeric argument for the next command.
@@ -2000,7 +2001,7 @@ contains
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (fixnump(arg)) then
+        if (vtag(arg) == V_INTEGER) then
             prefix_arg = make_fixnum(-xfixnum(arg))
         else if (value_eq(arg, sym("-"))) then
             prefix_arg = value_type()
@@ -2023,7 +2024,7 @@ contains
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (fixnump(last_command_event)) then
+        if (vtag(last_command_event) == V_INTEGER) then
             char = xfixnum(last_command_event)
         else
             char = ascii_character(last_command_event)
@@ -2036,7 +2037,7 @@ contains
 
         digit = iand(char, 127_int64) - iachar("0")
 
-        if (fixnump(arg)) then
+        if (vtag(arg) == V_INTEGER) then
             if (xfixnum(arg) < 0) then
                 prefix_arg = make_fixnum(xfixnum(arg)*10 - digit)
             else
@@ -2062,7 +2063,7 @@ contains
     subroutine cmd_universal_argument_minus(status)
         type(status_type), intent(out) :: status
 
-        if (fixnump(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_INTEGER) then
             call self_insert_command(arg_p(), int(iachar("-"), int64), status)
         else
             call cmd_negative_argument(status)
@@ -2721,7 +2722,7 @@ contains
         else
             elt = list_elt(history, int(nabs, int64))
             text = ""
-            if (stringp(elt)) text = xstring(elt)
+            if (vtag(elt) == V_STRING) text = xstring(elt)
         end if
 
         call insert(text, status)
@@ -2964,10 +2965,10 @@ contains
 
         if (value_eq(current_prefix_arg, sym("-"))) then
             prompt = "- "
-        else if (consp(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_ARRAY) then
             head = list_elt(current_prefix_arg, 1_int64)
 
-            if (fixnump(head)) then
+            if (vtag(head) == V_INTEGER) then
                 if (xfixnum(head) == 4) then
                     prompt = "C-u "
                 else
@@ -2975,7 +2976,7 @@ contains
                     prompt = trim(num)//" "
                 end if
             end if
-        else if (fixnump(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_INTEGER) then
             write (num, "(i0)") xfixnum(current_prefix_arg)
             prompt = trim(num)//" "
         end if
@@ -3387,7 +3388,7 @@ contains
             if (equiv >= 0) pending_undo_list = equiv
         end if
 
-        if (fixnump(arg)) then
+        if (vtag(arg) == V_INTEGER) then
             call undo_more(prefix_numeric_value(arg), status)
         else
             call undo_more(1_int64, status)
@@ -3741,7 +3742,7 @@ contains
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (consp(arg)) then
+        if (vtag(arg) == V_ARRAY) then
             if (prefix_numeric_value(arg) > 4) then
                 call push_mark_command(.false.)
                 return
@@ -4027,7 +4028,7 @@ contains
 
         if (status%ok()) then
             ! (STRING is nil if BEG = END.)
-            if (stringp(string)) then
+            if (vtag(string) == V_STRING) then
                 if (value_eq(last_command, sym("kill_region"))) then
                     call kill_append(xstring(string), end < beg)
                 else
@@ -4357,7 +4358,7 @@ contains
         this_command = t_value()
         call push_mark()
 
-        if (.not. allocated(arg%a) .or. consp(arg)) then
+        if (.not. allocated(arg%a) .or. vtag(arg) == V_ARRAY) then
             n = 0
         else if (value_eq(arg, sym("-"))) then
             n = -2
@@ -4370,7 +4371,7 @@ contains
         call insert_for_yank(text, status)
         if (.not. status%ok()) return
 
-        if (consp(arg)) then
+        if (vtag(arg) == V_ARRAY) then
             ! Like exchange-point-and-mark, without activating the mark.
             m = mark_position()
             call set_marker_here()
@@ -4502,7 +4503,7 @@ contains
         yank_undo_function => null()
         fn = list_elt(handler, 1_int64)
 
-        if (symbolp(fn) .and. allocated(fn%a)) then
+        if ((vtag(fn) == V_NAME .or. vtag(fn) == V_NULL) .and. allocated(fn%a)) then
             do k = 1, n_yank_handler_functions()
                 if (yank_handler_functions(k)%name == symbols(xsymbol(fn))%name) then
                     call yank_handler_functions(k)%run(param, status)
@@ -5156,7 +5157,7 @@ contains
 
             numeric_n = prefix_numeric_value(actual_n)
             include_newlines = value_eq(actual_n, sym("-"))
-            if (fixnump(actual_n)) include_newlines = xfixnum(actual_n) < 0
+            if (vtag(actual_n) == V_INTEGER) include_newlines = xfixnum(actual_n) < 0
 
             select case (action%action)
             case (CYCLE_JUST_ONE_SPACE)
@@ -5549,10 +5550,10 @@ contains
         type(value_type), intent(in) :: arg
         integer(int64) :: size
 
-        if (.not. consp(arg) .and. .not. is_region_active()) call push_mark()
+        if (vtag(arg) /= V_ARRAY .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (allocated(arg%a) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
             call goto_char(point_min() + 1 + (size*prefix_numeric_value(arg))/10)
         else
             call goto_char(point_min())
@@ -5560,7 +5561,7 @@ contains
 
         ! If we went to a place in the middle of the buffer, adjust it to
         ! the beginning of the following line.
-        if (allocated(arg%a) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
             if (forward_line(1_int64) /= 0) continue
         end if
     end subroutine beginning_of_buffer
@@ -5581,10 +5582,10 @@ contains
         type(window_type), pointer :: w
         type(status_type) :: st
 
-        if (.not. consp(arg) .and. .not. is_region_active()) call push_mark()
+        if (vtag(arg) /= V_ARRAY .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (allocated(arg%a) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
             call goto_char(point_max() - (size*prefix_numeric_value(arg))/10)
             ! If we went to a place in the middle of the buffer, adjust it
             ! to the beginning of a line.

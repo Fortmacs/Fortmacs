@@ -23,7 +23,6 @@
 !> `read_char_from_minibuffer', `read_char_choice'): a
 !> submodule because minibuf_fm uses subr_fm.
 submodule(subr_fm) subr_read_fm
-    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use minibuf_fm, only: minibuffer_string_type
     use character_fm, only: string_char_and_length
@@ -35,7 +34,7 @@ submodule(subr_fm) subr_read_fm
     use keymap_fm, only: set_keymap_parent, define_key_range, free_keymap
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
-    use lisp_fm, only: make_fixnum
+    use lisp_fm, only: make_fixnum, value_type, vtag, V_INTEGER
     use insdel_fm, only: insert
     use dispnew_fm, only: ding
     use window_fm, only: recenter, scroll_up_command, scroll_down_command, window_configuration_type, &
@@ -403,7 +402,7 @@ contains
                 call set_error(status, FM_QUIT)
                 return
             case default
-                if (fixnump(key)) then
+                if (vtag(key) == V_INTEGER) then
                     if (xfixnum(key) == 27) then
                         call set_error(status, FM_QUIT)
                         return
@@ -771,7 +770,7 @@ contains
         call delete_minibuffer_contents(status)
         if (.not. status%ok()) return
 
-        if (fixnump(last_command_event)) then
+        if (vtag(last_command_event) == V_INTEGER) then
             call char_string(int(xfixnum(last_command_event), int32), buf, nbytes, st)
             if (st%ok()) call insert(buf(1:nbytes), status)
             if (.not. status%ok()) return
@@ -881,7 +880,7 @@ contains
                 if (is_buffer_live(helpbuf)) call kill_buffer(helpbuf, st)
             end if
 
-            if (.not. fixnump(key)) cycle
+            if (vtag(key) /= V_INTEGER) cycle
             c = int(xfixnum(key))
 
             ! If caller has set help-form, that's enough.

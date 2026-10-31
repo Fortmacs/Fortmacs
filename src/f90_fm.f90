@@ -42,7 +42,7 @@ module f90_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, consp, command_proc
+    use lisp_fm, only: value_type, command_proc, vtag, V_INTEGER
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -1615,7 +1615,7 @@ contains
     !> Port of f90.el:f90-electric-insert.
     recursive subroutine f90_electric_insert(status, arg)
         use keyboard_fm, only: last_command_event
-        use lisp_fm, only: fixnump, xfixnum
+        use lisp_fm, only: xfixnum
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         integer(int64) :: n, c
@@ -1623,7 +1623,7 @@ contains
         n = 1
         if (present(arg)) n = arg
         c = -1
-        if (fixnump(last_command_event)) c = xfixnum(last_command_event)
+        if (vtag(last_command_event) == V_INTEGER) c = xfixnum(last_command_event)
         call self_insert_command(n, c, status)
         if (.not. status%ok()) return
 

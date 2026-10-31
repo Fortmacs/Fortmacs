@@ -49,13 +49,13 @@
 !> `rectangle_number_lines' FORMAT (an error).
 module rect_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, V_STRING
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, condition_matches, FM_GENERIC_ERROR, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT, FM_END_OF_BUFFER, &
                         FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list_length, list_elt, stringp, xstring, make_string, make_list, list, &
+    use lisp_fm, only: value_type, list_length, list_elt, xstring, make_string, make_list, list, &
                        list_elements, t_value, make_fixnum, make_window_ref
     use data_fm, only: value_eq
     use eval_fm, only: hook_type
@@ -2317,7 +2317,7 @@ contains
         if (.not. st%ok()) return
         if (list_length(hist) == 0) return
         first = list_elt(hist, 1_int64)
-        if (stringp(first)) head = xstring(first)
+        if (vtag(first) == V_STRING) head = xstring(first)
     end function history_head
 
     !> (format-prompt PROMPT DEFAULT): " (default DEFAULT)" unless DEFAULT

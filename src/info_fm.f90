@@ -59,9 +59,8 @@ module info_fm
                         FM_USER_SEARCH_FAILED, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: command_type, value_type, t_value, make_string, make_list, list, make_fixnum, &
-                       stringp, consp, &
-                       fixnump, xstring, xfixnum, list_length, list_elt, make_symbol_ref, symbols, xsymbol, symbolp, &
-                       list_elements
+                       xstring, xfixnum, list_length, list_elt, make_symbol_ref, symbols, xsymbol, &
+                       list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use lread_fm, only: sym, intern
     use data_fm, only: logical_setting, set, add_local_variables_killer, symbol_value
     use eval_fm, only: hook_type
@@ -2153,7 +2152,7 @@ contains
         has_buffer = .false.
         if (.not. allocated(current_prefix_arg%a)) return
 
-        if (fixnump(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_INTEGER) then
             write (buf, "(i0)") xfixnum(current_prefix_arg)
             buffer = "*info*<"//trim(buf)//">"
             has_buffer = .true.
@@ -4150,7 +4149,7 @@ contains
 
                 if (is_t(comp)) then
                     result = make_string("("//string(2:)//")")
-                else if (stringp(comp)) then
+                else if (vtag(comp) == V_STRING) then
                     call complete_with_action(COMPLETE_TRY, names, xstring(comp), comp2, status, pred)
 
                     if (len(xstring(comp)) > 0 .and. is_t(comp2)) then
@@ -4181,7 +4180,7 @@ contains
             call info_find_file(file1, found, st, noerror=.true., no_pop_to_dir=.true.)
             if (allocated(found)) call build_node_completions(nodes, st, found)
             call complete_with_action(action, nodes, nodename, result, status, pred)
-            if (action == COMPLETE_TRY .and. stringp(result)) result = make_string(file0//xstring(result))
+            if (action == COMPLETE_TRY .and. vtag(result) == V_STRING) result = make_string(file0//xstring(result))
         else
             ! Otherwise use Info-read-node-completion-table.
             call complete_with_action(action, read_node_completion_table, string, result, status, pred)
@@ -4192,7 +4191,7 @@ contains
     logical function is_t(v)
         type(value_type), intent(in) :: v
 
-        is_t = allocated(v%a) .and. .not. stringp(v) .and. .not. consp(v)
+        is_t = allocated(v%a) .and. vtag(v) /= V_STRING .and. vtag(v) /= V_ARRAY
     end function is_t
 
     ! Read an Info node name with completion, prompting with PROMPT.
@@ -5229,7 +5228,7 @@ contains
         n = size(this_command_keys)
 
         if (n > 0) then
-            if (fixnump(this_command_keys(n))) c = int(xfixnum(this_command_keys(n)))
+            if (vtag(this_command_keys(n)) == V_INTEGER) c = int(xfixnum(this_command_keys(n)))
         end if
     end function last_command_char
 
@@ -6257,7 +6256,7 @@ contains
                 call read_event(event, have, status)
                 if (.not. status%ok() .or. .not. have) exit
 
-                if (.not. fixnump(event)) then
+                if (vtag(event) /= V_INTEGER) then
                     call unread_command_events([event])
                     exit
                 end if
@@ -7044,8 +7043,8 @@ contains
         value = ""
         call symbol_value(sym(name), hist, st)
         if (.not. st%ok()) return
-        if (.not. consp(hist)) return
-        if (.not. stringp(list_elt(hist, 1_int64))) return
+        if (vtag(hist) /= V_ARRAY) return
+        if (vtag(list_elt(hist, 1_int64)) /= V_STRING) return
         value = xstring(list_elt(hist, 1_int64))
         found = .true.
     end function history_first
@@ -8151,7 +8150,7 @@ contains
 
         if (.not. allocated(command%a)) then
             call message(key_description(key)//" is undefined")
-        else if (symbolp(command)) then
+        else if ((vtag(command) == V_NAME .or. vtag(command) == V_NULL)) then
             name = trim(symbols(xsymbol(command))%name)
 
             if (inter .and. name == "execute_extended_command") then
@@ -9189,7 +9188,7 @@ contains
                 if (.not. has .or. nxt > e) nxt = e
                 call get_text_property(pos, sym("font_lock_face"), f, st)
 
-                if (symbolp(f)) then
+                if ((vtag(f) == V_NAME .or. vtag(f) == V_NULL)) then
                     call h%add(text(pos, nxt), symbol_name_of(f))
                 else
                     call h%add(text(pos, nxt))

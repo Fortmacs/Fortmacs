@@ -43,7 +43,7 @@
 module font_core_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, t_value, list, consp, list_elements, make_list
+    use lisp_fm, only: value_type, t_value, list, list_elements, make_list, vtag, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: symbol_value, setq_local, set, set_default, boundp, add_local_variables_killer, value_eq
     use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, is_buffer_modified, &
@@ -688,11 +688,11 @@ contains
         call symbol_value(sym("char_property_alias_table"), table, status)
         status = status_type()
         allocate (elts(0))
-        if (consp(table)) call list_elements(table, elts)
+        if (vtag(table) == V_ARRAY) call list_elements(table, elts)
         found = 0
 
         do k = 1, size(elts)
-            if (.not. consp(elts(k))) cycle
+            if (vtag(elts(k)) /= V_ARRAY) cycle
             call list_elements(elts(k), members)
 
             if (value_eq(members(1), face)) then

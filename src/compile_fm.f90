@@ -90,7 +90,7 @@ module compile_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, consp, t_value, make_string, list, make_fixnum, fixnump, xfixnum
+    use lisp_fm, only: value_type, t_value, make_string, list, make_fixnum, xfixnum, vtag, V_INTEGER, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
                        add_local_variables_killer, forward_setting
@@ -1478,7 +1478,7 @@ contains
         if (pos < 1) return
         call get_text_property(pos, sym(prop), v, st)
         if (.not. st%ok()) return
-        if (.not. fixnump(v)) return
+        if (vtag(v) /= V_INTEGER) return
         if (xfixnum(v) < 1 .or. xfixnum(v) > huge(0)) return
         id = int(xfixnum(v))
     end function property_id_at
@@ -4147,7 +4147,7 @@ contains
     !> Read the compilation command, COMMAND as initial input.  Port of
     !> compile.el:compilation-read-command.
     subroutine compilation_read_command_from_user(command, result, status)
-        use lisp_fm, only: stringp, xstring
+        use lisp_fm, only: xstring
         use data_fm, only: car
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: result
@@ -4160,7 +4160,7 @@ contains
         if (status%ok()) call car(history, first, status)
 
         if (status%ok()) then
-            if (stringp(first)) same_first = xstring(first) == command .and. len(xstring(first)) == len(command)
+            if (vtag(first) == V_STRING) same_first = xstring(first) == command .and. len(xstring(first)) == len(command)
         end if
 
         if (same_first) then
@@ -4241,7 +4241,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call compile(command, status, consp(current_prefix_arg))
+        call compile(command, status, vtag(current_prefix_arg) == V_ARRAY)
     end subroutine cmd_compile
 
     !> Re-compile the program including the current buffer.

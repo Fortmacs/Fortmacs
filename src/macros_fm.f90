@@ -29,10 +29,9 @@
 !> string macros other than as `execute_kbd_macro' arguments (a string
 !> `last_kbd_macro').
 submodule(keyboard_fm) macros_fm
-    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: make_list
+    use lisp_fm, only: make_list, value_type, vtag, V_INTEGER, V_STRING, V_ARRAY
     use print_fm, only: fortran_repr
     use xdisp_fm, only: message
     implicit none(type, external)
@@ -109,7 +108,7 @@ contains
 
     if (.not. allocated(repeat%a)) then
         n = 1
-    else if (fixnump(repeat)) then
+    else if (vtag(repeat) == V_INTEGER) then
         n = xfixnum(repeat)
     else
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, "fixnump, "//fortran_repr(repeat))
@@ -192,13 +191,13 @@ contains
 
     status = status_type()
 
-    if (.not. (stringp(macro) .or. vtag(macro) == V_ARRAY)) then
+    if (.not. (vtag(macro) == V_STRING .or. vtag(macro) == V_ARRAY)) then
         call set_error(status, FM_GENERIC_ERROR, "Keyboard macros must be strings or vectors")
         return
     end if
 
     call macro_events_of(macro, final)
-    call execute_events(final, stringp(macro), count, status, loopfunc)
+    call execute_events(final, vtag(macro) == V_STRING, count, status, loopfunc)
     end procedure execute_kbd_macro_value
 
     !> The events of MACRO, a list of events or a string (its

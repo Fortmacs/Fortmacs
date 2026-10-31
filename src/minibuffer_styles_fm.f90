@@ -38,7 +38,7 @@
 !> `minibuffer_complete_word' from being one, the unquote/requote
 !> machinery of completion--nth-completion, and `completion-lazy-hilit'.
 submodule(minibuffer_fm) minibuffer_styles_fm
-    use lisp_fm, only: value_type
+    use lisp_fm, only: value_type, vtag, V_STRING
     use search_fm, only: string_match, match_beginning, match_end, case_fold_search
     use casetab_fm, only: downcase_char => downcase
     implicit none(type, external)
@@ -205,7 +205,7 @@ contains
         type(value_type), intent(in) :: v
         type(try_result_type), intent(out) :: res
 
-        if (stringp(v)) then
+        if (vtag(v) == V_STRING) then
             res%kind = TRY_STRING
             res%string = xstring(v)
         else if (.not. allocated(v%a)) then
@@ -1010,7 +1010,7 @@ contains
 
         call try_strings("", rev, t)
         s = ""
-        if (stringp(t)) s = reverse_chars(xstring(t))
+        if (vtag(t) == V_STRING) s = reverse_chars(xstring(t))
     end function common_suffix
 
     !> S with its characters in reverse order.  Not a port.
@@ -1099,7 +1099,7 @@ contains
             call try_strings(segs(i)%fixed, comps, t)
             unique = .false.
 
-            if (stringp(t)) then
+            if (vtag(t) == V_STRING) then
                 prefix = xstring(t)
                 ! If PREFIX is equal to all of COMPS, then PREFIX is a
                 ! unique completion.

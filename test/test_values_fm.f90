@@ -22,12 +22,12 @@
 
 module test_values_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, V_NAME, V_ARRAY
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, &
                         FM_SETTING_CONSTANT
-    use lisp_fm, only: cons, consp, list, list_elt, list_length, listp, make_fixnum, make_list, &
-                       make_string, sym_nil, sym_t, symbolp, t_value, value_type, xfixnum, &
+    use lisp_fm, only: cons, list, list_elt, list_length, make_fixnum, make_list, &
+                       make_string, sym_nil, sym_t, t_value, value_type, xfixnum, &
                        xstring
     use lread_fm, only: intern, intern_soft, sym
     use data_fm, only: boundp, car, car_safe, cdr, keywordp, makunbound, set, symbol_name, &
@@ -74,9 +74,11 @@ contains
         if (allocated(error)) return
         call check(error, vtag(make_list(no_values)) == V_NULL, "empty list is not nil")
         if (allocated(error)) return
-        call check(error, vtag(sym("nil")) == V_NULL .and. symbolp(value_type()), "nil")
+        call check(error, vtag(sym("nil")) == V_NULL .and. (vtag(value_type()) == V_NAME .or. vtag(value_type()) == V_NULL), "nil")
         if (allocated(error)) return
-        call check(error, consp(a) .and. listp(a) .and. listp(value_type()) .and. .not. consp(value_type()), "list predicates")
+        call check(error, &
+                   vtag(a) == V_ARRAY .and. (vtag(a) == V_ARRAY .or. vtag(a) == V_NULL) .and. (vtag(value_type()) &
+                               == V_ARRAY .or. vtag(value_type()) == V_NULL) .and. vtag(value_type()) /= V_ARRAY, "list predicates")
     end subroutine test_value_semantics
 
     subroutine test_intern(error)

@@ -55,7 +55,7 @@ module register_fm
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, fixnump, xfixnum, symbolp, xsymbol, symbols, xstring
+    use lisp_fm, only: value_type, make_fixnum, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
     use lread_fm, only: sym
     use data_fm, only: value_eq, kill_all_local_variables
     use character_fm, only: MAX_CHAR, string_char_and_length
@@ -668,7 +668,7 @@ contains
             call read_key(prompt, key, status)
             if (.not. status%ok()) exit
             if (.not. help) exit
-            if (.not. fixnump(key)) exit
+            if (vtag(key) /= V_INTEGER) exit
             if (xfixnum(key) /= HELP_CHAR) exit
             buf = get_buffer(PREVIEW_BUFFER)
 
@@ -681,7 +681,7 @@ contains
             if (is_quit_event(key)) then
                 ! (keyboard-quit)
                 if (associated(commands%keyboard_quit%run)) call commands%keyboard_quit%run(status)
-            else if (fixnump(key)) then
+            else if (vtag(key) == V_INTEGER) then
                 if (xfixnum(key) >= 0 .and. xfixnum(key) <= MAX_CHAR) then
                     register = xfixnum(key)
                 else
@@ -701,9 +701,9 @@ contains
 
         is_quit_event = .false.
 
-        if (fixnump(key)) then
+        if (vtag(key) == V_INTEGER) then
             is_quit_event = xfixnum(key) == 7 .or. xfixnum(key) == 27
-        else if (symbolp(key)) then
+        else if ((vtag(key) == V_NAME .or. vtag(key) == V_NULL)) then
             is_quit_event = symbols(xsymbol(key))%name == "escape"
         end if
     end function is_quit_event

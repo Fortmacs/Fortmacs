@@ -66,7 +66,7 @@ module bookmark_fm
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, t_value
+    use lisp_fm, only: value_type, make_string, make_list, t_value, vtag, V_INTEGER, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type
@@ -2569,15 +2569,15 @@ contains
 
     ! Whether prefix argument ARG is (16), as C-u C-u makes it.  Not a port.
     logical function prefix_is_16(arg)
-        use lisp_fm, only: consp, fixnump, xfixnum, list_elements
+        use lisp_fm, only: xfixnum, list_elements
         type(value_type), intent(in) :: arg
         type(value_type), allocatable :: elts(:)
 
         prefix_is_16 = .false.
-        if (.not. consp(arg)) return
+        if (vtag(arg) /= V_ARRAY) return
         call list_elements(arg, elts)
         if (size(elts) /= 1) return
-        if (.not. fixnump(elts(1))) return
+        if (vtag(elts(1)) /= V_INTEGER) return
         prefix_is_16 = xfixnum(elts(1)) == 16
     end function prefix_is_16
 

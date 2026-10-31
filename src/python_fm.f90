@@ -52,7 +52,7 @@ module python_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, fixnump, xfixnum, list, make_string, list_elements
+    use lisp_fm, only: value_type, xfixnum, list, make_string, list_elements, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, value_eq, &
                        add_local_variables_killer
@@ -4173,7 +4173,7 @@ contains
         status = status_type()
         if (.not. minor_modes%electric_indent_mode%enabled()) return
         ev = -1
-        if (fixnump(last_command_event)) ev = xfixnum(last_command_event)
+        if (vtag(last_command_event) == V_INTEGER) ev = xfixnum(last_command_event)
         if (before_char_at(point()) /= ev) return
         if (python_syntax_context(PYTHON_CONTEXT_STRING) > 0) return
         opoint = point()
@@ -4551,7 +4551,7 @@ contains
         status = status_type()
         if (.not. minor_modes%electric_pair_mode%enabled()) return
         ev = -1
-        if (fixnump(last_command_event)) ev = xfixnum(last_command_event)
+        if (vtag(last_command_event) == V_INTEGER) ev = xfixnum(last_command_event)
         if (ev /= iachar('"') .and. ev /= iachar("'")) return
         count = 0
 

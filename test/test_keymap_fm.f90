@@ -22,12 +22,12 @@
 
 module test_keymap_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: V_NULL
+    use lisp_fm, only: V_NULL, V_INTEGER
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: format_message
     use error_fm, only: status_type, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: fixnump, list, make_fixnum, make_keymap_ref, make_string, t_value, &
+    use lisp_fm, only: list, make_fixnum, make_keymap_ref, make_string, t_value, &
                        V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
     use lread_fm, only: sym
     use data_fm, only: value_eq
@@ -311,7 +311,7 @@ contains
         call make_keymap(map)
         call define_key(map, kbd("C-c f"), sym("foo"), st)
         v = lookup(ref(map), kbd("C-c f x"))
-        call check(error, fixnump(v), "fixnum")
+        call check(error, vtag(v) == V_INTEGER, "fixnum")
         if (allocated(error)) return
         call check(error, xfixnum(v), 2_int64)
         call free(map)

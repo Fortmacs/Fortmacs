@@ -54,8 +54,8 @@ module grep_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_string, make_list, list, t_value, consp, stringp, xstring, fixnump, &
-                       xfixnum, list_elements, make_fixnum
+    use lisp_fm, only: value_type, make_string, make_list, list, t_value, xstring, &
+                       xfixnum, list_elements, make_fixnum, vtag, V_INTEGER, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: symbol_value, add_local_variables_killer
     use eval_fm, only: hook_type
@@ -1303,7 +1303,7 @@ contains
         call call_process(program, res, st, destination=dest, args=make_list(argv))
         ok = .false.
         if (.not. st%ok()) return
-        if (fixnump(res)) ok = xfixnum(res) == expected
+        if (vtag(res) == V_INTEGER) ok = xfixnum(res) == expected
     end function grep_probe
 
     !> A file with the text "Copyright" for the probes: a temporary file
@@ -1378,7 +1378,7 @@ contains
                                       args=list(make_string(shell_command_switch%value), &
                                                 make_string(grep_command//" "//shell_quote_argument("^Copyright")// &
                                                             " "//shell_quote_argument(hello))))
-                    if (st%ok() .and. fixnump(res)) ok = xfixnum(res) == 0
+                    if (st%ok() .and. vtag(res) == V_INTEGER) ok = xfixnum(res) == 0
                 else
                     ! Otherwise use `grep_program'.
                     ok = grep_probe(grep_program, strings([character(len=10) :: "-nH", "^Copyright"], hello), .true.)
@@ -1638,9 +1638,9 @@ contains
         found = .false.
         call symbol_value(sym(history), v, st)
         if (.not. st%ok()) return
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elems)
-        if (.not. stringp(elems(1))) return
+        if (vtag(elems(1)) /= V_STRING) return
         first = xstring(elems(1))
         found = .true.
     end subroutine history_first
@@ -2337,7 +2337,7 @@ contains
             type(value_type), intent(in) :: v
 
             is_string = .false.
-            if (stringp(v)) is_string = xstring(v) == string .and. len(xstring(v)) == len(string)
+            if (vtag(v) == V_STRING) is_string = xstring(v) == string .and. len(xstring(v)) == len(string)
         end function is_string
 
         subroutine add_value(v)
@@ -2348,7 +2348,7 @@ contains
             allocate (grown(size(all) + 1))
             grown(:size(all)) = all
 
-            if (stringp(v)) then
+            if (vtag(v) == V_STRING) then
                 grown(size(grown)) = v
             else
                 grown(size(grown)) = make_string(string)
@@ -2568,7 +2568,7 @@ contains
         run = .false.
         confirm = .false.
         n = 0
-        if (consp(current_prefix_arg)) n = prefix_numeric_value(current_prefix_arg)
+        if (vtag(current_prefix_arg) == V_ARRAY) n = prefix_numeric_value(current_prefix_arg)
 
         if (allocated(command) .and. n == 16) then
             run = .true.

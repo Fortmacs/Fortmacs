@@ -41,9 +41,9 @@ module callproc_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, make_string, fixnump, xfixnum, &
-                       stringp, xstring, bufferp, xhandle, vtag, V_NAME, SYM_T, xsymbol, &
-                       list_elements
+    use lisp_fm, only: value_type, make_fixnum, make_string, xfixnum, &
+                       xstring, xhandle, vtag, V_NAME, SYM_T, xsymbol, &
+                       list_elements, V_INTEGER, V_STRING, V_BUFFER
     use data_fm, only: check_string, string_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, BEG, &
                          is_buffer_live
@@ -163,7 +163,7 @@ contains
             if (.not. allocated(destination%a)) then
                 ! nil: discard the output.
                 discard = .true.
-            else if (fixnump(destination)) then
+            else if (vtag(destination) == V_INTEGER) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "call-process with DESTINATION 0 (not waiting) is not supported yet")
                 return
@@ -175,7 +175,7 @@ contains
                     call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call_process")
                     return
                 end if
-            else if (bufferp(destination)) then
+            else if (vtag(destination) == V_BUFFER) then
                 discard = .false.
                 buffer = xhandle(destination)
 
@@ -183,7 +183,7 @@ contains
                     call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
                     return
                 end if
-            else if (stringp(destination)) then
+            else if (vtag(destination) == V_STRING) then
                 discard = .false.
                 call get_buffer_create(xstring(destination), buffer, status)
                 if (.not. status%ok()) return

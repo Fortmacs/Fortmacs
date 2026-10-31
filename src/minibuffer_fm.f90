@@ -45,7 +45,7 @@ module minibuffer_fm
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, is_keymap_live, &
                          free_keymap
     use lisp_fm, only: value_type, t_value, make_string, make_fixnum, list, list_elements, list_length, &
-                       list_elt, fixnump, xfixnum, stringp, xstring, make_list, symbolp
+                       list_elt, xfixnum, xstring, make_list, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_fm, only: value_eq, symbol_value, set
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
@@ -660,7 +660,7 @@ contains
             type(value_type), intent(in) :: v
             character(len=*), intent(in) :: s
 
-            string_equal = stringp(v)
+            string_equal = vtag(v) == V_STRING
             if (string_equal) string_equal = xstring(v) == s .and. len(xstring(v)) == len(s)
         end function string_equal
     end subroutine read_file_name
@@ -712,7 +712,7 @@ contains
         type(value_type), intent(in) :: elt
 
         directory_predicate = .false.
-        if (stringp(elt)) directory_predicate = is_file_directory(xstring(elt))
+        if (vtag(elt) == V_STRING) directory_predicate = is_file_directory(xstring(elt))
     end function directory_predicate
 
     !> The minibuffer-with-setup-hook function of `read_file_name': the
@@ -1013,8 +1013,8 @@ contains
         end if
 
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
-        if (fixnump(list_elt(boundaries, 1_int64))) bstart = xfixnum(list_elt(boundaries, 1_int64))
-        if (fixnump(list_elt(boundaries, 2_int64))) bend = xfixnum(list_elt(boundaries, 2_int64))
+        if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
+        if (vtag(list_elt(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(boundaries, 2_int64))
     end subroutine completion_boundaries
 
     ! The minibuffer's table and predicate (a null predicate pointer is
@@ -1177,7 +1177,7 @@ contains
                     call try_completion(string, minibuffer_completion_table, tried, st)
                 end if
 
-                if (symbolp(tried) .and. allocated(tried%a)) then
+                if ((vtag(tried) == V_NAME .or. vtag(tried) == V_NULL) .and. allocated(tried%a)) then
                     how = COMPLETION_FINISHED
                 else
                     how = COMPLETION_EXACT
@@ -1943,7 +1943,7 @@ contains
                 ! Fixup case of the field, if necessary.
                 call mb_try(string, compl, status)
 
-                if (stringp(compl)) then
+                if (vtag(compl) == V_STRING) then
                     if (xstring(compl) /= string .and. schars(xstring(compl)) == schars(string)) then
                         call completion_replace(beg, end, xstring(compl))
                     end if
@@ -2533,7 +2533,7 @@ contains
 
         not_except = .true.
 
-        if (stringp(elt) .and. allocated(rbts_except)) then
+        if (vtag(elt) == V_STRING .and. allocated(rbts_except)) then
             not_except = .not. (xstring(elt) == rbts_except .and. len(xstring(elt)) == len(rbts_except))
         end if
 
@@ -2701,7 +2701,7 @@ contains
             if (action == COMPLETE_TRY) then
                 call file_name_completion(name, realdir, result, st, pred)
                 if (.not. st%ok()) result = value_type()
-                if (stringp(result)) result = make_string(specdir//xstring(result))
+                if (vtag(result) == V_STRING) result = make_string(specdir//xstring(result))
             else
                 call file_name_all_completions(name, realdir, result, st)
                 if (.not. st%ok()) result = value_type()
@@ -2787,7 +2787,7 @@ contains
         ! SIFNED.
         string_start = xfixnum(list_elt(bounds, 1_int64)) - schars(sifned) + schars(string)
         bend = -1
-        if (fixnump(list_elt(bounds, 2_int64))) bend = xfixnum(list_elt(bounds, 2_int64))
+        if (vtag(list_elt(bounds, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(bounds, 2_int64))
     end subroutine sifn_boundaries
 
     !> Internal subroutine for `read_file_name'.  Do not call this.
@@ -2851,7 +2851,7 @@ contains
 
         select case (action)
         case (COMPLETE_TRY)
-            if (stringp(result)) then
+            if (vtag(result) == V_STRING) then
                 if (only_need_double_dollars) then
                     ! Extract the newly added text, quote any dollar signs,
                     ! and append it to ORIG.
@@ -2923,7 +2923,7 @@ contains
             end if
 
             ! In case of try-completion, add the prefix.
-            if (status%ok() .and. stringp(result)) result = make_string(prefix//xstring(result))
+            if (status%ok() .and. vtag(result) == V_STRING) result = make_string(prefix//xstring(result))
         case (COMPLETE_ALL)
             if (present(pred)) then
                 call all_completions(string, table, result, status, context_predicate)
@@ -2961,7 +2961,7 @@ contains
         context_predicate = .true.
         if (.not. associated(context_pred)) return
 
-        if (stringp(elt)) then
+        if (vtag(elt) == V_STRING) then
             context_predicate = context_pred(make_string(context_prefix//xstring(elt)))
         else
             context_predicate = context_pred(elt)

@@ -49,7 +49,7 @@
 !> more than one screen line is shown in its buffer); the default
 !> `major_mode' other than Fundamental mode in `set_buffer_major_mode'.
 submodule(simple_fm) simple_shell_fm
-    use lisp_fm, only: stringp, xstring, xfixnum, make_buffer_ref
+    use lisp_fm, only: xstring, xfixnum, make_buffer_ref, vtag, V_STRING, value_type
     use data_fm, only: integer_setting, logical_setting
     use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, current_buffer, is_buffer_live, erase_buffer, &
                          generate_new_buffer_name, rename_buffer
@@ -1004,7 +1004,7 @@ contains
 
             if (.not. have_exit) then
                 call message("(Shell command failed with error)")
-            else if (stringp(exit_value)) then
+            else if (vtag(exit_value) == V_STRING) then
                 call message("(Shell command killed by signal "//xstring(exit_value)//")")
             else if (xfixnum(exit_value) == 0) then
                 call message("(Shell command succeeded with "//output//")")
@@ -1045,7 +1045,7 @@ contains
     if (.not. have_exit) return
 
     if (present(exit_status)) then
-        if (stringp(exit_value)) then
+        if (vtag(exit_value) == V_STRING) then
             exit_status = -1
         else
             exit_status = int(xfixnum(exit_value))
@@ -1054,7 +1054,7 @@ contains
 
     if (present(signal_description)) then
         signal_description = ""
-        if (stringp(exit_value)) signal_description = xstring(exit_value)
+        if (vtag(exit_value) == V_STRING) signal_description = xstring(exit_value)
     end if
     end procedure shell_command_on_region
 

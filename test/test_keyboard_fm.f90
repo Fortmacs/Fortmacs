@@ -24,7 +24,7 @@ module test_keyboard_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, format_error, FM_USER_ERROR, FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: fixnump, list, make_fixnum, make_string, value_type, xfixnum
+    use lisp_fm, only: list, make_fixnum, make_string, value_type, xfixnum, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: define_key, free_keymap, key_description, key_parse, make_keymap, &
@@ -327,7 +327,7 @@ contains
 
         next_char = -1
         call read_event(ev, have, st)
-        if (have .and. fixnump(ev)) next_char = xfixnum(ev)
+        if (have .and. vtag(ev) == V_INTEGER) next_char = xfixnum(ev)
     end function next_char
 
     subroutine test_input_decoding(error)

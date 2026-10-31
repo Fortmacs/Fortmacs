@@ -56,7 +56,7 @@ module help_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, symbolp, fixnump, keymap_ref_p, xhandle, list_elements, make_keymap_ref
+    use lisp_fm, only: value_type, xhandle, list_elements, make_keymap_ref, V_NULL, V_INTEGER, V_NAME, V_STRING, V_KEYMAP
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name
     use keymap_fm, only: make_sparse_keymap, is_keymap_live, free_keymap, keymap_set, define_key, key_parse, &
@@ -79,7 +79,7 @@ module help_fm
                          is_pos_visible_in_window, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
                          minibuffer_scroll_window
     use derived_fm, only: is_derived_mode
-    use lisp_fm, only: t_value, make_fixnum, make_list, stringp, xstring, vtag, V_ARRAY, list_elt, xfixnum
+    use lisp_fm, only: t_value, make_fixnum, make_list, xstring, vtag, V_ARRAY, list_elt, xfixnum
     use keymap_fm, only: accessible_keymaps, map_keymap_items, current_minor_maps, key_list_type, current_local_map, &
                          set_keymap_parent, single_key_description
     use keyboard_fm, only: recent_keys, lossage_size, bitch_at_user, key_translation_map, local_function_key_map, &
@@ -389,7 +389,7 @@ contains
         ! active.
         active = current_active_maps()
 
-        if (keymap_ref_p(active)) then
+        if (vtag(active) == V_KEYMAP) then
             allocate (maps(1))
             maps(1) = active
         else
@@ -399,7 +399,7 @@ contains
         n = 0
 
         do k = 1, size(maps)
-            if (.not. keymap_ref_p(maps(k))) cycle
+            if (vtag(maps(k)) /= V_KEYMAP) cycle
 
             if (same_map(xhandle(maps(k)), map)) then
                 n = k - 1
@@ -675,7 +675,7 @@ contains
         ! help--key-binding-keymap: the first active map binding KEY.
         active = current_active_maps()
 
-        if (keymap_ref_p(active)) then
+        if (vtag(active) == V_KEYMAP) then
             allocate (maps(1))
             maps(1) = active
         else
@@ -685,11 +685,11 @@ contains
         found = .false.
 
         do k = 1, size(maps)
-            if (.not. keymap_ref_p(maps(k))) cycle
+            if (vtag(maps(k)) /= V_KEYMAP) cycle
             call lookup_key(maps(k), keys, val, status, accept_default=.true.)
             if (.not. status%ok()) cycle
             ! A number: the first events of KEY were found but not all.
-            if (.not. allocated(val%a) .or. fixnump(val)) cycle
+            if (.not. allocated(val%a) .or. vtag(val) == V_INTEGER) cycle
             map = xhandle(maps(k))
             found = .true.
             exit
@@ -760,8 +760,11 @@ contains
     logical function is_binding_undefined(defn)
         type(value_type), intent(in) :: defn
 
-        is_binding_undefined = .not. allocated(defn%a) .or. fixnump(defn)
-        if (.not. is_binding_undefined .and. symbolp(defn)) is_binding_undefined = value_eq(defn, sym("undefined"))
+        is_binding_undefined = .not. allocated(defn%a) .or. vtag(defn) == V_INTEGER
+
+        if (.not. is_binding_undefined .and. (vtag(defn) == V_NAME .or. vtag(defn) == V_NULL)) then
+            is_binding_undefined = value_eq(defn, sym("undefined"))
+        end if
     end function is_binding_undefined
 
     !> Display documentation of the function invoked by KEY_LIST.
@@ -786,7 +789,7 @@ contains
             return
         end if
 
-        if (.not. symbolp(binding)) then
+        if ((vtag(binding) /= V_NAME .and. vtag(binding) /= V_NULL)) then
             call message(desc//" runs a keyboard macro")
             return
         end if
@@ -815,7 +818,7 @@ contains
 
         if (is_binding_undefined(binding)) then
             call message(desc//" is undefined")
-        else if (symbolp(binding)) then
+        else if ((vtag(binding) == V_NAME .or. vtag(binding) == V_NULL)) then
             call symbol_name(binding, name, status)
             if (.not. status%ok()) return
             call message(desc//" runs the command "//name)
@@ -936,7 +939,7 @@ contains
             if (is_command(k)) then
                 if (.not. allocated(keys(k)%a)) then
                     s = s//";; null()"//LF
-                else if (symbolp(keys(k))) then
+                else if ((vtag(keys(k)) == V_NAME .or. vtag(keys(k)) == V_NULL)) then
                     call symbol_name(keys(k), name, st)
                     s = s//";; "//name//LF
                 else
@@ -1214,9 +1217,9 @@ contains
         tabw = 8
         tabs = .true.
         call default_value(sym("fill_column"), v, st)
-        if (st%ok() .and. fixnump(v)) fill = int(xfixnum(v))
+        if (st%ok() .and. vtag(v) == V_INTEGER) fill = int(xfixnum(v))
         call default_value(sym("tab_width"), v, st)
-        if (st%ok() .and. fixnump(v)) tabw = int(xfixnum(v))
+        if (st%ok() .and. vtag(v) == V_INTEGER) tabw = int(xfixnum(v))
         if (tabw <= 0 .or. tabw > 1000) tabw = 8
         call default_value(sym("indent_tabs_mode"), v, st)
         if (st%ok()) tabs = allocated(v%a)
@@ -1412,13 +1415,13 @@ contains
 
         if (status%ok()) then
             call lookup_key(make_keymap_ref(local_map), keys, defn, st)
-            if (fixnump(defn)) defn = value_type()
+            if (vtag(defn) == V_INTEGER) defn = value_type()
 
             if (allocated(defn%a)) then
                 call set_window_configuration(config)
                 have_config = .false.
 
-                if (symbolp(defn)) then
+                if ((vtag(defn) == V_NAME .or. vtag(defn) == V_NULL)) then
                     call call_interactively(defn, status)
                 end if
             else
@@ -1468,7 +1471,7 @@ contains
         integer(int64), intent(in) :: c
 
         event_is = .false.
-        if (fixnump(ev)) event_is = xfixnum(ev) == c
+        if (vtag(ev) == V_INTEGER) event_is = xfixnum(ev) == c
     end function event_is
 
     ! Not a port.
@@ -1477,7 +1480,7 @@ contains
         character(len=*), intent(in) :: name
 
         event_named = .false.
-        if (symbolp(ev)) event_named = value_eq(ev, sym(name))
+        if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) event_named = value_eq(ev, sym(name))
     end function event_named
 
     !> `n' as decimal digits.  Not a port.
@@ -1625,10 +1628,10 @@ contains
                 else
                     call lookup_key(make_list(shadow), maps(k)%keys, tem, st, accept_default=.true.)
 
-                    if (fixnump(tem)) then
+                    if (vtag(tem) == V_INTEGER) then
                         ! A number: the prefix is too long; no shadows.
                         continue
-                    else if (keymap_ref_p(tem)) then
+                    else if (vtag(tem) == V_KEYMAP) then
                         call append_shadow(sub_shadows, tem)
                     else if (allocated(tem%a)) then
                         ! Describe this map iff the prefix is bound to a
@@ -1754,7 +1757,7 @@ contains
 
         do i = 1, n
             shadowed(i) = .false.
-            if (.not. (symbolp(ev(i)) .or. fixnump(ev(i)))) cycle
+            if (.not. ((vtag(ev(i)) == V_NAME .or. vtag(ev(i)) == V_NULL) .or. vtag(ev(i)) == V_INTEGER)) cycle
             ! Don't show undefined commands or suppressed commands.
             if (.not. allocated(def(i)%a)) cycle
             if (partial .and. is_suppressed(def(i))) cycle
@@ -1770,7 +1773,7 @@ contains
                 if (allocated(tem%a)) then
                     ! If both bindings are keymaps, this key is a prefix
                     ! key, so don't say it is shadowed.
-                    if (.not. (keymap_ref_p(def(i)) .and. keymap_ref_p(tem))) then
+                    if (.not. (vtag(def(i)) == V_KEYMAP .and. vtag(tem) == V_KEYMAP)) then
                         if (mention_shadow .and. .not. value_eq(tem, def(i))) then
                             shadowed(i) = .true.
                         else
@@ -1798,10 +1801,10 @@ contains
             start = i
 
             ! Find consecutive chars that are identically defined.
-            if (fixnump(ev(i))) then
+            if (vtag(ev(i)) == V_INTEGER) then
                 do while (i + 1 <= n)
                     if (.not. seen(i + 1)) exit
-                    if (.not. fixnump(ev(i + 1))) exit
+                    if (vtag(ev(i + 1)) /= V_INTEGER) exit
                     if (xfixnum(ev(i + 1)) /= xfixnum(ev(i)) + 1) exit
                     if (.not. value_equal(def(i + 1), def(i))) exit
                     if (shadowed(i + 1) .neqv. shadowed(i)) exit
@@ -1809,7 +1812,7 @@ contains
                 end do
             end if
 
-            if (start /= i .or. .not. keymap_ref_p(def(i))) then
+            if (start /= i .or. vtag(def(i)) /= V_KEYMAP) then
                 ! If we're in a <remap> section of the output, then also
                 ! display the bindings of the keys that we've remapped from.
                 is_remap = .false.
@@ -1885,7 +1888,7 @@ contains
 
         call lookup_key(make_list(shadow), key, val, st, accept_default=.true.)
         if (.not. st%ok()) val = value_type()
-        if (fixnump(val)) val = value_type()
+        if (vtag(val) == V_INTEGER) val = value_type()
     end subroutine shadow_lookup
 
     !> Whether `def' has a `suppress_keymap' property: `undefined'
@@ -1908,9 +1911,9 @@ contains
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        if (stringp(definition) .or. vtag(definition) == V_ARRAY) then
+        if (vtag(definition) == V_STRING .or. vtag(definition) == V_ARRAY) then
             if (translation) then
-                if (stringp(definition)) then
+                if (vtag(definition) == V_STRING) then
                     s = xstring(definition)
                 else
                     call list_elements(definition, events)
@@ -1920,9 +1923,9 @@ contains
                 ! These should be rare nowadays, replaced by `kmacro's.
                 s = "Keyboard Macro"
             end if
-        else if (keymap_ref_p(definition)) then
+        else if (vtag(definition) == V_KEYMAP) then
             s = "Prefix Command"
-        else if (symbolp(definition)) then
+        else if ((vtag(definition) == V_NAME .or. vtag(definition) == V_NULL)) then
             call symbol_name(definition, s, st)
         else
             s = fortran_repr(definition)
@@ -1972,11 +1975,11 @@ contains
 
         map_less = .false.
 
-        if (fixnump(a) .and. fixnump(b)) then
+        if (vtag(a) == V_INTEGER .and. vtag(b) == V_INTEGER) then
             map_less = xfixnum(a) < xfixnum(b)
-        else if (fixnump(a)) then
+        else if (vtag(a) == V_INTEGER) then
             map_less = .true.
-        else if (symbolp(a) .and. symbolp(b)) then
+        else if ((vtag(a) == V_NAME .or. vtag(a) == V_NULL) .and. (vtag(b) == V_NAME .or. vtag(b) == V_NULL)) then
             call symbol_name(a, na, st)
             call symbol_name(b, nb, st)
             map_less = is_string_version_less(na, nb)
@@ -2142,7 +2145,7 @@ contains
             lines(nl)%extra = ""
 
             if (this_shadowed) then
-                if (symbolp(shadowed_by)) then
+                if ((vtag(shadowed_by) == V_NAME .or. vtag(shadowed_by) == V_NULL)) then
                     call symbol_name(shadowed_by, name, st)
                     lines(nl)%extra = "  (currently shadowed by `"//name//"')"
                 else

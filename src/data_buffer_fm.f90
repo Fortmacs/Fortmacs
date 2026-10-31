@@ -36,8 +36,8 @@
 !> A submodule because the Fortran settings live in modules that use
 !> data_fm.
 submodule(data_fm) data_buffer_fm
-    use lisp_fm, only: value_type
-    use lisp_fm, only: t_value, make_fixnum, make_string, make_symbol_ref, make_list, xfixnum, xstring
+    use lisp_fm, only: t_value, make_fixnum, make_string, make_symbol_ref, make_list, xfixnum, xstring, value_type, &
+                       vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: intern, sym
     use handle_fm, only: null_handle
     use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, left_margin, &
@@ -314,7 +314,7 @@ contains
 
         status = status_type()
 
-        if (fixnump(v)) then
+        if (vtag(v) == V_INTEGER) then
             s = xfixnum(v)
         else if (integerp .and. allocated(v%a)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
@@ -339,7 +339,7 @@ contains
         type(string_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
 
-        if (stringp(v)) then
+        if (vtag(v) == V_STRING) then
             s = xstring(v)
         else
             call s%clear()
@@ -545,7 +545,7 @@ contains
         case ("major_mode")
             if (cur == 0) return
 
-            if (.not. symbolp(v)) then
+            if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
             else if (.not. allocated(v%a)) then
                 buffers(cur)%major_mode = "nil"
@@ -555,7 +555,7 @@ contains
         case ("mode_name")
             if (cur == 0) return
 
-            if (stringp(v)) then
+            if (vtag(v) == V_STRING) then
                 buffers(cur)%mode_name = xstring(v)
             else
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
@@ -595,7 +595,7 @@ contains
         end if
 
         c => null()
-        if (symbolp(v)) c => find_command(symbols(xsymbol(v))%name)
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) c => find_command(symbols(xsymbol(v))%name)
 
         if (associated(c)) then
             s%value => c%run
@@ -611,7 +611,7 @@ contains
         type(indent_line_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
 
-        if (symbolp(v) .and. allocated(v%a)) then
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then
             call indent_line_function_named(symbols(xsymbol(v))%name, s%value)
 
             if (len(indent_line_function_name(s%value)) > 0) then
@@ -1185,7 +1185,7 @@ contains
 
     is_local_variable = .false.
     call ensure_obarray()
-    if (.not. symbolp(variable)) return
+    if ((vtag(variable) /= V_NAME .and. vtag(variable) /= V_NULL)) return
     id = xsymbol(variable)
     b = cur
     if (present(buffer)) b = buffer
@@ -1199,17 +1199,20 @@ contains
 
     module procedure is_automatically_local
     is_automatically_local = .false.
-    if (symbolp(variable)) is_automatically_local = auto_local(xsymbol(variable))
+    if ((vtag(variable) == V_NAME .or. vtag(variable) == V_NULL)) is_automatically_local = auto_local(xsymbol(variable))
     end procedure is_automatically_local
 
     module procedure is_forwarded_variable
     is_forwarded_variable = .false.
-    if (symbolp(variable)) is_forwarded_variable = resolve(xsymbol(variable)) > 0
+    if ((vtag(variable) == V_NAME .or. vtag(variable) == V_NULL)) is_forwarded_variable = resolve(xsymbol(variable)) > 0
     end procedure is_forwarded_variable
 
     module procedure is_local_variable_if_set
     is_local_variable_if_set = is_local_variable(variable, buffer)
-    if (.not. is_local_variable_if_set .and. symbolp(variable)) is_local_variable_if_set = auto_local(xsymbol(variable))
+
+    if (.not. is_local_variable_if_set .and. (vtag(variable) == V_NAME .or. vtag(variable) == V_NULL)) then
+        is_local_variable_if_set = auto_local(xsymbol(variable))
+    end if
     end procedure is_local_variable_if_set
 
     !> The default value of symbol ID.  Not a port.
@@ -1283,7 +1286,7 @@ contains
 
     default_boundp = .false.
     call ensure_obarray()
-    if (.not. symbolp(symbol)) return
+    if ((vtag(symbol) /= V_NAME .and. vtag(symbol) /= V_NULL)) return
     call get_default(xsymbol(symbol), v, default_boundp)
     end procedure default_boundp
 

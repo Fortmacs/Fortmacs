@@ -32,7 +32,7 @@ module novice_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands, builtin_command
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, symbolp, fixnump, xfixnum, symbols, xsymbol
+    use lisp_fm, only: value_type, xfixnum, symbols, xsymbol, vtag, V_NULL, V_INTEGER, V_NAME
     use lread_fm, only: sym, user_init_file
     use handle_fm, only: handle_type
     use buffer_fm, only: current_buffer, set_buffer
@@ -79,7 +79,8 @@ contains
 
         handled = .false.
         status = status_type()
-        if (.not. disabled_command_function_p .or. .not. symbolp(cmd) .or. .not. allocated(cmd%a)) return
+        if (.not. disabled_command_function_p .or. (vtag(cmd) /= V_NAME .and. vtag(cmd) /= V_NULL) &
+            .or. .not. allocated(cmd%a)) return
         p => find_command(symbols(xsymbol(cmd))%name)
         if (.not. associated(p)) return
         ! A string `disabled' property disables it too.
@@ -107,11 +108,11 @@ contains
         by_name = .false.
 
         if (size(keys) >= 1) then
-            if (fixnump(keys(1))) by_name = xfixnum(keys(1)) == ior(CHAR_META, iachar("x"))
+            if (vtag(keys(1)) == V_INTEGER) by_name = xfixnum(keys(1)) == ior(CHAR_META, iachar("x"))
         end if
 
         if (size(keys) >= 2 .and. .not. by_name) then
-            if (fixnump(keys(1)) .and. fixnump(keys(2))) then
+            if (vtag(keys(1)) == V_INTEGER .and. vtag(keys(2)) == V_INTEGER) then
                 by_name = xfixnum(keys(1)) == 27 .and. xfixnum(keys(2)) == iachar("x")
             end if
         end if

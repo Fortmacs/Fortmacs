@@ -55,7 +55,7 @@ module mule_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_CODING_SYSTEM_ERROR, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, stringp, xstring, make_string, make_list, t_value
+    use lisp_fm, only: value_type, xstring, make_string, make_list, t_value, vtag, V_STRING
     use lread_fm, only: sym
     use character_fm, only: str_to_multibyte
     use data_fm, only: forward_setting, default_value, set_default
@@ -847,7 +847,7 @@ contains
         call set_auto_coding(filename, buffer_text(), auto_cs)
         call default_value(sym("buffer_file_coding_system"), v, vst)
         bfcs_default = ""
-        if (stringp(v)) bfcs_default = xstring(v)
+        if (vtag(v) == V_STRING) bfcs_default = xstring(v)
         current = ""
         if (allocated(buffer_file_coding_system%value)) current = coding_system_base(buffer_file_coding_system%value)
         ! Generally use as a default the first preferred coding-system
@@ -1477,7 +1477,7 @@ contains
                 ! undecided, append it to the defaults.
                 call default_value(sym("buffer_file_coding_system"), v, vst)
                 dflt = ""
-                if (stringp(v)) dflt = xstring(v)
+                if (vtag(v) == V_STRING) dflt = xstring(v)
 
                 if (len(dflt) > 0) then
                     base = coding_system_base(dflt)
@@ -1510,7 +1510,7 @@ contains
 
             if (eol == EOL_UNDECIDED) then
                 call default_value(sym("buffer_file_coding_system"), v, vst)
-                if (stringp(v)) eol = coding_system_eol_type(xstring(v))
+                if (vtag(v) == V_STRING) eol = coding_system_eol_type(xstring(v))
             end if
 
             if (eol /= EOL_UNDECIDED) then
@@ -2019,7 +2019,7 @@ contains
 
         call default_value(sym("buffer_file_coding_system"), v, vst)
         dflt = ""
-        if (stringp(v)) dflt = xstring(v)
+        if (vtag(v) == V_STRING) dflt = xstring(v)
         s = s//"Default coding system (for new files):"//LF//"  "//print_coding_system_briefly(dflt, .false.)
         s = s//"Coding system for keyboard input:"//LF//"  "//print_coding_system_briefly("utf-8-unix", .false.)
         s = s//"Coding system for terminal output:"//LF//"  "//print_coding_system_briefly("utf-8-unix", .false.)

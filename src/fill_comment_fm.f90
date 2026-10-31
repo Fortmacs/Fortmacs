@@ -23,6 +23,7 @@
 !> comment variables: a submodule because it uses newcomment_fm, which
 !> uses fill_fm.
 submodule(fill_fm) fill_comment_fm
+    use lisp_fm, only: vtag, V_STRING, value_type
     use newcomment_fm, only: comment_start, comment_end, comment_start_skip, comment_normalize_vars, &
                              comment_search_forward, comment_string_strip
     use paragraphs_fm, only: paragraph_separate
@@ -65,7 +66,7 @@ contains
 
         s = ""
         call default_value(sym(name), v, st)
-        if (st%ok() .and. stringp(v)) s = xstring(v)
+        if (st%ok() .and. vtag(v) == V_STRING) s = xstring(v)
     end function default_string
 
     module procedure fill_comment_paragraph

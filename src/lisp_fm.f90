@@ -204,8 +204,7 @@ module lisp_fm
 
     public :: t_value, make_fixnum, make_string, make_symbol_ref, &
               make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_window_ref, make_list, list, cons
-    public :: vtag, fixnump, symbolp, stringp, consp, listp, bufferp, &
-              markerp, keymap_ref_p, syntax_table_ref_p, windowp
+    public :: vtag
     public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
               list_elements, list_tail, string_intervals, set_string_intervals
 
@@ -448,77 +447,6 @@ contains
         vtag = V_NULL
         if (allocated(v%a)) vtag = v%a(1)%tag
     end function vtag
-
-    !> Port of lisp.h:FIXNUMP.
-    elemental logical function fixnump(v)
-        type(value_type), intent(in) :: v
-
-        fixnump = vtag(v) == V_INTEGER
-    end function fixnump
-
-    !> Port of lisp.h:SYMBOLP (nil is a symbol).
-    elemental logical function symbolp(v)
-        type(value_type), intent(in) :: v
-
-        symbolp = vtag(v) == V_NAME .or. vtag(v) == V_NULL
-    end function symbolp
-
-    !> Port of lisp.h:STRINGP.
-    elemental logical function stringp(v)
-        type(value_type), intent(in) :: v
-
-        stringp = vtag(v) == V_STRING
-    end function stringp
-
-    !> A non-empty list.  Port of lisp.h:CONSP.
-    elemental logical function consp(v)
-        type(value_type), intent(in) :: v
-
-        consp = vtag(v) == V_ARRAY
-    end function consp
-
-    !> nil or a list.  Port of data.c:Flistp.
-    elemental logical function listp(v)
-        type(value_type), intent(in) :: v
-
-        listp = vtag(v) == V_ARRAY .or. vtag(v) == V_NULL
-    end function listp
-
-    !> Port of lisp.h:BUFFERP.
-    elemental logical function bufferp(v)
-        type(value_type), intent(in) :: v
-
-        bufferp = vtag(v) == V_BUFFER
-    end function bufferp
-
-    !> Port of lisp.h:MARKERP.
-    elemental logical function markerp(v)
-        type(value_type), intent(in) :: v
-
-        markerp = vtag(v) == V_MARKER
-    end function markerp
-
-    !> True for a single keymap (not a list of keymaps); see keymap_fm.
-    !> Not a port.
-    elemental logical function keymap_ref_p(v)
-        type(value_type), intent(in) :: v
-
-        keymap_ref_p = vtag(v) == V_KEYMAP
-    end function keymap_ref_p
-
-    !> Whether `v' refers to a syntax table.  Not a port.
-    elemental logical function syntax_table_ref_p(v)
-        type(value_type), intent(in) :: v
-
-        syntax_table_ref_p = vtag(v) == V_SYNTAX_TABLE
-    end function syntax_table_ref_p
-
-    !> Port of lisp.h:WINDOWP.
-    elemental logical function windowp(v)
-        type(value_type), intent(in) :: v
-
-        windowp = vtag(v) == V_WINDOW
-    end function windowp
 
     !> The integer in `v', unchecked.  Port of lisp.h:XFIXNUM.
     elemental integer(int64) function xfixnum(v)

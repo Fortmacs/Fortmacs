@@ -29,7 +29,7 @@ module test_dired_mode_fm
     use bindings_fm, only: init_bindings
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, stringp, xstring
+    use lisp_fm, only: value_type, make_fixnum, xstring, vtag, V_STRING
     use lread_fm, only: sym
     use textprop_fm, only: get_text_property
     use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, kill_buffer, current_buffer, &
@@ -268,7 +268,7 @@ contains
             call check(error, index(text, achar(10)//"  total") == 0, text)
             if (allocated(error)) exit body
             call get_text_property(int(len_trim(dname) + 3, int64), sym("display"), v, st)
-            call check(error, stringp(v), "display property on the colon")
+            call check(error, vtag(v) == V_STRING, "display property on the colon")
             if (allocated(error)) exit body
             disp = xstring(v)
             call check(error, index(disp, ": (") == 1 .and. index(disp, " available)") > 0, disp)

@@ -46,8 +46,8 @@ module make_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, fixnump, xfixnum, xstring, stringp, make_string, make_list, list, &
-                       list_length, list_elt
+    use lisp_fm, only: value_type, xfixnum, xstring, make_string, make_list, list, &
+                       list_length, list_elt, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
@@ -1420,7 +1420,7 @@ contains
     ! Not a port.
     integer(int64) function event_char() result(c)
         c = -1
-        if (fixnump(last_command_event)) c = xfixnum(last_command_event)
+        if (vtag(last_command_event) == V_INTEGER) c = xfixnum(last_command_event)
     end function event_char
 
     !> Prompt for the name of a special target to insert.
@@ -2374,7 +2374,7 @@ contains
         call call_process(makefile_brave_make%value, result, st, &
                           args=list(make_string("-f"), make_string(filename), make_string("-q"), make_string(target)))
         rebuild = .true.
-        if (fixnump(result)) rebuild = xfixnum(result) /= 0
+        if (vtag(result) == V_INTEGER) rebuild = xfixnum(result) /= 0
     end function makefile_query_by_make_minus_q
 
     ! ------------------------------------------------------------------

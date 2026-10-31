@@ -29,7 +29,7 @@ module test_info_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string, stringp, xstring, symbolp, symbols, xsymbol
+    use lisp_fm, only: value_type, list, make_string, xstring, symbols, xsymbol, vtag, V_NULL, V_NAME, V_STRING
     use lread_fm, only: sym
     use textprop_fm, only: get_text_property, get_char_property
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
@@ -670,7 +670,7 @@ contains
         character(len=:), allocatable :: name
 
         name = ""
-        if (symbolp(v)) name = trim(symbols(xsymbol(v))%name)
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = trim(symbols(xsymbol(v))%name)
     end function symbol_text
 
     subroutine test_fontify_node(error)
@@ -690,7 +690,7 @@ contains
         ! "See *note" shows as "See" ("*note" displays as nothing).
         if (.not. allocated(error)) then
             call property_at("*note Second", "display", val, found)
-            call check(error, found .and. stringp(val), "a display string on *note")
+            call check(error, found .and. vtag(val) == V_STRING, "a display string on *note")
         end if
 
         if (.not. allocated(error)) call check(error, xstring(val), "")
@@ -699,7 +699,7 @@ contains
 
         if (.not. allocated(error)) then
             call property_at("*Note Section", "display", val, found)
-            call check(error, found .and. stringp(val), "a display string on *Note")
+            call check(error, found .and. vtag(val) == V_STRING, "a display string on *Note")
         end if
 
         if (.not. allocated(error)) call check(error, xstring(val), "See ")
@@ -747,7 +747,7 @@ contains
         ! The first line is replaced by the breadcrumbs.
         if (.not. allocated(error)) then
             val = get_char_property(point_min(), sym("display"))
-            call check(error, stringp(val), "breadcrumbs on the first line")
+            call check(error, vtag(val) == V_STRING, "breadcrumbs on the first line")
         end if
 
         if (.not. allocated(error)) call check(error, xstring(val), "(test)Top > First Chapter > Section One"//achar(10))

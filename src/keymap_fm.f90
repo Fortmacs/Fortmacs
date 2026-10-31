@@ -56,8 +56,8 @@ module keymap_fm
     use lisp_fm, only: value_type, V_INTEGER, V_NAME, V_STRING, V_ARRAY, &
                        V_KEYMAP, SYM_T, symbols, make_fixnum, &
                        make_symbol_ref, make_keymap_ref, make_list, list, vtag, &
-                       fixnump, symbolp, xfixnum, xsymbol, xstring, &
-                       xhandle, list_length, list_elements, list_tail, keymap_ref_p, list_elt, stringp
+                       xfixnum, xsymbol, xstring, &
+                       xhandle, list_length, list_elements, list_tail, list_elt, V_NULL
     use lread_fm, only: intern
     use data_fm, only: value_eq, symbol_value
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
@@ -412,7 +412,7 @@ contains
         type(value_type), intent(in) :: v
 
         is_marker = .false.
-        if (symbolp(v)) is_marker = xsymbol(v) == intern("keymap")
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) is_marker = xsymbol(v) == intern("keymap")
     end function is_marker
 
     ! Not a port.
@@ -420,7 +420,7 @@ contains
         type(value_type), intent(in) :: v
 
         is_t = .false.
-        if (symbolp(v)) is_t = xsymbol(v) == SYM_T
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) is_t = xsymbol(v) == SYM_T
     end function is_t
 
     !> Whether `v' is a live keymap or a composite (non-empty list of
@@ -820,7 +820,7 @@ contains
         m = map
 
         ! The meta -> ESC mapping.
-        if (fixnump(idx)) then
+        if (vtag(idx) == V_INTEGER) then
             c = xfixnum(idx)
 
             if (iand(c, M_META) /= 0) then
@@ -861,7 +861,7 @@ contains
                     end do
 
                     ! The char-table part: plain characters only.
-                    if (.not. matched .and. fixnump(idx)) then
+                    if (.not. matched .and. vtag(idx) == V_INTEGER) then
                         c = xfixnum(idx)
 
                         if (iand(c, M_ALL) == 0) then
@@ -952,11 +952,11 @@ contains
         end if
 
         if (size(key) == 1) then
-            if (stringp(key(1))) then
+            if (vtag(key(1)) == V_STRING) then
                 call possibly_translate_key_sequence(key, translated, status)
                 if (.not. status%ok()) return
 
-                if (.not. stringp(translated(1))) then
+                if (vtag(translated(1)) /= V_STRING) then
                     call lookup_key(map, translated, val, status, accept_default)
                     return
                 end if
@@ -1089,7 +1089,7 @@ contains
         n = 0
 
         do j = 1, keymaps(i)%n
-            if (fixnump(keymaps(i)%events(j))) then
+            if (vtag(keymaps(i)%events(j)) == V_INTEGER) then
                 c = xfixnum(keymaps(i)%events(j))
                 if (c >= from .and. c <= to) cycle
             end if
@@ -1203,11 +1203,11 @@ contains
         if (n == 0) return
 
         if (n == 1) then
-            if (stringp(key(1))) then
+            if (vtag(key(1)) == V_STRING) then
                 call possibly_translate_key_sequence(key, translated, status)
                 if (.not. status%ok()) return
 
-                if (.not. stringp(translated(1))) then
+                if (vtag(translated(1)) /= V_STRING) then
                     call define_key(km, translated, def, status, remove)
                     return
                 end if
@@ -1221,18 +1221,18 @@ contains
         do
             c = key(pos + 1)
 
-            if (.not. (fixnump(c) .or. symbolp(c))) then
+            if (.not. (vtag(c) == V_INTEGER .or. (vtag(c) == V_NAME .or. vtag(c) == V_NULL))) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "Key sequence contains invalid event")
                 return
             end if
 
-            if (symbolp(c)) then
+            if ((vtag(c) == V_NAME .or. vtag(c) == V_NULL)) then
                 call silly_event_symbol_error(c, status)
                 if (.not. status%ok()) return
             end if
 
-            if (fixnump(c)) then
+            if (vtag(c) == V_INTEGER) then
                 if (iand(xfixnum(c), M_META) /= 0 .and. .not. metized) then
                     c = make_fixnum(META_PREFIX_CHAR)
                     metized = .true.
@@ -1654,7 +1654,7 @@ contains
             ! Start with the keymap (if any) for that prefix.
             call lookup_key(make_keymap_ref(keymap), prefix, tem, st, accept_default=.true.)
 
-            if (.not. keymap_ref_p(tem)) then
+            if (vtag(tem) /= V_KEYMAP) then
                 deallocate (maps)
                 allocate (maps(0))
                 return
@@ -1676,17 +1676,17 @@ contains
             is_metized = .false.
 
             if (last >= 1 .and. last > prefixlen) then
-                if (fixnump(thisseq(last))) is_metized = xfixnum(thisseq(last)) == META_PREFIX_CHAR
+                if (vtag(thisseq(last)) == V_INTEGER) is_metized = xfixnum(thisseq(last)) == META_PREFIX_CHAR
             end if
 
             call map_keymap_items(maps(k)%map, events, bindings)
 
             do j = 1, size(events)
-                if (.not. keymap_ref_p(bindings(j))) cycle
+                if (vtag(bindings(j)) /= V_KEYMAP) cycle
                 cmd = xhandle(bindings(j))
                 if (cycle_seen(cmd, thisseq)) cycle
 
-                if (is_metized .and. fixnump(events(j))) then
+                if (is_metized .and. vtag(events(j)) == V_INTEGER) then
                     ! Turn it into a meta-ized keystroke, right after this
                     ! entry.
                     seq = thisseq
@@ -1858,7 +1858,7 @@ contains
 
             if (.not. allocated(map%a)) return
 
-            if (keymap_ref_p(map)) then
+            if (vtag(map) == V_KEYMAP) then
                 n = n + 1
                 elems(n) = map
             else
@@ -1886,13 +1886,13 @@ contains
 
         maps = current_active_maps()
         call lookup_key(maps, key, val, status, accept_default)
-        if (fixnump(val)) val = value_type()
+        if (vtag(val) == V_INTEGER) val = value_type()
         remap = .true.
         if (present(no_remap)) remap = .not. no_remap
 
         ! If the result of the ordinary keymap lookup is an interactive
         ! command, look for a key binding (ie. remapping) for that command.
-        if (remap .and. symbolp(val) .and. allocated(val%a)) then
+        if (remap .and. (vtag(val) == V_NAME .or. vtag(val) == V_NULL) .and. allocated(val%a)) then
             call command_remapping(val, remapped)
             if (allocated(remapped%a)) val = remapped
         end if
@@ -1913,7 +1913,7 @@ contains
         type(status_type) :: st
 
         remapped = value_type()
-        if (.not. symbolp(command)) return
+        if ((vtag(command) /= V_NAME .and. vtag(command) /= V_NULL)) return
         key(1) = make_symbol_ref(intern("remap"))
         key(2) = command
 
@@ -1923,7 +1923,7 @@ contains
             call key_binding(key, remapped, st, no_remap=.true.)
         end if
 
-        if (.not. st%ok() .or. fixnump(remapped)) remapped = value_type()
+        if (.not. st%ok() .or. vtag(remapped) == V_INTEGER) remapped = value_type()
     end subroutine command_remapping
 
     ! ------------------------------------------------------------------
@@ -2064,7 +2064,7 @@ contains
             call list_elements(key, parts)
 
             if (size(parts) == 2) then
-                if (fixnump(parts(1)) .and. fixnump(parts(2))) then
+                if (vtag(parts(1)) == V_INTEGER .and. vtag(parts(2)) == V_INTEGER) then
                     ! An interval from a map-char-table.
                     s = single_key_description(parts(1), no_angles)//".."//single_key_description(parts(2), no_angles)
                     return
@@ -2103,7 +2103,7 @@ contains
             key = all(k)
 
             if (add_meta) then
-                if (.not. fixnump(key)) then
+                if (vtag(key) /= V_INTEGER) then
                     call add_word(s, "ESC")
                 else if (xfixnum(key) == META_PREFIX_CHAR .or. &
                          iand(xfixnum(key), M_META) /= 0) then
@@ -2114,7 +2114,7 @@ contains
                 end if
 
                 add_meta = .false.
-            else if (fixnump(key)) then
+            else if (vtag(key) == V_INTEGER) then
                 if (xfixnum(key) == META_PREFIX_CHAR) then
                     add_meta = .true.
                     cycle
@@ -2640,7 +2640,7 @@ contains
         result = 1
 
         do i = 1, size(seq)
-            if (.not. fixnump(seq(i))) then
+            if (vtag(seq(i)) /= V_INTEGER) then
                 result = 0
                 return
             end if
@@ -2696,13 +2696,13 @@ contains
             active = current_active_maps()
         end if
 
-        if (keymap_ref_p(active)) then
+        if (vtag(active) == V_KEYMAP) then
             maps = [active]
         else
             call list_elements(active, maps)
         end if
 
-        if (first .and. symbolp(definition) .and. allocated(definition%a)) then
+        if (first .and. (vtag(definition) == V_NAME .or. vtag(definition) == V_NULL) .and. allocated(definition%a)) then
             ! We have an advertised binding.
             call advertised_key(symbols(xsymbol(definition))%name, seq)
 
@@ -2723,7 +2723,7 @@ contains
         qtail = 0
 
         do k = 1, size(maps)
-            if (.not. keymap_ref_p(maps(k))) cycle
+            if (vtag(maps(k)) /= V_KEYMAP) cycle
             allocate (seq(0))
             call push(queue, qtail, seq, xhandle(maps(k)))
             deallocate (seq)
@@ -2820,11 +2820,11 @@ contains
             last_is_meta = .false.
 
             if (size(prefix) > 0) then
-                if (fixnump(prefix(size(prefix)))) last_is_meta = xfixnum(prefix(size(prefix))) == META_PREFIX_CHAR
+                if (vtag(prefix(size(prefix))) == V_INTEGER) last_is_meta = xfixnum(prefix(size(prefix))) == META_PREFIX_CHAR
             end if
 
             ! A prefix key: its map is searched too.
-            if (keymap_ref_p(def)) then
+            if (vtag(def) == V_KEYMAP) then
                 key = [prefix, event]
 
                 if (.not. is_cycle(xhandle(def), key) .and. size(prefix) < 10) then
@@ -2836,7 +2836,7 @@ contains
 
             ! We have found a match.  Construct the key sequence where we
             ! found it.
-            if (fixnump(event) .and. last_is_meta) then
+            if (vtag(event) == V_INTEGER .and. last_is_meta) then
                 ev = ior(xfixnum(event), M_META)
                 key = prefix
                 key(size(key)) = make_fixnum(ev)
@@ -2903,7 +2903,7 @@ contains
         do k = 1, size(events)
             binding = access_keymap(make_keymap_ref(sub), events(k), .false., .false.)
 
-            if (keymap_ref_p(binding)) then
+            if (vtag(binding) == V_KEYMAP) then
                 call set_repeat_map_of(xhandle(binding), map, exit)
                 cycle
             end if
@@ -2944,7 +2944,7 @@ contains
     logical function is_char_table_event(ev)
         type(value_type), intent(in) :: ev
 
-        is_char_table_event = fixnump(ev)
+        is_char_table_event = vtag(ev) == V_INTEGER
         if (is_char_table_event) is_char_table_event = iand(xfixnum(ev), M_ALL) == 0
     end function is_char_table_event
 
@@ -3159,7 +3159,7 @@ contains
 
         translated = key
         if (size(key) /= 1) return
-        if (.not. stringp(key(1))) return
+        if (vtag(key(1)) /= V_STRING) return
         if (.not. is_key_valid(xstring(key(1)))) return
         call key_parse(xstring(key(1)), translated, status)
         if (.not. status%ok()) return
@@ -3300,7 +3300,7 @@ contains
             if (.not. table%is_live(maps(i))) cycle
             call lookup_key(make_keymap_ref(maps(i)), key, binding, status, accept_default)
             if (.not. status%ok()) return
-            if (.not. allocated(binding%a) .or. fixnump(binding)) cycle
+            if (.not. allocated(binding%a) .or. vtag(binding) == V_INTEGER) cycle
 
             if (is_keymap(binding)) then
                 j = j + 1

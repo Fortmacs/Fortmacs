@@ -49,10 +49,10 @@
 !> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, V_INTEGER, V_ARRAY
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, fixnump, xfixnum, make_list, list_elements, consp
+    use lisp_fm, only: value_type, xfixnum, make_list, list_elements
     use eval_fm, only: call_overlay_change_function
     use lread_fm, only: sym
     use data_fm, only: value_eq
@@ -805,7 +805,7 @@ contains
         priority = 0
         spriority = 0
         tem = overlay_get(overlay, "priority")
-        if (fixnump(tem)) priority = xfixnum(tem)
+        if (vtag(tem) == V_INTEGER) priority = xfixnum(tem)
     end subroutine overlay_priority
 
     !> Sort an array of overlays by priority, increasing.  Invalid
@@ -1248,7 +1248,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. consp(list)) return
+        if (vtag(list) /= V_ARRAY) return
         call list_elements(list, fns)
 
         do k = 1, size(fns)

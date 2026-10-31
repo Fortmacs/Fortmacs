@@ -55,7 +55,7 @@ module smie_fm
     use print_fm, only: fortran_string, quoted_repr
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, buffer_serial_live, current_buffer, buffer_chars_modified_tick
-    use lisp_fm, only: command_proc, fixnump, xfixnum
+    use lisp_fm, only: command_proc, xfixnum, vtag, V_INTEGER
     use data_fm, only: add_local_variables_killer, function_setting_default
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                           line_end_position, buffer_substring, char_after, char_before
@@ -2407,7 +2407,7 @@ contains
     ! Not a port.
     integer function command_char()
         command_char = -1
-        if (fixnump(last_command_event)) command_char = int(xfixnum(last_command_event))
+        if (vtag(last_command_event) == V_INTEGER) command_char = int(xfixnum(last_command_event))
     end function command_char
 
     ! Whether C is one of the characters of the string S (memq).

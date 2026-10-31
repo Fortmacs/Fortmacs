@@ -41,7 +41,7 @@ module syntax_propertize_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, buffer_serial_live
-    use lisp_fm, only: value_type, list, symbolp, make_syntax_table_ref
+    use lisp_fm, only: value_type, list, make_syntax_table_ref, vtag, V_NULL, V_NAME
     use lread_fm, only: sym
     use data_fm, only: value_eq, add_local_variables_killer
     use eval_fm, only: region_hook_type, region_entry_type
@@ -1379,7 +1379,7 @@ contains
                     if (use_begin) then
                         call get_text_property(point(), sym("face"), face, st)
 
-                        if (symbolp(face)) then
+                        if ((vtag(face) == V_NAME .or. vtag(face) == V_NULL)) then
                             if (value_eq(face, sym("font_lock_string_face")) .or. &
                                 value_eq(face, sym("font_lock_doc_face")) .or. &
                                 value_eq(face, sym("font_lock_comment_face"))) use_begin = .false.

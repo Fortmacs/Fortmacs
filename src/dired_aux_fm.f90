@@ -52,8 +52,7 @@
 !> not the condition's data list), file name handlers.  Loading and
 !> byte-compiling Lisp files (`L', `B') are not applicable.
 submodule(dired_mode_fm) dired_aux_fm
-    use lisp_fm, only: value_type
-    use lisp_fm, only: make_list, xfixnum
+    use lisp_fm, only: make_list, xfixnum, value_type, vtag, V_INTEGER, V_ARRAY
     use error_fm, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
     use sysdep_fm, only: emacs_localtime, S_IFMT, S_IFDIR, S_IFLNK
     use buffer_fm, only: buffer_list, rename_buffer
@@ -991,7 +990,7 @@ contains
         end if
 
         failed = .true.
-        if (fixnump(result)) failed = xfixnum(result) /= 0
+        if (vtag(result) == V_INTEGER) failed = xfixnum(result) /= 0
 
         if (failed) then
             call buffer_substring(point_min(), point_max(), output, st)
@@ -1532,7 +1531,7 @@ contains
         call set_buffer(old, st)
         if (.not. status%ok()) return
         zero = .false.
-        if (fixnump(res)) zero = xfixnum(res) == 0
+        if (vtag(res) == V_INTEGER) zero = xfixnum(res) == 0
         if (.not. zero) call pop_to_buffer(out_buffer, st)
     end subroutine dired_shell_command
 
@@ -2083,7 +2082,7 @@ contains
     call dired_shell_command(command, res, status)
     if (.not. status%ok()) return
     zero = .false.
-    if (fixnump(res)) zero = xfixnum(res) == 0
+    if (vtag(res) == V_INTEGER) zero = xfixnum(res) == 0
 
     if (zero) then
         call message(ngettext("Compressed "//aux_itoa(int(size(in_files), int64))//" file to ", &
@@ -3087,7 +3086,7 @@ contains
 
         call aux_prefix_kind(kind, n)
         invert = .false.
-        if (consp(current_prefix_arg)) invert = prefix_numeric_value(current_prefix_arg) == 4
+        if (vtag(current_prefix_arg) == V_ARRAY) invert = prefix_numeric_value(current_prefix_arg) == 4
         call dired_do_copy(kind, n, status, invert)
     end subroutine cmd_dired_do_copy
 
@@ -4162,7 +4161,7 @@ contains
 
         if (.not. allocated(current_prefix_arg%a)) then
             arg_kind = DIRED_ARG_NONE
-        else if (consp(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_ARRAY) then
             arg_kind = DIRED_ARG_OTHER
         else
             arg_kind = DIRED_ARG_INTEGER

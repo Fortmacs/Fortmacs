@@ -116,8 +116,8 @@ module xdisp_fm
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
-    use lisp_fm, only: value_type, stringp, xstring, consp, list_elements, fixnump, xfixnum, windowp, xhandle, &
-                       string_intervals
+    use lisp_fm, only: value_type, xstring, list_elements, xfixnum, xhandle, &
+                       string_intervals, vtag, V_INTEGER, V_STRING, V_ARRAY, V_WINDOW
     use intervals_fm, only: textget
     use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer, value_eq
@@ -773,7 +773,7 @@ contains
             else
                 disp = get_char_property(p, sym("display"))
 
-                if (stringp(disp)) then
+                if (vtag(disp) == V_STRING) then
                     endpos = next_single_char_property_change(p, sym("display"), zv)
                     call load_overlay_strings(p, s%items)
 
@@ -910,14 +910,14 @@ contains
             logical, intent(in) :: after_p
             type(value_type) :: priority
 
-            if (.not. stringp(string)) return
+            if (vtag(string) /= V_STRING) return
             if (len(xstring(string)) == 0) return
             n = n + 1
             entries(n)%s = xstring(string)
             strings(n) = string
             priority = overlay_get(overlay, "priority")
             prio(n) = 0
-            if (fixnump(priority)) prio(n) = xfixnum(priority)
+            if (vtag(priority) == V_INTEGER) prio(n) = xfixnum(priority)
             ids(n) = overlay%index
             after(n) = after_p
         end subroutine record
@@ -957,7 +957,7 @@ contains
         type(value_type) :: window
 
         window = overlay_get(overlay, "window")
-        applies = .not. windowp(window)
+        applies = vtag(window) /= V_WINDOW
 
         if (applies) then
             applies = .not. allocated(window%a)
@@ -1111,7 +1111,7 @@ contains
         is_space = .false.
         width = 0
         align_to = -1
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
         if (size(elts) < 1) return
         if (.not. value_eq(elts(1), sym("space"))) return
@@ -1139,13 +1139,13 @@ contains
             ok = .true.
             n = 0
 
-            if (fixnump(x)) then
+            if (vtag(x) == V_INTEGER) then
                 n = int(xfixnum(x))
-            else if (consp(x)) then
+            else if (vtag(x) == V_ARRAY) then
                 call list_elements(x, px)
                 ok = .false.
                 if (size(px) /= 1) return
-                if (.not. fixnump(px(1))) return
+                if (vtag(px(1)) /= V_INTEGER) return
                 n = int(xfixnum(px(1)))
                 ok = .true.
             else
@@ -1165,7 +1165,7 @@ contains
         type(value_type), allocatable :: elts(:)
 
         is_fringe = .false.
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
         if (size(elts) < 2) return
         is_fringe = value_eq(elts(1), sym("left_fringe")) .or. value_eq(elts(1), sym("right_fringe"))
@@ -1326,7 +1326,7 @@ contains
         if (.not. el%overlay_string .or. el%run == 0) return
 
         associate (cprop => s%items(s%item)%prop_cursor(el%run))
-            if (.not. fixnump(cprop)) return
+            if (vtag(cprop) /= V_INTEGER) return
             here = bpos_max <= pt .and. pt <= bpos_max + xfixnum(cprop)
         end associate
     end function is_string_cursor
@@ -2485,7 +2485,7 @@ contains
         cs = ""
         call buffer_local_value(sym("buffer_file_coding_system"), bi, v, st)
 
-        if (st%ok() .and. stringp(v)) then
+        if (st%ok() .and. vtag(v) == V_STRING) then
             cs = xstring(v)
         else if (allocated(buffer_file_coding_system%value)) then
             ! Not forwarded yet (mule_fm not set up): the default.

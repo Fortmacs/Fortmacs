@@ -58,8 +58,8 @@ module dired_mode_fm
     use error_fm, only: status_type, set_error, format_error, format_message, condition_matches, error_name, &
                         FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_fixnum, make_string, list, list_elements, fixnump, &
-                       xfixnum, consp, xstring, command_proc
+    use lisp_fm, only: value_type, t_value, make_fixnum, make_string, list, list_elements, &
+                       xfixnum, xstring, command_proc, vtag, V_INTEGER, V_ARRAY
     use lread_fm, only: sym, read_string_literal
     use data_fm, only: set, add_local_variables_killer, value_eq, kill_all_local_variables
     use commands_fm, only: commands
@@ -1828,7 +1828,7 @@ contains
 
         call call_process(insert_directory_program, result, st, args=list(make_string("--dired"), make_string("-N")))
         dired_check_use_ls_dired = .false.
-        if (st%ok() .and. fixnump(result)) dired_check_use_ls_dired = xfixnum(result) == 0
+        if (st%ok() .and. vtag(result) == V_INTEGER) dired_check_use_ls_dired = xfixnum(result) == 0
     end function dired_check_use_ls_dired
 
     ! ------------------------------------------------------------------
@@ -1905,7 +1905,7 @@ contains
 
             if (.not. status%ok()) return
 
-            if (.not. (fixnump(result))) then
+            if (.not. (vtag(result) == V_INTEGER)) then
                 call set_error(status, FM_USER_ERROR, dw_wild//": No files matching wildcard")
                 return
             else if (xfixnum(result) /= 0) then
@@ -4568,7 +4568,7 @@ contains
 
         if (.not. allocated(current_prefix_arg%a)) then
             arg_kind = DIRED_ARG_NONE
-        else if (consp(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_ARRAY) then
             arg_kind = DIRED_ARG_OTHER
         else
             arg_kind = DIRED_ARG_INTEGER
@@ -5679,7 +5679,7 @@ contains
 
         if (.not. have) then
             call set_error(status, FM_QUIT)
-        else if (.not. fixnump(ev)) then
+        else if (vtag(ev) /= V_INTEGER) then
             call set_error(status, FM_GENERIC_ERROR, "Non-character input-event")
         else if (xfixnum(ev) == 7) then
             call set_error(status, FM_QUIT)
@@ -6643,11 +6643,11 @@ contains
             files(1)%s = subdir
         else if (.not. allocated(current_prefix_arg%a)) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_NO_DIR)
-        else if (consp(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_ARRAY) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE)
         else if (prefix_n() == 0) then
             call dired_get_marked_files(files, status)
-        else if (prefix_n() == 1 .and. fixnump(current_prefix_arg)) then
+        else if (prefix_n() == 1 .and. vtag(current_prefix_arg) == V_INTEGER) then
             call set_error(status, FM_GENERIC_ERROR, "Names relative to the project root (project.el) are "// &
                            "not supported yet")
             return

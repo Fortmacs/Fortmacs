@@ -46,7 +46,7 @@ module test_window_fm
                          select_window, switch_to_buffer, DEDICATED_STRONG, QR_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
                          free_window_configuration, fit_window_to_buffer, bury_buffer, is_window_live, &
-                         windowp, window_buffer, window_parent, window_top_child, window_left_child, &
+                         is_window, window_buffer, window_parent, window_top_child, window_left_child, &
                          window_next_sibling, window_prev_sibling, frame_root_window, frame_selected_window, &
                          minibuffer_window, is_window_minibuffer, minibuffer_selected_window, window_total_height, &
                          window_total_width, window_left_column, window_top_line, window_body_height, &
@@ -846,7 +846,7 @@ contains
                    "siblings")
         if (allocated(error)) return
         call check(error, same_window(window_buffer(ws(1), st), h) .and. is_null(window_buffer(root, st)) .and. &
-                   same_window(window_buffer(status=st), h) .and. windowp(root) .and. windowp(ws(3)), "buffers")
+                   same_window(window_buffer(status=st), h) .and. is_window(root) .and. is_window(ws(3)), "buffers")
         if (allocated(error)) return
         call check(error, window_total_height(ws(1), st) == 12 .and. window_total_width(ws(1), st) == 40 .and. &
                    window_body_height(ws(1), st) == 11 .and. window_body_width(ws(1), st) == 39 .and. &
@@ -875,7 +875,7 @@ contains
         if (allocated(error)) return
         ! A deleted window is still a window, with no buffer.
         call run_keys("C-x o C-x o C-x 0")
-        call check(error, windowp(ws(3)) .and. .not. is_window_live(ws(3)) .and. &
+        call check(error, is_window(ws(3)) .and. .not. is_window_live(ws(3)) .and. &
                    is_null(window_buffer(ws(3), st)) .and. st%ok(), "deleted window")
         if (allocated(error)) return
         call check(error, is_null(window_parent(ws(3), st)) .and. .not. st%ok(), "is_window_valid error")

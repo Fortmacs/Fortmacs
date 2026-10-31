@@ -278,7 +278,7 @@ contains
         if (present(window)) w = window
 
         if (.not. is_window_valid(w)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
             return
         end if
 
@@ -299,7 +299,7 @@ contains
         if (present(window)) w = window
 
         if (.not. is_window_valid(w)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window")
             return
         end if
 

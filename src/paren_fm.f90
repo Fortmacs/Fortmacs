@@ -35,7 +35,7 @@ module paren_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_fixnum, fixnump, xfixnum
+    use lisp_fm, only: value_type, make_fixnum, xfixnum, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: is_local_variable, kill_local_variable, default_value, set_default, make_local_variable, &
                        symbol_value, set, add_local_variables_killer
@@ -674,7 +674,7 @@ contains
         last_pos = 0
         if (.not. is_local_variable(sym("show_paren__last_pos"))) return
         call symbol_value(sym("show_paren__last_pos"), v, st)
-        if (fixnump(v)) last_pos = xfixnum(v)
+        if (vtag(v) == V_INTEGER) last_pos = xfixnum(v)
     end function last_pos
 
     ! Not a port.

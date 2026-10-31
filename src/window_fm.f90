@@ -53,7 +53,7 @@ module window_fm
               is_pos_visible_in_window, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
               move_to_window_line_top_bottom, quit_window, quit_windows_on, syms_of_window
     public :: window_min_size
-    public :: windowp, window_buffer, window_parent, window_top_child, window_left_child, window_next_sibling, &
+    public :: is_window, window_buffer, window_parent, window_top_child, window_left_child, window_next_sibling, &
               window_prev_sibling, frame_root_window, frame_selected_window, minibuffer_window, is_window_minibuffer, &
               minibuffer_selected_window, window_total_height, window_total_width, window_left_column, window_top_line, &
               window_body_height, window_body_width, window_wants_mode_line, window_mode_line_height, &
@@ -993,11 +993,11 @@ module window_fm
         !> Return t if OBJECT is a window and nil otherwise.  Port of
         !> window.c:Fwindowp (a handle `make_window' gave, deleted since or
         !> not).
-        module function windowp(object) result(p)
+        module function is_window(object) result(p)
             implicit none(type, external)
             type(handle_type), intent(in) :: object
             logical :: p
-        end function windowp
+        end function is_window
 
         !> Return the buffer displayed in window WINDOW.
         !> If WINDOW is omitted or nil, it defaults to the selected window.

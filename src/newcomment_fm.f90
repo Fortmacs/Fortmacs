@@ -54,7 +54,7 @@ module newcomment_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, consp, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER, V_ARRAY
     use data_fm, only: value_eq, add_local_variables_killer
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, function_setting, forward_setting
@@ -2009,7 +2009,7 @@ contains
 
         if (.not. allocated(current_prefix_arg%a)) then
             call region_fn(beg, end, status)
-        else if (consp(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_ARRAY) then
             call region_fn(beg, end, status, prefix_numeric_value(current_prefix_arg), .true.)
         else
             call region_fn(beg, end, status, prefix_numeric_value(current_prefix_arg))
@@ -2908,7 +2908,7 @@ contains
             ! FIXME: If there's no comment to kill on this line and ARG is
             ! specified, calling comment-kill is not very clever.
             if (allocated(current_prefix_arg%a)) then
-                if (fixnump(current_prefix_arg)) then
+                if (vtag(current_prefix_arg) == V_INTEGER) then
                     call comment_kill(status, xfixnum(current_prefix_arg))
                 else
                     call comment_kill(status)

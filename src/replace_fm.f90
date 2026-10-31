@@ -61,8 +61,8 @@ module replace_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, stringp, xstring, list_elements, &
-                       list_length, list_elt
+    use lisp_fm, only: value_type, make_string, make_list, xstring, list_elements, &
+                       list_length, list_elt, vtag, V_INTEGER, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use fns_fm, only: schars
     use data_fm, only: value_eq, symbol_value, set
@@ -95,7 +95,7 @@ module replace_fm
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use handle_fm, only: null_handle
-    use lisp_fm, only: t_value, consp, fixnump, xfixnum, make_fixnum, list
+    use lisp_fm, only: t_value, xfixnum, make_fixnum, list
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, kill_buffer, &
                          is_buffer_live, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
                          restore_buffer_modified
@@ -545,7 +545,7 @@ contains
         if (.not. status%ok()) return
         if (list_length(list) == 0) return
         first = list_elt(list, 1_int64)
-        if (.not. stringp(first)) return
+        if (vtag(first) /= V_STRING) return
         head = xstring(first)
         found = .true.
     end subroutine history_head
@@ -2879,7 +2879,7 @@ contains
 
         idx = 0
         call get_text_property(pos, sym("occur_target"), v, st)
-        if (.not. fixnump(v)) return
+        if (vtag(v) /= V_INTEGER) return
         k = occur_entry(current_buffer(), .false.)
         if (k == 0) return
         idx = int(xfixnum(v))
@@ -3280,7 +3280,7 @@ contains
         logical :: found
         integer :: depth
 
-        has_collect = consp(current_prefix_arg)
+        has_collect = vtag(current_prefix_arg) == V_ARRAY
         has_nlines = .false.
         nlines = 0
         ! 'regexp-history-last.

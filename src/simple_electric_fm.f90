@@ -29,6 +29,7 @@
 !> the `shadow' face of "Matches " in the echo area
 !> and `noninteractive' (no batch mode).
 submodule(simple_fm) simple_electric_fm
+    use lisp_fm, only: vtag, V_INTEGER, value_type
     use syntax_fm, only: syntax_entry, syntax_descriptor_type, skip_syntax_backward, parse_expression_ignore_comments, &
                          char_syntax, SCLOSE, SQUOTE
     use expression_motion_fm, only: forward_expression
@@ -292,7 +293,7 @@ contains
 
     status = status_type()
     ! Sanity check.
-    if (.not. fixnump(last_command_event)) return
+    if (vtag(last_command_event) /= V_INTEGER) return
     ev = xfixnum(last_command_event)
     call char_before(c, found)
     if (.not. found .or. int(c, int64) /= ev) return

@@ -34,7 +34,7 @@ module indent_fm
     use category_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, consp, stringp, xstring, fixnump, xfixnum, list_elements
+    use lisp_fm, only: value_type, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
@@ -669,14 +669,14 @@ contains
         call get_char_property_and_overlay(pos, sym("display"), val, overlay)
         if (.not. allocated(val%a)) return
 
-        if (consp(val)) then
+        if (vtag(val) == V_ARRAY) then
             call list_elements(val, elts)
 
             ! Handle '(space ...)' display specs.
             if (value_eq(elts(1), sym("space"))) then
                 do k = 2, size(elts) - 1, 2
                     if (value_eq(elts(k), sym(":width")) .or. value_eq(elts(k), sym(":relative-width"))) then
-                        if (fixnump(elts(k + 1))) then
+                        if (vtag(elts(k + 1)) == V_INTEGER) then
                             if (xfixnum(elts(k + 1)) >= 0) width = xfixnum(elts(k + 1))
                         end if
 
@@ -687,7 +687,7 @@ contains
                 if (width < 0) then
                     do k = 2, size(elts) - 1, 2
                         if (value_eq(elts(k), sym(":align-to"))) then
-                            if (fixnump(elts(k + 1))) then
+                            if (vtag(elts(k + 1)) == V_INTEGER) then
                                 if (xfixnum(elts(k + 1)) >= col) width = xfixnum(elts(k + 1)) - col
                             end if
 
@@ -696,7 +696,7 @@ contains
                     end do
                 end if
             end if
-        else if (stringp(val)) then
+        else if (vtag(val) == V_STRING) then
             ! Handle 'display' strings.
             width = display_string_width(xstring(val))
         end if

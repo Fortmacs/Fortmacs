@@ -37,9 +37,9 @@ module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT
-    use lisp_fm, only: fixnump, list, list_elt, list_tail, listp, stringp, symbolp, symbols, &
+    use lisp_fm, only: list, list_elt, list_tail, symbols, &
                        v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, V_NAME, v_syntax_table, v_window, value_type, &
-                       vtag, xsymbol
+                       vtag, xsymbol, V_STRING
     use lread_fm, only: ensure_obarray, sym
     use lisp_fm, only: command_proc
     implicit none(type, external)
@@ -609,7 +609,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. fixnump(v)) call wrong_type(status, "fixnump")
+        if (vtag(v) /= V_INTEGER) call wrong_type(status, "fixnump")
     end subroutine check_fixnum
 
     !> Port of lisp.h:CHECK_SYMBOL.
@@ -617,7 +617,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. symbolp(v)) call wrong_type(status, "symbolp")
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) call wrong_type(status, "symbolp")
     end subroutine check_symbol
 
     !> Port of lisp.h:CHECK_STRING.
@@ -625,7 +625,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. stringp(v)) call wrong_type(status, "stringp")
+        if (vtag(v) /= V_STRING) call wrong_type(status, "stringp")
     end subroutine check_string
 
     !> Port of lisp.h:CHECK_LIST.
@@ -633,7 +633,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. listp(v)) call wrong_type(status, "listp")
+        if ((vtag(v) /= V_ARRAY .and. vtag(v) /= V_NULL)) call wrong_type(status, "listp")
     end subroutine check_list
 
     ! ------------------------------------------------------------------

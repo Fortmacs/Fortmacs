@@ -26,7 +26,7 @@ module test_font_lock_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, symbolp, symbols, xsymbol, consp, list_elements
+    use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, resolve_buffer
     use insdel_fm, only: insert
@@ -88,13 +88,13 @@ contains
         name = ""
         call get_text_property(pos, sym("face"), v, st)
 
-        if (consp(v)) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
             v = elts(1)
         end if
 
         if (.not. allocated(v%a)) return
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function face_at
 
     !> Keywords highlighting "foo" in font_lock_keyword_face.
@@ -207,7 +207,7 @@ contains
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
         call get_text_property(3_int64, sym("face"), v, st)
-        call check(error, consp(v), "a list of faces")
+        call check(error, vtag(v) == V_ARRAY, "a list of faces")
         if (allocated(error)) return
         call list_elements(v, elts)
         call check(error, size(elts) == 2, "two faces")

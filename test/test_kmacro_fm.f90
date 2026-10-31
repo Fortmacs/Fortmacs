@@ -26,7 +26,7 @@ module test_kmacro_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, list, fixnump, xfixnum
+    use lisp_fm, only: value_type, make_fixnum, list, xfixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only, current_buffer

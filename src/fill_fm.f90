@@ -34,7 +34,7 @@ module fill_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, fixnump, xfixnum, symbolp, make_string, stringp, xstring
+    use lisp_fm, only: value_type, xfixnum, make_string, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name, logical_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
@@ -325,7 +325,7 @@ contains
         do
             call get_text_property(here, sym("right_margin"), margin, st)
             fill_col = fill_column%value
-            if (fixnump(margin)) fill_col = fill_column%value - xfixnum(margin)
+            if (vtag(margin) == V_INTEGER) fill_col = fill_column%value - xfixnum(margin)
             call text_property_not_all(here, eol, sym("right_margin"), margin, change, found, st)
             if (.not. found) exit
             call goto_char(change - 1)
@@ -856,7 +856,7 @@ contains
             mb = match_beginning(0, st)
             call get_text_property(mb, sym("fill_space"), fill_space, st)
 
-            if (stringp(fill_space)) then
+            if (vtag(fill_space) == V_STRING) then
                 call replace_match(xstring(fill_space), status, literal=.true.)
                 if (.not. status%ok()) exit
             else
@@ -1607,7 +1607,7 @@ contains
         call get_text_property(pos, sym("justification"), v, st)
         j = default_justification
 
-        if (symbolp(v) .and. allocated(v%a)) then
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then
             call symbol_name(v, name, st)
 
             select case (name)

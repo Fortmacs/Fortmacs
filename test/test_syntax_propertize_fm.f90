@@ -29,7 +29,7 @@ module test_syntax_propertize_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, consp
+    use lisp_fm, only: value_type, vtag, V_ARRAY
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
@@ -200,7 +200,7 @@ contains
             call check(error, syntax_propertize__done%value >= 6, "propertized that far")
             if (allocated(error)) exit checks
             call get_text_property(3_int64, sym("syntax_table"), prop, st)
-            call check(error, consp(prop), "a raw descriptor on #")
+            call check(error, vtag(prop) == V_ARRAY, "a raw descriptor on #")
             if (allocated(error)) exit checks
             call syntax_ppss(state, 7_int64)
             call check(error, syntax_ppss_context(state), SYNTAX_PPSS_NONE)

@@ -47,7 +47,6 @@
 !> Lisp: `ibuffer_filter_by_predicate' takes a Fortran function, shown as
 !> " [predicate]" without its form).
 submodule(ibuffer_fm) ibuf_ext_fm
-    use lisp_fm, only: make_list
     use data_fm, only: value_eq
     use simple_fm, only: call_shell_region, call_process_shell_command, shell_command_buffer_name, &
                          shell_command_dont_erase_buffer, kill_new, kill_append
@@ -66,7 +65,7 @@ submodule(ibuffer_fm) ibuf_ext_fm
     use diff_mode_fm, only: diff_mode
     use window_fm, only: pop_to_buffer_same_window
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: symbolp, xsymbol, symbols, list_elements
+    use lisp_fm, only: xsymbol, symbols, list_elements, make_list, vtag, V_NULL, V_INTEGER, V_NAME, V_ARRAY, value_type
     use search_fm, only: SEARCH_NOERROR
     use files_fm, only: file_name_extension
     use simple_fm, only: simple_kill_line => kill_line
@@ -1649,7 +1648,7 @@ contains
         call insert(achar(10)//command//achar(10), status)
         call call_process_shell_command(command, code, status)
 
-        if (fixnump(code)) then
+        if (vtag(code) == V_INTEGER) then
             call diff_sentinel(int(xfixnum(code)), new_temp_file=newtmp)
         else
             call diff_sentinel(0, new_temp_file=newtmp)
@@ -1767,7 +1766,7 @@ contains
 
         status = status_type()
 
-        if (fixnump(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_INTEGER) then
             if (xfixnum(current_prefix_arg) /= 0) then
                 call near_buffers(xfixnum(current_prefix_arg), bufs)
                 return
@@ -1837,9 +1836,9 @@ contains
             call set_buffer(old, st)
             if (len(name) == 0) cycle
 
-            if (fixnump(current_prefix_arg)) then
+            if (vtag(current_prefix_arg) == V_INTEGER) then
                 if (xfixnum(current_prefix_arg) /= 0) name = file_name_nondirectory(name)
-            else if (consp(current_prefix_arg)) then
+            else if (vtag(current_prefix_arg) == V_ARRAY) then
                 if (allocated(ibuffer_default_directory)) dir = ibuffer_default_directory
                 name = file_relative_name(name, buffers(cur)%directory)
                 if (allocated(ibuffer_default_directory)) name = file_relative_name(name, ibuffer_default_directory)
@@ -3607,7 +3606,7 @@ contains
         integer :: n
 
         is_mode_name = .false.
-        if (.not. symbolp(elt)) return
+        if ((vtag(elt) /= V_NAME .and. vtag(elt) /= V_NULL)) return
         n = len(symbols(xsymbol(elt))%name)
         if (n < 5) return
         is_mode_name = symbols(xsymbol(elt))%name(n - 4:n) == "_mode"
@@ -3879,7 +3878,7 @@ contains
             call list_elements(keys, events)
 
             if (size(events) > 0) then
-                if (fixnump(events(1))) then
+                if (vtag(events(1)) == V_INTEGER) then
                     write (buf, "(i0)") xfixnum(events(1))
                     call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//trim(buf))
                 else

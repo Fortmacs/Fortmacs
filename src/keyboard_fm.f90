@@ -53,14 +53,14 @@
 !> quit) and `minibuffer_error_function'.
 module keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use lisp_fm, only: V_NULL
+    use lisp_fm, only: V_NULL, V_INTEGER, V_NAME, V_STRING
     use error_fm, only: status_type, set_error, format_error, error_name, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR, &
                         FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
     use data_fm, only: value_eq
     use lisp_fm, only: value_type, V_ARRAY, make_fixnum, &
-                       make_keymap_ref, vtag, fixnump, symbolp, &
-                       stringp, xfixnum, xsymbol, xstring, list_elements, list_elt, make_list, symbols, &
+                       make_keymap_ref, vtag, &
+                       xfixnum, xsymbol, xstring, list_elements, list_elt, make_list, symbols, &
                        command_proc
     use lread_fm, only: intern, sym
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_MODIFIER_MASK, CHAR_CTL, CHAR_ALT, CHAR_SUPER, CHAR_HYPER, &
@@ -998,7 +998,7 @@ contains
 
         if (dribble_fd < 0) return
 
-        if (fixnump(c)) then
+        if (vtag(c) == V_INTEGER) then
             if (xfixnum(c) >= 0 .and. xfixnum(c) < 256) then
                 call emacs_write(dribble_fd, achar(xfixnum(c)), st)
             else
@@ -1009,7 +1009,8 @@ contains
             ! If it's a structured event, take the event header.
             head = c
             if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
-            if (symbolp(head)) call emacs_write(dribble_fd, "<"//symbols(xsymbol(head))%name//">", st)
+            if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) call emacs_write(dribble_fd, &
+                                                                                   "<"//symbols(xsymbol(head))%name//">", st)
         end if
 
     contains
@@ -1125,7 +1126,7 @@ contains
                     executing_kbd_macro_index = executing_kbd_macro_index + 1
                     ev = macro_events(executing_kbd_macro_index)
 
-                    if (macro_string .and. fixnump(ev)) then
+                    if (macro_string .and. vtag(ev) == V_INTEGER) then
                         if (iand(xfixnum(ev), 128_int64) /= 0 .and. xfixnum(ev) <= 255) then
                             ev = make_fixnum(ior(M_META, iand(xfixnum(ev), not(128_int64))))
                         end if
@@ -1253,12 +1254,13 @@ contains
 
         test_undefined = .not. allocated(binding%a)
 
-        if (.not. test_undefined .and. symbolp(binding)) then
+        if (.not. test_undefined .and. (vtag(binding) == V_NAME .or. vtag(binding) == V_NULL)) then
             test_undefined = xsymbol(binding) == intern("undefined")
 
             if (.not. test_undefined) then
                 call command_remapping(binding, remapped)
-                if (symbolp(remapped)) test_undefined = xsymbol(remapped) == intern("undefined")
+                if ((vtag(remapped) == V_NAME .or. vtag(remapped) == V_NULL)) test_undefined = xsymbol(remapped) &
+                                                                                               == intern("undefined")
             end if
         end if
     end function test_undefined
@@ -1316,8 +1318,8 @@ contains
         fk%end = fk%end + 1
         if (is_keymap(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
 
-        if (doit .and. (stringp(next) .or. (vtag(next) == V_ARRAY .and. &
-                                            .not. is_keymap(next)))) then
+        if (doit .and. (vtag(next) == V_STRING .or. (vtag(next) == V_ARRAY .and. &
+                                                     .not. is_keymap(next)))) then
             call sequence_events(next, seq)
             n = size(seq)
             diff = n - (fk%end - fk%start)
@@ -1560,7 +1562,7 @@ contains
                 ! If KEY is not defined in any of the keymaps, and cannot be
                 ! part of a function key or translation, and is an upper case
                 ! letter, use the corresponding lower-case letter instead.
-                if (.not. allocated(current_binding%a) .and. keytran%start >= t .and. fixnump(key) .and. &
+                if (.not. allocated(current_binding%a) .and. keytran%start >= t .and. vtag(key) == V_INTEGER .and. &
                     translate_upper_case_key_bindings) then
                     k = xfixnum(key)
                     c = iand(k, not(M_MASK))
@@ -1592,17 +1594,17 @@ contains
                 ! instead.
                 if (.not. allocated(current_binding%a) .and. keytran%start >= t .and. translate_upper_case_key_bindings) then
                     bits = 0
-                    if (symbolp(key)) call parse_modifiers(key, bits, base)
-                    if (fixnump(key)) bits = iand(xfixnum(key), M_MASK)
+                    if ((vtag(key) == V_NAME .or. vtag(key) == V_NULL)) call parse_modifiers(key, bits, base)
+                    if (vtag(key) == V_INTEGER) bits = iand(xfixnum(key), M_MASK)
                     c = -1
-                    if (fixnump(key)) c = iand(xfixnum(key), not(M_MASK))
+                    if (vtag(key) == V_INTEGER) c = iand(xfixnum(key), not(M_MASK))
 
                     ! Treat uppercase keys as shifted.
                     if (iand(bits, M_SHIFT) /= 0 .or. uppercase_key(c)) then
                         original_uppercase = key
                         original_uppercase_position = t - 1
 
-                        if (iand(bits, M_SHIFT) /= 0 .and. symbolp(key)) then
+                        if (iand(bits, M_SHIFT) /= 0 .and. (vtag(key) == V_NAME .or. vtag(key) == V_NULL)) then
                             keybuf(t) = apply_modifiers(bits - M_SHIFT, base)
                         else if (iand(bits, M_SHIFT) /= 0) then
                             keybuf(t) = make_fixnum(xfixnum(key) - M_SHIFT)
@@ -2137,7 +2139,7 @@ contains
         if (eof) cmd = value_type()
 
         ! Remap command through active keymaps (read_key_sequence_remapped).
-        if (symbolp(cmd) .and. allocated(cmd%a)) then
+        if ((vtag(cmd) == V_NAME .or. vtag(cmd) == V_NULL) .and. allocated(cmd%a)) then
             call command_remapping(cmd, remapped)
             if (allocated(remapped%a)) cmd = remapped
         end if
@@ -2191,7 +2193,7 @@ contains
 
             if (associated(wrapper)) then
                 call wrapper(cmd, status)
-            else if (stringp(cmd) .or. vtag(cmd) == V_ARRAY) then
+            else if (vtag(cmd) == V_STRING .or. vtag(cmd) == V_ARRAY) then
                 call execute_kbd_macro(cmd, current_prefix_arg, status)
             else
                 handled = .false.
@@ -2291,7 +2293,7 @@ contains
         type(value_type), intent(in) :: prop
         type(value_type), allocatable :: elts(:)
 
-        replaces = stringp(prop)
+        replaces = vtag(prop) == V_STRING
         if (replaces .or. vtag(prop) /= V_ARRAY) return
         call list_elements(prop, elts)
         if (size(elts) > 0) replaces = value_eq(elts(1), sym("space"))
@@ -2455,7 +2457,7 @@ contains
             type(value_type), intent(in) :: v
 
             empty_string = .false.
-            if (stringp(v)) empty_string = len(xstring(v)) == 0
+            if (vtag(v) == V_STRING) empty_string = len(xstring(v)) == 0
         end function empty_string
 
         !> Whether OVERLAY has an after-string or a before-string.
@@ -2635,9 +2637,9 @@ contains
         head = c
         if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
 
-        if (fixnump(head)) then
+        if (vtag(head) == V_INTEGER) then
             new_string = new_string//push_key_description(xfixnum(head))
-        else if (symbolp(head)) then
+        else if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) then
             new_string = new_string//symbols(xsymbol(head))%name
         end if
 
@@ -2820,7 +2822,7 @@ contains
 
         is_help_char = .false.
 
-        if (fixnump(c)) then
+        if (vtag(c) == V_INTEGER) then
             is_help_char = xfixnum(c) == help_char
             if (is_help_char) return
         end if
@@ -2946,7 +2948,7 @@ contains
         else if (vtag(prefix_arg) == V_ARRAY) then
             head = list_elt(prefix_arg, 1_int64)
 
-            if (fixnump(head)) then
+            if (vtag(head) == V_INTEGER) then
                 n = xfixnum(head)
                 str = ""
 
@@ -2962,7 +2964,7 @@ contains
                     s = s//" ("//trim(buf)//")"
                 end if
             end if
-        else if (fixnump(prefix_arg)) then
+        else if (vtag(prefix_arg) == V_INTEGER) then
             write (buf, "(i0)") xfixnum(prefix_arg)
             s = s//" "//trim(buf)
         end if
@@ -3149,7 +3151,7 @@ contains
             if (.not. ascii_required) return
 
             ! Convert certain symbols to their ASCII equivalents.
-            if (symbolp(ev)) then
+            if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) then
                 call parse_modifiers(ev, bits, base)
                 c = ascii_character(sym(base))
                 ! Merge this symbol's modifier bits with the ASCII
@@ -3158,7 +3160,7 @@ contains
             end if
 
             ! If we don't have a character now, deal with it appropriately.
-            if (fixnump(ev)) return
+            if (vtag(ev) == V_INTEGER) return
 
             if (error_nonascii) then
                 call unread_command_events([ev])
@@ -3209,7 +3211,7 @@ contains
         call show_read_prompt(prompt)
         call read_filtered_event(.true., .true., ev, have, status, seconds)
         if (.not. status%ok() .or. .not. have) return
-        have = fixnump(ev)
+        have = vtag(ev) == V_INTEGER
         if (have) c = int(char_resolve_modifier_mask(int(xfixnum(ev), int32)), int64)
     end subroutine read_char
 
@@ -3278,7 +3280,7 @@ contains
         call show_read_prompt(prompt)
         call read_filtered_event(.true., .false., ev, have, status, seconds)
         if (.not. status%ok() .or. .not. have) return
-        have = fixnump(ev)
+        have = vtag(ev) == V_INTEGER
         if (have) c = int(char_resolve_modifier_mask(int(xfixnum(ev), int32)), int64)
     end subroutine read_char_exclusive
 
@@ -3323,7 +3325,7 @@ contains
         type(value_type), intent(in) :: symbol
 
         bit = 0
-        if (.not. symbolp(symbol)) return
+        if ((vtag(symbol) /= V_NAME .and. vtag(symbol) /= V_NULL)) return
 
         select case (symbols(xsymbol(symbol))%name)
         case ("A", "alt")
@@ -3460,8 +3462,11 @@ contains
 
         do k = 1, size(event_desc)
             this = 0
+
             ! Given a symbol, see if it is a modifier name.
-            if (symbolp(event_desc(k)) .and. k < size(event_desc)) this = parse_solitary_modifier(event_desc(k))
+            if ((vtag(event_desc(k)) == V_NAME .or. vtag(event_desc(k)) == V_NULL) .and. k < size(event_desc)) then
+                this = parse_solitary_modifier(event_desc(k))
+            end if
 
             if (this /= 0) then
                 modifiers = ior(modifiers, this)
@@ -3474,12 +3479,12 @@ contains
         end do
 
         ! Let the symbol A refer to the character A.
-        if (symbolp(base) .and. allocated(base%a)) then
+        if ((vtag(base) == V_NAME .or. vtag(base) == V_NULL) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name
             if (len(name) == 1) base = make_fixnum(int(iachar(name), int64))
         end if
 
-        if (fixnump(base)) then
+        if (vtag(base) == V_INTEGER) then
             c = xfixnum(base)
 
             ! Turn (shift a) into A.
@@ -3494,7 +3499,7 @@ contains
             else
                 ev = make_fixnum(ior(modifiers, c))
             end if
-        else if (symbolp(base) .and. allocated(base%a)) then
+        else if ((vtag(base) == V_NAME .or. vtag(base) == V_NULL) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name
             ev = apply_modifiers(modifiers, name)
         else
@@ -3511,7 +3516,7 @@ contains
         character(len=:), allocatable :: name
 
         c = -1
-        if (.not. symbolp(event)) return
+        if ((vtag(event) /= V_NAME .and. vtag(event) /= V_NULL)) return
         name = symbols(xsymbol(event))%name
 
         if (len(name) == 4) then

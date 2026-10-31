@@ -54,8 +54,8 @@ module sh_script_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, stringp, xstring, make_string, list, list_elements, t_value, make_list, &
-                       list_length, list_elt
+    use lisp_fm, only: value_type, xstring, make_string, list, list_elements, t_value, make_list, &
+                       list_length, list_elt, vtag, V_STRING
     use lread_fm, only: sym
     use data_fm, only: integer_setting, string_setting, forward_setting, add_local_variables_killer, value_eq
     use commands_fm, only: commands
@@ -1788,7 +1788,7 @@ contains
         if (state%instring /= ST_STRING_STYLE) return
         call get_text_property(state%comstr_start, sym("sh_here_doc_marker"), key, st)
         k = ""
-        if (stringp(key)) k = xstring(key)
+        if (vtag(key) == V_STRING) k = xstring(key)
         saved = case_fold_search%value
         case_fold_search%value = .false.
         call re_search_forward("^\([ "//TAB//"]*\)"//regexp_quote(k)//"\("//LF//"\)", found, st, bound=end, &

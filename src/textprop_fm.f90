@@ -36,12 +36,12 @@
 !> for its table.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: consp, list, list_elements, list_length, make_list, make_symbol_ref, &
-                       stringp, value_type, xstring, string_intervals, set_string_intervals, &
-                       make_string, symbolp, symbols, xsymbol
+    use lisp_fm, only: list, list_elements, list_length, make_list, make_symbol_ref, &
+                       value_type, xstring, string_intervals, set_string_intervals, &
+                       make_string, symbols, xsymbol
     use character_fm, only: multibyte_chars_in_text
     use lread_fm, only: intern
     use data_fm, only: value_eq, logical_setting
@@ -191,7 +191,7 @@ contains
 
         if (.not. allocated(props%a)) return
 
-        if (consp(props)) then
+        if (vtag(props) == V_ARRAY) then
             if (mod(list_length(props), 2_int64) /= 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Odd length text property list")
                 return
@@ -225,7 +225,7 @@ contains
         type(status_type), intent(inout) :: status
         type(value_type), intent(in) :: propval
 
-        if (stringp(propval)) then
+        if (vtag(propval) == V_STRING) then
             call set_error(status, FM_TEXT_READ_ONLY, xstring(propval))
         else
             call set_error(status, FM_TEXT_READ_ONLY)
@@ -557,7 +557,7 @@ contains
 
             if (.not. allocated(prev%a)) then
                 call put_text_property(s, next, prop, face, status)
-            else if (consp(prev) .and. .not. keyword_list(prev)) then
+            else if (vtag(prev) == V_ARRAY .and. .not. keyword_list(prev)) then
                 ! The previous value is a list, so prepend (or append) the
                 ! new value to this list.
                 call list_elements(prev, prev_items)
@@ -597,7 +597,7 @@ contains
             keyword_list = .false.
             call list_elements(v, elts)
             if (size(elts) == 0) return
-            if (.not. symbolp(elts(1))) return
+            if ((vtag(elts(1)) /= V_NAME .and. vtag(elts(1)) /= V_NULL)) return
             name = symbols(xsymbol(elts(1)))%name
             if (len(name) > 0) keyword_list = name(1:1) == ":"
         end function keyword_list
@@ -1039,7 +1039,7 @@ contains
         else
             call get_text_property(pos - 1, qsym("rear_nonsticky"), rear_non_sticky, status)
 
-            if (consp(rear_non_sticky)) then
+            if (vtag(rear_non_sticky) == V_ARRAY) then
                 if (memq_p(prop, rear_non_sticky)) is_rear_sticky = .false.
             else if (allocated(rear_non_sticky%a)) then
                 is_rear_sticky = .false.
@@ -1050,7 +1050,7 @@ contains
 
         if (value_eq(front_sticky, qsym("t"))) then
             is_front_sticky = .true.
-        else if (consp(front_sticky)) then
+        else if (vtag(front_sticky) == V_ARRAY) then
             if (memq_p(prop, front_sticky)) is_front_sticky = .true.
         end if
 
@@ -1095,7 +1095,7 @@ contains
         invis = match(propval)
         if (invis /= 0) return
 
-        if (consp(propval)) then
+        if (vtag(propval) == V_ARRAY) then
             call list_elements(propval, elts)
 
             do k = 1, size(elts)
@@ -1449,7 +1449,7 @@ contains
 
                 ! If inhibit_read_only is set and is not a list, we can skip
                 ! the read_only checks.
-                if (.not. allocated(inhibit%a) .or. consp(inhibit)) then
+                if (.not. allocated(inhibit%a) .or. vtag(inhibit) == V_ARRAY) then
                     if (.not. (has_after .and. has_prev .and. k == prev)) then
                         if (has_after) then
                             after = textget(iv%runs(k)%plist, qsym("read_only"))
@@ -1525,10 +1525,10 @@ contains
                 do
                     read_only = textget(iv%runs(k)%plist, qsym("read_only"))
                     ! INTERVAL_GENERALLY_WRITABLE_P / INTERVAL_EXPRESSLY_WRITABLE_P
-                    implied = .not. allocated(read_only%a) .or. (allocated(inhibit%a) .and. .not. consp(inhibit))
+                    implied = .not. allocated(read_only%a) .or. (allocated(inhibit%a) .and. vtag(inhibit) /= V_ARRAY)
                     express = vtag(textget(iv%runs(k)%plist, qsym("inhibit_read_only"))) /= V_NULL
 
-                    if (.not. express .and. allocated(read_only%a) .and. consp(inhibit)) then
+                    if (.not. express .and. allocated(read_only%a) .and. vtag(inhibit) == V_ARRAY) then
                         express = memq_p(read_only, inhibit)
                     end if
 
@@ -1737,7 +1737,7 @@ contains
 
         nchars = 0
 
-        if (.not. stringp(string)) then
+        if (vtag(string) /= V_STRING) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
             return
         end if

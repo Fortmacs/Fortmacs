@@ -63,7 +63,7 @@ module syntax_fm
     use category_fm, only: char_has_category
     use charscript_fm, only: char_script
     use data_fm, only: logical_setting, integer_setting, forward_setting
-    use lisp_fm, only: value_type, consp, fixnump, xfixnum, syntax_table_ref_p, xhandle, make_fixnum, list_elt, list
+    use lisp_fm, only: value_type, xfixnum, xhandle, make_fixnum, list_elt, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
     use lread_fm, only: sym
     use textprop_fm, only: get_text_property
     implicit none(type, external)
@@ -751,12 +751,12 @@ contains
         type(value_type) :: code, match
 
         found = .false.
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         code = list_elt(v, 1_int64)
-        if (.not. fixnump(code)) return
+        if (vtag(code) /= V_INTEGER) return
         d%code = int(xfixnum(code), int32)
         match = list_elt(v, 2_int64)
-        if (fixnump(match)) d%match = int(xfixnum(match), int32)
+        if (vtag(match) == V_INTEGER) d%match = int(xfixnum(match), int32)
         found = .true.
     end subroutine descriptor_of_value
 
@@ -826,10 +826,10 @@ contains
         call get_text_property(pos, sym("syntax_table"), prop, st)
 
         if (st%ok()) then
-            if (consp(prop)) then
+            if (vtag(prop) == V_ARRAY) then
                 call descriptor_of_value(prop, d, found)
                 if (found) return
-            else if (syntax_table_ref_p(prop)) then
+            else if (vtag(prop) == V_SYNTAX_TABLE) then
                 if (is_syntax_table_live(xhandle(prop))) then
                     d = syntax_entry(c, xhandle(prop))
                     return

@@ -44,7 +44,7 @@ module buff_menu_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use commands_fm, only: commands
@@ -1466,7 +1466,7 @@ contains
 
         if (.not. have) then
             call set_error(status, FM_QUIT)
-        else if (.not. fixnump(ev)) then
+        else if (vtag(ev) /= V_INTEGER) then
             call set_error(status, FM_GENERIC_ERROR, "Non-character input-event")
         else if (xfixnum(ev) == 7) then
             call set_error(status, FM_QUIT)

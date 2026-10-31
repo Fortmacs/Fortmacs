@@ -666,3 +666,6 @@ name	V_NIL	V_NULL
 name	V_INT	V_INTEGER
 name	V_SYMBOL	V_NAME
 name	V_LIST	V_ARRAY
+
+# B1, after the value tag test windowp left lisp_fm: window.c's windowp.
+name	windowp	is_window

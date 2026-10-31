@@ -56,7 +56,7 @@ module expression_motion_fm
     use simple_fm, only: kill_region, set_mark, push_mark, is_use_region, blink_matching_delay
     use data_fm, only: value_eq, add_local_variables_killer, string_setting, logical_setting, function_setting, &
                        forward_setting
-    use lisp_fm, only: value_type, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use lread_fm, only: sym
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command, last_command_event, sit_for
@@ -1506,7 +1506,7 @@ contains
     ! Not a port.
     integer(int64) function event_basic_char() result(c)
         c = -1
-        if (.not. fixnump(last_command_event)) return
+        if (vtag(last_command_event) /= V_INTEGER) return
         c = iand(xfixnum(last_command_event), int(not(CHAR_MODIFIER_MASK), int64))
 
         if (c < 32) then
@@ -1550,7 +1550,7 @@ contains
 
         if (o == 0 .or. c == 0) then
             ev = -1
-            if (fixnump(last_command_event)) ev = xfixnum(last_command_event)
+            if (vtag(last_command_event) == V_INTEGER) ev = xfixnum(last_command_event)
             basic = event_basic_char()
             k = pair_index(ev)
             if (k == 0) k = pair_index(basic)

@@ -27,7 +27,7 @@ module test_sh_script_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, consp, symbolp, symbols, xsymbol, list_elements
+    use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
@@ -279,13 +279,13 @@ contains
         name = ""
         call get_text_property(point(), sym("face"), v, st)
 
-        if (consp(v)) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
             v = elts(1)
         end if
 
         if (.not. allocated(v%a)) return
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function face
 
     !> Test that "do" gets fontified correctly, even with no ";".

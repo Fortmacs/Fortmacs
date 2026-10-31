@@ -65,10 +65,10 @@
 !> after C-u (an error says so); coding systems.
 module comint_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY
     use error_fm, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, &
+    use lisp_fm, only: value_type, t_value, list, symbols, xsymbol, list_elements, &
                        command_proc
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, value_eq, &
@@ -130,7 +130,7 @@ module comint_fm
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use timer_fm, only: run_at_time
-    use lisp_fm, only: make_string, make_list, stringp, xstring
+    use lisp_fm, only: make_string, make_list, xstring
     use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_unquote_proc, &
                                 completion_requote_proc, completion_quote_proc, completion_table_with_quoting, &
                                 capf_data_type, COMPLETION_FINISHED, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
@@ -1091,7 +1091,7 @@ contains
         character(len=*), intent(in) :: name
 
         symbol_is = .false.
-        if (.not. symbolp(v)) return
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) return
         if (.not. allocated(v%a)) return
         symbol_is = symbols(xsymbol(v))%name == name
     end function symbol_is
@@ -1310,7 +1310,7 @@ contains
         call read_string("Run program: ", program, status)
         if (.not. status%ok()) return
 
-        if (consp(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_ARRAY) then
             call set_error(status, FM_GENERIC_ERROR, "Reading switches for comint_run is not supported yet")
             return
         end if
@@ -1657,13 +1657,13 @@ contains
         if (len(regexp) == 0) then
             call symbol_value(sym("minibuffer_history_search_history"), history, st)
 
-            if (st%ok() .and. consp(history)) then
+            if (st%ok() .and. vtag(history) == V_ARRAY) then
                 call list_elements(history, elts)
 
                 if (size(elts) > 0) then
                     block
-                        use lisp_fm, only: stringp, xstring
-                        if (stringp(elts(1))) regexp = xstring(elts(1))
+                        use lisp_fm, only: xstring
+                        if (vtag(elts(1)) == V_STRING) regexp = xstring(elts(1))
                     end block
                 end if
             end if
@@ -3688,7 +3688,7 @@ contains
 
         if (.not. allocated(lst%a)) then
             yes = .false.
-        else if (consp(lst)) then
+        else if (vtag(lst) == V_ARRAY) then
             yes = .false.
             call list_elements(lst, elts)
 
@@ -5570,7 +5570,7 @@ contains
         case (COMPLETE_TRY)
             call completion_file_name_table(comint_file_name_prefix%value//string, action, result, status, pred, suffix)
 
-            if (stringp(result)) then
+            if (vtag(result) == V_STRING) then
                 if (string_match("\`"//regexp_quote(comint_file_name_prefix%value), xstring(result), st) > 0) then
                     result = make_string(substring(xstring(result), match_end(0, st) - 1))
                 end if

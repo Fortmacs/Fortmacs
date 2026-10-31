@@ -35,7 +35,7 @@ module diff_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, fixnump, xfixnum, make_string, list
+    use lisp_fm, only: value_type, t_value, xfixnum, make_string, list, vtag, V_INTEGER
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live, &
@@ -412,7 +412,7 @@ contains
                               args=list(make_string(shell_command_switch%value), make_string(command)))
             buffers(cur)%directory = olddir
             k = 2
-            if (fixnump(code)) k = int(xfixnum(code))
+            if (vtag(code) == V_INTEGER) k = int(xfixnum(code))
 
             if (allocated(old_alt) .and. allocated(new_alt)) then
                 call diff_sentinel(k, old_alt, new_alt)

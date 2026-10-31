@@ -44,8 +44,8 @@ module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR
-    use lisp_fm, only: value_type, make_string, make_list, list_elements, V_ARRAY, vtag, list_elt, fixnump, &
-                       xfixnum, symbolp
+    use lisp_fm, only: value_type, make_string, make_list, list_elements, V_ARRAY, vtag, list_elt, &
+                       xfixnum, V_NULL, V_INTEGER, V_NAME
     use handle_fm, only: handle_type
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, kill_buffer, &
@@ -125,14 +125,14 @@ contains
         if (vtag(ev) == V_ARRAY) head = list_elt(ev, 1_int64)
         is_unmodified_event = .false.
 
-        if (fixnump(head)) then
+        if (vtag(head) == V_INTEGER) then
             ! subr.el:event-modifiers for a character.
             bits = iand(xfixnum(head), M_MODS)
             c = iand(xfixnum(head), not(M_MODS))
             if (iand(bits, not(M_SHIFT)) /= 0) return
             if (c < 32) return
             is_unmodified_event = .true.
-        else if (symbolp(head)) then
+        else if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) then
             call parse_modifiers(head, bits, base)
             is_unmodified_event = bits == 0 .or. bits == M_SHIFT
         end if
