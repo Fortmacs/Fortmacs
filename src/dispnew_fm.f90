@@ -278,7 +278,7 @@ contains
         if (present(window)) w = window
 
         if (.not. window_valid_p(w)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
             return
         end if
 
@@ -299,7 +299,7 @@ contains
         if (present(window)) w = window
 
         if (.not. window_valid_p(w)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
             return
         end if
 

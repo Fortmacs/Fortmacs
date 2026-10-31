@@ -51,7 +51,7 @@ contains
         i = 0
 
         if (.not. window_live_p(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
             return
         end if
 
@@ -71,7 +71,7 @@ contains
         i = 0
 
         if (.not. window_valid_p(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -108,7 +108,7 @@ contains
         b = null_handle()
 
         if (.not. wtable%issued(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
             return
         end if
 
@@ -183,7 +183,7 @@ contains
 
         if (present(window)) then
             if (.not. window_valid_p(window)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "frame_live_p")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(frame_type)")
                 return
             end if
         end if
@@ -202,7 +202,7 @@ contains
 
         if (present(window)) then
             if (.not. window_valid_p(window)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "frame_live_p")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(frame_type)")
                 return
             end if
         end if
@@ -610,7 +610,7 @@ contains
         if (present(window)) then
             if (.not. wtable%issued(window)) then
                 allocate (list(0))
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
                 return
             end if
         end if

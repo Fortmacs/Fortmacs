@@ -148,7 +148,7 @@ contains
 
         do k = len(categories), 1, -1
             if (.not. categoryp(categories(k:k))) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
                 return
             end if
 
@@ -206,7 +206,7 @@ contains
             h = table
 
             if (.not. category_table_p(h)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "category_table_p")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category table type(char_table_type)")
                 return
             end if
         else
@@ -365,7 +365,7 @@ contains
         integer :: info
 
         if (.not. categoryp(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
             return
         end if
 
@@ -397,7 +397,7 @@ contains
         if (present(defined)) defined = .false.
 
         if (.not. categoryp(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
             return
         end if
 
@@ -496,12 +496,12 @@ contains
         if (present(to)) last = to
 
         if (start < 0 .or. start > MAX_CHAR .or. last < 0 .or. last > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
         if (.not. categoryp(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
             return
         end if
 

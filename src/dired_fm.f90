@@ -91,7 +91,7 @@ contains
 
         if (present(count)) then
             if (count < 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "wholenump")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (>= 0)")
                 return
             end if
         end if

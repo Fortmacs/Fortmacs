@@ -541,7 +541,7 @@ contains
         integer(int64) :: n, chunk, reps
 
         if (.not. char_valid_p(c)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -1241,12 +1241,12 @@ contains
         if (.not. status%ok()) return
 
         if (.not. char_valid_p(fromchar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(fromchar, int64)))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//int_text(int(fromchar, int64)))
             return
         end if
 
         if (.not. char_valid_p(tochar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(tochar, int64)))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//int_text(int(tochar, int64)))
             return
         end if
 

@@ -59,7 +59,7 @@ contains
     subroutine not_live(status)
         type(status_type), intent(out) :: status
 
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
     end subroutine not_live
 
     !> The window commands can't run in the minibuffer yet.  Not a port.
@@ -172,7 +172,7 @@ contains
         integer(int64) :: bi
 
         if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -301,7 +301,7 @@ contains
         status = status_type()
 
         if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -350,7 +350,7 @@ contains
         integer :: top, left, lines, cols
 
         if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 

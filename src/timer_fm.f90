@@ -186,7 +186,7 @@ contains
         type(handle_type), intent(in) :: timer
         type(status_type), intent(out) :: status
 
-        if (.not. timerp(timer)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "timerp")
+        if (.not. timerp(timer)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(timer_type)")
     end subroutine timer_check_arg
 
     !> Whether TIMER is inactive (triggered): not waiting to be run.

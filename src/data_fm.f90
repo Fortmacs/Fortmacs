@@ -609,7 +609,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. fixnump(v)) call wrong_type(status, "fixnump")
+        if (.not. fixnump(v)) call wrong_type(status, "expected integer")
     end subroutine check_fixnum
 
     !> Port of lisp.h:CHECK_SYMBOL.
@@ -617,7 +617,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. symbolp(v)) call wrong_type(status, "symbolp")
+        if (.not. symbolp(v)) call wrong_type(status, "expected name")
     end subroutine check_symbol
 
     !> Port of lisp.h:CHECK_STRING.
@@ -625,7 +625,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. stringp(v)) call wrong_type(status, "stringp")
+        if (.not. stringp(v)) call wrong_type(status, "expected character(len=*)")
     end subroutine check_string
 
     !> Port of lisp.h:CHECK_LIST.
@@ -633,7 +633,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. listp(v)) call wrong_type(status, "listp")
+        if (.not. listp(v)) call wrong_type(status, "expected array")
     end subroutine check_list
 
     ! ------------------------------------------------------------------
@@ -674,7 +674,7 @@ contains
         case (V_NIL)
             v = nil()
         case default
-            call wrong_type(status, "listp")
+            call wrong_type(status, "expected array")
         end select
     end subroutine car
 
@@ -691,7 +691,7 @@ contains
         case (V_NIL)
             v = nil()
         case default
-            call wrong_type(status, "listp")
+            call wrong_type(status, "expected array")
         end select
     end subroutine cdr
 

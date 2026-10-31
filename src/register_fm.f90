@@ -1122,13 +1122,13 @@ contains
         case (REGISTER_FILE)
             ! insert-rectangle of (file . NAME) gives insert-for-yank the
             ! symbol `file'.
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, file")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), file")
         case (REGISTER_FILE_QUERY)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, file_query")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), file_query")
         case (REGISTER_BUFFER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, buffer")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), buffer")
         case (REGISTER_WINDOW_CONFIGURATION)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, #<window-configuration>")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), #<window-configuration>")
         case default
             call set_error(status, FM_USER_ERROR, "Register does not contain text")
         end select
@@ -1197,19 +1197,19 @@ contains
         case (REGISTER_TEXT)
             text = sep%text
         case (REGISTER_NUMBER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//int_text(sep%number))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), "//int_text(sep%number))
         case (REGISTER_MARKER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//marker_repr(sep%marker))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), "//marker_repr(sep%marker))
         case (REGISTER_RECTANGLE)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//fortran_string(sep%rectangle(1)%text))
+      call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//fortran_string(sep%rectangle(1)%text))
         case (REGISTER_FILE)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, file")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), file")
         case (REGISTER_FILE_QUERY)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, file_query")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), file_query")
         case (REGISTER_BUFFER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, buffer")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), buffer")
         case (REGISTER_WINDOW_CONFIGURATION)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, #<window-configuration>")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), #<window-configuration>")
         case default
             continue
         end select

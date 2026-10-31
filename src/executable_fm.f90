@@ -304,14 +304,14 @@ contains
         if (head /= "#!") return
 
         if (.not. allocated(buffers(cur)%filename)) then
-            call message("Unable to make file executable: Wrong type argument: stringp, nil")
+            call message("Unable to make file executable: Wrong type argument: expected character(len=*), unallocated")
             return
         end if
 
         current_mode = file_modes(buffers(cur)%filename)
 
         if (current_mode < 0) then
-            call message("Unable to make file executable: Wrong type argument: integerp, nil")
+            call message("Unable to make file executable: Wrong type argument: expected integer")
             return
         end if
 

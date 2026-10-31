@@ -387,7 +387,7 @@ contains
         type(status_type), intent(out) :: status
 
         call table%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax_table_p")
+        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(syntax_table_type)")
     end subroutine resolve_table
 
     !> Return true if OBJECT is a syntax table.  Port of

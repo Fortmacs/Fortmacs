@@ -333,7 +333,7 @@ contains
         call variable_doc(name, entry, found)
 
         if (.not. found) then
-            text = name//" is void as a variable."//LF
+            text = name//" has no value as a variable."//LF
             return
         end if
 
@@ -401,7 +401,7 @@ contains
         ! help-fns--describe-function-or-command-prompt (no function at
         ! point yet)
         if (len(name) == 0) then
-            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function symbol"))
+            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function name"))
             return
         end if
 
@@ -651,7 +651,7 @@ contains
         call describe_symbol_text(name, text, found)
 
         if (.not. found) then
-            call set_error(status, FM_USER_ERROR, "Unknown symbol: "//name)
+            call set_error(status, FM_USER_ERROR, "Unknown name: "//name)
             return
         end if
 

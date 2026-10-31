@@ -570,7 +570,7 @@ contains
         if (allocated(error)) return
         call kbd_store_bytes("v")
         call command_loop_step(done, st)
-        call check(error, last_message, "Wrong type argument: commandp, void-command")
+        call check(error, last_message, "Wrong type argument: expected type(command_type), void-command")
         if (allocated(error)) return
         ! Errors don't stop the loop; cmd-exit does.  An error discards
         ! the input typed ahead and rings the bell.

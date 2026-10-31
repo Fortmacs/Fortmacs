@@ -242,7 +242,7 @@ contains
         call table%resolve(km, i, status)
 
         if (.not. status%ok()) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(keymap_type)")
         end if
     end subroutine resolve_keymap
 
@@ -513,7 +513,7 @@ contains
 
         if (parent%index /= 0) then
             if (.not. table%is_live(parent)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(keymap_type)")
                 return
             end if
 
@@ -947,7 +947,7 @@ contains
         if (present(accept_default)) t_ok = accept_default
 
         if (.not. (nilp(map) .or. keymapp(map))) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(keymap_type)")
             return
         end if
 
@@ -3231,7 +3231,7 @@ contains
 
         if (character < 0 .or. character > MAX_CHAR) then
             write (num, "(i0)") character
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//trim(num))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//trim(num))
             return
         end if
 

@@ -1764,7 +1764,7 @@ contains
         type(status_type) :: st
 
         if (.not. allocated(buffers(cur)%filename)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
             return
         end if
 

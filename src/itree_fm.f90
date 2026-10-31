@@ -130,7 +130,7 @@ contains
         type(handle_type), intent(in) :: ov
         type(status_type), intent(out) :: status
 
-        if (.not. overlayp(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "overlayp")
+        if (.not. overlayp(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(overlay_type)")
     end subroutine check_overlay
 
     !> Whether overlay slot I is in buffer slot B.  Not a port.

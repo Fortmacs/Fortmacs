@@ -230,7 +230,7 @@ contains
         type(status_type), intent(out) :: status
 
         call table%resolve(proc, i, status)
-        if (.not. status%ok()) status%detail = "Wrong type argument: processp"
+        if (.not. status%ok()) status%detail = "Wrong type argument: expected type(process_type)"
     end subroutine resolve
 
     !> Return t if OBJECT is a process.  Port of process.c:Fprocessp.
@@ -595,7 +595,7 @@ contains
         if (.not. status%ok()) return
 
         if (buffer%index /= 0 .and. .not. buffer_live_p(buffer)) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: bufferp")
+            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected type(buffer_type)")
             return
         end if
 

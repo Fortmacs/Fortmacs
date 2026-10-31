@@ -378,7 +378,7 @@ contains
         integer :: p, length, ulen
 
         if (has_null_byte(name)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
             return
         end if
 
@@ -390,7 +390,7 @@ contains
         else if (cur /= 0) then
             if (allocated(buffers(cur)%directory)) then
                 if (has_null_byte(buffers(cur)%directory)) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
                     return
                 end if
 
@@ -410,7 +410,7 @@ contains
         if (.not. have_defdir) defdir = "/"
 
         if (has_null_byte(defdir)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
             return
         end if
 

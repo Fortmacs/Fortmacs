@@ -153,7 +153,7 @@ contains
         type(status_type), intent(out) :: status
 
         call registry%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "char_table_p")
+        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(char_table_type)")
     end subroutine check_char_table
 
     !> Return true if OBJECT is a char-table.  Not a port (data.c
@@ -778,7 +778,7 @@ contains
         if (.not. status%ok()) return
 
         if (c < 0 .or. c > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -855,7 +855,7 @@ contains
         if (.not. status%ok()) return
 
         if (from < 0 .or. from > MAX_CHAR .or. to < 0 .or. to > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -908,7 +908,7 @@ contains
         end if
 
         if (from < 0 .or. from > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -918,7 +918,7 @@ contains
         end if
 
         if (to < 0 .or. to > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 

@@ -211,9 +211,9 @@ contains
 
         if (.not. associated(p)) then
             if (symbolp(cmd)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//symbols(xsymbol(cmd))%name)
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), "//symbols(xsymbol(cmd))%name)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type)")
             end if
 
             return

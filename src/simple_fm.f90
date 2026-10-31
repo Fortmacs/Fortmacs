@@ -2029,7 +2029,7 @@ contains
             char = ascii_character(last_command_event)
 
             if (char < 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer_or_marker_p")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
                 return
             end if
         end if

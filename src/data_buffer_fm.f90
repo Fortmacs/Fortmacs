@@ -316,7 +316,7 @@ contains
         if (fixnump(v)) then
             s = xfixnum(v)
         else if (integerp .and. .not. nilp(v)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         else
             call keep_exact(s, v)
         end if
@@ -545,7 +545,7 @@ contains
             if (cur == 0) return
 
             if (.not. symbolp(v)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
             else if (nilp(v)) then
                 buffers(cur)%major_mode = "nil"
             else
@@ -557,7 +557,7 @@ contains
             if (stringp(v)) then
                 buffers(cur)%mode_name = xstring(v)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
             end if
         case ("buffer_read_only")
             if (cur > 0) buffers(cur)%read_only = .not. nilp(v)
@@ -695,14 +695,14 @@ contains
 
         select case (trim(FWD_NAMES(k)))
         case ("fill_column", "left_margin", "tab_width")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             indent_tabs_mode = .true.
         case ("completion_ignore_case")
             completion_ignore_case = .true.
         case ("major_mode")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
         case ("mode_name", "buffer_read_only")
             continue
         case ("case_fold_search")
@@ -1348,12 +1348,12 @@ contains
     id = xsymbol(variable)
 
     if (buffer <= 0 .or. buffer > size(buffers, kind=int64)) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
         return
     end if
 
     if (.not. buffer_live_p(buffer_handle(buffer))) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
         return
     end if
 

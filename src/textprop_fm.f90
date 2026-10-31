@@ -1737,7 +1737,7 @@ contains
         nchars = 0
 
         if (.not. stringp(string)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
             return
         end if
 

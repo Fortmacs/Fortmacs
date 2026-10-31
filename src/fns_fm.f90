@@ -188,7 +188,7 @@ contains
             call multibyte_chars_in_text(sequence%a(1)%s, n, st)
             if (.not. st%ok()) n = len(sequence%a(1)%s, kind=int64)
         case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*)")
         end select
     end subroutine length
 
@@ -204,7 +204,7 @@ contains
         case (V_LIST)
             v = list_elt(list, max(n, 0_int64) + 1)
         case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
         end select
     end subroutine nth
 
@@ -225,7 +225,7 @@ contains
         case (V_LIST)
             v = list_tail(list, n)
         case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
         end select
     end subroutine nthcdr
 
@@ -591,7 +591,7 @@ contains
         integer(int64) :: k, n
 
         if (.not. listp(plist)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
             return
         end if
 
@@ -607,7 +607,7 @@ contains
         end do
 
         if (mod(n, 2_int64) /= 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
             return
         end if
 

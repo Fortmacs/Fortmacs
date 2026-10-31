@@ -162,15 +162,15 @@ module error_fm
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
                                                                   "", "error", "Quit", "", &
                                                                   "Wrong type argument", "Args out of range", &
-                                                                  "Symbol's value as variable is void", &
-                                                                  "Attempt to set a constant symbol", &
+                                                                  "Variable has no value", &
+                                                                  "Attempt to set a named constant", &
                                                                   "Arithmetic error", "Arithmetic range error", &
                                                                   "Arithmetic overflow error", &
                                                                   "Beginning of buffer", "End of buffer", &
                                                                   "Buffer is read-only", "Text is read-only", &
                                                                   "File error", "Memory exhausted", &
                                                                   "Object has been deleted", &
-                                                                  "Symbol's function definition is void", &
+                                                                  "Function is not defined", &
                                                                   "File is missing", "File already exists", &
                                                                   "The mark is not active now", "Search failed", &
                                                                   "Invalid regexp", "Cannot access file or directory", &

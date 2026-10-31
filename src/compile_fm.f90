@@ -2742,7 +2742,7 @@ contains
 
                 do i = 1, size(dm%dir)
                     if (md_pos(md, dm%dir(i), .false.) == 0) then
-                        call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: integer_or_marker_p, .false.")
+                     call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected integer or type(marker_type), .false.")
                         return
                     end if
 

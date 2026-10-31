@@ -904,7 +904,7 @@ contains
                     n = size(rhs)
 
                     if (n == 0) then
-                        call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: consp, nil")
+                        call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected nonempty array")
                         warning_count = saved_count
                         return
                     end if
@@ -3350,9 +3350,9 @@ contains
         type(smie_indent_type), intent(in) :: v
 
         if (v%kind == SMIE_INDENT_NOINDENT) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: number-or-marker-p, noindent")
+            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected integer, real or type(marker_type), noindent")
         else
-            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: number-or-marker-p, nil")
+           call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected integer, real or type(marker_type), unallocated")
         end if
     end subroutine number_error
 
@@ -4049,7 +4049,7 @@ contains
             call beginning_of_line()
 
             if (.not. allocated(comment_start_skip%value)) then
-                call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: stringp, nil")
+                call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected character(len=*), unallocated")
                 exit body
             end if
 

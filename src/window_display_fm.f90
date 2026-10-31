@@ -277,7 +277,7 @@ contains
         status = status_type()
 
         if (.not. window_live_p(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
             return
         end if
 

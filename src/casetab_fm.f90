@@ -242,7 +242,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. case_table_p(obj)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "case_table_p")
+        if (.not. case_table_p(obj)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected case table type(char_table_type)")
     end subroutine check_case_table
 
     !> Return the case table of the current buffer.  Port of
@@ -393,7 +393,7 @@ contains
         u = char_table_ref(up, int(elt))
 
         if (u < 0) then
-            call set_error(map_status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(map_status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 

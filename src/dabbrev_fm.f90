@@ -1527,7 +1527,7 @@ contains
 
         if (allocated(dabbrev_limit)) then
             if (.not. location_set) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer_or_marker_p, .false.")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type), .false.")
                 return
             end if
 

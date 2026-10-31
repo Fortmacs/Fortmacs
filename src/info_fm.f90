@@ -8051,7 +8051,7 @@ contains
         status = status_type()
 
         if (.not. associated(find_command(command))) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//command)
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), "//command)
             return
         end if
 

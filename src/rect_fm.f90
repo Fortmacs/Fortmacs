@@ -1044,7 +1044,7 @@ contains
                 conversion = "s"
             else if (conversion == "c") then
                 if (arg < 0 .or. arg > MAX_CHAR) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(arg))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//int_text(arg))
                     return
                 end if
 
@@ -1526,7 +1526,7 @@ contains
         m = mark_position()
 
         if (m == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer-or-marker-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
             return
         end if
 
@@ -1730,7 +1730,7 @@ contains
         mk = mark_position()
 
         if (mk == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer-or-marker-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
             return
         end if
 
