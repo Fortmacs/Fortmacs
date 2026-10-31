@@ -181,10 +181,10 @@ module fortmacs
     use keyboard_fm, only: minibuffer_message_timeout
     use keyboard_fm, only: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, &
                            help_event_list, inhibit_interaction, num_nonmacro_input_events, read_char, &
-                           read_char_exclusive, read_event, read_key_sequence_vs, this_command_keys_vector, &
+                           read_char_exclusive, read_event, read_key_sequence_vs, this_command_key_events, &
                            this_single_command_keys, this_single_command_raw_keys, clear_this_command_keys, &
                            recursion_depth, top_level, recursive_edit, lossage_size, event_convert_list, &
-                           event_symbol_parse_modifiers, pre_command_hook, post_command_hook
+                           event_name_parse_modifiers, pre_command_hook, post_command_hook
     use fileio_fm, only: open_dribble_file
     use minibuffer_fm, only: read_file_name_completion_ignore_case, read_buffer_completion_ignore_case
     use minibuf_fm, only: enable_recursive_minibuffers, history_add_new_input
@@ -230,7 +230,7 @@ module fortmacs
     use simple_fm, only: fill_prefix, cycle_spacing_actions, cycle_spacing_action_type, CYCLE_JUST_ONE_SPACE, &
                          CYCLE_DELETE_SPACE_AFTER, CYCLE_DELETE_SPACE_BEFORE, CYCLE_DELETE_ALL_SPACE, CYCLE_RESTORE, &
                          CYCLE_ARG_NONE, CYCLE_ARG_FIXED, CYCLE_ARG_INVERTED, CYCLE_ARG_MINUS
-    use novice_fm, only: disabled_command_function_p
+    use novice_fm, only: disabled_command_function_variable
     use buffer_fm, only: fill_column, left_margin, auto_fill_function
     use indent_fm, only: indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list, indent_line_function, &
                          indent_region_function
@@ -622,8 +622,8 @@ module fortmacs
                                     delete_pair_push_mark, beginning_of_subprogram_function, end_of_subprogram_function
     use simple_fm, only: widen_automatically
     use make_mode_fm, only: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
-                            makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
-                            makefile_backslash_align, makefile_pickup_everything_picks_up_filenames_p, &
+                            makefile_use_curly_braces_for_macros, makefile_tab_after_target_colon, makefile_backslash_column, &
+                            makefile_backslash_align, makefile_pickup_everything_picks_up_filenames, &
                             makefile_cleanup_continuations, makefile_special_targets_list, makefile_runtime_macros_list, &
                             makefile_dependency_regex, makefile_dependency_skip, makefile_rule_action_regex, &
                             makefile_brave_make, makefile_query_one_target_method_function, makefile_query_proc, &
@@ -668,7 +668,7 @@ module fortmacs
                          PYTHON_DOCSTRING_PEP_257_NN, PYTHON_DOCSTRING_SYMMETRIC
     use executable_fm, only: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
                              executable_prefix_env, executable_chmod, executable_self_display, &
-                             executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
+                             executable_font_lock_keywords, executable_make_buffer_file_executable_if_script, &
                              EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, EXECUTABLE_CHMOD_NONE
     use files_fm, only: before_save_hook, after_save_hook, write_file_functions
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
@@ -838,7 +838,7 @@ module fortmacs
               query_replace_skip_read_only, query_replace_show_replacement, query_replace_from_to_separator, &
               fill_prefix, cycle_spacing_actions, cycle_spacing_action_type, CYCLE_JUST_ONE_SPACE, &
               CYCLE_DELETE_SPACE_AFTER, CYCLE_DELETE_SPACE_BEFORE, CYCLE_DELETE_ALL_SPACE, CYCLE_RESTORE, &
-              CYCLE_ARG_NONE, CYCLE_ARG_FIXED, CYCLE_ARG_INVERTED, CYCLE_ARG_MINUS, disabled_command_function_p, &
+              CYCLE_ARG_NONE, CYCLE_ARG_FIXED, CYCLE_ARG_INVERTED, CYCLE_ARG_MINUS, disabled_command_function_variable, &
               fill_column, left_margin, auto_fill_function, indent_tabs_mode, standard_indent, tab_always_indent, &
               tab_stop_list, indent_line_function, indent_region_function, colon_double_space, &
               fill_separate_heterogeneous_words_with_space, adaptive_fill_mode, adaptive_fill_regexp, &
@@ -1078,8 +1078,8 @@ module fortmacs
               delete_pair_push_mark, beginning_of_subprogram_function, end_of_subprogram_function
     public :: widen_automatically
     public :: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
-              makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
-              makefile_backslash_align, makefile_pickup_everything_picks_up_filenames_p, &
+              makefile_use_curly_braces_for_macros, makefile_tab_after_target_colon, makefile_backslash_column, &
+              makefile_backslash_align, makefile_pickup_everything_picks_up_filenames, &
               makefile_cleanup_continuations, makefile_special_targets_list, makefile_runtime_macros_list, &
               makefile_dependency_regex, makefile_dependency_skip, makefile_rule_action_regex, &
               makefile_brave_make, makefile_query_one_target_method_function, makefile_query_proc, &
@@ -1124,7 +1124,7 @@ module fortmacs
               PYTHON_DOCSTRING_PEP_257_NN, PYTHON_DOCSTRING_SYMMETRIC
     public :: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
               executable_prefix_env, executable_chmod, executable_self_display, &
-              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
+              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script, &
               EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, EXECUTABLE_CHMOD_NONE
     public :: before_save_hook, after_save_hook, write_file_functions
     public :: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
@@ -1138,7 +1138,7 @@ module fortmacs
               scss_mode_map, css_mode_syntax_table, scss_mode_syntax_table
     public :: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, help_event_list, &
               inhibit_interaction, num_nonmacro_input_events, read_char, read_char_exclusive, read_event, &
-              read_key_sequence_vs, this_command_keys_vector, this_single_command_keys, this_single_command_raw_keys, &
+              read_key_sequence_vs, this_command_key_events, this_single_command_keys, this_single_command_raw_keys, &
               clear_this_command_keys, recursion_depth, top_level, recursive_edit, lossage_size, event_convert_list, &
-              event_symbol_parse_modifiers, open_dribble_file, pre_command_hook, post_command_hook
+              event_name_parse_modifiers, open_dribble_file, pre_command_hook, post_command_hook
 end module fortmacs

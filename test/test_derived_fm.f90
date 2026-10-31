@@ -69,7 +69,7 @@ contains
                     new_unittest("remove-hook", test_remove_hook), &
                     new_unittest("text-mode", test_text_mode), &
                     new_unittest("derived-mode-hooks-order", test_hooks_order), &
-                    new_unittest("provided-mode-derived-p", test_provided_mode_derived_p), &
+                    new_unittest("provided-mode-derived-p", test_provided_mode_derived), &
                     new_unittest("special-mode", test_special_mode), &
                     new_unittest("fundamental-mode-kills-locals", test_fundamental), &
                     new_unittest("auto-mode-spec", test_auto_mode_spec), &
@@ -377,7 +377,7 @@ contains
     end subroutine test_hooks_order
 
     !> subr-tests.el: provided-mode-derived-p (without aliases).
-    subroutine test_provided_mode_derived_p(error)
+    subroutine test_provided_mode_derived(error)
         type(error_type), allocatable, intent(out) :: error
 
         call syms_of_prog_mode()
@@ -405,7 +405,7 @@ contains
         call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", "prog_mode"), "single mode")
         if (allocated(error)) return
         call check(error,.not. provided_mode_derived_p("prog_mode", "text_mode"), "single mode, not derived")
-    end subroutine test_provided_mode_derived_p
+    end subroutine test_provided_mode_derived
 
     !> special-mode makes the buffer read-only with special-mode-map.
     subroutine test_special_mode(error)

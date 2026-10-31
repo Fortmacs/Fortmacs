@@ -422,7 +422,7 @@ contains
             buffers(cur)%read_only = .false.
 
             do m = 1, size(items)
-                call put_text_property(name_start(m), name_end(m), sym(P_BUTTON), sym("apropos_symbol"), st)
+                call put_text_property(name_start(m), name_end(m), sym(P_BUTTON), sym("apropos_name"), st)
                 call put_text_property(name_start(m), name_end(m), sym(P_NAME), make_string(items(m)%name), st)
             end do
 
@@ -573,7 +573,7 @@ contains
     end function fill_doc
 
     !> Return the next apropos label button after POS, or 0 if there's
-    !> none.  Will also return 0 if more than one `apropos_symbol' button
+    !> none.  Will also return 0 if more than one `apropos_name' button
     !> is encountered before finding a label.  Port of
     !> apropos.el:apropos-next-label-button.
     integer(int64) function apropos_next_label_button(pos) result(btn)
@@ -597,7 +597,7 @@ contains
         end if
 
         do while (len(type) > 0)
-            if (type /= "apropos_symbol") then
+            if (type /= "apropos_name") then
                 btn = p
                 return
             end if

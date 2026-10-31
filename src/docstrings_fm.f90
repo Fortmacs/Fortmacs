@@ -344,10 +344,10 @@ module docstrings_fm
                             makefile_imake_font_lock_keywords, makefile_imake_mode_hook, &
                             makefile_imake_mode_syntax_table, makefile_macro_assign, makefile_makepp_font_lock_keywords, &
                             makefile_makepp_mode_hook, makefile_mode_abbrev_table, makefile_mode_hook, makefile_mode_map, &
-                            makefile_mode_syntax_table, makefile_pickup_everything_picks_up_filenames_p, &
+                            makefile_mode_syntax_table, makefile_pickup_everything_picks_up_filenames, &
                             makefile_rule_action_regex, makefile_runtime_macros_list, makefile_special_targets_list, &
                             makefile_tab_after_target_colon, makefile_target_colon, makefile_up_to_date_buffer_name, &
-                            makefile_use_curly_braces_for_macros_p
+                            makefile_use_curly_braces_for_macros
     use map_ynp_fm, only: read_answer_short, READ_ANSWER_SHORT_NO, READ_ANSWER_SHORT_YES, &
                           READ_ANSWER_SHORT_AUTO
     use minibuf_fm, only: completion_ignore_case, completion_regexp_list, &
@@ -362,7 +362,7 @@ module docstrings_fm
     use mule_conf_fm, only: password_colon_equivalents, password_word_equivalents
     use mule_fm, only: auto_coding_regexp_table, auto_coding_table, default_keyboard_coding_system, &
                        default_terminal_coding_system, keyboard_coding_system_variable, &
-                       last_coding_system_specified, mule_keymap, select_safe_coding_system_accept_default_p
+                       last_coding_system_specified, mule_keymap, select_safe_coding_system_accept_default
     use mule_util_fm, only: truncate_string_ellipsis_variable
     use newcomment_fm, only: comment_add, comment_auto_fill_only_comments, comment_column, &
                              comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_NO, &
@@ -374,7 +374,7 @@ module docstrings_fm
                              COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
                              COMMENT_STYLE_BOX_MULTI, comment_use_global_state, comment_use_syntax, COMMENT_USE_SYNTAX_NO, &
                              COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED
-    use novice_fm, only: disabled_command_function_p
+    use novice_fm, only: disabled_command_function_variable
     use paragraphs_fm, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
                              paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
                              sentence_end_without_period, sentence_end_without_space
@@ -582,7 +582,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1453) = [character(len=50) :: &
+    character(len=48), parameter, public :: function_names(1453) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                       "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
@@ -720,8 +720,8 @@ module docstrings_fm
                                                                    "electric_pair_default_skip_self", "electric_pair_delete_pair", &
                                                                "electric_pair_local_mode", "electric_pair_mode", "enable_command", &
                                                  "encode_coding_region", "encode_coding_string", "end_kbd_macro", "end_of_buffer", &
-                                         "end_of_line", "end_of_subprogram", "event_convert_list", "event_symbol_parse_modifiers", &
-                                                  "exchange_point_and_mark", "executable_make_buffer_file_executable_if_script_p", &
+                                           "end_of_line", "end_of_subprogram", "event_convert_list", "event_name_parse_modifiers", &
+                                                    "exchange_point_and_mark", "executable_make_buffer_file_executable_if_script", &
                                                     "executable_self_display", "executable_set_magic", "execute_extended_command", &
                                                "exit_minibuffer", "exit_recursive_edit", "expand_abbrev", "expand_region_abbrevs", &
                                            "extract_rectangle", "extract_rectangle_bounds", "f90_abbrev_help", "f90_abbrev_start", &
@@ -984,7 +984,7 @@ module docstrings_fm
                                                                     "tabulated_list_mode", "tabulated_list_narrow_current_column", &
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
                                                         "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
-                                           "this_command_keys_vector", "this_single_command_keys", "this_single_command_raw_keys", &
+                                            "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
                                                          "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
                                            "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
                                                  "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
@@ -1301,11 +1301,11 @@ module docstrings_fm
                                                                     "makefile_imake_mode_syntax_table", "makefile_macro_assign", &
                                                                 "makefile_makepp_font_lock_keywords", "makefile_makepp_mode_hook", &
                                                           "makefile_mode_abbrev_table", "makefile_mode_hook", "makefile_mode_map", &
-                                                  "makefile_mode_syntax_table", "makefile_pickup_everything_picks_up_filenames_p", &
+                                                    "makefile_mode_syntax_table", "makefile_pickup_everything_picks_up_filenames", &
                                                                     "makefile_rule_action_regex", "makefile_runtime_macros_list", &
                                                                "makefile_special_targets_list", "makefile_tab_after_target_colon", &
                                                                     "makefile_target_colon", "makefile_up_to_date_buffer_name", &
-                                               "makefile_use_curly_braces_for_macros_p", "mark_even_if_inactive", "mark_ring_max", &
+                                                 "makefile_use_curly_braces_for_macros", "mark_even_if_inactive", "mark_ring_max", &
                                               "match", "message_log_max", "messages_buffer_mode_hook", "messages_buffer_mode_map", &
                                                                     "minibuffer_completing_file_name", "minibuffer_exit_hook", &
                                                                "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
@@ -1370,7 +1370,7 @@ module docstrings_fm
                                                                   "scss_mode_map", "scss_mode_syntax_table", "search_exit_option", &
                                                        "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
                                                                     "search_upper_case", "search_whitespace_regexp", &
-                                                "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
+                                                  "select_safe_coding_system_accept_default", "sentence_end", "sentence_end_base", &
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
                                               "sh_alias_table", "sh_ancestor_table", "sh_assignment_regexp", "sh_backslash_align", &
                                                 "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", &
@@ -1825,13 +1825,13 @@ module docstrings_fm
                                                                       "makefile_electric_keys", &
                                                                       "makefile_macro_assign", &
                                                                       "makefile_mode_hook", &
-                                                                      "makefile_pickup_everything_picks_up_filenames_p", &
+                                                                      "makefile_pickup_everything_picks_up_filenames", &
                                                                       "makefile_runtime_macros_list", &
                                                                       "makefile_special_targets_list", &
                                                                       "makefile_tab_after_target_colon", &
                                                                       "makefile_target_colon", &
                                                                       "makefile_up_to_date_buffer_name", &
-                                                                      "makefile_use_curly_braces_for_macros_p", &
+                                                                      "makefile_use_curly_braces_for_macros", &
                                                                       "mark_even_if_inactive", &
                                                                       "mark_ring_max", &
                                                                       "message_log_max", &
@@ -6226,9 +6226,9 @@ contains
                         "essentially the same base event type and all the specified modifiers."//LF// &
                         "(Some compatibility base types, like names that represent a"//LF// &
                         "character, are not returned verbatim.)"
-        case ("event_symbol_parse_modifiers")
+        case ("event_name_parse_modifiers")
             entry%file = "keyboard_fm.f90"
-            entry%fortran = "event_symbol_parse_modifiers(symbol)"
+            entry%fortran = "event_name_parse_modifiers(symbol)"
             entry%declarations = "type(value_type), intent(in) :: symbol"//LF// &
                                  "type(value_type) :: v"
             entry%doc = "Parse the event name.  For internal use.  The value is the list"//LF// &
@@ -6242,9 +6242,9 @@ contains
                         "reactivates the mark.  If Transient Mark mode is on, a prefix ARG"//LF// &
                         "deactivates the mark if it is active, and otherwise avoids"//LF// &
                         "reactivating it."
-        case ("executable_make_buffer_file_executable_if_script_p")
+        case ("executable_make_buffer_file_executable_if_script")
             entry%file = "executable_fm.f90"
-            entry%fortran = "call executable_make_buffer_file_executable_if_script_p(status)"
+            entry%fortran = "call executable_make_buffer_file_executable_if_script(status)"
             entry%declarations = "type(status_type), intent(out) :: status"
             entry%doc = "Make file executable according to umask if not already executable."//LF// &
                         "If file already has any execute bits set at all, do not change existing"//LF// &
@@ -10678,7 +10678,7 @@ contains
                         "   If you want a TAB (instead of a space) to be appended after the"//LF// &
                         "   target colon, then set this to a true value."//LF// &
                         ""//LF// &
-                        "`makefile_pickup_everything_picks_up_filenames_p':"//LF// &
+                        "`makefile_pickup_everything_picks_up_filenames':"//LF// &
                         "   If this variable is set to a true value then"//LF// &
                         "   `makefile_pickup_everything' also picks up filenames as targets"//LF// &
                         "   (i.e. it calls `makefile_pickup_filenames_as_targets'), otherwise"//LF// &
@@ -14670,9 +14670,9 @@ contains
                         "You can thus get the full benefit of adaptive filling"//LF// &
                         " (see the variable `adaptive_fill_mode')."//LF// &
                         "Turning on Text mode runs the normal hook `text_mode_hook'."
-        case ("this_command_keys_vector")
+        case ("this_command_key_events")
             entry%file = "keyboard_fm.f90"
-            entry%fortran = "this_command_keys_vector()"
+            entry%fortran = "this_command_key_events()"
             entry%declarations = "type(value_type), allocatable :: keys(:)"
             entry%doc = "Return the key sequence that invoked this command, as a vector."//LF// &
                         "However, if the command has called `read_key_sequence', it returns"//LF// &
@@ -20420,9 +20420,9 @@ contains
                         "checked just after executing the command."
         case ("disabled_command_function")
             entry%file = "novice_fm.f90"
-            entry%fortran = "disabled_command_function_p"
+            entry%fortran = "disabled_command_function_variable"
             entry%original = ".true."
-            entry%value = repr(disabled_command_function_p)
+            entry%value = repr(disabled_command_function_variable)
             entry%doc = "Function to call to handle disabled commands."//LF// &
                         "If false, the feature is disabled, i.e., all commands work normally."
         case ("display_buffer_mark_dedicated")
@@ -20443,7 +20443,7 @@ contains
 
             entry%doc = "If not DEDICATED_NONE, `display_buffer' marks the windows it creates as"//LF// &
                         "dedicated.  The actual value of this variable will be copied"//LF// &
-                        "to the `window_dedicated_p' flag."
+                        "to the `window_dedication' flag."
         case ("display_buffer_overriding_action")
             entry%file = "window_fm.f90"
             entry%fortran = "display_buffer_overriding_action"
@@ -24207,12 +24207,12 @@ contains
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_mode_syntax_table"
             entry%doc = "Syntax table used in `makefile_mode'."
-        case ("makefile_pickup_everything_picks_up_filenames_p")
+        case ("makefile_pickup_everything_picks_up_filenames")
             entry%file = "make_mode_fm.f90"
-            entry%fortran = "makefile_pickup_everything_picks_up_filenames_p"
+            entry%fortran = "makefile_pickup_everything_picks_up_filenames"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(makefile_pickup_everything_picks_up_filenames_p%value)
+            entry%value = repr(makefile_pickup_everything_picks_up_filenames%value)
             entry%doc = "If true, `makefile_pickup_everything' picks up filenames as targets."//LF// &
                         "This means it calls `makefile_pickup_filenames_as_targets'."//LF// &
                         "Otherwise filenames are omitted."
@@ -24290,12 +24290,12 @@ contains
             end if
 
             entry%doc = "Name of the Up-to-date overview buffer."
-        case ("makefile_use_curly_braces_for_macros_p")
+        case ("makefile_use_curly_braces_for_macros")
             entry%file = "make_mode_fm.f90"
-            entry%fortran = "makefile_use_curly_braces_for_macros_p"
+            entry%fortran = "makefile_use_curly_braces_for_macros"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(makefile_use_curly_braces_for_macros_p%value)
+            entry%value = repr(makefile_use_curly_braces_for_macros%value)
             entry%doc = "Controls the style of generated macro references."//LF// &
                         "True means macro references should use curly braces, like `${this}'."//LF// &
                         ".false. means use parentheses, like `$(this)'."
@@ -26127,11 +26127,11 @@ contains
                         "`isearch_regexp_lax_whitespace' is false for regexp incremental"//LF// &
                         "search, then each space you type matches literally, against one"//LF// &
                         "space."
-        case ("select_safe_coding_system_accept_default_p")
+        case ("select_safe_coding_system_accept_default")
             entry%file = "mule_fm.f90"
-            entry%fortran = "select_safe_coding_system_accept_default_p"
+            entry%fortran = "select_safe_coding_system_accept_default"
             entry%original = ".false."
-            entry%value = repr(select_safe_coding_system_accept_default_p)
+            entry%value = repr(select_safe_coding_system_accept_default)
             entry%doc = "If true, a coding system selected automatically is accepted without"//LF// &
                         "asking (the default coding systems that encode the text are always"//LF// &
                         "accepted: ACCEPT-DEFAULT-P has no function here)."
@@ -29288,7 +29288,7 @@ contains
         case ("makefile_macro_assign")
             kind = OPTION_STRING
             setting = .true.
-        case ("makefile_pickup_everything_picks_up_filenames_p")
+        case ("makefile_pickup_everything_picks_up_filenames")
             kind = OPTION_LOGICAL
             setting = .true.
         case ("makefile_tab_after_target_colon")
@@ -29300,7 +29300,7 @@ contains
         case ("makefile_up_to_date_buffer_name")
             kind = OPTION_STRING
             setting = .true.
-        case ("makefile_use_curly_braces_for_macros_p")
+        case ("makefile_use_curly_braces_for_macros")
             kind = OPTION_LOGICAL
             setting = .true.
         case ("mark_even_if_inactive")
@@ -30181,11 +30181,11 @@ contains
             else
                 makefile_electric_keys = v
             end if
-        case ("makefile_pickup_everything_picks_up_filenames_p")
+        case ("makefile_pickup_everything_picks_up_filenames")
             if (local) then
-                call makefile_pickup_everything_picks_up_filenames_p%set_local(v)
+                call makefile_pickup_everything_picks_up_filenames%set_local(v)
             else
-                makefile_pickup_everything_picks_up_filenames_p = v
+                makefile_pickup_everything_picks_up_filenames = v
             end if
         case ("makefile_tab_after_target_colon")
             if (local) then
@@ -30193,11 +30193,11 @@ contains
             else
                 makefile_tab_after_target_colon = v
             end if
-        case ("makefile_use_curly_braces_for_macros_p")
+        case ("makefile_use_curly_braces_for_macros")
             if (local) then
-                call makefile_use_curly_braces_for_macros_p%set_local(v)
+                call makefile_use_curly_braces_for_macros%set_local(v)
             else
-                makefile_use_curly_braces_for_macros_p = v
+                makefile_use_curly_braces_for_macros = v
             end if
         case ("mark_even_if_inactive")
             mark_even_if_inactive = v

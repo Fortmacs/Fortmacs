@@ -134,7 +134,7 @@ module mule_fm
     !> accepted: ACCEPT-DEFAULT-P has no function here).  Port of
     !> mule-cmds.el select-safe-coding-system-accept-default-p (Deferred:
     !> its function value).
-    logical, public :: select_safe_coding_system_accept_default_p = .false.
+    logical, public :: select_safe_coding_system_accept_default = .false.
 
     !> The most recent coding system specified explicitly by the user when
     !> asked to choose one.  Port of mule-cmds.el

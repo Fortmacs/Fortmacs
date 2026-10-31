@@ -37,9 +37,9 @@ module test_keyboard_fm
                            this_command_keys, this_command_keys_shift_translated, &
                            unread_command_events, ring_bell_hook, read_key_sequence_vs, clear_this_command_keys, &
                            read_char, read_char_exclusive, lossage_size, inhibit_interaction, &
-                           translate_upper_case_key_bindings, this_command_keys_vector, this_single_command_keys, &
+                           translate_upper_case_key_bindings, this_command_key_events, this_single_command_keys, &
                            this_single_command_raw_keys, set__this_command_keys, echo_keystrokes, echo_keystrokes_help, &
-                           cancel_echoing, event_convert_list, event_symbol_parse_modifiers, make_ctrl_char, &
+                           cancel_echoing, event_convert_list, event_name_parse_modifiers, make_ctrl_char, &
                            recursion_depth, top_level, recursive_edit, post_command_hook, safe_run_hooks, echo_now
     use fns_fm, only: value_equal
     use subr_fm, only: syms_of_subr
@@ -132,7 +132,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        seen_keys = key_description(this_command_keys_vector())
+        seen_keys = key_description(this_command_key_events())
         seen_single_keys = key_description(this_single_command_keys())
         seen_raw_keys = key_description(this_single_command_raw_keys())
     end subroutine cmd_keys
@@ -1005,7 +1005,7 @@ contains
         call check(error, seen_raw_keys, "C-c M-[ A")
         if (allocated(error)) return
         ! After the command, the keys are cleared.
-        call check(error, size(this_command_keys_vector()) == 0, "cleared")
+        call check(error, size(this_command_key_events()) == 0, "cleared")
         if (allocated(error)) return
         ! read-key-sequence: the last key sequence read.
         call kbd_store_bytes(char(3)//char(27)//"[A")
@@ -1014,10 +1014,10 @@ contains
                    value_eq(binding, sym("cmd-keys")), "read-key-sequence")
         if (allocated(error)) return
         call clear_this_command_keys(keep_record=.true.)
-        call check(error, size(this_command_keys_vector()) == 0, "clear")
+        call check(error, size(this_command_key_events()) == 0, "clear")
         if (allocated(error)) return
         call set__this_command_keys(char(195)//char(184)//"y")
-        call check(error, key_description(this_command_keys_vector()), "M-x y")
+        call check(error, key_description(this_command_key_events()), "M-x y")
         input_decode_map = null_handle()
         call free(decode)
         call free(global)
@@ -1119,13 +1119,13 @@ contains
         call event_convert_list(d2, ev, st)
         call check(error, format_error(st), "Two bases given in one event")
         if (allocated(error)) return
-        parsed = event_symbol_parse_modifiers(sym("C-M-f1"))
+        parsed = event_name_parse_modifiers(sym("C-M-f1"))
         call check(error, value_equal(parsed, list(sym("f1"), sym("meta"), sym("control"))), "C-M-f1")
         if (allocated(error)) return
-        parsed = event_symbol_parse_modifiers(sym("down-mouse-1"))
+        parsed = event_name_parse_modifiers(sym("down-mouse-1"))
         call check(error, value_equal(parsed, list(sym("mouse-1"), sym("down"))), "down-mouse-1")
         if (allocated(error)) return
-        parsed = event_symbol_parse_modifiers(sym("mouse-2"))
+        parsed = event_name_parse_modifiers(sym("mouse-2"))
         call check(error, value_equal(parsed, list(sym("mouse-2"), sym("click"))), "mouse-2")
         if (allocated(error)) return
         call check(error, make_ctrl_char(iachar("@", int64)), 0_int64)

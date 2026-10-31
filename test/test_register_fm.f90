@@ -63,7 +63,7 @@ contains
 
         testsuite = [ &
                     new_unittest("register-test-bug27634", test_bug27634), &
-                    new_unittest("register--jumpable-p", test_jumpable_p), &
+                    new_unittest("register--jumpable-p", test_jumpable), &
                     new_unittest("point-and-jump", test_point_and_jump), &
                     new_unittest("text-registers", test_text), &
                     new_unittest("append-and-prepend", test_append_prepend), &
@@ -202,7 +202,7 @@ contains
     !> configuration, a file, a buffer and a file-query reference can be
     !> jumped to; a string cannot.  (Keyboard macros, framesets, frame
     !> configurations, senator tags and doc-view are not ported.)
-    subroutine test_jumpable_p(error)
+    subroutine test_jumpable(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -232,7 +232,7 @@ contains
         call check(error, is_register_insertable(value_of(rc)) .and. is_register_insertable(value_of(ra)) .and. &
                    .not. is_register_insertable(value_of(rb)), "insertable")
         call kill_buffer(h, st)
-    end subroutine test_jumpable_p
+    end subroutine test_jumpable
 
     subroutine test_point_and_jump(error)
         type(error_type), allocatable, intent(out) :: error

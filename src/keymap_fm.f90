@@ -2265,7 +2265,7 @@ contains
         type(value_type), allocatable :: key(:), trimmed(:)
         integer(int64), allocatable :: codes(:)
         integer(int64) :: pos, n, wb, we, q, times, nev, bits, prefix, k, c
-        logical :: is_vector
+        logical :: is_octal_code
 
         allocate (events(8))
         nev = 0
@@ -2393,11 +2393,11 @@ contains
                 ! Nothing to do for other values.
             end select
 
-            is_vector = .false.
+            is_octal_code = .false.
 
             if (len(word) >= 2) then
                 if (word(1:1) == "\" .and. verify(word(2:), "01234567") == 0) then
-                    is_vector = .true.
+                    is_octal_code = .true.
                     c = 0
 
                     do k = 2, len(word)
@@ -2408,11 +2408,11 @@ contains
                 end if
             end if
 
-            if (.not. is_vector) call decode(word, codes)
+            if (.not. is_octal_code) call decode(word, codes)
 
             if (bits == 0) then
                 call char_events(codes, key)
-            else if (bits == M_META .and. .not. is_vector .and. &
+            else if (bits == M_META .and. .not. is_octal_code .and. &
                      numeric_word(word)) then
                 call char_events(codes + bits, key)
             else if (size(codes) /= 1) then
@@ -2420,7 +2420,7 @@ contains
                                orig(1:prefix)//" must prefix a single character, not "// &
                                word)
                 return
-            else if (iand(bits, M_CTL) /= 0 .and. .not. is_vector .and. &
+            else if (iand(bits, M_CTL) /= 0 .and. .not. is_octal_code .and. &
                      ((codes(1) >= 64 .and. codes(1) <= 95) .or. &
                       (codes(1) >= 97 .and. codes(1) <= 122))) then
                 allocate (key(1))
@@ -2632,7 +2632,7 @@ contains
     !> Return 2 if SEQ uses only chars without modifiers other than Meta
     !> (`where_is_preferred_modifier' unset), 1 if it uses only chars, and 0
     !> otherwise.  Port of keymap.c:preferred_sequence_p.
-    integer function preferred_sequence_p(seq) result(result)
+    integer function preferred_sequence_kind(seq) result(result)
         type(value_type), intent(in) :: seq(:)
         integer(int64) :: modifiers
         integer :: i
@@ -2654,7 +2654,7 @@ contains
                 return
             end if
         end do
-    end function preferred_sequence_p
+    end function preferred_sequence_kind
 
     !> Return list of keys that invoke DEFINITION.
     !> The keymaps searched are the currently active ones, or KEYMAP and
@@ -2751,7 +2751,7 @@ contains
             if (.not. status%ok() .or. .not. value_eq(binding, definition)) cycle
 
             if (first) then
-                if (preferred_sequence_p(found(k)%keys) == 2) then
+                if (preferred_sequence_kind(found(k)%keys) == 2) then
                     keys = make_list(found(k)%keys)
                     return
                 end if

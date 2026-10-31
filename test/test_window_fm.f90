@@ -51,9 +51,9 @@ module test_window_fm
                          minibuffer_window, is_window_minibuffer, minibuffer_selected_window, window_total_height, &
                          window_total_width, window_left_column, window_top_line, window_body_height, &
                          window_body_width, window_mode_line_height, window_header_line_height, &
-                         window_tab_line_height, window_hscroll, window_dedicated_p, set_window_dedicated_p, &
+                         window_tab_line_height, window_hscroll, window_dedication, set_window_dedication, &
                          window_use_time, window_bump_use_time, next_window, previous_window, window_list, &
-                         window_list_1, coordinates_in_window_p, window_at, force_window_update, MINIBUF_ALWAYS, MINIBUF_NEVER, &
+                         window_list_1, window_part_at, window_at, force_window_update, MINIBUF_ALWAYS, MINIBUF_NEVER, &
                          ON_TEXT, ON_VERTICAL_BORDER, ON_MODE_LINE, ON_NOTHING, DEDICATED_NONE
     use simple_fm, only: goal_column
     use keyboard_fm, only: this_command, last_command, kbd_store_bytes, command_loop, &
@@ -864,9 +864,9 @@ contains
         ! A window that is not live.
         call check(error, window_body_height(top, st) == 0 .and. .not. st%ok(), "is_window_live error")
         if (allocated(error)) return
-        call set_window_dedicated_p(ws(2), DEDICATED_STRONG, st)
-        call check(error, window_dedicated_p(ws(2), st) == DEDICATED_STRONG .and. &
-                   window_dedicated_p(ws(1), st) == DEDICATED_NONE, "dedicated")
+        call set_window_dedication(ws(2), DEDICATED_STRONG, st)
+        call check(error, window_dedication(ws(2), st) == DEDICATED_STRONG .and. &
+                   window_dedication(ws(1), st) == DEDICATED_NONE, "dedicated")
         if (allocated(error)) return
         ! window-bump-use-time: the selected window was selected last.
         call select_window(ws(1), st)
@@ -879,7 +879,7 @@ contains
                    is_null(window_buffer(ws(3), st)) .and. st%ok(), "deleted window")
         if (allocated(error)) return
         call check(error, is_null(window_parent(ws(3), st)) .and. .not. st%ok(), "is_window_valid error")
-        call set_window_dedicated_p(ws(2), DEDICATED_NONE, st)
+        call set_window_dedication(ws(2), DEDICATED_NONE, st)
         call leave_frame()
     end subroutine test_window_accessors
 
@@ -934,14 +934,14 @@ contains
         call enter_frame("abc", h)
         call run_keys("C-x 2 C-x 3")
         ws = leaves()
-        call check(error, coordinates_in_window_p(38, 0, ws(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
+        call check(error, window_part_at(38, 0, ws(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
                    "text")
         if (allocated(error)) return
-        call check(error, coordinates_in_window_p(39, 0, ws(1), x, y, st) == ON_VERTICAL_BORDER .and. &
-                   coordinates_in_window_p(39, 11, ws(1), x, y, st) == ON_MODE_LINE .and. &
-                   coordinates_in_window_p(40, 0, ws(1), x, y, st) == ON_NOTHING, "border, mode line, outside")
+        call check(error, window_part_at(39, 0, ws(1), x, y, st) == ON_VERTICAL_BORDER .and. &
+                   window_part_at(39, 11, ws(1), x, y, st) == ON_MODE_LINE .and. &
+                   window_part_at(40, 0, ws(1), x, y, st) == ON_NOTHING, "border, mode line, outside")
         if (allocated(error)) return
-        call check(error, coordinates_in_window_p(45, 3, ws(2), x, y, st) == ON_TEXT .and. x == 5 .and. y == 3, &
+        call check(error, window_part_at(45, 3, ws(2), x, y, st) == ON_TEXT .and. x == 5 .and. y == 3, &
                    "relative to the window")
         if (allocated(error)) return
 

@@ -85,7 +85,7 @@ module xfaces_fm
     !> default foreground color ignore their boldness.  Port of
     !> xfaces.c:tty_suppress_bold_inverse_default_colors_p (set by
     !> tty-suppress-bold-inverse-default-colors).
-    logical, public :: tty_suppress_bold_inverse_default_colors_p = .false.
+    logical, public :: tty_suppress_bold_inverse_default_colors = .false.
 
     !> TEXT_PROP_DISTANCE_LIMIT: how far redisplay looks ahead for the
     !> next face change.
@@ -360,7 +360,7 @@ contains
             face%background = tem
         end if
 
-        if (tty_suppress_bold_inverse_default_colors_p .and. face%tty_bold_p .and. &
+        if (tty_suppress_bold_inverse_default_colors .and. face%tty_bold_p .and. &
             face%background == FACE_TTY_DEFAULT_FG_COLOR .and. face%foreground == FACE_TTY_DEFAULT_BG_COLOR) then
             face%tty_bold_p = .false.
         end if

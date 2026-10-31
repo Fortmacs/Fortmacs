@@ -2306,9 +2306,9 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    integer(int64) function arg_p()
-        arg_p = prefix_numeric_value(current_prefix_arg)
-    end function arg_p
+    integer(int64) function numeric_prefix_arg()
+        numeric_prefix_arg = prefix_numeric_value(current_prefix_arg)
+    end function numeric_prefix_arg
 
     subroutine cmd_isearch_exit(status)
         type(status_type), intent(out) :: status
@@ -2353,7 +2353,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_del_char(arg_p())
+        call isearch_del_char(numeric_prefix_arg())
     end subroutine cmd_isearch_del_char
 
     subroutine cmd_isearch_printing_char(status)
@@ -2361,48 +2361,48 @@ contains
 
         status = status_type()
         if (vtag(last_command_event) /= V_INTEGER) return
-        call isearch_printing_char(xfixnum(last_command_event), arg_p())
+        call isearch_printing_char(xfixnum(last_command_event), numeric_prefix_arg())
     end subroutine cmd_isearch_printing_char
 
     subroutine cmd_isearch_quote_char(status)
         type(status_type), intent(out) :: status
 
-        call isearch_quote_char(arg_p(), status)
+        call isearch_quote_char(numeric_prefix_arg(), status)
     end subroutine cmd_isearch_quote_char
 
     subroutine cmd_isearch_yank_char(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_yank_char(arg_p())
+        call isearch_yank_char(numeric_prefix_arg())
     end subroutine cmd_isearch_yank_char
 
     subroutine cmd_isearch_yank_word_or_char(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_yank_word_or_char(arg_p())
+        call isearch_yank_word_or_char(numeric_prefix_arg())
     end subroutine cmd_isearch_yank_word_or_char
 
     subroutine cmd_isearch_yank_line(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_yank_line(arg_p())
+        call isearch_yank_line(numeric_prefix_arg())
     end subroutine cmd_isearch_yank_line
 
     subroutine cmd_isearch_beginning_of_buffer(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_beginning_of_buffer(arg_p())
+        call isearch_beginning_of_buffer(numeric_prefix_arg())
     end subroutine cmd_isearch_beginning_of_buffer
 
     subroutine cmd_isearch_end_of_buffer(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_end_of_buffer(arg_p())
+        call isearch_end_of_buffer(numeric_prefix_arg())
     end subroutine cmd_isearch_end_of_buffer
 
     subroutine cmd_isearch_yank_kill(status)

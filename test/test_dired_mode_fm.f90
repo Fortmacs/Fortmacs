@@ -83,7 +83,7 @@ contains
                     new_unittest("dired-test-bug27940", test_bug27940), &
                     new_unittest("dired-test-ls-error-message", test_ls_error), &
                     new_unittest("files-tests-insert-directory-shows-files", test_insert_directory_files), &
-                    new_unittest("files-tests-insert-directory-wildcard-in-dir-p", test_wildcard_in_dir_p) &
+                    new_unittest("files-tests-insert-directory-wildcard-in-dir-p", test_wildcard_in_dir) &
                     ]
     end subroutine collect_dired_mode_fm
 
@@ -838,7 +838,7 @@ contains
     end subroutine test_insert_directory_files
 
     !> Port of files-tests-insert-directory-wildcard-in-dir-p.
-    subroutine test_wildcard_in_dir_p(error)
+    subroutine test_wildcard_in_dir(error)
         type(error_type), allocatable, intent(out) :: error
 
         call one("/home/user/*/.txt", "/home/user/", "*/.txt")
@@ -876,5 +876,5 @@ contains
                 call check(error, d//"|"//w, dir//"|"//wild)
             end if
         end subroutine one
-    end subroutine test_wildcard_in_dir_p
+    end subroutine test_wildcard_in_dir
 end module test_dired_mode_fm

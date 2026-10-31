@@ -104,10 +104,10 @@ module keyboard_fm
               syms_of_macros
     public :: recent_keys, lossage_size, message_log_proc
     public :: read_char, read_char_exclusive, read_filtered_event, read_key_sequence_vs, barf_if_interaction_inhibited
-    public :: this_command_keys_vector, this_single_command_keys, this_single_command_raw_keys, &
+    public :: this_command_key_events, this_single_command_keys, this_single_command_raw_keys, &
               set__this_command_keys, clear_this_command_keys, recursion_depth, top_level, recursive_edit
     public :: cancel_echoing, echo_now, prefix_command_update, internal_echo_keystrokes_prefix, is_help_char
-    public :: event_convert_list, event_symbol_parse_modifiers, parse_solitary_modifier, lispy_modifier_list, &
+    public :: event_convert_list, event_name_parse_modifiers, parse_solitary_modifier, lispy_modifier_list, &
               make_ctrl_char, ascii_character, safe_run_hooks
     public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc, kbd_macro_loop_proc
 
@@ -550,12 +550,12 @@ module keyboard_fm
         end subroutine execute_kbd_macro_value
 
         ! Port of macros.c:Fexecute_kbd_macro.
-        recursive module subroutine execute_kbd_macro_vector(macro, count, status, loopfunc)
+        recursive module subroutine execute_kbd_macro_events(macro, count, status, loopfunc)
             implicit none(type, external)
             type(value_type), intent(in) :: macro(:), count
             type(status_type), intent(out) :: status
             procedure(kbd_macro_loop_proc), optional :: loopfunc
-        end subroutine execute_kbd_macro_vector
+        end subroutine execute_kbd_macro_events
     end interface execute_kbd_macro
 
     interface
@@ -3012,7 +3012,7 @@ contains
     !> keyboard.c:Fthis_command_keys_vector and of
     !> keyboard.c:Fthis_command_keys (events are kept as arrays, not
     !> strings).
-    function this_command_keys_vector() result(keys)
+    function this_command_key_events() result(keys)
         type(value_type), allocatable :: keys(:)
 
         if (allocated(this_command_keys)) then
@@ -3020,7 +3020,7 @@ contains
         else
             allocate (keys(0))
         end if
-    end function this_command_keys_vector
+    end function this_command_key_events
 
     !> Return the key sequence that invoked this command.
     !> More generally, it returns the last key sequence read, either by
@@ -3388,7 +3388,7 @@ contains
     !> Parse the event name.  For internal use.  The value is the list
     !> (BASE MODIFIERS...), as the `event_symbol_elements' property of
     !> SYMBOL upstream.  Port of keyboard.c:Fevent_symbol_parse_modifiers.
-    function event_symbol_parse_modifiers(symbol) result(v)
+    function event_name_parse_modifiers(symbol) result(v)
         type(value_type), intent(in) :: symbol
         type(value_type) :: v
         type(value_type), allocatable :: mods(:), elts(:)
@@ -3401,7 +3401,7 @@ contains
         elts(1) = sym(base)
         if (size(mods) > 0) elts(2:) = mods
         v = make_list(elts)
-    end function event_symbol_parse_modifiers
+    end function event_name_parse_modifiers
 
     !> Apply the control modifier to character code C.  Port of
     !> keyboard.c:make_ctrl_char.

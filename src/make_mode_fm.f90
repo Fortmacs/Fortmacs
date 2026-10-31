@@ -151,8 +151,8 @@ module make_mode_fm
     !> True means macro references should use curly braces, like `${this}'.
     !> .false. means use parentheses, like `$(this)'.  Port of make-mode.el
     !> makefile-use-curly-braces-for-macros-p.
-    type(logical_setting), target, public :: makefile_use_curly_braces_for_macros_p = &
-                                             logical_setting(name="makefile_use_curly_braces_for_macros_p", value=.false.)
+    type(logical_setting), target, public :: makefile_use_curly_braces_for_macros = &
+                                             logical_setting(name="makefile_use_curly_braces_for_macros", value=.false.)
 
     !> If true, insert a TAB after a target colon.
     !> Otherwise, a space is inserted.
@@ -175,8 +175,8 @@ module make_mode_fm
     !> This means it calls `makefile_pickup_filenames_as_targets'.
     !> Otherwise filenames are omitted.  Port of make-mode.el
     !> makefile-pickup-everything-picks-up-filenames-p.
-    type(logical_setting), target, public :: makefile_pickup_everything_picks_up_filenames_p = &
-                                             logical_setting(name="makefile_pickup_everything_picks_up_filenames_p", &
+    type(logical_setting), target, public :: makefile_pickup_everything_picks_up_filenames = &
+                                             logical_setting(name="makefile_pickup_everything_picks_up_filenames", &
                                                              value=.false.)
 
     !> If true, automatically clean up continuation lines when saving.
@@ -428,11 +428,11 @@ contains
         call forward_setting(makefile_target_colon)
         call forward_setting(makefile_macro_assign)
         call forward_setting(makefile_electric_keys)
-        call forward_setting(makefile_use_curly_braces_for_macros_p)
+        call forward_setting(makefile_use_curly_braces_for_macros)
         call forward_setting(makefile_tab_after_target_colon)
         call forward_setting(makefile_backslash_column)
         call forward_setting(makefile_backslash_align)
-        call forward_setting(makefile_pickup_everything_picks_up_filenames_p)
+        call forward_setting(makefile_pickup_everything_picks_up_filenames)
         call forward_setting(makefile_cleanup_continuations)
         call forward_setting(makefile_dependency_regex)
         call forward_setting(makefile_dependency_skip)
@@ -1211,7 +1211,7 @@ contains
     !>    If you want a TAB (instead of a space) to be appended after the
     !>    target colon, then set this to a true value.
     !>
-    !> `makefile_pickup_everything_picks_up_filenames_p':
+    !> `makefile_pickup_everything_picks_up_filenames':
     !>    If this variable is set to a true value then
     !>    `makefile_pickup_everything' also picks up filenames as targets
     !>    (i.e. it calls `makefile_pickup_filenames_as_targets'), otherwise
@@ -1742,7 +1742,7 @@ contains
         if (.not. status%ok()) return
         call makefile_pickup_targets(status)
         if (.not. status%ok()) return
-        if (makefile_pickup_everything_picks_up_filenames_p%value) call makefile_pickup_filenames_as_targets(status)
+        if (makefile_pickup_everything_picks_up_filenames%value) call makefile_pickup_filenames_as_targets(status)
     end subroutine makefile_pickup_everything
 
     !> Notice names of all macros and targets in Makefile (the command).
@@ -2709,7 +2709,7 @@ contains
     end subroutine makefile_forward_after_target_colon
 
     !> Format a macro reference.
-    !> Uses `makefile_use_curly_braces_for_macros_p'.  Port of
+    !> Uses `makefile_use_curly_braces_for_macros'.  Port of
     !> make-mode.el:makefile-format-macro-ref.
     function makefile_format_macro_ref(macro_name) result(ref)
         character(len=*), intent(in) :: macro_name
@@ -2721,7 +2721,7 @@ contains
 
         if (open) then
             ref = "$"//macro_name
-        else if (makefile_use_curly_braces_for_macros_p%value) then
+        else if (makefile_use_curly_braces_for_macros%value) then
             ref = "${"//macro_name//"}"
         else
             ref = "$("//macro_name//")"

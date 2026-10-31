@@ -56,7 +56,7 @@ module simple_fm
                          UE_POINT, UE_FIRST_CHANGE
     use undo_fm, only: undo_boundary
     use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
-    use xdisp_fm, only: message, invisible_p
+    use xdisp_fm, only: message, invisibility
     use frame_fm, only: selected_frame, selected_window_ref
     use window_fm, only: window_type, window_start, window_body_lines, recenter
     use subr_fm, only: add_to_history, defvar_nil
@@ -1633,9 +1633,9 @@ contains
     end subroutine kill_local_blink_matching_check_function
 
     ! Not a port.
-    integer(int64) function arg_p()
-        arg_p = prefix_numeric_value(current_prefix_arg)
-    end function arg_p
+    integer(int64) function numeric_prefix_arg()
+        numeric_prefix_arg = prefix_numeric_value(current_prefix_arg)
+    end function numeric_prefix_arg
 
     !> Delete `n' characters before point; KILLFLAG true means kill
     !> instead.  Port of simple.el:delete-backward-char (no region or
@@ -1737,7 +1737,7 @@ contains
         if (.not. allocated(current_prefix_arg%a)) then
             call newline(status, interactive=.true.)
         else
-            call newline(status, arg_p(), interactive=.true.)
+            call newline(status, numeric_prefix_arg(), interactive=.true.)
         end if
     end subroutine cmd_newline
 
@@ -1750,7 +1750,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call open_line(arg_p(), status)
+        if (status%ok()) call open_line(numeric_prefix_arg(), status)
     end subroutine cmd_open_line
 
     !> Delete the previous N characters (following if N is negative).
@@ -1766,7 +1766,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
-        n = arg_p()
+        n = numeric_prefix_arg()
 
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
@@ -1798,7 +1798,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
-        n = arg_p()
+        n = numeric_prefix_arg()
 
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
@@ -1933,7 +1933,7 @@ contains
         ! "*p": barf first.
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
-        arg = arg_p()
+        arg = numeric_prefix_arg()
         call read_quoted_char(c, status)
         if (.not. status%ok()) return
 
@@ -2064,7 +2064,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (vtag(current_prefix_arg) == V_INTEGER) then
-            call self_insert_command(arg_p(), int(iachar("-"), int64), status)
+            call self_insert_command(numeric_prefix_arg(), int(iachar("-"), int64), status)
         else
             call cmd_negative_argument(status)
         end if
@@ -2187,7 +2187,7 @@ contains
             do while (n > 0 .and. .not. stop)
                 ! If the following character is currently invisible, skip
                 ! all characters with that same `invisible' property value.
-                do while (.not. is_eob() .and. invisible_p(point()) /= 0)
+                do while (.not. is_eob() .and. invisibility(point()) /= 0)
                     call goto_char(next_char_property_change(point()))
                 end do
 
@@ -2199,7 +2199,7 @@ contains
                 if (is_eob()) then
                     if (.not. noerror) call signal_end(status)
                     stop = .true.
-                else if (n > 1 .and. invisible_p(point()) == 0) then
+                else if (n > 1 .and. invisibility(point()) == 0) then
                     ! We avoid vertical-motion when possible because that
                     ! has to fontify.
                     shortage = forward_line(1_int64)
@@ -2224,7 +2224,7 @@ contains
                 if (is_bob()) then
                     if (.not. noerror) call signal_beginning(status)
                     stop = .true.
-                else if (n < -1 .and. invisible_p(point() - 1) == 0) then
+                else if (n < -1 .and. invisibility(point() - 1) == 0) then
                     shortage = forward_line(-1_int64)
                 else
                     call vertical_motion(-1_int64, moved)
@@ -2241,7 +2241,7 @@ contains
                     ! Don't move over previous invis lines if our target is
                     ! the middle of this line.
                     do while ((goal_or_temporary() == 0 .or. n < 0) .and. .not. is_bob())
-                        if (invisible_p(point() - 1) == 0) exit
+                        if (invisibility(point() - 1) == 0) exit
                         call goto_char(previous_char_property_change(point()))
                     end do
                 end if
@@ -2306,13 +2306,13 @@ contains
         end if
 
         if (.not. line_move_ignore_invisible .or. is_bol()) return
-        if (invisible_p(point() - 1) == 0) return
+        if (invisibility(point() - 1) == 0) return
         normal_location = point()
         normal_column = current_column()
 
         ! If the following character is currently invisible, skip all
         ! characters with that same `invisible' property value.
-        do while (.not. is_eob() .and. invisible_p(point()) /= 0)
+        do while (.not. is_eob() .and. invisibility(point()) /= 0)
             call goto_char(next_char_property_change(point()))
         end do
 
@@ -2331,7 +2331,7 @@ contains
             line_beg = pos_bol()
 
             do while (.not. is_bol())
-                if (invisible_p(point() - 1) == 0) exit
+                if (invisibility(point() - 1) == 0) exit
                 call goto_char(previous_char_property_change(point(), line_beg))
             end do
         end if
@@ -2409,7 +2409,7 @@ contains
             saved = point()
             call goto_char(pos_eol())
 
-            do while (.not. is_eob() .and. invisible_p(point()) /= 0)
+            do while (.not. is_eob() .and. invisibility(point()) /= 0)
                 call goto_char(next_char_property_change(point()))
                 call goto_char(pos_eol())
             end do
@@ -2524,7 +2524,7 @@ contains
 
                 if (.not. is_bob()) then
                     do while (.not. is_bob())
-                        if (invisible_p(point() - 1) == 0) exit
+                        if (invisibility(point() - 1) == 0) exit
                         call goto_char(previous_single_char_property_change(point(), sym("invisible")))
                     end do
 
@@ -2598,14 +2598,14 @@ contains
         call goto_char(pos_bol())
 
         do while (.not. is_bob())
-            if (invisible_p(point() - 1) == 0) exit
+            if (invisibility(point() - 1) == 0) exit
             call goto_char(previous_char_property_change(point()))
             call goto_char(pos_bol())
         end do
 
         ! Now find first visible char in the line.
         do while (point() < orig)
-            if (invisible_p(point()) == 0) exit
+            if (invisibility(point()) == 0) exit
             call goto_char(next_char_property_change(point(), orig))
         end do
 
@@ -3500,13 +3500,13 @@ contains
     subroutine cmd_undo_only(status)
         type(status_type), intent(out) :: status
 
-        call undo_only(arg_p(), status)
+        call undo_only(numeric_prefix_arg(), status)
     end subroutine cmd_undo_only
 
     subroutine cmd_undo_redo(status)
         type(status_type), intent(out) :: status
 
-        call undo_redo(arg_p(), status)
+        call undo_redo(numeric_prefix_arg(), status)
     end subroutine cmd_undo_redo
 
     ! ------------------------------------------------------------------
@@ -4101,7 +4101,7 @@ contains
                 if (forward_line(1_int64) /= 0) return
                 ! If the newline we just skipped is invisible, don't count
                 ! it.
-                if (invisible_p(point() - 1) /= 0) n = n + 1
+                if (invisibility(point() - 1) /= 0) n = n + 1
                 n = n - 1
             end do
 
@@ -4110,7 +4110,7 @@ contains
             opoint = point()
 
             do while (.not. is_eob())
-                if (invisible_p(point()) == 0) exit
+                if (invisibility(point()) == 0) exit
                 call get_text_property(point(), sym("invisible"), prop, st)
 
                 if (allocated(prop%a)) then
@@ -4136,7 +4136,7 @@ contains
                 ! If the newline we just moved to is invisible, don't count
                 ! it.
                 if (.not. is_bob()) then
-                    if (invisible_p(point() - 1) == 0) n = n + 1
+                    if (invisibility(point() - 1) == 0) n = n + 1
                 end if
 
                 first = .false.
@@ -4147,7 +4147,7 @@ contains
             opoint = point()
 
             do while (.not. is_bob())
-                if (invisible_p(point() - 1) == 0) exit
+                if (invisibility(point() - 1) == 0) exit
                 call get_text_property(point() - 1, sym("invisible"), prop, st)
 
                 if (allocated(prop%a)) then

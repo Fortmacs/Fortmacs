@@ -230,9 +230,9 @@ contains
         evs = evs(1:n)
     end subroutine macro_events_of
 
-    module procedure execute_kbd_macro_vector
+    module procedure execute_kbd_macro_events
     call execute_events(macro, .false., count, status, loopfunc)
-    end procedure execute_kbd_macro_vector
+    end procedure execute_kbd_macro_events
 
     !> Execute the events FINAL (of a string macro if IS_STRING) COUNT
     !> times.  Port of macros.c:Fexecute_kbd_macro, in part (its body), and

@@ -83,7 +83,7 @@ module vc_fm
                            vc_symbolic_working_revision, vc_file_set_backend, vc_file_set_state, vc_file_get_state, &
                            vc_file_set_checkout_time, vc_file_get_backend, vc_file_clearprops, vc_mode_line, &
                            vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
-                           vc_call_root, vc_call_responsible_p, is_vc_call_make_version_backups, vc_not_supported, &
+                           vc_call_root, vc_call_responsible, is_vc_call_make_version_backups, vc_not_supported, &
                            vc_clear_context, vc_touch_reset, vc_touched, vc_state_name, &
                           VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_NONE, VC_SWITCHES_LIST, VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_EDITED, &
                            VC_LOCKED, VC_NEEDS_UPDATE, VC_NEEDS_MERGE, VC_UNLOCKED_CHANGES, VC_ADDED, VC_REMOVED, &
@@ -763,7 +763,7 @@ contains
                 if (vc_backends(b)%registered(file)) cycle
             end if
 
-            call vc_call_responsible_p(b, file, dir, found)
+            call vc_call_responsible(b, file, dir, found)
             if (.not. found) cycle
             n = count_components(expand(dir))
 
@@ -856,7 +856,7 @@ contains
         do k = 1, size(vc_handled_backends)
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
-            call vc_call_responsible_p(b, full, dir, found)
+            call vc_call_responsible(b, full, dir, found)
             if (.not. found) cycle
             ! We run DIR through `expand-file-name' so that abbreviated
             ! directories, such as "~/", wouldn't look "less specific" due

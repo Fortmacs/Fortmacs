@@ -66,7 +66,7 @@ module vc_hooks_fm
               is_vc_up_to_date, vc_working_revision, vc_symbolic_working_revision, vc_short_revision, &
               vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
-              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible_p, is_vc_call_make_version_backups, &
+              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible, is_vc_call_make_version_backups, &
               vc_not_supported
     public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_proc
 
@@ -666,7 +666,7 @@ contains
     !> Backend B's `responsible_p' of FILE: the directory it is
     !> responsible for FILE from (vc-default-responsible-p: none).
     !> Not a port.
-    subroutine vc_call_responsible_p(b, file, dir, found)
+    subroutine vc_call_responsible(b, file, dir, found)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: dir
@@ -675,7 +675,7 @@ contains
         dir = ""
         found = .false.
         if (associated(vc_backends(b)%responsible_p)) call vc_backends(b)%responsible_p(file, dir, found)
-    end subroutine vc_call_responsible_p
+    end subroutine vc_call_responsible
 
     !> Backend B's `make_version_backups_p' of FILE.  Port of
     !> vc-hooks.el:vc-default-make-version-backups-p as the default:

@@ -113,7 +113,7 @@ module character_fm
               str_as_multibyte, count_size_as_multibyte, str_to_multibyte, &
               str_as_unibyte
     public :: char_resolve_modifier_mask
-    public :: char_variation_selector_p, is_char_surrogate, char_hexdigit
+    public :: variation_selector_number, is_char_surrogate, char_hexdigit
     public :: unicode_category, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank
 
     !> Unicode general categories (character.h unicode_category_t).
@@ -719,21 +719,21 @@ contains
 
     !> Index (1..256) of variation selector `c', or 0.
     !> Port of character.h:CHAR_VARIATION_SELECTOR_P.
-    elemental integer(int32) function char_variation_selector_p(c)
+    elemental integer(int32) function variation_selector_number(c)
         integer(int32), intent(in) :: c
 
         if (c < int(z'FE00', int32)) then
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         else if (c <= int(z'FE0F', int32)) then
-            char_variation_selector_p = c - int(z'FE00', int32) + 1
+            variation_selector_number = c - int(z'FE00', int32) + 1
         else if (c < int(z'E0100', int32)) then
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         else if (c <= int(z'E01EF', int32)) then
-            char_variation_selector_p = c - int(z'E0100', int32) + 17
+            variation_selector_number = c - int(z'E0100', int32) + 17
         else
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         end if
-    end function char_variation_selector_p
+    end function variation_selector_number
 
     !> Port of character.h:char_surrogate_p.
     elemental logical function is_char_surrogate(c)

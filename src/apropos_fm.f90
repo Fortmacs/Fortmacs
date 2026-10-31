@@ -179,9 +179,9 @@ module apropos_fm
     end interface
 
     !> Text properties marking the entries: `apropos_button' is
-    !> `apropos_symbol' on a name and the label's type on a label, whose
-    !> `apropos_symbol_name' is the entry's name (upstream's buttons).
-    character(len=*), parameter :: P_BUTTON = "apropos_button", P_NAME = "apropos_symbol_name"
+    !> `apropos_name' on a name and the label's type on a label, whose
+    !> `apropos_entry_name' is the entry's name (upstream's buttons).
+    character(len=*), parameter :: P_BUTTON = "apropos_button", P_NAME = "apropos_entry_name"
 
 contains
 
@@ -476,7 +476,7 @@ contains
         call major_modes%apropos_mode%finish(saved, status)
     end subroutine apropos_mode
 
-    !> The apropos button at `pos': its type (`apropos_symbol' or a
+    !> The apropos button at `pos': its type (`apropos_name' or a
     !> label's type, "" for none) and the entry's name.  Not a port.
     subroutine button_at(pos, type, name)
         integer(int64), intent(in) :: pos
@@ -509,7 +509,7 @@ contains
         character(len=:), allocatable :: type, name
 
         call button_at(buffers(cur)%pt, type, name)
-        is_at_name = type == "apropos_symbol"
+        is_at_name = type == "apropos_name"
     end function is_at_name
 
     !> Move cursor down to the next name in an `apropos_mode' buffer.

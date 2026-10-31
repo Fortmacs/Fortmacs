@@ -39,7 +39,7 @@ module test_novice_fm
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
-    use novice_fm, only: enable_command, disable_command, disabled_command_function_p
+    use novice_fm, only: enable_command, disable_command, disabled_command_function_variable
     use lread_fm, only: user_init_file
     use fileio_fm, only: expand_file_name, make_directory_internal, delete_file_internal, emacs_wd, init_fileio
     use files_fm, only: find_file_noselect
@@ -68,7 +68,7 @@ contains
         call init_bindings()
         call discard_input()
         prefix_arg = value_type()
-        disabled_command_function_p = .true.
+        disabled_command_function_variable = .true.
         commands%upcase_region%disabled = .true.
         call get_buffer_create("novice-test", h, st)
         call set_buffer(h, st)
@@ -124,11 +124,11 @@ contains
         if (allocated(error)) return
         ! !: enable all disabled commands.
         call run("C-x C-u !")
-        call check(error, buffer_string() == "ABC" .and. .not. disabled_command_function_p, buffer_string())
+        call check(error, buffer_string() == "ABC" .and. .not. disabled_command_function_variable, buffer_string())
         if (allocated(error)) return
         call run("C-x C-l")
         call check(error, buffer_string() == "abc", buffer_string())
-        disabled_command_function_p = .true.
+        disabled_command_function_variable = .true.
         call disable_command("downcase_region", st)
         call discard_input()
         call kill_buffer(h, st)

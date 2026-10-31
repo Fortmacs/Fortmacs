@@ -589,7 +589,7 @@ contains
 
     !> Return true if point is inside a diff header: the position of its
     !> start, else 0.  Port of diff-mode.el:diff--at-diff-header-p.
-    integer(int64) function diff_at_diff_header_p() result(pos)
+    integer(int64) function diff_header_position() result(pos)
         integer(int64) :: orig, shortage, found
 
         pos = 0
@@ -625,7 +625,7 @@ contains
         end if
 
         call goto_char(orig)
-    end function diff_at_diff_header_p
+    end function diff_header_position
 
     !> Move back to the previous hunk beginning, and return its position.
     !> If point is in a file header rather than a hunk, advance to the
@@ -644,7 +644,7 @@ contains
         pos = point()
         ! At hunk header.
         if (at(diff_hunk_header_re)) return
-        header = diff_at_diff_header_p()
+        header = diff_header_position()
 
         if (header /= 0) then
             ! At junk diff header.
@@ -1340,7 +1340,7 @@ contains
         end if
 
         call goto_char(e)
-        pos = diff_at_diff_header_p()
+        pos = diff_header_position()
         if (pos /= 0) call goto_char(pos)
         e = point()
         call bind_inhibit_read_only(saved)

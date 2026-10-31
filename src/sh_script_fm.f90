@@ -2870,7 +2870,7 @@ contains
     ! Check if we're after the first arg of an if/while/for/... construct.
     ! Returns the construct's token and moves point before it, if so.
     ! Port of sh-script.el:sh-smie--rc-after-special-arg-p.
-    recursive subroutine sh_smie_rc_after_special_arg_p(construct)
+    recursive subroutine sh_smie_rc_after_special_arg(construct)
         character(len=:), allocatable, intent(out) :: construct
         character(len=:), allocatable :: tok
         type(status_type) :: st
@@ -2884,7 +2884,7 @@ contains
         call smie_backward_token(tok, st)
         if (.not. st%ok()) return
         if (is(tok, "if") .or. is(tok, "for") .or. is(tok, "switch") .or. is(tok, "while")) call move_alloc(tok, construct)
-    end subroutine sh_smie_rc_after_special_arg_p
+    end subroutine sh_smie_rc_after_special_arg
 
     ! Return .true. if a newline should be treated as a semi-colon.
     ! Point should be before the newline.  Port of
@@ -2907,7 +2907,7 @@ contains
         end if
 
         if (special) then
-            call sh_smie_rc_after_special_arg_p(construct)
+            call sh_smie_rc_after_special_arg(construct)
             semi = .not. allocated(construct)
         else
             semi = is_sh_smie_newline_semi(tok)
@@ -3086,7 +3086,7 @@ contains
             select case (arg)
             case ("{")
                 here = point()
-                call sh_smie_rc_after_special_arg_p(construct)
+                call sh_smie_rc_after_special_arg(construct)
                 if (allocated(construct)) result = column_at(current_column())
                 call goto_char(here)
             case ("(", "[")

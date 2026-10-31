@@ -51,7 +51,7 @@ module executable_fm
     private
 
     public :: executable_find, executable_chmod_function, executable_set_magic, executable_self_display_command, &
-              executable_make_buffer_file_executable_if_script_p, syms_of_executable
+              executable_make_buffer_file_executable_if_script, syms_of_executable
 
     !> Values of `executable_query'.
     integer, parameter, public :: EXECUTABLE_QUERY_NO = 0, EXECUTABLE_QUERY_FUNCTION = 1, EXECUTABLE_QUERY_ALWAYS = 2
@@ -285,7 +285,7 @@ contains
     !> If file already has any execute bits set at all, do not change existing
     !> file modes.  Port of
     !> executable.el:executable-make-buffer-file-executable-if-script-p.
-    subroutine executable_make_buffer_file_executable_if_script_p(status)
+    subroutine executable_make_buffer_file_executable_if_script(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: head
         integer(int64) :: begv, zv
@@ -319,7 +319,7 @@ contains
         if (iand(int(o'111', int32), current_mode) /= 0 .or. add_mode == 0) return
         call set_file_modes(buffers(cur)%filename, ior(current_mode, add_mode), st)
         if (.not. st%ok()) call message("Unable to make file executable: "//format_error(st))
-    end subroutine executable_make_buffer_file_executable_if_script_p
+    end subroutine executable_make_buffer_file_executable_if_script
 
     !> Give the variables their defaults and register the commands.
     !> Not a port.

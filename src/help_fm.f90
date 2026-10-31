@@ -1693,7 +1693,7 @@ contains
 
     !> Append to `text' the description of the contents of keymap MAP,
     !> reached by the sequence of prefix keys PREFIX: the runs of
-    !> characters of its char-table (`describe_vector'), then its other
+    !> characters of its char-table (`describe_char_table'), then its other
     !> bindings, sorted, each section aligned.  Port of help.el:describe-map
     !> with keymap-canonicalize (subr.el), help--describe-map-compare,
     !> help--shadow-lookup and help--describe-command.
@@ -1749,7 +1749,7 @@ contains
         end do
 
         ! The char-table: help--describe-vector.
-        if (nr > 0) call describe_vector(rfrom(1:nr), rto(1:nr), rdef(1:nr), prefix, transl, partial, shadow, &
+        if (nr > 0) call describe_char_table(rfrom(1:nr), rto(1:nr), rdef(1:nr), prefix, transl, partial, shadow, &
                                          mention_shadow, text)
         ! The other bindings: which to show.
         allocate (shadowed(n), seen(n))
@@ -2072,7 +2072,7 @@ contains
     !> keymap.c:describe_vector (a char-table; KEYMAP_P true) with the
     !> help.el:describe-map describer, as keymap.c:Fhelp__describe_vector
     !> calls it.
-    subroutine describe_vector(from, to, defs, prefix, transl, partial, shadow, mention_shadow, text)
+    subroutine describe_char_table(from, to, defs, prefix, transl, partial, shadow, mention_shadow, text)
         integer(int64), intent(in) :: from(:), to(:)
         type(value_type), intent(in) :: defs(:), prefix(:), shadow(:)
         logical, intent(in) :: transl, partial, mention_shadow
@@ -2157,7 +2157,7 @@ contains
         if (nl == 0) return
         call align_section(lines(1:nl), block)
         text = text//LF//block
-    end subroutine describe_vector
+    end subroutine describe_char_table
 
     !> The indices of `from' in increasing order.  Not a port.
     subroutine order_by_start(from, order)

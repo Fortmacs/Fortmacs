@@ -47,7 +47,7 @@ module test_make_mode_fm
                             makefile_has_prereqs, makefile_name_type, makefile_insert_target, makefile_insert_macro, &
                             makefile_format_macro_ref, makefile_do_macro_insertion, makefile_backslash_region, &
                             makefile_completions_at_point, makefile_cleanup_continuations_function, &
-                            makefile_cleanup_continuations, makefile_add_log_target, makefile_use_curly_braces_for_macros_p, &
+                            makefile_cleanup_continuations, makefile_add_log_target, makefile_use_curly_braces_for_macros, &
                             makefile_tab_after_target_colon
     implicit none(type, external)
     private
@@ -323,9 +323,9 @@ contains
             if (allocated(error)) exit checks
             call check(error, makefile_format_macro_ref("(CC)"), "$(CC)")
             if (allocated(error)) exit checks
-            makefile_use_curly_braces_for_macros_p = .true.
+            makefile_use_curly_braces_for_macros = .true.
             call check(error, makefile_format_macro_ref("CC"), "${CC}")
-            makefile_use_curly_braces_for_macros_p = .false.
+            makefile_use_curly_braces_for_macros = .false.
             if (allocated(error)) exit checks
             call erase_buffer(st)
             call makefile_do_macro_insertion("@", st)

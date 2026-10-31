@@ -360,9 +360,9 @@ contains
     ! ------------------------------------------------------------------
 
     !> Interactive "p": the numeric prefix argument.  Not a port.
-    integer(int64) function arg_p()
-        arg_p = prefix_numeric_value(current_prefix_arg)
-    end function arg_p
+    integer(int64) function numeric_prefix_arg()
+        numeric_prefix_arg = prefix_numeric_value(current_prefix_arg)
+    end function numeric_prefix_arg
 
     !> Move point N characters forward (backward if N is negative).
     !> On reaching end or beginning of buffer, stop, and an error condition occurs.
@@ -375,7 +375,7 @@ contains
     subroutine cmd_forward_char(status)
         type(status_type), intent(out) :: status
 
-        call forward_char(status, arg_p())
+        call forward_char(status, numeric_prefix_arg())
     end subroutine cmd_forward_char
 
     !> Move point N characters backward (forward if N is negative).
@@ -389,7 +389,7 @@ contains
     subroutine cmd_backward_char(status)
         type(status_type), intent(out) :: status
 
-        call backward_char(status, arg_p())
+        call backward_char(status, numeric_prefix_arg())
     end subroutine cmd_backward_char
 
     !> Move N lines forward (backward if N is negative).
@@ -413,7 +413,7 @@ contains
         integer(int64) :: shortage
 
         status = status_type()
-        shortage = forward_line(arg_p())
+        shortage = forward_line(numeric_prefix_arg())
     end subroutine cmd_forward_line
 
     !> Move point to beginning of current line (in the logical order).
@@ -430,7 +430,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call beginning_of_line(arg_p())
+        call beginning_of_line(numeric_prefix_arg())
     end subroutine cmd_beginning_of_line
 
     !> Move point to end of current line (in the logical order).
@@ -446,7 +446,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call end_of_line(arg_p())
+        call end_of_line(numeric_prefix_arg())
     end subroutine cmd_end_of_line
 
     !> Delete the following N characters (previous if N is negative).
@@ -462,7 +462,7 @@ contains
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
 
-        call delete_char(arg_p(), status, allocated(current_prefix_arg%a))
+        call delete_char(numeric_prefix_arg(), status, allocated(current_prefix_arg%a))
     end subroutine cmd_delete_char
 
     !> Insert the character you type.
@@ -481,10 +481,10 @@ contains
         status = status_type()
 
         if (vtag(last_command_event) == V_INTEGER) then
-            call self_insert_command(arg_p(), xfixnum(last_command_event), status)
+            call self_insert_command(numeric_prefix_arg(), xfixnum(last_command_event), status)
         else
             ! Not a character: self_insert_command barfs.
-            call self_insert_command(arg_p(), -1_int64, status)
+            call self_insert_command(numeric_prefix_arg(), -1_int64, status)
         end if
     end subroutine cmd_self_insert_command
 

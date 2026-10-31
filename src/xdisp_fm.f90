@@ -141,7 +141,7 @@ module xdisp_fm
               mode_line_modes_prefix
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
-              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisible_p
+              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
     public :: highlight_region_proc, unhighlight_region_proc
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
@@ -186,7 +186,7 @@ module xdisp_fm
     procedure(unhighlight_region_proc), pointer, public :: redisplay_unhighlight_region_function => &
         redisplay_unhighlight_overlay_function
 
-    !> Values of `invisible_p': hidden, and replaced by an ellipsis.
+    !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
     !> Values of `message_log_max' other than a number of lines.
@@ -708,11 +708,11 @@ contains
     !> Note that whether text with `invisible' property is actually hidden
     !> on display may depend on `buffer_invisibility_spec', which see.
     !> Port of xdisp.c:Finvisible_p (a position).
-    integer function invisible_p(pos) result(invis)
+    integer function invisibility(pos) result(invis)
         integer(int64), intent(in) :: pos
 
         invis = text_prop_means_invisible(get_char_property(pos, sym("invisible")))
-    end function invisible_p
+    end function invisibility
 
     !> Look at the properties of the text at `s%pos' in buffer slot `bi'
     !> and its overlay strings, and set up `s' to show what goes there:

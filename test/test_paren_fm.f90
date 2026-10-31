@@ -57,7 +57,7 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("paren-tests-unescaped-p", test_unescaped_p), &
+                    new_unittest("paren-tests-unescaped-p", test_unescaped), &
                     new_unittest("paren-tests-categorize-paren", test_categorize_paren), &
                     new_unittest("paren-tests-locate-near-paren", test_locate_near_paren), &
                     new_unittest("paren-tests-locate-near-paren-inside", test_locate_near_paren_inside), &
@@ -82,7 +82,7 @@ contains
         call insert(text, st)
     end subroutine temp_buffer
 
-    subroutine test_unescaped_p(error)
+    subroutine test_unescaped(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -94,7 +94,7 @@ contains
         call insert("\", st)
         call check(error,.not. is_show_paren_unescaped(point()), "escaped")
         call kill_buffer(h, st)
-    end subroutine test_unescaped_p
+    end subroutine test_unescaped
 
     subroutine test_categorize_paren(error)
         type(error_type), allocatable, intent(out) :: error

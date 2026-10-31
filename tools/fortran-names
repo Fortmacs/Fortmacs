@@ -688,3 +688,49 @@ name	chained_expression_p	is_chained_expression
 name	end_of_do_while_loop_p	is_end_of_do_while_loop
 name	broken_arrow_terminates_line_p	is_broken_arrow_line_end
 name	R_JS_INDENT_ALIGN_LIST_CONTINUATION_NIL	R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION
+
+# Q3: functions upstream names *-p that return more than a logical take
+# the name of what they return.
+name	window_dedicated_p	window_dedication
+name	set_window_dedicated_p	set_window_dedication
+name	invisible_p	invisibility
+name	coordinates_in_window_p	window_part_at
+name	diff_at_diff_header_p	diff_header_position
+name	char_variation_selector_p	variation_selector_number
+name	preferred_sequence_p	preferred_sequence_kind
+name	arg_p	numeric_prefix_arg
+# Subroutines and a hook named *-p upstream: the suffix is dropped.
+name	vc_call_responsible_p	vc_call_responsible
+name	sh_smie_rc_after_special_arg_p	sh_smie_rc_after_special_arg
+name	executable_make_buffer_file_executable_if_script_p	executable_make_buffer_file_executable_if_script
+name	test_empty_p	test_empty
+name	test_provided_mode_derived_p	test_provided_mode_derived
+name	test_wildcard_in_dir_p	test_wildcard_in_dir
+name	test_unescaped_p	test_unescaped
+name	test_jumpable_p	test_jumpable
+
+# Q4: `_vector' names whose plurals would clash take the name of what the
+# array holds.
+name	this_command_keys_vector	this_command_key_events
+name	execute_kbd_macro_vector	execute_kbd_macro_events
+name	describe_vector	describe_char_table	src/help_fm.f90
+name	is_vector	is_octal_code	src/keymap_fm.f90
+
+# Q8: logical user options and public logicals lose upstream's p/-p
+# suffix; disabled-command-function's flag takes `_variable' (the
+# subroutine disabled_command_function has the plain name).
+name	makefile_pickup_everything_picks_up_filenames_p	makefile_pickup_everything_picks_up_filenames
+name	makefile_use_curly_braces_for_macros_p	makefile_use_curly_braces_for_macros
+name	select_safe_coding_system_accept_default_p	select_safe_coding_system_accept_default
+name	tty_suppress_bold_inverse_default_colors_p	tty_suppress_bold_inverse_default_colors
+name	ibuffer_default_sorting_reversed_p	ibuffer_default_sorting_reversed
+name	disabled_command_function_p	disabled_command_function_variable
+
+# B2, the rest: event symbols, apropos's name button and its entry's name
+# property, abbrev internals and f90's name comparison.
+name	event_symbol_parse_modifiers	event_name_parse_modifiers
+name	apropos_symbol_name	apropos_entry_name
+name	apropos_symbol	apropos_name
+name	table_symbol	table_name	src/abbrev_cmds_fm.f90
+name	symbol_in	name_in	src/abbrev_cmds_fm.f90
+name	f90_equal_symbols	f90_equal_names
