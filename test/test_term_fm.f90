@@ -39,7 +39,8 @@ module test_term_fm
                        tty_clear_end_of_line, tty_clear_frame, tty_clear_to_end, tty_cursor_to, &
                        tty_delete_glyphs, tty_ins_del_lines, tty_insert_glyphs, &
                        tty_reset_terminal_modes, tty_ring_bell, tty_set_terminal_modes, &
-                       tty_update_end, tty_write_glyphs
+                       tty_update_end, tty_write_glyphs, tty_display_color_p, tty_display_color_cells, &
+                       tty_type, controlling_tty_p, tty_no_underline
     implicit none(type, external)
     private
 
@@ -64,7 +65,8 @@ contains
                     new_unittest("terminal-modes", test_modes), &
                     new_unittest("function-keys", test_fkeys), &
                     new_unittest("encode-terminal-code", test_encode), &
-                    new_unittest("pty-output", test_pty) &
+                    new_unittest("pty-output", test_pty), &
+                    new_unittest("tty-display-functions", test_tty_functions) &
                     ]
     end subroutine collect_term_fm
 
@@ -78,6 +80,24 @@ contains
         call builtin_xterm(ti)
         call init_tty_entry(tty, ti, "xterm-256color", -1_int32, st)
     end subroutine xterm
+
+    !> tty-display-color-p, tty-display-color-cells, tty-type,
+    !> controlling-tty-p and tty-no-underline on the built-in xterm.
+    subroutine test_tty_functions(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(tty_display_info) :: tty
+        type(status_type) :: st
+
+        call xterm(tty)
+        call check(error, tty_display_color_p(tty) .and. tty_display_color_cells(tty) == 256 .and. &
+                   tty_type(tty) == "xterm-256color" .and. controlling_tty_p(tty), "an xterm")
+        if (allocated(error)) return
+        call check(error, allocated(tty%ts_enter_underline_mode), "it underlines")
+        if (allocated(error)) return
+        call tty_no_underline(tty)
+        call check(error,.not. allocated(tty%ts_enter_underline_mode), "tty-no-underline")
+        call delete_tty(tty, st)
+    end subroutine test_tty_functions
 
     function glyphs(text, face_id) result(g)
         character(len=*), intent(in) :: text

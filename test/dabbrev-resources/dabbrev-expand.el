@@ -1,5 +1,5 @@
 ;; -*- lexical-binding:t -*-
-(defun dabbrev-expand (arg)
+(subprogram dabbrev-expand (arg)
   "Expand previous word \"dynamically\".
 
 Expands to the most recent, preceding word for which this is a prefix.

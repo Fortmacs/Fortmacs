@@ -44,8 +44,8 @@ module paren_fm
     use buffer_fm, only: buffers, cur, buffer_serial_live
     use editfns_fm, only: point, point_min, point_max, goto_char, narrow_to_region, widen, char_after, char_before, &
                           line_end_position
-    use syntax_fm, only: syntax_entry, syntax_descriptor_type, parse_state_type, syntax_ppss, scan_sexps, &
-                         skip_syntax_backward, skip_chars_backward, parse_sexp_ignore_comments, SOPEN, SCLOSE, SMATH
+    use syntax_fm, only: syntax_entry, syntax_descriptor_type, parse_state_type, syntax_ppss, scan_expressions, &
+                         skip_syntax_backward, skip_chars_backward, parse_expression_ignore_comments, SOPEN, SCLOSE, SMATH
     use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, overlayp
     use timer_fm, only: run_with_idle_timer, free_timer, timerp
     use modes_fm, only: minor_modes
@@ -511,10 +511,10 @@ contains
         opoint = point()
         call syntax_ppss(ppss)
         call goto_char(opoint)
-        saved_ignore = parse_sexp_ignore_comments%value
-        if (ppss%incomment /= 0) parse_sexp_ignore_comments%value = .false.
+        saved_ignore = parse_expression_ignore_comments%value
+        if (ppss%incomment /= 0) parse_expression_ignore_comments%value = .false.
 
-        ! Find the other end of the sexp.
+        ! Find the other end of the expression.
         if (dir /= 0) then
             if (dir == 1) then
                 data%here_beg = outside
@@ -536,11 +536,11 @@ contains
                 call narrow_to_region(beg, min(point_max(), point() + blink_matching_paren_distance), st)
             end if
 
-            ! Scan across one sexp within that range.  Errors or nil mean
+            ! Scan across one expression within that range.  Errors or nil mean
             ! there is a mismatch.
             mismatch = .false.
             have_pos = .false.
-            pos = scan_sexps(outside, int(dir, int64), st)
+            pos = scan_expressions(outside, int(dir, int64), st)
 
             if (.not. st%ok()) then
                 mismatch = .true.
@@ -553,7 +553,7 @@ contains
             ! match.  Maybe the one at point is escaped and doesn't really
             ! count, or one is inside a comment.
             if (have_pos) then
-                back = scan_sexps(pos, int(-dir, int64), st)
+                back = scan_expressions(pos, int(-dir, int64), st)
                 if (.not. st%ok() .or. back /= outside) have_pos = .false.
             end if
 
@@ -605,7 +605,7 @@ contains
             call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
         end if
 
-        parse_sexp_ignore_comments%value = saved_ignore
+        parse_expression_ignore_comments%value = saved_ignore
     end subroutine show_paren_default
 
     !> Whether Show Paren mode is on in the current buffer.  Port of

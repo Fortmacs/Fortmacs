@@ -40,7 +40,7 @@
 !> font-lock-extend-after-change-region-function,
 !> font-lock-mark-block-function), font-lock-remove-keywords,
 !> font-lock-ignore, keywords given as forms to evaluate, faces given as
-!> (face FACE PROP VAL...), the mode alist forms of
+!> (face FACE PROP VAL...), the mode table forms of
 !> `font_lock_maximum_decoration' and `font_lock_verbose', the
 !> toplevel-defun warning keyword (syntax-begin-function), the obsolete
 !> face variables (font-lock-comment-face as a variable: not applicable).
@@ -72,7 +72,7 @@ module font_lock_fm
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
                             font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current, &
                             font_lock_properties_proc
-    use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
     use data_fm, only: string_setting, forward_setting
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
@@ -121,7 +121,7 @@ module font_lock_fm
     !> available.
     !> If a number, use that level of decoration (or if not available the
     !> maximum).  The higher the number, the more decoration is done.
-    !> Port of font-lock.el:font-lock-maximum-decoration (the alist form,
+    !> Port of font-lock.el:font-lock-maximum-decoration (the table form,
     !> by major mode, is deferred).
     integer, public :: font_lock_maximum_decoration = FONT_LOCK_DECORATION_MAX
 
@@ -167,7 +167,7 @@ module font_lock_fm
     !> the end, or instead of the existing ones.
     integer, parameter, public :: FONT_LOCK_ADD_BEGINNING = 0, FONT_LOCK_ADD_END = 1, FONT_LOCK_ADD_SET = 2
 
-    !> Alist of additional `font_lock_keywords' elements for major modes.
+    !> Table of additional `font_lock_keywords' elements for major modes.
     !>
     !> Each element has the form (MODE KEYWORDS . HOW).
     !> Function `font_lock_set_defaults' adds the elements in the list
@@ -176,7 +176,7 @@ module font_lock_fm
     !>
     !> This is normally set via `font_lock_add_keywords'.  Port of
     !> font-lock.el:font-lock-keywords-alist.
-    type(added_keywords_type), allocatable :: font_lock_keywords_alist(:)
+    type(added_keywords_type), allocatable :: font_lock_keywords_table(:)
 
     abstract interface
         !> `font_lock_syntactic_face_function': FACE gets the name of the
@@ -239,7 +239,7 @@ module font_lock_fm
 
     !> Function to determine which face to use when fontifying
     !> syntactically.  The function is called with a single parameter (the
-    !> state as returned by `parse_partial_sexp' at the beginning of the
+    !> state as returned by `parse_partial_expression' at the beginning of the
     !> region to highlight) and should give the name of a face.  This is
     !> normally set via `font_lock_defaults'.  Port of
     !> font-lock.el:font-lock-syntactic-face-function.
@@ -499,7 +499,7 @@ contains
     end function local_index
 
     !> Give the current buffer its own `font_lock_fontify_region_function'
-    !> FN (setq-local).  Port of font-lock.el
+    !> FN (set_local).  Port of font-lock.el
     !> font-lock-fontify-region-function (buffer-local; its default is
     !> `font_lock_default_fontify_region').
     subroutine set_local_font_lock_fontify_region_function(fn)
@@ -885,13 +885,13 @@ contains
             locals(k)%syntax_table_affects_ppss = .false.
             locals(k)%syntax_table = null_handle()
 
-            if (allocated(defaults%syntax_alist)) then
-                if (size(defaults%syntax_alist) > 0) then
+            if (allocated(defaults%syntax_modifications)) then
+                if (size(defaults%syntax_modifications) > 0) then
                     call copy_syntax_table(locals(k)%syntax_table, status, syntax_table())
                     if (.not. status%ok()) return
 
-                    do i = 1, size(defaults%syntax_alist)
-                        associate (selem => defaults%syntax_alist(i))
+                    do i = 1, size(defaults%syntax_modifications)
+                        associate (selem => defaults%syntax_modifications(i))
                             do j = 1, len(selem%chars)
                                 call modify_syntax_entry(ichar(selem%chars(j:j)), ichar(selem%chars(j:j)), selem%syntax, &
                                                          status, locals(k)%syntax_table)
@@ -901,7 +901,7 @@ contains
                     end do
 
                     ! (Whether the changes affect syntax-ppss is not
-                    ! analysed: they are taken to.)
+                    ! analyzed: they are taken to.)
                     locals(k)%syntax_table_affects_ppss = .true.
                 end if
             end if
@@ -917,10 +917,10 @@ contains
         locals(k)%keywords_set = .true.
 
         ! Local fontification?
-        if (allocated(font_lock_keywords_alist)) then
-            do i = 1, size(font_lock_keywords_alist)
-                if (trim(font_lock_keywords_alist(i)%mode) /= major_mode_of_current()) cycle
-                call add_keywords_here(font_lock_keywords_alist(i)%keywords, font_lock_keywords_alist(i)%how)
+        if (allocated(font_lock_keywords_table)) then
+            do i = 1, size(font_lock_keywords_table)
+                if (trim(font_lock_keywords_table(i)%mode) /= major_mode_of_current()) cycle
+                call add_keywords_here(font_lock_keywords_table(i)%keywords, font_lock_keywords_table(i)%how)
             end do
         end if
 
@@ -1004,30 +1004,30 @@ contains
         if (present(how)) h = how
 
         if (len(mode) > 0) then
-            ! Add the KEYWORDS and HOW spec to `font_lock_keywords_alist'
+            ! Add the KEYWORDS and HOW spec to `font_lock_keywords_table'
             ! so `font_lock_set_defaults' uses them.
-            if (.not. allocated(font_lock_keywords_alist)) allocate (font_lock_keywords_alist(0))
+            if (.not. allocated(font_lock_keywords_table)) allocate (font_lock_keywords_table(0))
 
             if (h == FONT_LOCK_ADD_SET) then
                 ! Replace the mode's earlier specs.
                 n = 0
                 allocate (grown(0))
 
-                do i = 1, size(font_lock_keywords_alist)
-                    if (trim(font_lock_keywords_alist(i)%mode) == mode) cycle
-                    grown = [grown, font_lock_keywords_alist(i)]
+                do i = 1, size(font_lock_keywords_table)
+                    if (trim(font_lock_keywords_table(i)%mode) == mode) cycle
+                    grown = [grown, font_lock_keywords_table(i)]
                 end do
 
-                call move_alloc(grown, font_lock_keywords_alist)
+                call move_alloc(grown, font_lock_keywords_table)
             end if
 
-            n = size(font_lock_keywords_alist)
+            n = size(font_lock_keywords_table)
             allocate (grown(n + 1))
-            grown(1:n) = font_lock_keywords_alist
+            grown(1:n) = font_lock_keywords_table
             grown(n + 1)%mode = mode
             grown(n + 1)%keywords = keywords
             grown(n + 1)%how = h
-            call move_alloc(grown, font_lock_keywords_alist)
+            call move_alloc(grown, font_lock_keywords_table)
             return
         end if
 
@@ -1988,7 +1988,7 @@ contains
             ! differs from the standard one in ways which affects PPSS,
             ! then we can't use `syntax_ppss' since that would pollute
             ! and be polluted by its cache.
-            call parse_partial_sexp(point_min(), start, state, status)
+            call parse_partial_expression(point_min(), start, state, status)
             if (.not. status%ok()) return
         else
             call syntax_ppss(state, start)
@@ -2006,8 +2006,8 @@ contains
                 end if
 
                 beg = max(state%comstr_start, start)
-                call parse_partial_sexp(point(), end, next, status, oldstate=state, &
-                                        commentstop=COMMENTSTOP_SYNTAX_TABLE)
+                call parse_partial_expression(point(), end, next, status, oldstate=state, &
+                                              commentstop=COMMENTSTOP_SYNTAX_TABLE)
                 if (.not. status%ok()) return
                 state = next
                 if (len(face) > 0) call put_text_property(beg, point(), sym("face"), sym(face), status)
@@ -2017,7 +2017,7 @@ contains
             end if
 
             if (point() >= end) exit
-            call parse_partial_sexp(point(), end, next, status, oldstate=state, commentstop=COMMENTSTOP_SYNTAX_TABLE)
+            call parse_partial_expression(point(), end, next, status, oldstate=state, commentstop=COMMENTSTOP_SYNTAX_TABLE)
             if (.not. status%ok()) return
             state = next
         end do

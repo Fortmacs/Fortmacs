@@ -34,7 +34,7 @@
 !>
 !> Not ported yet (Deferred): the `revert_buffer_function' of the
 !> asynchronous output buffer, the help text of
-!> shell-command--same-buffer-confirm (help-form), `display_buffer_alist'
+!> shell-command--same-buffer-confirm (help-form), `display_buffer_table'
 !> actions such as display-buffer-no-window for the output buffer; shell
 !> completion in the minibuffer (`minibuffer_local_shell_command_map'
 !> has no TAB, M-<up>, M-<down> or M-RET bindings) and

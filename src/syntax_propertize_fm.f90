@@ -48,9 +48,9 @@ module syntax_propertize_fm
     use insdel_fm, only: before_change_functions
     use textprop_fm, only: get_text_property, put_text_property, remove_text_properties, &
                            previous_single_property_change, text_property_any
-    use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_table, set_syntax_table, syntax_table_live_p, &
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_table, set_syntax_table, syntax_table_live_p, &
                          string_to_syntax, syntax_descriptor_type, syntax_descriptor_value, syntax_propertize__done, &
-                         parse_sexp_lookup_properties, internal_syntax_propertize, syntax_ppss_function
+                         parse_expression_lookup_properties, internal_syntax_propertize, syntax_ppss_function
     use search_fm, only: re_search_forward, string_match, match_beginning, match_end, match_data, set_match_data, &
                          string_index_to_offset, SEARCH_NOERROR
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, &
@@ -928,7 +928,7 @@ contains
             return
         end if
 
-        call parse_sexp_lookup_properties%set_local(.true.)
+        call parse_expression_lookup_properties%set_local(.true.)
 
         if (syntax_propertize__done%value < point_min()) then
             if (syntax_propertize__done%value > 0) then
@@ -1024,7 +1024,7 @@ contains
     end subroutine syntax_propertize
 
     !> Propertize far enough beyond CHARPOS for the syntax scanner (called
-    !> from syntax_fm's parse_sexp_propertize; its errors are ignored, as
+    !> from syntax_fm's parse_expression_propertize; its errors are ignored, as
     !> upstream's safe_calln does).  Port of
     !> syntax.el:internal--syntax-propertize.
     recursive subroutine internal_syntax_propertize_function(charpos)
@@ -1050,7 +1050,7 @@ contains
     end function syntax_ppss_depth
 
     !> Get the latest syntactically outermost position found in a syntactic scan.
-    !> PPSS is a scan state, as returned by `parse_partial_sexp' or `syntax_ppss'.
+    !> PPSS is a scan state, as returned by `parse_partial_expression' or `syntax_ppss'.
     !> An "outermost position" means one that it is outside of any syntactic entity:
     !> outside of any parentheses, comments, or strings encountered in the scan.
     !> If no such position is recorded in PPSS (because the end of the scan was
@@ -1144,7 +1144,7 @@ contains
                     ! BEG=(car (nth 10 syntax-ppss-last)) don't reuse that data because the
                     ! assumed nil state at BEG may not be valid any more.
                     limit = syntax_ppss_toplevel_pos(cell%last_ppss)
-                    if (limit == 0) limit = cell%last_ppss%last_sexp_start
+                    if (limit == 0) limit = cell%last_ppss%last_expression_start
 
                     if (beg <= limit) then
                         cell%has_last = .false.
@@ -1238,7 +1238,7 @@ contains
     !> Parse-Partial-Sexp State at POS, defaulting to point.
     !> If POS is given, this function moves point to POS.
     !>
-    !> The returned value is the same as that of `parse_partial_sexp'
+    !> The returned value is the same as that of `parse_partial_expression'
     !> run from `point_min' to POS except that values at positions 2 and 6
     !> in the returned list (counting from 0) cannot be relied upon.
     !>
@@ -1285,7 +1285,7 @@ contains
             if (old_pos /= 0) then
                 if (p - old_pos < (2*stats_total(5))/stats_count(5)) then
                     call update_stats(0, old_pos, p)
-                    call parse_partial_sexp(old_pos, p, state, status, oldstate=old_ppss)
+                    call parse_partial_expression(old_pos, p, state, status, oldstate=old_ppss)
                     if (.not. status%ok()) exit body
                     call set_syntax_table(old_table, st)
                     return
@@ -1304,12 +1304,12 @@ contains
                 ! as when the whole file is wrapped in a set
                 ! of parentheses.
                 pt_min = syntax_ppss_toplevel_pos(old_ppss)
-                if (pt_min == 0) pt_min = old_ppss%last_sexp_start
+                if (pt_min == 0) pt_min = old_ppss%last_expression_start
             end if
 
             if (pt_min /= 0 .and. pt_min <= p .and. p - pt_min < syntax_ppss_max_span) then
                 call update_stats(1, pt_min, p)
-                call parse_partial_sexp(pt_min, p, ppss, status)
+                call parse_partial_expression(pt_min, p, ppss, status)
                 if (.not. status%ok()) exit body
             else
                 ! The OLD-* data can't be used.  Consult the cache.
@@ -1398,9 +1398,9 @@ contains
                     call update_stats(2, pt_best, p)
 
                     if (has_best) then
-                        call parse_partial_sexp(pt_best, p, ppss, status, oldstate=ppss_best)
+                        call parse_partial_expression(pt_best, p, ppss, status, oldstate=ppss_best)
                     else
-                        call parse_partial_sexp(pt_best, p, ppss, status)
+                        call parse_partial_expression(pt_best, p, ppss, status)
                     end if
 
                     if (.not. status%ok()) exit body
@@ -1469,7 +1469,7 @@ contains
         ! we may end up calling parse-partial-sexp with a position before
         ! point-min.  In that case, just parse from point-min assuming
         ! a nil state.
-        if (status%code == FM_ARGS_OUT_OF_RANGE) call parse_partial_sexp(point_min(), p, state, status)
+        if (status%code == FM_ARGS_OUT_OF_RANGE) call parse_partial_expression(point_min(), p, state, status)
         call set_syntax_table(old_table, st)
 
     contains
@@ -1480,9 +1480,9 @@ contains
             type(parse_state_type) :: next
 
             if (has_ppss) then
-                call parse_partial_sexp(from, to, next, status, oldstate=ppss)
+                call parse_partial_expression(from, to, next, status, oldstate=ppss)
             else
-                call parse_partial_sexp(from, to, next, status)
+                call parse_partial_expression(from, to, next, status)
             end if
 
             ppss = next

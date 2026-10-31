@@ -30,7 +30,7 @@
 !>
 !> The keyword lists (`conf_font_lock_keywords' and the others) are
 !> arrays of `font_lock_keyword_type'.  `conf_assignment_sign' is a string
-!> (unallocated for nil).  `conf_space_keywords_alist' holds
+!> (unallocated for nil).  `conf_space_keywords_table' holds
 !> `conf_space_keywords_entry_type' pairs.
 !>
 !> Deferred: Outline mode's variables (`outline_regexp',
@@ -54,7 +54,7 @@ module conf_mode_fm
     use keymap_fm, only: keymap_set
     use subr_fm, only: delaying_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, run_mode_hooks
     use syntax_fm, only: make_syntax_table, copy_syntax_table, modify_syntax_entry, syntax_table, set_syntax_table, &
-                         syntax_table_live_p, parse_sexp_ignore_comments, forward_comment, scan_lists
+                         syntax_table_live_p, parse_expression_ignore_comments, forward_comment, scan_groups
     use editfns_fm, only: point, point_min, point_max, goto_char, eobp, eolp, char_after, char_before, delete_region, &
                           narrow_to_region, widen, region_beginning, region_end, line_end_position
     use cmds_fm, only: forward_line, forward_char, end_of_line
@@ -149,7 +149,7 @@ module conf_mode_fm
     !> conf-desktop-font-lock-keywords.
     type(font_lock_keyword_type), allocatable, public :: conf_desktop_font_lock_keywords(:)
 
-    !> An entry of `conf_space_keywords_alist': files whose name matches
+    !> An entry of `conf_space_keywords_table': files whose name matches
     !> REGEXP get KEYWORDS as `conf_space_keywords'.
     type :: conf_space_keywords_entry_type
         character(len=:), allocatable :: regexp, keywords
@@ -157,13 +157,13 @@ module conf_mode_fm
 
     !> File-name-based settings for the variable `conf_space_keywords'.
     !> Port of conf-mode.el conf-space-keywords-alist.
-    type(conf_space_keywords_entry_type), allocatable, public :: conf_space_keywords_alist(:)
+    type(conf_space_keywords_entry_type), allocatable, public :: conf_space_keywords_table(:)
 
     !> Regexps for functions that may come before a space assignment.
     !> This allows constructs such as
     !> keyword var value
     !> This variable is best set in the file local variables, or through
-    !> `conf_space_keywords_alist'.  Port of conf-mode.el
+    !> `conf_space_keywords_table'.  Port of conf-mode.el
     !> conf-space-keywords.
     type(string_setting), target, public :: conf_space_keywords = string_setting(name="conf_space_keywords")
 
@@ -172,7 +172,7 @@ module conf_mode_fm
     type(string_setting), target, public :: conf_assignment_sign = string_setting(name="conf_assignment_sign")
 
     !> Regexp to recognize assignments.
-    !> It is anchored after the first sexp on a line.  There must be a
+    !> It is anchored after the first expression on a line.  There must be a
     !> grouping for the assignment sign, including leading and trailing
     !> whitespace.  Port of conf-mode.el conf-assignment-regexp.
     type(string_setting), target, public :: conf_assignment_regexp = string_setting(name="conf_assignment_regexp")
@@ -230,7 +230,7 @@ contains
         if (.not. allocated(conf_assignment_regexp%value)) conf_assignment_regexp = ".+?\([ "//TAB//"]*=[ "//TAB//"]*\)"
         call init_syntax_tables()
         call init_keywords()
-        call init_space_keywords_alist()
+        call init_space_keywords_table()
         call major_modes%conf_mode%define("conf_mode", "Conf[?]", conf_mode, conf_mode_hook, &
                                           syntax_table=conf_mode_syntax_table)
         conf_mode_map = major_modes%conf_mode%map
@@ -421,11 +421,11 @@ contains
         conf_desktop_font_lock_keywords(5) = font_lock_keyword("\_<%[uUfFick%]\_>", highlights=h1)
     end subroutine init_keywords
 
-    ! Set `conf_space_keywords_alist'.  Port of the value of conf-mode.el's
+    ! Set `conf_space_keywords_table'.  Port of the value of conf-mode.el's
     ! conf-space-keywords-alist.
-    subroutine init_space_keywords_alist()
-        if (allocated(conf_space_keywords_alist)) return
-        allocate (conf_space_keywords_alist(9))
+    subroutine init_space_keywords_table()
+        if (allocated(conf_space_keywords_table)) return
+        allocate (conf_space_keywords_table(9))
         call set_entry(1, "\`/etc/gpm/", "key\|name\|foreground\|background\|border\|head")
         call set_entry(2, "\`/etc/magic\'", "[^ "//TAB//"]+[ "//TAB//"]+\(?:[bl]?e?\(?:short\|long\)\|byte\|string\)[^ " &
                        //TAB//"]*")
@@ -443,10 +443,10 @@ contains
             integer, intent(in) :: k
             character(len=*), intent(in) :: regexp, keywords
 
-            conf_space_keywords_alist(k)%regexp = regexp
-            conf_space_keywords_alist(k)%keywords = keywords
+            conf_space_keywords_table(k)%regexp = regexp
+            conf_space_keywords_table(k)%keywords = keywords
         end subroutine set_entry
-    end subroutine init_space_keywords_alist
+    end subroutine init_space_keywords_table
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -773,7 +773,7 @@ contains
         if (.not. status%ok()) return
         call font_lock_defaults%set_local(keywords=conf_font_lock_keywords, case_fold=.true.)
         ! Let newcomment.el decide this for itself.
-        call parse_sexp_ignore_comments%set_local(.true.)
+        call parse_expression_ignore_comments%set_local(.true.)
         call major_modes%conf_mode%finish(saved, status)
     end subroutine conf_mode
 
@@ -857,7 +857,7 @@ contains
 
     !> Conf Mode starter for space separated conf files.
     !> "Assignments" are with ` '.  Keywords before the parameters are
-    !> recognized according to the variable `conf_space_keywords_alist'.
+    !> recognized according to the variable `conf_space_keywords_table'.
     !> Alternatively, you can specify a value for the file local variable
     !> `conf_space_keywords'.
     !> Use the function `conf_space_keywords' if you want to specify keywords
@@ -898,9 +898,9 @@ contains
             call conf_space_keywords%make_local()
             call conf_space_keywords%clear()
 
-            do k = 1, size(conf_space_keywords_alist)
-                if (string_match(conf_space_keywords_alist(k)%regexp, buffers(cur)%filename, st) > 0) then
-                    call conf_space_keywords%set_local(conf_space_keywords_alist(k)%keywords)
+            do k = 1, size(conf_space_keywords_table)
+                if (string_match(conf_space_keywords_table(k)%regexp, buffers(cur)%filename, st) > 0) then
+                    call conf_space_keywords%set_local(conf_space_keywords_table(k)%keywords)
                     exit
                 end if
             end do
@@ -1071,7 +1071,7 @@ contains
         if (.not. st%ok() .or. f <= 0) return
         start = point()
         call forward_char(st, -1_int64)
-        pos = scan_lists(point(), 1_int64, 0_int64, st)
+        pos = scan_groups(point(), 1_int64, 0_int64, st)
 
         if (st%ok() .and. pos > 0) then
             call goto_char(pos)

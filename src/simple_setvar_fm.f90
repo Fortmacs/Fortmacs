@@ -305,6 +305,25 @@ contains
         v = out
     end subroutine string_literal
 
+    module procedure read_variable
+    type(value_type), allocatable :: names(:)
+    integer :: k
+
+    allocate (names(size(user_option_names)))
+
+    do k = 1, size(user_option_names)
+        names(k) = make_string(trim(user_option_names(k)))
+    end do
+
+    if (present(default_value)) then
+        call completing_read(prompt, completion_list_table(make_list(names)), name, status, &
+                             require_match=REQUIRE_MATCH_T, history="custom_variable_history", default=default_value)
+    else
+        call completing_read(prompt, completion_list_table(make_list(names)), name, status, &
+                             require_match=REQUIRE_MATCH_T, history="custom_variable_history")
+    end if
+    end procedure read_variable
+
     module procedure cmd_set_variable
     character(len=:), allocatable :: name, prompt, value, current, scope
     type(value_type), allocatable :: names(:)

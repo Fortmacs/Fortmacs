@@ -74,7 +74,7 @@ module newcomment_fm
                          replace_match, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string
     use fns_fm, only: substring, schars
-    use syntax_fm, only: forward_comment, parse_partial_sexp, syntax_ppss, parse_state_type, skip_syntax_backward, &
+    use syntax_fm, only: forward_comment, parse_partial_expression, syntax_ppss, parse_state_type, skip_syntax_backward, &
                          skip_syntax_forward, skip_chars_forward, skip_chars_backward, string_to_syntax, &
                          syntax_descriptor_type, syntax_entry, syntax_table, set_syntax_table, COMMENTSTOP_COMMENT
     use textprop_fm, only: get_text_property
@@ -1066,9 +1066,9 @@ contains
         ! Assume (at first) that pt is outside of any string.
         if (comment_use_global_state) then
             call syntax_ppss(old, pt)
-            call parse_partial_sexp(pt, to, s, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
+            call parse_partial_expression(pt, to, s, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
         else
-            call parse_partial_sexp(pt, to, s, st, commentstop=COMMENTSTOP_COMMENT)
+            call parse_partial_expression(pt, to, s, st, commentstop=COMMENTSTOP_COMMENT)
         end if
 
         if (s%comstr_start > 0 .and. s%instring /= -1 .and. .not. comment_use_global_state) then
@@ -1077,7 +1077,7 @@ contains
             old = parse_state_type()
             old%instring = s%instring
             call goto_char(pt)
-            call parse_partial_sexp(pt, to, s2, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
+            call parse_partial_expression(pt, to, s2, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
             s = s2
         end if
 

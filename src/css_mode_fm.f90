@@ -24,11 +24,11 @@
 !> (`css_fontify_colors'), SMIE indentation, completion at point of
 !> properties, values, pseudo-classes and -elements, at-rules, bang-rules
 !> and selectors, `css_cycle_color_format' (C-c C-f), `css_fill_paragraph'
-!> and `css_current_defun_name'.
+!> and `css_current_rule_name'.
 !>
 !> Deferred: `css_lookup_symbol' (it needs eww; `css__mdn_find_symbol'
 !> is ported), Imenu (its index functions are ported, for
-!> `css_current_defun_name'), `add_log_current_defun_function', the menu,
+!> `css_current_rule_name'), `add_log_current_subprogram_function', the menu,
 !> `css_ts_mode', `less_css_mode' (less-css-mode.el) and the
 !> `:company_kind' completion properties.
 module css_mode_fm
@@ -66,7 +66,7 @@ module css_mode_fm
                             FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_default_fontify_region, &
                             set_local_font_lock_fontify_region_function
-    use lisp_cmds_fm, only: forward_sexp, backward_sexp, down_list, kill_sexp
+    use expression_motion_fm, only: forward_expression, backward_expression, down_group, kill_expression
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end, comment_end_skip, comment_continue, &
                              comment_normalize_vars, comment_search_forward, comment_beginning
     use paragraphs_fm, only: paragraph_start, paragraph_separate
@@ -74,8 +74,8 @@ module css_mode_fm
     use electric_fm, only: electric_indent_chars_value, set_local_electric_indent_chars
     use syntax_propertize_fm, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use smie_fm, only: smie_prec_type, smie_precs_type, smie_prec2_type, smie_grammar_type, smie_rule_result_type, &
-                       smie_indent_type, smie_sexp_type, smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
-                       smie_default_forward_token, smie_default_backward_token, smie_backward_sexp, &
+                       smie_indent_type, smie_expression_type, smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
+                       smie_default_forward_token, smie_default_backward_token, smie_backward_expression, &
                        smie_rule_hanging_p, smie_rule_bolp, smie_rule_parent, smie_indent_virtual, SMIE_ASSOC, SMIE_LEFT, &
                        SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_NIL, SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, &
                        SMIE_RULE_T, SMIE_INDENT_COLUMN
@@ -91,7 +91,7 @@ module css_mode_fm
               css_property_value_cache_get, css_foreign_completions, css_completion_at_point, css_color_to_4_dpc, &
               css_format_hex, css_named_color_to_hex, css_format_rgba_alpha, css_hex_to_rgb, &
               css_rgb_to_named_color_or_hex, css_cycle_color_format, css_join_nested_selectors, &
-              css_prev_index_position, css_extract_index_name, css_current_defun_name, css_mdn_find_symbol, &
+              css_prev_index_position, css_extract_index_name, css_current_rule_name, css_mdn_find_symbol, &
               css_rgb_color, css_hsl_color, css_hex_color, css_hex_alpha, css_named_color, css_compute_color, &
               css_fontify_region, css_smie_forward_token, css_smie_backward_token, css_smie_rules, css_fill_paragraph, &
               css_adaptive_fill, scss_smie_not_interpolation_p, css_font_lock_keywords_of, scss_font_lock_keywords
@@ -121,7 +121,7 @@ module css_mode_fm
         procedure(css_list_proc), pointer, nopass :: value => null()
         type(css_list_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => list_function_set_local
         !> The current buffer's function (null for `ignore').
         procedure :: get => list_function_get
@@ -1269,7 +1269,7 @@ contains
     end subroutine append_new
 
     !> Return a list of value completion candidates for VALUE_CLASS.
-    !> Completion candidates are looked up in `css_value_class_alist' by
+    !> Completion candidates are looked up in `css_value_class_table' by
     !> the name VALUE_CLASS.  Port of css-mode.el:css--value-class-lookup.
     recursive function css_value_class_lookup(value_class) result(values)
         character(len=*), intent(in) :: value_class
@@ -1290,7 +1290,7 @@ contains
     end function css_value_class_lookup
 
     !> Return a list of value completion candidates for PROPERTY.
-    !> Completion candidates are looked up in `css_property_alist' by
+    !> Completion candidates are looked up in `css_property_table' by
     !> the string PROPERTY.  Port of css-mode.el:css--property-values.
     recursive function css_property_values(property) result(values)
         character(len=*), intent(in) :: property
@@ -2403,7 +2403,7 @@ contains
         call excursion_begin(mark)
 
         if (following_char() /= iachar("#") .and. preceding_char() /= iachar("(")) then
-            call backward_sexp(1_int64, st)
+            call backward_expression(1_int64, st)
         end if
 
         if (looking_at(COLORS_RE, st)) then
@@ -2473,7 +2473,7 @@ contains
             end if
         end if
 
-        if (preceding_char() == iachar(")")) call backward_sexp(1_int64, st)
+        if (preceding_char() == iachar(")")) call backward_expression(1_int64, st)
         moved = skip_chars_backward("rgba", st)
 
         if (looking_at(COLORS_RE, st)) then
@@ -2484,8 +2484,8 @@ contains
             call goto_char(here)
 
             if (found) then
-                call kill_sexp(1_int64, st)
-                call kill_sexp(1_int64, st)
+                call kill_expression(1_int64, st)
+                call kill_expression(1_int64, st)
                 k = 0
 
                 do k = 1, size(COLOR_HEX)
@@ -2555,7 +2555,7 @@ contains
     end function hex_value
 
     ! ------------------------------------------------------------------
-    ! Defun names
+    ! Subprogram names
     ! ------------------------------------------------------------------
 
     ! STR with every occurrence of FROM replaced by TO.
@@ -2733,7 +2733,7 @@ contains
 
     !> Return the name of the CSS section at point (`found' false for
     !> none).  Port of css-mode.el:css-current-defun-name.
-    recursive subroutine css_current_defun_name(name, found)
+    recursive subroutine css_current_rule_name(name, found)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
         integer(int64) :: opoint
@@ -2743,7 +2743,7 @@ contains
         found = css_prev_index_position()
         if (found) name = css_extract_index_name()
         call goto_char(opoint)
-    end subroutine css_current_defun_name
+    end subroutine css_current_rule_name
 
     !> A helper for `css_lookup_symbol' that finds the symbol at point.
     !> Returns the symbol, a string, or `found' false if none found.  Port of
@@ -2919,14 +2919,14 @@ contains
 
     ! Return true if point is inside a function call.  Port of
     ! css-mode.el:css--colon-inside-funcall.
-    logical function colon_inside_funcall()
+    logical function colon_inside_function_call()
         type(parse_state_type) :: ppss
 
-        colon_inside_funcall = .false.
+        colon_inside_function_call = .false.
         call syntax_ppss(ppss)
         if (ppss%innermost_start == 0) return
-        colon_inside_funcall = after_char_at(ppss%innermost_start) == iachar("(")
-    end function colon_inside_funcall
+        colon_inside_function_call = after_char_at(ppss%innermost_start) == iachar("(")
+    end function colon_inside_function_call
 
     !> Whether the "}" before point doesn't end an interpolation #{$...}.
     !> Port of css-mode.el:scss-smie--not-interpolation-p.
@@ -2953,7 +2953,7 @@ contains
 
         if (colon_inside_selector_p()) then
             token = ":"
-        else if (colon_inside_funcall()) then
+        else if (colon_inside_function_call()) then
             token = ":"
         else
             token = ":-property"
@@ -3051,7 +3051,7 @@ contains
         character(len=*), intent(in) :: arg
         type(smie_rule_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        type(smie_sexp_type) :: res
+        type(smie_expression_type) :: res
         type(smie_indent_type) :: indent
 
         status = status_type()
@@ -3070,7 +3070,7 @@ contains
         case (SMIE_BEFORE)
             if (arg == "{") then
                 if (smie_rule_hanging_p(status) .or. smie_rule_bolp()) then
-                    call smie_backward_sexp(res, status, token=";")
+                    call smie_backward_expression(res, status, token=";")
 
                     if (following_char() /= iachar("{")) then
                         indent = smie_indent_virtual(status)
@@ -3211,7 +3211,7 @@ contains
 
             if (.not. ok) then
                 here = point()
-                call down_list(1_int64, st)
+                call down_group(1_int64, st)
 
                 if (st%ok() .and. point() <= eol) then
                     call syntax_ppss(ppss)
@@ -3225,7 +3225,7 @@ contains
                 opening = ppss%innermost_start
                 call goto_char(opening)
                 here = point()
-                call forward_sexp(1_int64, st)
+                call forward_expression(1_int64, st)
                 has_end = st%ok()
                 if (has_end) call copy_marker_at(point(), end_marker, .true., st)
                 call goto_char(here)

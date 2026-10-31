@@ -40,7 +40,7 @@
 !> characters.el's values for those variables).
 !>
 !> Comments and balanced expressions are in the submodule syntax_scan_fm:
-!> `forward_comment', `scan_lists', `scan_sexps' and `parse_partial_sexp',
+!> `forward_comment', `scan_groups', `scan_expressions' and `parse_partial_expression',
 !> whose result is a `parse_state_type' rather than a list.
 !>
 !> Deferred: `syntax_table' text properties (parse-sexp-lookup-properties,
@@ -53,12 +53,14 @@ module syntax_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE, &
                         FM_SCAN_ERROR
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use character_fm, only: MAX_CHAR, string_char_and_length
+    use character_fm, only: MAX_CHAR, string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, unibyte_to_char
+    use error_fm, only: format_message
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_prev_char_len
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, constrain_to_field
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use characters_fm, only: characters_syntax, char_has_category
+    use characters_fm, only: characters_syntax
+    use category_fm, only: char_has_category
     use charscript_fm, only: char_script
     use data_fm, only: logical_setting, integer_setting, forward_setting
     use lisp_fm, only: value_type, consp, fixnump, xfixnum, syntax_table_ref_p, xhandle, make_fixnum, list_elt, list
@@ -73,9 +75,10 @@ module syntax_fm
               matching_paren, scan_words, forward_word, word_boundary_p, syms_of_syntax, &
               skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
               skip_limit, backward_prefix_chars
-    public :: parse_state_type, forward_comment, scan_lists, scan_sexps, parse_partial_sexp, syntax_ppss, &
+    public :: parse_state_type, forward_comment, scan_groups, scan_expressions, parse_partial_expression, syntax_ppss, &
               scan_error_data
-    public :: syntax_entry_at, syntax_class_at, syntax_descriptor_value, descriptor_of_value, parse_sexp_propertize
+    public :: syntax_entry_at, syntax_class_at, syntax_descriptor_value, descriptor_of_value, parse_expression_propertize
+    public :: syntax_flags_comment_styleb, syntax_flags_comment_stylec, internal_describe_syntax_value
 
     !> Syntax classes (syntax.h enum syntaxcode).
     integer, parameter, public :: SWHITESPACE = 0, SPUNCT = 1, SWORD = 2, SSYMBOL = 3, SOPEN = 4, &
@@ -90,10 +93,10 @@ module syntax_fm
     !> Port of syntax.c words-include-escapes.
     logical, public :: words_include_escapes = .false.
 
-    !> True means `forward_sexp', etc., should treat comments as whitespace.
+    !> True means `forward_expression', etc., should treat comments as whitespace.
     !> Port of syntax.c parse-sexp-ignore-comments.
-    type(logical_setting), public :: parse_sexp_ignore_comments = &
-                                     logical_setting(name="parse_sexp_ignore_comments", value=.false.)
+    type(logical_setting), public :: parse_expression_ignore_comments = &
+                                     logical_setting(name="parse_expression_ignore_comments", value=.false.)
 
     !> True means an escaped ender inside a comment doesn't end the comment.
     !> Port of syntax.c comment-end-can-be-escaped (buffer-local when set,
@@ -101,20 +104,20 @@ module syntax_fm
     type(logical_setting), public :: comment_end_can_be_escaped = &
                                      logical_setting(name="comment_end_can_be_escaped", value=.false.)
 
-    !> True means `scan_sexps' treats all multibyte characters as symbol.
+    !> True means `scan_expressions' treats all multibyte characters as symbol.
     !> Port of syntax.c multibyte-syntax-as-symbol.
     logical, public :: multibyte_syntax_as_symbol = .false.
 
-    !> True means an open paren in column 0 denotes the start of a defun.
+    !> True means an open paren in column 0 denotes the start of a subprogram.
     !> Port of syntax.c open-paren-in-column-0-is-defun-start.
-    logical, public :: open_paren_in_column_0_is_defun_start = .true.
+    logical, public :: open_paren_in_column_0_is_subprogram_start = .true.
 
-    !> True means `forward_sexp', etc., obey `syntax_table' property.
+    !> True means `forward_expression', etc., obey `syntax_table' property.
     !> Ignoring the `syntax_table' property may result in faster syntax
     !> scanning when this variable is false.  Port of syntax.c
     !> parse-sexp-lookup-properties (buffer-local when set).
-    type(logical_setting), target, public :: parse_sexp_lookup_properties = &
-                                             logical_setting(name="parse_sexp_lookup_properties", value=.false.)
+    type(logical_setting), target, public :: parse_expression_lookup_properties = &
+                                             logical_setting(name="parse_expression_lookup_properties", value=.false.)
 
     !> Position up to which syntax-table properties have been set.
     !> Port of syntax.c syntax-propertize--done (buffer-local when set).
@@ -147,18 +150,18 @@ module syntax_fm
     !> One more than the largest syntax class (syntax.h Smax).
     integer, parameter, public :: SMAX = 16
 
-    !> COMMENTSTOP of `parse_partial_sexp': nil, non-nil (stop after the
+    !> COMMENTSTOP of `parse_partial_expression': nil, non-nil (stop after the
     !> start of a comment) and the symbol `syntax-table' (stop after the
     !> start or end of a comment or a string).
     integer, parameter, public :: COMMENTSTOP_NIL = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
 
-    !> The state of a parse by `parse_partial_sexp', the list upstream
+    !> The state of a parse by `parse_partial_expression', the list upstream
     !> returns.  Its components are the list's elements:
     !>  0. `depth': depth in parens.
     !>  1. `innermost_start': character address of start of innermost
-    !>     containing list; 0 if none (nil).
-    !>  2. `last_sexp_start': character address of start of last complete
-    !>     sexp terminated; 0 if none (nil).
+    !>     containing group; 0 if none (nil).
+    !>  2. `last_expression_start': character address of start of last complete
+    !>     expression terminated; 0 if none (nil).
     !>  3. `instring': -1 (nil) if not inside a string; else the character
     !>     that will terminate the string, or ST_STRING_STYLE (t) if the
     !>     string should be terminated by a generic string delimiter.
@@ -178,12 +181,12 @@ module syntax_fm
     !>     of that position (class and flags), otherwise -1 (nil).  That
     !>     construct can be a two character comment delimiter or an
     !>     Escaped or Char-quoted character.
-    !> The default value is the state at the start of a defun (an OLDSTATE
+    !> The default value is the state at the start of a subprogram (an OLDSTATE
     !> of nil).
     type :: parse_state_type
         integer(int64) :: depth = 0
         integer(int64) :: innermost_start = 0
-        integer(int64) :: last_sexp_start = 0
+        integer(int64) :: last_expression_start = 0
         integer :: instring = -1
         integer(int64) :: incomment = 0
         logical :: quoted = .false.
@@ -259,11 +262,11 @@ module syntax_fm
             integer(int64), intent(in) :: count
         end function forward_comment
 
-        !> Scan from character number FROM by COUNT lists.
+        !> Scan from character number FROM by COUNT groups.
         !> Scan forward if COUNT is positive, backward if COUNT is negative.
         !> Return the character number of the position thus found.
         !>
-        !> A "list", in this context, refers to a balanced parenthetical
+        !> A "group", in this context, refers to a balanced parenthetical
         !> grouping, as determined by the syntax table.
         !>
         !> If DEPTH is nonzero, treat that as the nesting depth of the starting
@@ -272,34 +275,34 @@ module syntax_fm
         !> times.  Hence, positive DEPTH moves out that number of levels of
         !> parentheses, while negative DEPTH moves to a deeper level.
         !>
-        !> Comments are ignored if `parse_sexp_ignore_comments' is true.
+        !> Comments are ignored if `parse_expression_ignore_comments' is true.
         !>
         !> If we reach the beginning or end of the accessible part of the buffer
-        !> before we have scanned over COUNT lists, return 0 if the depth at
+        !> before we have scanned over COUNT groups, return 0 if the depth at
         !> that point is zero, and signal an error if the depth is nonzero.
         !> Port of syntax.c:Fscan_lists (the error is `scan_error').
-        recursive module integer(int64) function scan_lists(from, count, depth, status) result(pos)
+        recursive module integer(int64) function scan_groups(from, count, depth, status) result(pos)
             implicit none(type, external)
             integer(int64), intent(in) :: from, count, depth
             type(status_type), intent(out) :: status
-        end function scan_lists
+        end function scan_groups
 
         !> Scan from character number FROM by COUNT balanced expressions.
         !> If COUNT is negative, scan backwards.
         !> Returns the character number of the position thus found.
         !>
-        !> Comments are ignored if `parse_sexp_ignore_comments' is true.
+        !> Comments are ignored if `parse_expression_ignore_comments' is true.
         !>
         !> If the beginning or end of (the accessible part of) the buffer is reached
         !> in the middle of a parenthetical grouping, an error is signaled.
         !> If the beginning or end is reached between groupings
         !> but before count is used up, 0 is returned.  Port of
         !> syntax.c:Fscan_sexps.
-        recursive module integer(int64) function scan_sexps(from, count, status) result(pos)
+        recursive module integer(int64) function scan_expressions(from, count, status) result(pos)
             implicit none(type, external)
             integer(int64), intent(in) :: from, count
             type(status_type), intent(out) :: status
-        end function scan_sexps
+        end function scan_expressions
 
         !> Parse syntax starting at FROM until TO; return status of parse at TO.
         !> Parsing stops at TO or when certain criteria are met;
@@ -315,16 +318,17 @@ module syntax_fm
         !> If third arg TARGETDEPTH is present, parsing stops if the depth
         !> in parentheses becomes equal to TARGETDEPTH.
         !> Fourth arg STOPBEFORE true means stop when we come to
-        !>  any character that starts a sexp.
+        !>  any character that starts an expression.
         !> Fifth arg OLDSTATE is a state like what this function returns.
         !>  It is used to initialize the state of the parse.  Components
-        !>  `innermost_start', `last_sexp_start' and `mindepth' are ignored.
+        !>  `innermost_start', `last_expression_start' and `mindepth' are ignored.
         !> Sixth arg COMMENTSTOP COMMENTSTOP_COMMENT means stop after the start
         !>  of a comment.  If it is COMMENTSTOP_SYNTAX_TABLE, stop after the
         !>  start of a comment or a string, or after end of a comment or a
         !>  string.  Port of syntax.c:Fparse_partial_sexp (STATE and OLDSTATE
         !> must be different variables).
-        recursive module subroutine parse_partial_sexp(from, to, state, status, targetdepth, stopbefore, oldstate, commentstop)
+        recursive module subroutine parse_partial_expression(from, to, state, status, targetdepth, stopbefore, oldstate, &
+                                                             commentstop)
             implicit none(type, external)
             integer(int64), intent(in) :: from, to
             type(parse_state_type), intent(out) :: state
@@ -333,10 +337,10 @@ module syntax_fm
             logical, intent(in), optional :: stopbefore
             type(parse_state_type), intent(in), optional :: oldstate
             integer, intent(in), optional :: commentstop
-        end subroutine parse_partial_sexp
+        end subroutine parse_partial_expression
 
         !> Return the parse state of the parenthesis structure at POS
-        !> (default: point), as `parse_partial_sexp' gives it parsing from
+        !> (default: point), as `parse_partial_expression' gives it parsing from
         !> `point_min' to POS.  Point is at POS when this function returns.
         !> Port of emacs-lisp/syntax.el:syntax-ppss: the cached parse of
         !> syntax_propertize_fm (`syntax_ppss_function'), or a parse from
@@ -375,7 +379,8 @@ contains
         tables(h%index)%parent = parent
     end subroutine new_table
 
-    !> Slot of table `h', or a wrong-type-argument error.  Not a port.
+    !> Slot of table `h', or a wrong-type-argument error.  Port of
+    !> syntax.c:check_syntax_table.
     subroutine resolve_table(h, i, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
@@ -385,7 +390,9 @@ contains
         if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax_table_p")
     end subroutine resolve_table
 
-    !> Whether `h' is a live syntax table.  Not a port.
+    !> Return true if OBJECT is a syntax table.  Port of
+    !> syntax.c:Fsyntax_table_p (syntax tables are their own objects here,
+    !> so no other char-table counts as one).
     logical function syntax_table_live_p(h)
         type(handle_type), intent(in) :: h
 
@@ -558,7 +565,8 @@ contains
     end function syntax_table
 
     !> Select a new syntax table for the current buffer.
-    !> One argument, a syntax table.  Port of syntax.c:Fset_syntax_table.
+    !> One argument, a syntax table.  Port of syntax.c:Fset_syntax_table
+    !> and syntax.c:bset_syntax_table.
     subroutine set_syntax_table(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
@@ -573,8 +581,8 @@ contains
     ! Entries
     ! ------------------------------------------------------------------
 
-    !> Give characters `from' to `to' entry `d' in table slot `t'.
-    !> Not a port.
+    !> Give characters `from' to `to' entry `d' in table slot `t'.  Port of
+    !> syntax.c:SET_RAW_SYNTAX_ENTRY and syntax.c:SET_RAW_SYNTAX_ENTRY_RANGE.
     subroutine set_range(t, from, to, d)
         integer(int64), intent(in) :: t
         integer, intent(in) :: from, to
@@ -770,7 +778,7 @@ contains
     !> that far yet.  Port of syntax.c:parse_sexp_propertize (its checks
     !> that internal--syntax-propertize neither modified the buffer nor
     !> failed to move `syntax_propertize__done' are deferred).
-    recursive subroutine parse_sexp_propertize(charpos)
+    recursive subroutine parse_expression_propertize(charpos)
         integer(int64), intent(in) :: charpos
         integer(int64) :: zv
 
@@ -779,17 +787,22 @@ contains
         if (syntax_propertize__done%value <= charpos .and. syntax_propertize__done%value < zv) then
             if (associated(internal_syntax_propertize)) call internal_syntax_propertize(min(zv, 1 + charpos))
         end if
-    end subroutine parse_sexp_propertize
+    end subroutine parse_expression_propertize
 
     !> The syntax entry of character C at position POS of the current
     !> buffer, as the syntax scanning functions see it: when
-    !> `parse_sexp_lookup_properties' is true, from the `syntax_table'
+    !> `parse_expression_lookup_properties' is true, from the `syntax_table'
     !> property at POS (a raw descriptor, or a syntax table to look C up
     !> in), with syntax-propertize run first when POS is not propertized
     !> yet; else (or without the property) from the buffer's syntax table.
     !> What syntax.c's SYNTAX_ENTRY gives after UPDATE_SYNTAX_TABLE (POS)
     !> (gl_state's property intervals are looked up afresh).
-    !> Port of syntax.h:SYNTAX_ENTRY and syntax.h:UPDATE_SYNTAX_TABLE in part.
+    !> Port of syntax.h:SYNTAX_ENTRY and syntax.h:UPDATE_SYNTAX_TABLE in part,
+    !> with what syntax.c:update_syntax_table,
+    !> syntax.c:update_syntax_table_forward, syntax.c:SETUP_SYNTAX_TABLE and
+    !> syntax.c:RE_SETUP_SYNTAX_TABLE_FOR_OBJECT find in gl_state (in part:
+    !> the property is looked up at each position, objects other than the
+    !> current buffer have none).
     recursive function syntax_entry_at(c, pos) result(d)
         integer, intent(in) :: c
         integer(int64), intent(in) :: pos
@@ -798,12 +811,12 @@ contains
         type(status_type) :: st
         logical :: found
 
-        if (.not. parse_sexp_lookup_properties%value) then
+        if (.not. parse_expression_lookup_properties%value) then
             d = syntax_entry(c)
             return
         end if
 
-        call parse_sexp_propertize(pos)
+        call parse_expression_propertize(pos)
 
         if (pos < 1 .or. pos >= buffers(cur)%text%z) then
             d = syntax_entry(c)
@@ -855,11 +868,20 @@ contains
     !> character `w' (119) is returned.
     !> The characters that correspond to various syntax codes
     !> are listed in the documentation of `modify_syntax_entry'.
-    !> Port of syntax.c:Fchar_syntax.
+    !> Port of syntax.c:Fchar_syntax (in a unibyte buffer, 128 to 255 are
+    !> raw bytes).
     character function char_syntax(c)
         integer, intent(in) :: c
+        integer :: char_int, class
 
-        char_syntax = syntax_code_spec(char_syntax_class(c) + 1:char_syntax_class(c) + 1)
+        char_int = c
+
+        if (cur /= 0 .and. c < 256) then
+            if (.not. buffers(cur)%multibyte) char_int = unibyte_to_char(int(c, int32))
+        end if
+
+        class = char_syntax_class(char_int)
+        char_syntax = syntax_code_spec(class + 1:class + 1)
     end function char_syntax
 
     !> Return the syntax char of CLASS, described by an integer.
@@ -882,8 +904,141 @@ contains
         ch = syntax_code_spec(class + 1:class + 1)
     end subroutine syntax_class_to_char
 
+    !> Whether the syntax FLAGS (class and flags) have comment style b.
+    !> Port of syntax.c:SYNTAX_FLAGS_COMMENT_STYLEB.
+    pure logical function syntax_flags_comment_styleb(flags)
+        integer, intent(in) :: flags
+
+        syntax_flags_comment_styleb = btest(flags, 21)
+    end function syntax_flags_comment_styleb
+
+    !> Whether the syntax FLAGS have comment style c.  Port of
+    !> syntax.c:SYNTAX_FLAGS_COMMENT_STYLEC.
+    pure logical function syntax_flags_comment_stylec(flags)
+        integer, intent(in) :: flags
+
+        syntax_flags_comment_stylec = btest(flags, 23)
+    end function syntax_flags_comment_stylec
+
+    !> Insert a description of the internal syntax description SYNTAX at point.
+    !> Port of syntax.c:Finternal_describe_syntax_value, returning the
+    !> text it inserts (a descriptor with `code' -1, nil, is "default").
+    function internal_describe_syntax_value(syntax) result(text)
+        type(syntax_descriptor_type), intent(in) :: syntax
+        character(len=:), allocatable :: text
+        integer :: syntax_code, code
+        logical :: start1, start2, end1, end2, prefix, comstyleb, comstylec, comnested
+
+        if (syntax%code == -1) then
+            text = "default"
+            return
+        end if
+
+        syntax_code = iand(syntax%code, huge(1))
+        code = iand(syntax_code, 255)
+        start1 = btest(syntax_code, 16)
+        start2 = btest(syntax_code, 17)
+        end1 = btest(syntax_code, 18)
+        end2 = btest(syntax_code, 19)
+        prefix = btest(syntax_code, 20)
+        comstyleb = syntax_flags_comment_styleb(syntax_code)
+        comstylec = syntax_flags_comment_stylec(syntax_code)
+        comnested = btest(syntax_code, 22)
+
+        if (SMAX <= code .or. syntax%match < -1 .or. syntax%match > MAX_CHAR) then
+            text = "invalid"
+            return
+        end if
+
+        text = syntax_code_spec(code + 1:code + 1)
+
+        if (syntax%match == -1) then
+            text = text//" "
+        else
+            text = text//char_utf8(syntax%match)
+        end if
+
+        if (start1) text = text//"1"
+        if (start2) text = text//"2"
+        if (end1) text = text//"3"
+        if (end2) text = text//"4"
+        if (prefix) text = text//"p"
+        if (comstyleb) text = text//"b"
+        if (comstylec) text = text//"c"
+        if (comnested) text = text//"n"
+        text = text//achar(9)//"which means: "//class_name(code)
+        if (syntax%match /= -1) text = text//", matches "//char_utf8(syntax%match)
+        if (start1) text = text//","//achar(10)//achar(9)//"  is the first character of a comment-start sequence"
+        if (start2) text = text//","//achar(10)//achar(9)//"  is the second character of a comment-start sequence"
+        if (end1) text = text//","//achar(10)//achar(9)//"  is the first character of a comment-end sequence"
+        if (end2) text = text//","//achar(10)//achar(9)//"  is the second character of a comment-end sequence"
+        if (comstyleb) text = text//" (comment style b)"
+        if (comstylec) text = text//" (comment style c)"
+        if (comnested) text = text//" (nestable)"
+
+        if (prefix) then
+            text = text//format_message(","//achar(10)//achar(9)// &
+                                        "  is a prefix character for `backward_prefix_chars'")
+        end if
+    end function internal_describe_syntax_value
+
+    !> The description of syntax class CODE (part of
+    !> syntax.c:Finternal_describe_syntax_value).  Not a port.
+    pure function class_name(code) result(name)
+        integer, intent(in) :: code
+        character(len=:), allocatable :: name
+
+        select case (code)
+        case (SWHITESPACE)
+            name = "whitespace"
+        case (SPUNCT)
+            name = "punctuation"
+        case (SWORD)
+            name = "word"
+        case (SSYMBOL)
+            name = "symbol"
+        case (SOPEN)
+            name = "open"
+        case (SCLOSE)
+            name = "close"
+        case (SQUOTE)
+            name = "prefix"
+        case (SSTRING)
+            name = "string"
+        case (SMATH)
+            name = "math"
+        case (SESCAPE)
+            name = "escape"
+        case (SCHARQUOTE)
+            name = "charquote"
+        case (SCOMMENT)
+            name = "comment"
+        case (SENDCOMMENT)
+            name = "endcomment"
+        case (SINHERIT)
+            name = "inherit"
+        case (SCOMMENT_FENCE)
+            name = "comment fence"
+        case default
+            name = "string fence"
+        end select
+    end function class_name
+
+    !> The UTF-8 form of character C.  Not a port.
+    function char_utf8(c) result(s)
+        integer, intent(in) :: c
+        character(len=:), allocatable :: s
+        character(len=MAX_MULTIBYTE_LENGTH) :: tmp
+        integer(int32) :: n
+        type(status_type) :: st
+
+        call char_string(int(c, int32), tmp, n, st)
+        s = tmp(1:n)
+    end function char_utf8
+
     !> Return the matching parenthesis of CHARACTER, or nil if none.
-    !> (-1 is nil.)  Port of syntax.c:Fmatching_paren.
+    !> (-1 is nil.)  Port of syntax.c:Fmatching_paren (with
+    !> syntax.c:SYNTAX_MATCH, the descriptor's `match').
     integer function matching_paren(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
@@ -1192,7 +1347,7 @@ contains
 
     !> Register the commands.  Port of syntax.c:syms_of_syntax in part.
     subroutine syms_of_syntax()
-        call forward_setting(parse_sexp_lookup_properties, local_if_set=.true.)
+        call forward_setting(parse_expression_lookup_properties, local_if_set=.true.)
         call forward_setting(syntax_propertize__done, local_if_set=.true.)
         commands%forward_word%run => cmd_forward_word
     end subroutine syms_of_syntax

@@ -94,6 +94,24 @@ contains
         call set_error(status, FM_GENERIC_ERROR, "boom")
     end subroutine fail_call
 
+    !> Fail without typing anything.
+    subroutine fail_quiet(status)
+        type(status_type), intent(out) :: status
+
+        call set_error(status, FM_GENERIC_ERROR, "boom")
+    end subroutine fail_quiet
+
+    !> Whether no event comes within SECONDS.
+    logical function read_nothing(seconds)
+        real, intent(in) :: seconds
+        type(value_type) :: ev
+        type(status_type) :: st
+        logical :: have
+
+        call read_event(ev, have, st, seconds=seconds)
+        read_nothing = st%ok() .and. .not. have
+    end function read_nothing
+
     !> Set up a raw pty as the terminal.
     subroutine pty_open(old, ok)
         type(emacs_tty_type), intent(out) :: old
@@ -238,7 +256,7 @@ contains
         call check(error, timer_active_p(a) .and. timer_check() > 0, "active")
         if (allocated(error)) return
         call cancel_timer(a)
-        call check(error,.not. timer_active_p(a) .and. timerp(a), "cancelled")
+        call check(error,.not. timer_active_p(a) .and. timerp(a), "canceled")
         if (allocated(error)) return
         call free_timer(a)
         call check(error,.not. timerp(a), "freed")
@@ -268,6 +286,12 @@ contains
         call run_with_timer(a, 0.01_real64, fail_call, st)
         call run_with_timer(fallback, 5.0_real64, write_z, st)
         call check(error, next_char() == iachar("x"), "the failing timer ran")
+        if (allocated(error)) return
+        ! Reading the key wiped the echo area; a failing timer that types
+        ! nothing leaves its message.
+        call free_timer(a)
+        call run_with_timer(a, 0.01_real64, fail_quiet, st)
+        call check(error, read_nothing(0.2), "no input")
         if (allocated(error)) return
         call check(error, last_message, "Error running timer: boom")
         call free_timer(a)

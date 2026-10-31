@@ -44,7 +44,7 @@
 !> Not ported yet (Deferred): network, serial and pipe processes
 !> (`make_network_process', `make_pipe_process', `make_serial_process')
 !> and `:stderr'; a `:connection_type' of the form (INPUT . OUTPUT);
-!> `process_coding_system_alist' and the coding systems of
+!> `process_coding_system_table' and the coding systems of
 !> `find_operation_coding_system' for processes; `exec_path' (PATH is searched) and
 !> `process_environment' (the editor's environment is passed); remote
 !> directories and file name handlers; stopped processes (`stop_process',
@@ -194,12 +194,28 @@ module process_fm
     type(process_type), allocatable :: procs(:)
 
     !> Vprocess_alist: the listed processes, the newest first.
-    type(handle_type), allocatable :: alist(:)
-    integer :: alist_count = 0
+    type(handle_type), allocatable :: process_order(:)
+    integer :: process_order_count = 0
 
     !> Incremented for each change in any process status (process_tick),
     !> and the value status_notify last saw (update_tick).
     integer(int64) :: process_tick = 0, update_tick = 0
+
+    abstract interface
+        !> What keeps a process filter or sentinel from changing the match
+        !> data (search_fm): one runs before it (OUTER becomes the earlier
+        !> state of running_asynch_code, SAVED what to reinstate), one
+        !> after it.  Not a port.
+        subroutine asynch_code_proc(outer, saved)
+            import :: int64
+            implicit none(type, external)
+            logical, intent(inout) :: outer
+            integer(int64), allocatable, intent(inout) :: saved(:)
+        end subroutine asynch_code_proc
+    end interface
+
+    !> Set by search_fm (search.c's side of process.c's running_asynch_code).
+    procedure(asynch_code_proc), pointer, public :: begin_asynch_code => null(), end_asynch_code => null()
 
 contains
 
@@ -283,27 +299,27 @@ contains
         procs(i)%decode_coding_system = trim(default_process_coding_system(1))
         procs(i)%encode_coding_system = trim(default_process_coding_system(2))
         allocate (procs(i)%command(0))
-        call alist_push(h)
+        call process_order_push(h)
         procs(i)%listed = .true.
     end subroutine new_process
 
     ! Not a port.
-    subroutine alist_push(h)
+    subroutine process_order_push(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: bigger(:)
 
-        if (.not. allocated(alist)) allocate (alist(8))
+        if (.not. allocated(process_order)) allocate (process_order(8))
 
-        if (alist_count == size(alist)) then
-            allocate (bigger(2*alist_count))
-            bigger(1:alist_count) = alist(1:alist_count)
-            call move_alloc(bigger, alist)
+        if (process_order_count == size(process_order)) then
+            allocate (bigger(2*process_order_count))
+            bigger(1:process_order_count) = process_order(1:process_order_count)
+            call move_alloc(bigger, process_order)
         end if
 
-        alist(2:alist_count + 1) = alist(1:alist_count)
-        alist(1) = h
-        alist_count = alist_count + 1
-    end subroutine alist_push
+        process_order(2:process_order_count + 1) = process_order(1:process_order_count)
+        process_order(1) = h
+        process_order_count = process_order_count + 1
+    end subroutine process_order_push
 
     !> Take process `proc' off the process list and deactivate it.  Port of
     !> process.c:remove_process.
@@ -311,10 +327,10 @@ contains
         integer(int64), intent(in) :: i
         integer :: k
 
-        do k = 1, alist_count
-            if (alist(k)%index == i) then
-                alist(k:alist_count - 1) = alist(k + 1:alist_count)
-                alist_count = alist_count - 1
+        do k = 1, process_order_count
+            if (process_order(k)%index == i) then
+                process_order(k:process_order_count - 1) = process_order(k + 1:process_order_count)
+                process_order_count = process_order_count - 1
                 exit
             end if
         end do
@@ -710,9 +726,9 @@ contains
 
         proc = null_handle()
 
-        do k = 1, alist_count
-            if (procs(alist(k)%index)%name == name .and. len(procs(alist(k)%index)%name) == len(name)) then
-                proc = alist(k)
+        do k = 1, process_order_count
+            if (procs(process_order(k)%index)%name == name .and. len(procs(process_order(k)%index)%name) == len(name)) then
+                proc = process_order(k)
                 return
             end if
         end do
@@ -732,11 +748,11 @@ contains
         if (buffer%index == 0) return
 
         ! From the newest process, as FOR_EACH_PROCESS does.
-        do k = 1, alist_count
-            i = alist(k)%index
+        do k = 1, process_order_count
+            i = process_order(k)%index
 
             if (procs(i)%buffer%index == buffer%index .and. procs(i)%buffer%generation == buffer%generation) then
-                proc = alist(k)
+                proc = process_order(k)
                 return
             end if
         end do
@@ -747,10 +763,10 @@ contains
     function process_list() result(list)
         type(handle_type), allocatable :: list(:)
 
-        if (alist_count == 0) then
+        if (process_order_count == 0) then
             allocate (list(0))
         else
-            list = alist(1:alist_count)
+            list = process_order(1:process_order_count)
         end if
     end function process_list
 
@@ -1058,9 +1074,9 @@ contains
 
         i = 0
 
-        do k = 1, alist_count
-            if (procs(alist(k)%index)%worker == w .and. procs(alist(k)%index)%reading) then
-                i = alist(k)%index
+        do k = 1, process_order_count
+            if (procs(process_order(k)%index)%worker == w .and. procs(process_order(k)%index)%reading) then
+                i = process_order(k)%index
                 return
             end if
         end do
@@ -1080,8 +1096,9 @@ contains
         character(len=:), allocatable :: chars, text, used
         type(handle_type) :: old, proc
         type(status_type) :: st
-        logical :: odeactivate
+        logical :: odeactivate, outer
         integer(int64) :: n
+        integer(int64), allocatable :: saved(:)
 
         chars = procs(i)%carryover//bytes
         procs(i)%carryover = ""
@@ -1118,6 +1135,7 @@ contains
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
+        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
 
         if (associated(procs(i)%filter)) then
             call procs(i)%filter(proc, text, st)
@@ -1129,6 +1147,7 @@ contains
             call message("error in process filter: "//format_error(st))
         end if
 
+        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
         ! There's no good reason to let process filters change the current
         ! buffer.
         if (buffer_live_p(old)) call set_buffer(old, st)
@@ -1278,11 +1297,13 @@ contains
         character(len=*), intent(in) :: reason
         type(handle_type) :: old, proc
         type(status_type) :: st
-        logical :: odeactivate
+        logical :: odeactivate, outer
+        integer(int64), allocatable :: saved(:)
 
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
+        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
 
         if (associated(procs(i)%sentinel)) then
             call procs(i)%sentinel(proc, reason, st)
@@ -1291,6 +1312,7 @@ contains
         end if
 
         if (.not. st%ok()) call message("error in process sentinel: "//format_error(st))
+        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
         if (buffer_live_p(old)) call set_buffer(old, st)
         deactivate_mark_variable = odeactivate
     end subroutine exec_sentinel
@@ -1432,7 +1454,7 @@ contains
     end subroutine accept_process_output
 
     ! ------------------------------------------------------------------
-    ! Deleting and signalling
+    ! Deleting and signaling
     ! ------------------------------------------------------------------
 
     !> Delete PROCESS: kill it and forget about it immediately.
@@ -1675,8 +1697,8 @@ contains
         integer(int64) :: i
         integer :: k
 
-        do k = 1, alist_count
-            i = alist(k)%index
+        do k = 1, process_order_count
+            i = process_order(k)%index
 
             if (buffer%index == 0 .or. (procs(i)%buffer%index == buffer%index &
                                         .and. procs(i)%buffer%generation == buffer%generation)) then

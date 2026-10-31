@@ -38,7 +38,7 @@ module test_xdisp_fm
     use termchar_fm, only: tty_take_output
     use frame_fm, only: frame_type
     use window_fm, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows
-    use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width, mode_line_row, init_frame_windows, &
+    use xdisp_fm, only: layout_window, redisplay_internal, mode_line_text, glyph_width, mode_line_row, init_frame_windows, &
                         mode_line_percent, recenter_start, message, mode_line_modes
     use keyboard_fm, only: last_message, set_minibuffer_message_text
     use frame_fm, only: selected_frame, ensure_frame_windows
@@ -707,7 +707,7 @@ contains
         call set_window_buffer(f%selected_window, h, st)
         ! Point at the start of line 60.
         call goto_char(line_start(60))
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         out = tty_take_output(f%tty)
         ! 22 text lines: point's line goes to row 22 / 2 = 11.
         call check(error, f%cursor_vpos == 11 .and. f%cursor_hpos == 0, "cursor row")
@@ -719,7 +719,7 @@ contains
         if (allocated(error)) return
         ! A message shows in the echo area.
         last_message = "Hello"
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         call check(error, row_text(f%current_matrix%rows(23)), "Hello")
         if (allocated(error)) return
         ! The mode line is the standard one (L60 padded to 6 columns).
@@ -768,7 +768,7 @@ contains
         call init_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
         call goto_char(1_int64)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         out = tty_take_output(f%tty)
 
         steps: block
@@ -783,7 +783,7 @@ contains
             if (allocated(error)) exit steps
             ! No header line without a format.
             call buffers(bi)%header_line_format%clear()
-            call redisplay(f, st)
+            call redisplay_internal(f, st)
             call check(error, row_text(f%current_matrix%rows(0)), "first")
         end block steps
 
@@ -807,18 +807,18 @@ contains
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
         last_message = "a"//achar(9)//"b"//achar(1)//char(230)//char(188)//char(162)//"c"//achar(10)//"second"
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         out = tty_take_output(f%tty)
         call check(error, row_text(f%current_matrix%rows(23)), "a       b^A?c")
         if (allocated(error)) return
         last_message = repeat("m", 100)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         row = row_text(f%current_matrix%rows(23))
         call check(error, row, repeat("m", 79)//"\")
         if (allocated(error)) return
         ! A wide character that does not fit: \ in both cells left.
         last_message = repeat("m", 78)//char(230)//char(188)//char(162)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         row = row_text(f%current_matrix%rows(23))
         call check(error, row, repeat("m", 78)//"\\")
         last_message = ""
@@ -924,11 +924,11 @@ contains
         call init_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
         call goto_char(1_int64)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         top_left = f%root_window
         call split_window_internal(top_left, .false., 11, f%root_window, below, st)
         call split_window_internal(top_left, .true., 40, f%root_window, right, st)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         out = tty_take_output(f%tty)
         row = row_text(f%current_matrix%rows(0))
         call check(error, row(1:6) == "line 1" .and. row(40:40) == "|" .and. row(41:46) == "line 1", row)

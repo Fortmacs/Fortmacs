@@ -25,7 +25,7 @@
 !> The shell-dependent settings are feature tables (`sh_feature'): one
 !> entry per shell, an entry may append the value of another shell's
 !> (sh-append), and a shell without an entry uses its ancestor's
-!> (`sh_ancestor_alist'), finally sh's.  The indentation variables take
+!> (`sh_ancestor_table'), finally sh's.  The indentation variables take
 !> integers or the named constants SH_PLUS (+), SH_MINUS (-),
 !> SH_PLUS_PLUS (++), SH_MINUS_MINUS (--), SH_STAR (*) and SH_SLASH (/)
 !> that `sh_var_value' interprets.
@@ -34,7 +34,7 @@
 !> the shell with `sh_shell_process'; completion at point offers the
 !> variables assigned before point, commands and keywords
 !> (`sh_completion_at_point_function'), then
-!> `sh_dynamic_complete_functions' through comint.  `sh_styles_alist' is
+!> `sh_dynamic_complete_functions' through comint.  `sh_styles_table' is
 !> an array of `sh_style_type', saved as a Fortran assignment.
 !>
 !> Deferred: the statement skeletons (`sh_case', `sh_for', `sh_function',
@@ -45,7 +45,7 @@
 !> `executable_interpret' (C-c C-x; needs `compilation_start' with a
 !> buffer name function and rule specifications), Imenu
 !> (`sh_imenu_generic_expression', and the Imenu candidates of
-!> completion), `add_log_current_defun_function' (`sh_current_defun_name'
+!> completion), `add_log_current_subprogram_function' (`sh_current_subprogram_name'
 !> is here), `outline_regexp', `escaped_string_quote' (with
 !> `yank_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
 !> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
@@ -93,7 +93,7 @@ module sh_script_fm
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_flush, font_lock_set_defaults, &
                             font_lock_forget_defaults
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
-    use lisp_cmds_fm, only: forward_sexp_default_function
+    use expression_motion_fm, only: forward_expression_default_function
     use newcomment_fm, only: comment_start, comment_start_skip
     use paragraphs_fm, only: paragraph_start, paragraph_separate, page_delimiter
     use comint_fm, only: comint_prompt_regexp, comint_dynamic_complete_functions, comint_filename_completion, &
@@ -107,7 +107,7 @@ module sh_script_fm
     use minibuf_fm, only: complete_with_action, read_from_minibuffer
     use minibuffer_fm, only: completion_at_point_functions, REQUIRE_MATCH_T
     use files_fm, only: locate_file_completion_table
-    use lisp_cmds_fm, only: defun_prompt_regexp
+    use expression_motion_fm, only: subprogram_prompt_regexp
     use subr_fm, only: y_or_n_p
     use abbrev_fm, only: abbrev_table_type, set_local_abbrev_table
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
@@ -125,8 +125,8 @@ module sh_script_fm
                                     syntax_property_type, syntax_propertize_extend_region_functions, &
                                     syntax_propertize_multiline
     use smie_fm, only: smie_bnf_type, smie_precs_type, smie_prec2_type, smie_grammar_type, smie_rule_result_type, &
-                       smie_indent_type, smie_sexp_type, smie_toklevels_type, smie_bnf_to_prec2, smie_prec2_to_grammar, &
-                       smie_setup, smie_forward_token, smie_backward_token, smie_grammar_token, smie_backward_sexp, &
+                       smie_indent_type, smie_expression_type, smie_toklevels_type, smie_bnf_to_prec2, smie_prec2_to_grammar, &
+                       smie_setup, smie_forward_token, smie_backward_token, smie_grammar_token, smie_backward_expression, &
                        smie_rule_parent_p, smie_rule_prev_p, smie_rule_hanging_p, smie_rule_bolp, smie_rule_parent, &
                        smie_rule_separator, smie_indent_virtual, smie_indent_calculate, smie_indent_keyword, &
                        smie_indent_functions, smie_set_hanging_eolp_function, smie_default_hanging_eolp, &
@@ -140,7 +140,7 @@ module sh_script_fm
               sh_var_value, sh_basic_indent_line, sh_execute_region, sh_remember_variable, sh_quoted_p, sh_is_quoted_p, &
               sh_in_comment_or_string, cmd_sh_make_vars_local, sh_reset_indent_vars_to_global_values, sh_add, &
               sh_shell_initialize_variables, cmd_sh_beginning_of_command, cmd_sh_end_of_command, sh_backslash_region, &
-              sh_current_defun_name, sh_mkword_regexpr, sh_indent_supported_here, sh_shell_variables, &
+              sh_current_subprogram_name, sh_mkword_regexpr, sh_indent_supported_here, sh_shell_variables, &
               sh_syntax_propertize_function, sh_font_lock_syntactic_face_function, sh_font_lock_keywords, &
               sh_font_lock_keywords_1, sh_font_lock_keywords_2, sh_smie_default_forward_token, &
               sh_smie_default_backward_token, sh_smie_sh_forward_token, sh_smie_sh_backward_token, sh_smie_sh_rules, &
@@ -164,12 +164,12 @@ module sh_script_fm
         character(len=:), allocatable :: s
     end type sh_string_type
 
-    !> A shell and its direct ancestor (an element of `sh_ancestor_alist').
+    !> A shell and its direct ancestor (an element of `sh_ancestor_table').
     type, public :: sh_ancestor_type
         character(len=:), allocatable :: shell, ancestor
     end type sh_ancestor_type
 
-    !> An element of `sh_alias_alist': a regular expression matched
+    !> An element of `sh_alias_table': a regular expression matched
     !> against the full path of the interpreter (or, with `basename', a
     !> name matched against its basename) and the shell it names.
     type, public :: sh_alias_type
@@ -280,7 +280,7 @@ module sh_script_fm
     !> sh-script.el sh--completion-keywords.
     character(len=*), parameter :: sh_completion_keywords(5) = [character(len=5) :: "if", "while", "until", "for", "then"]
 
-    !> An indentation style of `sh_styles_alist': its NAME and the VALUES of
+    !> An indentation style of `sh_styles_table': its NAME and the VALUES of
     !> the indentation variables in the order of `sh_var_list'.
     type, public :: sh_style_type
         character(len=64) :: name = ""
@@ -298,7 +298,7 @@ module sh_script_fm
 
     !> A list of all known shell indentation styles.  Port of sh-script.el
     !> sh-styles-alist.
-    type(sh_style_type), allocatable, public :: sh_styles_alist(:)
+    type(sh_style_type), allocatable, public :: sh_styles_table(:)
 
     ! The state of completion-table-with-cache in
     ! `sh_completion_at_point_function': the last string and its
@@ -311,8 +311,8 @@ module sh_script_fm
     type(sh_string_type), allocatable :: default_variables(:)
     logical :: default_variables_initialized = .false.
 
-    !> Alist showing the direct ancestor of various shells.
-    !> This is the basis for `sh_feature'.  See also `sh_alias_alist'.
+    !> Table showing the direct ancestor of various shells.
+    !> This is the basis for `sh_feature'.  See also `sh_alias_table'.
     !> By default we have the following three hierarchies:
     !>
     !> csh          C Shell
@@ -337,16 +337,16 @@ module sh_script_fm
     !>   posix      IEEE 1003.2 Shell Standard
     !>   wsh        ? Shell
     !> Port of sh-script.el sh-ancestor-alist.
-    type(sh_ancestor_type), allocatable, public :: sh_ancestor_alist(:)
+    type(sh_ancestor_type), allocatable, public :: sh_ancestor_table(:)
 
-    !> Alist for transforming shell names to what they really are.
+    !> Table for transforming shell names to what they really are.
     !> Use this where the name of the executable doesn't correspond to
     !> the type of shell it really is.  Keys are regular expressions
     !> matched against the full path of the interpreter.  (For backward
     !> compatibility, keys may also be symbols, which are matched
     !> against the interpreter's basename.  The values are symbols
     !> naming the shell.  Port of sh-script.el sh-alias-alist.
-    type(sh_alias_type), allocatable, public :: sh_alias_alist(:)
+    type(sh_alias_type), allocatable, public :: sh_alias_table(:)
 
     !> The executable file name for the shell being programmed.  Port of
     !> sh-script.el sh-shell-file.
@@ -750,7 +750,7 @@ contains
         call sh_dynamic_complete_functions%add(comint_filename_completion)
         call sh_dynamic_complete_functions%add(shell_command_completion)
         call sh_dynamic_complete_functions%add(shell_environment_variable_completion)
-        if (.not. allocated(sh_styles_alist)) allocate (sh_styles_alist(0))
+        if (.not. allocated(sh_styles_table)) allocate (sh_styles_table(0))
         call add_local_variables_killer(kill_sh_locals)
     end subroutine syms_of_sh_script
 
@@ -764,53 +764,53 @@ contains
         call define_key(sh_mode_map, events, sym(command), st)
     end subroutine bind_remap
 
-    ! Append the pair (SHELL . ANCESTOR) to `sh_ancestor_alist'.
+    ! Append the pair (SHELL . ANCESTOR) to `sh_ancestor_table'.
     ! Not a port.
     subroutine add_ancestor(shell, ancestor)
         character(len=*), intent(in) :: shell, ancestor
         type(sh_ancestor_type), allocatable :: grown(:)
         integer :: n, i
 
-        if (.not. allocated(sh_ancestor_alist)) allocate (sh_ancestor_alist(0))
-        n = size(sh_ancestor_alist)
+        if (.not. allocated(sh_ancestor_table)) allocate (sh_ancestor_table(0))
+        n = size(sh_ancestor_table)
         allocate (grown(n + 1))
 
         do i = 1, n
-            call move_alloc(sh_ancestor_alist(i)%shell, grown(i)%shell)
-            call move_alloc(sh_ancestor_alist(i)%ancestor, grown(i)%ancestor)
+            call move_alloc(sh_ancestor_table(i)%shell, grown(i)%shell)
+            call move_alloc(sh_ancestor_table(i)%ancestor, grown(i)%ancestor)
         end do
 
         grown(n + 1)%shell = shell
         grown(n + 1)%ancestor = ancestor
-        call move_alloc(grown, sh_ancestor_alist)
+        call move_alloc(grown, sh_ancestor_table)
     end subroutine add_ancestor
 
-    ! Append (KEY . SHELL) to `sh_alias_alist'.  Not a port.
+    ! Append (KEY . SHELL) to `sh_alias_table'.  Not a port.
     subroutine add_alias(key, shell, basename)
         character(len=*), intent(in) :: key, shell
         logical, intent(in) :: basename
         type(sh_alias_type), allocatable :: grown(:)
         integer :: n, i
 
-        if (.not. allocated(sh_alias_alist)) allocate (sh_alias_alist(0))
-        n = size(sh_alias_alist)
+        if (.not. allocated(sh_alias_table)) allocate (sh_alias_table(0))
+        n = size(sh_alias_table)
         allocate (grown(n + 1))
 
         do i = 1, n
-            call move_alloc(sh_alias_alist(i)%key, grown(i)%key)
-            grown(i)%basename = sh_alias_alist(i)%basename
-            call move_alloc(sh_alias_alist(i)%shell, grown(i)%shell)
+            call move_alloc(sh_alias_table(i)%key, grown(i)%key)
+            grown(i)%basename = sh_alias_table(i)%basename
+            call move_alloc(sh_alias_table(i)%shell, grown(i)%shell)
         end do
 
         grown(n + 1)%key = key
         grown(n + 1)%basename = basename
         grown(n + 1)%shell = shell
-        call move_alloc(grown, sh_alias_alist)
+        call move_alloc(grown, sh_alias_table)
     end subroutine add_alias
 
-    ! `sh_ancestor_alist' and `sh_alias_alist'.  Not a port.
+    ! `sh_ancestor_table' and `sh_alias_table'.  Not a port.
     subroutine init_shells()
-        if (allocated(sh_ancestor_alist)) return
+        if (allocated(sh_ancestor_table)) return
         call add_ancestor("ash", "sh")
         call add_ancestor("bash", "jsh")
         call add_ancestor("bash2", "jsh")
@@ -1282,7 +1282,7 @@ contains
 
     !> The shell whose entry of a feature table with entries for SHELLS
     !> applies to SHELL: SHELL itself, else its successive ancestors (see
-    !> `sh_ancestor_alist'), finally sh (0 when there is none).  Port of
+    !> `sh_ancestor_table'), finally sh (0 when there is none).  Port of
     !> sh-script.el:sh-feature (the lookup part).
     integer function sh_feature_shell(shells, shell) result(k)
         character(len=*), intent(in) :: shells(:)
@@ -1322,11 +1322,11 @@ contains
         integer :: i
 
         a = ""
-        if (.not. allocated(sh_ancestor_alist)) return
+        if (.not. allocated(sh_ancestor_table)) return
 
-        do i = 1, size(sh_ancestor_alist)
-            if (sh_ancestor_alist(i)%shell == shell) then
-                a = sh_ancestor_alist(i)%ancestor
+        do i = 1, size(sh_ancestor_table)
+            if (sh_ancestor_table(i)%shell == shell) then
+                a = sh_ancestor_table(i)%ancestor
                 return
             end if
         end do
@@ -1962,7 +1962,7 @@ contains
                 end if
 
                 if (cb(point()) == iachar('"') .or. cb(point()) == iachar("'") .or. cb(point()) == iachar("}")) then
-                    call plain_forward_sexp(-1_int64, st)
+                    call plain_forward_expression(-1_int64, st)
                     if (st%ok()) cycle
                 end if
 
@@ -2021,12 +2021,12 @@ contains
     end subroutine sh_font_lock_paren
 
     ! (let ((forward-sexp-function nil)) (forward-sexp N)).  Not a port.
-    recursive subroutine plain_forward_sexp(n, status)
+    recursive subroutine plain_forward_expression(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call forward_sexp_default_function(n, status)
-    end subroutine plain_forward_sexp
+        call forward_expression_default_function(n, status)
+    end subroutine plain_forward_expression
 
     ! Port of sh-script.el:sh-font-lock-backslash-quote.
     recursive subroutine backslash_quote_value(prop, status)
@@ -2143,7 +2143,7 @@ contains
         hl = syntax_highlight_type(group=1)
         hl%value => backslash_quote_value
         propertize_rules%rules(6)%highlights = [hl]
-        ! Make sure $@ and $? are correctly recognized as sexps.
+        ! Make sure $@ and $? are correctly recognized as expressions.
         propertize_rules%rules(7)%regexp = "\$\([?@]\)"
         hl = syntax_highlight_type(group=1, syntax="_")
         propertize_rules%rules(7)%highlights = [hl]
@@ -2329,7 +2329,7 @@ contains
                     res = WORD
                 else
                     words = .true.
-                    call plain_forward_sexp(-1_int64, st)
+                    call plain_forward_expression(-1_int64, st)
                     if (.not. st%ok()) res = UNKNOWN
                 end if
             else if (prev == ";") then
@@ -2483,7 +2483,7 @@ contains
 
             if (ok) then
                 ! Right before a here-doc.
-                call plain_forward_sexp(1_int64, status)
+                call plain_forward_expression(1_int64, status)
                 if (.not. status%ok()) return
                 ! Pretend the here-document is a "newline representing a
                 ! semi-colon", since the here-doc otherwise covers the newline(s).
@@ -2595,7 +2595,7 @@ contains
 
         if (fence) then
             ! Right after a here-document.
-            call plain_forward_sexp(-1_int64, status)
+            call plain_forward_expression(-1_int64, status)
             if (.not. status%ok()) return
             ! Pretend the here-document is a "newline representing a
             ! semi-colon", since the here-doc otherwise covers the newline(s).
@@ -2741,7 +2741,7 @@ contains
         character(len=*), intent(in) :: arg
         type(smie_rule_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        type(smie_sexp_type) :: data
+        type(smie_expression_type) :: data
         type(smie_indent_type) :: v
         character(len=:), allocatable :: tok
         integer(int64) :: here
@@ -2759,7 +2759,7 @@ contains
                 result = offset_result(sh_var_value(sh_indent_for_case_alt) - sh_var_value(sh_indent_for_case_label))
             case (";;", ";&", ";;&", ";|")
                 ! with-demoted-errors
-                call smie_backward_sexp(data, status, token=arg)
+                call smie_backward_expression(data, status, token=arg)
 
                 if (status%ok()) then
                     bol = smie_rule_bolp()
@@ -2809,7 +2809,7 @@ contains
             select case (arg)
             case ("(", "{", "[", "while", "if", "for", "case")
                 if (arg == "{" .and. smie_rule_parent_p([character(len=4) :: "for", "case"], status)) then
-                    call smie_backward_sexp(data, status, token="in")
+                    call smie_backward_expression(data, status, token="in")
 
                     if (is(data%token, "for") .or. is(data%token, "case")) then
                         v = smie_indent_virtual(status)
@@ -2820,7 +2820,7 @@ contains
                 else
                     if (.not. smie_rule_bolp()) then
                         do
-                            call smie_backward_sexp(data, status, halfsexp=.true.)
+                            call smie_backward_expression(data, status, halfexpression=.true.)
                             if (.not. is(data%token, "|")) exit
                         end do
 
@@ -2840,7 +2840,7 @@ contains
             case ("|", "&&", "||")
                 if (.not. smie_rule_parent_p([arg], status)) then
                     if (arg /= "&&" .or. sh_indent_statement_after_and) then
-                        call smie_backward_sexp(data, status, token=arg)
+                        call smie_backward_expression(data, status, token=arg)
                         v = smie_indent_virtual(status)
 
                         if (v%kind == SMIE_INDENT_COLUMN) then
@@ -2879,7 +2879,7 @@ contains
         ok = forward_comment(-point())
         if (.not. looking_back(")\|\_<not", st, point() - 3)) return
         ! ignore-errors
-        call plain_forward_sexp(-1_int64, st)
+        call plain_forward_expression(-1_int64, st)
         if (.not. st%ok()) return
         call smie_backward_token(tok, st)
         if (.not. st%ok()) return
@@ -2953,7 +2953,7 @@ contains
 
             if (ok) then
                 ! Right before a here-doc.
-                call plain_forward_sexp(1_int64, status)
+                call plain_forward_expression(1_int64, status)
                 if (.not. status%ok()) return
                 ! Pretend the here-document is a "newline representing a
                 ! semi-colon", since the here-doc otherwise covers the newline(s).
@@ -3024,7 +3024,7 @@ contains
 
         if (fence) then
             ! Right after a here-document.
-            call plain_forward_sexp(-1_int64, status)
+            call plain_forward_expression(-1_int64, status)
             if (.not. status%ok()) return
             ! Pretend the here-document is a "newline representing a
             ! semi-colon", since the here-doc otherwise covers the newline(s).
@@ -3313,9 +3313,9 @@ contains
         call comint_prompt_regexp%set_local("^[ "//TAB//"]*")
         call syntax_propertize_function%set_local(sh_syntax_propertize_function)
         call syntax_propertize_extend_region_functions%add(syntax_propertize_multiline, depth=90, local=.true.)
-        call defun_prompt_regexp%set_local("^\(\(function[ "//TAB//"]\)?[ "//TAB//"]*[[:alnum:]_]+[ "//TAB// &
-                                           "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
-                                           "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
+        call subprogram_prompt_regexp%set_local("^\(\(function[ "//TAB//"]\)?[ "//TAB//"]*[[:alnum:]_]+[ "//TAB// &
+                                                "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
+                                                "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
         call completion_at_point_functions%add(sh_completion_at_point_function, local=.true.)
         call major_modes%sh_base_mode%finish(saved, status)
     end subroutine sh_base_mode
@@ -3366,7 +3366,7 @@ contains
     !>
     !> If you generally program a shell different from your login shell you can
     !> set `sh_shell_file' accordingly.  If your shell's file name doesn't correctly
-    !> indicate what shell it is use `sh_alias_alist' to translate.
+    !> indicate what shell it is use `sh_alias_table' to translate.
     !>
     !> If your shell gives error messages with line numbers, you can use \[executable_interpret]
     !> with your script for an edit-interpret-debug cycle.  Port of
@@ -3384,7 +3384,7 @@ contains
         levels(3)%function => sh_font_lock_keywords_2
         syntax(1)%chars = "/~.-_"
         syntax(1)%syntax = "w"
-        call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.false., syntax_alist=syntax, &
+        call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.false., syntax_modifications=syntax, &
                                           syntactic_face_function=sh_font_lock_syntactic_face_function)
         ! Parse or insert magic number for exec, and set all variables depending
         ! on the shell thus determined.
@@ -3526,11 +3526,11 @@ contains
         ! Maybe there could be a separate variable that lists
         ! the shells, used here and to construct i-mode-alist.
         ! But the following is probably good enough:
-        n = size(sh_ancestor_alist)
+        n = size(sh_ancestor_table)
         allocate (names(n + 3))
 
         do i = 1, n
-            names(i) = make_string(sh_ancestor_alist(i)%shell)
+            names(i) = make_string(sh_ancestor_table(i)%shell)
         end do
 
         names(n + 1) = make_string("csh")
@@ -3561,17 +3561,17 @@ contains
 
         base = file_name_nondirectory(shell)
 
-        if (allocated(sh_alias_alist)) then
-            do i = 1, size(sh_alias_alist)
-                if (.not. sh_alias_alist(i)%basename) then
-                    if (string_match(sh_alias_alist(i)%key, shell, st) > 0) then
-                        name = sh_alias_alist(i)%shell
+        if (allocated(sh_alias_table)) then
+            do i = 1, size(sh_alias_table)
+                if (.not. sh_alias_table(i)%basename) then
+                    if (string_match(sh_alias_table(i)%key, shell, st) > 0) then
+                        name = sh_alias_table(i)%shell
                         return
                     end if
                 end if
 
-                if (sh_alias_alist(i)%basename .and. sh_alias_alist(i)%key == base) then
-                    name = sh_alias_alist(i)%shell
+                if (sh_alias_table(i)%basename .and. sh_alias_table(i)%key == base) then
+                    name = sh_alias_table(i)%shell
                     return
                 end if
             end do
@@ -4301,9 +4301,9 @@ contains
     end subroutine sh_delete_backslash
 
     !> Find the name of function or variable at point.
-    !> For use in `add_log_current_defun_function' (unallocated for nil).
+    !> For use in `add_log_current_subprogram_function' (unallocated for nil).
     !> Port of sh-script.el:sh-current-defun-name.
-    function sh_current_defun_name() result(name)
+    function sh_current_subprogram_name() result(name)
         character(len=:), allocatable :: name
         type(status_type) :: st
         integer(int64) :: here, found
@@ -4330,7 +4330,7 @@ contains
         end if
 
         call goto_char(here)
-    end function sh_current_defun_name
+    end function sh_current_subprogram_name
 
     !> Make a regexp which matches WORD as a word.
     !> This specifically excludes an occurrence of WORD followed by
@@ -4674,13 +4674,13 @@ contains
                   int(sh_indent_for_fi%value), int(sh_indent_for_then%value)]
     end function current_style_values
 
-    ! The index of the style NAME in `sh_styles_alist', 0 if none.
+    ! The index of the style NAME in `sh_styles_table', 0 if none.
     ! Not a port.
     integer function style_index(name) result(k)
         character(len=*), intent(in) :: name
 
-        do k = 1, size(sh_styles_alist)
-            if (trim(sh_styles_alist(k)%name) == name) return
+        do k = 1, size(sh_styles_table)
+            if (trim(sh_styles_table(k)%name) == name) return
         end do
 
         k = 0
@@ -4717,15 +4717,15 @@ contains
                 call message("Not changing style "//name)
             else
                 call message("Updating style "//name)
-                sh_styles_alist(k)%values = current_style_values()
+                sh_styles_table(k)%values = current_style_values()
             end if
         else
             call message("Creating new style "//name)
-            allocate (grown(size(sh_styles_alist) + 1))
+            allocate (grown(size(sh_styles_table) + 1))
             grown(1)%name = name
             grown(1)%values = current_style_values()
-            grown(2:) = sh_styles_alist
-            call move_alloc(grown, sh_styles_alist)
+            grown(2:) = sh_styles_table
+            call move_alloc(grown, sh_styles_table)
         end if
     end subroutine sh_name_style
 
@@ -4755,7 +4755,7 @@ contains
             return
         end if
 
-        associate (v => sh_styles_alist(k)%values)
+        associate (v => sh_styles_table(k)%values)
             sh_basic_offset = v(1)
             sh_indent_after_case = v(2)
             sh_indent_after_do = v(3)
@@ -4783,10 +4783,10 @@ contains
         character(len=:), allocatable :: name
         integer :: k
 
-        allocate (names(size(sh_styles_alist)))
+        allocate (names(size(sh_styles_table)))
 
         do k = 1, size(names)
-            names(k) = make_string(trim(sh_styles_alist(k)%name))
+            names(k) = make_string(trim(sh_styles_table(k)%name))
         end do
 
         table%list = make_list(names)
@@ -4798,7 +4798,7 @@ contains
     !> Save all current styles as Fortran to buffer BUFF.
     !> This is always added to the end of the buffer.  Port of
     !> sh-script.el:sh-save-styles-to-buffer (an assignment of
-    !> `sh_styles_alist', for init.f90, in place of a setq).
+    !> `sh_styles_table', for init.f90, in place of a setq).
     recursive subroutine sh_save_styles_to_buffer(buff, status)
         character(len=*), intent(in) :: buff
         type(status_type), intent(out) :: status
@@ -4812,18 +4812,18 @@ contains
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
 
-        if (size(sh_styles_alist) == 0) then
-            text = "sh_styles_alist = [sh_style_type ::]"//LF
+        if (size(sh_styles_table) == 0) then
+            text = "sh_styles_table = [sh_style_type ::]"//LF
         else
-            text = "sh_styles_alist = ["
+            text = "sh_styles_table = ["
 
-            do k = 1, size(sh_styles_alist)
+            do k = 1, size(sh_styles_table)
                 if (k > 1) text = text//", &"//LF//"                   "
-                text = text//"sh_style_type(name="""//trim(sh_styles_alist(k)%name)//""", values=["
+                text = text//"sh_style_type(name="""//trim(sh_styles_table(k)%name)//""", values=["
 
-                do j = 1, size(sh_styles_alist(k)%values)
+                do j = 1, size(sh_styles_table(k)%values)
                     if (j > 1) text = text//", "
-                    text = text//value_text(sh_styles_alist(k)%values(j))
+                    text = text//value_text(sh_styles_table(k)%values(j))
                 end do
 
                 text = text//"])"

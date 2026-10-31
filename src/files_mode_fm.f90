@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `normal_mode', `set_auto_mode' and `auto_mode_alist': a submodule
+!> `normal_mode', `set_auto_mode' and `auto_mode_table': a submodule
 !> because the modes use files_fm's dependencies.
 submodule(files_fm) files_mode_fm
     use data_fm, only: kill_all_local_variables

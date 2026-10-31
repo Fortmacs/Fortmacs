@@ -87,7 +87,7 @@ module replace_fm
     use isearch_fm, only: search_upper_case, UPPER_CASE_NIL, search_whitespace_regexp, &
                           isearch_no_upper_case_p, word_search_regexp
     use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input, minibuffer_string_type
-    use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit_1
+    use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use simple_fm, only: push_mark, use_region_p, deactivate_mark
     use window_fm, only: recenter_top_bottom, scroll_up, scroll_down
@@ -113,7 +113,7 @@ module replace_fm
                          next_error_found, next_error_last_buffer, fundamental_mode
     use window_fm, only: windows, display_buffer, pop_to_buffer, switch_to_buffer_other_window, select_window, &
                          get_buffer_window, set_window_point, window_start, window_text_cols, recenter, &
-                         display_alist_type
+                         display_action_table_type
     use frame_fm, only: selected_frame
     use help_fm, only: substitute_command_keys
     use minibuffer_fm, only: read_buffer, REQUIRE_MATCH_T
@@ -1565,7 +1565,7 @@ contains
                     call goto_char(match_beginning(0, st))
                     ! save-excursion
                     opoint = point()
-                    call recursive_edit_1(status)
+                    call recursive_edit(status)
 
                     if (.not. status%ok()) then
                         call free_marker(opos, st)
@@ -1615,7 +1615,7 @@ contains
                     call adjust_markers(real_data(1), real_data(2))
                     real_data = match_data()
                     opoint = point()
-                    call recursive_edit_1(status)
+                    call recursive_edit(status)
                     if (.not. status%ok()) exit main
                     call goto_char(opoint)
                     replaced = .true.
@@ -2968,15 +2968,15 @@ contains
     recursive subroutine occur_mode_display_occurrence(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: marker, buffer, occur_buf, window, old_window
-        type(display_alist_type) :: alist
+        type(display_action_table_type) :: table
         type(status_type) :: st
         integer(int64) :: pos
 
         occur_buf = current_buffer()
         call occur_mode_find_occurrences(marker, buffer, status)
         if (.not. status%ok()) return
-        alist%inhibit_same_window = .true.
-        call display_buffer(buffer, window, status, alist=alist)
+        table%inhibit_same_window = .true.
+        call display_buffer(buffer, window, status, table=table)
         if (.not. status%ok()) return
         if (window%index == 0) return
         ! This is the way to set point in the proper window.
@@ -3123,7 +3123,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: prefix_beg, prefix_end
         type(handle_type) :: m, buf, win, old_window, occur_buf
-        type(display_alist_type) :: alist
+        type(display_action_table_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: text, buf_str
         integer(int64) :: opoint, line_beg, line_end, col, line, pos, beg_pos, end_pos, prefix_len, suffix_len, &
@@ -3170,8 +3170,8 @@ contains
         win = get_buffer_window(buf)
 
         if (win%index == 0) then
-            alist%inhibit_same_window = .true.
-            call display_buffer(buf, win, st, alist=alist)
+            table%inhibit_same_window = .true.
+            call display_buffer(buf, win, st, table=table)
             call set_buffer(occur_buf, st)
         end if
 

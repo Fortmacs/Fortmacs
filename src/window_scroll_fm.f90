@@ -94,9 +94,16 @@ contains
         call goto_char(opoint)
     end function point_visible_p
 
+    !> `next_screen_context_lines' within 0 to 1000000.  Port of
+    !> window.c:sanitize_next_screen_context_lines.
+    integer function sanitize_next_screen_context_lines() result(n)
+        n = max(0, min(1000000, next_screen_context_lines))
+    end function sanitize_next_screen_context_lines
+
     !> Scroll `w' (showing the current buffer) up `n' screen lines, down
     !> if negative; with `whole', `n' screenfuls less
-    !> next-screen-context-lines.  Port of window.c:window_scroll_line_based
+    !> next-screen-context-lines.  Port of window.c:window_scroll (line
+    !> based on a terminal frame), window.c:window_scroll_line_based
     !> (scroll-margin 0, scroll-preserve-screen-position nil).
     subroutine window_scroll(w, n, whole, status)
         type(window_type), pointer, intent(in) :: w
@@ -112,7 +119,7 @@ contains
         nlines = n
         ! If scrolling screen-fulls, compute the number of lines to
         ! scroll from the window's height.
-        if (whole) nlines = n*max(1, ht - next_screen_context_lines)
+        if (whole) nlines = n*max(1, ht - sanitize_next_screen_context_lines())
         opoint = point()
         startpos = window_start(w)
 
@@ -274,6 +281,7 @@ contains
             return
         end if
 
+        ! displayed_window_lines: on a terminal, the body height.
         lines = window_body_lines(w)
         start = window_start(w)
 

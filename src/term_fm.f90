@@ -27,7 +27,7 @@
 !> the face table to draw with, indexed by face id from 0.
 !>
 !> Not ported: menus, mouse (GPM), glyph production (produce_glyphs, in
-!> the redisplay step), colour-mode switching (tty_setup_colors),
+!> the redisplay step), color-mode switching (tty_setup_colors),
 !> tty-mode-set-strings, the termscript, char_ins_del cost vectors, the
 !> DOS/Windows/Android branches.
 module term_fm
@@ -57,6 +57,7 @@ module term_fm
     private
 
     public :: init_tty, init_tty_entry, delete_tty, calculate_costs, term_get_fkeys
+    public :: tty_display_color_p, tty_display_color_cells, tty_type, controlling_tty_p, tty_no_underline
     public :: tty_ring_bell, tty_set_terminal_modes, tty_reset_terminal_modes, &
               tty_update_end, tty_set_terminal_window, tty_set_scroll_region, &
               tty_turn_on_insert, tty_turn_off_insert, tty_turn_on_highlight, &
@@ -150,7 +151,8 @@ contains
         integer :: length, stat
 
         tty%type = terminal_type
-        tty%name = terminal_type
+        ! The controlling tty (init_tty with NAME null: dev_tty).
+        tty%name = "/dev/tty"
         tty%input = fd
         tty%output = fd
         tty%ti = ti
@@ -362,6 +364,7 @@ contains
         tty%specified_window = tty%wcm%cm_rows
 
         if (wcm_init(tty) == -1) then
+            ! term.c:maybe_fatal: the error goes back to the caller.
             call set_error(status, FM_GENERIC_ERROR, 'Terminal type "'//terminal_type// &
                            '" is not powerful enough to run Emacs')
             return
@@ -495,7 +498,7 @@ contains
 
     !> Map the escape sequences the terminal's function keys send to
     !> function-key events in input-decode-map.  Port of
-    !> term.c:term_get_fkeys (keys that would clash with a non-prefix
+    !> term.c:term_get_fkeys and term.c:term_get_fkeys_1 (keys that would clash with a non-prefix
     !> binding are skipped, as upstream ignores the error).
     subroutine term_get_fkeys(tty)
         type(tty_display_info), intent(in) :: tty
@@ -1328,4 +1331,54 @@ contains
             call tty_clear_to_end(tty)
         end if
     end subroutine tty_ins_del_lines
+
+    ! ------------------------------------------------------------------
+    ! Lisp-visible functions on a tty (TERMINAL is its display info)
+    ! ------------------------------------------------------------------
+
+    !> Return true if the tty device TERMINAL can display colors.
+    !> Port of term.c:Ftty_display_color_p.
+    logical function tty_display_color_p(tty)
+        type(tty_display_info), intent(in) :: tty
+
+        tty_display_color_p = tty%tn_max_colors > 0
+    end function tty_display_color_p
+
+    !> Return the number of colors supported by the tty device TERMINAL.
+    !> Port of term.c:Ftty_display_color_cells.
+    integer function tty_display_color_cells(tty)
+        type(tty_display_info), intent(in) :: tty
+
+        tty_display_color_cells = tty%tn_max_colors
+    end function tty_display_color_cells
+
+    !> Return the type of the tty device that TERMINAL uses (the empty
+    !> string if it is not on a tty device).  Port of term.c:Ftty_type
+    !> (with term.c:tty_type_name).
+    function tty_type(tty) result(name)
+        type(tty_display_info), intent(in) :: tty
+        character(len=:), allocatable :: name
+
+        name = ""
+        if (allocated(tty%type)) name = tty%type
+    end function tty_type
+
+    !> Return true if TERMINAL is the controlling tty of the Emacs process.
+    !> Port of term.c:Fcontrolling_tty_p.
+    logical function controlling_tty_p(tty)
+        type(tty_display_info), intent(in) :: tty
+
+        controlling_tty_p = .false.
+        if (allocated(tty%name)) controlling_tty_p = tty%name == "/dev/tty"
+    end function controlling_tty_p
+
+    !> Declare that the tty used by TERMINAL does not handle underlining.
+    !> This is used to override the terminfo data, for certain terminals that
+    !> do not really do underlining, but say that they do.  Port of
+    !> term.c:Ftty_no_underline.
+    subroutine tty_no_underline(tty)
+        type(tty_display_info), intent(inout) :: tty
+
+        if (allocated(tty%ts_enter_underline_mode)) deallocate (tty%ts_enter_underline_mode)
+    end subroutine tty_no_underline
 end module term_fm

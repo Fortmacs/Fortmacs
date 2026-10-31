@@ -25,6 +25,10 @@ submodule(buffer_fm) buffer_ops_fm
     use marker_fm, only: unchain_all_markers, clear_charpos_cache, free_marker
     use insdel_fm, only: del_range
     use itree_fm, only: delete_all_overlays
+    use eval_fm, only: buffer_list_update_hook
+    use data_fm, only: buffer_local_value
+    use fns_fm, only: value_equal
+    use commands_fm, only: commands
     implicit none(type, external)
 
 contains
@@ -40,7 +44,7 @@ contains
         type(handle_type) :: other
         type(status_type) :: ignore
         integer(int64) :: i, k
-        logical :: was_current
+        logical :: was_current, inhibit_hooks
 
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
@@ -75,7 +79,7 @@ contains
         ! Its local variables go with it: make it not current first.
         if (was_current) call set_buffer_internal(0_int64)
         buffers(i)%last_name = buffers(i)%name
-        call alist_remove(h)
+        call buffer_order_remove(h)
         call frames_discard_buffer(h)
         call delete_all_overlays(h)
         ! Unchain all markers of this buffer and leave them pointing nowhere.
@@ -94,18 +98,26 @@ contains
         call table%release(h, status)
         if (.not. status%ok()) return
         if (allocated(buffers(i)%text%beg)) deallocate (buffers(i)%text%beg)
+        inhibit_hooks = buffers(i)%inhibit_buffer_hooks
         buffers(i) = buffer_type()
-        if (.not. was_current) return
+        if (was_current) call other_buffer_current()
+        if (.not. status%ok()) return
+        if (.not. inhibit_hooks) call buffer_list_update_hook%run(status)
 
-        do k = alist_count, 1, -1
-            if (buffers(alist(k)%index)%name(1:1) /= " ") then
-                call set_buffer_internal(alist(k)%index)
-                return
-            end if
-        end do
+    contains
 
-        call get_buffer_create("*scratch*", other, status)
-        if (status%ok()) call set_buffer_internal(other%index)
+        !> Make the most recent live, non-hidden buffer current.
+        recursive subroutine other_buffer_current()
+            do k = buffer_order_count, 1, -1
+                if (buffers(buffer_order(k)%index)%name(1:1) /= " ") then
+                    call set_buffer_internal(buffer_order(k)%index)
+                    return
+                end if
+            end do
+
+            call get_buffer_create("*scratch*", other, status)
+            if (status%ok()) call set_buffer_internal(other%index)
+        end subroutine other_buffer_current
     end subroutine kill_buffer
 
     module subroutine erase_buffer(status)
@@ -127,16 +139,62 @@ contains
     !> Drop `h' from the live-buffer list.  Lives here, its only user:
     !> gfortran drops private parent procedures that only a submodule uses.
     !> Not a port.
-    subroutine alist_remove(h)
+    subroutine buffer_order_remove(h)
         type(handle_type), intent(in) :: h
         integer(int64) :: k
 
-        do k = 1, alist_count
-            if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
-                alist(k:alist_count - 1) = alist(k + 1:alist_count)
-                alist_count = alist_count - 1
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == h%index .and. buffer_order(k)%generation == h%generation) then
+                buffer_order(k:buffer_order_count - 1) = buffer_order(k + 1:buffer_order_count)
+                buffer_order_count = buffer_order_count - 1
                 return
             end if
         end do
-    end subroutine alist_remove
+    end subroutine buffer_order_remove
+
+    recursive module subroutine run_buffer_list_update_hook(i, status)
+        integer(int64), intent(in) :: i
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (i <= 0) return
+        if (buffers(i)%inhibit_buffer_hooks) return
+        call buffer_list_update_hook%run(status)
+    end subroutine run_buffer_list_update_hook
+
+    module function find_buffer(variable, value) result(h)
+        type(value_type), intent(in) :: variable, value
+        type(handle_type) :: h
+        type(value_type) :: v
+        type(status_type) :: st
+        integer(int64) :: k, i
+
+        h = null_handle()
+
+        do k = buffer_order_count, 1, -1
+            i = buffer_order(k)%index
+            call buffer_local_value(variable, i, v, st)
+
+            if (st%ok()) then
+                if (value_equal(value, v)) then
+                    h = buffer_order(k)
+                    return
+                end if
+            end if
+        end do
+    end function find_buffer
+
+    module subroutine syms_of_buffer()
+        commands%buffer_enable_undo%run => cmd_buffer_enable_undo
+    end subroutine syms_of_buffer
+
+    !> Start keeping undo information for buffer BUFFER.
+    !> No argument or nil as argument means do this for the current buffer.
+    !> Port of buffer.c:Fbuffer_enable_undo (the command: interactive "",
+    !> the current buffer).
+    subroutine cmd_buffer_enable_undo(status)
+        type(status_type), intent(out) :: status
+
+        call buffer_enable_undo(status)
+    end subroutine cmd_buffer_enable_undo
 end submodule buffer_ops_fm

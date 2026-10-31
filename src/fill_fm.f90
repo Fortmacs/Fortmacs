@@ -40,7 +40,7 @@ module fill_fm
     use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
                          buffer_modified_p, restore_buffer_modified_p, current_buffer, buffer_serial_live
     use character_fm, only: string_char_and_length
-    use characters_fm, only: char_has_category
+    use category_fm, only: char_has_category
     use charscript_fm, only: char_script, script_names
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, eolp, buffer_substring, &
@@ -187,7 +187,7 @@ module fill_fm
         procedure(fill_paragraph_proc), pointer, nopass :: value => null()
         type(fill_paragraph_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => fill_paragraph_set_local
         !> The current buffer's function (null for nil).
         procedure :: get => fill_paragraph_get
@@ -226,7 +226,7 @@ module fill_fm
         procedure(adaptive_fill_proc), pointer, nopass :: value => null()
         type(adaptive_fill_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => adaptive_fill_set_local
         !> The current buffer's function (null for `ignore').
         procedure :: get => adaptive_fill_get

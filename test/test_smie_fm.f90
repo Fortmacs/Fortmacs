@@ -19,8 +19,8 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Upstream has no SMIE tests; these are own tests of the grammar
-!> conversions (the levels obey the precedences and the BNF), sexp
-!> motion, `forward_sexp' through `forward_sexp_function', indentation
+!> conversions (the levels obey the precedences and the BNF), expression
+!> motion, `forward_expression' through `forward_expression_function', indentation
 !> and `smie_close_block' with a small Pascal-like grammar.
 module test_smie_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -31,12 +31,12 @@ module test_smie_fm
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
     use bindings_fm, only: init_bindings
-    use lisp_cmds_fm, only: forward_sexp
+    use expression_motion_fm, only: forward_expression
     use indent_fm, only: indent_region
     use newcomment_fm, only: comment_start
     use smie_fm, only: smie_bnf_type, smie_precs_type, smie_prec2_type, smie_grammar_type, smie_rule_result_type, &
                        smie_precs_to_prec2, smie_bnf_to_prec2, smie_prec2_to_grammar, smie_setup, &
-                       smie_forward_sexp_command, smie_close_block, smie_grammar_token, smie_toklevels_type, &
+                       smie_forward_expression_command, smie_close_block, smie_grammar_token, smie_toklevels_type, &
                        SMIE_LEFT, SMIE_ASSOC, SMIE_LEVEL_NUMBER, SMIE_LEVEL_LIST
     implicit none(type, external)
     private
@@ -57,7 +57,7 @@ contains
         testsuite = [ &
                     new_unittest("smie-precs->prec2", test_precs), &
                     new_unittest("smie-bnf->prec2", test_bnf), &
-                    new_unittest("smie-forward-sexp-command", test_sexp), &
+                    new_unittest("smie-forward-sexp-command", test_expression), &
                     new_unittest("smie-indent-line", test_indent), &
                     new_unittest("smie-close-block", test_close_block) &
                     ]
@@ -203,7 +203,7 @@ contains
         call leave(h)
     end subroutine test_bnf
 
-    subroutine test_sexp(error)
+    subroutine test_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -212,18 +212,18 @@ contains
 
         checks: block
             call goto_char(6_int64)
-            call smie_forward_sexp_command(1_int64, st)
+            call smie_forward_expression_command(1_int64, st)
             call check(error, st%ok(), "no error")
             if (allocated(error)) exit checks
             call check(error, point(), 25_int64)
             if (allocated(error)) exit checks
-            ! forward_sexp goes through `forward_sexp_function'.
-            call forward_sexp(-1_int64, st)
+            ! forward_expression goes through `forward_expression_function'.
+            call forward_expression(-1_int64, st)
             call check(error, point(), 6_int64)
         end block checks
 
         call leave(h)
-    end subroutine test_sexp
+    end subroutine test_expression
 
     subroutine test_indent(error)
         type(error_type), allocatable, intent(out) :: error

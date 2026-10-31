@@ -45,10 +45,10 @@ module test_sh_script_fm
                             sh_builtins, sh_string_type, sh_canonicalize_shell, sh_shell, &
                             SH_PLUS_PLUS, SH_CONTINUATION_NIL, SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, &
                             sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
-                            sh_styles_alist, sh_basic_offset, sh_indent_for_do, SH_PLUS
+                            sh_styles_table, sh_basic_offset, sh_indent_for_do, SH_PLUS
     use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
     use lisp_fm, only: list_length, list_elt, xstring
-    use lisp_cmds_fm, only: beginning_of_defun, end_of_defun
+    use expression_motion_fm, only: beginning_of_subprogram, end_of_subprogram
     use window_fm, only: display_buffer_overriding_action, display_action_type, pop_to_buffer_same_window, &
                          get_buffer_window, delete_other_windows
     use frame_fm, only: selected_window
@@ -77,7 +77,7 @@ contains
                     new_unittest("sh-here-document-syntax", test_here_doc), &
                     new_unittest("sh-canonicalize-shell", test_canonicalize), &
                     new_unittest("sh-completion-at-point-function", test_completion), &
-                    new_unittest("sh-defun-prompt-regexp", test_defun), &
+                    new_unittest("sh-defun-prompt-regexp", test_subprogram), &
                     new_unittest("sh-styles", test_styles), &
                     new_unittest("display-buffer-overriding-action", test_overriding_action) &
                     ]
@@ -427,7 +427,7 @@ contains
         call leave(h)
     end subroutine test_completion
 
-    subroutine test_defun(error)
+    subroutine test_subprogram(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         logical :: found
@@ -437,18 +437,18 @@ contains
         call goto_char(point_max())
 
         checks: block
-            call beginning_of_defun(1_int64, found, st)
+            call beginning_of_subprogram(1_int64, found, st)
             call check(error, found .and. point() == 20, "beginning of bar")
             if (allocated(error)) exit checks
-            call beginning_of_defun(1_int64, found, st)
+            call beginning_of_subprogram(1_int64, found, st)
             call check(error, found .and. point() == 5, "beginning of foo")
             if (allocated(error)) exit checks
-            call end_of_defun(1_int64, st)
+            call end_of_subprogram(1_int64, st)
             call check(error, point() == 20, "end of foo")
         end block checks
 
         call leave(h)
-    end subroutine test_defun
+    end subroutine test_subprogram
 
     subroutine test_styles(error)
         type(error_type), allocatable, intent(out) :: error
@@ -464,9 +464,9 @@ contains
         checks: block
             sh_basic_offset = 2
             call sh_name_style("two", st)
-            call check(error, size(sh_styles_alist) >= 1, "style created")
+            call check(error, size(sh_styles_table) >= 1, "style created")
             if (allocated(error)) exit checks
-            call check(error, trim(sh_styles_alist(1)%name), "two")
+            call check(error, trim(sh_styles_table(1)%name), "two")
             if (allocated(error)) exit checks
             sh_basic_offset = 8
             call sh_load_style("two", st)
@@ -481,7 +481,7 @@ contains
             out = get_buffer(" *sh-styles*")
             call set_buffer(out, st)
             text = buffer_string()
-            call check(error, index(text, LF//"sh_styles_alist = [sh_style_type(name=""two"", values=[2, ") == 1, &
+            call check(error, index(text, LF//"sh_styles_table = [sh_style_type(name=""two"", values=[2, ") == 1, &
                        "saved styles")
             if (allocated(error)) exit checks
             call check(error, index(text, "SH_PLUS") > 0, "named constant")
@@ -490,8 +490,8 @@ contains
 
         sh_basic_offset = saved_offset
         sh_indent_for_do = saved_do
-        deallocate (sh_styles_alist)
-        allocate (sh_styles_alist(0))
+        deallocate (sh_styles_table)
+        allocate (sh_styles_table(0))
         call set_buffer(h, st)
         call leave(h)
     end subroutine test_styles

@@ -818,7 +818,7 @@ contains
     end subroutine test_git_patch_signature
 
     !> Undo the addition of PATCH to the file fruits holding AFTER, giving
-    !> BEFORE: by the REVERSE argument, then by the dwim behaviour.
+    !> BEFORE: by the REVERSE argument, then by the dwim behavior.
     subroutine check_addition_undo(error, patch, before, after)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: patch, before, after

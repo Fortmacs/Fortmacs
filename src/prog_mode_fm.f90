@@ -29,7 +29,7 @@ module prog_mode_fm
     use abbrev_fm, only: abbrev_table_type
     use handle_fm, only: handle_type
     use files_fm, only: require_final_newline, mode_require_final_newline
-    use syntax_fm, only: parse_sexp_ignore_comments
+    use syntax_fm, only: parse_expression_ignore_comments
     implicit none(type, external)
     private
 
@@ -83,7 +83,7 @@ contains
         call major_modes%prog_mode%begin(saved, status)
         if (.not. status%ok()) return
         call require_final_newline%set_local(mode_require_final_newline)
-        call parse_sexp_ignore_comments%set_local(.true.)
+        call parse_expression_ignore_comments%set_local(.true.)
         call major_modes%prog_mode%finish(saved, status)
     end subroutine prog_mode
 

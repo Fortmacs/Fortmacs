@@ -124,6 +124,17 @@ module fortmacs
                          delete_all_space, just_one_space, fixup_whitespace, delete_blank_lines, delete_indentation
     use paragraphs_fm, only: transpose_sentences, transpose_paragraphs
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward
+    use syntax_fm, only: syntax_table_live_p, internal_describe_syntax_value
+    use chartab_fm, only: make_char_table, char_table_p, char_table_subtype, char_table_parent, set_char_table_parent, &
+                          char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, &
+                          set_char_table_extra_table, char_table_range, set_char_table_range, map_char_table, &
+                          optimize_char_table, char_table_map_proc, NO_VALUE
+    use casetab_fm, only: case_table_p, current_case_table, standard_case_table, set_case_table, &
+                          set_standard_case_table
+    use category_fm, only: category_set_type, make_category_set, define_category, category_docstring, &
+                           get_unused_category, category_table_p, category_table, standard_category_table, &
+                           copy_category_table, make_category_table, set_category_table, char_category_set, &
+                           category_set_mnemonics, modify_category_entry
     use novice_fm, only: enable_command, disable_command
     use rmc_fm, only: rmc_choice_type, read_multiple_choice
     use indent_fm, only: indent_to, current_indentation, indent_according_to_mode, indent_rigidly, indent_line_to, &
@@ -168,6 +179,13 @@ module fortmacs
     use fns_fm, only: use_short_answers
     use rmc_fm, only: read_char_choice_use_read_key
     use keyboard_fm, only: minibuffer_message_timeout
+    use keyboard_fm, only: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, &
+                           help_event_list, inhibit_interaction, num_nonmacro_input_events, read_char, &
+                           read_char_exclusive, read_event, read_key_sequence_vs, this_command_keys_vector, &
+                           this_single_command_keys, this_single_command_raw_keys, clear_this_command_keys, &
+                           recursion_depth, top_level, recursive_edit, lossage_size, event_convert_list, &
+                           event_symbol_parse_modifiers, pre_command_hook, post_command_hook
+    use fileio_fm, only: open_dribble_file
     use minibuffer_fm, only: read_file_name_completion_ignore_case, read_buffer_completion_ignore_case
     use minibuf_fm, only: enable_recursive_minibuffers, history_add_new_input
     use minibuffer_fm, only: insert_default_directory
@@ -176,7 +194,7 @@ module fortmacs
     use callint_fm, only: mark_even_if_inactive
     use simple_fm, only: kill_ring_max, mark_ring_max, kill_whole_line_option, delete_active_region, kill_read_only_ok
     use rect_fm, only: killed_rectangle
-    use register_fm, only: register_alist, register_separator
+    use register_fm, only: register_table, register_separator
     use term_fm, only: visible_bell
     use minibuf_fm, only: completion_ignore_case
     use minibuffer_fm, only: completion_auto_help, completion_show_inline_help, completion_fail_discreetly
@@ -245,12 +263,13 @@ module fortmacs
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use simple_fm, only: turn_on_auto_fill, turn_off_auto_fill
     use text_mode_fm, only: text_mode_variant
-    use syntax_fm, only: parse_sexp_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
-                         open_paren_in_column_0_is_defun_start, comment_use_syntax_ppss
-    use syntax_fm, only: forward_comment, scan_lists, scan_sexps, parse_partial_sexp, parse_state_type, &
+    use syntax_fm, only: parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+                         open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss
+    use syntax_fm, only: forward_comment, scan_groups, scan_expressions, parse_partial_expression, parse_state_type, &
                          ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
-    use lisp_cmds_fm, only: forward_sexp_function, forward_sexp, backward_sexp, forward_list, backward_list, down_list, up_list, &
-                            backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp
+    use expression_motion_fm, only: forward_expression_function, forward_expression, backward_expression, forward_group, &
+                                    backward_group, down_group, up_group, &
+                                    backward_up_group, kill_expression, backward_kill_expression, mark_expression
     ! Keyboard macros.
     use keyboard_fm, only: kbd_macro_termination_hook
     use kmacro_fm, only: kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, kmacro_call_repeat_key, &
@@ -287,7 +306,7 @@ module fortmacs
                              dired_do_revert_buffer, dired_create_empty_file_in_current_directory, &
                              dired_compress_file_default_suffix, dired_compress_directory_default_suffix, &
                              dired_compress_suffix_type, dired_compress_rule_type, dired_compress_file_suffixes, &
-                             dired_compress_file_alist, dired_compress_files_alist
+                             dired_compress_file_table, dired_compress_files_table
     use files_fm, only: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
                         find_file_read_only_other_window, make_empty_file, file_modes_symbolic_to_number, &
                         file_modes_number_to_symbolic
@@ -317,9 +336,9 @@ module fortmacs
                           compilation_transform_type, compilation_number_function, compilation_file_function, &
                           compilation_face_function, compilation_minor_mode_hook, compilation_shell_minor_mode_hook, &
                           compilation_minor_mode_map, compilation_shell_minor_mode_map, &
-                          compilation_error_regexp_alist_alist, compilation_error_regexp_alist, &
+                          compilation_error_regexp_table, compilation_error_regexp_names, &
                           compilation_error_case_fold_search, compilation_directory_matcher, &
-                          compilation_transform_file_match_alist, compilation_error_screen_columns, &
+                          compilation_transform_file_match_table, compilation_error_screen_columns, &
                           compilation_first_column, compilation_skip_threshold, compilation_skip_visited, &
                           compilation_skip_to_next_location, compilation_search_all_directories, &
                           compilation_context_lines, COMPILATION_CONTEXT_NIL, COMPILATION_CONTEXT_T, &
@@ -411,14 +430,14 @@ module fortmacs
     use coding_fm, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
                          last_coding_system_used, inhibit_eol_conversion, inhibit_null_byte_detection, &
                          inhibit_iso_escape_detection, eol_mnemonic_unix, eol_mnemonic_dos, eol_mnemonic_mac, &
-                         eol_mnemonic_undecided, default_process_coding_system, file_coding_system_alist, &
+                         eol_mnemonic_undecided, default_process_coding_system, file_coding_system_table, &
                          file_coding_type, locale_coding_system, coding_system_p, check_coding_system, &
                          coding_system_base, coding_system_eol_type, coding_system_change_eol_conversion, &
                          coding_system_change_text_conversion, coding_system_type, coding_system_priority_list, &
                          set_coding_system_priority, coding_system_list_entry_type, define_coding_system_alias, &
                          decode_coding_string, encode_coding_string, decode_coding_region, encode_coding_region, &
                          detect_coding_string, detect_coding_region, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
-    use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, auto_coding_type, prefer_coding_system, &
+    use mule_fm, only: auto_coding_table, auto_coding_regexp_table, auto_coding_type, prefer_coding_system, &
                        set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system
     use process_fm, only: set_process_coding_system, process_coding_system
     use callproc_fm, only: shell_file_name
@@ -482,7 +501,7 @@ module fortmacs
     use mule_util_fm, only: truncate_string_ellipsis_variable
     use info_fm, only: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
                        info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, &
-                       info_selection_hook, info_url_alist, info_url_type, info_suffix_list, info_suffix_type, &
+                       info_selection_hook, info_url_table, info_url_type, info_suffix_list, info_suffix_type, &
                        info_streamline_headings, info_heading_type, info_mode_map, info_mode_syntax_table, &
                        info_fontify_maximum_menu_size, INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, &
                        INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, info_use_header_line, &
@@ -491,11 +510,11 @@ module fortmacs
                        INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
                        info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
                        info_file_list_for_emacs, info_file_prefix_type
-    use info_look_fm, only: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_alist, &
+    use info_look_fm, only: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_table, &
                             info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
                             info_lookup_doc_specs_type, info_lookup_trans_proc, info_lookup_parse_proc, &
                             info_lookup_doc_spec_proc
-    use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
+    use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_table, &
                           ibuffer_human_readable_size, ibuffer_use_other_window, &
                           ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
                           ibuffer_case_fold_search, ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, &
@@ -508,13 +527,13 @@ module fortmacs
                           IBUFFER_HEADER_LINE_NIL, IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, &
                           ibuffer_default_directory, ibuffer_help_buffer_modes, ibuffer_compressed_file_name_regexp, &
                           ibuffer_hook, ibuffer_mode_hook, ibuffer_marked_face, ibuffer_deletion_face, &
-                          ibuffer_title_face, ibuffer_filter_group_name_face, ibuffer_directory_abbrev_alist, &
+                          ibuffer_title_face, ibuffer_filter_group_name_face, ibuffer_directory_abbrev_table, &
                           ibuffer_never_show_predicates, ibuffer_always_show_predicates, &
                           ibuffer_never_search_content_name, ibuffer_never_search_content_mode, ibuffer_old_time, &
                           ibuffer_show_empty_filter_groups, ibuffer_mode_map, ibuffer_mode_filter_group_map, &
                           ibuffer_columns, ibuffer_sorting_functions, define_ibuffer_column, define_ibuffer_sorter, &
                           ibuffer_column, ibuffer_text, ibuffer_saved_filters, ibuffer_saved_filter_groups, &
-                          ibuffer_filtering_alist, ibuffer_filter_format_alist, ibuffer_save_with_custom, &
+                          ibuffer_filtering_table, ibuffer_filter_format_table, ibuffer_save_with_custom, &
                           define_ibuffer_filter, ibuffer_filtering_qualifiers, ibuffer_set_filtering_qualifiers, &
                           ibuffer_filter_groups, ibuffer_set_filter_groups, ibuffer_switch_to_saved_filter_groups, &
                           ibuffer_switch_to_saved_filters, ibuffer_included_in_filters_p
@@ -589,13 +608,13 @@ module fortmacs
                              COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
     use conf_mode_fm, only: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
                             conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
-                            conf_unix_mode_syntax_table, conf_space_keywords_alist, conf_space_keywords_entry_type, &
+                            conf_unix_mode_syntax_table, conf_space_keywords_table, conf_space_keywords_entry_type, &
                             conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
                             conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
                             conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
-    use lisp_cmds_fm, only: defun_prompt_regexp, parens_require_spaces, end_of_defun_moves_to_eol, &
-                            narrow_to_defun_include_comments, insert_pair_alist, insert_pair_type, delete_pair_blink_delay, &
-                            delete_pair_push_mark, beginning_of_defun_function, end_of_defun_function
+    use expression_motion_fm, only: subprogram_prompt_regexp, parens_require_spaces, end_of_subprogram_moves_to_eol, &
+                              narrow_to_subprogram_include_comments, insert_pair_table, insert_pair_type, delete_pair_blink_delay, &
+                                    delete_pair_push_mark, beginning_of_subprogram_function, end_of_subprogram_function
     use simple_fm, only: widen_automatically
     use make_mode_fm, only: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
                             makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
@@ -603,7 +622,7 @@ module fortmacs
                             makefile_cleanup_continuations, makefile_special_targets_list, makefile_runtime_macros_list, &
                             makefile_dependency_regex, makefile_dependency_skip, makefile_rule_action_regex, &
                             makefile_brave_make, makefile_query_one_target_method_function, makefile_query_proc, &
-                            makefile_up_to_date_buffer_name, makefile_gnumake_functions_alist, &
+                            makefile_up_to_date_buffer_name, makefile_gnumake_functions_table, &
                             makefile_gnumake_function_type, makefile_mode_map, makefile_mode_syntax_table, &
                             makefile_imake_mode_syntax_table, makefile_mode_abbrev_table, makefile_mode_hook, &
                             makefile_automake_mode_hook, makefile_gmake_mode_hook, makefile_makepp_mode_hook, &
@@ -616,7 +635,7 @@ module fortmacs
                       F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
                       F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
     use smie_fm, only: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions
-    use sh_script_fm, only: sh_ancestor_alist, sh_alias_alist, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
+    use sh_script_fm, only: sh_ancestor_table, sh_alias_table, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
                             sh_shell_arg, sh_assignment_regexp, sh_remember_variable_min, sh_beginning_of_command, &
                             sh_end_of_command, sh_here_document_word, sh_builtins, sh_indent_statement_after_and, &
                             sh_leading_keywords, sh_other_keywords, sh_variables, sh_font_lock_keywords_var, &
@@ -630,11 +649,11 @@ module fortmacs
                             sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
                             sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_alist, &
+                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
                             sh_style_type, sh_var_list
     use python_fm, only: python_2_support, python_indent_offset, python_indent_guess_indent_offset_variable, &
                          python_indent_guess_indent_offset_verbose, python_indent_trigger_commands, &
-                         python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_sexp_function, &
+                         python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_expression_function, &
                          python_fill_docstring_style, python_fill_comment_function, python_fill_string_function, &
                          python_fill_decorator_function, python_fill_paren_function, python_base_mode_map, &
                          python_mode_map, python_indent_repeat_map, python_mode_syntax_table, python_dotty_syntax_table, &
@@ -682,9 +701,9 @@ module fortmacs
     public :: compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
               compilation_transform_type, compilation_number_function, compilation_file_function, &
               compilation_face_function, compilation_minor_mode_hook, compilation_shell_minor_mode_hook, &
-              compilation_minor_mode_map, compilation_shell_minor_mode_map, compilation_error_regexp_alist_alist, &
-              compilation_error_regexp_alist, compilation_error_case_fold_search, compilation_directory_matcher, &
-              compilation_transform_file_match_alist, compilation_error_screen_columns, compilation_first_column, &
+              compilation_minor_mode_map, compilation_shell_minor_mode_map, compilation_error_regexp_table, &
+              compilation_error_regexp_names, compilation_error_case_fold_search, compilation_directory_matcher, &
+              compilation_transform_file_match_table, compilation_error_screen_columns, compilation_first_column, &
               compilation_skip_threshold, compilation_skip_visited, compilation_skip_to_next_location, &
               compilation_search_all_directories, compilation_context_lines, COMPILATION_CONTEXT_NIL, &
               COMPILATION_CONTEXT_T, compilation_message_face, compilation_error_face, compilation_warning_face, &
@@ -745,6 +764,14 @@ module fortmacs
               char_syntax, standard_syntax_table, make_syntax_table, copy_syntax_table, set_syntax_table, &
               syntax_table, forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
               backward_kill_paragraph, describe_function, describe_variable, substitute_command_keys
+    public :: make_char_table, char_table_p, char_table_subtype, char_table_parent, set_char_table_parent, &
+              char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, set_char_table_extra_table, &
+              char_table_range, set_char_table_range, map_char_table, optimize_char_table, char_table_map_proc, NO_VALUE
+    public :: case_table_p, current_case_table, standard_case_table, set_case_table, set_standard_case_table
+    public :: syntax_table_live_p, internal_describe_syntax_value
+    public :: category_set_type, make_category_set, define_category, category_docstring, get_unused_category, &
+              category_table_p, category_table, standard_category_table, copy_category_table, make_category_table, &
+              set_category_table, char_category_set, category_set_mnemonics, modify_category_entry
     public :: split_window, delete_window, delete_other_windows, other_window, select_window, selected_window, &
               other_buffer, switch_to_buffer, quit_window, kill_buffer, read_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, looking_at, &
@@ -759,10 +786,12 @@ module fortmacs
               replace_regexp, replacement_function, transpose_chars, transpose_words, transpose_lines, &
               transpose_sentences, transpose_paragraphs, delete_horizontal_space, delete_all_space, just_one_space, &
               fixup_whitespace, delete_blank_lines, delete_indentation, skip_chars_forward, skip_chars_backward, &
-              skip_syntax_forward, skip_syntax_backward, forward_comment, scan_lists, scan_sexps, &
-              parse_partial_sexp, parse_state_type, ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, &
-              COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE, forward_sexp, backward_sexp, forward_list, backward_list, &
- down_list, up_list, backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp, enable_command, disable_command, rmc_choice_type, &
+              skip_syntax_forward, skip_syntax_backward, forward_comment, scan_groups, scan_expressions, &
+              parse_partial_expression, parse_state_type, ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, &
+              COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE, forward_expression, backward_expression, forward_group, &
+              backward_group, &
+              down_group, up_group, backward_up_group, kill_expression, backward_kill_expression, mark_expression, enable_command, &
+              disable_command, rmc_choice_type, &
               read_multiple_choice, indent_to, current_indentation, indent_according_to_mode, indent_rigidly, &
               indent_line_to, current_left_margin, move_to_left_margin, indent_region, indent_relative, &
               tab_to_tab_stop, move_to_tab_stop, beginning_of_line_text, indent_line_proc, indent_region_proc, &
@@ -778,7 +807,7 @@ module fortmacs
               string_rectangle, string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string, &
               rectangle_mark_mode, rectangle_mark_mode_map, rectangle_mark_mode_hook, deactivate_mark_hook, &
               region_bounds, region_noncontiguous_p, interactive_region, &
-              killed_rectangle, register_type, register_value_type, register_alist, register_separator, get_register, &
+              killed_rectangle, register_type, register_value_type, register_table, register_separator, get_register, &
               set_register, point_to_register, window_configuration_to_register, jump_to_register, file_to_register, &
               buffer_to_register, number_to_register, increment_register, view_register, list_registers, &
               insert_register, copy_to_register, append_to_register, prepend_to_register, copy_rectangle_to_register, &
@@ -815,8 +844,8 @@ module fortmacs
               major_mode_named, text_mode_hook, text_mode_map, text_mode_syntax_table, prog_mode_hook, &
               prog_mode_map, special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
-              parse_sexp_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
-              open_paren_in_column_0_is_defun_start, comment_use_syntax_ppss, require_final_newline, &
+              parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+              open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss, require_final_newline, &
               mode_require_final_newline, FINAL_NEWLINE_NEVER, &
               FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
               after_change_hook_type, change_function, after_change_function, before_change_functions, &
@@ -861,13 +890,13 @@ module fortmacs
     public :: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, last_coding_system_used, &
               inhibit_eol_conversion, inhibit_null_byte_detection, inhibit_iso_escape_detection, eol_mnemonic_unix, &
               eol_mnemonic_dos, eol_mnemonic_mac, eol_mnemonic_undecided, default_process_coding_system, &
-              file_coding_system_alist, file_coding_type, locale_coding_system, coding_system_p, check_coding_system, &
+              file_coding_system_table, file_coding_type, locale_coding_system, coding_system_p, check_coding_system, &
               coding_system_base, coding_system_eol_type, coding_system_change_eol_conversion, &
               coding_system_change_text_conversion, coding_system_type, coding_system_priority_list, &
               set_coding_system_priority, coding_system_list_entry_type, define_coding_system_alias, &
               decode_coding_string, encode_coding_string, decode_coding_region, encode_coding_region, &
               detect_coding_string, detect_coding_region, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED, &
-              auto_coding_alist, auto_coding_regexp_alist, auto_coding_type, prefer_coding_system, &
+              auto_coding_table, auto_coding_regexp_table, auto_coding_type, prefer_coding_system, &
               set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system, &
               set_process_coding_system, process_coding_system
     public :: post_self_insert_hook, run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, &
@@ -912,7 +941,7 @@ module fortmacs
               tabulated_list_mode_hook, tabulated_list_revert_hook, truncate_string_ellipsis_variable
     public :: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
               info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, info_selection_hook, &
-              info_url_alist, info_url_type, info_suffix_list, info_suffix_type, info_streamline_headings, &
+              info_url_table, info_url_type, info_suffix_list, info_suffix_type, info_streamline_headings, &
               info_heading_type, info_mode_map, info_mode_syntax_table, info_fontify_maximum_menu_size, &
               INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, &
               info_isearch_search, &
@@ -920,10 +949,10 @@ module fortmacs
               INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
               info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
               info_file_list_for_emacs, info_file_prefix_type
-    public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_alist, &
+    public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_table, &
               info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
               info_lookup_doc_specs_type, info_lookup_trans_proc, info_lookup_parse_proc, info_lookup_doc_spec_proc
-    public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
+    public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_table, &
               ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
               ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &
               ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, ibuffer_eliding_string, &
@@ -935,7 +964,7 @@ module fortmacs
               IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, ibuffer_default_directory, ibuffer_help_buffer_modes, &
               ibuffer_compressed_file_name_regexp, ibuffer_hook, ibuffer_mode_hook, ibuffer_marked_face, &
               ibuffer_deletion_face, ibuffer_title_face, ibuffer_filter_group_name_face, &
-              ibuffer_directory_abbrev_alist, ibuffer_never_show_predicates, ibuffer_always_show_predicates, &
+              ibuffer_directory_abbrev_table, ibuffer_never_show_predicates, ibuffer_always_show_predicates, &
               ibuffer_never_search_content_name, ibuffer_never_search_content_mode, ibuffer_old_time, &
               ibuffer_show_empty_filter_groups, ibuffer_mode_map, ibuffer_mode_filter_group_map, ibuffer_columns, &
               ibuffer_sorting_functions, define_ibuffer_column, define_ibuffer_sorter, ibuffer_column, ibuffer_text, &
@@ -943,7 +972,7 @@ module fortmacs
               ibuffer_summarizer_proc, ibuffer_sorter_proc, ibuffer_size_proc, ibuffer_buffer_predicate_proc, &
               ibuffer_form_proc, ibuffer_show_predicate_type, ibuffer_fontification_type, &
               ibuffer_directory_abbrev_type, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, IBUFFER_ALIGN_RIGHT
-    public :: ibuffer_saved_filters, ibuffer_saved_filter_groups, ibuffer_filtering_alist, ibuffer_filter_format_alist, &
+    public :: ibuffer_saved_filters, ibuffer_saved_filter_groups, ibuffer_filtering_table, ibuffer_filter_format_table, &
               ibuffer_save_with_custom, define_ibuffer_filter, ibuffer_filtering_qualifiers, &
               ibuffer_set_filtering_qualifiers, ibuffer_filter_groups, ibuffer_set_filter_groups, &
               ibuffer_switch_to_saved_filter_groups, ibuffer_switch_to_saved_filters, ibuffer_included_in_filters_p, &
@@ -1013,8 +1042,8 @@ module fortmacs
               DIRED_CREATE_DESTINATION_DIRS_ASK, dired_create_destination_dirs_on_trailing_dirsep, &
               dired_do_revert_buffer, dired_create_empty_file_in_current_directory, &
               dired_compress_file_default_suffix, dired_compress_directory_default_suffix, dired_compress_suffix_type, &
-              dired_compress_rule_type, dired_compress_file_suffixes, dired_compress_file_alist, &
-              dired_compress_files_alist
+              dired_compress_rule_type, dired_compress_file_suffixes, dired_compress_file_table, &
+              dired_compress_files_table
     public :: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
               find_file_read_only_other_window, make_empty_file, file_modes_symbolic_to_number, &
               file_modes_number_to_symbolic, copy_file, rename_file, add_name_to_file, make_symbolic_link, &
@@ -1034,13 +1063,13 @@ module fortmacs
               COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
     public :: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
               conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
-              conf_unix_mode_syntax_table, conf_space_keywords_alist, conf_space_keywords_entry_type, &
+              conf_unix_mode_syntax_table, conf_space_keywords_table, conf_space_keywords_entry_type, &
               conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
               conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
               conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
-    public :: defun_prompt_regexp, parens_require_spaces, end_of_defun_moves_to_eol, &
-              narrow_to_defun_include_comments, insert_pair_alist, insert_pair_type, delete_pair_blink_delay, &
-              delete_pair_push_mark, beginning_of_defun_function, end_of_defun_function
+    public :: subprogram_prompt_regexp, parens_require_spaces, end_of_subprogram_moves_to_eol, &
+              narrow_to_subprogram_include_comments, insert_pair_table, insert_pair_type, delete_pair_blink_delay, &
+              delete_pair_push_mark, beginning_of_subprogram_function, end_of_subprogram_function
     public :: widen_automatically
     public :: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
               makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
@@ -1048,7 +1077,7 @@ module fortmacs
               makefile_cleanup_continuations, makefile_special_targets_list, makefile_runtime_macros_list, &
               makefile_dependency_regex, makefile_dependency_skip, makefile_rule_action_regex, &
               makefile_brave_make, makefile_query_one_target_method_function, makefile_query_proc, &
-              makefile_up_to_date_buffer_name, makefile_gnumake_functions_alist, &
+              makefile_up_to_date_buffer_name, makefile_gnumake_functions_table, &
               makefile_gnumake_function_type, makefile_mode_map, makefile_mode_syntax_table, &
               makefile_imake_mode_syntax_table, makefile_mode_abbrev_table, makefile_mode_hook, &
               makefile_automake_mode_hook, makefile_gmake_mode_hook, makefile_makepp_mode_hook, &
@@ -1060,8 +1089,8 @@ module fortmacs
               f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NIL, &
               F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
               F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
-    public :: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions, forward_sexp_function
-    public :: sh_ancestor_alist, sh_alias_alist, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
+    public :: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions, forward_expression_function
+    public :: sh_ancestor_table, sh_alias_table, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
               sh_shell_arg, sh_assignment_regexp, sh_remember_variable_min, sh_beginning_of_command, &
               sh_end_of_command, sh_here_document_word, sh_builtins, sh_indent_statement_after_and, &
               sh_leading_keywords, sh_other_keywords, sh_variables, sh_font_lock_keywords_var, &
@@ -1075,11 +1104,11 @@ module fortmacs
               sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
               sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
               SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_alist, &
+              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
               sh_style_type, sh_var_list
     public :: python_2_support, python_indent_offset, python_indent_guess_indent_offset_variable, &
               python_indent_guess_indent_offset_verbose, python_indent_trigger_commands, &
-              python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_sexp_function, &
+              python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_expression_function, &
               python_fill_docstring_style, python_fill_comment_function, python_fill_string_function, &
               python_fill_decorator_function, python_fill_paren_function, python_base_mode_map, &
               python_mode_map, python_indent_repeat_map, python_mode_syntax_table, python_dotty_syntax_table, &
@@ -1101,4 +1130,9 @@ module fortmacs
     public :: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, css_class_list_function, &
               css_id_list_function, css_base_mode_hook, css_mode_hook, scss_mode_hook, css_mode_map, css_base_mode_map, &
               scss_mode_map, css_mode_syntax_table, scss_mode_syntax_table
+    public :: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, help_event_list, &
+              inhibit_interaction, num_nonmacro_input_events, read_char, read_char_exclusive, read_event, &
+              read_key_sequence_vs, this_command_keys_vector, this_single_command_keys, this_single_command_raw_keys, &
+              clear_this_command_keys, recursion_depth, top_level, recursive_edit, lossage_size, event_convert_list, &
+              event_symbol_parse_modifiers, open_dribble_file, pre_command_hook, post_command_hook
 end module fortmacs

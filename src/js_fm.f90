@@ -25,14 +25,14 @@
 !> declarations of `js_enabled_frameworks', variable declarations and
 !> formal parameters), the parse cache of functions, macros and classes
 !> (`js__ensure_cache') with `js_syntactic_context' and
-!> `js_beginning_of_defun'/`js_end_of_defun', and indentation
+!> `js_beginning_of_subprogram'/`js_end_of_subprogram', and indentation
 !> (`js_indent_line', with C comments lined up by `js_comment_lineup_func').
 !>
 !> Deferred: JSX (`js_jsx_syntax', its detection, `js_jsx_mode' and its
 !> indentation and keywords), filling (`js_fill_paragraph',
 !> `js_do_auto_fill' and the CC Mode paragraph variables they need),
 !> `comment_line_break_function' (`c_indent_new_comment_line'), Imenu,
-!> `which_func', `prettify_symbols_alist', `electric_layout_rules', the
+!> `which_func', `prettify_symbols_table', `electric_layout_rules', the
 !> hideshow variables, `js_use_syntactic_mode_name', the obsolete MozRepl
 !> variables and `js_ts_mode'.
 module js_fm
@@ -47,8 +47,8 @@ module js_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, syntax_ppss, parse_state_type, &
-                         parse_partial_sexp, forward_comment, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
-                         skip_syntax_backward, parse_sexp_ignore_comments, ST_STRING_STYLE, COMMENTSTOP_SYNTAX_TABLE
+                         parse_partial_expression, forward_comment, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
+                         skip_syntax_backward, parse_expression_ignore_comments, ST_STRING_STYLE, COMMENTSTOP_SYNTAX_TABLE
     use editfns_fm, only: point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
                           line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line
@@ -66,8 +66,8 @@ module js_fm
                             FONT_LOCK_OVERRIDE_T
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, cpp_font_lock_keywords, &
                             font_lock_apply_highlight, CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES
-    use lisp_cmds_fm, only: forward_sexp, backward_sexp, forward_list, backward_list, up_list, &
-                            beginning_of_defun_function, end_of_defun_function
+    use expression_motion_fm, only: forward_expression, backward_expression, forward_group, backward_group, up_group, &
+                                    beginning_of_subprogram_function, end_of_subprogram_function
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end
     use electric_fm, only: electric_indent_chars_value, set_local_electric_indent_chars
     use prog_mode_fm, only: prog_first_column
@@ -78,8 +78,8 @@ module js_fm
     implicit none(type, external)
     private
 
-    public :: syms_of_js, js_base_mode, js_mode, js_json_mode, js_indent_line, js_beginning_of_defun, &
-              js_end_of_defun, js_syntactic_context, js_syntax_propertize, js_font_lock_syntactic_face_function, &
+    public :: syms_of_js, js_base_mode, js_mode, js_json_mode, js_indent_line, js_beginning_of_subprogram, &
+              js_end_of_subprogram, js_syntactic_context, js_syntax_propertize, js_font_lock_syntactic_face_function, &
               js_re_search_forward, js_re_search_backward, js_continued_expression_p, js_proper_indentation, &
               js_flush_caches, js_ensure_cache
 
@@ -1173,15 +1173,15 @@ contains
                 call forward_char(st, 1_int64)
             end do
 
-            call parse_partial_sexp(safe_pos, point(), s, st)
+            call parse_partial_expression(safe_pos, point(), s, st)
             again = .false.
 
             ! Are we in a block comment?
             if (s%incomment /= 0) then
                 if (s%comment_style == 0) then
                     ! Move to after the block comment.
-                    call parse_partial_sexp(point(), point_max(), after, st, oldstate=s, &
-                                            commentstop=COMMENTSTOP_SYNTAX_TABLE)
+                    call parse_partial_expression(point(), point_max(), after, st, oldstate=s, &
+                                                  commentstop=COMMENTSTOP_SYNTAX_TABLE)
                     safe_pos = point()
                     again = .true.
                 end if
@@ -1259,7 +1259,7 @@ contains
         ! Look at a very small region so our computation time doesn't
         ! explode in pathological cases.
         call narrow_to_region(max(point_min(), point() - 500), point(), status)
-        call up_list(-1_int64, status)
+        call up_group(-1_int64, status)
         call widen()
         call narrow_to_region(begv, zv, status)
     end subroutine up_nearby_list
@@ -1293,7 +1293,7 @@ contains
     ! Move forward over a whole JavaScript expression.
     ! This function doesn't move over expressions continued across lines.
     ! Port of js.el:js--forward-expression.
-    recursive subroutine forward_expression(status)
+    recursive subroutine js_forward_expression(status)
         type(status_type), intent(out) :: status
         logical :: moved, continued
         integer :: c
@@ -1308,7 +1308,7 @@ contains
                 c = next_char()
                 if (c == iachar(",") .or. c == iachar(";") .or. c == iachar("]") .or. c == iachar(")") &
                     .or. c == iachar("}")) exit
-                call forward_sexp(1_int64, status)
+                call forward_expression(1_int64, status)
                 if (.not. status%ok()) return
             end do
 
@@ -1318,7 +1318,7 @@ contains
             call goto_char(point() - 1)
             if (.not. continued) exit
         end do
-    end subroutine forward_expression
+    end subroutine js_forward_expression
 
     ! Move forward over a JavaScript function declaration.
     ! This puts point at the `function' keyword.
@@ -1353,7 +1353,7 @@ contains
 
         moved = forward_comment(huge(1_int64))
         if (next_char() /= iachar("(")) return
-        call forward_list(1_int64, st)
+        call forward_group(1_int64, st)
         if (.not. st%ok()) return
         moved = forward_comment(huge(1_int64))
         ok = next_char() == iachar("{")
@@ -1416,11 +1416,11 @@ contains
         call goto_char(opoint)
     end function function_prologue_beginning
 
-    ! Helper function for `js_beginning_of_defun'.
+    ! Helper function for `js_beginning_of_subprogram'.
     ! Go to previous defun-beginning and return the parse state for it, or
     ! none if we went all the way back to bob and don't find anything.
     ! Port of js.el:js--beginning-of-defun-raw.
-    recursive function beginning_of_defun_raw() result(pstate)
+    recursive function beginning_of_subprogram_raw() result(pstate)
         integer, allocatable :: pstate(:)
 
         call js_ensure_cache()
@@ -1435,13 +1435,13 @@ contains
             deallocate (pstate)
             allocate (pstate(0))
         end if
-    end function beginning_of_defun_raw
+    end function beginning_of_subprogram_raw
 
-    ! Helper function for `js__beginning_of_defun_nested'.
-    ! If PSTATE represents a non-empty top-level defun, return the top-most
+    ! Helper function for `js__beginning_of_subprogram_nested'.
+    ! If PSTATE represents a non-empty top-level subprogram, return the top-most
     ! pitem.  Otherwise, return 0.  Port of
     ! js.el:js--pstate-is-toplevel-defun.
-    recursive integer function pstate_is_toplevel_defun(pstate) result(func_pitem)
+    recursive integer function pstate_is_toplevel_subprogram(pstate) result(func_pitem)
         integer, intent(in) :: pstate(:)
         integer :: i, func_depth
 
@@ -1456,12 +1456,12 @@ contains
         end do
 
         if (func_depth /= 1) func_pitem = 0
-    end function pstate_is_toplevel_defun
+    end function pstate_is_toplevel_subprogram
 
-    ! Helper function for `js__beginning_of_defun'.
+    ! Helper function for `js__beginning_of_subprogram'.
     ! Return the pitem of the function we went to the beginning of (0 for
     ! none).  Port of js.el:js--beginning-of-defun-nested.
-    recursive integer function beginning_of_defun_nested() result(pitem)
+    recursive integer function beginning_of_subprogram_nested() result(pitem)
         integer, allocatable :: pstate(:)
         integer :: i
 
@@ -1478,35 +1478,35 @@ contains
             end if
         end do
 
-        ! ...and if that isn't found, look for the previous top-level defun
+        ! ...and if that isn't found, look for the previous top-level subprogram
         pitem = 0
 
         do
             pstate = backward_pstate()
             if (size(pstate) == 0) exit
-            pitem = pstate_is_toplevel_defun(pstate)
+            pitem = pstate_is_toplevel_subprogram(pstate)
 
             if (pitem > 0) then
                 call goto_char(pitem_h_begin(pitem))
                 return
             end if
         end do
-    end function beginning_of_defun_nested
+    end function beginning_of_subprogram_nested
 
-    ! Helper function for `js_beginning_of_defun'.  Port of
+    ! Helper function for `js_beginning_of_subprogram'.  Port of
     ! js.el:js--beginning-of-defun-flat.
-    recursive logical function beginning_of_defun_flat() result(found)
+    recursive logical function beginning_of_subprogram_flat() result(found)
         integer, allocatable :: pstate(:)
 
-        pstate = beginning_of_defun_raw()
+        pstate = beginning_of_subprogram_raw()
         found = size(pstate) > 0
         if (found) call goto_char(pitem_h_begin(pstate(1)))
-    end function beginning_of_defun_flat
+    end function beginning_of_subprogram_flat
 
-    !> Value of `beginning_of_defun_function' for `js_mode': move to the
+    !> Value of `beginning_of_subprogram_function' for `js_mode': move to the
     !> beginning of the ARGth function (default 1; backward), returning
     !> whether one was found.  Port of js.el:js-beginning-of-defun.
-    recursive subroutine js_beginning_of_defun(arg, found)
+    recursive subroutine js_beginning_of_subprogram(arg, found)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type) :: st
@@ -1520,9 +1520,9 @@ contains
 
             if (.not. js_flat_functions%value) then
                 if (js_syntactic_context() == JS_CONTEXT_FUNCTION) then
-                    call js_end_of_defun(1_int64)
+                    call js_end_of_subprogram(1_int64)
                 else if (function_prologue_beginning() > 0) then
-                    call js_end_of_defun(1_int64)
+                    call js_end_of_subprogram(1_int64)
                 end if
             end if
 
@@ -1546,23 +1546,23 @@ contains
                 call goto_char(prologue_begin)
                 found = .true.
             else if (js_flat_functions%value) then
-                found = beginning_of_defun_flat()
-            else if (beginning_of_defun_nested() > 0) then
+                found = beginning_of_subprogram_flat()
+            else if (beginning_of_subprogram_nested() > 0) then
                 found = .true.
             end if
         end do
-    end subroutine js_beginning_of_defun
+    end subroutine js_beginning_of_subprogram
 
-    ! `js_beginning_of_defun' as a `beginning_of_defun_function'.
+    ! `js_beginning_of_subprogram' as a `beginning_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine beginning_of_defun_proc(arg, found, status)
+    recursive subroutine beginning_of_subprogram_proc(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call js_beginning_of_defun(arg, found)
-    end subroutine beginning_of_defun_proc
+        call js_beginning_of_subprogram(arg, found)
+    end subroutine beginning_of_subprogram_proc
 
     !> Flush the `js_mode' syntax cache after position BEG.
     !> BEG defaults to `point_min', meaning to flush the entire cache.
@@ -1887,8 +1887,8 @@ contains
                 ! *entered* the given depth -- i.e., make sure we're deeper
                 ! than the target depth.
                 old = parse
-                call parse_partial_sexp(prev_parse_point, goal_point, parse, st, &
-                                        targetdepth=locals(k)%pitems(open_items(1))%paren_depth, oldstate=old)
+                call parse_partial_expression(prev_parse_point, goal_point, parse, st, &
+                                              targetdepth=locals(k)%pitems(open_items(1))%paren_depth, oldstate=old)
                 prev_parse_point = point()
                 if (.not. point() < goal_point) exit
             end do
@@ -1897,9 +1897,9 @@ contains
         end subroutine update_parse
     end subroutine js_ensure_cache
 
-    ! Helper function for `js_end_of_defun'.  Port of
+    ! Helper function for `js_end_of_subprogram'.  Port of
     ! js.el:js--end-of-defun-flat.
-    recursive subroutine end_of_defun_flat()
+    recursive subroutine end_of_subprogram_flat()
         type(value_type) :: v
 
         do while (js_re_search_forward("}"))
@@ -1912,11 +1912,11 @@ contains
         end do
 
         call goto_char(point_max())
-    end subroutine end_of_defun_flat
+    end subroutine end_of_subprogram_flat
 
-    ! Helper function for `js_end_of_defun'.  Port of
+    ! Helper function for `js_end_of_subprogram'.  Port of
     ! js.el:js--end-of-defun-nested.
-    recursive subroutine end_of_defun_nested()
+    recursive subroutine end_of_subprogram_nested()
         type(status_type) :: st
         character(len=:), allocatable :: name
         integer(int64) :: opoint, this_end
@@ -1925,12 +1925,12 @@ contains
 
         opoint = point()
         this_end = 0
-        pitem = beginning_of_defun_nested()
+        pitem = beginning_of_subprogram_nested()
 
         if (pitem > 0) then
             call pitem_goto_h_end(pitem)
             call forward_char(st, -1_int64)
-            call forward_list(1_int64, st)
+            call forward_group(1_int64, st)
             this_end = point()
         end if
 
@@ -1952,16 +1952,16 @@ contains
         end do
 
         if (found) then
-            call forward_list(1_int64, st)
+            call forward_group(1_int64, st)
         else
             ! ... or eob.
             call goto_char(point_max())
         end if
-    end subroutine end_of_defun_nested
+    end subroutine end_of_subprogram_nested
 
-    !> Value of `end_of_defun_function' for `js_mode': move to the end of
+    !> Value of `end_of_subprogram_function' for `js_mode': move to the end of
     !> the ARGth function.  Port of js.el:js-end-of-defun.
-    recursive subroutine js_end_of_defun(arg)
+    recursive subroutine js_end_of_subprogram(arg)
         integer(int64), intent(in) :: arg
         type(status_type) :: st
         character(len=:), allocatable :: name
@@ -1972,9 +1972,9 @@ contains
 
         do while (.not. bobp() .and. n < 0)
             n = n + 1
-            call js_beginning_of_defun(1_int64, found)
-            call js_beginning_of_defun(1_int64, found)
-            if (.not. bobp()) call js_end_of_defun(1_int64)
+            call js_beginning_of_subprogram(1_int64, found)
+            call js_beginning_of_subprogram(1_int64, found)
+            if (.not. bobp()) call js_end_of_subprogram(1_int64)
         end do
 
         do while (n > 0)
@@ -1984,7 +1984,7 @@ contains
             ! function's end. otherwise, search for the next function's end
             ! and go there
             if (js_flat_functions%value) then
-                call end_of_defun_flat()
+                call end_of_subprogram_flat()
             else
                 ! if we're doing nested functions, see whether we're in the
                 ! prologue. If we are, go to the end of the function;
@@ -1997,22 +1997,22 @@ contains
                     call re_search_forward("\_<function", pos, st)
                     call goto_char(mb(0))
                     found = forward_function_decl(name, anonymous)
-                    call forward_list(1_int64, st)
+                    call forward_group(1_int64, st)
                 else
-                    call end_of_defun_nested()
+                    call end_of_subprogram_nested()
                 end if
             end if
         end do
-    end subroutine js_end_of_defun
+    end subroutine js_end_of_subprogram
 
-    ! `js_end_of_defun' as an `end_of_defun_function'.
+    ! `js_end_of_subprogram' as an `end_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine end_of_defun_proc(status)
+    recursive subroutine end_of_subprogram_proc(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call js_end_of_defun(1_int64)
-    end subroutine end_of_defun_proc
+        call js_end_of_subprogram(1_int64)
+    end subroutine end_of_subprogram_proc
 
     ! Return whether point is inside the given pitem's header or body.
     ! Port of js.el:js--inside-pitem-p.
@@ -2278,7 +2278,7 @@ contains
 
             if (next_char() == iachar("=")) then
                 call forward_char(status, 1_int64)
-                call forward_expression(status)
+                call js_forward_expression(status)
                 ! (scan-error: stop.)
                 if (.not. status%ok()) exit
                 moved = forward_comment(huge(1_int64))
@@ -2717,7 +2717,7 @@ contains
 
         if (c == iachar(":")) then
             call backward_syntactic_ws()
-            if (prev_char() == iachar(")")) call backward_list(1_int64, st)
+            if (prev_char() == iachar(")")) call backward_group(1_int64, st)
             question = .false.
             if (js_re_search_backward("[?:{]\|\_<case\_>")) question = next_char() == iachar("?")
             call goto_char(opoint)
@@ -2889,7 +2889,7 @@ contains
             if (c == iachar("]") .or. c == iachar(")") .or. c == iachar("}")) then
                 progress = .true.
                 term_skipped = .true.
-                call backward_list(1_int64, st)
+                call backward_group(1_int64, st)
             end if
         end do
 
@@ -2979,7 +2979,7 @@ contains
             call goto_char(opoint)
 
             if (brace) then
-                call backward_list(1_int64, st)
+                call backward_group(1_int64, st)
                 call forward_symbol(-1)
                 found = at("\_<do\_>")
             else
@@ -3032,7 +3032,7 @@ contains
 
         if (ok) then
             if (.not. eobp()) call forward_char(st, 1_int64)
-            if (prev_char() == iachar(")")) call backward_list(1_int64, st)
+            if (prev_char() == iachar(")")) call backward_group(1_int64, st)
             moved = skip_syntax_backward(" ")
             moved = skip_syntax_backward("w_")
             ok = at(POSSIBLY_BRACELESS_KEYWORD_RE)
@@ -3115,7 +3115,7 @@ contains
 
                 call goto_char(pos)
                 if (.not. more) exit
-                call backward_sexp(1_int64, st)
+                call backward_expression(1_int64, st)
                 if (.not. st%ok()) at_opening_bracket = .true.
             end do
 
@@ -3149,7 +3149,7 @@ contains
 
             if (at("[[{]")) then
                 ! Skip destructuring form.
-                call forward_sexp(1_int64, st)
+                call forward_expression(1_int64, st)
 
                 if (st%ok()) then
                     call forward_syntactic_ws()
@@ -3166,7 +3166,7 @@ contains
 
                 if (pos > 0) then
                     ! Not inside comment or string literal.
-                    call parse_partial_sexp(bracket, point(), status_state, st)
+                    call parse_partial_expression(bracket, point(), status_state, st)
                     if (status_state%depth == 1 .and. status_state%comstr_start == 0) for_kwd = mb(1)
                 end if
             end if
@@ -3217,7 +3217,7 @@ contains
             declaration_keyword_end = me(0)
             opoint = point()
             call goto_char(parse_status%innermost_start)
-            call forward_sexp(1_int64, st)
+            call forward_expression(1_int64, st)
             comma_p = .false.
 
             if (st%ok()) then
@@ -3361,7 +3361,7 @@ contains
             if (nothing_after) then
                 ! nothing following the opening paren/bracket
                 moved = skip_syntax_backward(" ")
-                if (prev_char() == iachar(")")) call backward_list(1_int64, st)
+                if (prev_char() == iachar(")")) call backward_group(1_int64, st)
                 call back_to_indentation()
                 call maybe_goto_declaration_keyword_end(parse_status)
                 in_switch_p = .false.
@@ -3493,8 +3493,8 @@ contains
 
         k = here()
         call indent_line_function%set_local(indent_line_proc)
-        call beginning_of_defun_function%set_local(beginning_of_defun_proc)
-        call end_of_defun_function%set_local(end_of_defun_proc)
+        call beginning_of_subprogram_function%set_local(beginning_of_subprogram_proc)
+        call end_of_subprogram_function%set_local(end_of_subprogram_proc)
         levels(1) = font_lock_keywords_level(keywords_3)
         levels(2) = font_lock_keywords_level(keywords_1)
         levels(3) = font_lock_keywords_level(keywords_2)
@@ -3502,7 +3502,7 @@ contains
         call font_lock_defaults%set_local(levels=levels, syntactic_face_function=js_font_lock_syntactic_face_function)
         call syntax_propertize_function%set_local(js_syntax_propertize)
         call syntax_propertize_extend_region_functions%add(syntax_propertize_multiline, depth=90, local=.true.)
-        call parse_sexp_ignore_comments%set_local(.true.)
+        call parse_expression_ignore_comments%set_local(.true.)
         ! Comments
         call comment_start%set_local("// ")
         call comment_start_skip%set_local("\(?://+\|/\*+\)\s *")

@@ -41,8 +41,8 @@ module minibuf_table_fm
     integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
                                   COMPLETE_BOUNDARIES = 3
 
-    !> Kinds of completion table: a list (of strings, symbols, or lists
-    !> whose first element is one: an alist), the obarray, a function, or
+    !> Kinds of completion table: a list (an array of strings or symbols,
+    !> or a table of (string, value) entries), the obarray, a function, or
     !> a function operating on quoted text (`completion_table_with_quoting').
     integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2, TABLE_QUOTING = 3
 

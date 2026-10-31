@@ -24,7 +24,7 @@
 !> `executable_find' (files_fm cannot use callproc_fm, which uses it).
 !>
 !> Deferred: `executable_interpret' (C-c C-x; it needs rule specifications
-!> in `compilation_error_regexp_alist', so `executable_error_regexp_alist'
+!> in `compilation_error_regexp_names', so `executable_error_regexp_table'
 !> is deferred with it) and `executable_command_find_posix_p' (needs
 !> `data_directory').
 module executable_fm

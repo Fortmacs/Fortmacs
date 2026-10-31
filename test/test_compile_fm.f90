@@ -45,7 +45,7 @@ module test_compile_fm
                           compilation_always_kill, compilation_parse_errors, compilation_forget_errors, &
                           compilation_message_info, compilation_message_info_type, compilation_message_counts, &
                           compilation_num_errors_found, compilation_num_warnings_found, compilation_num_infos_found, &
-                          compilation_error_regexp_alist, compilation_error_regexp_alist_alist, compilation_rule_type, &
+                          compilation_error_regexp_names, compilation_error_regexp_table, compilation_rule_type, &
                           compilation_next_error, compile_goto_error, compilation_ensure_parse
     use editfns_fm, only: point, point_min, goto_char
     use simple_fm, only: next_error
@@ -412,7 +412,7 @@ contains
     end subroutine error_line
 
     !> Port of compile-tests.el compile-test-error-regexps: the rules of
-    !> `compilation_error_regexp_alist_alist' on the test data of
+    !> `compilation_error_regexp_table' on the test data of
     !> compile-tests--test-regexps-data.
     subroutine test_error_regexps(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1426,19 +1426,19 @@ contains
         !> Test the `omake' rule separately.  This doesn't actually test
         !> the `omake' rule itself but its indirect effects.
         subroutine omake_case()
-            saved = compilation_error_regexp_alist
-            deallocate (compilation_error_regexp_alist)
-            allocate (compilation_error_regexp_alist(size(compilation_error_regexp_alist_alist)))
+            saved = compilation_error_regexp_names
+            deallocate (compilation_error_regexp_names)
+            allocate (compilation_error_regexp_names(size(compilation_error_regexp_table)))
 
-            do k = 1, size(compilation_error_regexp_alist_alist)
-                compilation_error_regexp_alist(k) = compilation_error_regexp_alist_alist(k)%name
+            do k = 1, size(compilation_error_regexp_table)
+                compilation_error_regexp_names(k) = compilation_error_regexp_table(k)%name
             end do
 
             s = "      alpha.c:5:15: error: expected ';' after expression"
             f = "alpha.c"
             call error_line(error, "gnu", s, 1_int64, .true., 15_int64, .false., 0_int64, .true., 5_int64, .false., &
                             0_int64, .true., f, -1)
-            compilation_error_regexp_alist = saved
+            compilation_error_regexp_names = saved
         end subroutine omake_case
     end subroutine test_error_regexps
 
@@ -1494,18 +1494,18 @@ contains
 
         call init_bindings()
         call parse_buffer(h)
-        saved_rules = compilation_error_regexp_alist_alist
-        saved_names = compilation_error_regexp_alist
-        deallocate (compilation_error_regexp_alist_alist, compilation_error_regexp_alist)
-        allocate (compilation_error_regexp_alist_alist(1), compilation_error_regexp_alist(1))
-        compilation_error_regexp_alist_alist(1)%name = "my_rule"
-        compilation_error_regexp_alist_alist(1)%regexp = "^My error message"
-        compilation_error_regexp_alist_alist(1)%file_function => my_file
-        compilation_error_regexp_alist_alist(1)%line_function => line_start
-        compilation_error_regexp_alist_alist(1)%end_line_function => line_end
-        compilation_error_regexp_alist_alist(1)%column_function => col_start
-        compilation_error_regexp_alist_alist(1)%end_column_function => col_end
-        compilation_error_regexp_alist(1) = "my_rule"
+        saved_rules = compilation_error_regexp_table
+        saved_names = compilation_error_regexp_names
+        deallocate (compilation_error_regexp_table, compilation_error_regexp_names)
+        allocate (compilation_error_regexp_table(1), compilation_error_regexp_names(1))
+        compilation_error_regexp_table(1)%name = "my_rule"
+        compilation_error_regexp_table(1)%regexp = "^My error message"
+        compilation_error_regexp_table(1)%file_function => my_file
+        compilation_error_regexp_table(1)%line_function => line_start
+        compilation_error_regexp_table(1)%end_line_function => line_end
+        compilation_error_regexp_table(1)%column_function => col_start
+        compilation_error_regexp_table(1)%end_column_function => col_end
+        compilation_error_regexp_names(1) = "my_rule"
         compilation_num_errors_found = 0
         compilation_num_warnings_found = 0
         compilation_num_infos_found = 0
@@ -1514,8 +1514,8 @@ contains
         if (.not. allocated(error)) call check(error, compilation_num_errors_found, 1_int64)
         if (.not. allocated(error)) call check(error, compilation_num_warnings_found, 0_int64)
         if (.not. allocated(error)) call check(error, compilation_num_infos_found, 0_int64)
-        compilation_error_regexp_alist_alist = saved_rules
-        compilation_error_regexp_alist = saved_names
+        compilation_error_regexp_table = saved_rules
+        compilation_error_regexp_names = saved_names
         call kill_buffer(h, st)
     end subroutine test_functions
 

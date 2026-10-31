@@ -102,7 +102,8 @@ module simple_fm
                            real_last_command, last_prefix_arg, read_event, &
                            set_transient_map, last_message, disabled_command_hook, &
                            local_function_key_map, unread_command_events
-    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc, deactivate_mark_function
+    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc, deactivate_mark_function, &
+                           ascii_character, prefix_command_update
     implicit none(type, external)
     private
 
@@ -115,7 +116,7 @@ module simple_fm
     public :: set_next_error_function, has_next_error_function, next_error_buffer_p, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, syms_of_simple_next_error
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
-    public :: set_variable
+    public :: set_variable, read_variable
     public :: read_only_mode, what_line, what_line_text
     public :: goto_line, goto_line_relative, count_words, count_words_format
     public :: read_shell_command, shell_command, shell_command_on_region, call_process_shell_command, call_shell_region, &
@@ -521,6 +522,21 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine set_variable
 
+        !> Read the name of a user option and return it in NAME.
+        !> Prompt with PROMPT.  By default, return DEFAULT_VALUE.
+        !> A user option, or customizable variable, is one for which
+        !> `custom_variable_p' returns true.  (Empty input without a
+        !> default gives "".)  Port of minibuf.c:Fread_variable (here, as
+        !> the user options are known to docstrings_fm).  (In
+        !> simple_setvar_fm.)
+        recursive module subroutine read_variable(prompt, name, status, default_value)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            character(len=:), allocatable, intent(out) :: name
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: default_value
+        end subroutine read_variable
+
         !> Set VARIABLE to VALUE, read in the minibuffer.  Port of
         !> simple.el:set-variable (the command).  (In simple_setvar_fm.)
         recursive module subroutine cmd_set_variable(status)
@@ -859,7 +875,7 @@ module simple_fm
             implicit none(type, external)
         end subroutine syms_of_simple_process
 
-        !> Momentarily highlight the beginning of the sexp before point.
+        !> Momentarily highlight the beginning of the expression before point.
         !> Port of simple.el:blink-matching-open.  (In simple_electric_fm,
         !> for paren_fm.)
         recursive module subroutine blink_matching_open(status)
@@ -1196,7 +1212,7 @@ module simple_fm
         !> Compilation mode or Compilation Minor mode.
         !>
         !> To control which errors are matched, customize the variable
-        !> `compilation_error_regexp_alist'.  The rules there determine the
+        !> `compilation_error_regexp_names'.  The rules there determine the
         !> boundaries between error messages.  In general, messages that
         !> share the same line and column numbers are considered parts of a
         !> single error message.  Port of simple.el:next-error.  (In
@@ -1645,8 +1661,7 @@ contains
     !> Should be called by all prefix commands.
     !> Runs `prefix_command_preserve_state_hook'.  Port of
     !> simple.el:prefix-command-preserve-state (with
-    !> universal-argument--preserve; the echo of the prefix state is
-    !> Deferred).
+    !> universal-argument--preserve).
     recursive subroutine prefix_command_preserve_state()
         type(status_type) :: st
 
@@ -1655,6 +1670,7 @@ contains
         current_prefix_arg = last_prefix_arg
         this_command = last_command
         real_this_command = real_last_command
+        call prefix_command_update()
     end subroutine prefix_command_preserve_state
 
     !> The keymap active after C-u: digits, minus and C-u build the
@@ -1693,6 +1709,7 @@ contains
 
     !> Port of simple.el:universal-argument--mode.
     subroutine universal_argument_mode()
+        call prefix_command_update()
         call set_transient_map(universal_argument_map())
     end subroutine universal_argument_mode
 
@@ -1932,59 +1949,6 @@ contains
             arg = arg - 1
         end do
     end subroutine cmd_quoted_insert
-
-    !> The `ascii_character' property of function-key symbol EVENT: the
-    !> character a keypad or other key with a character equivalent stands
-    !> for, or -1 (nil).  The properties bindings.el and simple.el's
-    !> keypad support give.  Not a port.
-    integer(int64) function ascii_character(event) result(c)
-        type(value_type), intent(in) :: event
-        character(len=:), allocatable :: name
-
-        c = -1
-        if (.not. symbolp(event)) return
-        name = symbols(xsymbol(event))%name
-
-        if (len(name) == 4) then
-            if (name(1:3) == "kp-" .and. verify(name(4:4), "0123456789") == 0) then
-                c = iachar(name(4:4))
-                return
-            end if
-        end if
-
-        select case (name)
-        case ("kp-decimal")
-            c = iachar(".")
-        case ("kp-add")
-            c = iachar("+")
-        case ("kp-subtract")
-            c = iachar("-")
-        case ("kp-multiply")
-            c = iachar("*")
-        case ("kp-divide")
-            c = iachar("/")
-        case ("kp-space")
-            c = iachar(" ")
-        case ("kp-tab", "tab")
-            c = 9
-        case ("kp-enter", "return")
-            c = 13
-        case ("kp-separator")
-            c = iachar(",")
-        case ("kp-equal")
-            c = iachar("=")
-        case ("backspace", "delete")
-            c = 127
-        case ("linefeed")
-            c = 10
-        case ("clear")
-            c = 12
-        case ("escape")
-            c = 27
-        case default
-            c = -1
-        end select
-    end function ascii_character
 
     !> Begin a numeric argument for the following command.
     !> Digits or minus sign following \[universal_argument] make up the numeric argument.

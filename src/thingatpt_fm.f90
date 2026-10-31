@@ -25,7 +25,7 @@
 !> Deferred: the rest of thingatpt.el (`thing_at_point' and
 !> `bounds_of_thing_at_point' for the other things, `forward_thing',
 !> `beginning_of_thing', `end_of_thing', the URL, email, UUID and file
-!> name things, `thing_at_point_provider_alist', `sexp_at_point' and the
+!> name things, `thing_at_point_provider_table', `expression_at_point' and the
 !> others), and floating-point numbers (a decimal number with a fraction
 !> is found, but not given as a value).
 module thingatpt_fm

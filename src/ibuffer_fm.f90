@@ -83,7 +83,7 @@ module ibuffer_fm
     use process_fm, only: get_buffer_process, process_status, process_name
     use frame_fm, only: selected_frame, selected_window, frame_lines, frame_cols
     use window_fm, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
-                         display_alist_type, delete_other_windows, split_window, other_window, bury_buffer, &
+                         display_action_table_type, delete_other_windows, split_window, other_window, bury_buffer, &
                          pop_to_buffer, select_window, get_buffer_window, fit_window_to_buffer, window_leaves, window_live_p, &
                          window_configuration_type, current_window_configuration, set_window_configuration
     use view_fm, only: view_buffer
@@ -219,7 +219,7 @@ module ibuffer_fm
     !> If you change this variable, you must kill the Ibuffer buffer and
     !> recreate it for the change to take effect.  Port of ibuffer.el
     !> ibuffer-fontification-alist.
-    type(ibuffer_fontification_type), allocatable, public :: ibuffer_fontification_alist(:)
+    type(ibuffer_fontification_type), allocatable, public :: ibuffer_fontification_table(:)
 
     !> Show buffer sizes in human-readable format.
     !> Use the function `file_size_human_readable' for formatting.  Port
@@ -393,9 +393,9 @@ module ibuffer_fm
     !> ibuffer-filter-group-name-face.
     character(len=:), allocatable, public :: ibuffer_filter_group_name_face
 
-    !> An array of file name abbreviations like `directory_abbrev_alist'.
+    !> An array of file name abbreviations like `directory_abbrev_table'.
     !> Port of ibuffer.el ibuffer-directory-abbrev-alist.
-    type(ibuffer_directory_abbrev_type), allocatable, public :: ibuffer_directory_abbrev_alist(:)
+    type(ibuffer_directory_abbrev_type), allocatable, public :: ibuffer_directory_abbrev_table(:)
 
     !> A list of predicates (a regexp or function) for buffers not to
     !> display.  If a regexp, then it will be matched against the buffer's
@@ -460,7 +460,7 @@ module ibuffer_fm
     !>
     !> You most likely do not want to modify this variable directly; see
     !> `define_ibuffer_filter'.  Port of ibuf-ext.el ibuffer-filtering-alist.
-    type(ibuffer_filter_def_type), allocatable, public :: ibuffer_filtering_alist(:)
+    type(ibuffer_filter_def_type), allocatable, public :: ibuffer_filtering_table(:)
 
     !> Special formats used when a filter is active.
     !>
@@ -469,9 +469,9 @@ module ibuffer_fm
     !> name of the buffer.  You could accomplish that by adding
     !> `call fmts%add([ibuffer_column("mark"), ibuffer_text(" "),
     !> ibuffer_column("name")])' and `call
-    !> ibuffer_filter_format_alist%add("mode", fmts)'.  Port of ibuf-ext.el
+    !> ibuffer_filter_format_table%add("mode", fmts)'.  Port of ibuf-ext.el
     !> ibuffer-filter-format-alist.
-    type(ibuffer_filter_formats_type), public :: ibuffer_filter_format_alist
+    type(ibuffer_filter_formats_type), public :: ibuffer_filter_format_table
 
     !> If true, then use Custom to save interactively changed variables.
     !> Currently, this only applies to `ibuffer_saved_filters' and
@@ -1058,18 +1058,18 @@ contains
 
         if (k > 0) then
             ! ibuffer-active-formats-name: the formats of the last filter in
-            ! `ibuffer_filter_format_alist'.
+            ! `ibuffer_filter_format_table'.
             found = 0
 
-            if (allocated(ibuffer_filter_format_alist%entries)) then
+            if (allocated(ibuffer_filter_format_table%entries)) then
                 do j = 1, size(locals(k)%qualifiers)
-                    i = ibuffer_filter_format_alist%find(filter_symbol(locals(k)%qualifiers(j)))
+                    i = ibuffer_filter_format_table%find(filter_symbol(locals(k)%qualifiers(j)))
                     if (i > 0) found = i
                 end do
             end if
 
             if (found > 0) then
-                f = ibuffer_filter_format_alist%entries(found)%formats
+                f = ibuffer_filter_format_table%entries(found)%formats
                 return
             end if
 
@@ -1830,7 +1830,7 @@ contains
         if (len(dirname) > 0) call expand_file_name(dirname, name, st)
     end function ibuffer_buffer_file_name
 
-    !> Abbreviate FILENAME using `ibuffer_directory_abbrev_alist'.  Port of
+    !> Abbreviate FILENAME using `ibuffer_directory_abbrev_table'.  Port of
     !> ibuffer.el:ibuffer--abbreviate-file-name.
     function ibuffer_abbreviate_file_name(filename) result(abbrev)
         character(len=*), intent(in) :: filename
@@ -1841,9 +1841,9 @@ contains
 
         abbrev = filename
 
-        if (allocated(ibuffer_directory_abbrev_alist)) then
-            do k = 1, size(ibuffer_directory_abbrev_alist)
-                m = string_match(trim(ibuffer_directory_abbrev_alist(k)%from), abbrev, st)
+        if (allocated(ibuffer_directory_abbrev_table)) then
+            do k = 1, size(ibuffer_directory_abbrev_table)
+                m = string_match(trim(ibuffer_directory_abbrev_table(k)%from), abbrev, st)
 
                 if (st%ok() .and. m == 1) then
                     call apply_abbrev(k)
@@ -1862,7 +1862,7 @@ contains
             type(status_type) :: st2
 
             e = match_end(0, st2)
-            abbrev = trim(ibuffer_directory_abbrev_alist(i)%to)//abbrev(e:)
+            abbrev = trim(ibuffer_directory_abbrev_table(i)%to)//abbrev(e:)
         end subroutine apply_abbrev
     end function ibuffer_abbreviate_file_name
 
@@ -2901,20 +2901,20 @@ contains
             face = ibuffer_marked_face
         else if (mark == ibuffer_deletion_char) then
             face = ibuffer_deletion_face
-        else if (allocated(ibuffer_fontification_alist)) then
+        else if (allocated(ibuffer_fontification_table)) then
             level = -1
             old = current_buffer()
 
-            do k = 1, size(ibuffer_fontification_alist)
-                if (ibuffer_fontification_alist(k)%priority <= level) cycle
-                if (.not. associated(ibuffer_fontification_alist(k)%form)) cycle
+            do k = 1, size(ibuffer_fontification_table)
+                if (ibuffer_fontification_table(k)%priority <= level) cycle
+                if (.not. associated(ibuffer_fontification_table(k)%form)) cycle
                 call set_buffer(buf, st)
-                hit = ibuffer_fontification_alist(k)%form()
+                hit = ibuffer_fontification_table(k)%form()
                 call set_buffer(old, st)
 
                 if (hit) then
-                    level = ibuffer_fontification_alist(k)%priority
-                    face = trim(ibuffer_fontification_alist(k)%face)
+                    level = ibuffer_fontification_table(k)%priority
+                    face = trim(ibuffer_fontification_table(k)%face)
                 end if
             end do
         end if
@@ -3726,7 +3726,7 @@ contains
             allocate (grown(n + 1))
             grown(2:n + 1) = ibuffer_sorting_functions
             call move_alloc(grown, ibuffer_sorting_functions)
-            ! (Pushed onto the alist.)
+            ! (Pushed onto the table.)
             k = 1
         end if
 
@@ -3749,15 +3749,15 @@ contains
         type(ibuffer_filter_def_type), allocatable :: grown(:)
         integer :: n
 
-        if (.not. allocated(ibuffer_filtering_alist)) allocate (ibuffer_filtering_alist(0))
-        n = size(ibuffer_filtering_alist)
+        if (.not. allocated(ibuffer_filtering_table)) allocate (ibuffer_filtering_table(0))
+        n = size(ibuffer_filtering_table)
         allocate (grown(n + 1))
-        grown(2:n + 1) = ibuffer_filtering_alist
-        ! (Pushed onto the alist.)
+        grown(2:n + 1) = ibuffer_filtering_table
+        ! (Pushed onto the table.)
         grown(1)%name = name
         grown(1)%description = description
         grown(1)%test => test
-        call move_alloc(grown, ibuffer_filtering_alist)
+        call move_alloc(grown, ibuffer_filtering_table)
     end subroutine define_ibuffer_filter
 
     !> Limit current view to buffers with name matching QUALIFIER.  Port of
@@ -4617,11 +4617,11 @@ contains
             done = .false.
 
             if (nosel) then
-                call display_buffer(buf, window, status, alist=display_alist_type(inhibit_same_window=.true.))
+                call display_buffer(buf, window, status, table=display_action_table_type(inhibit_same_window=.true.))
                 done = status%ok() .and. window%index /= 0
             end if
 
-            if (.not. done) call pop_to_buffer(buf, status, alist=display_alist_type(inhibit_same_window=.true.))
+            if (.not. done) call pop_to_buffer(buf, status, table=display_action_table_type(inhibit_same_window=.true.))
         else if (nosel) then
             call display_buffer(buf, window, status)
         else
@@ -5034,7 +5034,7 @@ contains
     end subroutine read_char
 
     ! ------------------------------------------------------------------
-    ! Fontification forms (the defaults of `ibuffer_fontification_alist')
+    ! Fontification forms (the defaults of `ibuffer_fontification_table')
     ! ------------------------------------------------------------------
 
     ! Not a port.
@@ -5044,7 +5044,7 @@ contains
 
     !> Whether the current buffer visits a compressed file
     !> (`ibuffer_compressed_file_name_regexp'), a default form of
-    !> `ibuffer_fontification_alist'.  Port of ibuffer.el's fontification form.
+    !> `ibuffer_fontification_table'.  Port of ibuffer.el's fontification form.
     recursive logical function form_compressed()
         integer(int64) :: m
         type(status_type) :: st
@@ -5099,15 +5099,15 @@ contains
                                       ibuffer_text(" "), ibuffer_column("filename")])
         end if
 
-        if (.not. allocated(ibuffer_fontification_alist)) then
-            allocate (ibuffer_fontification_alist(7))
-            ibuffer_fontification_alist(1) = ibuffer_fontification_type(10, form_read_only, "font_lock_constant_face")
-            ibuffer_fontification_alist(2) = ibuffer_fontification_type(15, form_compressed, "font_lock_doc_face")
-            ibuffer_fontification_alist(3) = ibuffer_fontification_type(20, form_starred, "font_lock_keyword_face")
-            ibuffer_fontification_alist(4) = ibuffer_fontification_type(25, hidden_current, "italic")
-            ibuffer_fontification_alist(5) = ibuffer_fontification_type(30, form_help_mode, "font_lock_comment_face")
-            ibuffer_fontification_alist(6) = ibuffer_fontification_type(35, form_dired, "font_lock_function_name_face")
-            ibuffer_fontification_alist(7) = ibuffer_fontification_type(40, form_locked, "ibuffer_locked_buffer")
+        if (.not. allocated(ibuffer_fontification_table)) then
+            allocate (ibuffer_fontification_table(7))
+            ibuffer_fontification_table(1) = ibuffer_fontification_type(10, form_read_only, "font_lock_constant_face")
+            ibuffer_fontification_table(2) = ibuffer_fontification_type(15, form_compressed, "font_lock_doc_face")
+            ibuffer_fontification_table(3) = ibuffer_fontification_type(20, form_starred, "font_lock_keyword_face")
+            ibuffer_fontification_table(4) = ibuffer_fontification_type(25, hidden_current, "italic")
+            ibuffer_fontification_table(5) = ibuffer_fontification_type(30, form_help_mode, "font_lock_comment_face")
+            ibuffer_fontification_table(6) = ibuffer_fontification_type(35, form_dired, "font_lock_function_name_face")
+            ibuffer_fontification_table(7) = ibuffer_fontification_type(40, form_locked, "ibuffer_locked_buffer")
         end if
 
         if (.not. allocated(ibuffer_default_sorting_mode)) ibuffer_default_sorting_mode = "recency"
@@ -5133,7 +5133,7 @@ contains
         if (.not. allocated(ibuffer_deletion_face)) ibuffer_deletion_face = "ibuffer_deletion"
         if (.not. allocated(ibuffer_title_face)) ibuffer_title_face = "ibuffer_title"
         if (.not. allocated(ibuffer_filter_group_name_face)) ibuffer_filter_group_name_face = "ibuffer_filter_group_name"
-        if (.not. allocated(ibuffer_directory_abbrev_alist)) allocate (ibuffer_directory_abbrev_alist(0))
+        if (.not. allocated(ibuffer_directory_abbrev_table)) allocate (ibuffer_directory_abbrev_table(0))
         if (.not. allocated(ibuffer_never_show_predicates)) allocate (ibuffer_never_show_predicates(0))
         if (.not. allocated(ibuffer_always_show_predicates)) allocate (ibuffer_always_show_predicates(0))
 
@@ -5190,7 +5190,7 @@ contains
         end if
 
         if (.not. allocated(ibuffer_saved_filter_groups%entries)) allocate (ibuffer_saved_filter_groups%entries(0))
-        if (.not. allocated(ibuffer_filter_format_alist%entries)) allocate (ibuffer_filter_format_alist%entries(0))
+        if (.not. allocated(ibuffer_filter_format_table%entries)) allocate (ibuffer_filter_format_table%entries(0))
         call ibuffer_marked_face_def%define("ibuffer_marked", "Face used by default in `ibuffer_marked_face'.")
         call ibuffer_marked_face_def%spec_entry(display_when(), face_attrs(inherit="warning"))
         call ibuffer_deletion_face_def%define("ibuffer_deletion", "Face used by default in `ibuffer_deletion_face'.")

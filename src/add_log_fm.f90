@@ -25,15 +25,15 @@
 !> `*changes to DIR*' buffer standing for one that doesn't exist
 !> (`add_log_find_changelog_buffer'), the options naming the user and the
 !> date in ChangeLog headers, Change Log mode with its faces, and
-!> `change_log_read_defuns' (for `log_edit_fill_entry').
+!> `change_log_read_subprograms' (for `log_edit_fill_entry').
 !>
 !> Deferred: adding entries (`add_change_log_entry', C-x 4 a, and
-!> `add_change_log_entry_other_window', with `add_log_current_defun'
+!> `add_change_log_entry_other_window', with `add_log_current_subprogram'
 !> and its language support), the commands of `change_log_mode_map'
 !> (`add_log_edit_prev_comment', `add_log_edit_next_comment',
 !> `change_log_find_file', `change_log_goto_source') and next-error
 !> support, `change_log_font_lock_keywords', Change Log mode's
-!> filling, indentation, defun motion, `show_trailing_whitespace',
+!> filling, indentation, subprogram motion, `show_trailing_whitespace',
 !> `adaptive_fill_regexp', `comment_start' and
 !> `version_control' settings (those settings are not buffer-local
 !> yet), merging change logs, `add_log_mailing_address' as a list,
@@ -62,7 +62,7 @@ module add_log_fm
 
     public :: find_change_log, change_log_name, add_log_find_changelog_buffer, add_log_pseudo_changelog_buffer_name, &
               add_log_iso8601_time_string, change_log_mode, syms_of_add_log
-    public :: change_log_string_type, change_log_read_defuns
+    public :: change_log_string_type, change_log_read_subprograms
 
     !> A string of a list (function names).
     type :: change_log_string_type
@@ -156,7 +156,7 @@ contains
     !> Read ChangeLog formatted function names at point until END.
     !> Move point to the end of names read and return the function names
     !> as a list of strings.  Port of add-log.el:change-log-read-defuns.
-    recursive subroutine change_log_read_defuns(names, status, end)
+    recursive subroutine change_log_read_subprograms(names, status, end)
         use editfns_fm, only: point, goto_char
         use syntax_fm, only: skip_chars_forward, skip_chars_backward
         use search_fm, only: looking_at, match_end
@@ -227,7 +227,7 @@ contains
             grown(n + 1)%s = name
             call move_alloc(grown, names)
         end subroutine add
-    end subroutine change_log_read_defuns
+    end subroutine change_log_read_subprograms
 
     !> Return the date in ISO 8601 form (YYYY-MM-DD), local time, as S.
     !> Port of add-log.el:add-log-iso8601-time-string (no

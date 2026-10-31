@@ -31,7 +31,7 @@
 !> Text is decoded on reading and encoded on writing by a coding system
 !> (coding_fm), chosen as upstream chooses it: `coding_system_for_read'
 !> or `coding_system_for_write', the coding system the file names in
-!> itself (`set_auto_coding_function'), `file_coding_system_alist', and
+!> itself (`set_auto_coding_function'), `file_coding_system_table', and
 !> `buffer_file_coding_system'; text that the chosen coding system cannot
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_fm
@@ -63,10 +63,11 @@ module fileio_fm
                          ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
                          emacs_umask, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, O_WRONLY, O_CREAT, O_EXCL, &
                          O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
+    use keyboard_fm, only: dribble_fd
     implicit none(type, external)
     private
 
-    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target
+    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target, open_dribble_file
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_proc, &
               copy_directory_proc
     public :: set_auto_coding_proc, after_insert_file_set_coding_proc, select_safe_coding_system_proc, &
@@ -131,7 +132,7 @@ module fileio_fm
     !> Two arguments are passed to this function: the file name
     !> and the length of a file contents following the point.
     !> This function should return a coding system to decode the file contents.
-    !> It should check the file name against `auto_coding_alist'.
+    !> It should check the file name against `auto_coding_table'.
     !> If no coding system is decided, it should check a coding system
     !> specified in the heading lines with the format:
     !>         -*- ... coding: CODING-SYSTEM; ... -*-
@@ -1864,7 +1865,7 @@ contains
     !> The coding system for writing the text between START and END of
     !> the current buffer to FILENAME: `coding_system_for_write', else
     !> the buffer's own `buffer_file_coding_system', else
-    !> `file_coding_system_alist''s, else the default
+    !> `file_coding_system_table''s, else the default
     !> `buffer_file_coding_system', confirmed by
     !> `select_safe_coding_system_function' and given an end-of-line type.
     !> Port of fileio.c:choose_write_coding_system (no auto-saving).
@@ -1952,7 +1953,7 @@ contains
 
     !> Whether regexp PATTERN matches file name NAME, case-sensitively
     !> (search.c:fast_string_match, as `find_operation_coding_system' and
-    !> the auto-coding alists match).  Not a port.
+    !> the auto-coding tables match).  Not a port.
     logical function file_name_match_p(pattern, name)
         character(len=*), intent(in) :: pattern, name
         type(status_type) :: st
@@ -2065,4 +2066,52 @@ contains
 
         call report_file_errno("Making symbolic link", target//", "//name, err, status)
     end subroutine make_symbolic_link
+
+    !> Start writing input events to a dribble file called FILE.
+    !> Any previously open dribble file will be closed first.  If FILE is
+    !> absent, just close the dribble file, if any.
+    !>
+    !> If the file is still open when Emacs exits, it will be closed then.
+    !>
+    !> The events written to the file include keyboard and mouse input
+    !> events, but not events from executing keyboard macros.  The events are
+    !> written to the dribble file immediately without line buffering.
+    !>
+    !> Be aware that this records ALL characters you type!
+    !> This may include sensitive information such as passwords.  Port of
+    !> keyboard.c:Fopen_dribble_file (here, as it expands FILE; keyboard_fm
+    !> writes the events).
+    recursive subroutine open_dribble_file(status, file)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: file
+        character(len=:), allocatable :: name
+        integer(int32) :: fd, err
+
+        status = status_type()
+
+        if (dribble_fd >= 0) then
+            call close_fd(dribble_fd)
+            dribble_fd = -1
+        end if
+
+        if (.not. present(file)) return
+        call expand_file_name(file, name, status)
+        if (.not. status%ok()) return
+        err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+
+        if (err == EEXIST) then
+            if (sys_unlink(name) == 0) then
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+            else if (sys_unlink(name) == ENOENT) then
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+            end if
+        end if
+
+        if (err /= 0) then
+            call report_file_errno("Opening dribble", name, err, status)
+            return
+        end if
+
+        dribble_fd = fd
+    end subroutine open_dribble_file
 end module fileio_fm
