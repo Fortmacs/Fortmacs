@@ -129,7 +129,7 @@ module window_fm
     !> A buffer display action table: the entries ported.  Port of the
     !> `inhibit_same_window', `window_height' (a function) and
     !> `body_function' entries.
-    type, public :: display_alist_type
+    type, public :: display_action_table_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
         !> Called with a window made to display the buffer, to set its
@@ -139,7 +139,7 @@ module window_fm
         !> current, read-only text and modification hooks inhibited), to
         !> fill it before its size is adjusted.
         procedure(window_height_function), pointer, nopass :: body_function => null()
-    end type display_alist_type
+    end type display_action_table_type
 
     !> A buffer display action given in full: action functions
     !> (DISPLAY_ACTION_*) and the table entries it sets (here
@@ -739,7 +739,7 @@ module window_fm
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: table
+            type(display_action_table_type), intent(in), optional :: table
         end subroutine display_buffer
 
         !> Display BUFFER and select its window.  Port of
@@ -749,7 +749,7 @@ module window_fm
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: table
+            type(display_action_table_type), intent(in), optional :: table
             logical, intent(in), optional :: norecord
         end subroutine pop_to_buffer
 
@@ -831,7 +831,7 @@ module window_fm
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: table
+            type(display_action_table_type), intent(in), optional :: table
         end subroutine temp_buffer_window_show
 
         !> Scroll WINDOW up (DIRECTION 1) or down (-1) by nearly a full

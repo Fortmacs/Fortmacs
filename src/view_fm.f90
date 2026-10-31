@@ -54,7 +54,7 @@ module view_fm
     use files_fm, only: find_file_noselect, view_read_only
     use window_fm, only: windows, window_live_p, window_leaves, window_body_lines, scroll_up_command, &
                          scroll_down_command, recenter, pos_visible_in_window_p, quit_window, switch_to_buffer, &
-                         pop_to_buffer, display_alist_type, next_screen_context_lines, scroll_error_top_bottom, &
+                         pop_to_buffer, display_action_table_type, next_screen_context_lines, scroll_error_top_bottom, &
                          other_buffer, same_handle, QR_NONE
     use frame_fm, only: selected_frame, selected_window
     use keymap_fm, only: keymap_set
@@ -468,7 +468,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), optional :: exit_action
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer t))
         table%inhibit_same_window = .true.

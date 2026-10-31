@@ -110,7 +110,7 @@ module bookmark_fm
     use help_fm, only: substitute_command_keys
     use window_fm, only: windows, get_buffer_window, set_window_point, pop_to_buffer, pop_to_buffer_same_window, &
                          switch_to_buffer_other_window, quit_window, window_configuration_type, &
-                         current_window_configuration, set_window_configuration, display_alist_type, switch_to_buffer
+                         current_window_configuration, set_window_configuration, display_action_table_type, switch_to_buffer
     use faces_fm, only: named_face_type, face_attrs, display_when, FACE_CLASS_COLOR, FACE_CLASS_GRAYSCALE, &
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use xdisp_fm, only: message
@@ -2857,7 +2857,7 @@ contains
         old_buf = current_buffer()
         call get_buffer_create("*Bookmark Annotation*", buf, status)
         if (.not. status%ok()) return
-        call pop_to_buffer(buf, status, table=display_alist_type(inhibit_same_window=.true.))
+        call pop_to_buffer(buf, status, table=display_action_table_type(inhibit_same_window=.true.))
         if (.not. status%ok()) return
         call set_buffer(buf, st)
         buffers(cur)%read_only = .false.
@@ -2888,7 +2888,7 @@ contains
         old_buffer = current_buffer()
         call get_buffer_create("*Bookmark Annotation*", buf, status)
         if (.not. status%ok()) return
-        call pop_to_buffer(buf, status, table=display_alist_type(inhibit_same_window=.true.))
+        call pop_to_buffer(buf, status, table=display_action_table_type(inhibit_same_window=.true.))
         if (.not. status%ok()) return
         call set_buffer(buf, st)
         buffers(cur)%read_only = .false.
@@ -3554,7 +3554,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
-        call display_buffer(buffer, window, status, table=display_alist_type(inhibit_same_window=.true.))
+        call display_buffer(buffer, window, status, table=display_action_table_type(inhibit_same_window=.true.))
     end subroutine display_not_this_window
 
     !> Show the annotation for the current bookmark in another window.

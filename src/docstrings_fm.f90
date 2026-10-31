@@ -932,22 +932,22 @@ module docstrings_fm
                                                    "show_paren__default", "show_paren_default_predicate", "show_paren_local_mode", &
                                            "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                             "skip_syntax_forward", "smie__next_indent_change", "smie_backward_expression_command", &
-                                         "smie_close_block", "smie_down_list", "smie_forward_expression_command", "spaces_string", &
-                                                       "special_mode", "split_window", "split_window_below", "split_window_right", &
-                                                        "standard_case_table", "standard_category_table", "standard_syntax_table", &
-                                                    "start_kbd_macro", "start_process", "string_insert_rectangle", "string_match", &
-                                              "string_match_p", "string_rectangle", "substitute_command_keys", "switch_to_buffer", &
-                                                       "syntax_table", "syntax_table_p", "tab_to_tab_stop", "tabulated_list_mode", &
-                                                             "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
-                                                 "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
-                                                   "tabulated_list_widen_current_column", "text_mode", "this_command_keys_vector", &
-                                                "this_single_command_keys", "this_single_command_raw_keys", "timerp", "top_level", &
-                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
-                                              "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
-                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
-                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
-                                            "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
-                                                                    "universal_argument_minus", "universal_argument_more", &
+                                                         "smie_close_block", "smie_down_group", "smie_forward_expression_command", &
+                                                            "spaces_string", "special_mode", "split_window", "split_window_below", &
+                                                           "split_window_right", "standard_case_table", "standard_category_table", &
+                                           "standard_syntax_table", "start_kbd_macro", "start_process", "string_insert_rectangle", &
+                                                  "string_match", "string_match_p", "string_rectangle", "substitute_command_keys", &
+                                                          "switch_to_buffer", "syntax_table", "syntax_table_p", "tab_to_tab_stop", &
+                                                                    "tabulated_list_mode", "tabulated_list_narrow_current_column", &
+                                          "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
+                                                        "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
+                                           "this_command_keys_vector", "this_single_command_keys", "this_single_command_raw_keys", &
+                                               "timerp", "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
+                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
+                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
+                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
+                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
+                                                      "universal_argument", "universal_argument_minus", "universal_argument_more", &
                                                       "universal_coding_system_argument", "up_group", "upcase", "upcase_initials", &
                                                      "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
                                                     "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
@@ -12587,7 +12587,7 @@ contains
             entry%file = "smie_fm.f90"
             entry%interactive = .true.
             entry%doc = "Close the closest surrounding block."
-        case ("smie_down_list")
+        case ("smie_down_group")
             entry%file = "smie_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move forward down one level paren-like blocks.  Like `down_group'."//LF// &

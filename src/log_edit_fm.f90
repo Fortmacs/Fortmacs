@@ -83,7 +83,7 @@ module log_edit_fm
     use fill_fm, only: string_width, fill_paragraph_function
     use indent_fm, only: current_column
     use buffer_fm, only: fill_column, get_file_buffer
-    use window_fm, only: display_alist_type, shrink_window_if_larger_than_buffer, DISPLAY_ACTION_BELOW_SELECTED, &
+    use window_fm, only: display_action_table_type, shrink_window_if_larger_than_buffer, DISPLAY_ACTION_BELOW_SELECTED, &
                          display_buffer_mark_dedicated, DEDICATED_STRONG, display_buffer, get_buffer_window, &
                          bury_buffer, quit_windows_on, delete_window
     use marker_fm, only: copy_marker_at, marker_position, free_marker
@@ -1331,7 +1331,7 @@ contains
         type(log_edit_string_type), allocatable :: files(:)
         type(cvs_string_type), allocatable :: strings(:)
         type(handle_type) :: buf, old, win
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         type(status_type) :: st
         integer :: k, saved_dedicated
 

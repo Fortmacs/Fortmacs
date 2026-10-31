@@ -118,7 +118,7 @@ module info_fm
     use indent_fm, only: current_column, move_to_column
     use simple_fm, only: kill_new, count_lines, pos_visible_in_window_p, deactivate_mark, line_number_at_pos
     use window_fm, only: windows, display_buffer, select_window, get_buffer_window, window_start, set_window_start, &
-                         scroll_up, scroll_down, recenter, display_alist_type, DISPLAY_ACTION_SAME_WINDOW, &
+                         scroll_up, scroll_down, recenter, display_action_table_type, DISPLAY_ACTION_SAME_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
                          free_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer, pop_to_buffer
     use frame_fm, only: selected_window, selected_frame, frame_window_p
@@ -2045,7 +2045,7 @@ contains
         logical, intent(in), optional :: other_window
         type(handle_type), intent(in), optional :: buffer_handle
         type(handle_type) :: buffer, old, window
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         type(info_history_entry_type), allocatable :: history(:)
         type(status_type) :: st
         logical :: other

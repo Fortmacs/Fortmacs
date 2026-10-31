@@ -1023,9 +1023,9 @@ contains
     ! ------------------------------------------------------------------
 
     !> Port of syntax.c:scan_lists (0 is nil).
-    recursive integer(int64) function scan_groups_1(from0, count_in, depth_in, expressionflag, status) result(pos)
+    recursive integer(int64) function scan_groups_1(from0, count_in, depth_in, expression_flag, status) result(pos)
         integer(int64), intent(in) :: from0, count_in, depth_in
-        logical, intent(in) :: expressionflag
+        logical, intent(in) :: expression_flag
         type(status_type), intent(out) :: status
         integer, parameter :: A_NONE = 0, A_WORD = 1, A_COMMENT = 2, A_OPEN = 3, A_CLOSE = 4, A_STRING = 5
         integer(int64) :: stop, count, depth, min_depth, last_good, from, from_byte, temp_pos, out_charpos, &
@@ -1052,7 +1052,7 @@ contains
         ! Err out if depth gets less than this.
         min_depth = depth
         last_good = from0
-        multibyte_symbol_p = expressionflag .and. multibyte_syntax_as_symbol
+        multibyte_symbol_p = expression_flag .and. multibyte_syntax_as_symbol
         if (depth > 0) min_depth = 0
         from_byte = char_to_byte(from)
 
@@ -1108,7 +1108,7 @@ contains
                 case (SCOMMENT)
                     action = A_COMMENT
                 case (SMATH)
-                    if (expressionflag) then
+                    if (expression_flag) then
                         if (from /= stop) then
                             if (c == fetch(from_byte)) call inc_both(from, from_byte)
                         end if
@@ -1134,7 +1134,7 @@ contains
 
                 select case (action)
                 case (A_WORD)
-                    if (depth /= 0 .or. .not. expressionflag) cycle forward
+                    if (depth /= 0 .or. .not. expression_flag) cycle forward
 
                     ! This word counts as an expression; return at end of it.
                     do while (from < stop)
@@ -1222,7 +1222,7 @@ contains
 
                     call inc_both(from, from_byte)
 
-                    if (depth == 0 .and. expressionflag) then
+                    if (depth == 0 .and. expression_flag) then
                         done = .true.
                         exit forward
                     end if
@@ -1284,7 +1284,7 @@ contains
 
                 select case (code)
                 case (SWORD, SSYMBOL, SESCAPE, SCHARQUOTE)
-                    if (depth /= 0 .or. .not. expressionflag) cycle backward
+                    if (depth /= 0 .or. .not. expression_flag) cycle backward
 
                     ! This word counts as an expression; count object finished
                     ! after passing it.
@@ -1320,7 +1320,7 @@ contains
                     action = A_NONE
 
                     if (code == SMATH) then
-                        if (.not. expressionflag) cycle backward
+                        if (.not. expression_flag) cycle backward
 
                         if (from > buffers(cur)%begv) then
                             temp_pos = dec_bytepos(from_byte)
@@ -1389,7 +1389,7 @@ contains
                         end if
                     end do
 
-                    if (code == SSTRING_FENCE .and. depth == 0 .and. expressionflag) then
+                    if (code == SSTRING_FENCE .and. depth == 0 .and. expression_flag) then
                         done = .true.
                         exit backward
                     end if
@@ -1410,7 +1410,7 @@ contains
                         end if
                     end do
 
-                    if (depth == 0 .and. expressionflag) then
+                    if (depth == 0 .and. expression_flag) then
                         done = .true.
                         exit backward
                     end if

@@ -1984,7 +1984,7 @@ contains
     ! `f90_beginning_of_subprogram' as `beginning_of_subprogram_function'
     ! (called with ARG, so INTERACTIVE is true).
     ! Not a port.
-    recursive subroutine f90_beginning_of_defun(arg, found, status)
+    recursive subroutine f90_subprogram_start(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -1994,17 +1994,17 @@ contains
         ! ARG is the INTERACTIVE argument: true, as any number is.
         b = f90_beginning_of_subprogram(arg == arg)
         found = b%found
-    end subroutine f90_beginning_of_defun
+    end subroutine f90_subprogram_start
 
     ! `f90_end_of_subprogram' as `end_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine f90_end_of_defun(status)
+    recursive subroutine f90_subprogram_end(status)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
 
         status = status_type()
         b = f90_end_of_subprogram()
-    end subroutine f90_end_of_defun
+    end subroutine f90_subprogram_end
 
     !> Move point to the end of the current subprogram.
     !> Return (TYPE NAME), or nil if not found.  Port of
@@ -3827,8 +3827,8 @@ contains
         call normal_auto_fill_function%set_local(f90_do_auto_fill)
         call indent_tabs_mode%set_local(.false.) ! auto buffer local
         call fill_paragraph_function%set_local(f90_fill_paragraph)
-        call beginning_of_subprogram_function%set_local(f90_beginning_of_defun)
-        call end_of_subprogram_function%set_local(f90_end_of_defun)
+        call beginning_of_subprogram_function%set_local(f90_subprogram_start)
+        call end_of_subprogram_function%set_local(f90_subprogram_end)
         levels(1) = font_lock_keywords_level(f90_font_lock_keywords)
         levels(2) = font_lock_keywords_level(f90_font_lock_keywords_1)
         levels(3) = font_lock_keywords_level(f90_font_lock_keywords_2)

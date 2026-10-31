@@ -77,7 +77,7 @@ module register_fm
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, window_configuration_type, current_window_configuration, &
                          set_window_configuration, free_window_configuration, switch_to_buffer, temp_buffer_window_show, &
-                         display_alist_type, DISPLAY_ACTION_AT_BOTTOM, fit_window_to_buffer, get_buffer_window, &
+                         display_action_table_type, DISPLAY_ACTION_AT_BOTTOM, fit_window_to_buffer, get_buffer_window, &
                          delete_window, window_live_p, window_leaves, windows, same_window, window_text_cols
     use fileio_fm, only: expand_file_name
     use files_fm, only: find_file
@@ -563,7 +563,7 @@ contains
         integer(int64) :: t
         integer :: k, j
         type(handle_type) :: old, buf, window
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: old_dir
 

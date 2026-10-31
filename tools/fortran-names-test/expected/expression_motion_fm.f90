@@ -24,6 +24,6 @@ contains
         call scan_groups(arg, halfexpression, status)
         if (.not. status%ok()) call set_error(status, "No next expression")
         call temp_buffer("(defun foo ()")
-        call smie_down_list()
+        call smie_down_group()
     end subroutine forward_expression
 end module expression_motion_fm

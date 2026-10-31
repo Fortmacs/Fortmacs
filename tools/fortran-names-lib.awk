@@ -51,6 +51,8 @@ function load_names(table, line, f, n, lineno) {
             fn_terms[tolower(f[2])] = f[3]
             fn_terms[tolower(f[2]) "s"] = f[3] "s"
             fn_cand = fn_cand (fn_cand == "" ? "" : "|") tolower(f[2])
+        } else if (f[1] == "name" && n == 4) {
+            add_scoped_name(f[2], f[3], f[4])
         } else if (f[1] == "name" && n == 3) {
             add_name(f[2], f[3])
         } else if (f[1] == "file" && n == 3) {
@@ -68,6 +70,27 @@ function load_names(table, line, f, n, lineno) {
     }
     close(table)
     if (lineno == 0) fail(table ": no such table")
+}
+
+# A name for the FILES only (paths separated by spaces).
+function add_scoped_name(old, new, files, k, m, fl) {
+    old = tolower(old)
+    m = split(files, fl, " ")
+    for (k = 1; k <= m; k++) {
+        fn_sfiles[old] = fn_sfiles[old] " " fl[k]
+        fn_snames[old, fl[k]] = new
+    }
+    m = split(old, fn_scratch, "_")
+    if (m > fn_maxparts) fn_maxparts = m
+    fn_cand = fn_cand (fn_cand == "" ? "" : "|") old
+}
+
+# The name KEY has in the current file by a scoped name entry, or "".
+function scoped_name(key, k, m, fl) {
+    if (!(key in fn_sfiles)) return ""
+    m = split(fn_sfiles[key], fl, " ")
+    for (k = 1; k <= m; k++) if (is_file(fl[k])) return fn_snames[key, fl[k]]
+    return ""
 }
 
 # Whether the current file is kept whole.
@@ -95,7 +118,7 @@ function casefix(orig, new) {
 
 # TOK (an identifier or word) renamed.  Sets `fn_first' to whether its first
 # part changed.
-function rename(tok, n, i, j, len, key, out, seg, done, lp) {
+function rename(tok, n, i, j, len, key, out, seg, done, lp, sn) {
     n = split(tok, fn_part, "_")
     out = ""
     fn_first = 0
@@ -106,7 +129,13 @@ function rename(tok, n, i, j, len, key, out, seg, done, lp) {
             seg = fn_part[i]
             for (j = i + 1; j < i + len; j++) seg = seg "_" fn_part[j]
             key = tolower(seg)
-            if ((key in fn_keeps) && kept(key)) {
+            sn = (i == 1 ? scoped_name(key) : "")
+            if (sn != "") {
+                out = out (i > 1 ? "_" : "") casefix(seg, sn)
+                if (i == 1) fn_first = 1
+                i += len
+                done = 1
+            } else if ((key in fn_keeps) && kept(key)) {
                 out = out (i > 1 ? "_" : "") seg
                 i += len
                 done = 1

@@ -784,13 +784,13 @@ contains
             locals(k)%syntax_table_affects_ppss = .false.
             locals(k)%syntax_table = null_handle()
 
-            if (allocated(defaults%syntax_alist)) then
-                if (size(defaults%syntax_alist) > 0) then
+            if (allocated(defaults%syntax_modifications)) then
+                if (size(defaults%syntax_modifications) > 0) then
                     call copy_syntax_table(locals(k)%syntax_table, status, syntax_table())
                     if (.not. status%ok()) return
 
-                    do i = 1, size(defaults%syntax_alist)
-                        associate (selem => defaults%syntax_alist(i))
+                    do i = 1, size(defaults%syntax_modifications)
+                        associate (selem => defaults%syntax_modifications(i))
                             do j = 1, len(selem%chars)
                                 call modify_syntax_entry(ichar(selem%chars(j:j)), ichar(selem%chars(j:j)), selem%syntax, &
                                                          status, locals(k)%syntax_table)

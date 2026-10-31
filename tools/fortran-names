@@ -16,10 +16,12 @@
 #       OLD as an underscore-delimited part of any identifier or as a
 #       word of prose, and its plural OLD + "s" (NEW + "s"):
 #       forward_sexp -> forward_expression, "sexps" -> "expressions".
-#   name<TAB>OLD<TAB>NEW
+#   name<TAB>OLD<TAB>NEW[<TAB>FILE...]
 #       the identifier OLD, also as a run of underscore-delimited parts
 #       of a longer one (cmd_forward_list -> cmd_forward_group).  Names
-#       are tried before terms, the longest first.
+#       are tried before terms, the longest first.  With FILEs (paths
+#       separated by spaces), the name applies in those files only, to an
+#       identifier that starts with OLD, before any other entry for OLD.
 #   file<TAB>OLD<TAB>NEW
 #       a module: its files (src/OLD.f90, test/test_OLD.f90) are renamed
 #       and OLD is a name; when both end in "_fm" the stems are names
@@ -56,12 +58,21 @@ term	defun	subprogram
 # A balanced expression.
 term	sexp	expression
 name	halfsexp	halfexpression
-name	sexpflag	expressionflag
+name	sexpflag	expression_flag
 
 # An association list.
 term	alist	table
 name	compilation_error_regexp_alist_alist	compilation_error_regexp_table
 name	compilation_error_regexp_alist	compilation_error_regexp_names
+name	abbrev_minor_mode_table_alist	abbrev_minor_mode_tables
+# font-lock-defaults' SYNTAX-ALIST (syntax_table is a syntax table).
+name	syntax_alist	syntax_modifications
+# The display-buffer action alist (display_table_type would be a display
+# table, disptab.h).
+name	display_alist_type	display_action_table_type
+# Vbuffer_alist and Vprocess_alist (their modules already have a `table').
+name	alist	buffer_order	src/buffer_fm.f90 src/buffer_ops_fm.f90
+name	alist	process_order	src/process_fm.f90
 
 # A list in the sense of a parenthesised group.
 name	forward_list	forward_group
@@ -71,23 +82,10 @@ name	down_list	down_group
 name	backward_up_list	backward_up_group
 name	kill_backward_up_list	kill_backward_up_group
 name	scan_lists	scan_groups
+name	smie_down_list	smie_down_group
 
 # Modules.
 file	lisp_cmds_fm	expression_motion_fm
-
-# Awaiting the owner (PORTING.md, "Fortran names for Lisp terms"):
-# smie-down-list (a list in the group sense, not in the list above);
-keep	smie_down_list
-# abbrev-minor-mode-table-alist (would read abbrev_minor_mode_table_table);
-keep	abbrev_minor_mode_table_alist
-# font-lock-defaults' SYNTAX-ALIST (syntax_table is a syntax table);
-keep	syntax_alist
-# the display-buffer action alist (display_table_type would be a display
-# table, disptab.h);
-keep	display_alist_type
-# Vbuffer_alist and Vprocess_alist (their modules already have a `table').
-keep	alist	src/buffer_fm.f90 src/buffer_ops_fm.f90 src/process_fm.f90
-keep	alist_count	src/buffer_fm.f90 src/buffer_ops_fm.f90 src/process_fm.f90
 
 # Lisp that stays Lisp.
 # The commands of upstream's run-time Lisp evaluation, which test_bindings_fm
@@ -116,8 +114,9 @@ keep	"DEFUN"
 # collects the function names in a Lisp program, and window.el code.
 keep	"defun\s +\(\S +\)"
 keep	"(selected-window) alist)"
+
 # f90_fm's adapters of f90-beginning-of-subprogram and f90-end-of-subprogram
-# to beginning_of_subprogram_function and end_of_subprogram_function: their
-# Fortran names would be those of the f90.el commands they adapt.
-keep	f90_beginning_of_defun	src/f90_fm.f90
-keep	f90_end_of_defun	src/f90_fm.f90
+# to beginning_of_subprogram_function and end_of_subprogram_function (the
+# plain renames would take the names of the f90.el commands they adapt).
+name	f90_beginning_of_defun	f90_subprogram_start
+name	f90_end_of_defun	f90_subprogram_end

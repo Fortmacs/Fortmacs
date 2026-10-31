@@ -121,7 +121,7 @@ module compile_fm
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use xdisp_fm, only: message, mode_line_part_type, set_mode_line_process, add_mode_line_modes_entry, tab_width
     use window_fm, only: windows, display_buffer, set_window_start, set_window_point, pop_to_buffer, switch_to_buffer, &
-                         get_buffer_window, select_window, display_alist_type, pop_up_windows
+                         get_buffer_window, select_window, display_action_table_type, pop_up_windows
     use frame_fm, only: selected_frame
     use keymap_fm, only: set_keymap_parent, keymap_set
     use modes_fm, only: major_modes, minor_modes
@@ -3694,7 +3694,7 @@ contains
     recursive subroutine compilation_goto_locus(msg, mk, end_mk, status)
         type(handle_type), intent(in) :: msg, mk, end_mk
         type(handle_type) :: msg_buffer, mk_buffer, pre_existing, w, selected
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         type(status_type) :: st
         type(status_type), intent(out) :: status
         logical :: from_compilation_buffer, saved_pop_up

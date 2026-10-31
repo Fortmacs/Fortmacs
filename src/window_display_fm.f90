@@ -1378,7 +1378,7 @@ contains
         type(handle_type), intent(in) :: buffer, h
         integer, intent(in) :: type
         type(status_type), intent(out) :: status
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(handle_type) :: window
 
         status = status_type()
@@ -1420,7 +1420,7 @@ contains
     !> `inhibit_read_only' and `inhibit_modification_hooks' true.
     !> Not a port.
     subroutine run_body_function(table, h)
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(handle_type), intent(in) :: h
         type(value_type) :: saved
         type(status_type) :: st
@@ -1453,7 +1453,7 @@ contains
     !> Port of window.el:display-buffer-same-window.
     function display_buffer_same_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
@@ -1473,7 +1473,7 @@ contains
     !> window.el:display-buffer-reuse-window.
     function display_buffer_reuse_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         type(handle_type), allocatable :: list(:)
@@ -1508,7 +1508,7 @@ contains
     !> window.el:display-buffer-pop-up-window.
     function display_buffer_pop_up_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
@@ -1531,7 +1531,7 @@ contains
     !> entry).
     function display_buffer_in_previous_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, best, second_best, sw
         type(handle_type), allocatable :: list(:)
@@ -1621,7 +1621,7 @@ contains
     !> window.el:display-buffer-use-some-window (`some_window' nil).
     function display_buffer_use_some_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         integer :: delta
@@ -1664,7 +1664,7 @@ contains
     !> frame.  Port of window.el:display-buffer-at-bottom.
     function display_buffer_at_bottom(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, bottom_window
         type(handle_type), allocatable :: list(:)
@@ -1729,7 +1729,7 @@ contains
     !> entry).
     function display_buffer_below_selected(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
@@ -1857,7 +1857,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: norecord
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         logical :: saved
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer-or-name t norecord))
@@ -1872,7 +1872,7 @@ contains
     function display_buffer_action(action, buffer, table, status) result(window)
         integer, intent(in) :: action
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: table
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
@@ -1921,11 +1921,11 @@ contains
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: table
+        type(display_action_table_type), intent(in), optional :: table
         integer, parameter :: fallback(5) = [DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, &
                                              DISPLAY_ACTION_MAYBE_POP_UP_WINDOW, DISPLAY_ACTION_IN_PREVIOUS_WINDOW, &
                                              DISPLAY_ACTION_USE_SOME_WINDOW]
-        type(display_alist_type) :: al
+        type(display_action_table_type) :: al
         integer :: k
 
         status = status_type()
@@ -1973,7 +1973,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: table
+        type(display_action_table_type), intent(in), optional :: table
         logical, intent(in), optional :: norecord
         type(handle_type) :: window
 
@@ -2082,7 +2082,7 @@ contains
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: table
+        type(display_action_table_type), intent(in), optional :: table
         type(handle_type) :: saved
 
         window = null_handle()

@@ -1007,7 +1007,7 @@ module commands_fm
         type(command_type) :: smie__next_indent_change
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
-        type(command_type) :: smie_down_list
+        type(command_type) :: smie_down_group
         type(command_type) :: smie_forward_expression_command
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
@@ -2124,7 +2124,7 @@ module commands_fm
                                                                   "smie__next_indent_change", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
-                                                                  "smie_down_list", &
+                                                                  "smie_down_group", &
                                                                   "smie_forward_expression_command", &
                                                                   "special_mode", &
                                                                   "split_window_below", &
@@ -4220,8 +4220,8 @@ contains
             p => commands%smie_backward_expression_command
         case ("smie_close_block")
             p => commands%smie_close_block
-        case ("smie_down_list")
-            p => commands%smie_down_list
+        case ("smie_down_group")
+            p => commands%smie_down_group
         case ("smie_forward_expression_command")
             p => commands%smie_forward_expression_command
         case ("special_mode")

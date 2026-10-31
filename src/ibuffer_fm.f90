@@ -83,7 +83,7 @@ module ibuffer_fm
     use process_fm, only: get_buffer_process, process_status, process_name
     use frame_fm, only: selected_frame, selected_window, frame_lines, frame_cols
     use window_fm, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
-                         display_alist_type, delete_other_windows, split_window, other_window, bury_buffer, &
+                         display_action_table_type, delete_other_windows, split_window, other_window, bury_buffer, &
                          pop_to_buffer, select_window, get_buffer_window, fit_window_to_buffer, window_leaves, window_live_p, &
                          window_configuration_type, current_window_configuration, set_window_configuration
     use view_fm, only: view_buffer
@@ -4617,11 +4617,11 @@ contains
             done = .false.
 
             if (nosel) then
-                call display_buffer(buf, window, status, table=display_alist_type(inhibit_same_window=.true.))
+                call display_buffer(buf, window, status, table=display_action_table_type(inhibit_same_window=.true.))
                 done = status%ok() .and. window%index /= 0
             end if
 
-            if (.not. done) call pop_to_buffer(buf, status, table=display_alist_type(inhibit_same_window=.true.))
+            if (.not. done) call pop_to_buffer(buf, status, table=display_action_table_type(inhibit_same_window=.true.))
         else if (nosel) then
             call display_buffer(buf, window, status)
         else

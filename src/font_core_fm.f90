@@ -229,7 +229,7 @@ module font_core_fm
         type(font_lock_keywords_type), allocatable :: levels(:)
         logical :: keywords_only = .false.
         logical :: case_fold = .false.
-        type(font_lock_syntax_entry_type), allocatable :: syntax_alist(:)
+        type(font_lock_syntax_entry_type), allocatable :: syntax_modifications(:)
         !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'
         !> (null leaves it alone).
         procedure(font_lock_syntactic_face_proc), pointer, nopass :: syntactic_face_function => null()
@@ -275,7 +275,7 @@ module font_core_fm
     contains
         !> Give the current buffer these defaults (setq-local): its
         !> KEYWORDS (or the keyword lists of its decoration LEVELS),
-        !> KEYWORDS_ONLY, CASE_FOLD and SYNTAX_ALIST.
+        !> KEYWORDS_ONLY, CASE_FOLD and SYNTAX_MODIFICATIONS.
         procedure :: set_local => defaults_set_local
         !> Whether the current buffer has defaults (font-lock-defaults is
         !> non-nil).
@@ -441,14 +441,14 @@ contains
     end function defaults_index
 
     ! Not a port.
-    subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_alist, syntactic_face_function)
+    subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_modifications, syntactic_face_function)
         class(font_lock_defaults_setting), intent(inout) :: self
         !> The keywords, for a mode with one decoration level.
         type(font_lock_keyword_type), intent(in), optional :: keywords(:)
         !> The keyword lists of the decoration levels, least first.
         type(font_lock_keywords_type), intent(in), optional :: levels(:)
         logical, intent(in), optional :: keywords_only, case_fold
-        type(font_lock_syntax_entry_type), intent(in), optional :: syntax_alist(:)
+        type(font_lock_syntax_entry_type), intent(in), optional :: syntax_modifications(:)
         !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'.
         procedure(font_lock_syntactic_face_proc), optional :: syntactic_face_function
         integer :: k
@@ -475,10 +475,10 @@ contains
         if (present(keywords_only)) self%entries(k)%value%keywords_only = keywords_only
         if (present(case_fold)) self%entries(k)%value%case_fold = case_fold
 
-        if (present(syntax_alist)) then
-            self%entries(k)%value%syntax_alist = syntax_alist
+        if (present(syntax_modifications)) then
+            self%entries(k)%value%syntax_modifications = syntax_modifications
         else
-            allocate (self%entries(k)%value%syntax_alist(0))
+            allocate (self%entries(k)%value%syntax_modifications(0))
         end if
 
         if (present(syntactic_face_function)) self%entries(k)%value%syntactic_face_function => syntactic_face_function

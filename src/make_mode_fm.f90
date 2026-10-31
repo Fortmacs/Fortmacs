@@ -1173,7 +1173,7 @@ contains
 
         syntax(1)%chars = "$"
         syntax(1)%syntax = "."
-        call font_lock_defaults%set_local(keywords=font_lock, syntax_alist=syntax)
+        call font_lock_defaults%set_local(keywords=font_lock, syntax_modifications=syntax)
     end subroutine set_font_lock_defaults
 
     !> Major mode for editing standard Makefiles.

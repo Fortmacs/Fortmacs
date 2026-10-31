@@ -3384,7 +3384,7 @@ contains
         levels(3)%function => sh_font_lock_keywords_2
         syntax(1)%chars = "/~.-_"
         syntax(1)%syntax = "w"
-        call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.false., syntax_alist=syntax, &
+        call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.false., syntax_modifications=syntax, &
                                           syntactic_face_function=sh_font_lock_syntactic_face_function)
         ! Parse or insert magic number for exec, and set all variables depending
         ! on the shell thus determined.

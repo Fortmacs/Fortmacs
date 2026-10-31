@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Buffer-local variables (data.c's SYMBOL_LOCALIZED and
-!> buffer.c's local_var_table) and the variables forwarded to Fortran
+!> buffer.h:local_var_alist) and the variables forwarded to Fortran
 !> settings (data.c's SYMBOL_FORWARDED).
 !>
 !> The value of a variable is always the current buffer's.  When a

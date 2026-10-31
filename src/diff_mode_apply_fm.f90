@@ -785,11 +785,11 @@ contains
     use files_fm, only: backup_file_name_p, delete_file
     use fns_fm, only: yes_or_no_p
     use subr_fm, only: y_or_n_p
-    use window_fm, only: display_buffer, display_alist_type, set_window_point, windows, pop_to_buffer
+    use window_fm, only: display_buffer, display_action_table_type, set_window_point, windows, pop_to_buffer
     use frame_fm, only: selected_frame
     type(diff_name_type), allocatable :: names(:)
     type(diff_source_location_type) :: loc
-    type(display_alist_type) :: table
+    type(display_action_table_type) :: table
     type(handle_type) :: obuf, window, saved_window
     type(status_type) :: st
     integer(int64) :: x

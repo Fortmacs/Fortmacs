@@ -640,7 +640,7 @@ contains
         end interface
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window, owindow, old
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: name
         integer :: saved_dedicated, k, nfiles

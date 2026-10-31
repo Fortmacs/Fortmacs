@@ -51,7 +51,7 @@ module minibuffer_fm
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, windows, set_window_start, window_live_p, same_window, get_buffer_window, &
-                         temp_buffer_window_show, fit_window_to_buffer, display_alist_type, delete_window, &
+                         temp_buffer_window_show, fit_window_to_buffer, display_action_table_type, delete_window, &
                          switch_to_prev_buffer, scroll_window, pos_visible_in_window_p, minibuffer_scroll_window, &
                          display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, BK_BURY, &
                          DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM, &
@@ -2048,7 +2048,7 @@ contains
         type(string_box), allocatable :: strings(:)
         type(handle_type) :: mini, buf, window
         type(status_type) :: status
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         character(len=:), allocatable :: string
         integer(int64) :: s, e, base_size
         integer :: k, saved_mark
@@ -2542,8 +2542,9 @@ contains
 
     !> Read a string in the minibuffer, with completion.
     !> PROMPT is a string to prompt with; normally it ends in a colon and
-    !> a space.  COLLECTION can be a list of strings, a table, the
-    !> obarray or a function (see `try_completion').  PREDICATE limits
+    !> a space.  COLLECTION, the completion table, is an array of strings,
+    !> a table of (string, value) entries, or a completion function, or
+    !> the obarray (see `try_completion').  PREDICATE limits
     !> completion to a subset of COLLECTION.
     !>
     !> REQUIRE_MATCH can take the following values:

@@ -96,7 +96,7 @@ module smie_fm
               smie_bnf_closer_table, smie_bnf_classify
     public :: smie_default_forward_token, smie_default_backward_token, smie_next_expression, smie_backward_expression, &
               smie_forward_expression, smie_backward_expression_command, smie_forward_expression_command, smie_close_block, &
-              smie_down_list, smie_blink_matching_check, smie_blink_matching_open, smie_forward_token, &
+              smie_down_group, smie_blink_matching_check, smie_blink_matching_open, smie_forward_token, &
               smie_backward_token, smie_grammar_token, smie_closer_p, smie_opener_p
     public :: smie_rule_hanging_p, smie_rule_bolp, smie_indent_bolp_1, smie_indent_current_column, smie_rule_parent_p, &
               smie_rule_next_p, smie_rule_prev_p, smie_rule_sibling_p, smie_rule_parent, smie_rule_separator, &
@@ -2563,7 +2563,7 @@ contains
     !> A negative argument means move backward but still go down a level.
     !> This command assumes point is not in a string or comment.  Port of
     !> smie.el:smie-down-list.
-    recursive subroutine smie_down_list(arg_in, status)
+    recursive subroutine smie_down_group(arg_in, status)
         integer(int64), intent(in) :: arg_in
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: token
@@ -2634,7 +2634,7 @@ contains
                 if (.not. more) exit
             end do
         end do
-    end subroutine smie_down_list
+    end subroutine smie_down_group
 
     ! (nth N LEVELS) of (TOKEN LEFT RIGHT): 1 is LEFT, 2 is RIGHT.
     ! Not a port.
@@ -2650,12 +2650,12 @@ contains
         end if
     end function side
 
-    ! `smie_down_list' as a command ("p").
-    recursive subroutine cmd_smie_down_list(status)
+    ! `smie_down_group' as a command ("p").
+    recursive subroutine cmd_smie_down_group(status)
         type(status_type), intent(out) :: status
 
-        call smie_down_list(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_smie_down_list
+        call smie_down_group(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_smie_down_group
 
     ! `smie_forward_expression_command' as a command ("^p").
     recursive subroutine cmd_smie_forward_expression_command(status)
@@ -4901,7 +4901,7 @@ contains
 
         call add_local_variables_killer(kill_smie_locals)
         commands%smie_close_block%run => cmd_smie_close_block
-        commands%smie_down_list%run => cmd_smie_down_list
+        commands%smie_down_group%run => cmd_smie_down_group
         commands%smie_forward_expression_command%run => cmd_smie_forward_expression_command
         commands%smie_backward_expression_command%run => cmd_smie_backward_expression_command
         commands%smie__next_indent_change%run => smie_next_indent_change

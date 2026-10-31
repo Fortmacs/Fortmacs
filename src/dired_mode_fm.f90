@@ -97,7 +97,7 @@ module dired_mode_fm
     use dired_fm, only: directory_files, completion_ignored_extensions
     use window_fm, only: windows, window_leaves, window_live_p, pop_to_buffer_same_window, &
                          switch_to_buffer_other_window, display_buffer, fit_window_to_buffer, select_window, &
-                         window_point, set_window_point, quit_restore_window, display_alist_type, &
+                         window_point, set_window_point, quit_restore_window, display_action_table_type, &
                          temp_buffer_window_show, recenter, display_buffer_mark_dedicated, DEDICATED_WEAK, &
                          DISPLAY_ACTION_BELOW_SELECTED, BK_KILL, same_window
     use frame_fm, only: selected_frame, selected_window
@@ -4520,7 +4520,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(handle_type) :: buf, window
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
 
         call dired_get_file_for_visit(file, status)
         if (.not. status%ok()) return
@@ -6333,7 +6333,7 @@ contains
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window, owindow, old
-        type(display_alist_type) :: table
+        type(display_action_table_type) :: table
         type(status_type) :: st
         integer :: saved_dedicated, k
         logical :: quiet
