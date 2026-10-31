@@ -25,13 +25,13 @@
 !> (`last_kbd_macro'); the macro being defined is collected in
 !> `kbd_macro_buffer'.
 !>
-!> Deferred: macros that are symbols (their function definitions), and
+!> Deferred: macros that are names (their function definitions), and
 !> string macros other than as `execute_kbd_macro' arguments (a string
 !> `last_kbd_macro').
 submodule(keyboard_fm) macros_fm
     use commands_fm, only: commands
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: make_list
+    use lisp_fm, only: make_list, value_type, vtag, V_INTEGER, V_STRING, V_ARRAY
     use print_fm, only: fortran_repr
     use xdisp_fm, only: message
     implicit none(type, external)
@@ -44,7 +44,7 @@ contains
 
     status = status_type()
 
-    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL) then
+    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
         call set_error(status, FM_GENERIC_ERROR, "Already defining kbd macro")
         return
     end if
@@ -58,7 +58,7 @@ contains
     else
         ! Check the type of last-kbd-macro.
         if (.not. allocated(last_kbd_macro)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "arrayp, .false.")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array, got .false.")
             return
         end if
 
@@ -78,18 +78,18 @@ contains
         ! behavior.
         if (.not. no_exec) then
             macro = last_kbd_macro
-            call execute_kbd_macro(macro, make_fixnum(1_int64), status)
+            call execute_kbd_macro(macro, value_type(1_int64), status)
             if (.not. status%ok()) return
         end if
 
         call message("Appending to kbd macro...")
     end if
 
-    defining_kbd_macro = DEFINING_KBD_MACRO_T
+    defining_kbd_macro = DEFINING_KBD_MACRO_YES
     end procedure start_kbd_macro
 
     module procedure finish_kbd_macro
-    defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+    defining_kbd_macro = DEFINING_KBD_MACRO_NO
     if (allocated(last_kbd_macro)) deallocate (last_kbd_macro)
     allocate (last_kbd_macro(kbd_macro_end))
     if (kbd_macro_end > 0) last_kbd_macro = kbd_macro_buffer(1:kbd_macro_end)
@@ -101,17 +101,17 @@ contains
 
     status = status_type()
 
-    if (defining_kbd_macro == DEFINING_KBD_MACRO_NIL) then
+    if (defining_kbd_macro == DEFINING_KBD_MACRO_NO) then
         call set_error(status, FM_GENERIC_ERROR, "Not defining kbd macro")
         return
     end if
 
-    if (nilp(repeat)) then
+    if (.not. allocated(repeat%a)) then
         n = 1
-    else if (fixnump(repeat)) then
+    else if (vtag(repeat) == V_INTEGER) then
         n = xfixnum(repeat)
     else
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "fixnump, "//fortran_repr(repeat))
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got "//fortran_repr(repeat))
         return
     end if
 
@@ -120,16 +120,16 @@ contains
     macro = last_kbd_macro
 
     if (n == 0) then
-        call execute_kbd_macro(macro, make_fixnum(0_int64), status, loopfunc)
+        call execute_kbd_macro(macro, value_type(0_int64), status, loopfunc)
     else if (n > 1) then
-        call execute_kbd_macro(macro, make_fixnum(n - 1), status, loopfunc)
+        call execute_kbd_macro(macro, value_type(n - 1), status, loopfunc)
     end if
     end procedure end_kbd_macro
 
     module procedure store_kbd_macro_char
     type(value_type), allocatable :: grown(:)
 
-    if (defining_kbd_macro == DEFINING_KBD_MACRO_NIL) return
+    if (defining_kbd_macro == DEFINING_KBD_MACRO_NO) return
     if (.not. allocated(kbd_macro_buffer)) allocate (kbd_macro_buffer(30))
 
     if (kbd_macro_ptr == size(kbd_macro_buffer, kind=int64)) then
@@ -166,10 +166,10 @@ contains
     if (allocated(last_kbd_macro)) then
         real_this_command = make_list(last_kbd_macro)
     else
-        real_this_command = nil()
+        real_this_command = value_type()
     end if
 
-    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL) then
+    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
         call set_error(status, FM_GENERIC_ERROR, "Can't execute anonymous macro while defining one")
         return
     else if (.not. allocated(last_kbd_macro)) then
@@ -191,13 +191,13 @@ contains
 
     status = status_type()
 
-    if (.not. (stringp(macro) .or. vtag(macro) == V_LIST)) then
+    if (.not. (vtag(macro) == V_STRING .or. vtag(macro) == V_ARRAY)) then
         call set_error(status, FM_GENERIC_ERROR, "Keyboard macros must be strings or vectors")
         return
     end if
 
     call macro_events_of(macro, final)
-    call execute_events(final, stringp(macro), count, status, loopfunc)
+    call execute_events(final, vtag(macro) == V_STRING, count, status, loopfunc)
     end procedure execute_kbd_macro_value
 
     !> The events of MACRO, a list of events or a string (its
@@ -210,7 +210,7 @@ contains
         integer(int64) :: pos, n
         integer(int32) :: ch, length
 
-        if (vtag(macro) == V_LIST) then
+        if (vtag(macro) == V_ARRAY) then
             call list_elements(macro, evs)
             return
         end if
@@ -223,16 +223,16 @@ contains
         do while (pos <= len(s, kind=int64))
             call string_char_and_length(s, pos, ch, length)
             n = n + 1
-            evs(n) = make_fixnum(int(ch, int64))
+            evs(n) = value_type(int(ch, int64))
             pos = pos + length
         end do
 
         evs = evs(1:n)
     end subroutine macro_events_of
 
-    module procedure execute_kbd_macro_vector
+    module procedure execute_kbd_macro_events
     call execute_events(macro, .false., count, status, loopfunc)
-    end procedure execute_kbd_macro_vector
+    end procedure execute_kbd_macro_events
 
     !> Execute the events FINAL (of a string macro if IS_STRING) COUNT
     !> times.  Port of macros.c:Fexecute_kbd_macro, in part (its body), and
@@ -252,7 +252,7 @@ contains
         repeat = 1
         success_count = 0
         executing_kbd_macro_iterations = 0
-        if (.not. nilp(count)) repeat = prefix_numeric_value(count)
+        if (allocated(count%a)) repeat = prefix_numeric_value(count)
         ! record_unwind_protect (pop_kbd_macro, ...)
         saved_active = macro_active
         saved_string = macro_string
@@ -269,7 +269,7 @@ contains
             macro_forced_end = .false.
             macro_started = .true.
             executing_kbd_macro_index = 0
-            prefix_arg = nil()
+            prefix_arg = value_type()
 
             if (present(loopfunc)) then
                 if (.not. loopfunc()) exit
@@ -320,7 +320,7 @@ contains
     recursive subroutine cmd_start_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call start_kbd_macro(.not. nilp(current_prefix_arg), .false., status)
+        call start_kbd_macro(allocated(current_prefix_arg%a), .false., status)
     end subroutine cmd_start_kbd_macro
 
     !> Finish defining a keyboard macro.
@@ -334,7 +334,7 @@ contains
     recursive subroutine cmd_end_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call end_kbd_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call end_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_end_kbd_macro
 
     !> Call the last keyboard macro that you defined with \[start_kbd_macro].
@@ -344,7 +344,7 @@ contains
     recursive subroutine cmd_call_last_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call call_last_kbd_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call call_last_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_call_last_kbd_macro
 
     module procedure syms_of_macros

@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports test/lisp/emacs-lisp/syntax-tests.el (its one test), plus tests
-!> of `regexp_opt_depth', `subregexp_context_p', rules applying
+!> of `regexp_opt_depth', `is_subregexp_context', rules applying
 !> `syntax_table' properties that the scanner and the regexp matcher
 !> obey, the `syntax_ppss' cache and `syntax_propertize_wholelines'.
 module test_syntax_propertize_fm
@@ -29,17 +29,16 @@ module test_syntax_propertize_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, consp
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, vtag, V_ARRAY
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char
     use search_fm, only: re_search_forward, SEARCH_NOERROR
     use textprop_fm, only: get_text_property
     use bindings_fm, only: init_bindings
-    use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_ppss, syntax_propertize__done, &
-                         parse_sexp_lookup_properties, forward_comment
-    use subr_fm, only: subregexp_context_p
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, syntax_propertize__done, &
+                         parse_expression_lookup_properties, forward_comment
+    use subr_fm, only: is_subregexp_context
     use regexp_opt_fm, only: regexp_opt_depth
     use syntax_propertize_fm, only: syntax_propertize_shift_groups_and_backrefs, syntax_propertize_function, &
                                     syntax_propertize_rules_type, syntax_propertize_rule_type, syntax_highlight_type, &
@@ -143,15 +142,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call check(error, subregexp_context_p("a\(b", 2_int64, st), "after a")
+        call check(error, is_subregexp_context("a\(b", 2_int64, st), "after a")
         if (allocated(error)) return
-        call check(error,.not. subregexp_context_p("a[b]", 3_int64, st), "in brackets")
+        call check(error,.not. is_subregexp_context("a[b]", 3_int64, st), "in brackets")
         if (allocated(error)) return
-        call check(error,.not. subregexp_context_p("a\{1,2\}", 5_int64, st), "in \{\}")
+        call check(error,.not. is_subregexp_context("a\{1,2\}", 5_int64, st), "in \{\}")
         if (allocated(error)) return
-        call check(error,.not. subregexp_context_p("a\b", 3_int64, st), "after \")
+        call check(error,.not. is_subregexp_context("a\b", 3_int64, st), "after \")
         if (allocated(error)) return
-        call check(error, subregexp_context_p("[a]b", 4_int64, st, 1_int64), "after brackets")
+        call check(error, is_subregexp_context("[a]b", 4_int64, st, 1_int64), "after brackets")
     end subroutine test_context
 
     ! `#' starts a comment and newline ends it, by properties only.
@@ -195,12 +194,12 @@ contains
             if (allocated(error)) exit checks
             call check(error, state%comstr_start, 3_int64)
             if (allocated(error)) exit checks
-            call check(error, parse_sexp_lookup_properties%value, "lookup turned on")
+            call check(error, parse_expression_lookup_properties%value, "lookup turned on")
             if (allocated(error)) exit checks
             call check(error, syntax_propertize__done%value >= 6, "propertized that far")
             if (allocated(error)) exit checks
-            call get_text_property(3_int64, sym("syntax_table"), prop, st)
-            call check(error, consp(prop), "a raw descriptor on #")
+            call get_text_property(3_int64, value_type(name="syntax_table"), prop, st)
+            call check(error, vtag(prop) == V_ARRAY, "a raw descriptor on #")
             if (allocated(error)) exit checks
             call syntax_ppss(state, 7_int64)
             call check(error, syntax_ppss_context(state), SYNTAX_PPSS_NONE)
@@ -245,7 +244,7 @@ contains
         checks: block
             do i = 1, size(positions)
                 call syntax_ppss(cached, positions(i))
-                call parse_partial_sexp(point_min(), positions(i), direct, st)
+                call parse_partial_expression(point_min(), positions(i), direct, st)
                 call check(error, cached%depth, direct%depth)
                 if (allocated(error)) exit checks
                 call check(error, cached%innermost_start, direct%innermost_start)
@@ -258,7 +257,7 @@ contains
 
             do i = 1, size(positions)
                 call syntax_ppss(cached, positions(i))
-                call parse_partial_sexp(point_min(), positions(i), direct, st)
+                call parse_partial_expression(point_min(), positions(i), direct, st)
                 call check(error, cached%depth, direct%depth)
                 if (allocated(error)) exit checks
             end do

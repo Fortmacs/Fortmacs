@@ -27,14 +27,14 @@ submodule(fns_fm) fns_ask_fm
     use lisp_fm, only: value_type
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use casefiddle_fm, only: downcase_string
-    use character_fm, only: blankp
+    use character_fm, only: is_blank
     implicit none(type, external)
 
 contains
 
-    recursive module subroutine yes_or_no_p(prompt, answer, status)
+    recursive module subroutine read_yes_or_no(prompt, answer, status)
         character(len=*), intent(in) :: prompt
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
@@ -48,7 +48,7 @@ contains
         answer = .false.
 
         if (use_short_answers) then
-            call y_or_n_p(prompt, answer, status)
+            call read_y_or_n(prompt, answer, status)
             return
         end if
 
@@ -66,7 +66,7 @@ contains
                 byte = byte + clen
             end do
 
-            nonspace = .not. blankp(int(last, int32))
+            nonspace = .not. is_blank(int(last, int32))
         end if
 
         full = prompt
@@ -81,12 +81,12 @@ contains
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
         ! Preserve the actual command that eventually called
-        ! `yes_or_no_p' (otherwise `repeat' will be repeating
+        ! `read_yes_or_no' (otherwise `repeat' will be repeating
         ! `exit_minibuffer').
         saved_real_this = real_this_command
 
         do
-            call read_from_minibuffer(full, ans, status, history="yes_or_no_p_history")
+            call read_from_minibuffer(full, ans, status, history="read_yes_or_no_history")
             if (.not. status%ok()) exit
             ans = downcase_string(ans)
 
@@ -104,5 +104,5 @@ contains
 
         enable_recursive_minibuffers = saved_enable
         real_this_command = saved_real_this
-    end subroutine yes_or_no_p
+    end subroutine read_yes_or_no
 end submodule fns_ask_fm

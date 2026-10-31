@@ -32,13 +32,13 @@ module test_filenotify_fm
     use lisp_fm, only: value_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, generate_new_buffer_name
     use insdel_fm, only: insert
-    use fileio_fm, only: write_region, file_directory_p, file_exists_p, directory_file_name, make_directory_internal, &
+    use fileio_fm, only: write_region, is_file_directory, file_exists, directory_file_name, make_directory_internal, &
                          rename_file, copy_file, set_file_modes, set_file_times
     use files_fm, only: make_temp_file, delete_file, delete_directory
     use keyboard_fm, only: read_event
     use inotify_fm, only: watch_descriptor_type, operator(==)
     use filenotify_fm, only: file_notify_event_type, file_notify_add_watch, file_notify_rm_watch, &
-                             file_notify_rm_all_watches, file_notify_valid_p, file_notify_watch_count, &
+                             file_notify_rm_all_watches, is_file_notify_valid, file_notify_watch_count, &
                              FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE, FILE_NOTIFY_CREATED, FILE_NOTIFY_DELETED, &
                              FILE_NOTIFY_CHANGED, FILE_NOTIFY_RENAMED, FILE_NOTIFY_ATTRIBUTE_CHANGED, FILE_NOTIFY_STOPPED
     implicit none(type, external)
@@ -138,13 +138,13 @@ contains
         type(status_type) :: st
 
         call file_notify_rm_all_watches()
-        if (file_exists_p(tmpfile)) call delete_file(tmpfile, st)
+        if (file_exists(tmpfile)) call delete_file(tmpfile, st)
 
         if (len(tmpfile1) > 0) then
-            if (file_exists_p(tmpfile1)) call delete_file(tmpfile1, st)
+            if (file_exists(tmpfile1)) call delete_file(tmpfile1, st)
         end if
 
-        if (file_directory_p(tmpdir)) call delete_directory(tmpdir, st, .true.)
+        if (is_file_directory(tmpdir)) call delete_directory(tmpdir, st, .true.)
         desc = watch_descriptor_type()
         desc1 = watch_descriptor_type()
     end subroutine cleanup
@@ -533,10 +533,10 @@ contains
     end subroutine test03_events
 
     logical function desc_invalid()
-        desc_invalid = .not. file_notify_valid_p(desc)
+        desc_invalid = .not. is_file_notify_valid(desc)
     end function desc_invalid
 
-    !> Check `file_notify_valid_p' for files.
+    !> Check `is_file_notify_valid' for files.
     subroutine test05_file_validity(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -544,18 +544,18 @@ contains
         call setup()
         call write_file(tmpfile, "any text")
         call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, desc, st)
-        call check(error, file_notify_valid_p(desc), "valid")
+        call check(error, is_file_notify_valid(desc), "valid")
         ! After calling `file_notify_rm_watch', the descriptor is not valid
         ! anymore.
         call file_notify_rm_watch(desc)
-        if (.not. allocated(error)) call check(error,.not. file_notify_valid_p(desc), "invalid after rm")
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after rm")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         call setup()
         call write_file(tmpfile, "any text")
         call add_watch(tmpfile, FILE_NOTIFY_CHANGE, desc)
-        call check(error, file_notify_valid_p(desc), "valid")
+        call check(error, is_file_notify_valid(desc), "valid")
 
         if (allocated(error)) then
             call cleanup()
@@ -569,7 +569,7 @@ contains
         call check_actions(error, [CHANGED, DELETED, STOPPED], [CHANGED, CHANGED, DELETED, STOPPED])
         call wait_event()
         ! After deleting the file, the descriptor is not valid anymore.
-        if (.not. allocated(error)) call check(error,.not. file_notify_valid_p(desc), "invalid after delete")
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after delete")
         call file_notify_rm_watch(desc)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
@@ -577,7 +577,7 @@ contains
         call setup()
         call delete_file(tmpfile, st)
         call add_watch(tmpdir, FILE_NOTIFY_CHANGE, desc)
-        call check(error, file_notify_valid_p(desc), "valid")
+        call check(error, is_file_notify_valid(desc), "valid")
 
         if (allocated(error)) then
             call cleanup()
@@ -591,35 +591,35 @@ contains
         call check_actions(error, [CREATED, CHANGED, DELETED, DELETED, STOPPED])
         ! After deleting the parent directory, the descriptor must not be
         ! valid anymore.
-        if (.not. allocated(error)) call check(error,.not. file_notify_valid_p(desc), "invalid after delete")
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after delete")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
     end subroutine test05_file_validity
 
-    !> Check `file_notify_valid_p' for directories.
+    !> Check `is_file_notify_valid' for directories.
     subroutine test06_dir_validity(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
         call setup()
         call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
-        call check(error, file_notify_valid_p(desc), "valid")
+        call check(error, is_file_notify_valid(desc), "valid")
         ! After removing the watch, the descriptor must not be valid
         ! anymore.
         call file_notify_rm_watch(desc)
         call wait_for_events(3.0, desc_invalid)
-        if (.not. allocated(error)) call check(error,.not. file_notify_valid_p(desc), "invalid after rm")
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after rm")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         call setup()
         call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
-        call check(error, file_notify_valid_p(desc), "valid")
+        call check(error, is_file_notify_valid(desc), "valid")
         ! After deleting the directory, the descriptor must not be valid
         ! anymore.
         call delete_directory(tmpdir, st, .true.)
         call wait_for_events(3.0, desc_invalid)
-        if (.not. allocated(error)) call check(error,.not. file_notify_valid_p(desc), "invalid after delete")
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after delete")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
     end subroutine test06_dir_validity

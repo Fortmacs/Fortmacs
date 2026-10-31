@@ -24,7 +24,7 @@
 !> built-in ones are the components of `commands' (commands_fm), others
 !> are defined with `define'.  Keymaps bind command names; upstream a
 !> command is a function with an `interactive' spec, stored in the
-!> symbol's function cell, and here a command reads its own arguments
+!> name's function cell, and here a command reads its own arguments
 !> (the prefix argument is `current_prefix_arg').
 !>
 !>     commands%forward_char%run => cmd_forward_char
@@ -32,19 +32,18 @@ module callint_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: value_type, V_LIST, V_STRING, nsymbols, vtag, nilp, &
-                       fixnump, symbolp, consp, xfixnum, xsymbol, symbols, &
-                       list_elt
-    use lread_fm, only: intern, sym
-    use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of
+    use lisp_fm, only: value_type, V_ARRAY, V_STRING, nsymbols, vtag, xfixnum, xsymbol, symbols, list_elt, V_NULL, &
+                       V_INTEGER, V_NAME
+    use lread_fm, only: intern
+    use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of, value_type
     use commands_fm, only: builtin_command, BUILTIN_COMMAND_NAMES
     use data_fm, only: value_eq
     implicit none(type, external)
     private
 
-    public :: command_proc, command_type, find_command, commandp, fboundp, command_defined_p, &
+    public :: command_proc, command_type, find_command, is_command, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of
-    public :: call_interactively, funcall, prefix_numeric_value
+    public :: call_interactively, find_function, prefix_numeric_value
 
     !> The value of the prefix argument for this editing command.
     !> It may be an integer, or `-' for just a minus sign as arg, or an
@@ -93,13 +92,13 @@ contains
         end if
     end function find_command
 
-    !> The function named by symbol V, or null.  Not a port.
+    !> The function named V, or null.  Not a port.
     function symbol_command(v) result(p)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
 
         p => null()
-        if (.not. symbolp(v) .or. nilp(v)) return
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL) .or. .not. allocated(v%a)) return
         p => find_command(symbols(xsymbol(v))%name)
     end function symbol_command
 
@@ -127,7 +126,7 @@ contains
     end function command_name_of
 
     !> Intern the names of the built-in commands, so that completion over
-    !> the obarray (M-x) sees them.  Not a port.
+    !> the name table (M-x) sees them.  Not a port.
     subroutine intern_command_names()
         integer :: i
         integer(int64) :: id
@@ -137,40 +136,32 @@ contains
         end do
     end subroutine intern_command_names
 
-    !> Return true if SYMBOL's function definition is not void.  Port of
-    !> data.c:Ffboundp.
-    logical function fboundp(v)
-        type(value_type), intent(in) :: v
-
-        fboundp = associated(symbol_command(v))
-    end function fboundp
-
-    !> Whether symbol `v' names a defined command (a function with an
-    !> interactive spec).  Not a port.
-    logical function command_defined_p(v)
+    !> Whether name `v' names a defined command (a function that is a
+    !> command).  Not a port.
+    logical function is_command_defined(v)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
 
         p => symbol_command(v)
-        command_defined_p = associated(p)
-        if (command_defined_p) command_defined_p = p%interactive
-    end function command_defined_p
+        is_command_defined = associated(p)
+        if (is_command_defined) is_command_defined = p%is_command
+    end function is_command_defined
 
     !> Whether `v' can be run as a command: a defined command, or a
     !> keyboard macro (a string or a list of events).  Port of
     !> eval.c:Fcommandp (for the kinds of commands that exist here).
-    logical function commandp(v)
+    logical function is_command(v)
         type(value_type), intent(in) :: v
 
         select case (vtag(v))
         case (V_STRING)
-            commandp = .true.
-        case (V_LIST)
-            commandp = .true.
+            is_command = .true.
+        case (V_ARRAY)
+            is_command = .true.
         case default
-            commandp = command_defined_p(v)
+            is_command = is_command_defined(v)
         end select
-    end function commandp
+    end function is_command
 
     !> Make the command named NAME disabled or not (its `disabled'
     !> property), for a name only known at run time; built-in commands
@@ -194,8 +185,8 @@ contains
         if (allocated(p%disabled_message)) deallocate (p%disabled_message)
     end subroutine set_command_disabled
 
-    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (the
-    !> interactive spec is the command's own business here).  Recursive:
+    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (how the
+    !> command reads its arguments is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
     recursive subroutine call_interactively(cmd, status)
         type(value_type), intent(in) :: cmd
@@ -206,14 +197,14 @@ contains
         p => symbol_command(cmd)
 
         if (associated(p)) then
-            if (.not. p%interactive) p => null()
+            if (.not. p%is_command) p => null()
         end if
 
         if (.not. associated(p)) then
-            if (symbolp(cmd)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//symbols(xsymbol(cmd))%name)
+            if ((vtag(cmd) == V_NAME .or. vtag(cmd) == V_NULL)) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), got "//symbols(xsymbol(cmd))%name)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type)")
             end if
 
             return
@@ -225,17 +216,20 @@ contains
         current_minibuffer_command = saved
     end subroutine call_interactively
 
-    !> Call function FN with no arguments.  Port of eval.c:Ffuncall (no
-    !> arguments).
-    recursive subroutine funcall(fn, status)
+    !> The function named FN, as a pointer P to call directly; a
+    !> `void-function' (or `invalid-function') error condition occurs if
+    !> there is none.  Port of eval.c:Ffuncall (resolving the function;
+    !> the caller calls it).
+    subroutine find_function(fn, p, status)
         type(value_type), intent(in) :: fn
+        type(command_type), pointer, intent(out) :: p
         type(status_type), intent(out) :: status
-        type(command_type), pointer :: p
 
+        status = status_type()
         p => symbol_command(fn)
 
         if (.not. associated(p)) then
-            if (symbolp(fn)) then
+            if ((vtag(fn) == V_NAME .or. vtag(fn) == V_NULL)) then
                 call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(fn))%name)
             else
                 call set_error(status, FM_GENERIC_ERROR, "Invalid function")
@@ -243,25 +237,23 @@ contains
 
             return
         end if
+    end subroutine find_function
 
-        call p%run(status)
-    end subroutine funcall
-
-    !> The numeric value of raw prefix argument `raw': nil gives 1, `-'
+    !> The numeric value of raw prefix argument `raw': no prefix gives 1, `-'
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.
     integer(int64) function prefix_numeric_value(raw) result(n)
         type(value_type), intent(in) :: raw
         type(value_type) :: head
 
         n = 1
-        if (nilp(raw)) return
+        if (.not. allocated(raw%a)) return
 
-        if (value_eq(raw, sym("-"))) then
+        if (value_eq(raw, value_type(name="-"))) then
             n = -1
-        else if (consp(raw)) then
+        else if (vtag(raw) == V_ARRAY) then
             head = list_elt(raw, 1_int64)
-            if (fixnump(head)) n = xfixnum(head)
-        else if (fixnump(raw)) then
+            if (vtag(head) == V_INTEGER) n = xfixnum(head)
+        else if (vtag(raw) == V_INTEGER) then
             n = xfixnum(raw)
         end if
     end function prefix_numeric_value

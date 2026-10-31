@@ -28,8 +28,7 @@ module test_fake_gui_fm
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
-    use lisp_fm, only: list, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use textprop_fm, only: put_text_property
     use dispextern_fm, only: FILLED_BOX_CURSOR, MODE_LINE_ACTIVE_FACE_ID, MODE_LINE_INACTIVE_FACE_ID, &
                              VERTICAL_BORDER_FACE_ID
@@ -40,7 +39,7 @@ module test_fake_gui_fm
     use termchar_fm, only: tty_take_output
     use frame_fm, only: frame_type
     use window_fm, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows
-    use xdisp_fm, only: redisplay, init_frame_windows, mode_line_text, mode_line_modes
+    use xdisp_fm, only: redisplay_internal, init_frame_windows, mode_line_text, mode_line_modes
     use keyboard_fm, only: last_message
     use fake_gui_fm, only: fake_device_type, fake_font_driver_type, make_fake_frame, FAKE_COLUMN_WIDTH, &
                            FAKE_LINE_HEIGHT
@@ -132,11 +131,11 @@ contains
         call init_frame_windows(tty)
         call set_window_buffer(tty%selected_window, h, st)
         last_message = "Hello"
-        call redisplay(tty, st)
+        call redisplay_internal(tty, st)
         out = tty_take_output(tty%tty)
         ! The fake frame, as large.
         call fake_frame(f, device, driver, 80, 24, h)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         call check(error, st%ok() .and. device%flushes == 1 .and. device%clears == 1, "drawn and flushed")
         if (allocated(error)) return
 
@@ -196,7 +195,7 @@ contains
         call goto_char(23_int64)
         driver%proportional = .true.
         call fake_frame(f, device, driver, 10, 8, h)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         call check(error, device%text_at(0), repeat("i", 18)//"\", device%text_at(0))
         if (allocated(error)) return
         ! The continuation glyph right after the last i.
@@ -239,10 +238,11 @@ contains
         end do
 
         call buffer_with("*fake-gui-tall*", text, h)
-        call put_text_property(4_int64, 6_int64, sym("face"), list(sym(":height"), make_fixnum(200_int64)), st)
+        call put_text_property(4_int64, 6_int64, value_type(name="face"), list(value_type(name=":height"), value_type(200_int64)), &
+                               st)
         call goto_char(5_int64)
         call fake_frame(f, device, driver, 20, 10, h)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         call check(error, device%text_at(0), "ab ", device%text_at(0))
         if (allocated(error)) return
         ! Row 2 from y 16 to 47, its glyphs 16 pixels wide.
@@ -284,7 +284,7 @@ contains
         call buffer_with("*fake-gui-ml*", "text", h)
         call resolve_buffer(h, bi, st)
         call fake_frame(f, device, driver, 60, 6, h)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         expected = mode_line_text("*fake-gui-ml*", .true., .false., "All", "1", 0, "Fundamental", graphic=.true.)
         call check(error, expected, " U:**-  *fake-gui-ml*   All L1     (Fundamental) ")
         if (allocated(error)) return
@@ -323,10 +323,10 @@ contains
         call buffer_with("*fake-gui-split*", repeat("0123456789", 5)//achar(10)//"two", h)
         call goto_char(1_int64)
         call fake_frame(f, device, driver, 80, 12, h)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         left = f%root_window
         call split_window_internal(left, .true., 40, f%root_window, right, st)
-        call redisplay(f, st)
+        call redisplay_internal(f, st)
         row = device%text_at(0, 0, 320)
         call check(error, row == repeat("0123456789", 3)//"012345678\", row)
         if (allocated(error)) return

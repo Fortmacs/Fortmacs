@@ -20,12 +20,11 @@
 
 module test_rect_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, condition_matches, FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
-    use lread_fm, only: sym
     use data_fm, only: set
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only
     use insdel_fm, only: insert
@@ -34,14 +33,14 @@ module test_rect_fm
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
     use simple_fm, only: deactivate_mark, set_mark, kill_read_only_ok, count_lines, line_number_at_pos, current_kill, &
-                         region_active_p, region_bounds, region_noncontiguous_p
+                         is_region_active, region_bounds, is_region_noncontiguous
     use modes_fm, only: minor_modes
     use indent_fm, only: indent_tabs_mode
     use rect_fm, only: rectangle_line_type, killed_rectangle, extract_rectangle, delete_rectangle, &
                        delete_extract_rectangle, kill_rectangle, yank_rectangle, insert_rectangle, open_rectangle, &
                        clear_rectangle, string_rectangle, string_insert_rectangle, delete_whitespace_rectangle, &
                        rectangle_number_lines, spaces_string, extract_rectangle_bounds, rectangle_dimensions, &
-                       rectangle_position_as_coordinates, rectangle_intersect_p
+                       rectangle_position_as_coordinates, is_rectangle_intersect
     implicit none(type, external)
     private
 
@@ -446,11 +445,11 @@ contains
         call rectangle_position_as_coordinates(19_int64, col, line)
         call check(error, col == 4 .and. line == 3 .and. line_number_at_pos() == 1, "coordinates")
         if (allocated(error)) return
-        call check(error, rectangle_intersect_p([0_int64, 0_int64], [2_int64, 2_int64], [1_int64, 1_int64], &
-                                                [2_int64, 2_int64]), "intersect")
+        call check(error, is_rectangle_intersect([0_int64, 0_int64], [2_int64, 2_int64], [1_int64, 1_int64], &
+                                                 [2_int64, 2_int64]), "intersect")
         if (allocated(error)) return
-        call check(error,.not. rectangle_intersect_p([0_int64, 0_int64], [1_int64, 2_int64], [1_int64, 0_int64], &
-                                                     [2_int64, 2_int64]), "no intersect")
+        call check(error,.not. is_rectangle_intersect([0_int64, 0_int64], [1_int64, 2_int64], [1_int64, 0_int64], &
+                                                      [2_int64, 2_int64]), "no intersect")
         if (allocated(error)) return
         call extract_rectangle_bounds(2_int64, 19_int64, starts, ends, st)
         call check(error, all(starts == [2_int64, 9_int64, 16_int64]) .and. all(ends == [5_int64, 12_int64, 19_int64]), &
@@ -470,9 +469,9 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
-        call set(sym("string_rectangle_history"), nil(), st)
+        call set(value_type(name="string_rectangle_history"), value_type(), st)
         ! C-SPC at b, to q: C-x r k, then C-x r y at the start.
         call kbd_store_bytes(achar(6)//achar(0)//achar(14)//achar(14)//achar(6)//achar(6)//achar(6)//cxr//"k")
         call command_loop(st)
@@ -540,14 +539,14 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call goto_char(2_int64)
         call kbd_store_bytes(achar(24)//" ")
         call command_loop(st)
         call check(error, minor_modes%rectangle_mark_mode%enabled(), "mode on")
         if (allocated(error)) return
-        call check(error, mark_position() == 2 .and. region_active_p(), "mark set at b")
+        call check(error, mark_position() == 2 .and. is_region_active(), "mark set at b")
         if (allocated(error)) return
         call check(error, last_message == "Mark set (rectangle mode)", last_message)
         if (allocated(error)) return
@@ -580,7 +579,7 @@ contains
 
         call fresh(h, "abcd"//nl//"ab"//nl//"abcd")
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call kbd_store_bytes(achar(24)//" "//achar(6)//achar(6)//achar(6)//achar(14))
         call command_loop(st)
@@ -611,7 +610,7 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call goto_char(4_int64)
         call kbd_store_bytes(achar(24)//" "//achar(14)//achar(14)//achar(2)//achar(2))
@@ -625,7 +624,7 @@ contains
         call interactive_region(b, e, st)
         call check(error, b == 4 .and. e == 16, "point and mark for `r'")
         if (allocated(error)) return
-        call check(error, region_noncontiguous_p(), "noncontiguous")
+        call check(error, is_region_noncontiguous(), "noncontiguous")
         if (allocated(error)) return
         call region_bounds(starts, ends, st)
         call check(error, size(starts) == 3, "three pieces")

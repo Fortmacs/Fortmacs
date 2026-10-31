@@ -44,7 +44,7 @@
 !>
 !> Where upstream takes a `check' flag and an end pointer, these procedures
 !> always bound-check against `len(str)'; the unchecked fast paths are an
-!> optimisation C needs and Fortran (with -fcheck=all) does not.
+!> optimization C needs and Fortran (with -fcheck=all) does not.
 module character_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
@@ -102,19 +102,19 @@ module character_fm
 
     integer(int32), parameter :: byte8_offset = int(z'3FFF00', int32)
 
-    public :: ascii_char_p, single_byte_char_p, char_valid_p
-    public :: char_byte8_p, byte8_to_char, unibyte_to_char, char_to_byte8, &
-              char_to_byte_safe, char_byte8_head_p
+    public :: is_ascii_char, is_single_byte_char, is_char_valid
+    public :: is_char_byte8, byte8_to_char, unibyte_to_char, char_to_byte8, &
+              char_to_byte_safe, is_char_byte8_head
     public :: char_bytes, char_leading_code, char_string
-    public :: leading_code_p, trailing_code_p, char_head_p, bytes_by_char_head
+    public :: is_leading_code, is_trailing_code, is_char_head, bytes_by_char_head
     public :: multibyte_length, raw_prev_char_len, string_char_and_length, &
               string_char
     public :: multibyte_chars_in_text, parse_str_as_multibyte, &
               str_as_multibyte, count_size_as_multibyte, str_to_multibyte, &
               str_as_unibyte
     public :: char_resolve_modifier_mask
-    public :: char_variation_selector_p, char_surrogate_p, char_hexdigit
-    public :: unicode_category, alphabeticp, alphanumericp, graphicp, printablep, blankp
+    public :: variation_selector_number, is_char_surrogate, char_hexdigit
+    public :: unicode_category, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank
 
     !> Unicode general categories (character.h unicode_category_t).
     integer, parameter, public :: UNICODE_CATEGORY_UNKNOWN = 0, UNICODE_CATEGORY_LU = 1, &
@@ -131,42 +131,34 @@ module character_fm
 
 contains
 
-    !> Byte value (0..255) at position `i' of `str'.  Not a port.
-    pure integer(int32) function byte_at(str, i)
-        character(len=*), intent(in) :: str
-        integer(int64), intent(in) :: i
-
-        byte_at = ichar(str(i:i), kind=int32)
-    end function byte_at
-
     !> Port of lisp.h:ASCII_CHAR_P.
-    elemental logical function ascii_char_p(c)
+    elemental logical function is_ascii_char(c)
         integer(int32), intent(in) :: c
 
-        ascii_char_p = 0 <= c .and. c < 128
-    end function ascii_char_p
+        is_ascii_char = 0 <= c .and. c < 128
+    end function is_ascii_char
 
     !> Port of character.h:SINGLE_BYTE_CHAR_P.
-    elemental logical function single_byte_char_p(c)
+    elemental logical function is_single_byte_char(c)
         integer(int32), intent(in) :: c
 
-        single_byte_char_p = 0 <= c .and. c < 256
-    end function single_byte_char_p
+        is_single_byte_char = 0 <= c .and. c < 256
+    end function is_single_byte_char
 
     !> Port of character.h:CHAR_VALID_P.
-    elemental logical function char_valid_p(c)
+    elemental logical function is_char_valid(c)
         integer(int32), intent(in) :: c
 
-        char_valid_p = 0 <= c .and. c <= MAX_CHAR
-    end function char_valid_p
+        is_char_valid = 0 <= c .and. c <= MAX_CHAR
+    end function is_char_valid
 
     !> True if `c' stands for a raw 8-bit byte.
     !> Port of character.h:CHAR_BYTE8_P.
-    elemental logical function char_byte8_p(c)
+    elemental logical function is_char_byte8(c)
         integer(int32), intent(in) :: c
 
-        char_byte8_p = MAX_5_BYTE_CHAR < c
-    end function char_byte8_p
+        is_char_byte8 = MAX_5_BYTE_CHAR < c
+    end function is_char_byte8
 
     !> Character code for raw byte `byte'.
     !> Port of character.h:BYTE8_TO_CHAR.
@@ -180,7 +172,7 @@ contains
     elemental integer(int32) function unibyte_to_char(byte)
         integer(int32), intent(in) :: byte
 
-        if (ascii_char_p(byte)) then
+        if (is_ascii_char(byte)) then
             unibyte_to_char = byte
         else
             unibyte_to_char = byte8_to_char(byte)
@@ -191,7 +183,7 @@ contains
     elemental integer(int32) function char_to_byte8(c)
         integer(int32), intent(in) :: c
 
-        if (char_byte8_p(c)) then
+        if (is_char_byte8(c)) then
             char_to_byte8 = c - byte8_offset
         else
             char_to_byte8 = iand(c, 255_int32)
@@ -203,9 +195,9 @@ contains
     elemental integer(int32) function char_to_byte_safe(c)
         integer(int32), intent(in) :: c
 
-        if (ascii_char_p(c)) then
+        if (is_ascii_char(c)) then
             char_to_byte_safe = c
-        else if (char_byte8_p(c)) then
+        else if (is_char_byte8(c)) then
             char_to_byte_safe = c - byte8_offset
         else
             char_to_byte_safe = -1
@@ -214,11 +206,11 @@ contains
 
     !> True if `byte' leads the two-byte form of a raw byte.
     !> Port of character.h:CHAR_BYTE8_HEAD_P.
-    elemental logical function char_byte8_head_p(byte)
+    elemental logical function is_char_byte8_head(byte)
         integer(int32), intent(in) :: byte
 
-        char_byte8_head_p = byte == int(z'C0', int32) .or. byte == int(z'C1', int32)
-    end function char_byte8_head_p
+        is_char_byte8_head = byte == int(z'C0', int32) .or. byte == int(z'C1', int32)
+    end function is_char_byte8_head
 
     !> Length of the multibyte form of `c'.  Port of character.h:CHAR_BYTES.
     elemental integer(int32) function char_bytes(c)
@@ -350,25 +342,25 @@ contains
     end subroutine char_string
 
     !> Port of character.h:LEADING_CODE_P.
-    elemental logical function leading_code_p(byte)
+    elemental logical function is_leading_code(byte)
         integer(int32), intent(in) :: byte
 
-        leading_code_p = iand(byte, int(z'C0', int32)) == int(z'C0', int32)
-    end function leading_code_p
+        is_leading_code = iand(byte, int(z'C0', int32)) == int(z'C0', int32)
+    end function is_leading_code
 
     !> Port of character.h:TRAILING_CODE_P.
-    elemental logical function trailing_code_p(byte)
+    elemental logical function is_trailing_code(byte)
         integer(int32), intent(in) :: byte
 
-        trailing_code_p = iand(byte, int(z'C0', int32)) == int(z'80', int32)
-    end function trailing_code_p
+        is_trailing_code = iand(byte, int(z'C0', int32)) == int(z'80', int32)
+    end function is_trailing_code
 
     !> True if `byte' starts a character.  Port of character.h:CHAR_HEAD_P.
-    elemental logical function char_head_p(byte)
+    elemental logical function is_char_head(byte)
         integer(int32), intent(in) :: byte
 
-        char_head_p = iand(byte, int(z'C0', int32)) /= int(z'80', int32)
-    end function char_head_p
+        is_char_head = iand(byte, int(z'C0', int32)) /= int(z'80', int32)
+    end function is_char_head
 
     !> Length of a character judged by its first byte alone (no validation).
     !> Port of character.h:BYTES_BY_CHAR_HEAD.
@@ -402,7 +394,7 @@ contains
         multibyte_length = 0
         pend = len(str, kind=int64) + 1
         if (pos >= pend) return
-        c = byte_at(str, pos)
+        c = ichar(str(pos:pos), kind=int32)
 
         if (c < int(z'80', int32)) then
             multibyte_length = 1
@@ -410,7 +402,7 @@ contains
         end if
 
         if (pos + 1 >= pend) return
-        d = byte_at(str, pos + 1)
+        d = ichar(str(pos + 1:pos + 1), kind=int32)
         w = ishft(iand(d, int(z'C0', int32)), 2) + c
         lo2 = int(z'2C2', int32)
         if (allow_8bit) lo2 = int(z'2C0', int32)
@@ -421,7 +413,7 @@ contains
         end if
 
         if (pos + 2 >= pend) return
-        e = byte_at(str, pos + 2)
+        e = ichar(str(pos + 2:pos + 2), kind=int32)
         w = w + ishft(iand(e, int(z'C0', int32)), 4)
         w1 = ior(w, ishft(iand(d, int(z'20', int32)), -2))
 
@@ -431,7 +423,7 @@ contains
         end if
 
         if (pos + 3 >= pend) return
-        f = byte_at(str, pos + 3)
+        f = ichar(str(pos + 3:pos + 3), kind=int32)
         w = w + ishft(iand(f, int(z'C0', int32)), 6)
         w2 = ior(w, ishft(iand(d, int(z'30', int32)), -3))
 
@@ -441,7 +433,7 @@ contains
         end if
 
         if (pos + 4 >= pend) return
-        lw = int(w, int64) + ishft(int(iand(byte_at(str, pos + 4), int(z'C0', int32)), int64), 8)
+        lw = int(w, int64) + ishft(int(iand(ichar(str(pos + 4:pos + 4), kind=int32), int(z'C0', int32)), int64), 8)
         w3 = ishft(lw, 24) + ishft(int(d, int64), 16) + ishft(int(e, int64), 8) + int(f, int64)
 
         if (int(z'AAF8888080', int64) <= w3 .and. w3 <= int(z'AAF88FBFBD', int64)) then
@@ -464,7 +456,7 @@ contains
         do n = 1, MAX_MULTIBYTE_LENGTH
             if (pos - n < 1) exit
             raw_prev_char_len = n
-            if (char_head_p(byte_at(str, pos - n))) return
+            if (is_char_head(ichar(str(pos - n:pos - n), kind=int32))) return
         end do
     end function raw_prev_char_len
 
@@ -477,7 +469,7 @@ contains
         integer(int32), intent(out) :: ch, length
         integer(int32) :: c, d
 
-        c = byte_at(str, pos)
+        c = ichar(str(pos:pos), kind=int32)
 
         if (iand(c, int(z'80', int32)) == 0) then
             length = 1
@@ -485,7 +477,7 @@ contains
             return
         end if
 
-        d = ishft(c, 6) + byte_at(str, pos + 1) - (ishft(int(z'C0', int32), 6) + int(z'80', int32))
+        d = ishft(c, 6) + ichar(str(pos + 1:pos + 1), kind=int32) - (ishft(int(z'C0', int32), 6) + int(z'80', int32))
 
         if (iand(c, int(z'20', int32)) == 0) then
             length = 2
@@ -494,7 +486,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + byte_at(str, pos + 2) - (ishft(int(z'20', int32), 12) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(str(pos + 2:pos + 2), kind=int32) - (ishft(int(z'20', int32), 12) + int(z'80', int32))
 
         if (iand(c, int(z'10', int32)) == 0) then
             length = 3
@@ -502,7 +494,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + byte_at(str, pos + 3) - (ishft(int(z'10', int32), 18) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(str(pos + 3:pos + 3), kind=int32) - (ishft(int(z'10', int32), 18) + int(z'80', int32))
 
         if (iand(c, int(z'08', int32)) == 0) then
             length = 4
@@ -510,7 +502,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + byte_at(str, pos + 4) - (ishft(int(z'08', int32), 24) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(str(pos + 4:pos + 4), kind=int32) - (ishft(int(z'08', int32), 24) + int(z'80', int32))
         length = 5
         ch = d
     end subroutine string_char_and_length
@@ -604,7 +596,7 @@ contains
                 p = p + n
                 q = q + n
             else
-                b = byte_at(str, p)
+                b = ichar(str(p:p), kind=int32)
                 out(q:q) = char(ior(int(z'C0', int32), iand(ishft(b, -6), 1_int32)))
                 out(q + 1:q + 1) = char(ior(int(z'80', int32), iand(b, int(z'3F', int32))))
                 p = p + 1
@@ -622,7 +614,7 @@ contains
         count_size_as_multibyte = len(str, kind=int64)
 
         do i = 1, len(str, kind=int64)
-            if (byte_at(str, i) > 127) count_size_as_multibyte = count_size_as_multibyte + 1
+            if (ichar(str(i:i), kind=int32) > 127) count_size_as_multibyte = count_size_as_multibyte + 1
         end do
     end function count_size_as_multibyte
 
@@ -639,7 +631,7 @@ contains
         q = 1
 
         do i = 1, len(src, kind=int64)
-            b = byte_at(src, i)
+            b = ichar(src(i:i), kind=int32)
 
             if (b <= 127) then
                 dst(q:q) = src(i:i)
@@ -665,9 +657,9 @@ contains
         q = 0
 
         do while (p <= len(str, kind=int64))
-            c = byte_at(str, p)
+            c = ichar(str(p:p), kind=int32)
 
-            if (char_byte8_head_p(c)) then
+            if (is_char_byte8_head(c)) then
                 call string_char_and_length(str, p, c, n)
                 q = q + 1
                 work(q:q) = char(char_to_byte8(c))
@@ -691,7 +683,7 @@ contains
 
         k = c
         ! A non-ASCII character can't reflect modifier bits to the code.
-        if (.not. ascii_char_p(iand(k, not(CHAR_MODIFIER_MASK)))) return
+        if (.not. is_ascii_char(iand(k, not(CHAR_MODIFIER_MASK)))) return
 
         if (iand(k, CHAR_SHIFT) /= 0) then
             low = iand(k, 255_int32)
@@ -727,28 +719,28 @@ contains
 
     !> Index (1..256) of variation selector `c', or 0.
     !> Port of character.h:CHAR_VARIATION_SELECTOR_P.
-    elemental integer(int32) function char_variation_selector_p(c)
+    elemental integer(int32) function variation_selector_number(c)
         integer(int32), intent(in) :: c
 
         if (c < int(z'FE00', int32)) then
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         else if (c <= int(z'FE0F', int32)) then
-            char_variation_selector_p = c - int(z'FE00', int32) + 1
+            variation_selector_number = c - int(z'FE00', int32) + 1
         else if (c < int(z'E0100', int32)) then
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         else if (c <= int(z'E01EF', int32)) then
-            char_variation_selector_p = c - int(z'E0100', int32) + 17
+            variation_selector_number = c - int(z'E0100', int32) + 17
         else
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         end if
-    end function char_variation_selector_p
+    end function variation_selector_number
 
     !> Port of character.h:char_surrogate_p.
-    elemental logical function char_surrogate_p(c)
+    elemental logical function is_char_surrogate(c)
         integer(int32), intent(in) :: c
 
-        char_surrogate_p = int(z'D800', int32) <= c .and. c <= int(z'DFFF', int32)
-    end function char_surrogate_p
+        is_char_surrogate = int(z'D800', int32) <= c .and. c <= int(z'DFFF', int32)
+    end function is_char_surrogate
 
     !> Value 0..15 of hex digit `c', or -1.
     !> Port of character.h:char_hexdigit.
@@ -796,63 +788,63 @@ contains
 
     !> Return true if C is an alphabetic character.  Port of
     !> character.c:alphabeticp.
-    pure logical function alphabeticp(c)
+    pure logical function is_alphabetic(c)
         integer(int32), intent(in) :: c
 
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_LU:UNICODE_CATEGORY_ME, UNICODE_CATEGORY_NL)
-            alphabeticp = .true.
+            is_alphabetic = .true.
         case default
-            alphabeticp = .false.
+            is_alphabetic = .false.
         end select
-    end function alphabeticp
+    end function is_alphabetic
 
     !> Return true if C is an alphabetic or decimal-number character.
     !> Port of character.c:alphanumericp.
-    pure logical function alphanumericp(c)
+    pure logical function is_alphanumeric(c)
         integer(int32), intent(in) :: c
 
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_LU:UNICODE_CATEGORY_NL)
-            alphanumericp = .true.
+            is_alphanumeric = .true.
         case default
-            alphanumericp = .false.
+            is_alphanumeric = .false.
         end select
-    end function alphanumericp
+    end function is_alphanumeric
 
     !> Return true if C is a graphic character.  Port of
     !> character.c:graphicp.
-    pure logical function graphicp(c)
+    pure logical function is_graphic(c)
         integer(int32), intent(in) :: c
 
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_UNKNOWN, UNICODE_CATEGORY_ZS:UNICODE_CATEGORY_CC, UNICODE_CATEGORY_CS, &
               UNICODE_CATEGORY_CN)
-            graphicp = .false.
+            is_graphic = .false.
         case default
-            graphicp = .true.
+            is_graphic = .true.
         end select
-    end function graphicp
+    end function is_graphic
 
     !> Return true if C is a printable character.  Port of
     !> character.c:printablep.
-    pure logical function printablep(c)
+    pure logical function is_printable(c)
         integer(int32), intent(in) :: c
 
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_UNKNOWN, UNICODE_CATEGORY_CC, UNICODE_CATEGORY_CS, UNICODE_CATEGORY_CN)
-            printablep = .false.
+            is_printable = .false.
         case default
-            printablep = .true.
+            is_printable = .true.
         end select
-    end function printablep
+    end function is_printable
 
     !> Return true if C is a horizontal whitespace character, as defined
     !> by https://www.unicode.org/reports/tr18/tr18-19.html#blank.
     !> Port of character.c:blankp.
-    pure logical function blankp(c)
+    pure logical function is_blank(c)
         integer(int32), intent(in) :: c
 
-        blankp = unicode_category(c) == UNICODE_CATEGORY_ZS
-    end function blankp
+        is_blank = unicode_category(c) == UNICODE_CATEGORY_ZS
+    end function is_blank
 end module character_fm

@@ -45,14 +45,22 @@ module window_fm
     public :: window_start, set_window_start, window_point, &
               set_window_point, window_body_lines, window_wants_header_line, free_window, free_prev_buffer, &
               free_quit_restore
-    public :: make_window, delete_window_object, window_ref, window_live_p, window_valid_p, same_window, same_handle, &
+    public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
-              pos_visible_in_window_p, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
+              is_pos_visible_in_window, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
               move_to_window_line_top_bottom, quit_window, quit_windows_on, syms_of_window
     public :: window_min_size
+    public :: is_window, window_buffer, window_parent, window_top_child, window_left_child, window_next_sibling, &
+              window_prev_sibling, frame_root_window, frame_selected_window, minibuffer_window, is_window_minibuffer, &
+              minibuffer_selected_window, window_total_height, window_total_width, window_left_column, window_top_line, &
+              window_body_height, window_body_width, window_wants_mode_line, window_mode_line_height, &
+              window_header_line_height, window_tab_line_height, window_hscroll, window_dedication, &
+              set_window_dedication, window_use_time, window_bump_use_time, window_prev_buffers, window_next_buffers, &
+              next_window, previous_window, window_list_1, window_list, window_part_at, window_at, &
+              force_window_update
     public :: select_window, split_window, delete_window, delete_other_windows, other_window, other_buffer, &
               replace_buffer_in_windows, switch_to_buffer, syms_of_window_cmds
 
@@ -61,9 +69,9 @@ module window_fm
     integer, public :: next_screen_context_lines = 2
 
     !> Move point on scroll error if true.
-    !> If false, scroll commands signal an error when no more scrolling is
+    !> If false, an error condition occurs in scroll commands when no more scrolling is
     !> possible.  If true, they move point to the beginning or end of
-    !> the buffer instead (and then signal at the edge).  Port of
+    !> the buffer instead (and then an error condition occurs at the edge).  Port of
     !> window.el scroll-error-top-bottom.
     logical, public :: scroll_error_top_bottom = .false.
 
@@ -85,7 +93,7 @@ module window_fm
         logical :: has_quad = .false.
         type(handle_type) :: quad_buffer, quad_point
         integer(int64) :: quad_start = 0
-        !> The window's height or width then; -1 for none (nil).
+        !> The window's height or width then; -1 for none.
         integer :: quad_size = -1
         type(handle_type) :: selected, buffer
     end type quit_restore_type
@@ -93,8 +101,8 @@ module window_fm
     !> Kinds of `quit_restore' parameter.
     integer, parameter, public :: QR_NONE = 0, QR_WINDOW = 1, QR_FRAME = 2, QR_SAME = 3, QR_OTHER = 4
 
-    !> Dedication of a window to its buffer: nil, weak (non-nil), strong
-    !> (t).
+    !> Dedication of a window to its buffer: none, weak or strong
+    !> (DEDICATED_NONE, DEDICATED_WEAK and DEDICATED_STRONG).
     integer, parameter, public :: DEDICATED_NONE = 0, DEDICATED_WEAK = 1, DEDICATED_STRONG = 2
 
     !> What `quit_restore_window' and `switch_to_prev_buffer' do with the
@@ -116,7 +124,7 @@ module window_fm
                                   DISPLAY_ACTION_BELOW_SELECTED = 9
 
     !> A function that sets the height of a window `display_buffer' made
-    !> (the `window_height' entry of an action alist).
+    !> (the `window_height' entry of an action table).
     abstract interface
         ! Not a port.
         subroutine window_height_function(window)
@@ -126,10 +134,10 @@ module window_fm
         end subroutine window_height_function
     end interface
 
-    !> A buffer display action alist: the entries ported.  Port of the
+    !> A buffer display action table: the entries ported.  Port of the
     !> `inhibit_same_window', `window_height' (a function) and
     !> `body_function' entries.
-    type, public :: display_alist_type
+    type, public :: display_action_table_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
         !> Called with a window made to display the buffer, to set its
@@ -139,10 +147,10 @@ module window_fm
         !> current, read-only text and modification hooks inhibited), to
         !> fill it before its size is adjusted.
         procedure(window_height_function), pointer, nopass :: body_function => null()
-    end type display_alist_type
+    end type display_action_table_type
 
     !> A buffer display action given in full: action functions
-    !> (DISPLAY_ACTION_*) and the alist entries it sets (here
+    !> (DISPLAY_ACTION_*) and the table entries it sets (here
     !> `inhibit_same_window', when `has_inhibit_same_window').
     type, public :: display_action_type
         integer, allocatable :: actions(:)
@@ -152,7 +160,7 @@ module window_fm
 
     !> A buffer display action that overrides all others.
     !> If non-empty, this action takes precedence over all others: its
-    !> functions are tried first and the entries of its alist win over
+    !> functions are tried first and the entries of its table win over
     !> those of the other actions.  This variable is not intended for
     !> user customization.  Programs should never set this variable
     !> permanently but may bind it around calls of buffer display
@@ -167,10 +175,20 @@ module window_fm
 
     !> If not DEDICATED_NONE, `display_buffer' marks the windows it creates as
     !> dedicated.  The actual value of this variable will be copied
-    !> to the `window_dedicated_p' flag.  Port of window.el
-    !> display-buffer-mark-dedicated (DEDICATED_NONE, DEDICATED_WEAK for a
-    !> non-nil value other than t, DEDICATED_STRONG for t).
+    !> to the `window_dedication' flag.  Port of window.el
+    !> display-buffer-mark-dedicated (DEDICATED_NONE, DEDICATED_WEAK or
+    !> DEDICATED_STRONG).
     integer, public :: display_buffer_mark_dedicated = DEDICATED_NONE
+
+    !> Which windows `next_window' and its relatives consider besides the
+    !> ordinary ones (their MINIBUF argument): the minibuffer window if the
+    !> minibuffer is active (MINIBUF_ACTIVE), always (MINIBUF_ALWAYS), or never (MINIBUF_NEVER).
+    integer, parameter, public :: MINIBUF_ACTIVE = 0, MINIBUF_ALWAYS = 1, MINIBUF_NEVER = 2
+
+    !> The parts of a window `window_part_at' tells (window.h
+    !> enum window_part, the ones a terminal frame has).
+    integer, parameter, public :: ON_NOTHING = 0, ON_TEXT = 1, ON_MODE_LINE = 2, ON_VERTICAL_BORDER = 3, &
+                                  ON_HEADER_LINE = 4
 
     !> Values of `split_window_preferred_direction'.
     integer, parameter, public :: SPLIT_LONGEST = 0, SPLIT_VERTICAL = 1, SPLIT_HORIZONTAL = 2
@@ -277,6 +295,8 @@ module window_fm
         !> cursor, in frame pixels (window.h phys_cursor with
         !> phys_cursor_width and phys_cursor_height).
         integer :: phys_cursor_x = 0, phys_cursor_y = 0, phys_cursor_width = 0, phys_cursor_height = 0
+        !> Show no cursor in the window (`internal_show_cursor').
+        logical :: cursor_off_p = .false.
         !> Columns scrolled off the left (only the minibuffer window
         !> scrolls horizontally so far: auto-hscroll).
         integer :: hscroll = 0
@@ -384,7 +404,8 @@ module window_fm
         !> of the window.
         !>
         !> `line' is the screen line of the window point moved to, counting
-        !> from the top of the window.  Port of window.c:Fmove_to_window_line.
+        !> from the top of the window.  Port of window.c:Fmove_to_window_line (with
+        !> window.c:displayed_window_lines, on a terminal the body height).
         module subroutine move_to_window_line(arg, line, status)
             implicit none(type, external)
             type(value_type), intent(in) :: arg
@@ -401,7 +422,7 @@ module window_fm
         !>
         !> If `scroll_error_top_bottom' is true and `scroll_up' cannot
         !> scroll window further, move cursor to the bottom line.
-        !> When point is already on that position, then signal an error.
+        !> When point is already on that position, then an error condition occurs.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll downward.
         !>
@@ -425,7 +446,7 @@ module window_fm
         !>
         !> If `scroll_error_top_bottom' is true and `scroll_down' cannot
         !> scroll window further, move cursor to the top line.
-        !> When point is already on that position, then signal an error.
+        !> When point is already on that position, then an error condition occurs.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll upward.
         !>
@@ -442,19 +463,19 @@ module window_fm
 
         !> Whether position POS is shown, at least partially, in WINDOW:
         !> within the window's body lines from its start.  Port of
-        !> window.c:Fpos_visible_in_window_p with PARTIALLY non-nil (line
+        !> window.c:Fpos_visible_in_window_p with PARTIALLY .true. (line
         !> based, no vscroll).
-        module logical function pos_visible_in_window_p(pos, window) result(visible)
+        module logical function is_pos_visible_in_window(pos, window) result(visible)
             implicit none(type, external)
             integer(int64), intent(in) :: pos
             type(handle_type), intent(in) :: window
-        end function pos_visible_in_window_p
+        end function is_pos_visible_in_window
 
         !> Return "the other" window for "other window scroll" commands: a
         !> neighboring window on the selected frame.  Port of
         !> window.c:Fother_window_for_scrolling (`minibuffer_scroll_window',
         !> `other_window_scroll_buffer' and `other_window_scroll_default'
-        !> are deferred: they are nil).
+        !> are deferred: they are unset).
         module subroutine other_window_for_scrolling(window, status)
             implicit none(type, external)
             type(handle_type), intent(out) :: window
@@ -520,7 +541,9 @@ module window_fm
         !> Select WINDOW which must be a live window.  Also make WINDOW's
         !> buffer current and make WINDOW the frame's selected window; point
         !> becomes WINDOW's point.  Unless `norecord', record the buffer as
-        !> most recently selected.  Port of window.c:Fselect_window.
+        !> most recently selected.  Port of window.c:Fselect_window, with
+        !> window.c:select_window, window.c:select_window_1 and, for
+        !> NORECORD, window.c:select_window_norecord.
         module subroutine select_window(h, status, norecord)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
@@ -548,7 +571,7 @@ module window_fm
         !> WINDOW if it is live, else of the selected window.  WINDOW may
         !> be internal (the root window, say): its windows share what is
         !> left.  Port of window.el:split-window (no SIDE above or left,
-        !> `window_combination_resize' nil, no REFER).
+        !> `window_combination_resize' .false., no REFER).
         module subroutine split_window(window, size, have_size, horizontal, new, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
@@ -558,7 +581,7 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine split_window
 
-        !> Delete WINDOW: its space goes to a neighbour, and if it was
+        !> Delete WINDOW: its space goes to a neighbor, and if it was
         !> selected the most recently used window is selected.  Port of
         !> window.el:delete-window.
         module subroutine delete_window(window, status)
@@ -603,10 +626,10 @@ module window_fm
         !> name of no live buffer makes a new buffer of that name.  If the
         !> selected window cannot show it (it is the minibuffer window or
         !> strongly dedicated), use `pop_to_buffer', or with
-        !> FORCE_SAME_WINDOW signal an error.  Unless NORECORD, the buffer
+        !> FORCE_SAME_WINDOW an error condition occurs.  Unless NORECORD, the buffer
         !> becomes the most recently selected one.  When the window showed
         !> the buffer before, its start and point there are restored
-        !> (`switch_to_buffer_preserve_window_point' t).  Port of
+        !> (`switch_to_buffer_preserve_window_point' .true.).  Port of
         !> window.el:switch-to-buffer (`switch_to_buffer_obey_display_actions'
         !> and the other values of `switch_to_buffer_preserve_window_point'
         !> are deferred).
@@ -625,9 +648,9 @@ module window_fm
 
         !> Make WINDOW display BUFFER_OR_NAME.
         !> WINDOW must be a live window.  Optional third argument
-        !> KEEP-MARGINS non-nil means that WINDOW's current display margins,
+        !> KEEP-MARGINS .true. means that WINDOW's current display margins,
         !> fringe widths, and scroll bar settings are preserved.  This
-        !> function throws an error when WINDOW is strongly dedicated to its
+        !> an error condition occurs when WINDOW is strongly dedicated to its
         !> buffer and does not already display BUFFER_OR_NAME.  Port of
         !> window.c:Fset_window_buffer.
         module subroutine set_window_buffer(h, buffer, status, keep_margins)
@@ -707,7 +730,8 @@ module window_fm
             type(handle_type), intent(in), optional :: window
         end subroutine quit_window
 
-        !> Port of window.el:replace-buffer-in-windows.
+        !> Port of window.el:replace-buffer-in-windows (and of
+        !> window.c:replace_buffer_in_windows, which calls it).
         module subroutine replace_buffer_in_windows(buffer)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
@@ -730,26 +754,27 @@ module window_fm
 
         !> Display BUFFER in some window and return that window (the null
         !> handle if none could be found): the action functions ACTIONS
-        !> (DISPLAY_ACTION_* codes) are tried in turn with ALIST, then those
+        !> (DISPLAY_ACTION_* codes) are tried in turn with TABLE, then those
         !> of `display_buffer_fallback_action'.  Port of
-        !> window.el:display-buffer.
-        module subroutine display_buffer(buffer, window, status, actions, alist)
+        !> window.el:display-buffer (and of window.c:display_buffer, which
+        !> calls it).
+        module subroutine display_buffer(buffer, window, status, actions, table)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: alist
+            type(display_action_table_type), intent(in), optional :: table
         end subroutine display_buffer
 
         !> Display BUFFER and select its window.  Port of
         !> window.el:pop-to-buffer.
-        module subroutine pop_to_buffer(buffer, status, actions, alist, norecord)
+        module subroutine pop_to_buffer(buffer, status, actions, table, norecord)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: alist
+            type(display_action_table_type), intent(in), optional :: table
             logical, intent(in), optional :: norecord
         end subroutine pop_to_buffer
 
@@ -776,7 +801,7 @@ module window_fm
         !> covers point's column, else the nearest one below.  The
         !> minibuffer window counts while it is active.  The null handle if
         !> there is none.  Port of window.el:window-in-direction (DIRECTION
-        !> `below'; IGNORE, SIGN and WRAP nil).
+        !> `below'; IGNORE, SIGN and WRAP .false.).
         module function window_in_direction_below(window) result(best)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
@@ -821,17 +846,17 @@ module window_fm
         end subroutine shrink_window_if_larger_than_buffer
 
         !> Show temporary buffer BUFFER in a window: unmodified, read-only
-        !> and at its beginning, displayed with ACTIONS and ALIST.  WINDOW
+        !> and at its beginning, displayed with ACTIONS and TABLE.  WINDOW
         !> is the window showing BUFFER; it becomes
         !> `minibuffer_scroll_window'.  Port of
         !> window.el:temp-buffer-window-show (no `temp_buffer_resize_mode').
-        module subroutine temp_buffer_window_show(buffer, window, status, actions, alist)
+        module subroutine temp_buffer_window_show(buffer, window, status, actions, table)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: alist
+            type(display_action_table_type), intent(in), optional :: table
         end subroutine temp_buffer_window_show
 
         !> Scroll WINDOW up (DIRECTION 1) or down (-1) by nearly a full
@@ -846,7 +871,8 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine scroll_window
 
-        !> Port of window.c:Fget_buffer_window.
+        !> Port of window.c:Fget_buffer_window (with
+        !> window.c:window_loop for GET_BUFFER_WINDOW).
         module function get_buffer_window(buffer) result(window)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
@@ -905,8 +931,8 @@ module window_fm
         !> is not combined in that direction, next to the combination it is
         !> in) gives or takes the lines.  Port of window.el:window-resize
         !> (taking from further siblings, which upstream does in proportion
-        !> to their normal sizes, is deferred: it signals "Cannot resize
-        !> window").
+        !> to their normal sizes, is deferred: the error condition "Cannot resize
+        !> window" occurs).
         module subroutine window_resize(window, delta, horizontal, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
@@ -931,9 +957,10 @@ module window_fm
         !> Set the configuration of windows and buffers as specified by
         !> CONFIGURATION, a value previously made by
         !> `current_window_configuration'.  The minibuffer window keeps its
-        !> buffer.  Port of window.c:Fset_window_configuration with
-        !> DONT-SET-FRAME and DONT-SET-MINIWINDOW non-nil
-        !> (`window_restore_killed_buffer_windows' nil).
+        !> buffer.  Port of window.c:Fset_window_configuration (and
+        !> window.c:restore_window_configuration) with
+        !> DONT-SET-FRAME and DONT-SET-MINIWINDOW .true.
+        !> (`window_restore_killed_buffer_windows' .false.).
         module subroutine set_window_configuration(config)
             implicit none(type, external)
             type(window_configuration_type), intent(in) :: config
@@ -960,6 +987,451 @@ module window_fm
         module subroutine syms_of_window_display()
             implicit none(type, external)
         end subroutine syms_of_window_display
+
+        ! What windows are, in submodule window_info_fm.
+
+        !> Return .true. if OBJECT is a window and .false. otherwise.  Port of
+        !> window.c:Fwindowp (a handle `make_window' gave, deleted since or
+        !> not).
+        module function is_window(object) result(p)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: object
+            logical :: p
+        end function is_window
+
+        !> Return the buffer displayed in window WINDOW.
+        !> If WINDOW is absent, it defaults to the selected window.
+        !> Return the null handle for an internal window or a deleted window.  Port of
+        !> window.c:Fwindow_buffer (with window.c:decode_any_window).
+        module function window_buffer(window, status) result(b)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: b
+        end function window_buffer
+
+        !> Return the parent window of window WINDOW.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Return the null handle for a window with no parent (e.g. a root window).
+        !> Port of window.c:Fwindow_parent.
+        module function window_parent(window, status) result(p)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: p
+        end function window_parent
+
+        !> Return the topmost child window of window WINDOW.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Return the null handle if WINDOW is a live window (live windows have no children).
+        !> Return the null handle if WINDOW is an internal window whose children form a
+        !> horizontal combination.  Port of window.c:Fwindow_top_child.
+        module function window_top_child(window, status) result(c)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: c
+        end function window_top_child
+
+        !> Return the leftmost child window of window WINDOW.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Return the null handle if WINDOW is a live window (live windows have no children).
+        !> Return the null handle if WINDOW is an internal window whose children form a
+        !> vertical combination.  Port of window.c:Fwindow_left_child.
+        module function window_left_child(window, status) result(c)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: c
+        end function window_left_child
+
+        !> Return the next sibling window of window WINDOW.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Return the null handle if WINDOW has no next sibling.  Port of
+        !> window.c:Fwindow_next_sibling.
+        module function window_next_sibling(window, status) result(s)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: s
+        end function window_next_sibling
+
+        !> Return the previous sibling window of window WINDOW.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Return the null handle if WINDOW has no previous sibling.  Port of
+        !> window.c:Fwindow_prev_sibling.
+        module function window_prev_sibling(window, status) result(s)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: s
+        end function window_prev_sibling
+
+        !> Return the root window of FRAME-OR-WINDOW.
+        !> If omitted, FRAME-OR-WINDOW defaults to the currently selected frame.
+        !> With a frame argument, return that frame's root window.
+        !> With a window argument, return the root window of that window's frame.
+        !> Port of window.c:Fframe_root_window (one frame: WINDOW, if given,
+        !> must be valid).
+        module function frame_root_window(window, status) result(r)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: r
+        end function frame_root_window
+
+        !> Return the selected window of FRAME-OR-WINDOW.
+        !> If omitted, FRAME-OR-WINDOW defaults to the currently selected frame.
+        !> Else if FRAME-OR-WINDOW denotes a valid window, return the selected
+        !> window of that window's frame.  If FRAME-OR-WINDOW denotes a live frame,
+        !> return the selected window of that frame.  Port of
+        !> window.c:Fframe_selected_window (one frame).
+        module function frame_selected_window(window, status) result(s)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: s
+        end function frame_selected_window
+
+        !> Return the minibuffer window for frame FRAME.
+        !> If FRAME is absent, it defaults to the selected frame.
+        !> Port of window.c:Fminibuffer_window (one frame).
+        module function minibuffer_window() result(m)
+            implicit none(type, external)
+            type(handle_type) :: m
+        end function minibuffer_window
+
+        !> Return .true. if WINDOW is a minibuffer window.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Port of window.c:Fwindow_minibuffer_p.
+        module function is_window_minibuffer(window, status) result(p)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            logical :: p
+        end function is_window_minibuffer
+
+        !> Return window selected just before minibuffer window was selected.
+        !> Return the null handle if the selected window is not a minibuffer window.
+        !> Port of window.c:Fminibuffer_selected_window.
+        module function minibuffer_selected_window() result(s)
+            implicit none(type, external)
+            type(handle_type) :: s
+        end function minibuffer_selected_window
+
+        !> Return the height of window WINDOW in canonical lines.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> The return value includes the heights of WINDOW's mode and header line
+        !> and its bottom divider, if any.  If WINDOW is an internal window, the
+        !> total height is the height of the screen areas spanned by its children.
+        !> Port of window.c:Fwindow_total_height (a window's height is a whole
+        !> number of canonical lines, so ROUND makes no difference and is left
+        !> out).
+        module function window_total_height(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_total_height
+
+        !> Return the total width of window WINDOW in canonical columns.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> The return value includes the widths of WINDOW's fringes, margins,
+        !> scroll bars and its right divider, if any.  If WINDOW is an internal
+        !> window, the total width is the width of the screen areas spanned by its
+        !> children.  Port of window.c:Fwindow_total_width (ROUND left out, as
+        !> for `window_total_height').
+        module function window_total_width(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_total_width
+
+        !> Return left column of window WINDOW.
+        !> This is the distance, in columns, between the left edge of WINDOW and
+        !> the left edge of the frame's window area.  For instance, the return
+        !> value is 0 if there is no window to the left of WINDOW.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Port of window.c:Fwindow_left_column.
+        module function window_left_column(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_left_column
+
+        !> Return top line of window WINDOW.
+        !> This is the distance, in lines, between the top of WINDOW and the top
+        !> of the frame's window area.  For instance, the return value is 0 if
+        !> there is no window above WINDOW.
+        !> WINDOW must be a valid window and defaults to the selected one.
+        !> Port of window.c:Fwindow_top_line.
+        module function window_top_line(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_top_line
+
+        !> Return the height of WINDOW's text area.
+        !> WINDOW must be a live window and defaults to the selected one.  The
+        !> return value does not include the mode line or header line or any
+        !> horizontal divider.  Port of window.c:Fwindow_body_height (in
+        !> canonical lines; PIXELWISE waits for the GUI).
+        module function window_body_height(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_body_height
+
+        !> Return the width of WINDOW's text area.
+        !> WINDOW must be a live window and defaults to the selected one.  The
+        !> return value does not include any vertical dividers, fringes or
+        !> marginal areas, or scroll bars.  Port of
+        !> window.c:Fwindow_body_width (in canonical columns; PIXELWISE waits
+        !> for the GUI).
+        module function window_body_width(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_body_width
+
+        !> Whether window W shows a mode line: a live window, not the
+        !> minibuffer window, more than one line high.  Port of
+        !> window.c:window_wants_mode_line (no `mode_line_format' window
+        !> parameter; every buffer has a mode line).
+        module function window_wants_mode_line(w) result(wants)
+            implicit none(type, external)
+            type(window_type), intent(in) :: w
+            logical :: wants
+        end function window_wants_mode_line
+
+        !> Return the height in pixels of WINDOW's mode-line.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> Port of window.c:Fwindow_mode_line_height (a terminal frame: 1 or
+        !> 0).
+        module function window_mode_line_height(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_mode_line_height
+
+        !> Return the height in pixels of WINDOW's header-line.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> Port of window.c:Fwindow_header_line_height (a terminal frame).
+        module function window_header_line_height(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_header_line_height
+
+        !> Return the height in pixels of WINDOW's tab-line.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> Port of window.c:Fwindow_tab_line_height (no tab lines yet: 0).
+        module function window_tab_line_height(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_tab_line_height
+
+        !> Return the number of columns by which WINDOW is scrolled from left margin.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> Port of window.c:Fwindow_hscroll.
+        module function window_hscroll(window, status) result(n)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: n
+        end function window_hscroll
+
+        !> Return true when WINDOW is dedicated to its buffer.
+        !> More precisely, return the value assigned by the last call of
+        !> `set_window_dedication' for WINDOW.  Return DEDICATED_NONE if that
+        !> function was never called with WINDOW as its argument, or the value
+        !> set by that function was internally reset since its last call.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> Port of window.c:Fwindow_dedicated_p.
+        module function window_dedication(window, status) result(d)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer :: d
+        end function window_dedication
+
+        !> Mark WINDOW as dedicated according to FLAG.
+        !> WINDOW must be a live window and defaults to the selected one.  FLAG
+        !> DEDICATED_WEAK means mark WINDOW as dedicated to its buffer.  FLAG
+        !> DEDICATED_NONE means mark WINDOW as non-dedicated.
+        !> As a special case, if FLAG is DEDICATED_STRONG, mark WINDOW as
+        !> "strongly" dedicated to its buffer.  Port of
+        !> window.c:Fset_window_dedicated_p.
+        module subroutine set_window_dedication(window, flag, status)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            integer, intent(in) :: flag
+            type(status_type), intent(out) :: status
+        end subroutine set_window_dedication
+
+        !> Return the use time of window WINDOW.
+        !> WINDOW must specify a live window and defaults to the selected one.
+        !> The window with the highest use time is usually the one most recently
+        !> selected by calling `select_window' with NORECORD false.  Port of
+        !> window.c:Fwindow_use_time.
+        module function window_use_time(window, status) result(t)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer(int64) :: t
+        end function window_use_time
+
+        !> Mark WINDOW as second most recently used.
+        !> WINDOW must specify a live window.
+        !> If WINDOW is not selected and the selected window has the highest use
+        !> time of all windows, set the use time of WINDOW to that of the selected
+        !> window, increase the use time of the selected window by one and return
+        !> the new use time of WINDOW.  Otherwise, do nothing and return -1.
+        !> Port of window.c:Fwindow_bump_use_time.
+        module function window_bump_use_time(window, status) result(t)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            integer(int64) :: t
+        end function window_bump_use_time
+
+        !> Return buffers previously shown in WINDOW.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> The return value is an array of elements (BUFFER, WINDOW-START,
+        !> POS), where BUFFER is a buffer, WINDOW-START is the start position of
+        !> the window for that buffer, and POS is a window-specific point value.
+        !> Port of window.c:Fwindow_prev_buffers.
+        module function window_prev_buffers(window, status) result(list)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(prev_buffer_type), allocatable :: list(:)
+        end function window_prev_buffers
+
+        !> Return array of buffers recently re-shown in WINDOW.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> Port of window.c:Fwindow_next_buffers.
+        module function window_next_buffers(window, status) result(list)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type), allocatable :: list(:)
+        end function window_next_buffers
+
+        !> Return live window after WINDOW in the cyclic ordering of windows.
+        !> WINDOW must be a live window and defaults to the selected one.  The
+        !> optional argument MINIBUF specifies the set of windows to consider.
+        !> MINIBUF MINIBUF_ACTIVE or omitted means consider the minibuffer window
+        !> only if the minibuffer is active.  MINIBUF_ALWAYS means consider the
+        !> minibuffer window even if the minibuffer is not active.  MINIBUF_NEVER
+        !> means do not consider the minibuffer window even if the minibuffer is
+        !> active.  If you use consistent values for MINIBUF, you can use
+        !> `next_window' to iterate through the entire cycle of acceptable
+        !> windows, eventually ending up back at the window you started with.
+        !> `previous_window' traverses the same cycle, in the reverse order.
+        !> Port of window.c:Fnext_window (one frame: ALL-FRAMES makes no
+        !> difference and is left out).
+        module function next_window(window, minibuf, status) result(r)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            integer, intent(in), optional :: minibuf
+            type(status_type), intent(out) :: status
+            type(handle_type) :: r
+        end function next_window
+
+        !> Return live window before WINDOW in the cyclic ordering of windows.
+        !> WINDOW must be a live window and defaults to the selected one.  The
+        !> optional argument MINIBUF specifies the set of windows to consider,
+        !> as for `next_window'.  Port of window.c:Fprevious_window (one frame).
+        module function previous_window(window, minibuf, status) result(r)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            integer, intent(in), optional :: minibuf
+            type(status_type), intent(out) :: status
+            type(handle_type) :: r
+        end function previous_window
+
+        !> Return a list of all live windows.
+        !> WINDOW specifies the first window to list and defaults to the selected
+        !> window.  Optional argument MINIBUF chooses whether the minibuffer
+        !> window counts, as for `next_window'.  If WINDOW is not on the list of
+        !> windows returned, some other window will be listed first but no error
+        !> occurs.  Port of window.c:Fwindow_list_1 (with window_list_1;
+        !> one frame).
+        module function window_list_1(window, minibuf, status) result(list)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            integer, intent(in), optional :: minibuf
+            type(status_type), intent(out) :: status
+            type(handle_type), allocatable :: list(:)
+        end function window_list_1
+
+        !> Return a list of windows on FRAME, starting with WINDOW.
+        !> WINDOW omitted means use the window selected within FRAME.
+        !> MINIBUF MINIBUF_ALWAYS means include the minibuffer window, even if
+        !> it isn't active.  MINIBUF_ACTIVE or omitted means include the
+        !> minibuffer window only if it's active.  MINIBUF_NEVER means never
+        !> include the minibuffer window.  Port of window.c:Fwindow_list (one
+        !> frame).
+        module function window_list(minibuf, window, status) result(list)
+            implicit none(type, external)
+            integer, intent(in), optional :: minibuf
+            type(handle_type), intent(in), optional :: window
+            type(status_type), intent(out) :: status
+            type(handle_type), allocatable :: list(:)
+        end function window_list
+
+        !> Return the part of WINDOW at COORDINATES X and Y.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !> X and Y are distances measured in characters from the upper-left
+        !> corner of the frame.  (0, 0) denotes the character in the upper
+        !> left corner of the frame.  If they are in the text portion of
+        !> WINDOW, return ON_TEXT and the coordinates relative to the window
+        !> in REL_X and REL_Y.  If they are in the mode line of WINDOW, return
+        !> ON_MODE_LINE; in the header line, ON_HEADER_LINE; on the border
+        !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Emacs's
+        !> `vertical-line'); elsewhere, ON_NOTHING.  Port of
+        !> window.c:Fcoordinates_in_window_p (a terminal frame).
+        module function window_part_at(x, y, window, rel_x, rel_y, status) result(part)
+            implicit none(type, external)
+            integer, intent(in) :: x, y
+            type(handle_type), intent(in), optional :: window
+            integer, intent(out) :: rel_x, rel_y
+            type(status_type), intent(out) :: status
+            integer :: part
+        end function window_part_at
+
+        !> Force all windows to be updated on next redisplay.
+        !> If optional arg WINDOW is given, force redisplay of that window only.
+        !> If BUFFER is given, force redisplay of all windows displaying that
+        !> buffer.  Return true if a window was found (always, with neither
+        !> argument).  Port of window.c:Fforce_window_update (with
+        !> window.c:window_loop for REDISPLAY_BUFFER_WINDOWS): redisplay
+        !> recomputes every window, so there is no flag to set.
+        module function force_window_update(window, buffer) result(done)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window, buffer
+            logical :: done
+        end function force_window_update
+
+        !> Return window containing coordinates X and Y on FRAME.
+        !> X and Y are measured in units of canonical columns and rows.
+        !> The top left corner of the frame is considered to be column 0, row 0.
+        !> Port of window.c:Fwindow_at (one frame).
+        module function window_at(x, y) result(window)
+            implicit none(type, external)
+            integer, intent(in) :: x, y
+            type(handle_type) :: window
+        end function window_at
     end interface
 
 contains
@@ -1023,7 +1495,8 @@ contains
     end subroutine set_window_point
 
     !> Lines for text: the total minus the mode line and the header line.
-    !> Port of window.c:window_body_height (in lines).
+    !> Port of window.c:window_body_height (in lines) and
+    !> window.c:window_internal_height.
     integer function window_body_lines(w)
         type(window_type), intent(in) :: w
 
@@ -1083,7 +1556,7 @@ contains
         e = prev_buffer_type()
     end subroutine free_prev_buffer
 
-    !> Clear a `quit_restore' parameter (set it to nil), freeing its
+    !> Clear a `quit_restore' parameter (set it to none), freeing its
     !> marker.  Not a port.
     subroutine free_quit_restore(q)
         type(quit_restore_type), intent(inout) :: q
@@ -1098,7 +1571,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> A new window, in no tree and showing no buffer.  Port of
-    !> window.c:make_window.
+    !> window.c:make_window (with window.c:allocate_window).
     subroutine make_window(h)
         type(handle_type), intent(out) :: h
         type(window_type), allocatable :: grown(:)
@@ -1165,21 +1638,21 @@ contains
 
     !> Whether `h' is a valid window (live or internal).  Port of
     !> window.c:Fwindow_valid_p.
-    logical function window_valid_p(h)
+    logical function is_window_valid(h)
         type(handle_type), intent(in) :: h
 
-        window_valid_p = wtable%is_live(h)
-        if (window_valid_p) window_valid_p = .not. windows(h%index)%dead
-    end function window_valid_p
+        is_window_valid = wtable%is_live(h)
+        if (is_window_valid) is_window_valid = .not. windows(h%index)%dead
+    end function is_window_valid
 
     !> Whether `h' is a live window: one that shows a buffer (a leaf).
     !> Port of window.c:Fwindow_live_p.
-    logical function window_live_p(h)
+    logical function is_window_live(h)
         type(handle_type), intent(in) :: h
 
-        window_live_p = wtable%is_live(h)
-        if (window_live_p) window_live_p = windows(h%index)%child%index == 0 .and. .not. windows(h%index)%dead
-    end function window_live_p
+        is_window_live = wtable%is_live(h)
+        if (is_window_live) is_window_live = windows(h%index)%child%index == 0 .and. .not. windows(h%index)%dead
+    end function is_window_live
 
     !> Whether handles A and B name the same window.  Not a port.
     pure logical function same_window(a, b)
@@ -1189,7 +1662,8 @@ contains
     end function same_window
 
     !> The live windows of the tree under `root', in cyclic order (top to
-    !> bottom, left to right).  Port of window.c:window_list_1, in part
+    !> bottom, left to right).  Port of window.c:window_list_1, in part, window.c:window_sub_list and
+    !> window.c:get_leaf_windows
     !> (one frame).
     recursive subroutine window_leaves(root, list)
         type(handle_type), intent(in) :: root

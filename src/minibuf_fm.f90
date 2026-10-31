@@ -22,15 +22,14 @@
 !> Reading a line of input in the minibuffer: the prompt is read-only
 !> text in a field at the start of buffer " *Minibuf-N*", shown in the
 !> frame's minibuffer window, which is selected while a recursive edit
-!> runs; a command throws to `exit' to finish.
+!> runs; a command returns to `exit' with a status to finish.
 !>
 !> The completion primitives (`try_completion', `all_completions',
 !> `test_completion') are here too; the completion UI is minibuffer_fm's.
 !>
-!> Not yet: `completion_regexp_list' (no regexps), hash-table
-!> collections, minibuffer-only frames, input methods, Lisp
-!> reading (`read_minibuffer'), `minibuffer_setup_hook', the
-!> minibuffer-prompt face, and restoring window configurations.
+!> Not yet: hash-table collections, minibuffer-only frames and other
+!> frames, input methods, minibuffer-mode, text properties in the
+!> minibuffer's contents.
 module minibuf_fm
     use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_function, &
                                 completion_list_table, completion_obarray_table, completion_function_table, &
@@ -38,23 +37,23 @@ module minibuf_fm
                                 TABLE_OBARRAY, TABLE_FUNCTION, TABLE_QUOTING, completion_quote_proc
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
-    use handle_fm, only: handle_type
+    use handle_fm, only: handle_type, null_handle
     use eval_fm, only: hook_type
-    use lisp_fm, only: value_type, nil, t_value, list, nilp, make_string, make_list, list_elements, make_fixnum, &
-                       list_length, list_elt, fixnump, xfixnum, make_symbol_ref, stringp, xstring, symbolp, &
-                       xsymbol, symbols, nsymbols, V_LIST, vtag
+    use lisp_fm, only: value_type, list, make_list, list_elements, list_length, list_elt, xfixnum, make_symbol_ref, &
+                       xstring, xsymbol, symbols, nsymbols, V_ARRAY, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use search_fm, only: string_match, match_end, regexp_quote
-    use lread_fm, only: sym
-    use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting
+    use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting, history_setting, find_history
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
-                         erase_buffer, resolve_buffer, inhibit_read_only
+                         erase_buffer, resolve_buffer, inhibit_read_only, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: field_end, buffer_substring, goto_char
     use textprop_fm, only: add_text_properties, get_text_property
-    use keymap_fm, only: make_sparse_keymap, use_local_map, keymap_live_p
-    use keyboard_fm, only: recursive_edit_1, throw_exit, throw_exit_string, command_loop_level, last_message
+    use keymap_fm, only: make_sparse_keymap, use_local_map, is_keymap_live
+    use keyboard_fm, only: recursive_edit_1, throw_exit, throw_exit_string, command_loop_level, last_message, &
+                           minibuf_level, barf_if_interaction_inhibited, safe_run_hooks
+    use search_fm, only: fast_string_match
     use frame_fm, only: selected_frame, frame_selected_window_ref, minibuffer_window_ref
     use window_fm, only: window_type, set_window_buffer, window_configuration_type, current_window_configuration, &
                          set_window_configuration, free_window_configuration, minibuffer_scroll_window
@@ -62,9 +61,12 @@ module minibuf_fm
     implicit none(type, external)
     private
 
+    public :: minibuf_level
+    public :: minibuffer_depth, minibuffer_prompt, is_minibuffer_at_depth, is_live_minibuffer, nth_minibuffer, &
+              run_exit_minibuf_hook, set_initial_minibuffer_mode, match_regexps, assoc_string
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
-              minibufferp, abort_minibuffers, init_minibuf, minibuffer_innermost_command_loop_p, &
-              innermost_minibuffer_p, minibuffer_depth_of, minibuffer_setup_proc
+              is_minibuffer, abort_minibuffers, init_minibuf, is_minibuffer_innermost_command_loop, &
+              is_innermost_minibuffer, minibuffer_depth_of, minibuffer_setup_proc
     public :: quoting_table_call, complete_with_action, completion_table_subvert, completion_table_with_predicate
     public :: try_completion, all_completions, test_completion, completion_list_table, &
               completion_obarray_table, completion_function_table, completion_predicate, &
@@ -86,8 +88,6 @@ module minibuf_fm
     !> controls the behavior, rather than this variable.  Port of minibuf.c
     !> completion-ignore-case.
     type(logical_setting), public :: completion_ignore_case = logical_setting(name="completion_ignore_case")
-    !> minibuf_level: the depth of active minibuffers.
-    integer, public, protected :: minibuf_level = 0
     !> True means to allow minibuffer commands while in the minibuffer.
     !> This variable makes a difference whenever the minibuffer window is active.
     !> Port of minibuf.c enable-recursive-minibuffers.
@@ -116,7 +116,7 @@ module minibuf_fm
     !>
     !> This variable also overrides the default character that
     !> `read_passwd' uses to hide passwords.  Port of minibuf.c
-    !> read-hide-char (-1 for nil).
+    !> read-hide-char (-1 for none).
     integer(int32), public :: read_hide_char = -1
 
     !> Normal hook run just after entry to minibuffer.  Port of minibuf.c
@@ -124,7 +124,29 @@ module minibuf_fm
     !> runs first).
     type(hook_type), target, public :: minibuffer_setup_hook = hook_type(name="minibuffer_setup_hook")
 
-    !> Vminibuffer_history_variable: the history list's symbol name.
+    !> Normal hook run whenever a minibuffer is exited.  Port of minibuf.c
+    !> minibuffer-exit-hook.
+    type(hook_type), target, public :: minibuffer_exit_hook = hook_type(name="minibuffer_exit_hook")
+
+    !> List of regexps that should restrict possible completions.
+    !> The basic completion functions only consider a completion acceptable
+    !> if it matches all regular expressions in this list, with
+    !> `case_fold_search' bound to the value of `completion_ignore_case'.
+    !> See Info node `(elisp)Basic Completion', for a description of these
+    !> functions.
+    !>
+    !> Do not set this variable to a value globally, as that is not
+    !> safe and will probably cause errors in completion commands.  This
+    !> variable should only be set, then restored, around calls to
+    !> basic completion functions like `try_completion' and `all_completions'.
+    !> Port of minibuf.c completion-regexp-list (unallocated when unset).
+    character(len=:), allocatable, public :: completion_regexp_list(:)
+
+    !> minibuf.c:minibuf_prompt, the prompt of the active minibuffer
+    !> (unallocated for none).
+    character(len=:), allocatable :: minibuf_prompt
+
+    !> Vminibuffer_history_variable: the history list's name.
     character(len=:), allocatable, public :: minibuffer_history_variable
     !> Vminibuffer_history_position: the element shown (0: the input).
     integer, public :: minibuffer_history_position = 0
@@ -134,13 +156,13 @@ module minibuf_fm
     end type minibuffer_string_type
 
     !> minibuffer-default: the default values, for M-n ("future
-    !> history"); unallocated (or empty) for nil.
+    !> history"); unallocated (or empty) for none.
     type(minibuffer_string_type), allocatable, public :: minibuffer_default(:)
     !> simple.el minibuffer-temporary-goal-position: where M-n and M-p
     !> leave point (0 for the end), kept while they repeat.
     integer(int64), public :: minibuffer_temporary_goal_position = 0
     !> simple.el minibuffer-text-before-history: the input before moving
-    !> into the history; unallocated for nil.
+    !> into the history; unallocated for none.
     character(len=:), allocatable, public :: minibuffer_text_before_history
 
     !> A string in an array.
@@ -177,10 +199,11 @@ module minibuf_fm
 contains
 
     !> Create minibuffer-local-map (its bindings are made by minibuffer.el
-    !> and bindings.el, i.e. minibuffer_fm and bindings_fm).  Not a port:
-    !> upstream makes the map in keymap.c:syms_of_keymap.
+    !> and bindings.el, i.e. minibuffer_fm and bindings_fm).  Port of
+    !> minibuf.c:init_minibuf_once (upstream makes the map in
+    !> keymap.c:syms_of_keymap).
     subroutine init_minibuf()
-        if (.not. keymap_live_p(minibuffer_local_map)) call make_sparse_keymap(minibuffer_local_map)
+        if (.not. is_keymap_live(minibuffer_local_map)) call make_sparse_keymap(minibuffer_local_map)
         minibuf_level = 0
     end subroutine init_minibuf
 
@@ -225,10 +248,11 @@ contains
         minibuffers(depth + 1) = buf
     end subroutine get_minibuffer
 
-    !> Whether `buf' (default: the current buffer) is a minibuffer.
-    !> Port of minibuf.c:Fminibufferp.
-    logical function minibufferp(buf)
+    !> Whether `buf' (default: the current buffer) is a minibuffer; with
+    !> LIVE, an active one.  Port of minibuf.c:Fminibufferp.
+    logical function is_minibuffer(buf, live)
         type(handle_type), intent(in), optional :: buf
+        logical, intent(in), optional :: live
         type(handle_type) :: b
         integer :: k
 
@@ -238,17 +262,24 @@ contains
             b = current_buffer()
         end if
 
-        minibufferp = .false.
+        if (present(live)) then
+            if (live) then
+                is_minibuffer = is_live_minibuffer(b)
+                return
+            end if
+        end if
+
+        is_minibuffer = .false.
         if (.not. allocated(minibuffers)) return
 
         do k = 1, size(minibuffers)
             if (minibuffers(k)%index == b%index .and. minibuffers(k)%generation == b%generation .and. &
                 b%index /= 0) then
-                minibufferp = .true.
+                is_minibuffer = .true.
                 return
             end if
         end do
-    end function minibufferp
+    end function is_minibuffer
 
     !> The depth of the active minibuffer `buf' (default: the current
     !> buffer), or 0 if it is not one.  Port of
@@ -278,24 +309,24 @@ contains
     !> Return true if BUFFER is a minibuffer at the current command loop level.
     !> BUFFER defaults to the current buffer.  Port of
     !> minibuf.c:Fminibuffer_innermost_command_loop_p.
-    logical function minibuffer_innermost_command_loop_p(buffer) result(innermost)
+    logical function is_minibuffer_innermost_command_loop(buffer) result(innermost)
         type(handle_type), intent(in), optional :: buffer
         integer :: depth
 
         depth = minibuffer_depth_of(buffer)
         innermost = depth > 0
         if (innermost) innermost = minibuffer_loop_levels(depth + 1) == command_loop_level
-    end function minibuffer_innermost_command_loop_p
+    end function is_minibuffer_innermost_command_loop
 
     !> Return true if BUFFER is the most nested active minibuffer.
     !> No recursive minibuffers are active if BUFFER is the minibuffer.
     !> BUFFER defaults to the current buffer.  Port of
     !> minibuf.c:Finnermost_minibuffer_p.
-    logical function innermost_minibuffer_p(buffer) result(innermost)
+    logical function is_innermost_minibuffer(buffer) result(innermost)
         type(handle_type), intent(in), optional :: buffer
 
         innermost = minibuffer_depth_of(buffer) == minibuf_level .and. minibuf_level > 0
-    end function innermost_minibuffer_p
+    end function is_innermost_minibuffer
 
     !> Where the prompt ends in the current minibuffer (point-min if the
     !> current buffer is not one).  Port of minibuf.c:Fminibuffer_prompt_end.
@@ -304,12 +335,12 @@ contains
         type(status_type) :: status
 
         pos = buffers(cur)%begv
-        if (.not. minibufferp()) return
+        if (.not. is_minibuffer()) return
         pos = field_end(buffers(cur)%begv, .false.)
 
         if (pos == buffers(cur)%zv) then
-            call get_text_property(buffers(cur)%begv, sym("field"), field, status)
-            if (nilp(field)) pos = buffers(cur)%begv
+            call get_text_property(buffers(cur)%begv, value_type(name="field"), field, status)
+            if (.not. allocated(field%a)) pos = buffers(cur)%begv
         end if
     end function minibuffer_prompt_end
 
@@ -329,9 +360,11 @@ contains
     !> `default' is the default value (for M-n and the history), or
     !> `defaults' a list of them (the first is the default).  Port of
     !> minibuf.c:read_minibuf with Fread_from_minibuffer (no READ, no
-    !> INHERIT-INPUT-METHOD; DEFAULT only for the history).
-    !> minibuffer-mode is not ported: as set_minibuffer_mode does when it
-    !> is not defined, the minibuffer's local variables are killed.
+    !> INHERIT-INPUT-METHOD; DEFAULT only for the history), with
+    !> minibuf.c:Fread_from_minibuffer, minibuf.c:read_minibuf_unwind and
+    !> minibuf.c:choose_minibuf_frame (one frame).  minibuffer-mode is not
+    !> ported: as minibuf.c:set_minibuffer_mode does when it is not
+    !> defined, the minibuffer's local variables are killed.
     recursive subroutine read_from_minibuffer(prompt, result, status, initial, keymap, history, default, defaults, &
                                               position, history_position)
         character(len=*), intent(in) :: prompt
@@ -350,9 +383,12 @@ contains
         type(window_configuration_type) :: config
         type(window_type), pointer :: sw, mw
         type(status_type) :: st, edit_status
-        type(value_type) :: histval, saved_inhibit
+        type(value_type) :: saved_inhibit
+        type(history_setting), pointer :: history_list
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_before, histstring
         type(minibuffer_string_type), allocatable :: saved_default(:)
+        character(len=:), allocatable :: saved_prompt
+        logical :: had_prompt
         integer(int64) :: saved_goal
         integer :: saved_histpos
         logical :: had_default, had_before, have_histstring
@@ -361,6 +397,8 @@ contains
 
         result = ""
         history_added = .false.
+        call barf_if_interaction_inhibited(status)
+        if (.not. status%ok()) return
 
         if (.not. enable_recursive_minibuffers .and. minibuf_level > 0) then
             if (selected_frame%minibuffer_selected) then
@@ -385,7 +423,7 @@ contains
         minibuf_level = minibuf_level + 1
         ! Vcommand_loop_level_list: the level of this minibuffer's
         ! recursive edit.
-        minibuffer_loop_levels(minibuf_level + 1) = command_loop_level + 1
+        minibuffer_loop_levels(minibuf_level + 1) = command_loop_level
         saved_calling = minibuffer_calling_buffer
         minibuffer_calling_buffer = calling_buffer
 
@@ -397,6 +435,9 @@ contains
         end if
 
         saved_histpos = minibuffer_history_position
+        had_prompt = allocated(minibuf_prompt)
+        if (had_prompt) call move_alloc(minibuf_prompt, saved_prompt)
+        minibuf_prompt = prompt
         minibuffer_history_variable = histvar
         minibuffer_history_position = 0
         if (present(history_position)) minibuffer_history_position = history_position
@@ -414,14 +455,9 @@ contains
         minibuffer_temporary_goal_position = 0
         had_before = allocated(minibuffer_text_before_history)
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
-
-        ! If variable is unbound, make it nil (a HISTORY of "t" keeps no
-        ! history).
-        if (histvar /= "t") then
-            call symbol_value(sym(histvar), histval, st)
-            if (.not. st%ok()) call set(sym(histvar), nil(), st)
-        end if
-
+        ! If the history does not exist, make it empty (a HISTORY of "t"
+        ! keeps no history).
+        if (histvar /= "t") history_list => find_history(histvar, create=.true.)
         old_selected = selected_frame%minibuffer_selected
         sw => frame_selected_window_ref()
         mw => minibuffer_window_ref()
@@ -446,7 +482,7 @@ contains
         ! Erase the buffer.
         ! (specbind Qinhibit_read_only Qnil), restored on exit
         saved_inhibit = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call erase_buffer(st)
         buffers(cur)%multibyte = .true.
 
@@ -457,13 +493,16 @@ contains
             ! minibuffer-prompt-properties (by default read-only t and the
             ! face minibuffer_prompt, added after any faces of the prompt).
             call add_text_properties(1_int64, buffers(cur)%pt, &
-                                     list(sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value(), &
-                                          sym("field"), t_value(), sym("read_only"), t_value()), changed, st)
-            call add_text_properties(1_int64, buffers(cur)%pt, list(sym("face"), sym("minibuffer_prompt")), &
+                                     list(value_type(name="front_sticky"), value_type(.true.), value_type(name="rear_nonsticky"), &
+                                          value_type(.true.), &
+                                          value_type(name="field"), value_type(.true.), value_type(name="read_only"), &
+                                          value_type(.true.)), changed, st)
+            call add_text_properties(1_int64, buffers(cur)%pt, list(value_type(name="face"), &
+                                                                    value_type(name="minibuffer_prompt")), &
                                      changed, st)
         end if
 
-        call set(sym("inhibit_read_only"), nil(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(), st)
 
         if (present(initial)) then
             call insert(initial, st)
@@ -518,14 +557,18 @@ contains
             have_histstring = .false.
         end if
 
+        call run_exit_minibuf_hook(minibuffer)
         ! read_minibuf_unwind
         minibuf_level = minibuf_level - 1
-        call set(sym("inhibit_read_only"), t_value(), st)
+        if (allocated(minibuf_prompt)) deallocate (minibuf_prompt)
+        if (had_prompt) call move_alloc(saved_prompt, minibuf_prompt)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call erase_buffer(st)
-        call set(sym("inhibit_read_only"), saved_inhibit, st)
+        call set(value_type(name="inhibit_read_only"), saved_inhibit, st)
         minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
         ! (Windows may have been made meanwhile: fetch them again.)
+        ! minibuf.c:minibuffer_unwind (one frame)
         mw => minibuffer_window_ref()
         mw%buffer = old_mini_buffer
 
@@ -555,6 +598,159 @@ contains
         end if
     end subroutine read_from_minibuffer
 
+    !> Return current depth of activations of minibuffer, a nonnegative integer.
+    !> Port of minibuf.c:Fminibuffer_depth.
+    integer function minibuffer_depth()
+        minibuffer_depth = minibuf_level
+    end function minibuffer_depth
+
+    !> Return the prompt string of the currently-active minibuffer.
+    !> If no minibuffer is active, return false in HAVE.  Port of
+    !> minibuf.c:Fminibuffer_prompt.
+    subroutine minibuffer_prompt(prompt, have)
+        character(len=:), allocatable, intent(out) :: prompt
+        logical, intent(out) :: have
+
+        have = allocated(minibuf_prompt)
+        if (have) prompt = minibuf_prompt
+    end subroutine minibuffer_prompt
+
+    !> Whether BUF is the minibuffer of depth DEPTH.  Port of
+    !> minibuf.c:is_minibuffer.
+    logical function is_minibuffer_at_depth(depth, buf)
+        integer, intent(in) :: depth
+        type(handle_type), intent(in) :: buf
+        type(handle_type) :: m
+
+        m = nth_minibuffer(depth)
+        is_minibuffer_at_depth = m%index /= 0 .and. m%index == buf%index .and. m%generation == buf%generation
+    end function is_minibuffer_at_depth
+
+    !> Whether BUFFER is an active minibuffer (" *Minibuf-0*" never is).
+    !> Port of minibuf.c:live_minibuffer_p.
+    logical function is_live_minibuffer(buffer)
+        type(handle_type), intent(in) :: buffer
+        integer :: i
+
+        is_live_minibuffer = .false.
+
+        do i = 1, minibuf_level
+            if (is_minibuffer_at_depth(i, buffer)) then
+                is_live_minibuffer = .true.
+                return
+            end if
+        end do
+    end function is_live_minibuffer
+
+    !> The minibuffer of depth DEPTH, or the null handle if it does not
+    !> exist yet.  Port of minibuf.c:nth_minibuffer.
+    function nth_minibuffer(depth) result(buf)
+        integer, intent(in) :: depth
+        type(handle_type) :: buf
+
+        buf = null_handle()
+        if (.not. allocated(minibuffers)) return
+        if (depth + 1 > size(minibuffers)) return
+        buf = minibuffers(depth + 1)
+    end function nth_minibuffer
+
+    !> Run `minibuffer_exit_hook' with MINIBUF current, if it is live, as
+    !> `safe_run_hooks' does.  Port of minibuf.c:run_exit_minibuf_hook.
+    recursive subroutine run_exit_minibuf_hook(minibuf)
+        type(handle_type), intent(in) :: minibuf
+        type(handle_type) :: saved
+        type(status_type) :: st
+
+        saved = current_buffer()
+        if (is_buffer_live(minibuf)) call set_buffer(minibuf, st)
+        call safe_run_hooks(minibuffer_exit_hook)
+        if (is_buffer_live(saved)) call set_buffer(saved, st)
+    end subroutine run_exit_minibuf_hook
+
+    !> Set up the minibuffer of depth 0 as minibuffer-inactive-mode would
+    !> (its local variables killed, as set_minibuffer_mode does when
+    !> that mode is not defined).  Port of
+    !> minibuf.c:set_initial_minibuffer_mode with
+    !> minibuf.c:set_minibuffer_mode (minibuffer-mode and
+    !> minibuffer-inactive-mode are minibuffer.el's, not ported).
+    subroutine set_initial_minibuffer_mode()
+        type(handle_type) :: minibuf, saved
+        type(status_type) :: st
+
+        call get_minibuffer(0, minibuf, st)
+        if (.not. st%ok()) return
+        saved = current_buffer()
+        call set_buffer(minibuf, st)
+        call kill_all_local_variables()
+        if (is_buffer_live(saved)) call set_buffer(saved, st)
+    end subroutine set_initial_minibuffer_mode
+
+    !> Whether STRING matches all the regexps of `completion_regexp_list',
+    !> folding case when IGNORE_CASE ("Stack overflow in regexp matcher"
+    !> is an error).  Port of minibuf.c:match_regexps.
+    recursive logical function match_regexps(string, ignore_case, status) result(match)
+        character(len=*), intent(in) :: string
+        logical, intent(in) :: ignore_case
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        match = .true.
+        if (.not. allocated(completion_regexp_list)) return
+
+        do k = 1, size(completion_regexp_list)
+            match = fast_string_match(trim(completion_regexp_list(k)), string, ignore_case, status) > 0
+            if (.not. status%ok() .or. .not. match) return
+        end do
+    end function match_regexps
+
+    !> Like `assoc' but specifically for strings (and names).
+    !>
+    !> This returns the first element of LIST whose first element matches the string or
+    !> name KEY, or an unallocated value if no match exists.  When performing the
+    !> comparison, names are first converted to strings, and unibyte
+    !> strings to multibyte.  If the optional arg CASE_FOLD is true, both
+    !> KEY and the elements of LIST are upcased for comparison.
+    !>
+    !> Unlike `assoc', KEY can also match an entry in LIST consisting of a
+    !> single string, rather than two values whose first is a string.
+    !> Port of minibuf.c:Fassoc_string (KEY as a string; a name is
+    !> given by its name).
+    function assoc_string(key, list_value, case_fold) result(elt)
+        character(len=*), intent(in) :: key
+        type(value_type), intent(in) :: list_value
+        logical, intent(in), optional :: case_fold
+        type(value_type) :: elt
+        type(value_type), allocatable :: elts(:)
+        type(value_type) :: thiscar
+        character(len=:), allocatable :: s
+        logical :: fold
+        integer :: k
+
+        elt = value_type()
+        fold = .false.
+        if (present(case_fold)) fold = case_fold
+        if (vtag(list_value) /= V_ARRAY) return
+        call list_elements(list_value, elts)
+
+        do k = 1, size(elts)
+            thiscar = elts(k)
+            if (vtag(elts(k)) == V_ARRAY) thiscar = list_elt(elts(k), 1_int64)
+
+            if ((vtag(thiscar) == V_NAME .or. vtag(thiscar) == V_NULL)) then
+                s = symbols(xsymbol(thiscar))%name
+            else if (vtag(thiscar) == V_STRING) then
+                s = xstring(thiscar)
+            else
+                cycle
+            end if
+
+            if (compare_strings(s, key, fold) == COMPARE_EQUAL) then
+                elt = elts(k)
+                return
+            end if
+        end do
+    end function assoc_string
+
     !> Read a string; empty input gives `default' if present.
     !> Port of minibuf.c:Fread_string.
     recursive subroutine read_string(prompt, result, status, initial, history, default, position)
@@ -574,7 +770,7 @@ contains
     !> If we are not currently in the innermost minibuffer, prompt the user to
     !> confirm the aborting of the current minibuffer and all contained ones.
     !> Port of minibuf.c:Fabort_minibuffers (`ask' stands for
-    !> `yes_or_no_p', which this module cannot use).
+    !> `read_yes_or_no', which this module cannot use).
     recursive subroutine abort_minibuffers(status, ask)
         type(status_type), intent(out) :: status
         interface
@@ -598,7 +794,7 @@ contains
             return
         end if
 
-        if (.not. minibuffer_innermost_command_loop_p()) then
+        if (.not. is_minibuffer_innermost_command_loop()) then
             call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
             return
         end if
@@ -624,9 +820,9 @@ contains
     ! ------------------------------------------------------------------
 
     !> The elements of a non-function table: `elts' (the list elements or
-    !> symbols, given to the predicate) and the string each one completes
+    !> names, given to the predicate) and the string each one completes
     !> to (`names'; `ok' is false for elements that are not strings or
-    !> symbols).  Not a port.
+    !> names).  Not a port.
     subroutine table_elements(table, elts, names, ok)
         type(completion_table_type), intent(in) :: table
         type(value_type), allocatable, intent(out) :: elts(:)
@@ -652,20 +848,20 @@ contains
         allocate (names(size(elts)), ok(size(elts)))
 
         do k = 1, size(elts, kind=int64)
-            ! An alist element: its car is the completion.
+            ! A table element: its car is the completion.
             eltstring = elts(k)
 
-            if (vtag(elts(k)) == V_LIST) then
+            if (vtag(elts(k)) == V_ARRAY) then
                 call list_elements(elts(k), parts)
-                eltstring = nil()
+                eltstring = value_type()
                 if (size(parts) > 0) eltstring = parts(1)
             end if
 
             ok(k) = .true.
 
-            if (stringp(eltstring)) then
+            if (vtag(eltstring) == V_STRING) then
                 names(k)%s = xstring(eltstring)
-            else if (symbolp(eltstring)) then
+            else if ((vtag(eltstring) == V_NAME .or. vtag(eltstring) == V_NULL)) then
                 names(k)%s = symbols(xsymbol(eltstring))%name
             else
                 ok(k) = .false.
@@ -690,35 +886,36 @@ contains
     !>
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
-    !> symbols.  Symbols are converted to strings before testing, by using
+    !> names.  Names are converted to strings before testing, by using
     !> `symbol_name'.
     !>
-    !> If no possible completions match, the function returns nil; if
-    !> there's just one exact match, it returns t; otherwise it returns
+    !> If no possible completions match, the function returns no completion (TRY_NONE); if
+    !> there's just one exact match, it returns TRY_EXACT; otherwise it returns
     !> the longest initial substring common to all possible completions
     !> that begin with STRING.
     !>
-    !> If COLLECTION is an alist, the keys (cars of elements) are the
-    !> possible completions.  If an element is not a cons cell, then the
-    !> element itself is a possible completion.  If COLLECTION is the
-    !> obarray, the names of all symbols in the obarray are the possible
-    !> completions.
+    !> COLLECTION, the completion table, is an array of strings, a table
+    !> of (string, value) entries, or a completion function.  In a table,
+    !> the strings of the entries are the possible completions; an entry
+    !> that is only a string is itself a possible completion.  If
+    !> COLLECTION is the name table, the names of all names in the name table
+    !> are the possible completions.
     !>
-    !> COLLECTION can also be a function to do the completion itself.  It
-    !> receives STRING, PREDICATE and COMPLETE_TRY.  Whatever it returns
-    !> becomes the value of `try_completion'.
+    !> A completion function does the completion itself.  It receives
+    !> STRING, PREDICATE and COMPLETE_TRY.  Whatever it returns becomes
+    !> the value of `try_completion'.
     !>
     !> If optional argument PREDICATE is present, it is used to test each
     !> possible completion.  A possible completion is accepted only if
     !> PREDICATE returns true.  The argument given to PREDICATE is either a
-    !> string or a list (whose first element is a string) from the alist,
-    !> or a symbol from the obarray.
+    !> string or an entry (whose first element is a string) of COLLECTION,
+    !> or a name from the name table.
     !>
-    !> If `completion_ignore_case' is non-nil, possible completions are
+    !> If `completion_ignore_case' is .true., possible completions are
     !> matched while ignoring letter-case, but no guarantee is made about
     !> the letter-case of the return value, except that it comes either
     !> from the user's input or from one of the possible completions.
-    !> Port of minibuf.c:Ftry_completion (no `completion_regexp_list').
+    !> Port of minibuf.c:Ftry_completion.
     recursive subroutine try_completion(string, collection, result, status, predicate)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
@@ -734,7 +931,7 @@ contains
         logical :: have_best
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (collection%kind == TABLE_FUNCTION) then
             call collection%fn(string, COMPLETE_TRY, result, status, predicate)
@@ -755,6 +952,12 @@ contains
             if (.not. ok(k)) cycle
             eltstring = names(k)%s
             if (.not. prefix_matches(string, eltstring)) cycle
+
+            ! Ignore this element if it fails to match all the regexps.
+            if (.not. match_regexps(eltstring, completion_ignore_case%value, status)) then
+                if (.not. status%ok()) return
+                cycle
+            end if
 
             ! Ignore this element if there is a predicate and the
             ! predicate doesn't like it.
@@ -817,36 +1020,37 @@ contains
         ! Return t if the supplied string is an exact match (counting
         ! case); it does not require any change to be made.
         if (matchcount == 1 .and. bestmatch == string .and. len(bestmatch) == len(string)) then
-            result = t_value()
+            result = value_type(.true.)
             return
         end if
 
         ! Else extract the part in which all completions agree.
-        result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
+        result = value_type(text=substring(bestmatch, 0_int64, bestmatchsize))
     end subroutine try_completion
 
     !> Search for partial matches of STRING in COLLECTION.
     !>
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
-    !> symbols.  Symbols are converted to strings before testing, by using
+    !> names.  Names are converted to strings before testing, by using
     !> `symbol_name'.
     !>
     !> The value is a list of all the possible completions that match
     !> STRING.
     !>
-    !> If COLLECTION is an alist, the keys (cars of elements) are the
-    !> possible completions.  If COLLECTION is the obarray, the names of
-    !> all symbols in the obarray are the possible completions.
+    !> COLLECTION, the completion table, is an array of strings, a table
+    !> of (string, value) entries, or a completion function.  In a table,
+    !> the strings of the entries are the possible completions.  If
+    !> COLLECTION is the name table, the names of all names in the name table
+    !> are the possible completions.
     !>
-    !> COLLECTION can also be a function to do the completion itself.  It
-    !> receives STRING, PREDICATE and COMPLETE_ALL.  Whatever it returns
-    !> becomes the value of `all_completions'.
+    !> A completion function does the completion itself.  It receives
+    !> STRING, PREDICATE and COMPLETE_ALL.  Whatever it returns becomes
+    !> the value of `all_completions'.
     !>
     !> If optional argument PREDICATE is present, it is used to test each
     !> possible completion.  A possible completion is accepted only if
-    !> PREDICATE returns true.  Port of minibuf.c:Fall_completions (no
-    !> `completion_regexp_list').
+    !> PREDICATE returns true.  Port of minibuf.c:Fall_completions.
     recursive subroutine all_completions(string, collection, result, status, predicate)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
@@ -877,6 +1081,12 @@ contains
             if (.not. ok(k)) cycle
             if (.not. prefix_matches(string, names(k)%s)) cycle
 
+            ! Ignore this element if it fails to match all the regexps.
+            if (.not. match_regexps(names(k)%s, completion_ignore_case%value, status)) then
+                if (.not. status%ok()) return
+                cycle
+            end if
+
             ! Ignore this element if there is a predicate and the
             ! predicate doesn't like it.
             if (present(predicate)) then
@@ -885,21 +1095,20 @@ contains
 
             ! Ok => put it on the list.
             n = n + 1
-            matches(n) = make_string(names(k)%s)
+            matches(n) = value_type(text=names(k)%s)
         end do
 
         result = make_list(matches(1:n))
     end subroutine all_completions
 
-    !> Return non-nil if STRING is a valid completion.
+    !> Return .true. if STRING is a valid completion.
     !> For instance, if COLLECTION is a list of strings, STRING is a valid
     !> completion if it appears in the list and PREDICATE is satisfied.
     !>
     !> Takes the same arguments as `all_completions' and `try_completion'.
     !>
     !> If COLLECTION is a function, it is called with STRING, PREDICATE and
-    !> COMPLETE_TEST (`lambda').  Port of minibuf.c:Ftest_completion (no
-    !> `completion_regexp_list').
+    !> COMPLETE_TEST.  Port of minibuf.c:Ftest_completion.
     recursive logical function test_completion(string, collection, predicate) result(valid)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
@@ -916,11 +1125,11 @@ contains
         select case (collection%kind)
         case (TABLE_FUNCTION)
             call collection%fn(string, COMPLETE_TEST, result, status, predicate)
-            valid = status%ok() .and. .not. nilp(result)
+            valid = status%ok() .and. allocated(result%a)
             return
         case (TABLE_QUOTING)
             call quoting_table_call(collection, string, COMPLETE_TEST, result, status, predicate)
-            valid = status%ok() .and. .not. nilp(result)
+            valid = status%ok() .and. allocated(result%a)
             return
         case (TABLE_OBARRAY)
             id = intern_soft(string)
@@ -956,6 +1165,8 @@ contains
             if (id == 0) return
         end select
 
+        ! Reject this element if it fails to match all the regexps.
+        if (.not. match_regexps(string, completion_ignore_case%value, status)) return
         ! Finally, check the predicate.
         valid = .true.
         if (present(predicate)) valid = predicate(tem)
@@ -974,7 +1185,7 @@ contains
     !> unquoted positions, we simply assume that `concat' and `unquote'
     !> commute (which tends to be the case).  And we ask `requote' to do
     !> the work of mapping from unquoted positions back to quoted
-    !> positions.  Port of the lambda of
+    !> positions.  Port of the anonymous procedure of
     !> minibuffer.el:completion-table-with-quoting (no metadata, and no
     !> `completion--unquote' action: the completion styles call
     !> `try_completion' and `all_completions' on the quoted table).
@@ -993,7 +1204,7 @@ contains
         integer(int64) :: bstart, bend, qlboundary, qrboundary, q, qpoint
 
         status = status_type()
-        result = nil()
+        result = value_type()
         inner%kind = TABLE_FUNCTION
         inner%fn => table%fn
         call table%unquote(string, ustring)
@@ -1001,7 +1212,7 @@ contains
         select case (action)
         case (COMPLETE_TEST)
             ! test-completion
-            if (test_completion(ustring, inner, predicate)) result = t_value()
+            if (test_completion(ustring, inner, predicate)) result = value_type(.true.)
         case (COMPLETE_BOUNDARIES)
             qsuffix = ""
             if (present(suffix)) qsuffix = suffix
@@ -1019,7 +1230,7 @@ contains
             ! before the "/" or right after it (aka if this "/" is from
             ! qstring or from qsuffix), thus which usuffix to use is very
             ! unclear.
-            if (string_prefix_p(ustring, ufull)) then
+            if (is_string_prefix(ustring, ufull)) then
                 usuffix = substring(ufull, schars(ustring))
             else
                 usuffix = qsuffix
@@ -1036,7 +1247,7 @@ contains
                 qrboundary = q - schars(string)
             end if
 
-            result = list(make_fixnum(qlboundary), make_fixnum(qrboundary))
+            result = list(value_type(qlboundary), value_type(qrboundary))
         case (COMPLETE_TRY)
             ! try-completion: most forms of quoting allow several ways to
             ! quote the same string.  So here we could simply requote
@@ -1048,11 +1259,11 @@ contains
             call try_completion(ustring, inner, completion, status, predicate)
             if (.not. status%ok()) return
 
-            if (.not. stringp(completion)) then
+            if (vtag(completion) /= V_STRING) then
                 result = completion
             else
                 call twq_try(table, string, ustring, xstring(completion), 0_int64, qstring, qpoint)
-                result = make_string(qstring)
+                result = value_type(text=qstring)
             end if
         case (COMPLETE_ALL)
             ! all-completions
@@ -1079,18 +1290,18 @@ contains
         bend = schars(suffix)
         call inner%fn(string, COMPLETE_BOUNDARIES, boundaries, status, predicate, suffix)
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
-        if (fixnump(list_elt(boundaries, 1_int64))) bstart = xfixnum(list_elt(boundaries, 1_int64))
-        if (fixnump(list_elt(boundaries, 2_int64))) bend = xfixnum(list_elt(boundaries, 2_int64))
+        if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
+        if (vtag(list_elt(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(boundaries, 2_int64))
     end subroutine inner_boundaries
 
     ! Whether PREFIX is a prefix of STRING (string-prefix-p).  Not a port.
-    logical function string_prefix_p(prefix, string)
+    logical function is_string_prefix(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
-        string_prefix_p = .false.
+        is_string_prefix = .false.
         if (len(prefix) > len(string)) return
-        string_prefix_p = string(1:len(prefix)) == prefix
-    end function string_prefix_p
+        is_string_prefix = string(1:len(prefix)) == prefix
+    end function is_string_prefix
 
     ! The longest common prefix of S1 and S2
     ! (fill-common-string-prefix).  Not a port.
@@ -1173,13 +1384,13 @@ contains
         character(len=:), allocatable :: prefix, qfullprefix, qprefix, qp, completion, new, qnew, rest, qrest
         integer(int64) :: qfullpos, qboundary, k, n
 
-        result = nil()
+        result = value_type()
         n = list_length(completions)
         if (n == 0) return
         call list_elements(completions, elems)
         ! (try-completion "" (cons (substring ustring boundary) completions))
         allocate (quoted(n + 1))
-        quoted(1) = make_string(substring(ustring, boundary))
+        quoted(1) = value_type(text=substring(ustring, boundary))
 
         do k = 1, n
             quoted(k + 1) = elems(k)
@@ -1188,7 +1399,7 @@ contains
         prefix_table = completion_list_table(make_list(quoted))
         call try_completion("", prefix_table, tried, st)
 
-        if (stringp(tried)) then
+        if (vtag(tried) == V_STRING) then
             prefix = xstring(tried)
         else
             prefix = substring(ustring, boundary)
@@ -1219,7 +1430,7 @@ contains
                 if (compare_strings(qprefix, qrest, .true.) == COMPARE_EQUAL) qp = qrest
             end if
 
-            quoted(k) = make_string(qp//qnew)
+            quoted(k) = value_type(text=qp//qnew)
         end do
 
         result = make_list(quoted)
@@ -1231,7 +1442,7 @@ contains
     !> If TABLE is a function, it will be called directly to perform
     !> completion, no matter what ACTION is.
     !>
-    !> If ACTION is COMPLETE_BOUNDARIES, return nil (the default
+    !> If ACTION is COMPLETE_BOUNDARIES, return nothing (the default
     !> boundaries) for other tables.  If ACTION is COMPLETE_TRY, this
     !> works like `try_completion'; if it is COMPLETE_ALL, like
     !> `all_completions'; and COMPLETE_TEST makes it work like
@@ -1246,7 +1457,7 @@ contains
         character(len=*), intent(in), optional :: suffix
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (table%kind == TABLE_FUNCTION) then
             call table%fn(string, action, result, status, predicate, suffix)
@@ -1264,7 +1475,7 @@ contains
         case (COMPLETE_ALL)
             call all_completions(string, table, result, status, predicate)
         case (COMPLETE_TEST)
-            if (test_completion(string, table, predicate)) result = t_value()
+            if (test_completion(string, table, predicate)) result = value_type(.true.)
         case default
             continue
         end select
@@ -1273,7 +1484,7 @@ contains
     !> Complete with TABLE, with S1 replaced by S2: strings of the form
     !> (concat S1 S) complete in the same way as TABLE completes strings
     !> of the form (concat S2 S).  ACTION, STRING, RESULT, PREDICATE and
-    !> SUFFIX are those of a function table.  Port of the lambda of
+    !> SUFFIX are those of a function table.  Port of the anonymous procedure of
     !> minibuffer.el:completion-table-subvert.
     recursive subroutine completion_table_subvert(table, s1, s2, string, action, result, status, predicate, suffix)
         type(completion_table_type), intent(in) :: table
@@ -1290,9 +1501,9 @@ contains
         logical :: has_str
 
         status = status_type()
-        result = nil()
-        has_str = prefix_p(s1, string, completion_ignore_case%value)
-        res = nil()
+        result = value_type()
+        has_str = is_prefix(s1, string, completion_ignore_case%value)
+        res = value_type()
 
         if (has_str) then
             str = s2//substring(string, schars(s1))
@@ -1304,22 +1515,22 @@ contains
             beg = 0
 
             if (list_length(res) == 2) then
-                if (fixnump(list_elt(res, 1_int64))) beg = xfixnum(list_elt(res, 1_int64))
-                result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
+                if (vtag(list_elt(res, 1_int64)) == V_INTEGER) beg = xfixnum(list_elt(res, 1_int64))
+                result = list(value_type(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
                               list_elt(res, 2_int64))
             else
-                result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
-                              nil())
+                result = list(value_type(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
+                              value_type())
             end if
 
             return
         end if
 
-        if (nilp(res)) return
+        if (.not. allocated(res%a)) return
 
-        if (stringp(res)) then
-            if (prefix_p(s2, xstring(res), completion_ignore_case%value)) then
-                result = make_string(s1//substring(xstring(res), schars(s2)))
+        if (vtag(res) == V_STRING) then
+            if (is_prefix(s2, xstring(res), completion_ignore_case%value)) then
+                result = value_type(text=s1//substring(xstring(res), schars(s2)))
             end if
         else if (action == COMPLETE_ALL) then
             call inner_boundaries(table, str, "", bstart, bend, predicate)
@@ -1337,7 +1548,7 @@ contains
 
                     if (string_match(re, c, status) > 0) then
                         n = n + 1
-                        kept(n) = make_string(substring(c, match_end(0, status) - 1))
+                        kept(n) = value_type(text=substring(c, match_end(0, status) - 1))
                     end if
                 end do
 
@@ -1373,11 +1584,11 @@ contains
         procedure(completion_predicate), pointer :: saved1, saved2
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (.not. strict .and. action == COMPLETE_TEST) then
             ! Ignore pred1 since it doesn't really have to apply anyway.
-            if (test_completion(string, table, predicate)) result = t_value()
+            if (test_completion(string, table, predicate)) result = value_type(.true.)
             return
         end if
 
@@ -1401,7 +1612,7 @@ contains
 
         ! If completion failed and we're not applying pred1 strictly, try
         ! again without pred1.
-        if (nilp(result) .and. .not. strict .and. present(pred1)) then
+        if (.not. allocated(result%a) .and. .not. strict .and. present(pred1)) then
             call complete_with_action(action, table, string, result, status, predicate, suffix)
         end if
     end subroutine completion_table_with_predicate
@@ -1418,12 +1629,12 @@ contains
 
     ! Whether PREFIX is a prefix of STRING, ignoring case if IGNORE_CASE
     ! (string-prefix-p).  Not a port.
-    logical function prefix_p(prefix, string, ignore_case)
+    logical function is_prefix(prefix, string, ignore_case)
         character(len=*), intent(in) :: prefix, string
         logical, intent(in) :: ignore_case
 
-        prefix_p = .false.
+        is_prefix = .false.
         if (schars(prefix) > schars(string)) return
-        prefix_p = compare_strings(prefix, substring(string, 0_int64, schars(prefix)), ignore_case) == COMPARE_EQUAL
-    end function prefix_p
+        is_prefix = compare_strings(prefix, substring(string, 0_int64, schars(prefix)), ignore_case) == COMPARE_EQUAL
+    end function is_prefix
 end module minibuf_fm

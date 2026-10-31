@@ -24,14 +24,14 @@
 !>
 !> File names are strings of bytes, as they are on Linux; Fortmacs does no
 !> file-name encoding (`file_name_coding_system' is effectively utf-8).
-!> Where upstream returns nil for "no directory", the functions here
+!> Where upstream returns no value for "no directory", the functions here
 !> return "" (a directory name is never empty).  There are no file name
 !> handlers (TRAMP and friends).
 !>
 !> Text is decoded on reading and encoded on writing by a coding system
 !> (coding_fm), chosen as upstream chooses it: `coding_system_for_read'
 !> or `coding_system_for_write', the coding system the file names in
-!> itself (`set_auto_coding_function'), `file_coding_system_alist', and
+!> itself (`set_auto_coding_function'), `file_coding_system_table', and
 !> `buffer_file_coding_system'; text that the chosen coding system cannot
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_fm
@@ -41,18 +41,17 @@ module fileio_fm
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, current_buffer
     use marker_fm, only: char_to_byte, byte_to_char, set_marker, marker_position, free_marker
     use handle_fm, only: handle_type
-    use character_fm, only: char_head_p
+    use character_fm, only: is_char_head
     use window_fm, only: windows, window_leaves, window_point, same_handle
     use frame_fm, only: selected_frame
     use insdel_fm, only: insert, del_range, del_range_byte, inhibit_modification_hooks
     use editfns_fm, only: point, goto_char, validate_region, point_marker
     use data_fm, only: default_value
-    use lisp_fm, only: value_type, stringp, xstring
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xstring, vtag, V_STRING
     use search_fm, only: string_match, case_fold_search
     use coding_fm, only: coding_system_for_read, coding_system_for_write, last_coding_system_used, &
                          buffer_file_coding_system, coding_system_require_warning, check_coding_system, &
-                         coding_system_type, coding_system_for_unibyte_p, raw_text_coding_system, &
+                         coding_system_type, is_coding_system_for_unibyte, raw_text_coding_system, &
                          coding_inherit_eol_type, find_operation_coding_system, decode_coding_bytes, encode_coding_text
     use env_fm, only: substitute_env_vars
     use sysdep_fm, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
@@ -63,14 +62,15 @@ module fileio_fm
                          ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
                          emacs_umask, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, O_WRONLY, O_CREAT, O_EXCL, &
                          O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
+    use keyboard_fm, only: dribble_fd
     implicit none(type, external)
     private
 
-    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target
+    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target, open_dribble_file
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_proc, &
               copy_directory_proc
     public :: set_auto_coding_proc, after_insert_file_set_coding_proc, select_safe_coding_system_proc, &
-              choose_write_coding_system, file_name_match_p, read_file
+              choose_write_coding_system, is_file_name_match, read_file
 
     abstract interface
         !> files.el's `delete_file' (no trash) or `delete_directory' with
@@ -131,12 +131,12 @@ module fileio_fm
     !> Two arguments are passed to this function: the file name
     !> and the length of a file contents following the point.
     !> This function should return a coding system to decode the file contents.
-    !> It should check the file name against `auto_coding_alist'.
+    !> It should check the file name against `auto_coding_table'.
     !> If no coding system is decided, it should check a coding system
     !> specified in the heading lines with the format:
     !>         -*- ... coding: CODING-SYSTEM; ... -*-
     !> or local variable spec of the tailing lines with `coding:' tag.
-    !> Port of fileio.c set-auto-coding-function (null is nil; mule_fm
+    !> Port of fileio.c set-auto-coding-function (null when unset; mule_fm
     !> points it at `set_auto_coding').
     procedure(set_auto_coding_proc), pointer, public :: set_auto_coding_function => null()
 
@@ -153,7 +153,7 @@ module fileio_fm
     !> the coding system is being selected.
     !>
     !> The default value is `select_safe_coding_system' (which see).  Port
-    !> of coding.c select-safe-coding-system-function (null is nil;
+    !> of coding.c select-safe-coding-system-function (null when unset;
     !> mule_cmds_fm points it there).
     procedure(select_safe_coding_system_proc), pointer, public :: select_safe_coding_system_function => null()
 
@@ -172,13 +172,13 @@ module fileio_fm
 
     public :: file_stat_type
     public :: file_name_directory, file_name_nondirectory, file_name_as_directory, &
-              directory_file_name, directory_name_p, file_name_absolute_p, expand_file_name, &
+              directory_file_name, is_directory_name, is_file_name_absolute, expand_file_name, &
               get_homedir, init_fileio, emacs_wd, substitute_in_file_name
-    public :: file_exists_p, file_readable_p, file_writable_p, file_directory_p, &
-              file_accessible_directory_p, file_attributes, file_modes, set_file_modes, &
-              file_executable_p, file_newer_than_file_p, &
+    public :: file_exists, is_file_readable, is_file_writable, is_file_directory, &
+              is_file_accessible_directory, file_attributes, file_modes, set_file_modes, &
+              is_file_executable, is_file_newer_than_file, &
               make_symbolic_link, &
-              rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
+              rename_file, copy_file, report_file_errno, is_file_regular, is_file_symlink, &
               user_uid, user_real_uid, group_gid, make_directory_internal, delete_directory_internal, &
               delete_file_internal, file_system_info, make_temp_name
     public :: insert_file_contents, write_region, verify_visited_file_modtime, &
@@ -263,34 +263,34 @@ contains
     end function directory_file_name
 
     !> Whether `name' ends in a slash.  Port of fileio.c:Fdirectory_name_p.
-    pure logical function directory_name_p(name)
+    pure logical function is_directory_name(name)
         character(len=*), intent(in) :: name
 
-        directory_name_p = .false.
-        if (len(name) > 0) directory_name_p = name(len(name):len(name)) == "/"
-    end function directory_name_p
+        is_directory_name = .false.
+        if (len(name) > 0) is_directory_name = name(len(name):len(name)) == "/"
+    end function is_directory_name
 
     !> Whether `filename' is absolute: it starts with "/", "~", "~/" or
     !> "~USER" for an existing USER.  Port of fileio.c:file_name_absolute_p.
-    logical function file_name_absolute_p(filename)
+    logical function is_file_name_absolute(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: home
 
-        file_name_absolute_p = .false.
+        is_file_name_absolute = .false.
         if (len(filename) == 0) return
 
         if (filename(1:1) == "/") then
-            file_name_absolute_p = .true.
+            is_file_name_absolute = .true.
         else if (filename(1:1) == "~") then
             if (len(filename) == 1) then
-                file_name_absolute_p = .true.
+                is_file_name_absolute = .true.
             else if (filename(2:2) == "/") then
-                file_name_absolute_p = .true.
+                is_file_name_absolute = .true.
             else
-                file_name_absolute_p = user_homedir(filename(2:), home)
+                is_file_name_absolute = user_homedir(filename(2:), home)
             end if
         end if
-    end function file_name_absolute_p
+    end function is_file_name_absolute
 
     !> Home directory of the user named at the start of `name' (up to a
     !> slash); false if there is no such user or the home directory is
@@ -377,7 +377,7 @@ contains
         integer :: p, length, ulen
 
         if (has_null_byte(name)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
             return
         end if
 
@@ -389,7 +389,7 @@ contains
         else if (cur /= 0) then
             if (allocated(buffers(cur)%directory)) then
                 if (has_null_byte(buffers(cur)%directory)) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
                     return
                 end if
 
@@ -409,7 +409,7 @@ contains
         if (.not. have_defdir) defdir = "/"
 
         if (has_null_byte(defdir)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
             return
         end if
 
@@ -571,7 +571,7 @@ contains
         character(len=*), intent(in) :: nm
 
         do p = 2, len(nm)
-            if (nm(p - 1:p - 1) == "/" .and. file_name_absolute_p(nm(p:))) return
+            if (nm(p - 1:p - 1) == "/" .and. is_file_name_absolute(nm(p:))) return
         end do
 
         p = 0
@@ -620,110 +620,110 @@ contains
     end function expand_quietly
 
     !> Whether `filename' exists.  Port of fileio.c:Ffile_exists_p.
-    logical function file_exists_p(filename)
+    logical function file_exists(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
 
         absname = expand_quietly(filename)
-        file_exists_p = len(absname) > 0
-        if (file_exists_p) file_exists_p = sys_access(absname, F_OK) == 0
-    end function file_exists_p
+        file_exists = len(absname) > 0
+        if (file_exists) file_exists = sys_access(absname, F_OK) == 0
+    end function file_exists
 
     !> Return true if FILENAME can be executed by you.
     !> For a directory, this means you can access files in that directory.
-    !> (It is generally better to use `file_accessible_directory_p' for that
+    !> (It is generally better to use `is_file_accessible_directory' for that
     !> purpose, though.)  Port of fileio.c:Ffile_executable_p.
-    logical function file_executable_p(filename)
+    logical function is_file_executable(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
 
         absname = expand_quietly(filename)
-        file_executable_p = len(absname) > 0
-        if (file_executable_p) file_executable_p = sys_access(absname, X_OK) == 0
-    end function file_executable_p
+        is_file_executable = len(absname) > 0
+        if (is_file_executable) is_file_executable = sys_access(absname, X_OK) == 0
+    end function is_file_executable
 
     !> Return true if file FILE1 is newer than file FILE2.
     !> If FILE1 does not exist, the return value is false;
     !> if FILE2 does not exist, the return value is true.
     !> For existing files, this compares their last-modified times.
     !> Port of fileio.c:Ffile_newer_than_file_p.
-    logical function file_newer_than_file_p(file1, file2)
+    logical function is_file_newer_than_file(file1, file2)
         character(len=*), intent(in) :: file1, file2
         type(file_stat_type) :: st1, st2
 
-        file_newer_than_file_p = .false.
+        is_file_newer_than_file = .false.
         if (sys_stat(expand_quietly(file1), st1) /= 0) return
-        file_newer_than_file_p = .true.
+        is_file_newer_than_file = .true.
         if (sys_stat(expand_quietly(file2), st2) /= 0) return
-        file_newer_than_file_p = st1%mtime_sec > st2%mtime_sec .or. &
-                                 (st1%mtime_sec == st2%mtime_sec .and. st1%mtime_nsec > st2%mtime_nsec)
-    end function file_newer_than_file_p
+        is_file_newer_than_file = st1%mtime_sec > st2%mtime_sec .or. &
+                                  (st1%mtime_sec == st2%mtime_sec .and. st1%mtime_nsec > st2%mtime_nsec)
+    end function is_file_newer_than_file
 
     !> Whether `filename' exists and can be read.
     !> Port of fileio.c:Ffile_readable_p.
-    logical function file_readable_p(filename)
+    logical function is_file_readable(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
 
         absname = expand_quietly(filename)
-        file_readable_p = len(absname) > 0
-        if (file_readable_p) file_readable_p = sys_access(absname, R_OK) == 0
-    end function file_readable_p
+        is_file_readable = len(absname) > 0
+        if (is_file_readable) is_file_readable = sys_access(absname, R_OK) == 0
+    end function is_file_readable
 
     !> Whether `filename' can be written or created.
     !> Port of fileio.c:Ffile_writable_p.
-    logical function file_writable_p(filename)
+    logical function is_file_writable(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
         integer(int32) :: err
 
-        file_writable_p = .false.
+        is_file_writable = .false.
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
         err = sys_access(absname, W_OK)
 
         if (err == 0) then
-            file_writable_p = .true.
+            is_file_writable = .true.
             return
         end if
 
         if (err /= ENOENT) return
-        file_writable_p = sys_access(file_name_directory(absname), ior(W_OK, X_OK)) == 0
-    end function file_writable_p
+        is_file_writable = sys_access(file_name_directory(absname), ior(W_OK, X_OK)) == 0
+    end function is_file_writable
 
     !> Whether `filename' names a directory.  Port of
-    !> fileio.c:Ffile_directory_p via file_directory_p's portable path
+    !> fileio.c:Ffile_directory_p via is_file_directory's portable path
     !> (O_DIRECTORY differs between the two targets).
-    logical function file_directory_p(filename)
+    logical function is_file_directory(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
         type(file_stat_type) :: st
 
-        file_directory_p = .false.
+        is_file_directory = .false.
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
 
-        if (file_accessible_directory_p(absname)) then
-            file_directory_p = .true.
+        if (is_file_accessible_directory(absname)) then
+            is_file_directory = .true.
             return
         end if
 
         if (sys_stat(absname, st) /= 0) return
-        file_directory_p = iand(st%mode, S_IFMT) == S_IFDIR
-    end function file_directory_p
+        is_file_directory = iand(st%mode, S_IFMT) == S_IFDIR
+    end function is_file_directory
 
     !> Whether `filename' is a directory whose files can be accessed (a
     !> "/." appended to it exists).
     !> Port of fileio.c:file_accessible_directory_p.
-    logical function file_accessible_directory_p(filename)
+    logical function is_file_accessible_directory(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
 
-        file_accessible_directory_p = .false.
+        is_file_accessible_directory = .false.
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
-        file_accessible_directory_p = sys_access(file_name_as_directory(absname)//".", F_OK) == 0
-    end function file_accessible_directory_p
+        is_file_accessible_directory = sys_access(file_name_as_directory(absname)//".", F_OK) == 0
+    end function is_file_accessible_directory
 
     !> Status of `filename' (following links); `found' is false if it
     !> can't be read.  The parts of dired.c:Ffile_attributes in use.
@@ -745,30 +745,30 @@ contains
 
     !> Whether `filename' is a regular file (following links).
     !> Port of fileio.c:Ffile_regular_p.
-    logical function file_regular_p(filename)
+    logical function is_file_regular(filename)
         character(len=*), intent(in) :: filename
         type(file_stat_type) :: st
         logical :: found
 
         call file_attributes(filename, st, found)
-        file_regular_p = found
-        if (found) file_regular_p = iand(st%mode, S_IFMT) == S_IFREG
-    end function file_regular_p
+        is_file_regular = found
+        if (found) is_file_regular = iand(st%mode, S_IFMT) == S_IFREG
+    end function is_file_regular
 
     !> Whether `filename' is a symbolic link.  Like
     !> fileio.c:Ffile_symlink_p, but a truth value instead of the target.
     !> Port of fileio.c:Ffile_symlink_p, in part.
-    logical function file_symlink_p(filename)
+    logical function is_file_symlink(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
         type(file_stat_type) :: st
 
-        file_symlink_p = .false.
+        is_file_symlink = .false.
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
         if (sys_stat(absname, st, nofollow=.true.) /= 0) return
-        file_symlink_p = iand(st%mode, S_IFMT) == S_IFLNK
-    end function file_symlink_p
+        is_file_symlink = iand(st%mode, S_IFMT) == S_IFLNK
+    end function is_file_symlink
 
     !> Generate temporary file name (string) starting with PREFIX (a string).
     !>
@@ -799,7 +799,7 @@ contains
             end do
 
             name = prefix//suffix
-            if (.not. file_exists_p(name) .and. .not. file_symlink_p(name)) return
+            if (.not. file_exists(name) .and. .not. is_file_symlink(name)) return
         end do
 
         call report_file_errno("Creating file with prefix", prefix, EEXIST, status)
@@ -915,14 +915,14 @@ contains
         character(len=:), allocatable, intent(out) :: target
         type(status_type), intent(out) :: status
 
-        if (directory_name_p(newname)) then
+        if (is_directory_name(newname)) then
             call expand_file_name(file_name_nondirectory(file), target, status, newname)
         else
             call expand_file_name(newname, target, status)
         end if
     end subroutine expand_cp_target
 
-    !> Signal an error if file ABSNAME exists: `file_already_exists',
+    !> An error condition occurs if file ABSNAME exists: `file_already_exists',
     !> or `file_error' if it is a directory.  KNOWN_TO_EXIST says it is
     !> known to exist.  Port of fileio.c:barf_or_query_if_file_exists
     !> (the query is not ported: INTERACTIVE false).
@@ -1003,7 +1003,7 @@ contains
         end if
 
         ! Across file systems: copy, then delete the original.
-        dirp = directory_name_p(from)
+        dirp = is_directory_name(from)
 
         if (.not. dirp) then
             lerr = sys_stat(from, file_st, nofollow=.true.)
@@ -1063,7 +1063,7 @@ contains
     !>
     !> The optional argument OK_IF_ALREADY_EXISTS specifies what to do
     !> if file NEWNAME already exists.  If OK_IF_ALREADY_EXISTS is false,
-    !> signal a `file_already_exists' error without overwriting.
+    !> a `file_already_exists' error condition occurs, without overwriting.
     !> Otherwise overwrite the existing file.
     !>
     !> KEEP_TIME true means give the output file the same
@@ -1293,7 +1293,7 @@ contains
     end subroutine add_name_to_file
 
     !> The target of symbolic link FILENAME, or "" if it is not a
-    !> symbolic link (the string `file_symlink_p' returns upstream).
+    !> symbolic link (the string `is_file_symlink' returns upstream).
     !> Port of fileio.c:Ffile_symlink_p.
     function file_symlink_target(filename) result(target)
         character(len=*), intent(in) :: filename
@@ -1304,7 +1304,7 @@ contains
         target = ""
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
-        if (.not. file_symlink_p(absname)) return
+        if (.not. is_file_symlink(absname)) return
         err = emacs_readlink(absname, target)
         if (err /= 0) target = ""
     end function file_symlink_target
@@ -1358,7 +1358,7 @@ contains
     !> storage available to a non-superuser.  All 3 numbers are in bytes.
     !> If the underlying system call fails, FOUND is false.  Port of
     !> fileio.c:Ffile_system_info (an error other than
-    !> a missing file is signaled as "Getting attributes").
+    !> the error condition for a missing file says "Getting attributes").
     subroutine file_system_info(filename, total, free, avail, found, status)
         character(len=*), intent(in) :: filename
         integer(int64), intent(out) :: total, free, avail
@@ -1584,7 +1584,7 @@ contains
                 call set_auto_coding_function(absname, head, coding)
             end if
 
-            if (len(coding) == 0) call find_operation_coding_system(absname, file_name_match_p, coding, encoding)
+            if (len(coding) == 0) call find_operation_coding_system(absname, is_file_name_match, coding, encoding)
             if (len(coding) == 0) coding = "undecided"
         end if
 
@@ -1598,7 +1598,7 @@ contains
         end if
 
         ! When we visit a file by raw-text, we change the buffer to unibyte.
-        if (visit .and. coding_system_for_unibyte_p(coding)) buffers(cur)%multibyte = .false.
+        if (visit .and. is_coding_system_for_unibyte(coding)) buffers(cur)%multibyte = .false.
 
         if (present(beg_byte) .or. present(end_byte)) then
             k = len(data, kind=int64)
@@ -1729,7 +1729,7 @@ contains
                     ! The byte at the end of the text reads as a character
                     ! head (FETCH_BYTE at ZV_BYTE).
                     if (same_at_start - begv_byte + 1 > len(old)) exit
-                    if (char_head_p(ichar(old(same_at_start - begv_byte + 1:same_at_start - begv_byte + 1), int32))) exit
+                    if (is_char_head(ichar(old(same_at_start - begv_byte + 1:same_at_start - begv_byte + 1), int32))) exit
                     same_at_start = same_at_start - 1
                 end do
             end if
@@ -1750,7 +1750,7 @@ contains
             ! multibyte character boundary.
             if (buffers(cur)%multibyte) then
                 do while (same_at_end < zv_byte)
-                    if (char_head_p(ichar(old(same_at_end - begv_byte + 1:same_at_end - begv_byte + 1), int32))) exit
+                    if (is_char_head(ichar(old(same_at_end - begv_byte + 1:same_at_end - begv_byte + 1), int32))) exit
                     same_at_end = same_at_end + 1
                 end do
             end if
@@ -1796,7 +1796,7 @@ contains
     !> `visit', the buffer then visits that file and is unmodified.
     !> `message', if present, receives "Wrote FILE" for the echo area.
     !> Port of fileio.c:Fwrite_region (no APPEND, LOCKNAME or MUSTBENEW;
-    !> no fsync, as write-region-inhibit-fsync defaults to t).
+    !> no fsync, as `write_region_inhibit_fsync' defaults to .true.).
     subroutine write_region(filename, visit, status, start, end, message)
         character(len=*), intent(in) :: filename
         logical, intent(in) :: visit
@@ -1864,7 +1864,7 @@ contains
     !> The coding system for writing the text between START and END of
     !> the current buffer to FILENAME: `coding_system_for_write', else
     !> the buffer's own `buffer_file_coding_system', else
-    !> `file_coding_system_alist''s, else the default
+    !> `file_coding_system_table''s, else the default
     !> `buffer_file_coding_system', confirmed by
     !> `select_safe_coding_system_function' and given an end-of-line type.
     !> Port of fileio.c:choose_write_coding_system (no auto-saving).
@@ -1904,7 +1904,7 @@ contains
 
             if (len(val) == 0) then
                 ! Check file-coding-system-alist.
-                call find_operation_coding_system(filename, file_name_match_p, decoding, encoding)
+                call find_operation_coding_system(filename, is_file_name_match, decoding, encoding)
                 val = encoding
             end if
 
@@ -1936,9 +1936,9 @@ contains
             ! If the decided coding-system doesn't specify end-of-line
             ! format, we use that of `buffer_file_coding_system'.
             if (.not. using_default_coding) then
-                call default_value(sym("buffer_file_coding_system"), v, vst)
+                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
                 dflt = ""
-                if (stringp(v)) dflt = xstring(v)
+                if (vtag(v) == V_STRING) dflt = xstring(v)
                 if (len(dflt) > 0) val = coding_inherit_eol_type(val, dflt)
             end if
 
@@ -1952,18 +1952,18 @@ contains
 
     !> Whether regexp PATTERN matches file name NAME, case-sensitively
     !> (search.c:fast_string_match, as `find_operation_coding_system' and
-    !> the auto-coding alists match).  Not a port.
-    logical function file_name_match_p(pattern, name)
+    !> the auto-coding tables match).  Not a port.
+    logical function is_file_name_match(pattern, name)
         character(len=*), intent(in) :: pattern, name
         type(status_type) :: st
         logical :: saved
 
         saved = case_fold_search%value
         case_fold_search%value = .false.
-        file_name_match_p = string_match(pattern, name, st, inhibit_modify=.true.) > 0
+        is_file_name_match = string_match(pattern, name, st, inhibit_modify=.true.) > 0
         case_fold_search%value = saved
-        if (.not. st%ok()) file_name_match_p = .false.
-    end function file_name_match_p
+        if (.not. st%ok()) is_file_name_match = .false.
+    end function is_file_name_match
 
     !> The number of characters in multibyte TEXT.  Not a port.
     integer(int64) function chars_in(text) result(n)
@@ -2042,7 +2042,7 @@ contains
         if (present(ok_if_already_exists)) ok = ok_if_already_exists
 
         ! expand_cp_target: a directory name gets TARGET's own name.
-        if (directory_name_p(linkname)) then
+        if (is_directory_name(linkname)) then
             call expand_file_name(file_name_nondirectory(target), name, status, linkname)
         else
             call expand_file_name(linkname, name, status)
@@ -2065,4 +2065,52 @@ contains
 
         call report_file_errno("Making symbolic link", target//", "//name, err, status)
     end subroutine make_symbolic_link
+
+    !> Start writing input events to a dribble file called FILE.
+    !> Any previously open dribble file will be closed first.  If FILE is
+    !> absent, just close the dribble file, if any.
+    !>
+    !> If the file is still open when Emacs exits, it will be closed then.
+    !>
+    !> The events written to the file include keyboard and mouse input
+    !> events, but not events from executing keyboard macros.  The events are
+    !> written to the dribble file immediately without line buffering.
+    !>
+    !> Be aware that this records ALL characters you type!
+    !> This may include sensitive information such as passwords.  Port of
+    !> keyboard.c:Fopen_dribble_file (here, as it expands FILE; keyboard_fm
+    !> writes the events).
+    recursive subroutine open_dribble_file(status, file)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: file
+        character(len=:), allocatable :: name
+        integer(int32) :: fd, err
+
+        status = status_type()
+
+        if (dribble_fd >= 0) then
+            call close_fd(dribble_fd)
+            dribble_fd = -1
+        end if
+
+        if (.not. present(file)) return
+        call expand_file_name(file, name, status)
+        if (.not. status%ok()) return
+        err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+
+        if (err == EEXIST) then
+            if (sys_unlink(name) == 0) then
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+            else if (sys_unlink(name) == ENOENT) then
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+            end if
+        end if
+
+        if (err /= 0) then
+            call report_file_errno("Opening dribble", name, err, status)
+            return
+        end if
+
+        dribble_fd = fd
+    end subroutine open_dribble_file
 end module fileio_fm

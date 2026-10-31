@@ -28,7 +28,7 @@
 !>     call ring%ref(0, item, status)
 !>
 !> Upstream's rings hold any objects; the items here are strings (an
-!> unallocated item stands for nil).  Not ported (Deferred): `ring_p' on
+!> unallocated item stands for none).  Not ported (Deferred): `ring_p' on
 !> arbitrary objects, `ring_copy' (assignment copies a ring),
 !> `ring_next', `ring_previous', `ring_elements', `ring_insert+extend',
 !> `ring_remove+insert+extend', `ring_convert_sequence_to_ring'.
@@ -55,7 +55,7 @@ module ring_fm
         !> The size of the ring, the maximum number of elements it can contain.
         procedure :: size => ring_size
         !> Whether the ring is empty.
-        procedure :: empty_p => ring_empty_p
+        procedure :: empty_p => is_ring_empty
         !> Insert ITEM as the newest (last) item, dumping the oldest item if
         !> the ring is full.
         procedure :: insert => ring_insert
@@ -131,11 +131,11 @@ contains
 
     !> Return true if RING is empty; false otherwise.  Port of
     !> ring.el:ring-empty-p.
-    pure logical function ring_empty_p(self)
+    pure logical function is_ring_empty(self)
         class(ring_type), intent(in) :: self
 
-        ring_empty_p = self%length == 0
-    end function ring_empty_p
+        is_ring_empty = self%length == 0
+    end function is_ring_empty
 
     !> Return the size of RING, the maximum number of elements it can
     !> contain.  Port of ring.el:ring-size.
@@ -228,7 +228,7 @@ contains
     !> INDEX = 0 is the most recently inserted; higher indices
     !> correspond to older elements.
     !> INDEX need not be <= the ring length; the appropriate modulo
-    !> operation will be performed.  Port of ring.el:ring-ref (a nil item
+    !> operation will be performed.  Port of ring.el:ring-ref (an unallocated item
     !> is "").
     subroutine ring_ref(self, index, item, status)
         class(ring_type), intent(in) :: self

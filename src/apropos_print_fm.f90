@@ -25,7 +25,8 @@
 !> variables.
 submodule(apropos_fm) apropos_print_fm
     use docstrings_fm, only: doc_entry_type, function_doc, variable_doc
-    use help_fns_fm, only: describe_function, describe_variable, function_known_p, variable_known_p
+    use lisp_fm, only: value_type
+    use help_fns_fm, only: describe_function, describe_variable, is_function_known, is_variable_known
     implicit none(type, external)
 
 contains
@@ -63,12 +64,12 @@ contains
             ok = found
             if (ok) ok = entry%user_option
         case (VAR_ANY)
-            ok = variable_known_p(name)
+            ok = is_variable_known(name)
         case default
             if (do_all) then
-                ok = function_known_p(name)
+                ok = is_function_known(name)
             else
-                ok = commandp(sym(name))
+                ok = is_command(value_type(name=name))
             end if
         end select
 
@@ -76,10 +77,10 @@ contains
         if (.not. apropos_true_hit(name, apropos_words)) cycle
         n = n + 1
         items(n)%name = name
-        items(n)%score = apropos_score_symbol(name, 3)
+        items(n)%score = apropos_score_name(name, 3)
 
         if (var_kind == VAR_NONE) then
-            if (function_known_p(name)) then
+            if (is_function_known(name)) then
                 call function_doc(name, entry, found)
                 items(n)%fn_doc = "(not documented)"
 
@@ -124,7 +125,7 @@ contains
         has_f = .false.
         has_v = .false.
 
-        if (function_known_p(name)) then
+        if (is_function_known(name)) then
             call function_doc(name, entry, found)
 
             if (found) then
@@ -133,7 +134,7 @@ contains
             end if
         end if
 
-        if (variable_known_p(name)) then
+        if (is_variable_known(name)) then
             call variable_doc(name, entry, found)
 
             if (found) then
@@ -145,7 +146,7 @@ contains
         if (.not. (has_f .or. has_v)) cycle
         n = n + 1
         items(n)%name = name
-        items(n)%score = apropos_score_symbol(name, 2)
+        items(n)%score = apropos_score_name(name, 2)
 
         if (has_f) then
             items(n)%fn_doc = fdoc
@@ -207,7 +208,7 @@ contains
         buf = get_buffer("*Apropos*")
         call window_leaves(selected_frame%root_window, leaves)
 
-        if (buffer_live_p(buf)) then
+        if (is_buffer_live(buf)) then
             do k = 1, size(leaves)
                 if (shows(leaves(k), buf)) return
             end do
@@ -306,11 +307,11 @@ contains
             button_end = nchars(text)
 
             ! Calculate key-bindings if we want them.
-            if (do_keys .and. commandp(sym(items(i)%name)) .and. items(i)%name /= "self_insert_command") then
+            if (do_keys .and. is_command(value_type(name=items(i)%name)) .and. items(i)%name /= "self_insert_command") then
                 text = text//indent_to(current_column(text), 30, 1)
-                call where_is_internal(sym(items(i)%name), all)
+                call where_is_internal(value_type(name=items(i)%name), all)
 
-                if (nilp(all)) then
+                if (.not. allocated(all%a)) then
                     text = text//"M-x ... RET"
                 else
                     call list_elements(all, seqs)
@@ -329,7 +330,7 @@ contains
             text = text//LF
 
             if (allocated(items(i)%fn_doc)) then
-                if (commandp(sym(items(i)%name))) then
+                if (is_command(value_type(name=items(i)%name))) then
                     label_type = "apropos_command"
                 else
                     label_type = "apropos_function"
@@ -350,7 +351,7 @@ contains
             end if
 
             ! Insert an excerpt of variable values.
-            if (variable_known_p(items(i)%name)) then
+            if (is_variable_known(items(i)%name)) then
                 call variable_doc(items(i)%name, entry, found)
 
                 if (found .and. allocated(entry%value)) then
@@ -422,18 +423,18 @@ contains
             buffers(cur)%read_only = .false.
 
             do m = 1, size(items)
-                call put_text_property(name_start(m), name_end(m), sym(P_BUTTON), sym("apropos_symbol"), st)
-                call put_text_property(name_start(m), name_end(m), sym(P_NAME), make_string(items(m)%name), st)
+                call put_text_property(name_start(m), name_end(m), value_type(name=P_BUTTON), value_type(name="apropos_name"), st)
+                call put_text_property(name_start(m), name_end(m), value_type(name=P_NAME), value_type(text=items(m)%name), st)
             end do
 
             do m = 1, nlab
-                call put_text_property(lab_start(m), lab_end(m), sym(P_BUTTON), sym(lab_type(m)%s), st)
-                call put_text_property(lab_start(m), lab_end(m), sym(P_NAME), make_string(lab_name(m)%s), st)
+                call put_text_property(lab_start(m), lab_end(m), value_type(name=P_BUTTON), value_type(name=lab_type(m)%s), st)
+                call put_text_property(lab_start(m), lab_end(m), value_type(name=P_NAME), value_type(text=lab_name(m)%s), st)
             end do
 
             buffers(cur)%read_only = .true.
             buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
-            if (buffer_live_p(old)) call set_buffer(old, st)
+            if (is_buffer_live(old)) call set_buffer(old, st)
         end subroutine mark_entries
     end subroutine apropos_print
 
@@ -454,7 +455,7 @@ contains
         end select
     end function type_label
 
-    !> Whether `a' sorts before `b': by name (string_lessp), or by score
+    !> Whether `a' sorts before `b': by name (is_string_less), or by score
     !> first when sorting by scores (only `apropos_documentation').
     !> Not a port.
     logical function item_less(a, b, by_score)
@@ -573,7 +574,7 @@ contains
     end function fill_doc
 
     !> Return the next apropos label button after POS, or 0 if there's
-    !> none.  Will also return 0 if more than one `apropos_symbol' button
+    !> none.  Will also return 0 if more than one `apropos_name' button
     !> is encountered before finding a label.  Port of
     !> apropos.el:apropos-next-label-button.
     integer(int64) function apropos_next_label_button(pos) result(btn)
@@ -590,14 +591,14 @@ contains
         call button_at(p, type, name)
 
         if (len(type) == 0) then
-            call next_single_property_change(p, sym(P_BUTTON), nxt, found, st)
+            call next_single_property_change(p, value_type(name=P_BUTTON), nxt, found, st)
             if (.not. found) return
             p = nxt
             call button_at(p, type, name)
         end if
 
         do while (len(type) > 0)
-            if (type /= "apropos_symbol") then
+            if (type /= "apropos_name") then
                 btn = p
                 return
             end if
@@ -605,13 +606,13 @@ contains
             if (already_hit_symbol) return
             already_hit_symbol = .true.
             ! The next button after this one.
-            call next_single_property_change(p, sym(P_BUTTON), nxt, found, st)
+            call next_single_property_change(p, value_type(name=P_BUTTON), nxt, found, st)
             if (.not. found) return
             p = nxt
             call button_at(p, type, name)
 
             if (len(type) == 0) then
-                call next_single_property_change(p, sym(P_BUTTON), nxt, found, st)
+                call next_single_property_change(p, value_type(name=P_BUTTON), nxt, found, st)
                 if (.not. found) return
                 p = nxt
                 call button_at(p, type, name)

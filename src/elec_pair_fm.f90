@@ -24,8 +24,8 @@
 !> keeping delimiters balanced, from `post_self_insert_hook'.  Off by
 !> default, as upstream.
 !>
-!> A pair is an `electric_pair_type': two characters (upstream's (CHAR
-!> . CHAR)) or two strings (STRING STRING SPC) / (STRING . STRING), the
+!> An `electric_pair_type' holds two characters or two
+!> strings (with SPC or without), the
 !> first a regular expression.
 !>
 !> Deferred: the DEL binding of `electric_pair_mode_map' and
@@ -43,24 +43,23 @@ module elec_pair_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, FM_SCAN_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use data_fm, only: default_value, set_default, kill_local_variable
     use commands_fm, only: commands
     use eval_fm, only: hook_type, hook_current_prefix_arg
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified, &
                          barf_if_buffer_read_only
-    use editfns_fm, only: point, point_min, point_max, goto_char, bobp, char_after, char_before, delete_region, &
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_bob, char_after, char_before, delete_region, &
                           buffer_substring, line_beginning_position
     use insdel_fm, only: insert
     use cmds_fm, only: post_self_insert_hook, self_insert_command, delete_char, forward_char
     use keyboard_fm, only: last_command_event
-    use syntax_fm, only: char_syntax, matching_paren, syntax_ppss, parse_partial_sexp, parse_state_type, &
-                         scan_sexps, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
+    use syntax_fm, only: char_syntax, matching_paren, syntax_ppss, parse_partial_expression, parse_state_type, &
+                         scan_expressions, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
                          forward_comment, ST_STRING_STYLE
     use subr_fm, only: looking_back
-    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, use_region_p, mark, newline, &
+    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NO, is_use_region, mark, newline, &
                          backward_delete_char_untabify
     use modes_fm, only: minor_modes
     use electric_fm, only: electric_after_char_pos
@@ -90,8 +89,8 @@ module elec_pair_fm
     !> of the event (`SYNTAX_STR' for a string pair), its PAIR (a
     !> character, or PAIR_STRING for a string pair), whether
     !> `electric_pair_pairs' or `electric_pair_text_pairs' were used
-    !> (UNCONDITIONAL), and STRING_OR_COMMENT_START (0 for nil) or, for a
-    !> string pair, SPACE.  FOUND false is nil.
+    !> (UNCONDITIONAL), and STRING_OR_COMMENT_START (0 for none) or, for a
+    !> string pair, SPACE.  FOUND .false. for none.
     type, public :: electric_pair_info_type
         logical :: found = .false.
         integer :: syntax = 0
@@ -106,7 +105,7 @@ module elec_pair_fm
     integer, parameter, public :: SYNTAX_STR = -2
 
     !> Values of `electric_pair_skip_whitespace'.
-    integer, parameter, public :: ELECTRIC_PAIR_SKIP_WHITESPACE_NIL = 0, ELECTRIC_PAIR_SKIP_WHITESPACE_T = 1, &
+    integer, parameter, public :: ELECTRIC_PAIR_SKIP_WHITESPACE_NO = 0, ELECTRIC_PAIR_SKIP_WHITESPACE_YES = 1, &
                                   ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP = 2
 
     abstract interface
@@ -125,7 +124,7 @@ module elec_pair_fm
         end function electric_pair_position_proc
     end interface
 
-    !> Alist of pairs that should be used regardless of major mode.
+    !> Table of pairs that should be used regardless of major mode.
     !>
     !> Pairs of delimiters in this list are a fallback in case they have
     !> no syntax relevant to `electric_pair_mode' in the mode's syntax
@@ -155,7 +154,7 @@ module elec_pair_fm
     !> elec-pair.el electric-pair-pairs (an array of `electric_pair_type').
     type(electric_pair_type), allocatable, public :: electric_pair_pairs(:)
 
-    !> Alist of pairs that should always be used in comments and strings.
+    !> Table of pairs that should always be used in comments and strings.
     !>
     !> Pairs of delimiters in this list are a fallback in case they have
     !> no syntax relevant to `electric_pair_mode' in the syntax table
@@ -213,19 +212,19 @@ module elec_pair_fm
     logical, public :: electric_pair_open_newline_between_pairs = .true.
 
     !> Whether typing a closing delimiter moves point over whitespace.
-    !> If `ELECTRIC_PAIR_SKIP_WHITESPACE_T' and point is separated from a
+    !> If `ELECTRIC_PAIR_SKIP_WHITESPACE_YES' and point is separated from a
     !> closing delimiter only by whitespace, then typing a closing delimiter
     !> of the same type does not insert that character but instead moves
     !> point to immediately after the already present closing delimiter.  If
     !> the value of this variable is `ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP',
     !> then the whitespace moved over is deleted.  If the value is
-    !> `ELECTRIC_PAIR_SKIP_WHITESPACE_NIL', typing a closing delimiter simply
+    !> `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', typing a closing delimiter simply
     !> inserts it at point.
     !>
     !> The specific kind of whitespace skipped is given by the variable
     !> `electric_pair_skip_whitespace_chars'.  Port of elec-pair.el
     !> electric-pair-skip-whitespace (no function form).
-    integer, public :: electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_T
+    integer, public :: electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_YES
 
     !> Whitespace characters considered by `electric_pair_skip_whitespace'.
     !> Port of elec-pair.el electric-pair-skip-whitespace-chars.
@@ -233,7 +232,7 @@ module elec_pair_fm
 
     !> Function to use to move point forward over whitespace.
     !> Before attempting a skip, if `electric_pair_skip_whitespace' is
-    !> not `ELECTRIC_PAIR_SKIP_WHITESPACE_NIL', this function is called.  It
+    !> not `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', this function is called.  It
     !> moves point to a new buffer position, presumably skipping only
     !> whitespace in between.  Port of elec-pair.el
     !> electric-pair-skip-whitespace-function (one global value).
@@ -273,8 +272,8 @@ module elec_pair_fm
         end subroutine command_proc_local
     end interface
 
-    !> A list description (MATCHED-P . PAIR) of `electric_pair_balance_info':
-    !> SET false is not yet known; PAIR -1 is nil.
+    !> A description (MATCHED-P and PAIR) of `electric_pair_balance_info':
+    !> SET .false. is not yet known; PAIR -1 is none.
     type :: balance_type
         logical :: set = .false.
         logical :: matched = .false.
@@ -292,7 +291,7 @@ contains
         call minor_modes%electric_pair_local_mode%define("electric_pair_local_mode", &
                                                          body=electric_pair_local_mode_body, &
                                                          hook=electric_pair_local_mode_hook, &
-                                                         getter=electric_pair_local_mode_p)
+                                                         getter=is_electric_pair_local_mode)
         commands%electric_pair_local_mode%run => electric_pair_local_mode
         commands%electric_pair_delete_pair%run => cmd_electric_pair_delete_pair
         ! (?\" . ?\") and electric-quote-chars' single and double quotes.
@@ -341,7 +340,7 @@ contains
     !> The character `last_command_event' is, or -1.  Not a port.
     integer function event_char()
         event_char = -1
-        if (fixnump(last_command_event)) event_char = int(xfixnum(last_command_event))
+        if (vtag(last_command_event) == V_INTEGER) event_char = int(xfixnum(last_command_event))
     end function event_char
 
     !> (prefix-numeric-value current-prefix-arg) as a post-self-insert
@@ -350,7 +349,7 @@ contains
         psi_num = prefix_numeric_value(hook_current_prefix_arg)
     end function psi_num
 
-    !> The character after POS (default point), or -1 for nil.  Not a port.
+    !> The character after POS (default point), or -1 for none.  Not a port.
     integer function after(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -361,7 +360,7 @@ contains
         if (found) after = int(c)
     end function after
 
-    !> The character before POS (default point), or -1 for nil.  Not a port.
+    !> The character before POS (default point), or -1 for none.  Not a port.
     integer function before(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -381,7 +380,7 @@ contains
         if (c >= 0) syntax_char = char_syntax(c)
     end function syntax_char
 
-    !> (matching-paren C): -1 for nil.  Not a port.
+    !> (matching-paren C): -1 for none.  Not a port.
     integer function matching(c)
         integer, intent(in) :: c
 
@@ -497,7 +496,7 @@ contains
         logical :: pre_t
 
         opoint = point()
-        pre_t = bobp()
+        pre_t = is_bob()
         pre_string_or_comment = 0
 
         if (.not. pre_t) then
@@ -582,8 +581,8 @@ contains
         saved_event = last_command_event
         saved_blink = blink_matching_paren
         saved_mode = minor_modes%electric_pair_mode%state%value
-        last_command_event = make_fixnum(int(char, int64))
-        blink_matching_paren = BLINK_MATCHING_PAREN_NIL
+        last_command_event = value_type(int(char, int64))
+        blink_matching_paren = BLINK_MATCHING_PAREN_NO
         minor_modes%electric_pair_mode%state%value = .false.
         call self_insert_command(times, int(char, int64), status)
         last_command_event = saved_event
@@ -591,10 +590,10 @@ contains
         minor_modes%electric_pair_mode%state%value = saved_mode
     end subroutine electric_pair_insert
 
-    !> Like `syntax_ppss', but maybe fall back to `parse_partial_sexp'.
+    !> Like `syntax_ppss', but maybe fall back to `parse_partial_expression'.
     !>
     !> IN_STRINGS and IN_COMMENTS (upstream's WHERE, by default both) say
-    !> when to fall back to `parse_partial_sexp'.  Port of
+    !> when to fall back to `parse_partial_expression'.  Port of
     !> elec-pair.el:electric-pair--syntax-ppss.
     subroutine electric_pair_syntax_ppss(state, pos, comments_only)
         type(parse_state_type), intent(out) :: state
@@ -629,7 +628,7 @@ contains
 
         if (s_or_c_start /= 0) then
             call with_syntax_begin(s_or_c_start, saved)
-            call parse_partial_sexp(s_or_c_start, p, state, st)
+            call parse_partial_expression(s_or_c_start, p, state, st)
             call with_syntax_end(saved)
         else
             state = quick_ppss
@@ -668,7 +667,7 @@ contains
             end if
 
             call with_syntax_begin(string_or_comment, saved)
-            r = scan_sexps(point(), count, st)
+            r = scan_expressions(point(), count, st)
             call with_syntax_end(saved)
 
             if (st%ok()) then
@@ -687,7 +686,7 @@ contains
                     ! came out of it.
                     call at_top_level_or_equivalent()
                 else
-                    ! Exit the sexp.
+                    ! Exit the expression.
                     call goto_char(end)
                     call ended_prematurely()
                 end if
@@ -698,7 +697,7 @@ contains
 
     contains
 
-        !> Called when `scan_sexps' ran perfectly, when it found a
+        !> Called when `scan_expressions' ran perfectly, when it found a
         !> parenthesis pointing in the direction of travel.  Also when
         !> travel started inside a comment and exited it.
         subroutine at_top_level_or_equivalent()
@@ -706,9 +705,9 @@ contains
             if (.not. innermost%set) innermost = balance_type(set=.true., matched=.true.)
         end subroutine at_top_level_or_equivalent
 
-        !> Called when `scan_sexps' crashed against a parenthesis pointing
+        !> Called when `scan_expressions' crashed against a parenthesis pointing
         !> opposite the direction of travel.  After traversing that
-        !> character, the idea is to travel one sexp in the opposite
+        !> character, the idea is to travel one expression in the opposite
         !> direction looking for a matching delimiter.
         subroutine ended_prematurely()
             type(parse_state_type) :: ppss
@@ -722,7 +721,7 @@ contains
             matched = .false.
 
             if (direction < 0) then
-                q = scan_sexps(point(), 1_int64, st2)
+                q = scan_expressions(point(), 1_int64, st2)
                 if (q == 0) q = point()
 
                 if (st2%ok()) then
@@ -732,7 +731,7 @@ contains
                     matched = after(p) == m
                 end if
             else
-                ! In this case, no need to use `scan_sexps', we can use
+                ! In this case, no need to use `scan_expressions', we can use
                 ! some `electric_pair_syntax_ppss' in this case (which
                 ! uses the quicker `syntax_ppss' in some cases).
                 call electric_pair_syntax_ppss(ppss, point() - 1)
@@ -767,7 +766,7 @@ contains
 
     !> Return true if there are unbalanced strings started by CHAR.  Port of
     !> elec-pair.el:electric-pair--unbalanced-strings-p.
-    logical function unbalanced_strings_p(char)
+    logical function is_unbalanced_strings(char)
         integer, intent(in) :: char
         type(parse_state_type) :: selector_ppss, relevant_ppss
         integer(int64) :: opoint, moved
@@ -787,21 +786,21 @@ contains
         end if
 
         call goto_char(opoint)
-        unbalanced_strings_p = relevant_ppss%instring == ST_STRING_STYLE .or. relevant_ppss%instring == char
-    end function unbalanced_strings_p
+        is_unbalanced_strings = relevant_ppss%instring == ST_STRING_STYLE .or. relevant_ppss%instring == char
+    end function is_unbalanced_strings
 
     !> Return true if point is inside a string started by CHAR.
     !>
     !> A comments text is parsed with `electric_pair_text_syntax_table'.
     !> Also consider strings within comments, but not strings within
     !> strings.  Port of elec-pair.el:electric-pair--inside-string-p.
-    logical function inside_string_p(char)
+    logical function is_inside_string(char)
         integer, intent(in) :: char
         type(parse_state_type) :: ppss
 
         call electric_pair_syntax_ppss(ppss, point(), comments_only=.true.)
-        inside_string_p = ppss%instring == ST_STRING_STYLE .or. ppss%instring == char
-    end function inside_string_p
+        is_inside_string = ppss%instring == ST_STRING_STYLE .or. ppss%instring == char
+    end function is_inside_string
 
     !> Return true if auto-pairing of CHAR unbalances delimiters.
     !>
@@ -824,7 +823,7 @@ contains
         if (.not. info%found) return
         opoint = point()
         beg = opoint - psi_num()
-        call buffer_modified_p(current_buffer(), modified, st)
+        call is_buffer_modified(current_buffer(), modified, st)
         undo_enabled = buffers(cur)%undo_enabled
         buffers(cur)%undo_enabled = .false.
         call buffer_substring(beg, opoint, text, st)
@@ -839,13 +838,13 @@ contains
                 inhibit = outermost%pair == info%pair
             end if
         else if (info%syntax == iachar('"')) then
-            inhibit = unbalanced_strings_p(char)
+            inhibit = is_unbalanced_strings(char)
         end if
 
         call goto_char(beg)
         call insert(text, st)
         buffers(cur)%undo_enabled = undo_enabled
-        call restore_buffer_modified_p(modified)
+        call restore_buffer_modified(modified)
         call goto_char(opoint)
     end function electric_pair_inhibit_if_helps_balance
 
@@ -875,7 +874,7 @@ contains
                 skip = outermost%pair /= info%pair
             end if
         else if (info%syntax == iachar('"')) then
-            skip = inside_string_p(char)
+            skip = is_inside_string(char)
         end if
 
         do k = 1, num
@@ -939,7 +938,7 @@ contains
     !>
     !> The decision is taken by order of preference:
     !>
-    !> * According to `use_region_p'.  If this returns true this
+    !> * According to `is_use_region'.  If this returns true this
     !>   function will unconditionally "wrap" the region in the
     !>   corresponding delimiter for C;
     !>
@@ -976,7 +975,7 @@ contains
         if (pos == 0) return
         if (num == 0) return
 
-        if (is_any(syntax, '()"$') .and. use_region_p()) then
+        if (is_any(syntax, '()"$') .and. is_use_region()) then
             ! Wrap a pair around the active region.
             call mark(m, st)
 
@@ -1007,14 +1006,14 @@ contains
 
         if (modulo(moved, 2_int64) /= 0) then
             saved_arg = hook_current_prefix_arg
-            hook_current_prefix_arg = make_fixnum(num - 1)
+            hook_current_prefix_arg = value_type(num - 1)
             call electric_pair_post_self_insert_function(status)
             hook_current_prefix_arg = saved_arg
             return
         end if
 
         ! Skip self.
-        skip_whitespace_info = ELECTRIC_PAIR_SKIP_WHITESPACE_NIL
+        skip_whitespace_info = ELECTRIC_PAIR_SKIP_WHITESPACE_NO
 
         if (is_any(syntax, ')"$')) then
             ok = info%unconditional
@@ -1031,7 +1030,7 @@ contains
 
                 if (.not. (info%unconditional .and. syntax == iachar('"'))) then
                     skip_whitespace_info = electric_pair_skip_whitespace
-                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NIL .and. &
+                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NO .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
                 end if
 
@@ -1041,7 +1040,7 @@ contains
                 if (skip) then
                     ! This is too late: rather than insert&delete we'd want
                     ! to only skip (or insert in overwrite mode).
-                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NIL .and. &
+                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NO .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
 
                     if (skip_whitespace_info == ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP) then
@@ -1163,7 +1162,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call electric_pair_delete_pair(prefix_numeric_value(current_prefix_arg), status, &
-                                       .not. nilp(current_prefix_arg))
+                                       allocated(current_prefix_arg%a))
     end subroutine cmd_electric_pair_delete_pair
 
     ! ------------------------------------------------------------------
@@ -1218,12 +1217,12 @@ contains
 
     !> The state of Electric Pair Local mode: `electric_pair_mode' in the
     !> current buffer.  Not a port.
-    logical function electric_pair_local_mode_p() result(on)
+    logical function is_electric_pair_local_mode() result(on)
         on = minor_modes%electric_pair_mode%state%value
-    end function electric_pair_local_mode_p
+    end function is_electric_pair_local_mode
 
     !> The body of Electric Pair Local mode with its new state VAL: the
-    !> setter (setq-local electric-pair-mode VAL), then the body.  Port of
+    !> setter (`electric_pair_mode' set locally to VAL), then the body.  Port of
     !> elec-pair.el:electric-pair-local-mode (its body).
     subroutine electric_pair_local_mode_body(val, status)
         logical, intent(in) :: val
@@ -1233,16 +1232,16 @@ contains
 
         status = status_type()
         call minor_modes%electric_pair_mode%state%set_local(val)
-        call default_value(sym("electric_pair_mode"), default, st)
+        call default_value(value_type(name="electric_pair_mode"), default, st)
 
-        if (minor_modes%electric_pair_mode%state%value .eqv. .not. nilp(default)) then
-            call kill_local_variable(sym("electric_pair_mode"), st)
-        else if (nilp(default)) then
+        if (minor_modes%electric_pair_mode%state%value .eqv. allocated(default%a)) then
+            call kill_local_variable(value_type(name="electric_pair_mode"), st)
+        else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             ! Setup the hooks.
             call minor_modes%electric_pair_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("electric_pair_mode"), nil(), st)
+            call set_default(value_type(name="electric_pair_mode"), value_type(), st)
         end if
     end subroutine electric_pair_local_mode_body
 end module elec_pair_fm

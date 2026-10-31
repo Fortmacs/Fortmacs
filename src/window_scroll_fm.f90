@@ -26,15 +26,14 @@
 !> Part of window_fm.  Scrolling moves by screen lines (indent_fm), and
 !> the screen-line code depends on window_fm, so these live in a
 !> submodule.  Scrolling is line based, as upstream on text terminals,
-!> with `scroll_margin' 0 and `scroll_preserve_screen_position' nil.
+!> with `scroll_margin' 0 and `scroll_preserve_screen_position' .false..
 submodule(window_fm) window_scroll_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
-    use lisp_fm, only: nil, nilp, consp, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, vtag, V_ARRAY
     use data_fm, only: value_eq
-    use buffer_fm, only: cur, current_buffer, set_buffer, buffer_live_p, buffer_list
-    use editfns_fm, only: point, goto_char, eobp, bobp, point_min, point_max
+    use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, buffer_list
+    use editfns_fm, only: point, goto_char, is_eob, is_bob, point_min, point_max
     use cmds_fm, only: forward_line, beginning_of_line
     use xdisp_fm, only: truncate_partial_width_windows
     use indent_fm, only: vertical_motion, move_to_column
@@ -78,7 +77,7 @@ contains
     !> Whether point is in the `ht' screen lines from the start of `w'.
     !> Port of the use of window.c:Fpos_visible_in_window_p in
     !> window_scroll_line_based.
-    logical function point_visible_p(w, ht) result(visible)
+    logical function is_point_visible(w, ht) result(visible)
         type(window_type), intent(in) :: w
         integer, intent(in) :: ht
         integer(int64) :: opoint, start, moved
@@ -92,12 +91,19 @@ contains
         ! Short of the end: point is on the last line shown.
         visible = moved < ht .or. opoint < point()
         call goto_char(opoint)
-    end function point_visible_p
+    end function is_point_visible
+
+    !> `next_screen_context_lines' within 0 to 1000000.  Port of
+    !> window.c:sanitize_next_screen_context_lines.
+    integer function sanitize_next_screen_context_lines() result(n)
+        n = max(0, min(1000000, next_screen_context_lines))
+    end function sanitize_next_screen_context_lines
 
     !> Scroll `w' (showing the current buffer) up `n' screen lines, down
     !> if negative; with `whole', `n' screenfuls less
-    !> next-screen-context-lines.  Port of window.c:window_scroll_line_based
-    !> (scroll-margin 0, scroll-preserve-screen-position nil).
+    !> next-screen-context-lines.  Port of window.c:window_scroll (line
+    !> based on a terminal frame), window.c:window_scroll_line_based
+    !> (`scroll_margin' 0, `scroll_preserve_screen_position' .false.).
     subroutine window_scroll(w, n, whole, status)
         type(window_type), pointer, intent(in) :: w
         integer(int64), intent(in) :: n
@@ -112,11 +118,11 @@ contains
         nlines = n
         ! If scrolling screen-fulls, compute the number of lines to
         ! scroll from the window's height.
-        if (whole) nlines = n*max(1, ht - next_screen_context_lines)
+        if (whole) nlines = n*max(1, ht - sanitize_next_screen_context_lines())
         opoint = point()
         startpos = window_start(w)
 
-        if (.not. point_visible_p(w, ht)) then
+        if (.not. is_point_visible(w, ht)) then
             call vertical_motion(-int(ht/2, int64), moved)
             startpos = point()
         end if
@@ -183,9 +189,9 @@ contains
             if (.not. status%ok()) return
         end if
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             call window_scroll(w, direction, .true., status)
-        else if (value_eq(arg, sym("-"))) then
+        else if (value_eq(arg, value_type(name="-"))) then
             call window_scroll(w, -direction, .true., status)
         else
             call window_scroll(w, prefix_numeric_value(arg)*direction, .false., status)
@@ -228,11 +234,11 @@ contains
         center_p = .false.
         iarg = 0
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             ! recenter-redisplay is `tty': erase and redraw the frame.
             if (redisplay) selected_frame%garbaged = .true.
             center_p = .true.
-        else if (consp(arg)) then
+        else if (vtag(arg) == V_ARRAY) then
             ! Just C-u.
             center_p = .true.
         else
@@ -274,6 +280,7 @@ contains
             return
         end if
 
+        ! displayed_window_lines: on a terminal, the body height.
         lines = window_body_lines(w)
         start = window_start(w)
 
@@ -285,7 +292,7 @@ contains
             call goto_char(start)
         end if
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             iarg = lines/2
         else
             iarg = prefix_numeric_value(arg)
@@ -299,8 +306,8 @@ contains
     !> `line_move_visual' with lines not truncated, `goal_column' in screen
     !> columns as vertical-motion counts them, else as
     !> simple.el:line-move-to-column (`truncate_partial_width_windows' is
-    !> non-nil by default, so that is the usual case).  Port of
-    !> window.el:scroll-command--goto-goal-column (truncate-lines nil).
+    !> .true. by default, so that is the usual case).  Port of
+    !> window.el:scroll-command--goto-goal-column (`truncate_lines' .false.).
     subroutine goto_goal_column()
         integer(int64) :: moved, reached
 
@@ -323,11 +330,11 @@ contains
 
         if (.not. scroll_error_top_bottom) then
             call scroll_up(arg, status)
-        else if (value_eq(arg, sym("-"))) then
-            call scroll_down_command(nil(), status)
+        else if (value_eq(arg, value_type(name="-"))) then
+            call scroll_down_command(value_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
-            call scroll_down_command(make_fixnum(-prefix_numeric_value(arg)), status)
-        else if (eobp()) then
+            call scroll_down_command(value_type(-prefix_numeric_value(arg)), status)
+        else if (is_eob()) then
             ! Signal error.
             call scroll_up(arg, status)
         else
@@ -336,7 +343,7 @@ contains
             if (status%code == FM_END_OF_BUFFER) then
                 status = status_type()
 
-                if (nilp(arg)) then
+                if (.not. allocated(arg%a)) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! bottom of the buffer.
                     call goto_char(point_max())
@@ -358,11 +365,11 @@ contains
 
         if (.not. scroll_error_top_bottom) then
             call scroll_down(arg, status)
-        else if (value_eq(arg, sym("-"))) then
-            call scroll_up_command(nil(), status)
+        else if (value_eq(arg, value_type(name="-"))) then
+            call scroll_up_command(value_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
-            call scroll_up_command(make_fixnum(-prefix_numeric_value(arg)), status)
-        else if (bobp()) then
+            call scroll_up_command(value_type(-prefix_numeric_value(arg)), status)
+        else if (is_bob()) then
             ! Signal error.
             call scroll_down(arg, status)
         else
@@ -371,7 +378,7 @@ contains
             if (status%code == FM_BEGINNING_OF_BUFFER) then
                 status = status_type()
 
-                if (nilp(arg)) then
+                if (.not. allocated(arg%a)) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! top of the buffer.
                     call goto_char(point_min())
@@ -402,7 +409,7 @@ contains
         type(status_type), intent(out) :: status
 
         ! Always respect ARG.
-        if (.not. nilp(arg)) then
+        if (allocated(arg%a)) then
             call recenter(arg, .true., status)
             return
         end if
@@ -412,11 +419,11 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call recenter(nil(), .true., status)
+            call recenter(value_type(), .true., status)
         case (RECENTER_TOP)
-            call recenter(make_fixnum(0_int64), .true., status)
+            call recenter(value_type(0_int64), .true., status)
         case default
-            call recenter(make_fixnum(-1_int64), .true., status)
+            call recenter(value_type(-1_int64), .true., status)
         end select
     end subroutine recenter_top_bottom
 
@@ -426,7 +433,7 @@ contains
         integer(int64) :: line
 
         ! Always respect ARG.
-        if (.not. nilp(arg)) then
+        if (allocated(arg%a)) then
             call move_to_window_line(arg, line, status)
             return
         end if
@@ -435,11 +442,11 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call move_to_window_line(nil(), line, status)
+            call move_to_window_line(value_type(), line, status)
         case (RECENTER_TOP)
-            call move_to_window_line(make_fixnum(0_int64), line, status)
+            call move_to_window_line(value_type(0_int64), line, status)
         case default
-            call move_to_window_line(make_fixnum(-1_int64), line, status)
+            call move_to_window_line(value_type(-1_int64), line, status)
         end select
     end subroutine move_to_window_line_top_bottom
 
@@ -492,7 +499,7 @@ contains
         call move_to_window_line_top_bottom(current_prefix_arg, status)
     end subroutine cmd_move_to_window_line_top_bottom
 
-    module logical function pos_visible_in_window_p(pos, window) result(visible)
+    module logical function is_pos_visible_in_window(pos, window) result(visible)
         integer(int64), intent(in) :: pos
         type(handle_type), intent(in) :: window
         type(handle_type) :: old
@@ -501,7 +508,7 @@ contains
         integer :: ht
 
         visible = .false.
-        if (.not. window_live_p(window)) return
+        if (.not. is_window_live(window)) return
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
@@ -516,8 +523,8 @@ contains
             call goto_char(opoint)
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, status)
-    end function pos_visible_in_window_p
+        if (is_buffer_live(old)) call set_buffer(old, status)
+    end function is_pos_visible_in_window
 
     module subroutine scroll_window(window, direction, status)
         type(handle_type), intent(in) :: window
@@ -528,7 +535,7 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        if (.not. window_live_p(window)) return
+        if (.not. is_window_live(window)) return
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
@@ -536,7 +543,7 @@ contains
         call goto_char(window_point(w))
         call window_scroll(w, int(direction, int64), .true., status)
         call set_window_point(w, point(), st)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine scroll_window
 
     module subroutine other_window_for_scrolling(window, status)
@@ -557,7 +564,7 @@ contains
             end if
         end do
 
-        if (.not. window_live_p(window) .or. same_window(window, selected_frame%selected_window)) then
+        if (.not. is_window_live(window) .or. same_window(window, selected_frame%selected_window)) then
             call set_error(status, FM_GENERIC_ERROR, "There is no other window")
             window = null_handle()
         end if
@@ -592,8 +599,8 @@ contains
             call scroll_down_command(lines, status)
         end if
 
-        if (window_live_p(old_window)) call select_window(old_window, st, norecord=.true.)
-        if (buffer_live_p(old_buffer)) call set_buffer(old_buffer, st)
+        if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
+        if (is_buffer_live(old_buffer)) call set_buffer(old_buffer, st)
     end subroutine scroll_other
 
     recursive module subroutine scroll_other_window(lines, status)

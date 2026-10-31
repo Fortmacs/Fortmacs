@@ -37,7 +37,7 @@
 !>
 !> Deferred: `define-ibuffer-filter' (with the filters, step 36c),
 !> `ibuffer-aif' and `ibuffer-awhen' (Lisp control macros: Fortran needs
-!> none), INLINE columns (a byte-compiler optimization), the
+!> none), INLINE columns, the
 !> HEADER-MOUSE-MAP of a column, and an operation's commands for
 !> user-defined sorting methods and operations (commands exist at compile
 !> time; a sorting method added at run time is reached with
@@ -60,14 +60,14 @@ module ibuf_macs_fm
     integer, parameter, public :: IBUFFER_ALIGN_LEFT = 0, IBUFFER_ALIGN_CENTER = 1, IBUFFER_ALIGN_RIGHT = 2
 
     !> What an operation's body returns for a buffer: it chose not to
-    !> affect the buffer (nil), it did (t), or the buffer's line should be
-    !> removed from the list (`kill').
-    integer, parameter, public :: IBUFFER_OP_NIL = 0, IBUFFER_OP_T = 1, IBUFFER_OP_KILL = 2
+    !> affect the buffer (IBUFFER_OP_SKIPPED), it did (IBUFFER_OP_DONE), or the buffer's line should be
+    !> removed from the list (IBUFFER_OP_KILL).
+    integer, parameter, public :: IBUFFER_OP_SKIPPED = 0, IBUFFER_OP_DONE = 1, IBUFFER_OP_KILL = 2
 
-    !> The MODIFIER_P of an operation: it never modifies buffers (nil), it
-    !> always does (t), or compare the buffers' modification flags
-    !> (:maybe).
-    integer, parameter, public :: IBUFFER_MODIFIER_NIL = 0, IBUFFER_MODIFIER_T = 1, IBUFFER_MODIFIER_MAYBE = 2
+    !> The MODIFIER_P of an operation: it never modifies buffers (IBUFFER_MODIFIER_NEVER), it
+    !> always does (IBUFFER_MODIFIER_ALWAYS), or compare the buffers' modification flags
+    !> (IBUFFER_MODIFIER_MAYBE).
+    integer, parameter, public :: IBUFFER_MODIFIER_NEVER = 0, IBUFFER_MODIFIER_ALWAYS = 1, IBUFFER_MODIFIER_MAYBE = 2
 
     !> The longest name of a column, a sorting method or a mode, and of a
     !> literal string in a format.
@@ -152,7 +152,7 @@ module ibuf_macs_fm
             type(handle_type), intent(in) :: buffer
         end function ibuffer_buffer_predicate_proc
 
-        !> The FORM of an `ibuffer_fontification_alist' entry, evaluated in
+        !> The PREDICATE of an `ibuffer_fontification_table' entry (a logical function), called in
         !> the buffer.  Not a port.
         recursive logical function ibuffer_form_proc()
             implicit none(type, external)
@@ -236,7 +236,7 @@ module ibuf_macs_fm
     !> ibuf-macs.el:define-ibuffer-op.
     type, public :: ibuffer_op_type
         logical :: deletion = .false.
-        integer :: modifier_p = IBUFFER_MODIFIER_NIL
+        integer :: modifier_p = IBUFFER_MODIFIER_NEVER
         logical :: dangerous = .false.
         character(len=IBUFFER_TEXT_LEN) :: opstring = "operated on"
         character(len=IBUFFER_TEXT_LEN) :: active_opstring = "Operate on"
@@ -255,16 +255,16 @@ module ibuf_macs_fm
         procedure(ibuffer_buffer_predicate_proc), pointer, nopass :: predicate => null()
     end type ibuffer_show_predicate_type
 
-    !> An element of `ibuffer_fontification_alist': PRIORITY, a FORM
-    !> evaluated in the buffer, and the FACE to put on the buffer name if
-    !> FORM returns true.
+    !> An element of `ibuffer_fontification_table': PRIORITY, a PREDICATE
+    !> (a logical function) called in the buffer, and the FACE to put on the buffer name if
+    !> PREDICATE returns .true..
     type, public :: ibuffer_fontification_type
         integer :: priority = 0
         procedure(ibuffer_form_proc), pointer, nopass :: form => null()
         character(len=IBUFFER_NAME_LEN) :: face = ""
     end type ibuffer_fontification_type
 
-    !> An element of `ibuffer_directory_abbrev_alist' (FROM . TO).
+    !> An element of `ibuffer_directory_abbrev_table' (FROM . TO).
     type, public :: ibuffer_directory_abbrev_type
         character(len=256) :: from = ""
         character(len=256) :: to = ""
@@ -399,14 +399,14 @@ module ibuf_macs_fm
     end type ibuffer_filter_def_type
 
     !> An element (FILTER (FORMAT FORMAT ...)) of
-    !> `ibuffer_filter_format_alist'.
+    !> `ibuffer_filter_format_table'.
     type, public :: ibuffer_filter_format_type
         character(len=IBUFFER_NAME_LEN) :: filter = ""
         type(ibuffer_formats_type) :: formats
     end type ibuffer_filter_format_type
 
     !> The special formats used when a filter is active (the type of
-    !> `ibuffer_filter_format_alist').
+    !> `ibuffer_filter_format_table').
     type, public :: ibuffer_filter_formats_type
         type(ibuffer_filter_format_type), allocatable :: entries(:)
     contains
@@ -697,7 +697,7 @@ contains
     end function ibuffer_saved
 
     !> A simple filter specification (SYMBOL . QUALIFIER): the filter NAME
-    !> of `ibuffer_filtering_alist' with the string QUALIFIER, the integer
+    !> of `ibuffer_filtering_table' with the string QUALIFIER, the integer
     !> NUMBER or the PREDICATE (none for a filter without qualifier).
     !> Not a port.
     function ibuffer_filter(name, qualifier, number, predicate) result(f)
@@ -858,7 +858,7 @@ contains
     end function ibuffer_content
 
     !> Buffers for which PREDICATE, called with the buffer current, returns
-    !> true (predicate . FORM).  Not a port.
+    !> .true..  Not a port.
     function ibuffer_predicate(predicate) result(f)
         procedure(ibuffer_buffer_predicate_proc) :: predicate
         type(ibuffer_filter_type) :: f

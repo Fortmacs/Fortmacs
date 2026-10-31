@@ -1,7 +1,7 @@
-! test_syntax_scan_fm.f90 -- tests for comments, lists and sexps
-! (syntax_scan_fm) and the sexp commands (lisp_cmds_fm).
+! test_syntax_scan_fm.f90 -- tests for comments, groups and expressions
+! (syntax_scan_fm) and the expression commands (expression_motion_fm).
 ! Ports GNU Emacs 31.1 test/src/syntax-tests.el and
-! test/lisp/emacs-lisp/lisp-tests.el in part; only the comment and sexp
+! test/lisp/emacs-lisp/lisp-tests.el in part; only the comment and expression
 ! tests of the ported scanner.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
@@ -29,7 +29,7 @@
 !> section and kind; a failure names the ERT test, e.g.
 !> syntax-comments-c-b13); and lisp-tests.el's lisp-forward-sexp-* and
 !> lisp-backward-sexp-* tests.  Own tests for nested comments, two-character
-!> delimiters, scan errors, `parse_partial_sexp' arguments and the sexp
+!> delimiters, scan errors, `parse_partial_expression' arguments and the expression
 !> commands.
 module test_syntax_scan_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -37,21 +37,22 @@ module test_syntax_scan_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_SCAN_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use data_fm, only: set
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position, bobp, eobp
+    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position, is_bob, is_eob
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
     use syntax_fm, only: modify_syntax_entry, make_syntax_table, set_syntax_table, free_syntax_table, &
-                         standard_syntax_table, syntax_table_live_p, forward_comment, scan_lists, scan_sexps, parse_partial_sexp, &
-                         parse_state_type, scan_error_data, syntax_ppss, parse_sexp_ignore_comments, &
+                         standard_syntax_table, is_syntax_table_live, forward_comment, scan_groups, scan_expressions, &
+                         parse_partial_expression, &
+                         parse_state_type, scan_error_data, syntax_ppss, parse_expression_ignore_comments, &
                          comment_end_can_be_escaped, COMMENTSTOP_SYNTAX_TABLE, COMMENTSTOP_COMMENT, ST_STRING_STYLE
-    use lisp_cmds_fm, only: forward_sexp, backward_sexp, up_list, backward_up_list, down_list, forward_list, &
-                            kill_sexp
+    use expression_motion_fm, only: forward_expression, backward_expression, up_group, backward_up_group, down_group, &
+                                    forward_group, &
+                                    kill_expression
     implicit none(type, external)
     private
 
@@ -81,15 +82,15 @@ contains
                     new_unittest("syntax-comments-c", test_comments_c), &
                     new_unittest("syntax-br-comments-c", test_br_comments_c), &
                     new_unittest("syntax-pps-comments-c", test_pps_comments_c), &
-                    new_unittest("lisp-forward-sexp", test_lisp_forward_sexp), &
+                    new_unittest("lisp-forward-sexp", test_lisp_forward_expression), &
                     new_unittest("nested-comments", test_nested_comments), &
                     new_unittest("c-comments", test_c_comments), &
-                    new_unittest("scan-lists-and-errors", test_scan_lists), &
-                    new_unittest("scan-sexps", test_scan_sexps), &
+                    new_unittest("scan-lists-and-errors", test_scan_groups), &
+                    new_unittest("scan-sexps", test_scan_expressions), &
                     new_unittest("parse-partial-sexp-state", test_pps_state), &
                     new_unittest("comment-end-can-be-escaped-variable", test_escaped_variable), &
-                    new_unittest("sexp-commands", test_sexp_commands), &
-                    new_unittest("sexp-keys", test_sexp_keys) &
+                    new_unittest("sexp-commands", test_expression_commands), &
+                    new_unittest("sexp-keys", test_expression_keys) &
                     ]
     end subroutine collect_syntax_scan_fm
 
@@ -111,7 +112,7 @@ contains
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(point_min())
-        if (syntax_table_live_p(table)) call free_syntax_table(table, st)
+        if (is_syntax_table_live(table)) call free_syntax_table(table, st)
         call make_syntax_table(table, st)
         call set_syntax_table(table, st)
         call show_alone()
@@ -124,7 +125,7 @@ contains
 
         call set_syntax_table(standard_syntax_table(), st)
         call free_syntax_table(table, st)
-        parse_sexp_ignore_comments = .false.
+        parse_expression_ignore_comments = .false.
         comment_end_can_be_escaped = .false.
     end subroutine done_buffer
 
@@ -142,7 +143,7 @@ contains
         type(parse_state_type), intent(in) :: a, b
 
         same_state = a%depth == b%depth .and. a%innermost_start == b%innermost_start .and. &
-                     a%last_sexp_start == b%last_sexp_start .and. a%instring == b%instring .and. &
+                     a%last_expression_start == b%last_expression_start .and. a%instring == b%instring .and. &
                      a%incomment == b%incomment .and. (a%quoted .eqv. b%quoted) .and. a%mindepth == b%mindepth .and. &
                      a%comment_style == b%comment_style .and. a%comstr_start == b%comstr_start .and. &
                      a%prev_syntax == b%prev_syntax
@@ -178,10 +179,10 @@ contains
         pre_c = point_c - 1
         point_x = 7
         aft_c = point_c + 2
-        call parse_partial_sexp(point_min(), point_c, pps_c, st)
-        call parse_partial_sexp(point_min(), pre_c, pps_pre_c, st)
-        call parse_partial_sexp(point_min(), aft_c, pps_aft_c, st)
-        call parse_partial_sexp(point_min(), point_x, pps_x, st)
+        call parse_partial_expression(point_min(), point_c, pps_c, st)
+        call parse_partial_expression(point_min(), pre_c, pps_pre_c, st)
+        call parse_partial_expression(point_min(), aft_c, pps_aft_c, st)
+        call parse_partial_expression(point_min(), point_x, pps_x, st)
         ! C should be inside comment.
         call check(error, pps_c%depth == 0 .and. pps_c%incomment == -1 .and. pps_c%comstr_start == point_c - 2)
         if (allocated(error)) return
@@ -189,16 +190,16 @@ contains
         call check(error, pps_x%depth == 0 .and. pps_x%incomment == 0)
         if (allocated(error)) return
         ! Try using OLDSTATE.
-        call parse_partial_sexp(pre_c, point_c, s, st, oldstate=pps_pre_c)
+        call parse_partial_expression(pre_c, point_c, s, st, oldstate=pps_pre_c)
         call check(error, same_state(s, pps_c), "preC to pointC")
         if (allocated(error)) return
-        call parse_partial_sexp(point_c, aft_c, s, st, oldstate=pps_c)
+        call parse_partial_expression(point_c, aft_c, s, st, oldstate=pps_c)
         call check(error, same_state(s, pps_aft_c), "pointC to aftC")
         if (allocated(error)) return
-        call parse_partial_sexp(pre_c, aft_c, s, st, oldstate=pps_pre_c)
+        call parse_partial_expression(pre_c, aft_c, s, st, oldstate=pps_pre_c)
         call check(error, same_state(s, pps_aft_c), "preC to aftC")
         if (allocated(error)) return
-        call parse_partial_sexp(aft_c, point_x, s, st, oldstate=pps_aft_c)
+        call parse_partial_expression(aft_c, point_x, s, st, oldstate=pps_aft_c)
         call check(error, same_state(s, pps_x), "aftC to pointX")
         call done_buffer(table)
     end subroutine test_continue_over_marker
@@ -219,8 +220,8 @@ contains
         call entry("-", ". 123", table)
         point_c = 3
         point_x = 7
-        call parse_partial_sexp(point_min(), point_c, pps_c, st)
-        call parse_partial_sexp(point_min(), point_x, pps_x, st)
+        call parse_partial_expression(point_min(), point_c, pps_c, st)
+        call parse_partial_expression(point_min(), point_x, pps_x, st)
         ! C should be inside nestable comment, not list.
         call check(error, pps_c%depth == 0 .and. pps_c%incomment == 1 .and. pps_c%comstr_start == point_c - 2)
         if (allocated(error)) return
@@ -228,7 +229,7 @@ contains
         call check(error, pps_x%depth == 0 .and. pps_x%incomment == 0)
         if (allocated(error)) return
         ! Try using OLDSTATE.
-        call parse_partial_sexp(point_c, point_x, s, st, oldstate=pps_c)
+        call parse_partial_expression(point_c, point_x, s, st, oldstate=pps_c)
         call check(error, same_state(s, pps_x))
         call done_buffer(table)
     end subroutine test_paren_comments
@@ -240,10 +241,10 @@ contains
         type(parse_state_type) :: s
 
         call temp_buffer("foo", table)
-        call parse_partial_sexp(1_int64, 1_int64, s, st)
+        call parse_partial_expression(1_int64, 1_int64, s, st)
         call check(error, st%ok())
         if (allocated(error)) return
-        call parse_partial_sexp(2_int64, 1_int64, s, st)
+        call parse_partial_expression(2_int64, 1_int64, s, st)
         call check(error,.not. st%ok() .and. format_error(st) == "End position is smaller than start position")
         call done_buffer(table)
     end subroutine test_from_to
@@ -274,7 +275,7 @@ contains
         call check(error, ios == 0, "can't read syntax-comments.txt")
         if (allocated(error)) return
         call temp_buffer(data, table)
-        parse_sexp_ignore_comments = .true.
+        parse_expression_ignore_comments = .true.
 
         select case (kind)
         case (PASCAL)
@@ -467,9 +468,9 @@ contains
             start_pos = label_point(int(start(k), int64), forw)
 
             if (forw) then
-                got = scan_lists(start_pos, 1_int64, 0_int64, st)
+                got = scan_groups(start_pos, 1_int64, 0_int64, st)
             else
-                got = scan_lists(start_pos, -1_int64, 0_int64, st)
+                got = scan_groups(start_pos, -1_int64, 0_int64, st)
             end if
 
             if (res(k)) then
@@ -522,17 +523,17 @@ contains
                 stop_pos = label_point(int(stop(k), int64), .false.)
             end if
 
-            call parse_partial_sexp(start_pos, point_max(), s1, st, targetdepth=0_int64, &
-                                    commentstop=COMMENTSTOP_SYNTAX_TABLE)
+            call parse_partial_expression(start_pos, point_max(), s1, st, targetdepth=0_int64, &
+                                          commentstop=COMMENTSTOP_SYNTAX_TABLE)
             call check(error, point() == open_pos, name//": opener at "//trim(str(point()))//", expected "// &
                        trim(str(open_pos)))
             if (allocated(error)) exit
-            call parse_partial_sexp(point(), point_max(), s2, st, targetdepth=0_int64, oldstate=s1, &
-                                    commentstop=COMMENTSTOP_SYNTAX_TABLE)
+            call parse_partial_expression(point(), point_max(), s2, st, targetdepth=0_int64, oldstate=s1, &
+                                          commentstop=COMMENTSTOP_SYNTAX_TABLE)
             call check(error, point() == close_pos, name//": closer at "//trim(str(point()))//", expected "// &
                        trim(str(close_pos)))
             if (allocated(error)) exit
-            call parse_partial_sexp(point(), point_max(), s3, st, targetdepth=0_int64, oldstate=s2)
+            call parse_partial_expression(point(), point_max(), s3, st, targetdepth=0_int64, oldstate=s2)
             call check(error, point() == stop_pos, name//": stop at "//trim(str(point()))//", expected "// &
                        trim(str(stop_pos)))
             if (allocated(error)) exit
@@ -569,7 +570,7 @@ contains
                              [40, 41, 41, 42, 42, 43], [NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_br_comments_lisp
 
-    !> "Lisp" style comments parsed by `parse_partial_sexp'.
+    !> "Lisp" style comments parsed by `parse_partial_expression'.
     subroutine test_pps_comments_lisp(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -614,7 +615,7 @@ contains
                               NONE])
     end subroutine test_br_comments_c
 
-    !> Emacs 27 "C" style comments parsed by `parse_partial_sexp'.
+    !> Emacs 27 "C" style comments parsed by `parse_partial_expression'.
     subroutine test_pps_comments_c(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -629,54 +630,54 @@ contains
     !> lisp-forward-sexp-1-empty-parens, -1-error-mismatch, -1-eobp,
     !> -2-eobp, -2-eobp-and-subsequent; lisp-backward-sexp-1-empty-parens,
     !> -1-error-mismatch, -1-eobp, -2-bobp, -2-bobp-and-subsequent.
-    subroutine test_lisp_forward_sexp(error)
+    subroutine test_lisp_forward_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
 
         call temp_buffer("()", table)
-        call forward_sexp(1_int64, st)
+        call forward_expression(1_int64, st)
         call check(error, st%ok(), "lisp-forward-sexp-1-empty-parens")
         if (allocated(error)) return
         call temp_buffer("(", table)
-        call forward_sexp(1_int64, st)
+        call forward_expression(1_int64, st)
         call check(error,.not. st%ok(), "lisp-forward-sexp-1-error-mismatch")
         if (allocated(error)) return
         call temp_buffer("()", table)
         call goto_char(point_max())
-        call forward_sexp(-1_int64, st)
+        call forward_expression(-1_int64, st)
         call check(error, st%ok(), "lisp-backward-sexp-1-empty-parens")
         if (allocated(error)) return
         call temp_buffer("(", table)
         call goto_char(point_max())
-        call forward_sexp(-1_int64, st)
+        call forward_expression(-1_int64, st)
         call check(error,.not. st%ok(), "lisp-backward-sexp-1-error-mismatch")
         if (allocated(error)) return
         call temp_buffer("()", table)
         call goto_char(point_max())
-        call forward_sexp(1_int64, st)
+        call forward_expression(1_int64, st)
         call check(error, st%ok(), "lisp-forward-sexp-1-eobp")
         if (allocated(error)) return
         call temp_buffer("()", table)
-        call forward_sexp(-1_int64, st)
+        call forward_expression(-1_int64, st)
         call check(error, st%ok(), "lisp-backward-sexp-1-eobp")
         if (allocated(error)) return
         call temp_buffer("()", table)
-        call forward_sexp(2_int64, st)
-        call check(error, st%ok() .and. eobp(), "lisp-forward-sexp-2-eobp")
+        call forward_expression(2_int64, st)
+        call check(error, st%ok() .and. is_eob(), "lisp-forward-sexp-2-eobp")
         if (allocated(error)) return
-        call forward_sexp(1_int64, st)
+        call forward_expression(1_int64, st)
         call check(error, st%ok(), "lisp-forward-sexp-2-eobp-and-subsequent")
         if (allocated(error)) return
         call temp_buffer("()", table)
         call goto_char(point_max())
-        call forward_sexp(-2_int64, st)
-        call check(error, st%ok() .and. bobp(), "lisp-backward-sexp-2-bobp")
+        call forward_expression(-2_int64, st)
+        call check(error, st%ok() .and. is_bob(), "lisp-backward-sexp-2-bobp")
         if (allocated(error)) return
-        call forward_sexp(-1_int64, st)
+        call forward_expression(-1_int64, st)
         call check(error, st%ok(), "lisp-backward-sexp-2-bobp-and-subsequent")
         call done_buffer(table)
-    end subroutine test_lisp_forward_sexp
+    end subroutine test_lisp_forward_expression
 
     ! ------------------------------------------------------------------
     ! Own tests
@@ -700,10 +701,10 @@ contains
         ok = forward_comment(-1_int64)
         call check(error, ok .and. point() == 1, "backward over it: "//trim(str(point())))
         if (allocated(error)) return
-        call parse_partial_sexp(1_int64, 9_int64, s, st)
+        call parse_partial_expression(1_int64, 9_int64, s, st)
         call check(error, s%incomment == 2 .and. s%comstr_start == 1, "nesting 2 inside the inner comment")
         if (allocated(error)) return
-        call parse_partial_sexp(1_int64, 15_int64, s, st)
+        call parse_partial_expression(1_int64, 15_int64, s, st)
         call check(error, s%incomment == 1, "nesting 1 after the inner comment")
         if (allocated(error)) return
         ! One-character nestable delimiters.
@@ -731,7 +732,7 @@ contains
         call entry("/", ". 124b", table)
         call entry("*", ". 23", table)
         call entry(achar(10), "> b", table)
-        parse_sexp_ignore_comments = .true.
+        parse_expression_ignore_comments = .true.
         call goto_char(2_int64)
         ! /* x /* y */ is one comment: style a comments don't nest.
         ok = forward_comment(1_int64)
@@ -760,29 +761,29 @@ contains
         ok = forward_comment(-2_int64)
         call check(error, ok .and. point() == 25, "two comments back: "//trim(str(point())))
         if (allocated(error)) return
-        ! Sexps skip comments.
-        pos = scan_sexps(24_int64, 1_int64, st)
-        call check(error, st%ok() .and. pos == point_max(), "scan_sexps over comments: "//trim(str(pos)))
+        ! Expressions skip comments.
+        pos = scan_expressions(24_int64, 1_int64, st)
+        call check(error, st%ok() .and. pos == point_max(), "scan_expressions over comments: "//trim(str(pos)))
         if (allocated(error)) return
         ! The parse state inside each kind.
-        call parse_partial_sexp(1_int64, 6_int64, s, st)
+        call parse_partial_expression(1_int64, 6_int64, s, st)
         call check(error, s%incomment == -1 .and. s%comment_style == 0 .and. s%comstr_start == 3, "in /* */")
         if (allocated(error)) return
-        call parse_partial_sexp(1_int64, 20_int64, s, st)
+        call parse_partial_expression(1_int64, 20_int64, s, st)
         call check(error, s%incomment == -1 .and. s%comment_style == 1 .and. s%comstr_start == 18, "in //")
         if (allocated(error)) return
         ! Stopping between / and * leaves the first character's syntax.
-        call parse_partial_sexp(1_int64, 4_int64, s, st)
+        call parse_partial_expression(1_int64, 4_int64, s, st)
         call check(error, s%incomment == 0 .and. s%prev_syntax >= 0, "after the /")
         if (allocated(error)) return
         ! COMMENTSTOP t stops after the start of a comment.
-        call parse_partial_sexp(1_int64, point_max(), s, st, commentstop=COMMENTSTOP_COMMENT)
+        call parse_partial_expression(1_int64, point_max(), s, st, commentstop=COMMENTSTOP_COMMENT)
         call check(error, point() == 5 .and. s%incomment == -1, "commentstop: "//trim(str(point())))
         call done_buffer(table)
     end subroutine test_c_comments
 
     !> scan-lists over lists and its two errors; prefix characters; strings.
-    subroutine test_scan_lists(error)
+    subroutine test_scan_groups(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
@@ -790,26 +791,26 @@ contains
         character(len=:), allocatable :: message
 
         call temp_buffer("(a (b) ""c)"" d)", table)
-        pos = scan_lists(1_int64, 1_int64, 0_int64, st)
+        pos = scan_groups(1_int64, 1_int64, 0_int64, st)
         call check(error, st%ok() .and. pos == 15, "forward over the list: "//trim(str(pos)))
         if (allocated(error)) return
-        pos = scan_lists(15_int64, -1_int64, 0_int64, st)
+        pos = scan_groups(15_int64, -1_int64, 0_int64, st)
         call check(error, st%ok() .and. pos == 1)
         if (allocated(error)) return
         ! Up one level from inside (b): the end of the outer list.
-        pos = scan_lists(3_int64, 1_int64, 1_int64, st)
+        pos = scan_groups(3_int64, 1_int64, 1_int64, st)
         call check(error, st%ok() .and. pos == 15, "up: "//trim(str(pos)))
         if (allocated(error)) return
         ! Down one level.
-        pos = scan_lists(1_int64, 1_int64, -1_int64, st)
+        pos = scan_groups(1_int64, 1_int64, -1_int64, st)
         call check(error, st%ok() .and. pos == 2, "down: "//trim(str(pos)))
         if (allocated(error)) return
         ! Between lists at the end: nil.
-        pos = scan_lists(15_int64, 1_int64, 0_int64, st)
+        pos = scan_groups(15_int64, 1_int64, 0_int64, st)
         call check(error, st%ok() .and. pos == 0)
         if (allocated(error)) return
         call temp_buffer("(a", table)
-        pos = scan_lists(1_int64, 1_int64, 0_int64, st)
+        pos = scan_groups(1_int64, 1_int64, 0_int64, st)
         call check(error, st%code == FM_SCAN_ERROR .and. pos == 0)
         if (allocated(error)) return
         call check(error, format_error(st) == "Scan error: ""Unbalanced parentheses"", 1, 3", format_error(st))
@@ -818,14 +819,14 @@ contains
         call check(error, message == "Unbalanced parentheses" .and. beg == 1 .and. end == 3)
         if (allocated(error)) return
         call temp_buffer("a)", table)
-        pos = scan_lists(1_int64, 1_int64, 0_int64, st)
+        pos = scan_groups(1_int64, 1_int64, 0_int64, st)
         call check(error, format_error(st) == "Scan error: ""Containing expression ends prematurely"", 2, 3", &
                    format_error(st))
         call done_buffer(table)
-    end subroutine test_scan_lists
+    end subroutine test_scan_groups
 
     !> scan-sexps over words, strings, escapes and expression prefixes.
-    subroutine test_scan_sexps(error)
+    subroutine test_scan_expressions(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
@@ -833,27 +834,27 @@ contains
 
         call temp_buffer("foo-bar ""x\""y"" 'baz a\ b", table)
         call entry("'", "'", table)
-        pos = scan_sexps(1_int64, 1_int64, st)
+        pos = scan_expressions(1_int64, 1_int64, st)
         call check(error, st%ok() .and. pos == 8, "a symbol: "//trim(str(pos)))
         if (allocated(error)) return
-        pos = scan_sexps(8_int64, 1_int64, st)
+        pos = scan_expressions(8_int64, 1_int64, st)
         call check(error, st%ok() .and. pos == 15, "a string with an escaped quote: "//trim(str(pos)))
         if (allocated(error)) return
-        pos = scan_sexps(15_int64, 1_int64, st)
+        pos = scan_expressions(15_int64, 1_int64, st)
         call check(error, st%ok() .and. pos == 20, "a prefixed symbol: "//trim(str(pos)))
         if (allocated(error)) return
-        pos = scan_sexps(20_int64, 1_int64, st)
+        pos = scan_expressions(20_int64, 1_int64, st)
         call check(error, st%ok() .and. pos == 25, "an escaped space joins: "//trim(str(pos)))
         if (allocated(error)) return
-        pos = scan_sexps(25_int64, -1_int64, st)
+        pos = scan_expressions(25_int64, -1_int64, st)
         call check(error, st%ok() .and. pos == 21, "back over a\ b: "//trim(str(pos)))
         if (allocated(error)) return
         ! forward-sexp backward skips the prefix too (backward-prefix-chars).
         call goto_char(20_int64)
-        call forward_sexp(-1_int64, st)
+        call forward_expression(-1_int64, st)
         call check(error, st%ok() .and. point() == 16, "back over 'baz: "//trim(str(point())))
         call done_buffer(table)
-    end subroutine test_scan_sexps
+    end subroutine test_scan_expressions
 
     !> The components of the parse state, TARGETDEPTH and STOPBEFORE.
     subroutine test_pps_state(error)
@@ -863,32 +864,32 @@ contains
         type(parse_state_type) :: s, s2
 
         call temp_buffer("(a (b ""c\", table)
-        call parse_partial_sexp(1_int64, point_max(), s, st)
+        call parse_partial_expression(1_int64, point_max(), s, st)
         call check(error, st%ok() .and. s%depth == 2 .and. s%innermost_start == 4 .and. s%instring == iachar("""") &
                    .and. s%comstr_start == 7 .and. s%quoted .and. s%mindepth == 0, "in a string after an escape")
         if (allocated(error)) return
         call check(error, size(s%open_parens) == 2, "two open parens")
         if (allocated(error)) return
-        call check(error, s%open_parens(1) == 1 .and. s%open_parens(2) == 4 .and. s%last_sexp_start == 5)
+        call check(error, s%open_parens(1) == 1 .and. s%open_parens(2) == 4 .and. s%last_expression_start == 5)
         if (allocated(error)) return
         call check(error, point() == point_max())
         if (allocated(error)) return
         ! TARGETDEPTH stops when the depth reaches it.
-        call parse_partial_sexp(1_int64, point_max(), s, st, targetdepth=2_int64)
+        call parse_partial_expression(1_int64, point_max(), s, st, targetdepth=2_int64)
         call check(error, point() == 5 .and. s%depth == 2, "targetdepth: "//trim(str(point())))
         if (allocated(error)) return
-        ! STOPBEFORE stops at the start of a sexp.
-        call parse_partial_sexp(2_int64, point_max(), s2, st, stopbefore=.true., oldstate=s)
+        ! STOPBEFORE stops at the start of an expression.
+        call parse_partial_expression(2_int64, point_max(), s2, st, stopbefore=.true., oldstate=s)
         call check(error, point() == 2 .and. s2%depth == 2, "stopbefore: "//trim(str(point())))
         if (allocated(error)) return
         ! A generic string fence.
         call temp_buffer("|a b| c", table)
         call entry("|", "|", table)
-        call parse_partial_sexp(1_int64, 3_int64, s, st)
+        call parse_partial_expression(1_int64, 3_int64, s, st)
         call check(error, s%instring == ST_STRING_STYLE .and. s%comstr_start == 1, "in a fenced string")
         if (allocated(error)) return
         call syntax_ppss(s, 7_int64)
-        call check(error, s%instring == -1 .and. s%comstr_start == 0 .and. point() == 7 .and. s%last_sexp_start == 1, &
+        call check(error, s%instring == -1 .and. s%comstr_start == 0 .and. point() == 7 .and. s%last_expression_start == 1, &
                    "syntax_ppss after it")
         call done_buffer(table)
     end subroutine test_pps_state
@@ -900,7 +901,7 @@ contains
         type(status_type) :: st
 
         call temp_buffer("", table)
-        call set(sym("comment_end_can_be_escaped"), t_value(), st)
+        call set(value_type(name="comment_end_can_be_escaped"), value_type(.true.), st)
         call check(error, st%ok() .and. comment_end_can_be_escaped%value .and. comment_end_can_be_escaped%local_p())
         call comment_end_can_be_escaped%kill_local()
         call done_buffer(table)
@@ -908,7 +909,7 @@ contains
 
     !> forward-sexp, up-list, down-list, forward-list, kill-sexp and their
     !> interactive errors.
-    subroutine test_sexp_commands(error)
+    subroutine test_expression_commands(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
@@ -916,57 +917,57 @@ contains
         call temp_buffer("(a ""b c"" (d) e)", table)
         call goto_char(7_int64)
         ! Out of the string, then out of the list.
-        call up_list(1_int64, st, .true., .true.)
+        call up_group(1_int64, st, .true., .true.)
         call check(error, st%ok() .and. point() == 9, "up out of the string: "//trim(str(point())))
         if (allocated(error)) return
-        call up_list(1_int64, st, .true., .true.)
+        call up_group(1_int64, st, .true., .true.)
         call check(error, st%ok() .and. point() == 16, "up out of the list: "//trim(str(point())))
         if (allocated(error)) return
-        call up_list(1_int64, st, .true., .true.)
+        call up_group(1_int64, st, .true., .true.)
         call check(error, st%code == FM_USER_ERROR .and. format_error(st) == "At top level", format_error(st))
         if (allocated(error)) return
-        call up_list(1_int64, st)
+        call up_group(1_int64, st)
         call check(error, st%code == FM_SCAN_ERROR)
         if (allocated(error)) return
         call goto_char(12_int64)
-        call backward_up_list(1_int64, st)
+        call backward_up_group(1_int64, st)
         call check(error, st%ok() .and. point() == 10, "backward up: "//trim(str(point())))
         if (allocated(error)) return
         call goto_char(1_int64)
-        call down_list(1_int64, st)
+        call down_group(1_int64, st)
         call check(error, st%ok() .and. point() == 2)
         if (allocated(error)) return
         call goto_char(5_int64)
-        call down_list(1_int64, st, .true.)
+        call down_group(1_int64, st, .true.)
         call check(error, format_error(st) == "This command doesn't work in strings or comments", format_error(st))
         if (allocated(error)) return
         call goto_char(15_int64)
-        call down_list(1_int64, st, .true.)
+        call down_group(1_int64, st, .true.)
         call check(error, format_error(st) == "At bottom level", format_error(st))
         if (allocated(error)) return
         call goto_char(2_int64)
-        call forward_list(1_int64, st)
+        call forward_group(1_int64, st)
         call check(error, st%ok() .and. point() == 13, "forward-list: "//trim(str(point())))
         if (allocated(error)) return
-        call forward_list(1_int64, st, .true.)
+        call forward_group(1_int64, st, .true.)
         call check(error, format_error(st) == "No next group", format_error(st))
         if (allocated(error)) return
         call goto_char(15_int64)
-        call forward_sexp(1_int64, st, .true.)
-        call check(error, format_error(st) == "No next sexp", format_error(st))
+        call forward_expression(1_int64, st, .true.)
+        call check(error, format_error(st) == "No next expression", format_error(st))
         if (allocated(error)) return
-        call backward_sexp(1_int64, st, .true.)
+        call backward_expression(1_int64, st, .true.)
         call check(error, st%ok() .and. point() == 14, "backward-sexp: "//trim(str(point())))
         if (allocated(error)) return
         call goto_char(10_int64)
-        call kill_sexp(1_int64, st)
+        call kill_expression(1_int64, st)
         call check(error, st%ok() .and. buffer_string() == "(a ""b c""  e)", buffer_string())
         call done_buffer(table)
-    end subroutine test_sexp_commands
+    end subroutine test_expression_commands
 
     !> C-M-f, C-M-b, C-M-n, C-M-p, C-M-d, C-M-u, C-M-k and C-M-@ through the
     !> command loop.
-    subroutine test_sexp_keys(error)
+    subroutine test_expression_keys(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
@@ -998,5 +999,5 @@ contains
         call command_loop(st)
         call check(error, buffer_string() == "(a  d) e", buffer_string())
         call done_buffer(table)
-    end subroutine test_sexp_keys
+    end subroutine test_expression_keys
 end module test_syntax_scan_fm

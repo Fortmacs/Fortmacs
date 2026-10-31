@@ -24,12 +24,12 @@
 !> are bounded by a wall-clock limit, not fixed delays.
 module test_comint_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
-    use buffer_fm, only: buffers, cur, set_buffer, kill_buffer, buffer_live_p
+    use buffer_fm, only: buffers, cur, set_buffer, kill_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, goto_char, buffer_string
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input
@@ -40,7 +40,7 @@ module test_comint_fm
     use comint_fm, only: make_comint, comint_send_input, comint_arguments, comint_input_ring_item, &
                          comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol, &
                          comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
-                         COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, comint_within_quotes, &
+                         COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, comint_within_quotes, &
                          comint_password_prompt_regexp, comint_send_invisible, set_comint_password_function, &
                          comint_password_proc
     use search_fm, only: string_match
@@ -116,7 +116,7 @@ contains
         type(handle_type) :: proc
         type(status_type) :: st
 
-        if (.not. buffer_live_p(h)) return
+        if (.not. is_buffer_live(h)) return
         proc = get_buffer_process(h)
         if (proc%index /= 0) call delete_process(proc, st)
         call kill_buffer(h, st)
@@ -190,7 +190,7 @@ contains
         call set_buffer(h, st)
         call show_alone()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call kbd_store_bytes("one"//achar(13))
         call command_loop(st)
         call wait_for("one"//new_line("a")//"one"//new_line("a"))
@@ -258,7 +258,7 @@ contains
         call wait_for("three"//new_line("a")//"echo one two three"//new_line("a"))
         call goto_char(point_max())
         pm = point_max()
-        call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_T)
+        call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_ON_COMPLETION)
         ! !!:2 is the second argument of the previous input.
         call insert("!!:2", st)
         done = comint_replace_by_expanded_history(st)
@@ -633,7 +633,7 @@ contains
 
     !> Queue TEXT as input events (for the minibuffer).
     subroutine type_text(text)
-        use lisp_fm, only: value_type, make_fixnum
+        use lisp_fm, only: value_type
         use keyboard_fm, only: unread_command_events
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: evs(:)
@@ -642,7 +642,7 @@ contains
         allocate (evs(len(text)))
 
         do i = 1, len(text)
-            evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
+            evs(i) = value_type(int(iachar(text(i:i)), int64))
         end do
 
         call unread_command_events(evs)

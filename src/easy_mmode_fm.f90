@@ -32,24 +32,24 @@ module easy_mmode_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, t_value, make_keymap_ref, symbols
-    use lread_fm, only: sym, intern
+    use lisp_fm, only: value_type, make_keymap_ref, symbols
+    use lread_fm, only: intern
     use data_fm, only: set, set_default, symbol_value, make_variable_buffer_local, buffer_local_value, logical_setting, &
                        default_value
     use eval_fm, only: hook_type
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use buffer_fm, only: buffers, cur, set_buffer_internal
-    use keymap_fm, only: make_sparse_keymap, keymap_live_p, add_minor_mode_map
+    use keymap_fm, only: make_sparse_keymap, is_keymap_live, add_minor_mode_map
     use keyboard_fm, only: last_message
     use xdisp_fm, only: message, add_minor_mode_lighter
     use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
     use error_fm, only: set_error, FM_USER_ERROR
-    use lisp_fm, only: make_list, make_fixnum, list
+    use lisp_fm, only: make_list, list, value_type
     use buffer_fm, only: current_buffer
-    use editfns_fm, only: point, goto_char, widen, buffer_narrowed_p
+    use editfns_fm, only: point, goto_char, widen, is_buffer_narrowed
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, SEARCH_NOERROR
     use frame_fm, only: frame_selected_window_ref, selected_window
-    use window_fm, only: window_type, window_start, set_window_start, pos_visible_in_window_p, recenter
+    use window_fm, only: window_type, window_start, set_window_start, is_pos_visible_in_window, recenter
     implicit none(type, external)
     private
 
@@ -196,7 +196,7 @@ contains
         re_narrow = .false.
 
         if (present(narrowfun)) then
-            re_narrow = buffer_narrowed_p()
+            re_narrow = is_buffer_narrowed()
             call widen()
         end if
 
@@ -227,9 +227,9 @@ contains
                 call goto_char(saved)
                 if (endpt == 0) endpt = buffers(cur)%zv
 
-                if (.not. pos_visible_in_window_p(endpt, selected_window())) then
+                if (.not. is_pos_visible_in_window(endpt, selected_window())) then
                     ws = window_start(w)
-                    call recenter(list(make_fixnum(0_int64)), .false., st)
+                    call recenter(list(value_type(0_int64)), .false., st)
                     ! recenter scrolled in the wrong direction!
                     if (window_start(w) < ws) call set_window_start(w, ws, st)
                 end if
@@ -276,7 +276,7 @@ contains
         re_narrow = .false.
 
         if (present(narrowfun)) then
-            re_narrow = buffer_narrowed_p()
+            re_narrow = is_buffer_narrowed()
             call widen()
         end if
 
@@ -320,7 +320,7 @@ contains
         if (re_narrow) call narrowfun(status)
     end subroutine easy_mmode_prev
 
-    !> Turn the symbol MODE into a string intended for the user.
+    !> Turn the name MODE into a string intended for the user.
     !> If provided, LIGHTER will be used to help choose capitalization by,
     !> replacing its case-insensitive matches with the literal string in
     !> LIGHTER.  Port of easy-mmode.el:easy-mmode-pretty-mode-name.
@@ -564,7 +564,7 @@ contains
         ! A mode with another variable makes that variable local when set
         ! (a buffer-local mode).
         if (len_trim(self%variable) > 0 .and. .not. self%global) then
-            call make_variable_buffer_local(sym(trim(self%variable)), st)
+            call make_variable_buffer_local(value_type(name=trim(self%variable)), st)
         end if
 
         ! The mode's variable is now known by its name (data_fm forwards it
@@ -574,7 +574,7 @@ contains
         if (len(self%lighter) > 0) call add_minor_mode_lighter(state_name(self), self%lighter)
 
         if (present(keymap)) then
-            if (keymap .and. .not. keymap_live_p(self%map)) then
+            if (keymap .and. .not. is_keymap_live(self%map)) then
                 call make_sparse_keymap(self%map)
                 call add_minor_mode_map(state_name(self), self%map)
             end if
@@ -607,8 +607,8 @@ contains
         else if (len_trim(self%variable) == 0 .and. self%global) then
             on = self%state%value
         else if (b > 0) then
-            call buffer_local_value(sym(state_name(self)), b, v, st)
-            on = st%ok() .and. .not. nilp(v)
+            call buffer_local_value(value_type(name=state_name(self)), b, v, st)
+            on = st%ok() .and. allocated(v%a)
         end if
     end function minor_mode_enabled_in
 
@@ -621,12 +621,12 @@ contains
         if (associated(self%getter)) then
             on = self%getter()
         else if (len_trim(self%variable) > 0) then
-            call symbol_value(sym(trim(self%variable)), v, st)
-            on = st%ok() .and. .not. nilp(v)
+            call symbol_value(value_type(name=trim(self%variable)), v, st)
+            on = st%ok() .and. allocated(v%a)
         else if (self%global .and. self%state%local_p()) then
             ! A global mode's state is its default value.
-            call default_value(sym(trim(self%name)), v, st)
-            on = st%ok() .and. .not. nilp(v)
+            call default_value(value_type(name=trim(self%name)), v, st)
+            on = st%ok() .and. allocated(v%a)
         else
             on = self%state%value
         end if
@@ -647,7 +647,7 @@ contains
     end function getter_in
 
     !> Set the mode's own state: globally, or (a buffer-local mode) in
-    !> the current buffer, as `(setq MODE ON)' does.  Not a port.
+    !> the current buffer, as assigning ON to the mode variable does.  Not a port.
     subroutine minor_mode_set_state(self, on)
         class(minor_mode_type), intent(inout) :: self
         logical, intent(in) :: on
@@ -656,7 +656,7 @@ contains
         if (self%global) then
             ! (setq-default MODE ON)
             if (self%state%local_p()) then
-                call set_default(sym(trim(self%name)), bool(on), st)
+                call set_default(value_type(name=trim(self%name)), bool(on), st)
             else
                 self%state = on
             end if
@@ -688,9 +688,9 @@ contains
             ! it there (:variable with a setter).
             if (.not. associated(self%body)) then
                 if (self%global) then
-                    call set_default(sym(trim(self%variable)), bool(enable), status)
+                    call set_default(value_type(name=trim(self%variable)), bool(enable), status)
                 else
-                    call set(sym(trim(self%variable)), bool(enable), status)
+                    call set(value_type(name=trim(self%variable)), bool(enable), status)
                 end if
 
                 if (.not. status%ok()) return
@@ -757,9 +757,9 @@ contains
         type(value_type) :: v
 
         if (b) then
-            v = t_value()
+            v = value_type(.true.)
         else
-            v = nil()
+            v = value_type()
         end if
     end function bool
 
@@ -775,7 +775,7 @@ contains
         end if
     end function local_text
 
-    !> Turn the mode on (upstream's (MODE 1), or (MODE) from Lisp).
+    !> Turn the mode on (upstream's MODE called with 1, or with no argument from code).
     !> Not a port.
     recursive subroutine minor_mode_enable(self, status)
         class(minor_mode_type), intent(inout) :: self
@@ -808,7 +808,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: enable
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             enable = .not. self%enabled()
         else
             enable = prefix_numeric_value(current_prefix_arg) >= 1

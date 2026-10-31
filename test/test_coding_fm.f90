@@ -43,7 +43,7 @@ module test_coding_fm
                          delete_directory_internal, emacs_wd, init_fileio, file_name_as_directory, read_file
     use files_fm, only: find_file_noselect, save_buffer, write_file
     use xdisp_fm, only: mode_line_mule_info
-    use coding_fm, only: coding_system_p, check_coding_system, coding_system_base, coding_system_eol_type, &
+    use coding_fm, only: is_coding_system, check_coding_system, coding_system_base, coding_system_eol_type, &
                          coding_system_equal, coding_system_aliases, coding_system_priority_list, &
                          set_coding_system_priority, coding_system_change_eol_conversion, &
                          coding_system_change_text_conversion, coding_system_type, coding_system_mnemonic, &
@@ -600,8 +600,8 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call check(error, coding_system_p("utf-8") .and. coding_system_p("latin-1-dos") .and. coding_system_p("") &
-                   .and. .not. coding_system_p("bogus"))
+        call check(error, is_coding_system("utf-8") .and. is_coding_system("latin-1-dos") .and. is_coding_system("") &
+                   .and. .not. is_coding_system("bogus"))
         if (allocated(error)) return
         call check_coding_system("bogus", st)
         call check(error, st%code == FM_CODING_SYSTEM_ERROR .and. format_error(st) == "Invalid coding system: bogus", &
@@ -651,7 +651,7 @@ contains
     end subroutine test_functions
 
     !> `coding:' tags in the -*- line and the local variables list, the
-    !> BOM regexps, and the file names of `auto_coding_alist'.
+    !> BOM regexps, and the file names of `auto_coding_table'.
     subroutine test_auto_coding(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: coding, source

@@ -22,15 +22,15 @@
 !> depends on files_fm, which a module cannot.
 submodule(files_fm) files_read_fm
     use modes_fm, only: minor_modes
-    use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
+    use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NO, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
                              read_file_name_completion_ignore_case, read_file_name_internal, completion_table_with_context
     use minibuf_fm, only: all_completions
     use minibuf_table_fm, only: completion_table_type, COMPLETE_BOUNDARIES
-    use lisp_fm, only: list, make_list, list_length, list_elt, xstring, make_string
+    use lisp_fm, only: list, make_list, list_length, list_elt, xstring, value_type
     use dired_fm, only: file_name_all_completions
-    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
+    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use search_fm, only: string_match, match_beginning
-    use fileio_fm, only: file_name_absolute_p
+    use fileio_fm, only: is_file_name_absolute
     use fns_fm, only: compare_strings, COMPARE_EQUAL
     implicit none(type, external)
 
@@ -47,7 +47,7 @@ contains
 
     status = status_type()
 
-    if (file_name_absolute_p(string)) then
+    if (is_file_name_absolute(string)) then
         ! FIXME: maybe we should use completion-file-name-table instead,
         ! tho at least for `load', the arg is passed through
         ! substitute-in-file-name for historical reasons.
@@ -61,9 +61,9 @@ contains
         x = file_name_directory(sfx)
 
         if (len(x) > 0) then
-            result = list(make_fixnum(int(len(file_name_directory(string)), int64)), make_fixnum(int(len(x) - 1, int64)))
+            result = list(value_type(int(len(file_name_directory(string)), int64)), value_type(int(len(x) - 1, int64)))
         else
-            result = list(make_fixnum(int(len(file_name_directory(string)), int64)), make_fixnum(int(len(sfx), int64)))
+            result = list(value_type(int(len(file_name_directory(string)), int64)), value_type(int(len(sfx), int64)))
         end if
 
         return
@@ -79,7 +79,7 @@ contains
     ! it's the only remaining element in the list, in which case we do
     ! list "foo", "foo.elc" and "foo.el").
     allocate (names(0), fullnames(0))
-    sufre = regexp_opt(suffixes, REGEXP_OPT_T)//"\'"
+    sufre = regexp_opt(suffixes, REGEXP_OPT_GROUP)//"\'"
     string_dir = file_name_directory(string)
     string_file = file_name_nondirectory(string)
 
@@ -99,7 +99,7 @@ contains
             dir = x
         end if
 
-        if (.not. file_directory_p(dir)) cycle
+        if (.not. is_file_directory(dir)) cycle
         call file_name_all_completions(string_file, dir, files, st)
 
         do k = 1, list_length(files)
@@ -169,7 +169,7 @@ contains
         integer :: j
 
         allocate (grown(size(values) + 1))
-        grown(1) = make_string(name)
+        grown(1) = value_type(text=name)
 
         do j = 1, size(values)
             grown(j + 1) = values(j)
@@ -226,7 +226,7 @@ contains
     ancestor = "."
     file_dir = file_name_as_directory(file)
 
-    do while (.not. (prefix_p(dir, file_dir) .or. prefix_p(dir, file)))
+    do while (.not. (is_prefix(dir, file_dir) .or. is_prefix(dir, file)))
         dir = file_name_directory(dir(1:len(dir) - 1))
 
         if (ancestor == ".") then
@@ -237,7 +237,7 @@ contains
     end do
 
     ! Now ancestor is empty, or .., or ../.., etc.
-    if (prefix_p(dir, file)) then
+    if (is_prefix(dir, file)) then
         ! We matched within FILENAME's directory part.  Add the rest of
         ! FILENAME onto ANCESTOR.
         rest = file(len(dir) + 1:)
@@ -256,18 +256,18 @@ contains
 contains
 
     !> subr.el:string-prefix-p.
-    logical function prefix_p(prefix, string)
+    logical function is_prefix(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
-        prefix_p = .false.
+        is_prefix = .false.
         if (len(string) < len(prefix)) return
 
         if (fold) then
-            prefix_p = compare_strings(prefix, string(1:len(prefix)), ignore_case=.true.) == COMPARE_EQUAL
+            is_prefix = compare_strings(prefix, string(1:len(prefix)), ignore_case=.true.) == COMPARE_EQUAL
         else
-            prefix_p = string(1:len(prefix)) == prefix
+            is_prefix = string(1:len(prefix)) == prefix
         end if
-    end function prefix_p
+    end function is_prefix
     end procedure file_relative_name
 
     recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
@@ -279,7 +279,7 @@ contains
         logical, intent(in), optional :: confirm_nonexistent
         integer :: mustmatch
 
-        mustmatch = REQUIRE_MATCH_NIL
+        mustmatch = REQUIRE_MATCH_NO
 
         if (present(confirm_nonexistent)) then
             if (confirm_nonexistent) mustmatch = REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
@@ -298,7 +298,7 @@ contains
 
         status = status_type()
 
-        if (.not. file_exists_p(filename)) then
+        if (.not. file_exists(filename)) then
             call set_error(status, FM_GENERIC_ERROR, filename//" does not exist")
             return
         end if
@@ -373,16 +373,16 @@ contains
         commands%find_file_read_only%run => cmd_find_file_read_only
         commands%find_file_read_only_other_window%run => cmd_find_file_read_only_other_window
         ! files.el: (define-key ctl-x-map "\C-r" 'find-file-read-only)
-        key(1) = make_fixnum(18_int64)
-        call define_key(ctl_x_map, key, sym("find_file_read_only"), status)
+        key(1) = value_type(18_int64)
+        call define_key(ctl_x_map, key, value_type(name="find_file_read_only"), status)
         ! files.el: (define-key ctl-x-map "\C-q" 'read-only-mode)
-        key(1) = make_fixnum(17_int64)
-        call define_key(ctl_x_map, key, sym("read_only_mode"), status)
+        key(1) = value_type(17_int64)
+        call define_key(ctl_x_map, key, value_type(name="read_only_mode"), status)
 
         if (present(ctl_x_4_map)) then
             ! files.el: (define-key ctl-x-4-map "r" 'find-file-read-only-other-window)
-            key(1) = make_fixnum(int(iachar("r"), int64))
-            call define_key(ctl_x_4_map, key, sym("find_file_read_only_other_window"), status)
+            key(1) = value_type(int(iachar("r"), int64))
+            call define_key(ctl_x_4_map, key, value_type(name="find_file_read_only_other_window"), status)
         end if
     end subroutine syms_of_files_read
 end submodule files_read_fm

@@ -23,7 +23,7 @@
 !> JavaScript mode uses for its comments.
 !>
 !> Deferred: CC Mode itself (the syntactic analysis that gives a line its
-!> syntactic elements, `c_offsets_alist') and the other line-up
+!> syntactic elements, `c_offsets_table') and the other line-up
 !> functions of cc-align.el.
 module cc_align_fm
     use, intrinsic :: iso_fortran_env, only: int64

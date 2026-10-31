@@ -49,14 +49,14 @@
 !> `rectangle_number_lines' FORMAT (an error).
 module rect_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: vtag, V_NULL, V_STRING, value_type
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, condition_matches, FM_GENERIC_ERROR, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT, FM_END_OF_BUFFER, &
                         FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, list_length, list_elt, stringp, xstring, make_string, make_list, list, &
-                       list_elements, t_value, nil, make_fixnum, make_window_ref
-    use data_fm, only: value_eq
+    use lisp_fm, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
+    use data_fm, only: value_eq, history_setting, forward_setting
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use textprop_fm, only: string_put_text_property
@@ -68,22 +68,21 @@ module rect_fm
     use keymap_fm, only: define_key, key_parse
     use buffer_fm, only: current_buffer, buffer_chars_modified_tick
     use character_fm, only: multibyte_chars_in_text
-    use editfns_fm, only: region_beginning_function, region_end_function, region_position_proc, eolp, mark_position
+    use editfns_fm, only: region_beginning_function, region_end_function, region_position_proc, is_eol, mark_position
     use cmds_fm, only: forward_char
     use simple_fm, only: region_extract_function, region_insert_function, region_extract_proc, region_insert_proc, &
                          REGION_EXTRACT_COPY, REGION_EXTRACT_BOUNDS, yank_undo_function, undo_start, undo_more, &
-                         pending_undo_list, define_yank_handler_function, deactivate_mark_hook, region_active_p, &
+                         pending_undo_list, define_yank_handler_function, deactivate_mark_hook, is_region_active, &
                          set_mark, exchange_point_and_mark
     use xdisp_fm, only: redisplay_highlight_region_function, redisplay_unhighlight_region_function, &
                         highlight_region_proc, unhighlight_region_proc
-    use lread_fm, only: sym
     use data_fm, only: symbol_value
     use character_fm, only: string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, MAX_CHAR
     use buffer_fm, only: buffers, cur, barf_if_buffer_read_only, deactivate_mark_variable, undo_entry_type, UE_POINT
     use marker_fm, only: copy_marker_at, free_marker, marker_position, char_to_byte
     use undo_fm, only: push_undo_entry
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, line_beginning_position, line_end_position, bolp, buffer_substring, &
+    use editfns_fm, only: point, goto_char, line_beginning_position, line_end_position, is_bol, buffer_substring, &
                           delete_region, delete_and_extract_region, region_beginning, region_end, char_after, &
                           interactive_region, char_before
     use cmds_fm, only: forward_line
@@ -93,12 +92,12 @@ module rect_fm
     use simple_fm, only: push_mark, insert_for_yank, kill_read_only_ok, indicate_copied_region, count_lines, &
                          line_number_at_pos
     use minibuf_fm, only: read_string
-    use subr_fm, only: read_number, defvar_nil
+    use subr_fm, only: read_number
     use callint_fm, only: current_prefix_arg, this_command, prefix_numeric_value
     implicit none(type, external)
     private
 
-    public :: apply_on_rectangle, rectangle_position_as_coordinates, rectangle_intersect_p, rectangle_dimensions, &
+    public :: apply_on_rectangle, rectangle_position_as_coordinates, is_rectangle_intersect, rectangle_dimensions, &
               delete_rectangle, delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, &
               kill_rectangle, copy_rectangle_as_kill, yank_rectangle, insert_rectangle, open_rectangle, &
               delete_whitespace_rectangle, string_rectangle, string_insert_rectangle, clear_rectangle, &
@@ -247,6 +246,10 @@ module rect_fm
         procedure :: line => number_line
     end type number_line_action
 
+    !> The history of `string_rectangle' strings.  Port of rect.el
+    !> string-rectangle-history.
+    type(history_setting), target, public :: string_rectangle_history = history_setting(name="string_rectangle_history")
+
 contains
 
     ! ------------------------------------------------------------------
@@ -292,7 +295,7 @@ contains
             if (.not. status%ok()) exit
             final = point()
             if (forward_line(1_int64) /= 0) exit
-            if (.not. bolp()) exit
+            if (.not. is_bol()) exit
             call marker_position(endpt, endpos, st)
             if (point() > endpos) exit
         end do
@@ -325,12 +328,12 @@ contains
     !> SIZE1 and SIZE2 specify the dimensions of the first and second
     !> rectangles, as arrays of the form [WIDTH, HEIGHT].  Port of
     !> rect.el:rectangle-intersect-p.
-    pure logical function rectangle_intersect_p(pos1, size1, pos2, size2)
+    pure logical function is_rectangle_intersect(pos1, size1, pos2, size2)
         integer(int64), intent(in) :: pos1(2), size1(2), pos2(2), size2(2)
 
-        rectangle_intersect_p = .not. (pos1(1) + size1(1) <= pos2(1) .or. pos2(1) + size2(1) <= pos1(1) .or. &
-                                       pos1(2) + size1(2) <= pos2(2) .or. pos2(2) + size2(2) <= pos1(2))
-    end function rectangle_intersect_p
+        is_rectangle_intersect = .not. (pos1(1) + size1(1) <= pos2(1) .or. pos2(1) + size2(1) <= pos1(1) .or. &
+                                        pos1(2) + size1(2) <= pos2(2) .or. pos2(2) + size2(2) <= pos1(2))
+    end function is_rectangle_intersect
 
     !> Return the dimensions of the rectangle with corners at START and END.
     !> The returned values are WIDTH and HEIGHT.  Port of
@@ -474,7 +477,7 @@ contains
         call append_line(self%lines, line)
     end subroutine extract_line
 
-    !> The function of rect.el:extract-rectangle-bounds.  Port of the lambda
+    !> The function of rect.el:extract-rectangle-bounds.  Port of the procedure
     !> of rect.el:extract-rectangle-bounds.
     recursive subroutine bounds_line(self, startcol, endcol, status)
         class(bounds_line_action), intent(inout) :: self
@@ -676,7 +679,7 @@ contains
             if (k > 1) then
                 shortage = forward_line(1_int64)
 
-                if (.not. bolp()) then
+                if (.not. is_bol()) then
                     call insert(char(10), status)
                     if (.not. status%ok()) return
                 end if
@@ -1044,7 +1047,7 @@ contains
                 conversion = "s"
             else if (conversion == "c") then
                 if (arg < 0 .or. arg > MAX_CHAR) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(arg))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got "//int_text(arg))
                     return
                 end if
 
@@ -1275,7 +1278,7 @@ contains
         call move_alloc(grown, crutches)
     end subroutine set_crutch
 
-    !> Remove OWNER's crutch from CRUTCHES (setting it to nil).  Not a port.
+    !> Remove OWNER's crutch from CRUTCHES (clearing it).  Not a port.
     subroutine clear_crutch(crutches, owner)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
@@ -1395,7 +1398,7 @@ contains
 
         call move_to_column(col, c)
 
-        if (c == col .and. .not. eolp()) then
+        if (c == col .and. .not. is_eol()) then
             if (point_kind) then
                 call clear_crutch(point_crutches, selected_window())
             else
@@ -1490,14 +1493,14 @@ contains
 
         call deactivate_mark_hook%add(rectangle_mark_mode_off)
 
-        if (.not. region_active_p()) then
+        if (.not. is_region_active()) then
             call push_mark(point(), .true., .true.)
             call message("Mark set (rectangle mode)")
         end if
     end subroutine rectangle_mark_mode_body
 
-    !> (lambda () (rectangle-mark-mode -1)) on `deactivate_mark_hook'.
-    !> Port of the deactivate-mark-hook lambda of
+    !> Turn `rectangle_mark_mode' off, on `deactivate_mark_hook'.
+    !> Port of the deactivate-mark-hook procedure of
     !> rect.el:rectangle-mark-mode.
     recursive subroutine rectangle_mark_mode_off(status)
         type(status_type), intent(out) :: status
@@ -1516,7 +1519,7 @@ contains
         status = status_type()
 
         if (arg) then
-            this_command = sym("exchange_point_and_mark")
+            this_command = value_type(name="exchange_point_and_mark")
             call exchange_point_and_mark(arg, status)
             return
         end if
@@ -1526,7 +1529,7 @@ contains
         m = mark_position()
 
         if (m == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer-or-marker-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
             return
         end if
 
@@ -1540,7 +1543,7 @@ contains
             cm = startcol
         end if
 
-        if (repeat) this_command = sym("exchange_point_and_mark")
+        if (repeat) this_command = value_type(name="exchange_point_and_mark")
         call rectangle_reset_crutches()
         call goto_char(p)
 
@@ -1730,7 +1733,7 @@ contains
         mk = mark_position()
 
         if (mk == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer-or-marker-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
             return
         end if
 
@@ -1784,7 +1787,7 @@ contains
     end subroutine rectangle_region_end
 
     !> The region's beginning and end as the primitives give them
-    !> (`(let (rectangle-mark-mode) (region-beginning))').  Not a port.
+    !> (with `rectangle_mark_mode' off meanwhile, saved and restored).  Not a port.
     recursive subroutine plain_region(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
@@ -1837,24 +1840,24 @@ contains
         text = ""
 
         do k = 1, size(lines)
-            elems(k) = make_string(lines(k)%text)
+            elems(k) = value_type(text=lines(k)%text)
             if (k > 1) text = text//achar(10)
             text = text//lines(k)%text
         end do
 
-        if (value_eq(last_command, sym("kill_region"))) then
+        if (value_eq(last_command, value_type(name="kill_region"))) then
             ! Try to prevent kill-region from appending this to some
             ! earlier element.
-            last_command = sym("kill_region_dont_append")
+            last_command = value_type(name="kill_region_dont_append")
         end if
 
         if (size(lines) == 0) return
         strs = make_list(elems)
-        string = make_string(text)
+        string = value_type(text=text)
         call multibyte_chars_in_text(text, nchars, status)
         if (.not. status%ok()) return
-        call string_put_text_property(0_int64, nchars, sym("yank_handler"), &
-                                      list(sym("rectangle__insert_for_yank"), strs, t_value()), string, status)
+        call string_put_text_property(0_int64, nchars, value_type(name="yank_handler"), &
+                                      list(value_type(name="rectangle__insert_for_yank"), strs, value_type(.true.)), string, status)
     end subroutine rectangle_extract_region
 
     !> `region_insert_function' in Rectangle-Mark mode: LINES as a
@@ -1911,7 +1914,7 @@ contains
 
     !> The `yank_undo_function' of a yanked rectangle: undo back to the
     !> point entry recorded before it, turned into a boundary.  Port of the
-    !> yank-undo-function lambda of rect.el:rectangle--insert-for-yank.
+    !> yank-undo-function procedure of rect.el:rectangle--insert-for-yank.
     recursive subroutine rectangle_yank_undo(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -2073,7 +2076,7 @@ contains
             else
                 call make_overlay(ol, left, right, st)
                 call overlay_put(ol, "window", make_window_ref(window), st)
-                call overlay_put(ol, "face", sym("region"), st)
+                call overlay_put(ol, "face", value_type(name="region"), st)
             end if
 
             ! `move-to-column' may stop before the column (if bumping into
@@ -2089,15 +2092,15 @@ contains
                 call move_overlay(ol, left, right, st)
                 call goto_char(left)
                 call overlay_put(ol, "before_string", space_to(leftcol), st)
-            else if (.not. nilp(overlay_get(ol, "before_string"))) then
-                call overlay_put(ol, "before_string", nil(), st)
+            else if (vtag(overlay_get(ol, "before_string")) /= V_NULL) then
+                call overlay_put(ol, "before_string", value_type(), st)
             end if
 
             if (mright < rightcol) then
                 ! `rightcol' is past EOL.
                 str = space_to(rightcol)
                 call string_chars(str, nchars)
-                call string_put_text_property(0_int64, nchars, sym("face"), sym("region"), str, st)
+                call string_put_text_property(0_int64, nchars, value_type(name="face"), value_type(name="region"), str, st)
                 ! If cursor happens to be here, draw it at the right place.
                 call place_cursor(leftcol, left, str, window)
                 call overlay_put(ol, "after_string", str, st)
@@ -2107,22 +2110,22 @@ contains
                 call move_overlay(ol, left, right, st)
 
                 if (rightcol == leftcol) then
-                    call overlay_put(ol, "after_string", nil(), st)
+                    call overlay_put(ol, "after_string", value_type(), st)
                 else
                     call goto_char(right)
                     str = space_to(rightcol)
                     call string_chars(str, nchars)
-                    call string_put_text_property(0_int64, nchars, sym("face"), sym("region"), str, st)
+                    call string_put_text_property(0_int64, nchars, value_type(name="face"), value_type(name="region"), str, st)
                     if (left == right) call place_cursor(leftcol, left, str, window)
                     call overlay_put(ol, "after_string", str, st)
                 end if
-            else if (.not. nilp(overlay_get(ol, "after_string"))) then
-                call overlay_put(ol, "after_string", nil(), st)
+            else if (vtag(overlay_get(ol, "after_string")) /= V_NULL) then
+                call overlay_put(ol, "after_string", value_type(), st)
             end if
 
             nrol = [nrol, ol]
             if (forward_line(1_int64) /= 0) exit
-            if (.not. bolp()) exit
+            if (.not. is_bol()) exit
             if (point() > end_pt) exit
         end do
 
@@ -2186,9 +2189,10 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        v = make_string(" ")
-        call string_put_text_property(0_int64, 1_int64, sym("display"), list(sym("space"), sym(":align-to"), &
-                                                                             make_fixnum(col)), v, st)
+        v = value_type(text=" ")
+        call string_put_text_property(0_int64, 1_int64, value_type(name="display"), list(value_type(name="space"), &
+                                                                                         value_type(name=":align-to"), &
+                                                                                         value_type(col)), v, st)
     end function space_to
 
     !> Put the cursor on the first character of STR if point's crutch is
@@ -2204,7 +2208,7 @@ contains
         call get_crutch(point_crutches, window, found, pp, pc)
 
         if (found .and. left == pp .and. leftcol == pc) then
-            call string_put_text_property(0_int64, 1_int64, sym("cursor"), make_fixnum(1_int64), str, st)
+            call string_put_text_property(0_int64, 1_int64, value_type(name="cursor"), value_type(1_int64), str, st)
         end if
     end subroutine place_cursor
 
@@ -2215,7 +2219,7 @@ contains
     !> The value of the prefix argument as the FILL of a "P" spec.
     !> Not a port.
     logical function prefix_fill()
-        prefix_fill = .not. nilp(current_prefix_arg)
+        prefix_fill = allocated(current_prefix_arg%a)
     end function prefix_fill
 
     recursive subroutine cmd_delete_rectangle(status)
@@ -2305,18 +2309,18 @@ contains
     end subroutine cmd_clear_rectangle
 
     !> The newest element of `string_rectangle_history', or "" (the
-    !> (or (car string-rectangle-history) "") of the prompts).  Not a port.
+    !> (the first element of `string_rectangle_history', or "") of the prompts).  Not a port.
     function history_head() result(head)
         character(len=:), allocatable :: head
         type(value_type) :: hist, first
         type(status_type) :: st
 
         head = ""
-        call symbol_value(sym("string_rectangle_history"), hist, st)
+        call symbol_value(value_type(name="string_rectangle_history"), hist, st)
         if (.not. st%ok()) return
         if (list_length(hist) == 0) return
         first = list_elt(hist, 1_int64)
-        if (stringp(first)) head = xstring(first)
+        if (vtag(first) == V_STRING) head = xstring(first)
     end function history_head
 
     !> (format-prompt PROMPT DEFAULT): " (default DEFAULT)" unless DEFAULT
@@ -2331,7 +2335,7 @@ contains
     end function prompt_with_default
 
     !> Read the string of `string_rectangle' and `string_insert_rectangle'
-    !> with PROMPT (their interactive specs).  Port of the interactive specs
+    !> with PROMPT (how the commands read their arguments).  Port of the argument reading
     !> of rect.el:string-rectangle and rect.el:string-insert-rectangle.
     recursive subroutine read_rectangle_string(prompt, string, status)
         character(len=*), intent(in) :: prompt
@@ -2395,7 +2399,7 @@ contains
         if (status%ok()) call region_end(end, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call rectangle_number_lines(start, end, 1_int64, status)
             return
         end if
@@ -2409,7 +2413,7 @@ contains
     recursive subroutine cmd_rectangle_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_exchange_point_and_mark(.not. nilp(current_prefix_arg), status)
+        call rectangle_exchange_point_and_mark(allocated(current_prefix_arg%a), status)
     end subroutine cmd_rectangle_exchange_point_and_mark
 
     recursive subroutine cmd_rectangle_right_char(status)
@@ -2455,7 +2459,7 @@ contains
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(rectangle_mark_mode_map, key, sym(cmd), status)
+        call define_key(rectangle_mark_mode_map, key, value_type(name=cmd), status)
     end subroutine bind
 
     !> Bind [remap FROM] to command CMD in `rectangle_mark_mode_map'.
@@ -2465,15 +2469,15 @@ contains
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
 
-        call list_elements(list(sym("remap"), sym(from)), key)
-        call define_key(rectangle_mark_mode_map, key, sym(cmd), status)
+        call list_elements(list(value_type(name="remap"), value_type(name=from)), key)
+        call define_key(rectangle_mark_mode_map, key, value_type(name=cmd), status)
     end subroutine bind_remap
 
     !> Register the commands, `string_rectangle_history', Rectangle-Mark
     !> mode with its keymap, and the rectangular region's functions
     !> around the region's (rect.el's add-function calls).  Not a port.
     subroutine syms_of_rect()
-        call defvar_nil("string_rectangle_history")
+        call forward_setting(string_rectangle_history)
         call minor_modes%rectangle_mark_mode%define("rectangle_mark_mode", hook=rectangle_mark_mode_hook, &
                                                     keymap=.true., body=rectangle_mark_mode_body)
         rectangle_mark_mode_map = minor_modes%rectangle_mark_mode%map

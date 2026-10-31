@@ -40,7 +40,7 @@ module handle_fm
     implicit none(type, external)
     private
 
-    public :: handle_type, slot_table_type, null_handle
+    public :: handle_type, slot_table_type, null_handle, has_handle
 
     !> Reference to a slot.  Index 0 is the null handle.
     type :: handle_type
@@ -61,10 +61,12 @@ module handle_fm
         integer(int64) :: used = 0
         integer(int64) :: live_count = 0
     contains
+
         procedure :: acquire => table_acquire
         procedure :: release => table_release
         procedure :: resolve => table_resolve
         procedure :: is_live => table_is_live
+        procedure :: issued => table_issued
         procedure :: handle_of => table_handle_of
         procedure :: capacity => table_capacity
         procedure :: count => table_count
@@ -73,6 +75,15 @@ module handle_fm
     integer(int64), parameter :: initial_capacity = 16
 
 contains
+
+    !> Whether LIST (unallocated: empty) holds the handle H.  Not a port.
+    pure logical function has_handle(list, h)
+        type(handle_type), allocatable, intent(in) :: list(:)
+        type(handle_type), intent(in) :: h
+
+        has_handle = .false.
+        if (allocated(list)) has_handle = any(list%index == h%index .and. list%generation == h%generation)
+    end function has_handle
 
     !> The null handle, which never resolves.
     pure function null_handle() result(h)
@@ -151,6 +162,18 @@ contains
         if (.not. self%live(h%index)) return
         table_is_live = self%generations(h%index) == h%generation
     end function table_is_live
+
+    !> True when `h' is a handle this table gave out, live or released
+    !> since (an object deleted since keeps its type).
+    elemental logical function table_issued(self, h)
+        class(slot_table_type), intent(in) :: self
+        type(handle_type), intent(in) :: h
+
+        table_issued = .false.
+        if (.not. allocated(self%generations)) return
+        if (h%index < 1 .or. h%index > self%used) return
+        table_issued = h%generation >= 1 .and. h%generation <= self%generations(h%index)
+    end function table_issued
 
     !> The current handle of live slot `i', or the null handle.
     pure function table_handle_of(self, i) result(h)

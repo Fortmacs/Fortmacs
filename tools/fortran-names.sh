@@ -1,0 +1,153 @@
+#!/bin/sh
+# fortran-names.sh -- give Lisp-derived terms their Fortran names
+# (tools/fortran-names) in files and file names.
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs.
+#
+# Fortmacs is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Fortmacs is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
+
+# Usage: tools/fortran-names.sh [--table FILE] [--merge] [PATH...]
+#
+# Applies the table to each PATH (a file, or every file under a
+# directory), relative to the current directory; with no PATH, to the
+# repository's src, test, app and tools, docs/init.f90, fpm.toml,
+# PORTING.md and README.md.  A file of an old name is renamed (with
+# `git mv' when git tracks it), then its contents are.  Citations and
+# other upstream names are kept (see the table's header).  Running it
+# again changes nothing.  Afterwards run the generators (tools/gen-*.sh)
+# and tools/check.sh --fix: generated files and line lengths follow.
+# A Fortran line the renames push past 132 columns is reported as
+# FILE:LINE (fprettify does not split it), and the exit status is 3.  A
+# Fortran file where a new name already exists as an identifier (an
+# imported forward_sexp renamed onto the file's own forward_expression)
+# is not changed: the clash is reported as FILE:LINE, and the exit status
+# is 4; rename the file's own identifier, then run the script again.
+# With --merge (after merging a renamed branch with an unrenamed one, so a
+# file holds both an old name and its new one for the same entity), the
+# clash check is skipped.
+#
+# Use it on this tree when the table gains an entry, on a branch written
+# before an entry (after merging main), and on code freshly ported from a
+# new upstream version, before review.
+#
+# Not touched by default: the table and its tools and test, the session
+# logs (docs/log, dated records), docs/syntax.html (it shows Elisp), and
+# images.
+
+set -eu
+
+here=$(cd "$(dirname "$0")" && pwd)
+table=$here/fortran-names
+engine=$here/fortran-names.awk
+lib=$here/fortran-names-lib.awk
+if [ "${1:-}" = --table ]; then
+    table=$2
+    shift 2
+fi
+merge=false
+if [ "${1:-}" = --merge ]; then
+    merge=true
+    shift
+fi
+
+if [ $# -eq 0 ]; then
+    cd "$here/.."
+    set -- src test app tools docs/init.f90 fpm.toml PORTING.md README.md
+fi
+
+# The files under the PATHs, one per line, without the table's own.
+list_files() {
+    for p in "$@"; do
+        if [ -d "$p" ]; then
+            find "$p" -type f ! -path '*/.git/*' | sort
+        elif [ -f "$p" ]; then
+            printf '%s\n' "$p"
+        else
+            echo "fortran-names.sh: no such file: $p" >&2
+            exit 1
+        fi
+    done | grep -v -e '/fortran-names$' -e '/fortran-names\.awk$' -e '/fortran-names-lib\.awk$' -e '/fortran-names-clash\.awk$' -e '/fortran-names\.sh$' \
+        -e '/test-fortran-names\.sh$' -e '/fortran-names-test/' -e '\.\(svg\|png\|jpg\|ico\)$' || true
+}
+
+tmp=${TMPDIR:-/tmp}/fortran-names.$$
+trap 'rm -f "$tmp" "$tmp.paths"' EXIT
+list_files "$@" >"$tmp.paths"
+nrenamed=0
+nchanged=0
+nlong=0
+nclash=0
+
+while IFS= read -r f; do
+    new=$(printf '%s\n' "$f" | awk -v mode=path -v table="$table" -f "$lib" -f "$engine" -)
+    if [ "$new" != "$f" ]; then
+        if [ -e "$new" ]; then
+            echo "fortran-names.sh: $f: $new exists; not renamed" >&2
+            exit 1
+        fi
+        if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+            git mv "$f" "$new"
+        else
+            mv "$f" "$new"
+        fi
+        echo "renamed $f -> $new"
+        nrenamed=$((nrenamed + 1))
+        f=$new
+    fi
+    # Text files only.
+    if grep -qI '' "$f" 2>/dev/null || [ ! -s "$f" ]; then
+        awk -v mode=apply -v table="$table" -f "$lib" -f "$engine" "$f" >"$tmp"
+        if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
+            "$f" "$tmp"; then
+            # A new name that the file already has (an import renamed onto a
+            # local procedure of that name): the file is left as it is.
+            case $merge:$f in
+            false:*.f90)
+                clash=$(awk -v f="$f" -f "$here/fortran-names-clash.awk" "$f" "$tmp")
+                if [ -n "$clash" ]; then
+                    printf 'fortran-names.sh: %s\n' "$clash" >&2
+                    nclash=$((nclash + 1))
+                    continue
+                fi
+                ;;
+            esac
+            # Lines the renames pushed past 132 columns (fortitude S001).
+            case $f in
+            *.f90)
+                long=$(awk -v f="$f" 'NR == FNR { n[FNR] = length($0); next }
+                    length($0) > 132 && n[FNR] <= 132 { print f ":" FNR ": longer than 132 columns; split it" }' \
+                    "$f" "$tmp")
+                if [ -n "$long" ]; then
+                    printf 'fortran-names.sh: %s\n' "$long" >&2
+                    nlong=$((nlong + $(printf '%s\n' "$long" | wc -l)))
+                fi
+                ;;
+            esac
+            cat "$tmp" >"$f"
+            nchanged=$((nchanged + 1))
+        fi
+    fi
+done <"$tmp.paths"
+
+echo "fortran-names.sh: $nrenamed file(s) renamed, $nchanged changed"
+if [ "$nclash" -gt 0 ]; then
+    echo "fortran-names.sh: $nclash file(s) left as they were: a new name clashes; rename the local one first" >&2
+    exit 4
+fi
+if [ "$nlong" -gt 0 ]; then
+    echo "fortran-names.sh: $nlong line(s) now longer than 132 columns" >&2
+    exit 3
+fi

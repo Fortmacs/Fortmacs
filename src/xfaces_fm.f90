@@ -28,8 +28,8 @@
 !> text (its `face' text property over the default face, then the
 !> region); `merge_faces' merges a named face into a realized one.
 !>
-!> Face references in text properties are face names (symbols, in the
-!> Fortran spelling: `region', `font_lock_comment_face'), property lists
+!> Face references in text properties are face names (symbols upstream, in the
+!> Fortran spelling: `region', `font_lock_comment_face'), lists
 !> of attributes with the Fortran attribute names as keywords
 !> (`:foreground', `:inverse_video', `:strike_through'), or lists of
 !> face references, the first taking precedence.
@@ -37,9 +37,9 @@
 !> Overlays' `face' properties are merged (the active region stands in for
 !> redisplay's region overlay).
 !>
-!> Deferred: `face_remapping_alist', mouse faces, face filters
-!> (`:filter'), the cons forms (FOREGROUND-COLOR . COLOR) of face
-!> references (no dotted pairs), the `reset' attribute value, relative
+!> Deferred: `face_remapping_table', mouse faces, face filters
+!> (`:filter'), the two-value forms FOREGROUND-COLOR and COLOR of face
+!> references (no entry of two names), the `reset' attribute value, relative
 !> (float) and functional heights in face references, fonts, fontsets,
 !> stipples and the window-system faces, `internal_set_lisp_face_attribute'
 !> (faces change by assignment in the configuration, then
@@ -47,9 +47,8 @@
 module xfaces_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, symbols, nilp, symbolp, stringp, consp, fixnump, xsymbol, xstring, &
-                       xfixnum, list_elements, windowp, xhandle
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, xsymbol, xstring, xfixnum, list_elements, xhandle, vtag, V_NULL, V_INTEGER, &
+                       V_NAME, V_STRING, V_ARRAY, V_WINDOW
     use dispextern_fm, only: face_type, FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FG_COLOR, &
                              FACE_TTY_DEFAULT_BG_COLOR, FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
                              FACE_UNDERLINE_DOUBLE_LINE, FACE_UNDERLINE_WAVE, FACE_UNDERLINE_DOTS, &
@@ -59,12 +58,12 @@ module xfaces_fm
     use faces_fm, only: face_attributes_type, named_face_type, face_named, faces_equal, face_weight_numeric, &
                         face_slant_numeric, set_frame_display, face_spec_recalc_all, &
                         display_supports_face_attributes_p, default, &
-                        FACE_UNSPECIFIED, FACE_NIL, FACE_T, FACE_COLOR, FACE_PLIST, FACE_LIST, FACE_VALUE, &
+                        FACE_UNSPECIFIED, FACE_OFF, FACE_ON, FACE_COLOR, FACE_PLIST, FACE_LIST, FACE_VALUE, &
                         FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, FACE_STYLE_DOTS, &
                         FACE_STYLE_DASHES, FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
-    use frame_fm, only: frame_type, selected_frame, frame_window_p
-    use term_fm, only: tty_capable_p
+    use frame_fm, only: frame_type, selected_frame
+    use term_fm, only: is_tty_capable
     use tty_colors_fm, only: tty_color_desc, tty_color_assoc, tty_color_standard_values, &
                              tty_defined_color_count, clear_face_cache_hook
     use buffer_fm, only: buffers, cur, set_buffer_internal
@@ -76,8 +75,8 @@ module xfaces_fm
     private
 
     public :: realize_basic_faces, recompute_basic_faces, clear_face_cache, lookup_face, lookup_named_face, &
-              merge_faces, face_at_buffer_position, face_at_string_position, merge_face_ref, tty_supports_face_attributes_p, &
-              init_frame_faces, frame_background_mode, face_differs_from_default_p
+              merge_faces, face_at_buffer_position, face_at_string_position, merge_face_ref, is_tty_supports_face_attributes, &
+              init_frame_faces, frame_background_mode, is_face_differs_from_default
 
     !> Suppress/allow boldness of faces with inverse default colors.
     !> If true, bold faces on terminals whose foreground is the default
@@ -85,7 +84,7 @@ module xfaces_fm
     !> default foreground color ignore their boldness.  Port of
     !> xfaces.c:tty_suppress_bold_inverse_default_colors_p (set by
     !> tty-suppress-bold-inverse-default-colors).
-    logical, public :: tty_suppress_bold_inverse_default_colors_p = .false.
+    logical, public :: tty_suppress_bold_inverse_default_colors = .false.
 
     !> TEXT_PROP_DISTANCE_LIMIT: how far redisplay looks ahead for the
     !> next face change.
@@ -130,7 +129,7 @@ contains
     !> didn't say): light for xterm, rxvt, dtterm and eterm (whose
     !> default background is white), else dark.  Port of
     !> frame.el:frame-set-background-mode (the terminal part,
-    !> frame-background-mode nil; the background color xterm.el queries is
+    !> `frame_background_mode' unset; the background color xterm.el queries is
     !> deferred).
     integer function frame_background_mode(term_type, bg_color) result(mode)
         character(len=*), intent(in) :: term_type, bg_color
@@ -169,7 +168,7 @@ contains
         character(len=*), intent(in) :: term_type
         integer :: class
 
-        display_supports_face_attributes_p => tty_supports_face_attributes_p
+        display_supports_face_attributes_p => is_tty_supports_face_attributes
         clear_face_cache_hook => clear_face_cache
         ! display-color-p: tty-display-color-p.
         class = FACE_CLASS_MONO
@@ -218,7 +217,7 @@ contains
     !> face that are not specified get their terminal values: family and
     !> foundry "default", width normal, height 1, weight and slant normal,
     !> no underline, overline, strike-through, box or inverse video,
-    !> `extend' nil, and the colors "unspecified-fg" and "unspecified-bg".
+    !> `extend' .false., and the colors "unspecified-fg" and "unspecified-bg".
     !> They are set on the `default' face itself.  Port of the terminal
     !> part of xfaces.c:realize_default_face.
     subroutine realize_default_face(f)
@@ -290,7 +289,7 @@ contains
         ! xfaces.c:realize_gui_face (font_load_for_lface); its other parts
         ! (colors, box, overline, stipple) are Deferred with the GUI, so
         ! the face is otherwise realized as on a terminal.
-        if (frame_window_p(f)) then
+        if (associated(f%rif)) then
             if (associated(f%font_driver)) f%faces(k)%font = f%font_driver%load_for_lface(attrs)
         end if
 
@@ -308,15 +307,15 @@ contains
         ! Map face attributes to TTY appearances.
         if (face_weight_numeric(attrs%weight) > 100) face%tty_bold_p = .true.
         if (face_slant_numeric(attrs%slant) /= 100) face%tty_italic_p = .true.
-        if (attrs%inverse_video%state /= FACE_NIL) face%tty_reverse_p = .true.
-        if (attrs%strike_through%state /= FACE_NIL) face%tty_strike_through_p = .true.
+        if (attrs%inverse_video%state /= FACE_OFF) face%tty_reverse_p = .true.
+        if (attrs%strike_through%state /= FACE_OFF) face%tty_strike_through_p = .true.
 
         ! Text underline.
         select case (attrs%underline%state)
-        case (FACE_NIL)
+        case (FACE_OFF)
             face%underline = FACE_NO_UNDERLINE
             face%underline_color = 0
-        case (FACE_T)
+        case (FACE_ON)
             face%underline = FACE_UNDERLINE_SINGLE
             face%underline_color = 0
         case (FACE_COLOR)
@@ -360,7 +359,7 @@ contains
             face%background = tem
         end if
 
-        if (tty_suppress_bold_inverse_default_colors_p .and. face%tty_bold_p .and. &
+        if (tty_suppress_bold_inverse_default_colors .and. face%tty_bold_p .and. &
             face%background == FACE_TTY_DEFAULT_FG_COLOR .and. face%foreground == FACE_TTY_DEFAULT_BG_COLOR) then
             face%tty_bold_p = .false.
         end if
@@ -368,7 +367,7 @@ contains
 
     !> The terminal color index of COLOR, a foreground (or underline)
     !> color if FOREGROUND, else a background color: the index of COLOR in
-    !> `tty_defined_color_alist', else of the color approximating it
+    !> `tty_defined_color_table', else of the color approximating it
     !> (load_color with tty_defined_color), else the default foreground or
     !> background.  Port of xfaces.c:map_tty_color.
     integer(int64) function map_tty_color(color, foreground) result(pixel)
@@ -565,9 +564,9 @@ contains
 
         if (extend_only) then
             ! Filter, but specified; or unspecified, but inherited.
-            if (face%lface%extend%state /= FACE_T) then
+            if (face%lface%extend%state /= FACE_ON) then
                 if (face%lface%inherit%state /= FACE_LIST) return
-                if (face_inherited_extend(face%lface, depth + 1) /= FACE_T) return
+                if (face_inherited_extend(face%lface, depth + 1) /= FACE_ON) return
             end if
         end if
 
@@ -619,7 +618,7 @@ contains
     end function face_inherited_extend
 
     !> Merge face attributes from the face reference FACE_REF into TO.
-    !> FACE_REF is a face name, a property list of attributes, or a list
+    !> FACE_REF is a face name, attributes, or a list
     !> of face references, those at the beginning taking precedence.  OK
     !> is false if FACE_REF is invalid (what is valid of it is still
     !> merged).  With EXTEND_ONLY, a face is merged only if it gives
@@ -646,12 +645,12 @@ contains
             return
         end if
 
-        if (nilp(face_ref)) return
+        if (.not. allocated(face_ref%a)) return
 
-        if (consp(face_ref)) then
+        if (vtag(face_ref) == V_ARRAY) then
             call list_elements(face_ref, elts)
 
-            if (keywordp(elts(1))) then
+            if (vtag(elts(1)) == V_NAME .and. index(symbols(xsymbol(elts(1)))%name, ":") == 1) then
                 ! Assume this is the property list form.
                 call merge_plist(elts, to, ok, filter, d)
                 return
@@ -668,7 +667,7 @@ contains
             return
         end if
 
-        if (symbolp(face_ref)) then
+        if ((vtag(face_ref) == V_NAME .or. vtag(face_ref) == V_NULL)) then
             ! FACE_REF ought to be a face name.
             call merge_named_face(symbols(xsymbol(face_ref))%name, to, d + 1, filter, ok)
             return
@@ -677,42 +676,29 @@ contains
         ok = .false.
     end subroutine merge_face_ref
 
-    !> Whether V is a keyword (a symbol whose name starts with `:').
-    !> Not a port.
-    logical function keywordp(v)
-        type(value_type), intent(in) :: v
-
-        keywordp = .false.
-        if (.not. symbolp(v)) return
-
-        associate (name => symbols(xsymbol(v))%name)
-            if (len(name) > 0) keywordp = name(1:1) == ":"
-        end associate
-    end function keywordp
-
-    !> Whether V is the symbol NAME.  Not a port.
+    !> Whether V is the name NAME.  Not a port.
     logical function is_symbol(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
 
         is_symbol = .false.
-        if (symbolp(v)) is_symbol = symbols(xsymbol(v))%name == name
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) is_symbol = symbols(xsymbol(v))%name == name
     end function is_symbol
 
-    !> The name of symbol V, or "" if V is not a symbol.  Not a port.
+    !> The text of name V, or "" if V is not a name.  Not a port.
     function symbol_name(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
 
         name = ""
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function symbol_name
 
-    !> Merge the property list ELTS (keyword, value, ...) of a face
+    !> Merge the attributes ELTS (keyword, value, ...) of a face
     !> reference into TO, in order.  With FILTER, nothing is merged unless
     !> `:extend' is given a true value, or is not mentioned and a face
     !> `:inherit' names gives it one.  Port of
-    !> xfaces.c:merge_face_ref (the property list part).
+    !> xfaces.c:merge_face_ref (the attributes part).
     recursive subroutine merge_plist(elts, to, ok, filter, depth)
         type(value_type), intent(in) :: elts(:)
         type(face_attributes_type), intent(inout) :: to
@@ -730,7 +716,7 @@ contains
         if (filter) then
             ! Don't merge this face if `extend' is nil, or not mentioned,
             ! or if it's unspecified and the face doesn't inherit from a
-            ! face whose `extend' is non-nil.
+            ! face whose `extend' is .true..
             seen = .false.
             k = 1
 
@@ -739,7 +725,7 @@ contains
 
                 if (keyword == ":extend") then
                     seen = .true.
-                    if (nilp(elts(k + 1))) return
+                    if (.not. allocated(elts(k + 1)%a)) return
                 else if (keyword == ":inherit") then
                     parent_face = elts(k + 1)
                 end if
@@ -748,7 +734,7 @@ contains
             end do
 
             if (.not. seen) then
-                if (nilp(parent_face)) return
+                if (.not. allocated(parent_face%a)) return
                 call merge_face_ref(parent_face, scratch, sub_ok, .false., depth + 1)
 
                 if (.not. sub_ok) then
@@ -756,7 +742,7 @@ contains
                     return
                 end if
 
-                if (scratch%extend%state /= FACE_T) return
+                if (scratch%extend%state /= FACE_ON) return
             end if
         end if
 
@@ -788,13 +774,13 @@ contains
 
         select case (keyword)
         case (":family")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%family = xstring(value)
             else
                 err = .true.
             end if
         case (":foundry")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%foundry = xstring(value)
             else
                 err = .true.
@@ -808,7 +794,7 @@ contains
             end if
         case (":height")
             ! An absolute height (a relative one is a float).
-            if (fixnump(value)) then
+            if (vtag(value) == V_INTEGER) then
                 to%height = int(xfixnum(value))
             else
                 err = .true.
@@ -828,54 +814,54 @@ contains
                 err = .false.
             end if
         case (":underline")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%underline = .false.
             else if (is_symbol(value, "t")) then
                 to%underline = .true.
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%underline = xstring(value)
-            else if (consp(value)) then
+            else if (vtag(value) == V_ARRAY) then
                 call underline_from_plist(value, to)
             else
                 err = .true.
             end if
         case (":overline")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%overline = .false.
             else if (is_symbol(value, "t")) then
                 to%overline = .true.
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%overline = xstring(value)
             else
                 err = .true.
             end if
         case (":strike_through")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%strike_through = .false.
             else if (is_symbol(value, "t")) then
                 to%strike_through = .true.
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%strike_through = xstring(value)
             else
                 err = .true.
             end if
         case (":box")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%box = .false.
             else if (is_symbol(value, "t")) then
                 to%box = .true.
-            else if (fixnump(value)) then
+            else if (vtag(value) == V_INTEGER) then
                 if (xfixnum(value) /= 0) then
                     to%box = .true.
                     to%box%line_width = int(xfixnum(value))
                 else
                     err = .true.
                 end if
-            else if (stringp(value)) then
+            else if (vtag(value) == V_STRING) then
                 to%box = .true.
                 to%box%state = FACE_COLOR
                 to%box%color = xstring(value)
-            else if (consp(value)) then
+            else if (vtag(value) == V_ARRAY) then
                 ! A box property list: drawn on window systems only.
                 to%box = .true.
                 to%box%state = FACE_PLIST
@@ -883,7 +869,7 @@ contains
                 err = .true.
             end if
         case (":inverse_video")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%inverse_video = .false.
             else if (is_symbol(value, "t")) then
                 to%inverse_video = .true.
@@ -891,19 +877,19 @@ contains
                 err = .true.
             end if
         case (":foreground")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%foreground = xstring(value)
             else
                 err = .true.
             end if
         case (":distant_foreground")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%distant_foreground = xstring(value)
             else
                 err = .true.
             end if
         case (":background")
-            if (stringp(value)) then
+            if (vtag(value) == V_STRING) then
                 to%background = xstring(value)
             else
                 err = .true.
@@ -916,7 +902,7 @@ contains
             call merge_face_ref(value, to, sub_ok, .false., depth + 1)
             err = .not. sub_ok
         case (":extend")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%extend = .false.
             else if (is_symbol(value, "t")) then
                 to%extend = .true.
@@ -928,7 +914,7 @@ contains
         end select
     end subroutine merge_attribute
 
-    !> An underline given as a property list (:color COLOR :style STYLE
+    !> An underline given as attributes (:color COLOR :style STYLE
     !> :position POS).  Not a port.
     subroutine underline_from_plist(value, to)
         type(value_type), intent(in) :: value
@@ -944,7 +930,7 @@ contains
         do while (k + 1 <= size(elts))
             select case (symbol_name(elts(k)))
             case (":color")
-                if (stringp(elts(k + 1))) then
+                if (vtag(elts(k + 1)) == V_STRING) then
                     to%underline%color = xstring(elts(k + 1))
                 else if (is_symbol(elts(k + 1), "foreground_color")) then
                     to%underline%color = ""
@@ -965,7 +951,7 @@ contains
                     to%underline%style = 0
                 end select
             case (":position")
-                to%underline%position = .not. nilp(elts(k + 1))
+                to%underline%position = allocated(elts(k + 1)%a)
             case default
                 continue
             end select
@@ -1077,7 +1063,7 @@ contains
     !> The id of the face for a character of a string whose `face'
     !> property is PROP, shown where the face is BASE_FACE_ID on frame F:
     !> the base face with PROP merged in (the base face itself if PROP is
-    !> nil).  Port of xfaces.c:face_at_string_position (the string's
+    !> empty).  Port of xfaces.c:face_at_string_position (the string's
     !> property already looked up; no mouse faces).
     integer(int32) function face_at_string_position(f, prop, base_face_id) result(id)
         type(frame_type), intent(inout) :: f
@@ -1087,7 +1073,7 @@ contains
         logical :: ok
 
         id = base_face_id
-        if (nilp(prop)) return
+        if (.not. allocated(prop%a)) return
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
         if (base_face_id < 0 .or. base_face_id > ubound(f%faces, 1)) return
         ! Begin with attributes from the base face.
@@ -1104,7 +1090,7 @@ contains
     !> `face' properties of the overlays at POS in order of increasing
     !> priority, among them the `region' face if POS is in
     !> [REGION_START, REGION_END) (the region overlay redisplay makes for
-    !> an active region, of priority (nil . 100)).  With EXTEND_ONLY, only
+    !> an active region, of priority 100).  With EXTEND_ONLY, only
     !> faces that set `extend' are merged (for filling the rest of a
     !> line).  Overlays whose `window' property is not WINDOW (when given)
     !> are left out.  Port of xfaces.c:face_at_buffer_position (no mouse
@@ -1133,8 +1119,8 @@ contains
         ! position at which the property changes.
         saved = cur
         call set_buffer_internal(bi)
-        call get_text_property(pos, sym("face"), prop, status)
-        call next_single_property_change(pos, sym("face"), end, found, status, min(limit, endpos))
+        call get_text_property(pos, value_type(name="face"), prop, status)
+        call next_single_property_change(pos, value_type(name="face"), end, found, status, min(limit, endpos))
         if (found) endpos = end
         ! Look at properties from overlays.
         call overlays_at(pos, overlay_vec, next=next_overlay)
@@ -1163,7 +1149,7 @@ contains
         id = DEFAULT_FACE_ID
 
         ! Optimize common cases where we can use the default face.
-        if (.not. in_region .and. size(overlay_vec) == 0 .and. nilp(prop)) then
+        if (.not. in_region .and. size(overlay_vec) == 0 .and. .not. allocated(prop%a)) then
             if (saved /= 0) call set_buffer_internal(saved)
             return
         end if
@@ -1171,7 +1157,7 @@ contains
         ! Begin with attributes from the default face.
         attrs = f%faces(DEFAULT_FACE_ID)%lface
         ! Merge in attributes specified via text properties.
-        if (.not. nilp(prop)) call merge_face_ref(prop, attrs, ok, filter)
+        if (allocated(prop%a)) call merge_face_ref(prop, attrs, ok, filter)
         ! Now merge the overlay data.
         call sort_overlays(overlay_vec)
         region_merged = .not. in_region
@@ -1184,7 +1170,7 @@ contains
             end if
 
             prop = overlay_get(overlay_vec(i), "face")
-            if (.not. nilp(prop)) call merge_face_ref(prop, attrs, ok, filter)
+            if (allocated(prop%a)) call merge_face_ref(prop, attrs, ok, filter)
             oendpos = overlay_end(overlay_vec(i))
             if (oendpos < endpos) endpos = oendpos
         end do
@@ -1209,10 +1195,10 @@ contains
             do k = 1, size(overlay_vec)
                 owner = overlay_get(overlay_vec(k), "window")
 
-                if (windowp(owner)) then
+                if (vtag(owner) == V_WINDOW) then
                     h = xhandle(owner)
                     if (h%index /= window%index .or. h%generation /= window%generation) cycle
-                else if (.not. nilp(owner)) then
+                else if (allocated(owner%a)) then
                     cycle
                 end if
 
@@ -1240,7 +1226,7 @@ contains
     !> close in spirit to what the attributes specify.  Port of
     !> xfaces.c:tty_supports_face_attributes_p (with the terminal part of
     !> Fdisplay_supports_face_attributes_p).
-    logical function tty_supports_face_attributes_p(attrs) result(supports)
+    logical function is_tty_supports_face_attributes(attrs) result(supports)
         type(face_attributes_type), intent(in) :: attrs
         type(face_attributes_type) :: def_attrs
         type(emacs_color_type) :: fg_tty_color, fg_std_color, bg_tty_color, bg_std_color, def_color
@@ -1358,7 +1344,7 @@ contains
 
         ! See if the capabilities we selected above are supported, with
         ! the given colors.
-        supports = tty_capable_p(selected_frame%tty, test_caps)
+        supports = is_tty_capable(selected_frame%tty, test_caps)
 
     contains
 
@@ -1370,13 +1356,13 @@ contains
             same_color_name = .false.
             if (allocated(b)) same_color_name = a == b .and. len(a) == len(b)
         end function same_color_name
-    end function tty_supports_face_attributes_p
+    end function is_tty_supports_face_attributes
 
     !> Return true if the face NAME displays differently from the default
     !> face on the selected frame.  Port of
     !> faces.el:face-differs-from-default-p (here because it merges
     !> faces as xfaces does).
-    logical function face_differs_from_default_p(name) result(differs)
+    logical function is_face_differs_from_default(name) result(differs)
         character(len=*), intent(in) :: name
         type(face_attributes_type) :: attrs, one
         logical :: ok
@@ -1478,13 +1464,13 @@ contains
         logical function supported(a)
             type(face_attributes_type), intent(in) :: a
 
-            if (frame_window_p(selected_frame)) then
+            if (associated(selected_frame%rif)) then
                 supported = .true.
             else
-                supported = tty_supports_face_attributes_p(a)
+                supported = is_tty_supports_face_attributes(a)
             end if
 
             differs = supported
         end function supported
-    end function face_differs_from_default_p
+    end function is_face_differs_from_default
 end module xfaces_fm

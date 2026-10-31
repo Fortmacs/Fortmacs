@@ -1,0 +1,35 @@
+# intrinsics-baseline -- the findings of tools/intrinsics.awk in the code
+# as of 2026-10-31, as FILE:NAME:RULE: thin wrappers of an intrinsic,
+# Lisp helper and predicate names, *_NIL/*_T constants, _vector names and
+# command_type%interactive, removed in PR 2 (PORTING.md, "Intrinsics first").
+# tools/check.sh fails on a finding not listed here and on a line here
+# that no longer occurs, so this file only shrinks.
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+src/data_buffer_fm.f90:default_boundp:predicate
+src/data_buffer_fm.f90:setq_local:lisp-helper
+src/data_fm.f90:boundp:lisp-helper
+src/data_fm.f90:boundp:predicate
+src/data_fm.f90:makunbound:lisp-helper
+src/fns_fm.f90:get:lisp-helper
+src/fns_fm.f90:plist_get:lisp-helper
+src/fns_fm.f90:plist_member:lisp-helper
+src/fns_fm.f90:plist_put:lisp-helper
+src/fns_fm.f90:put:lisp-helper
+src/ibuf_macs_fm.f90:put:lisp-helper
+src/intervals_fm.f90:plist_member:lisp-helper
+src/lisp_fm.f90:SYM_NIL:constant
+src/lisp_fm.f90:SYM_T:constant
+src/lisp_fm.f90:cons:lisp-helper
+src/lisp_fm.f90:xfixnum:lisp-helper
+src/lisp_fm.f90:xhandle:lisp-helper
+src/lisp_fm.f90:xstring:lisp-helper
+src/lisp_fm.f90:xsymbol:lisp-helper
+src/lread_fm.f90:intern:lisp-helper
+src/lread_fm.f90:intern_soft:lisp-helper
+src/subr_fm.f90:defvar_nil:lisp-helper
+src/textprop_fm.f90:memq_p:predicate
+src/xdisp_fm.f90:put:lisp-helper
+test/test_tabulated_list_fm.f90:sort_car:wrapper

@@ -27,8 +27,7 @@ module test_sh_script_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, consp, symbolp, symbols, xsymbol, list_elements
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
@@ -43,12 +42,12 @@ module test_sh_script_fm
     use sh_script_fm, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                             sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
                             sh_builtins, sh_string_type, sh_canonicalize_shell, sh_shell, &
-                            SH_PLUS_PLUS, SH_CONTINUATION_NIL, SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, &
+                            SH_PLUS_PLUS, SH_CONTINUATION_NO, SH_CONTINUATION_DEEPER, SH_CONTINUATION_ALWAYS, &
                             sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
-                            sh_styles_alist, sh_basic_offset, sh_indent_for_do, SH_PLUS
+                            sh_styles_table, sh_basic_offset, sh_indent_for_do, SH_PLUS
     use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
-    use lisp_fm, only: list_length, list_elt, xstring
-    use lisp_cmds_fm, only: beginning_of_defun, end_of_defun
+    use lisp_fm, only: list_length, list_elt, xstring, value_type
+    use expression_motion_fm, only: beginning_of_subprogram, end_of_subprogram
     use window_fm, only: display_buffer_overriding_action, display_action_type, pop_to_buffer_same_window, &
                          get_buffer_window, delete_other_windows
     use frame_fm, only: selected_window
@@ -77,7 +76,7 @@ contains
                     new_unittest("sh-here-document-syntax", test_here_doc), &
                     new_unittest("sh-canonicalize-shell", test_canonicalize), &
                     new_unittest("sh-completion-at-point-function", test_completion), &
-                    new_unittest("sh-defun-prompt-regexp", test_defun), &
+                    new_unittest("sh-defun-prompt-regexp", test_subprogram), &
                     new_unittest("sh-styles", test_styles), &
                     new_unittest("display-buffer-overriding-action", test_overriding_action) &
                     ]
@@ -130,7 +129,7 @@ contains
 
             call goto_char(point_min())
             shortage = forward_line(1_int64)
-            call indent_for_tab_command(nil(), st)
+            call indent_for_tab_command(value_type(), st)
             call check(error, buffer_string(), "relative-path/to/configure --prefix=$prefix\"//LF// &
                        TAB//TAB//TAB//"   --with-x")
         end block checks
@@ -217,7 +216,7 @@ contains
             end if
 
             sh_indent_for_continuation = SH_PLUS_PLUS
-            sh_indent_after_continuation = SH_CONTINUATION_T
+            sh_indent_after_continuation = SH_CONTINUATION_DEEPER
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//"    toto; \"//LF//"    done"//LF)
             if (allocated(error)) exit checks
@@ -225,7 +224,7 @@ contains
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//TAB//"toto; \"//LF//TAB//"done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = SH_CONTINUATION_NIL
+            sh_indent_after_continuation = SH_CONTINUATION_NO
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks
@@ -277,15 +276,15 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(point(), sym("face"), v, st)
+        call get_text_property(point(), value_type(name="face"), v, st)
 
-        if (consp(v)) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
             v = elts(1)
         end if
 
-        if (nilp(v)) return
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if (.not. allocated(v%a)) return
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function face
 
     !> Test that "do" gets fontified correctly, even with no ";".
@@ -427,7 +426,7 @@ contains
         call leave(h)
     end subroutine test_completion
 
-    subroutine test_defun(error)
+    subroutine test_subprogram(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         logical :: found
@@ -437,18 +436,18 @@ contains
         call goto_char(point_max())
 
         checks: block
-            call beginning_of_defun(1_int64, found, st)
+            call beginning_of_subprogram(1_int64, found, st)
             call check(error, found .and. point() == 20, "beginning of bar")
             if (allocated(error)) exit checks
-            call beginning_of_defun(1_int64, found, st)
+            call beginning_of_subprogram(1_int64, found, st)
             call check(error, found .and. point() == 5, "beginning of foo")
             if (allocated(error)) exit checks
-            call end_of_defun(1_int64, st)
+            call end_of_subprogram(1_int64, st)
             call check(error, point() == 20, "end of foo")
         end block checks
 
         call leave(h)
-    end subroutine test_defun
+    end subroutine test_subprogram
 
     subroutine test_styles(error)
         type(error_type), allocatable, intent(out) :: error
@@ -464,9 +463,9 @@ contains
         checks: block
             sh_basic_offset = 2
             call sh_name_style("two", st)
-            call check(error, size(sh_styles_alist) >= 1, "style created")
+            call check(error, size(sh_styles_table) >= 1, "style created")
             if (allocated(error)) exit checks
-            call check(error, trim(sh_styles_alist(1)%name), "two")
+            call check(error, trim(sh_styles_table(1)%name), "two")
             if (allocated(error)) exit checks
             sh_basic_offset = 8
             call sh_load_style("two", st)
@@ -481,7 +480,7 @@ contains
             out = get_buffer(" *sh-styles*")
             call set_buffer(out, st)
             text = buffer_string()
-            call check(error, index(text, LF//"sh_styles_alist = [sh_style_type(name=""two"", values=[2, ") == 1, &
+            call check(error, index(text, LF//"sh_styles_table = [sh_style_type(name=""two"", values=[2, ") == 1, &
                        "saved styles")
             if (allocated(error)) exit checks
             call check(error, index(text, "SH_PLUS") > 0, "named constant")
@@ -490,8 +489,8 @@ contains
 
         sh_basic_offset = saved_offset
         sh_indent_for_do = saved_do
-        deallocate (sh_styles_alist)
-        allocate (sh_styles_alist(0))
+        deallocate (sh_styles_table)
+        allocate (sh_styles_table(0))
         call set_buffer(h, st)
         call leave(h)
     end subroutine test_styles

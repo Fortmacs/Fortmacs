@@ -32,7 +32,7 @@
 !> depends on window_fm, so they live in a submodule.
 !>
 !> Deferred: window parameters, side and atomic windows, dedicated
-!> windows, `window_combination_resize', `split_window_keep_point' nil,
+!> windows, `window_combination_resize', `split_window_keep_point' .false.,
 !> `delete_window_choose_selected' other than `mru', other frames, the
 !> window commands while the minibuffer is selected, buffer menus
 !> (C-x C-b), `switch_to_buffer_preserve_window_point',
@@ -41,15 +41,15 @@ submodule(window_fm) window_cmds_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
     use buffer_fm, only: cur, current_buffer, set_buffer, buffer_list, get_buffer, get_buffer_create, &
-                         record_buffer, frame_seen_buffers, buffer_live_p, kill_buffer, buffer_modified_p, &
+                         record_buffer, frame_seen_buffers, is_buffer_live, kill_buffer, is_buffer_modified, &
                          replace_buffer_in_windows_hook
     use editfns_fm, only: goto_char
     use marker_fm, only: marker_position
     use frame_fm, only: selected_frame, ensure_frame_windows
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use lisp_fm, only: nilp, make_string, list
+    use lisp_fm, only: list, value_type
     use minibuf_fm, only: completion_list_table
-    use minibuffer_fm, only: read_buffer, completing_read, REQUIRE_MATCH_T, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
+    use minibuffer_fm, only: read_buffer, completing_read, REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     use files_fm, only: save_buffer
     implicit none(type, external)
 
@@ -59,7 +59,7 @@ contains
     subroutine not_live(status)
         type(status_type), intent(out) :: status
 
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
     end subroutine not_live
 
     !> The window commands can't run in the minibuffer yet.  Not a port.
@@ -83,7 +83,7 @@ contains
         integer(int64) :: bi
         logical :: record
 
-        if (.not. window_live_p(h)) then
+        if (.not. is_window_live(h)) then
             call not_live(status)
             return
         end if
@@ -95,7 +95,7 @@ contains
 
         if (.not. same_window(old, h)) then
             ! The window left keeps its buffer's point.
-            if (window_live_p(old)) then
+            if (is_window_live(old)) then
                 call resolve_buffer(windows(old%index)%buffer, bi, status)
                 if (status%ok()) call set_window_point(windows(old%index), buffers(bi)%pt, status)
             end if
@@ -138,14 +138,14 @@ contains
         n = 0
         sub = windows(window%index)%child
 
-        if (window_valid_p(sub)) then
+        if (is_window_valid(sub)) then
             if (windows(window%index)%horizontal .eqv. horizontal) then
-                do while (window_valid_p(sub))
+                do while (is_window_valid(sub))
                     n = n + window_min_size(sub, horizontal)
                     sub = windows(sub%index)%next
                 end do
             else
-                do while (window_valid_p(sub))
+                do while (is_window_valid(sub))
                     n = max(n, window_min_size(sub, horizontal))
                     sub = windows(sub%index)%next
                 end do
@@ -171,8 +171,8 @@ contains
         logical :: too_small
         integer(int64) :: bi
 
-        if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+        if (.not. is_window_valid(window)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -204,7 +204,7 @@ contains
         end if
 
         ! The reference window: WINDOW if live, else the selected one.
-        if (window_live_p(window)) then
+        if (is_window_live(window)) then
             refer = window
         else
             refer = selected_frame%selected_window
@@ -221,7 +221,7 @@ contains
         call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer)
         if (.not. status%ok()) return
 
-        if (window_valid_p(windows(window%index)%child)) then
+        if (is_window_valid(windows(window%index)%child)) then
             ! The windows of an internal WINDOW share what is left.
             frame_cols = windows(selected_frame%root_window%index)%total_cols
 
@@ -251,7 +251,7 @@ contains
 
         if (in_minibuffer(status)) return
         call split_window(selected_frame%selected_window, int(prefix_numeric_value(current_prefix_arg)), &
-                          .not. nilp(current_prefix_arg), .false., new, status)
+                          allocated(current_prefix_arg%a), .false., new, status)
     end subroutine cmd_split_window_below
 
     !> Split WINDOW_TO_SPLIT into two side-by-side windows.
@@ -272,7 +272,7 @@ contains
 
         if (in_minibuffer(status)) return
         call split_window(selected_frame%selected_window, int(prefix_numeric_value(current_prefix_arg)), &
-                          .not. nilp(current_prefix_arg), .true., new, status)
+                          allocated(current_prefix_arg%a), .true., new, status)
     end subroutine cmd_split_window_right
 
     !> Run `unshow_buffer' for the live windows of the tree under `h',
@@ -286,7 +286,7 @@ contains
         call window_leaves(h, leaves)
 
         do k = 1, size(leaves)
-            if (buffer_live_p(windows(leaves(k)%index)%buffer)) call unshow_buffer(leaves(k))
+            if (is_buffer_live(windows(leaves(k)%index)%buffer)) call unshow_buffer(leaves(k))
         end do
     end subroutine unshow_leaves
 
@@ -300,8 +300,8 @@ contains
 
         status = status_type()
 
-        if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+        if (.not. is_window_valid(window)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -331,7 +331,7 @@ contains
     !> Delete specified WINDOW.
     !> WINDOW must be a valid window and defaults to the selected one.
     !>
-    !> Signal an error if WINDOW is the only window on its frame.
+    !> An error condition occurs if WINDOW is the only window on its frame.
     !>
     !> If WINDOW is the selected window on its frame, choose some other
     !> window as that frame's selected window: the most recently used one.
@@ -349,8 +349,8 @@ contains
         type(handle_type) :: old_root, parent
         integer :: top, left, lines, cols
 
-        if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+        if (.not. is_window_valid(window)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
@@ -369,13 +369,13 @@ contains
         associate (w => windows(window%index))
             parent = w%parent
 
-            if (window_valid_p(w%prev)) then
+            if (is_window_valid(w%prev)) then
                 windows(w%prev%index)%next = w%next
             else
                 windows(parent%index)%child = w%next
             end if
 
-            if (window_valid_p(w%next)) windows(w%next%index)%prev = w%prev
+            if (is_window_valid(w%next)) windows(w%next%index)%prev = w%prev
             w%parent = null_handle()
             w%next = null_handle()
             w%prev = null_handle()
@@ -385,7 +385,7 @@ contains
         call delete_window_tree(old_root)
         selected_frame%root_window = window
         call resize_window_tree(window, top, left, lines, cols, left + cols)
-        if (window_live_p(window)) call select_window(window, status)
+        if (is_window_live(window)) call select_window(window, status)
     end subroutine delete_other_windows
 
     !> Make WINDOW fill its frame.
@@ -444,24 +444,24 @@ contains
     end subroutine cmd_other_window_backward
 
     !> Whether buffer `b' is shown in a window of the frame.  Not a port.
-    logical function buffer_visible_p(b)
+    logical function is_buffer_visible(b)
         type(handle_type), intent(in) :: b
         type(handle_type), allocatable :: leaves(:)
         integer :: k
 
-        buffer_visible_p = .false.
-        if (.not. window_valid_p(selected_frame%root_window)) return
+        is_buffer_visible = .false.
+        if (.not. is_window_valid(selected_frame%root_window)) return
         call window_leaves(selected_frame%root_window, leaves)
 
         do k = 1, size(leaves)
             associate (wb => windows(leaves(k)%index)%buffer)
                 if (wb%index == b%index .and. wb%generation == b%generation) then
-                    buffer_visible_p = .true.
+                    is_buffer_visible = .true.
                     return
                 end if
             end associate
         end do
-    end function buffer_visible_p
+    end function is_buffer_visible
 
     module function other_buffer(buffer, visible_ok) result(h)
         type(handle_type), intent(in) :: buffer
@@ -482,7 +482,7 @@ contains
         do k = 1, size(seen)
             if (.not. candidate_buffer(seen(k), buffer)) cycle
 
-            if (vok .or. .not. buffer_visible_p(seen(k))) then
+            if (vok .or. .not. is_buffer_visible(seen(k))) then
                 h = seen(k)
                 return
             else if (notsogood%index == 0) then
@@ -490,13 +490,13 @@ contains
             end if
         end do
 
-        ! Consider alist of all buffers next.
+        ! Consider table of all buffers next.
         all = buffer_list()
 
         do k = 1, size(all)
             if (.not. candidate_buffer(all(k), buffer)) cycle
 
-            if (vok .or. .not. buffer_visible_p(all(k))) then
+            if (vok .or. .not. is_buffer_visible(all(k))) then
                 h = all(k)
                 return
             else if (notsogood%index == 0) then
@@ -517,7 +517,7 @@ contains
         type(handle_type), intent(in) :: b, buffer
 
         candidate_buffer = .false.
-        if (.not. buffer_live_p(b)) return
+        if (.not. is_buffer_live(b)) return
         if (b%index == buffer%index .and. b%generation == buffer%generation) return
 
         if (len(buffers(b%index)%name) > 0) then
@@ -543,7 +543,7 @@ contains
         ! window-normalize-buffer-to-switch-to.
         buffer = get_buffer(name)
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             call get_buffer_create(name, buffer, status)
             if (.not. status%ok()) return
         end if
@@ -563,8 +563,8 @@ contains
             end if
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
-            ! non-nil one meaning `inhibit_same_window'.
-            call pop_to_buffer(buffer, status, alist=display_alist_type(inhibit_same_window=norec))
+            ! one that is .true. meaning `inhibit_same_window'.
+            call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else if (windows(sw%index)%dedicated == DEDICATED_STRONG) then
             if (force) then
@@ -573,8 +573,8 @@ contains
             end if
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
-            ! non-nil one meaning `inhibit_same_window'.
-            call pop_to_buffer(buffer, status, alist=display_alist_type(inhibit_same_window=norec))
+            ! one that is .true. meaning `inhibit_same_window'.
+            call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else
             ! `switch_to_buffer_preserve_window_point' is t.
@@ -679,9 +679,9 @@ contains
         call resolve_buffer(buffer, bi, status)
         if (.not. status%ok()) return
         call completing_read("Buffer "//buffers(bi)%name//" modified; kill anyway? (yes, no, save and then kill) ", &
-                             completion_list_table(list(make_string("yes"), make_string("no"), &
-                                                        make_string("save and then kill"))), &
-                             answer, status, require_match=REQUIRE_MATCH_T)
+                             completion_list_table(list(value_type(text="yes"), value_type(text="no"), &
+                                                        value_type(text="save and then kill"))), &
+                             answer, status, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         if (answer == "no") return
         ok = .true.
@@ -691,7 +691,7 @@ contains
             call set_buffer(buffer, status)
             if (.not. status%ok()) return
             call save_buffer(1_int64, .true., status)
-            if (buffer_live_p(saved)) call set_buffer(saved, status)
+            if (is_buffer_live(saved)) call set_buffer(saved, status)
         end if
     end subroutine kill_buffer_possibly_save
 
@@ -710,18 +710,18 @@ contains
         logical :: modified, ok
 
         if (in_minibuffer(status)) return
-        call read_buffer("Kill buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_T)
+        call read_buffer("Kill buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         if (len(name) == 0) name = buffers(cur)%name
         buf = get_buffer(name)
 
-        if (.not. buffer_live_p(buf)) then
+        if (.not. is_buffer_live(buf)) then
             call set_error(status, FM_GENERIC_ERROR, "No such buffer "//name)
             return
         end if
 
         call resolve_buffer(buf, bi, status)
-        call buffer_modified_p(buf, modified, status)
+        call is_buffer_modified(buf, modified, status)
 
         if (modified .and. allocated(buffers(bi)%filename)) then
             call kill_buffer_possibly_save(buf, ok, status)

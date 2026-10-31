@@ -24,9 +24,9 @@
 !> keywords (f-string holes, assignments, operators, escape sequences),
 !> the indentation engine (`python_indent_context', TAB cycling through
 !> the possible levels, the dedenters, `python_indent_region', the shift
-!> commands, the electric colon and parens), statement, block, defun and
-!> sexp motion (`python_nav_*', used by C-M-a, C-M-e, C-M-f, C-M-u and the
-!> sentence keys), `python_mark_defun', filling of comments, strings and
+!> commands, the electric colon and parens), statement, block, subprogram and
+!> expression motion (`python_nav_*', used by C-M-a, C-M-e, C-M-f, C-M-u and the
+!> sentence keys), `python_mark_definition', filling of comments, strings and
 !> parens, and the `python_info_*' and `python_util_*' helpers.
 !>
 !> The regexps python.el builds with its `python_rx' macro are written
@@ -40,10 +40,10 @@
 !> PDB tracking, `python_interpreter' and `python_interpreter_args'),
 !> symbol completion (`python_completion_at_point'), the skeletons
 !> (skeleton.el), FFAP, `python_check', ElDoc, Hideshow, Imenu and
-!> `which_function', Outline mode's variables, `prettify_symbols_alist',
+!> `which_function', Outline mode's variables, `prettify_symbols_table',
 !> Flymake, the import management commands (C-c C-i), tree-sitter
-!> (`python_ts_mode'), `add_log_current_defun_function'
-!> (`python_info_current_defun' is here), the menu,
+!> (`python_ts_mode'), `add_log_current_subprogram_function'
+!> (`python_info_current_definition' is here), the menu,
 !> `python_util_clone_local_variables' and the other utilities the shell
 !> uses, the `delete_selection' property of
 !> `python_indent_dedent_line_backspace', and the obsolete
@@ -52,8 +52,7 @@ module python_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, list, make_string, list_elements
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, list, list_elements, vtag, V_INTEGER
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, value_eq, &
                        add_local_variables_killer
     use commands_fm, only: commands
@@ -64,12 +63,12 @@ module python_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use keymap_fm, only: keymap_set, define_key, make_sparse_keymap, set_repeat_map
-    use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, syntax_ppss, parse_state_type, &
-                         forward_comment, scan_lists, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
+    use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
+                         forward_comment, scan_groups, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          skip_syntax_backward, syntax_entry, standard_syntax_table, string_to_syntax, &
-                         syntax_descriptor_type, syntax_entry_at, char_syntax, parse_sexp_ignore_comments, &
-                         parse_sexp_lookup_properties, scan_error_data, ST_STRING_STYLE, syntax_table, set_syntax_table
-    use editfns_fm, only: point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
+                         syntax_descriptor_type, syntax_entry_at, char_syntax, parse_expression_ignore_comments, &
+                         parse_expression_lookup_properties, scan_error_data, ST_STRING_STYLE, syntax_table, set_syntax_table
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
                           buffer_substring, line_beginning_position, line_end_position, delete_region, narrow_to_region, &
                           widen, region_beginning, region_end, preceding_char, following_char, mark_position
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, post_self_insert_hook
@@ -80,15 +79,16 @@ module python_fm
     use search_fm, only: looking_at, re_search_forward, re_search_backward, search_backward, string_match, &
                          match_beginning, match_end, match_data, set_match_data, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string_no_properties, looking_back
-    use simple_fm, only: back_to_indentation, line_number_at_pos, use_region_p, backward_delete_char_untabify, newline, &
+    use simple_fm, only: back_to_indentation, line_number_at_pos, is_use_region, backward_delete_char_untabify, newline, &
                          count_lines
     use textprop_fm, only: put_text_property
     use xdisp_fm, only: message, tab_width
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
-                            font_lock_keywords_level, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_PREPEND
+                            font_lock_keywords_level, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use lisp_cmds_fm, only: forward_sexp, forward_sexp_function, forward_sexp_default_function, up_list, mark_defun, &
-                            beginning_of_defun_function, end_of_defun_function
+    use expression_motion_fm, only: forward_expression, forward_expression_function, forward_expression_default_function, &
+                                    up_group, mark_subprogram, &
+                                    beginning_of_subprogram_function, end_of_subprogram_function
     use newcomment_fm, only: comment_start, comment_start_skip
     use paragraphs_fm, only: paragraph_start, paragraph_separate
     use fill_fm, only: fill_paragraph, fill_paragraph_function, fill_comment_paragraph, fill_indent_according_to_mode
@@ -101,26 +101,26 @@ module python_fm
     private
 
     public :: syms_of_python, python_base_mode, python_mode, python_syntax_context, python_syntax_context_type, &
-              python_syntax_comment_or_string_p, python_syntax_closing_paren_p, python_font_lock_syntactic_face_function, &
+              is_python_syntax_comment_or_string, is_python_syntax_closing_paren, python_font_lock_syntactic_face_function, &
               python_syntax_count_quotes, python_syntax_stringify, python_indent_guess_indent_offset, &
               python_indent_context, python_indent_calculate_indentation, python_indent_calculate_levels, &
               python_indent_line, python_indent_line_function, python_indent_dedent_line, &
               python_indent_dedent_line_backspace, python_indent_region, python_indent_shift_left, &
-              python_indent_shift_right, python_indent_post_self_insert_function, python_mark_defun, &
-              python_nav_beginning_of_defun, python_nav_end_of_defun, python_nav_backward_defun, python_nav_forward_defun, &
+              python_indent_shift_right, python_indent_post_self_insert_function, python_mark_definition, &
+  python_nav_beginning_of_definition, python_nav_end_of_definition, python_nav_backward_definition, python_nav_forward_definition, &
               python_nav_beginning_of_statement, python_nav_end_of_statement, python_nav_backward_statement, &
               python_nav_forward_statement, python_nav_beginning_of_block, python_nav_end_of_block, &
-              python_nav_backward_block, python_nav_forward_block, python_nav_forward_sexp, python_nav_backward_sexp, &
-              python_nav_forward_sexp_safe, python_nav_backward_sexp_safe, python_nav_up_list, python_nav_backward_up_list, &
-              python_nav_if_name_main, python_info_current_defun, python_info_statement_starts_block_p, &
-              python_info_statement_ends_block_p, python_info_beginning_of_statement_p, python_info_end_of_statement_p, &
-              python_info_beginning_of_block_p, python_info_end_of_block_p, python_info_dedenter_opening_block_position, &
+              python_nav_backward_block, python_nav_forward_block, python_nav_forward_expression, python_nav_backward_expression, &
+       python_nav_forward_expression_safe, python_nav_backward_expression_safe, python_nav_up_group, python_nav_backward_up_group, &
+              python_nav_if_name_main, python_info_current_definition, is_python_info_statement_starts_block, &
+              is_python_info_statement_ends_block, is_python_info_beginning_of_statement, is_python_info_end_of_statement, &
+              is_python_info_beginning_of_block, is_python_info_end_of_block, python_info_dedenter_opening_block_position, &
               python_info_dedenter_opening_block_positions, python_info_dedenter_opening_block_message, &
-              python_info_dedenter_statement_p, python_info_line_ends_backslash_p, python_info_beginning_of_backslash, &
-              python_info_continuation_line_p, python_info_block_continuation_line_p, python_info_assignment_statement_p, &
-              python_info_assignment_continuation_line_p, python_info_looking_at_beginning_of_defun, &
-              python_info_looking_at_beginning_of_block, python_info_current_line_comment_p, &
-              python_info_current_line_empty_p, python_info_docstring_p, python_info_triple_quoted_string_p, &
+              is_python_info_dedenter_statement, is_python_info_line_ends_backslash, python_info_beginning_of_backslash, &
+              is_python_info_continuation_line, is_python_info_block_continuation_line, is_python_info_assignment_statement, &
+              is_python_info_assignment_continuation_line, python_info_looking_at_beginning_of_definition, &
+              python_info_looking_at_beginning_of_block, is_python_info_current_line_comment, &
+              is_python_info_current_line_empty, is_python_info_docstring, is_python_info_triple_quoted_string, &
               python_info_encoding_from_cookie, python_info_encoding, python_util_goto_line, python_util_forward_comment, &
               python_fill_paragraph, python_fill_comment, python_fill_string, python_fill_decorator, python_fill_paren, &
               python_do_auto_fill, python_electric_pair_string_delimiter, python_fill_proc
@@ -132,7 +132,7 @@ module python_fm
                                   PYTHON_CONTEXT_PAREN = 5
 
     !> The values of `python_fill_docstring_style'.
-    integer, parameter, public :: PYTHON_DOCSTRING_NIL = 0, PYTHON_DOCSTRING_DJANGO = 1, PYTHON_DOCSTRING_ONETWO = 2, &
+    integer, parameter, public :: PYTHON_DOCSTRING_NONE = 0, PYTHON_DOCSTRING_DJANGO = 1, PYTHON_DOCSTRING_ONETWO = 2, &
                                   PYTHON_DOCSTRING_PEP_257 = 3, PYTHON_DOCSTRING_PEP_257_NN = 4, &
                                   PYTHON_DOCSTRING_SYMMETRIC = 5
 
@@ -233,17 +233,17 @@ module python_fm
                                              logical_setting(name="python_indent_block_paren_deeper", value=.false.)
 
     !> Function to use when navigating between expressions.  Port of
-    !> python.el python-forward-sexp-function (null for nil, "CC-mode
+    !> python.el python-forward-sexp-function (null for the default, "CC-mode
     !> like").
-    procedure(python_forward_sexp_proc), pointer, public :: python_forward_sexp_function => null()
+    procedure(python_forward_expression_proc), pointer, public :: python_forward_expression_function => null()
 
     !> Style used to fill docstrings.
     !> This affects `python_fill_string' behavior with regards to
     !> triple quotes positioning.
     !>
     !> Possible values are PYTHON_DOCSTRING_DJANGO, _ONETWO, _PEP_257,
-    !> _PEP_257_NN, _SYMMETRIC, and PYTHON_DOCSTRING_NIL.  A value of
-    !> PYTHON_DOCSTRING_NIL won't care about quotes position and will treat
+    !> _PEP_257_NN, _SYMMETRIC, and PYTHON_DOCSTRING_NONE.  A value of
+    !> PYTHON_DOCSTRING_NONE won't care about quotes position and will treat
     !> docstrings a normal string, any other value may result in one of
     !> the following docstring styles:
     !>
@@ -305,17 +305,17 @@ module python_fm
                                                              value=PYTHON_DOCSTRING_PEP_257)
 
     abstract interface
-        !> A function of `python_forward_sexp_function': move across ARG
+        !> A function of `python_forward_expression_function': move across ARG
         !> expressions.
-        recursive subroutine python_forward_sexp_proc(arg, status)
+        recursive subroutine python_forward_expression_proc(arg, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: arg
             type(status_type), intent(out) :: status
-        end subroutine python_forward_sexp_proc
+        end subroutine python_forward_expression_proc
 
         !> A fill function of `python_fill_paragraph': DONE is its value
-        !> (JUSTIFY absent for nil).
+        !> (JUSTIFY absent for no justification).
         recursive subroutine python_fill_proc(status, done, justify)
             import :: status_type
             implicit none(type, external)
@@ -343,10 +343,10 @@ module python_fm
     procedure(python_fill_proc), pointer, public :: python_fill_paren_function => null()
 
     !> Regexp matching class or function definition.
-    !> The name of the defun should be grouped so it can be retrieved
+    !> The name of the subprogram should be grouped so it can be retrieved
     !> via `match_string'.  Port of python.el
     !> python-nav-beginning-of-defun-regexp.
-    character(len=:), allocatable, public :: python_nav_beginning_of_defun_regexp
+    character(len=:), allocatable, public :: python_nav_beginning_of_definition_regexp
     !> Regexp matching block start.  Port of python.el
     !> python-nav-beginning-of-block-regexp.
     character(len=:), allocatable, public :: python_nav_beginning_of_block_regexp
@@ -514,7 +514,7 @@ module python_fm
                                    "\<\(?:F[Rr]\|R[Ff]\|f[Rr]\|r[Ff]\|[Ff]\)\(?:""""""\|'''\|[""']\)"
     character(len=*), parameter :: TRIPLE_QUOTES_RE = &
                                    "\(?:""""""\|'''\)"
-    character(len=*), parameter :: BEGINNING_OF_DEFUN_RE = &
+    character(len=*), parameter :: BEGINNING_OF_SUBPROGRAM_RE = &
                                    "^[[:space:]]*\_<\(?:def\|class\|async[[:space:]]+def\)\_>\(?:[[:space:" &
                                    //"]]\|\\"//LF//"\)+\([_[:alpha:]][_[:word:]]*\)"
     character(len=*), parameter :: BEGINNING_OF_BLOCK_RE = &
@@ -589,7 +589,7 @@ contains
     recursive subroutine syms_of_python()
         type(status_type) :: st
 
-        if (syntax_table_live_p(python_mode_syntax_table)) return
+        if (is_syntax_table_live(python_mode_syntax_table)) return
         call forward_setting(python_2_support)
         call forward_setting(python_indent_offset)
         call forward_setting(python_indent_guess_indent_offset_variable)
@@ -602,12 +602,16 @@ contains
             python_indent_trigger_commands = [character(len=32) :: "indent_for_tab_command", "yas_expand", "yas/expand"]
         end if
 
-        if (.not. associated(python_forward_sexp_function)) python_forward_sexp_function => nav_forward_sexp_default
+      if (.not. associated(python_forward_expression_function)) python_forward_expression_function => nav_forward_expression_default
         if (.not. associated(python_fill_comment_function)) python_fill_comment_function => python_fill_comment
         if (.not. associated(python_fill_string_function)) python_fill_string_function => python_fill_string
         if (.not. associated(python_fill_decorator_function)) python_fill_decorator_function => python_fill_decorator
         if (.not. associated(python_fill_paren_function)) python_fill_paren_function => python_fill_paren
-        if (.not. allocated(python_nav_beginning_of_defun_regexp)) python_nav_beginning_of_defun_regexp = BEGINNING_OF_DEFUN_RE
+
+        if (.not. allocated(python_nav_beginning_of_definition_regexp)) then
+            python_nav_beginning_of_definition_regexp = BEGINNING_OF_SUBPROGRAM_RE
+        end if
+
         if (.not. allocated(python_nav_beginning_of_block_regexp)) python_nav_beginning_of_block_regexp = BEGINNING_OF_BLOCK_RE
         call init_syntax_tables()
         call init_keywords()
@@ -622,16 +626,16 @@ contains
         ! Movement
         call bind_remap("backward_sentence", "python_nav_backward_block")
         call bind_remap("forward_sentence", "python_nav_forward_block")
-        call bind_remap("backward_up_list", "python_nav_backward_up_list")
-        call bind_remap("up_list", "python_nav_up_list")
-        call bind_remap("mark_defun", "python_mark_defun")
+        call bind_remap("backward_up_group", "python_nav_backward_up_group")
+        call bind_remap("up_group", "python_nav_up_group")
+        call bind_remap("mark_subprogram", "python_mark_definition")
         ! Indent specific
         call keymap_set(python_base_mode_map, "DEL", "python_indent_dedent_line_backspace", st)
         call keymap_set(python_base_mode_map, "<backtab>", "python_indent_dedent_line", st)
         call keymap_set(python_base_mode_map, "C-c <", "python_indent_shift_left", st)
         call keymap_set(python_base_mode_map, "C-c >", "python_indent_shift_right", st)
         ! Utilities
-        call bind_remap("complete_symbol", "completion_at_point")
+        call bind_remap("complete_name", "completion_at_point")
         call make_sparse_keymap(python_indent_repeat_map)
         call keymap_set(python_indent_repeat_map, "<", "python_indent_shift_left", st)
         call keymap_set(python_indent_repeat_map, ">", "python_indent_shift_right", st)
@@ -642,10 +646,10 @@ contains
         commands%python_indent_dedent_line_backspace%run => cmd_python_indent_dedent_line_backspace
         commands%python_indent_shift_left%run => cmd_python_indent_shift_left
         commands%python_indent_shift_right%run => cmd_python_indent_shift_right
-        commands%python_mark_defun%run => cmd_python_mark_defun
-        commands%python_nav_end_of_defun%run => cmd_python_nav_end_of_defun
-        commands%python_nav_backward_defun%run => cmd_python_nav_backward_defun
-        commands%python_nav_forward_defun%run => cmd_python_nav_forward_defun
+        commands%python_mark_definition%run => cmd_python_mark_definition
+        commands%python_nav_end_of_definition%run => cmd_python_nav_end_of_definition
+        commands%python_nav_backward_definition%run => cmd_python_nav_backward_definition
+        commands%python_nav_forward_definition%run => cmd_python_nav_forward_definition
         commands%python_nav_beginning_of_statement%run => cmd_python_nav_beginning_of_statement
         commands%python_nav_end_of_statement%run => cmd_python_nav_end_of_statement
         commands%python_nav_backward_statement%run => cmd_python_nav_backward_statement
@@ -654,12 +658,12 @@ contains
         commands%python_nav_end_of_block%run => cmd_python_nav_end_of_block
         commands%python_nav_backward_block%run => cmd_python_nav_backward_block
         commands%python_nav_forward_block%run => cmd_python_nav_forward_block
-        commands%python_nav_forward_sexp%run => cmd_python_nav_forward_sexp
-        commands%python_nav_backward_sexp%run => cmd_python_nav_backward_sexp
-        commands%python_nav_forward_sexp_safe%run => cmd_python_nav_forward_sexp_safe
-        commands%python_nav_backward_sexp_safe%run => cmd_python_nav_backward_sexp_safe
-        commands%python_nav_up_list%run => cmd_python_nav_up_list
-        commands%python_nav_backward_up_list%run => cmd_python_nav_backward_up_list
+        commands%python_nav_forward_expression%run => cmd_python_nav_forward_expression
+        commands%python_nav_backward_expression%run => cmd_python_nav_backward_expression
+        commands%python_nav_forward_expression_safe%run => cmd_python_nav_forward_expression_safe
+        commands%python_nav_backward_expression_safe%run => cmd_python_nav_backward_expression_safe
+        commands%python_nav_up_group%run => cmd_python_nav_up_group
+        commands%python_nav_backward_up_group%run => cmd_python_nav_backward_up_group
         commands%python_nav_if_name_main%run => cmd_python_nav_if_name_main
         commands%python_fill_paragraph%run => cmd_python_fill_paragraph
         call set_repeat_map(python_indent_repeat_map)
@@ -672,8 +676,8 @@ contains
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        call list_elements(list(sym("remap"), sym(from)), events)
-        call define_key(python_base_mode_map, events, sym(command), st)
+        call list_elements(list(value_type(name="remap"), value_type(name=from)), events)
+        call define_key(python_base_mode_map, events, value_type(name=command), st)
     end subroutine bind_remap
 
     ! Not a port.
@@ -794,7 +798,7 @@ contains
         !   "\\" "\'" "\a" "\b" "\f" "\n" "\r" "\t" "\v"
         !   "\ooo" character with octal value ooo
         !   "\xhh" character with hex value hh
-        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_T)
+        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_YES)
         call push(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
         ! escape sequences within string literals, the same as appear in bytes
         ! literals in addition to:
@@ -961,7 +965,7 @@ contains
 
     !> Return the start of the comment or string PPSS is inside (0 if
     !> neither).  Port of python.el:python-syntax-comment-or-string-p.
-    recursive integer(int64) function python_syntax_comment_or_string_p(syntax_ppss_state) result(pos)
+    recursive integer(int64) function is_python_syntax_comment_or_string(syntax_ppss_state) result(pos)
         type(parse_state_type), intent(in), optional :: syntax_ppss_state
         type(parse_state_type) :: ppss
 
@@ -972,22 +976,22 @@ contains
         end if
 
         pos = ppss%comstr_start
-    end function python_syntax_comment_or_string_p
+    end function is_python_syntax_comment_or_string
 
     !> Return true if char after point is a closing paren.  Port of
     !> python.el:python-syntax-closing-paren-p.
-    recursive logical function python_syntax_closing_paren_p()
+    recursive logical function is_python_syntax_closing_paren()
         type(syntax_descriptor_type) :: d, close
         type(status_type) :: st
         integer :: c
 
-        python_syntax_closing_paren_p = .false.
+        is_python_syntax_closing_paren = .false.
         c = after_char_at(point())
         if (c < 0) return
         d = syntax_entry_at(c, point())
         call string_to_syntax(")", close, st)
-        python_syntax_closing_paren_p = iand(d%code, 65535) == iand(close%code, 65535)
-    end function python_syntax_closing_paren_p
+        is_python_syntax_closing_paren = iand(d%code, 65535) == iand(close%code, 65535)
+    end function is_python_syntax_closing_paren
 
     !> Return syntactic face given STATE.  Port of
     !> python.el:python-font-lock-syntactic-face-function.
@@ -996,7 +1000,7 @@ contains
         character(len=:), allocatable, intent(out) :: face
 
         if (state%instring >= 0) then
-            if (python_info_docstring_p(state)) then
+            if (is_python_info_docstring(state)) then
                 face = "font_lock_doc_face"
             else
                 face = "font_lock_string_face"
@@ -1008,26 +1012,26 @@ contains
 
     ! Return true if the pos where PPSS was found is inside an f-string.
     ! Port of python.el:python--f-string-p.
-    recursive logical function f_string_p(ppss)
+    recursive logical function is_f_string(ppss)
         type(parse_state_type), intent(in) :: ppss
         character(len=:), allocatable :: before_quote
         integer(int64) :: spos
         type(status_type) :: st
         character :: syn
 
-        f_string_p = .false.
+        is_f_string = .false.
         if (ppss%instring < 0) return
         spos = ppss%comstr_start - 1
         call buffer_substring(max(spos - 4, point_min()), min(spos + 2, point_max()), before_quote, st)
         if (string_match(F_STRING_START_RE, before_quote, st) <= 0) return
 
         if (point_min() < spos) then
-            f_string_p = .true.
+            is_f_string = .true.
         else
             syn = char_syntax(before_char_at(spos))
-            f_string_p = syn /= "w" .and. syn /= "_"
+            is_f_string = syn /= "w" .and. syn /= "_"
         end if
-    end function f_string_p
+    end function is_f_string
 
     ! Mark {...} holes as being code.
     ! Remove the (presumably `font_lock_string_face') `face' property from
@@ -1047,7 +1051,7 @@ contains
         ppss = ppss_here()
 
         do
-            do while (.not. f_string_p(ppss))
+            do while (.not. is_f_string(ppss))
                 call re_search_forward(F_STRING_START_RE, f, st, bound=limit, noerror=SEARCH_MOVE)
                 if (.not. st%ok() .or. f <= 0) exit
                 ppss = ppss_here()
@@ -1058,7 +1062,7 @@ contains
             ! default function.
             opoint = point()
             call goto_char(ppss%comstr_start)
-            call forward_sexp_default_function(1_int64, st)
+            call forward_expression_default_function(1_int64, st)
 
             if (st%ok()) then
                 send = min(limit, point() - 1)
@@ -1077,10 +1081,10 @@ contains
                     call goto_char(point() + 1)
                 else
                     beg = match_beginning(0, st)
-                    saved_ignore = parse_sexp_ignore_comments%value
-                    parse_sexp_ignore_comments%value = .false.
-                    pos = scan_lists(point(), 1_int64, 1_int64, st)
-                    parse_sexp_ignore_comments%value = saved_ignore
+                    saved_ignore = parse_expression_ignore_comments%value
+                    parse_expression_ignore_comments%value = .false.
+                    pos = scan_groups(point(), 1_int64, 1_int64, st)
+                    parse_expression_ignore_comments%value = saved_ignore
 
                     if (st%ok() .and. pos > 0) then
                         end = min(send, pos)
@@ -1089,7 +1093,7 @@ contains
                     end if
 
                     call goto_char(end)
-                    call put_text_property(beg, end, sym("face"), nil(), st)
+                    call put_text_property(beg, end, value_type(name="face"), value_type(), st)
                 end if
             end do
 
@@ -1313,11 +1317,11 @@ contains
             ! convincing `syntax-ppss-flush-cache' to flush to before
             ! that fence when any char of the 3-char delimiter
             ! is modified.
-            call put_text_property(quote_ending_pos - 1, quote_ending_pos, sym("syntax_table"), fence(), st)
+            call put_text_property(quote_ending_pos - 1, quote_ending_pos, value_type(name="syntax_table"), fence(), st)
         else
             ! This set of quotes delimit the end of a string.  Put
             ! string fence syntax on first quote. (bug#49518)
-            call put_text_property(quote_starting_pos, quote_starting_pos + 1, sym("syntax_table"), fence(), &
+            call put_text_property(quote_starting_pos, quote_starting_pos + 1, value_type(name="syntax_table"), fence(), &
                                    st)
         end if
     end subroutine python_syntax_stringify
@@ -1338,10 +1342,10 @@ contains
     ! Navigation
     ! ------------------------------------------------------------------
 
-    ! Internal implementation of `python_nav_beginning_of_defun'.
+    ! Internal implementation of `python_nav_beginning_of_definition'.
     ! With positive ARG search backwards, else search forwards.  Port of
     ! python.el:python-nav--beginning-of-defun.
-    recursive logical function nav_beginning_of_defun_1(arg_in) result(found)
+    recursive logical function nav_beginning_of_subprogram_1(arg_in) result(found)
         integer(int64), intent(in) :: arg_in
         integer(int64) :: arg, line_beg_pos, line_content_start, pos, min_indentation, body_indentation, f, opoint
         logical :: backward, more
@@ -1354,7 +1358,7 @@ contains
         line_content_start = line_beg_pos + current_indentation()
         pos = point()
 
-        if (python_info_current_line_empty_p()) then
+        if (is_python_info_current_line_empty()) then
             min_indentation = huge(1_int64)
         else
             min_indentation = current_indentation()
@@ -1363,7 +1367,7 @@ contains
         body_indentation = 0
 
         if (arg > 0) then
-            if (python_info_looking_at_beginning_of_defun(check_statement=.true.)) then
+            if (python_info_looking_at_beginning_of_definition(check_statement=.true.)) then
                 opoint = point()
                 f = python_nav_beginning_of_statement()
                 body_indentation = current_indentation() + python_indent_offset%value
@@ -1373,13 +1377,13 @@ contains
 
                 do
                     if (python_nav_backward_block() == 0) exit
-                    more = .not. python_info_looking_at_beginning_of_defun()
+                    more = .not. python_info_looking_at_beginning_of_definition()
                     if (.not. more) more = current_indentation() >= min_indentation
                     if (.not. more) exit
                     min_indentation = min(min_indentation, current_indentation())
                 end do
 
-                if (python_info_looking_at_beginning_of_defun()) then
+                if (python_info_looking_at_beginning_of_definition()) then
                     body_indentation = current_indentation() + python_indent_offset%value
                 else
                     body_indentation = 0
@@ -1389,35 +1393,35 @@ contains
             end if
         end if
 
-        if (python_info_looking_at_beginning_of_defun(check_statement=.true.)) then
-            ! If looking at beginning of defun, and if
+        if (python_info_looking_at_beginning_of_definition(check_statement=.true.)) then
+            ! If looking at beginning of subprogram, and if
             ! pos is > line-content-start, ensure a
-            ! backward re search match this defun by
+            ! backward re search match this subprogram by
             ! going to end of line before calling
             ! re-search-fn bug#40563
             if (arg < 0) then
                 f = python_nav_end_of_statement()
-            else if (python_info_continuation_line_p() > 0 .or. pos > line_content_start) then
+            else if (is_python_info_continuation_line() > 0 .or. pos > line_content_start) then
                 f = python_nav_end_of_statement()
             end if
         end if
 
         do
             if (backward) then
-                call re_search_backward(python_nav_beginning_of_defun_regexp, f, st, noerror=SEARCH_NOERROR)
+                call re_search_backward(python_nav_beginning_of_definition_regexp, f, st, noerror=SEARCH_NOERROR)
             else
-                call re_search_forward(python_nav_beginning_of_defun_regexp, f, st, noerror=SEARCH_NOERROR)
+                call re_search_forward(python_nav_beginning_of_definition_regexp, f, st, noerror=SEARCH_NOERROR)
             end if
 
             if (.not. st%ok() .or. f <= 0) exit
             if (python_syntax_context_type() /= 0) cycle
-            ! Handle nested defuns when moving backwards by checking
+            ! Handle nested subprograms when moving backwards by checking
             ! indentation.
             if (arg > 0 .and. current_indentation() /= 0 .and. current_indentation() >= body_indentation) cycle
             exit
         end do
 
-        found = python_info_looking_at_beginning_of_defun(check_statement=.true.)
+        found = python_info_looking_at_beginning_of_definition(check_statement=.true.)
 
         if (found) then
             found = line_number_at_pos(pos) /= line_number_at_pos()
@@ -1430,16 +1434,16 @@ contains
         else
             call goto_char(pos)
         end if
-    end function nav_beginning_of_defun_1
+    end function nav_beginning_of_subprogram_1
 
-    !> Move point to `beginning_of_defun'.
+    !> Move point to `beginning_of_subprogram'.
     !> With positive ARG search backwards else search forward.
     !> ARG 0 defaults to 1.  When searching backwards,
-    !> nested defuns are handled with care depending on current
+    !> nested subprograms are handled with care depending on current
     !> point position.  Return true if point is moved to
-    !> `beginning_of_defun'.  Port of python.el:python-nav-beginning-of-defun
-    !> (the `beginning_of_defun_function' of Python mode).
-    recursive subroutine python_nav_beginning_of_defun(arg_in, found, status)
+    !> `beginning_of_subprogram'.  Port of python.el:python-nav-beginning-of-defun
+    !> (the `beginning_of_subprogram_function' of Python mode).
+    recursive subroutine python_nav_beginning_of_definition(arg_in, found, status)
         integer(int64), intent(in) :: arg_in
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -1451,7 +1455,7 @@ contains
         found = .false.
 
         do while (arg /= 0)
-            if (.not. nav_beginning_of_defun_1(arg)) exit
+            if (.not. nav_beginning_of_subprogram_1(arg)) exit
             found = .true.
 
             if (arg > 0) then
@@ -1460,36 +1464,36 @@ contains
                 arg = arg + 1
             end if
         end do
-    end subroutine python_nav_beginning_of_defun
+    end subroutine python_nav_beginning_of_definition
 
     ! (python-nav-beginning-of-defun ARG) as a function.
     ! Not a port.
-    recursive logical function nav_beginning_of_defun(arg) result(found)
+    recursive logical function nav_beginning_of_subprogram(arg) result(found)
         integer(int64), intent(in) :: arg
         type(status_type) :: st
 
-        call python_nav_beginning_of_defun(arg, found, st)
-    end function nav_beginning_of_defun
+        call python_nav_beginning_of_definition(arg, found, st)
+    end function nav_beginning_of_subprogram
 
     !> Move point to the end of def or class.
     !> Returns false if point is not in a def or class.  Port of
     !> python.el:python-nav-end-of-defun.
-    recursive logical function python_nav_end_of_defun() result(moved)
-        integer(int64) :: beg_defun_indent, beg_pos, f, shortage
+    recursive logical function python_nav_end_of_definition() result(moved)
+        integer(int64) :: beg_subprogram_indent, beg_pos, f, shortage
         logical :: ok, dummy
 
         beg_pos = point()
         moved = .false.
-        ok = python_info_looking_at_beginning_of_defun()
-        if (.not. ok) ok = nav_beginning_of_defun(1_int64)
-        if (.not. ok) ok = nav_beginning_of_defun(-1_int64)
+        ok = python_info_looking_at_beginning_of_definition()
+        if (.not. ok) ok = nav_beginning_of_subprogram(1_int64)
+        if (.not. ok) ok = nav_beginning_of_subprogram(-1_int64)
         if (.not. ok) return
-        beg_defun_indent = current_indentation()
+        beg_subprogram_indent = current_indentation()
 
         do
             f = python_nav_end_of_statement()
             dummy = python_util_forward_comment(1)
-            if (.not. (current_indentation() > beg_defun_indent .and. .not. eobp())) exit
+            if (.not. (current_indentation() > beg_subprogram_indent .and. .not. is_eob())) exit
         end do
 
         dummy = python_util_forward_comment(-1)
@@ -1499,17 +1503,17 @@ contains
         ! Return non-nil if we did something (because then we were in a
         ! def/class).
         moved = beg_pos /= point()
-    end function python_nav_end_of_defun
+    end function python_nav_end_of_definition
 
-    ! `python_nav_end_of_defun' as `end_of_defun_function'.
+    ! `python_nav_end_of_definition' as `end_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine python_nav_end_of_defun_function(status)
+    recursive subroutine python_nav_end_of_definition_function(status)
         type(status_type), intent(out) :: status
         logical :: moved
 
         status = status_type()
-        moved = python_nav_end_of_defun()
-    end subroutine python_nav_end_of_defun_function
+        moved = python_nav_end_of_definition()
+    end subroutine python_nav_end_of_definition_function
 
     ! Move point using FN avoiding places within comments, strings or
     ! parens: return the position (0 if none) where FN moved to out of
@@ -1555,27 +1559,27 @@ contains
     end function nav_syntactically
 
     ! Port of python.el:python-nav--forward-defun (in part: its forward search).
-    recursive logical function search_defun_forward()
+    recursive logical function search_subprogram_forward()
         integer(int64) :: f
         type(status_type) :: st
 
-        call re_search_forward(python_nav_beginning_of_defun_regexp, f, st, noerror=SEARCH_NOERROR)
-        search_defun_forward = st%ok() .and. f > 0
-    end function search_defun_forward
+        call re_search_forward(python_nav_beginning_of_definition_regexp, f, st, noerror=SEARCH_NOERROR)
+        search_subprogram_forward = st%ok() .and. f > 0
+    end function search_subprogram_forward
 
     ! Port of python.el:python-nav--forward-defun (in part: its backward search).
-    recursive logical function search_defun_backward()
+    recursive logical function search_subprogram_backward()
         integer(int64) :: f
         type(status_type) :: st
 
-        call re_search_backward(python_nav_beginning_of_defun_regexp, f, st, noerror=SEARCH_NOERROR)
-        search_defun_backward = st%ok() .and. f > 0
-    end function search_defun_backward
+        call re_search_backward(python_nav_beginning_of_definition_regexp, f, st, noerror=SEARCH_NOERROR)
+        search_subprogram_backward = st%ok() .and. f > 0
+    end function search_subprogram_backward
 
-    ! Internal implementation of python-nav-{backward,forward}-defun.
+    ! Internal implementation of python-nav-{backward,forward}-subprogram.
     ! Uses ARG to define which function to call, and how many times
     ! repeat it.  Port of python.el:python-nav--forward-defun.
-    recursive integer(int64) function nav_forward_defun(arg_in) result(found)
+    recursive integer(int64) function nav_forward_subprogram(arg_in) result(found)
         integer(int64), intent(in) :: arg_in
         integer(int64) :: arg
 
@@ -1583,35 +1587,35 @@ contains
         found = 0
 
         do while (arg > 0)
-            found = nav_syntactically(search_defun_forward, 1)
+            found = nav_syntactically(search_subprogram_forward, 1)
             if (found == 0) exit
             arg = arg - 1
         end do
 
         do while (arg < 0)
-            found = nav_syntactically(search_defun_backward, -1)
+            found = nav_syntactically(search_subprogram_backward, -1)
             if (found == 0) exit
             arg = arg + 1
         end do
-    end function nav_forward_defun
+    end function nav_forward_subprogram
 
-    !> Navigate to closer defun backward ARG times.
-    !> Unlikely `python_nav_beginning_of_defun' this doesn't care about
+    !> Navigate to closer subprogram backward ARG times.
+    !> Unlikely `python_nav_beginning_of_definition' this doesn't care about
     !> nested definitions.  Port of python.el:python-nav-backward-defun.
-    recursive integer(int64) function python_nav_backward_defun(arg) result(found)
+    recursive integer(int64) function python_nav_backward_definition(arg) result(found)
         integer(int64), intent(in) :: arg
 
-        found = nav_forward_defun(-arg)
-    end function python_nav_backward_defun
+        found = nav_forward_subprogram(-arg)
+    end function python_nav_backward_definition
 
-    !> Navigate to closer defun forward ARG times.
-    !> Unlikely `python_nav_beginning_of_defun' this doesn't care about
+    !> Navigate to closer subprogram forward ARG times.
+    !> Unlikely `python_nav_beginning_of_definition' this doesn't care about
     !> nested definitions.  Port of python.el:python-nav-forward-defun.
-    recursive integer(int64) function python_nav_forward_defun(arg) result(found)
+    recursive integer(int64) function python_nav_forward_definition(arg) result(found)
         integer(int64), intent(in) :: arg
 
-        found = nav_forward_defun(arg)
-    end function python_nav_forward_defun
+        found = nav_forward_subprogram(arg)
+    end function python_nav_forward_definition
 
     !> Move to start of current statement.  Port of
     !> python.el:python-nav-beginning-of-statement.
@@ -1625,7 +1629,7 @@ contains
         context_point = python_syntax_context(PYTHON_CONTEXT_PAREN, ppss)
         if (context_point == 0) context_point = python_syntax_context(PYTHON_CONTEXT_STRING, ppss)
 
-        if (bobp()) then
+        if (is_bob()) then
             continue
         else if (context_point > 0) then
             call goto_char(context_point)
@@ -1633,7 +1637,7 @@ contains
         else
             opoint = point()
             shortage = forward_line(-1_int64)
-            continued = python_info_line_ends_backslash_p() > 0
+            continued = is_python_info_line_ends_backslash() > 0
             call goto_char(opoint)
 
             if (continued) then
@@ -1665,7 +1669,7 @@ contains
 
         do
             if (.not. no_end) call goto_char(line_end_position())
-            if (eobp()) exit
+            if (is_eob()) exit
             string_start = python_syntax_context(PYTHON_CONTEXT_STRING)
 
             if (string_start > 0) then
@@ -1699,7 +1703,7 @@ contains
                         end do
                     else
                         call goto_char(string_start)
-                        call nav_lisp_forward_sexp(1_int64, st)
+                        call nav_lisp_forward_expression(1_int64, st)
                         found = st%ok()
                     end if
 
@@ -1709,7 +1713,7 @@ contains
             else if (python_syntax_context(PYTHON_CONTEXT_PAREN) > 0) then
                 ! The statement won't end before we've escaped
                 ! at least one level of parenthesis.
-                p = scan_lists(point(), 1_int64, -1_int64, st)
+                p = scan_groups(point(), 1_int64, -1_int64, st)
 
                 if (st%ok()) then
                     call goto_char(p)
@@ -1718,7 +1722,7 @@ contains
                     call goto_char(end)
                 end if
             else
-                bs_pos = python_info_line_ends_backslash_p()
+                bs_pos = is_python_info_line_ends_backslash()
                 if (bs_pos == 0) exit
                 call goto_char(bs_pos)
                 shortage = forward_line(1_int64)
@@ -1890,9 +1894,9 @@ contains
 
         ! Go to first line beginning a statement
         do
-            if (bobp()) exit
+            if (is_bob()) exit
             p = python_nav_beginning_of_statement()
-            if (.not. (python_info_current_line_comment_p() .or. python_info_current_line_empty_p())) exit
+            if (.not. (is_python_info_current_line_comment() .or. is_python_info_current_line_empty())) exit
             shortage = forward_line(-1_int64)
         end do
 
@@ -1950,14 +1954,14 @@ contains
 
         do
             shortage = forward_line(1_int64)
-            if (eobp()) exit
+            if (is_eob()) exit
 
             if (current_indentation() > block_indentation) then
                 p = python_nav_end_of_statement()
                 cycle
             end if
 
-            if (python_info_current_line_comment_p() .or. python_info_current_line_empty_p()) cycle
+            if (is_python_info_current_line_comment() .or. is_python_info_current_line_empty()) cycle
             exit
         end do
 
@@ -2024,33 +2028,33 @@ contains
         end if
     end function python_nav_forward_block
 
-    ! Standard version `forward_sexp'.
-    ! It ignores completely the value of `forward_sexp_function' by
-    ! setting it to nil before calling `forward_sexp'.  With positive
-    ! ARG move forward only one sexp, else move backwards.  Port of
+    ! Standard version `forward_expression'.
+    ! It ignores completely the value of `forward_expression_function' by
+    ! setting it to nil before calling `forward_expression'.  With positive
+    ! ARG move forward only one expression, else move backwards.  Port of
     ! python.el:python-nav--lisp-forward-sexp.
-    recursive subroutine nav_lisp_forward_sexp(arg, status)
+    recursive subroutine nav_lisp_forward_expression(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
         if (arg > 0) then
-            call forward_sexp_default_function(1_int64, status)
+            call forward_expression_default_function(1_int64, status)
         else
-            call forward_sexp_default_function(-1_int64, status)
+            call forward_expression_default_function(-1_int64, status)
         end if
-    end subroutine nav_lisp_forward_sexp
+    end subroutine nav_lisp_forward_expression
 
-    ! Safe version of standard `forward_sexp'.
-    ! When at end of sexp (i.e. looking at an opening/closing paren)
+    ! Safe version of standard `forward_expression'.
+    ! When at end of expression (i.e. looking at an opening/closing paren)
     ! skips it instead of throwing an error.  With positive ARG move
-    ! forward only one sexp, else move backwards.  Port of
+    ! forward only one expression, else move backwards.  Port of
     ! python.el:python-nav--lisp-forward-sexp-safe.
-    recursive subroutine nav_lisp_forward_sexp_safe(arg)
+    recursive subroutine nav_lisp_forward_expression_safe(arg)
         integer(int64), intent(in) :: arg
         integer(int64) :: f
         type(status_type) :: st
 
-        call nav_lisp_forward_sexp(arg, st)
+        call nav_lisp_forward_expression(arg, st)
         if (st%ok()) return
 
         do
@@ -2063,7 +2067,7 @@ contains
             if (.not. st%ok() .or. f <= 0) exit
             if (python_syntax_context(PYTHON_CONTEXT_PAREN) == 0) exit
         end do
-    end subroutine nav_lisp_forward_sexp_safe
+    end subroutine nav_lisp_forward_expression_safe
 
     ! The syntax class of the character at POS (syntax-class (syntax-after
     ! POS)), -1 if none.
@@ -2091,45 +2095,45 @@ contains
         class_of = iand(d%code, 65535)
     end function class_of
 
-    ! The kinds of place `nav_forward_sexp_1' tells apart.
+    ! The kinds of place `nav_forward_expression_1' tells apart.
     ! Port of python.el:python-nav--forward-sexp (in part: its context tests).
-    recursive integer function sexp_context(next)
+    recursive integer function expression_context(next)
         logical, intent(in) :: next
 
-        sexp_context = 0
+        expression_context = 0
 
-        if (python_info_beginning_of_block_p()) then
-            sexp_context = 1
-        else if (python_info_end_of_block_p()) then
-            sexp_context = 2
-        else if (python_info_beginning_of_statement_p()) then
-            sexp_context = 3
-        else if (python_info_end_of_statement_p()) then
-            sexp_context = 4
+        if (is_python_info_beginning_of_block()) then
+            expression_context = 1
+        else if (is_python_info_end_of_block()) then
+            expression_context = 2
+        else if (is_python_info_beginning_of_statement()) then
+            expression_context = 3
+        else if (is_python_info_end_of_statement()) then
+            expression_context = 4
         else if (next) then
-            if (python_info_statement_starts_block_p()) then
-                sexp_context = 5
-            else if (python_info_statement_ends_block_p()) then
-                sexp_context = 6
+            if (is_python_info_statement_starts_block()) then
+                expression_context = 5
+            else if (is_python_info_statement_ends_block()) then
+                expression_context = 6
             end if
         end if
-    end function sexp_context
+    end function expression_context
 
-    ! Move to forward sexp.
+    ! Move to forward expression.
     ! With positive optional argument DIR direction move forward, else
     ! backwards.  When optional argument SAFE is true do not throw
-    ! errors when at end of sexp, skip it instead.  With optional
-    ! argument SKIP_PARENS_P force sexp motion to ignore parenthesized
+    ! errors when at end of expression, skip it instead.  With optional
+    ! argument SKIP_PARENS_P force expression motion to ignore parenthesized
     ! expressions when looking at them in either direction.  Port of
     ! python.el:python-nav--forward-sexp.
-    recursive subroutine nav_forward_sexp_1(dir_in, safe, skip_parens_p, status)
+    recursive subroutine nav_forward_expression_1(dir_in, safe, skip_parens_p, status)
         integer(int64), intent(in) :: dir_in
         logical, intent(in) :: safe, skip_parens_p
         type(status_type), intent(out) :: status
         integer(int64), parameter :: BLOCK_START = 1, BLOCK_END = 2, STATEMENT_START = 3, STATEMENT_END = 4, &
                                      STARTS_BLOCK = 5, ENDS_BLOCK = 6
-        integer(int64) :: dir, next_sexp_pos, opoint, p
-        integer :: context_type, context, next_sexp_context
+        integer(int64) :: dir, next_expression_pos, opoint, p
+        integer :: context_type, context, next_expression_context
         logical :: forward_p, at_paren, dummy
 
         status = status_type()
@@ -2146,7 +2150,7 @@ contains
 
         if (context_type == PYTHON_CONTEXT_STRING .or. context_type == PYTHON_CONTEXT_COMMENT) then
             ! Inside of a string, get out of it.
-            call forward_sexp_default_function(dir, status)
+            call forward_expression_default_function(dir, status)
             return
         end if
 
@@ -2163,9 +2167,9 @@ contains
         if (.not. skip_parens_p .and. at_paren) then
             ! Inside a paren or looking at it, lisp knows what to do.
             if (safe) then
-                call nav_lisp_forward_sexp_safe(dir)
+                call nav_lisp_forward_expression_safe(dir)
             else
-                call nav_lisp_forward_sexp(dir, status)
+                call nav_lisp_forward_expression(dir, status)
             end if
 
             return
@@ -2173,76 +2177,76 @@ contains
 
         ! This part handles the lispy feel of
         ! `python-nav-forward-sexp'.  Knowing everything about the
-        ! current context and the context of the next sexp tries to
-        ! follow the lisp sexp motion commands in a symmetric manner.
-        context = sexp_context(.false.)
+        ! current context and the context of the next expression tries to
+        ! follow the lisp expression motion commands in a symmetric manner.
+        context = expression_context(.false.)
         opoint = point()
 
         if (safe) then
-            call nav_lisp_forward_sexp_safe(dir)
+            call nav_lisp_forward_expression_safe(dir)
         else
-            call nav_lisp_forward_sexp(dir, status)
+            call nav_lisp_forward_expression(dir, status)
         end if
 
-        next_sexp_pos = point()
+        next_expression_pos = point()
         call goto_char(opoint)
         if (.not. status%ok()) return
-        call goto_char(next_sexp_pos)
-        next_sexp_context = sexp_context(.true.)
+        call goto_char(next_expression_pos)
+        next_expression_context = expression_context(.true.)
         call goto_char(opoint)
 
         if (forward_p) then
-            if (.not. eobp() .and. python_info_current_line_empty_p()) then
+            if (.not. is_eob() .and. is_python_info_current_line_empty()) then
                 dummy = python_util_forward_comment(int(dir))
-                call nav_forward_sexp_1(dir, safe, skip_parens_p, status)
+                call nav_forward_expression_1(dir, safe, skip_parens_p, status)
             else if (context == BLOCK_START) then
                 p = python_nav_end_of_block()
             else if (context == STATEMENT_START) then
                 p = python_nav_end_of_statement()
-            else if ((context == STATEMENT_END .or. context == BLOCK_END) .and. next_sexp_context == ENDS_BLOCK) then
-                call goto_char(next_sexp_pos)
+            else if ((context == STATEMENT_END .or. context == BLOCK_END) .and. next_expression_context == ENDS_BLOCK) then
+                call goto_char(next_expression_pos)
                 p = python_nav_end_of_block()
-            else if ((context == STATEMENT_END .or. context == BLOCK_END) .and. next_sexp_context == STARTS_BLOCK) then
-                call goto_char(next_sexp_pos)
+            else if ((context == STATEMENT_END .or. context == BLOCK_END) .and. next_expression_context == STARTS_BLOCK) then
+                call goto_char(next_expression_pos)
                 p = python_nav_end_of_block()
             else if (context == STATEMENT_END .or. context == BLOCK_END) then
-                call goto_char(next_sexp_pos)
+                call goto_char(next_expression_pos)
                 p = python_nav_end_of_statement()
             else
-                call goto_char(next_sexp_pos)
+                call goto_char(next_expression_pos)
             end if
         else
-            if (.not. bobp() .and. python_info_current_line_empty_p()) then
+            if (.not. is_bob() .and. is_python_info_current_line_empty()) then
                 dummy = python_util_forward_comment(int(dir))
-                call nav_forward_sexp_1(dir, safe, skip_parens_p, status)
+                call nav_forward_expression_1(dir, safe, skip_parens_p, status)
             else if (context == BLOCK_END) then
                 p = python_nav_beginning_of_block()
             else if (context == STATEMENT_END) then
                 p = python_nav_beginning_of_statement()
-            else if ((context == STATEMENT_START .or. context == BLOCK_START) .and. next_sexp_context == STARTS_BLOCK) then
-                call goto_char(next_sexp_pos)
+            else if ((context == STATEMENT_START .or. context == BLOCK_START) .and. next_expression_context == STARTS_BLOCK) then
+                call goto_char(next_expression_pos)
                 p = python_nav_beginning_of_block()
-            else if ((context == STATEMENT_START .or. context == BLOCK_START) .and. next_sexp_context == ENDS_BLOCK) then
-                call goto_char(next_sexp_pos)
+            else if ((context == STATEMENT_START .or. context == BLOCK_START) .and. next_expression_context == ENDS_BLOCK) then
+                call goto_char(next_expression_pos)
                 p = python_nav_beginning_of_block()
             else if (context == STATEMENT_START .or. context == BLOCK_START) then
-                call goto_char(next_sexp_pos)
+                call goto_char(next_expression_pos)
                 p = python_nav_beginning_of_statement()
             else
-                call goto_char(next_sexp_pos)
+                call goto_char(next_expression_pos)
             end if
         end if
-    end subroutine nav_forward_sexp_1
+    end subroutine nav_forward_expression_1
 
     !> Move forward across expressions.
     !> With ARG, do it that many times.  Negative arg -N means move
-    !> backward N times.  When optional argument SAFE is true do not
-    !> throw errors when at end of sexp, skip it instead.  With optional
-    !> argument SKIP_PARENS_P force sexp motion to ignore parenthesized
+    !> backward N times.  When optional argument SAFE is true, no error
+    !> condition occurs at the end of an expression: it is skipped.  With optional
+    !> argument SKIP_PARENS_P force expression motion to ignore parenthesized
     !> expressions when looking at them in either direction (forced to true
     !> in interactive calls).  Port of python.el:python-nav-forward-sexp
-    !> (the default `python_forward_sexp_function').
-    recursive subroutine python_nav_forward_sexp(arg_in, status, safe, skip_parens_p)
+    !> (the default `python_forward_expression_function').
+    recursive subroutine python_nav_forward_expression(arg_in, status, safe, skip_parens_p)
         integer(int64), intent(in) :: arg_in
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: safe, skip_parens_p
@@ -2264,84 +2268,85 @@ contains
         ! `blink-matching-open' get confused causing issues like the one in
         ! Bug#16191.  With this approach the user gets a symmetric behavior
         ! when working interactively while called functions expecting
-        ! paren-based sexp motion work just fine.
+        ! paren-based expression motion work just fine.
         if (.not. skip) then
-            skip = value_eq(real_this_command, sym("forward_sexp")) .or. value_eq(real_this_command, sym("backward_sexp")) &
-                   .or. value_eq(real_this_command, sym("python_nav_forward_sexp")) &
-                   .or. value_eq(real_this_command, sym("python_nav_backward_sexp")) &
-                   .or. value_eq(real_this_command, sym("python_nav_forward_sexp_safe"))
+            skip = value_eq(real_this_command, value_type(name="forward_expression")) .or. value_eq(real_this_command, &
+                                                                                           value_type(name="backward_expression")) &
+                   .or. value_eq(real_this_command, value_type(name="python_nav_forward_expression")) &
+                   .or. value_eq(real_this_command, value_type(name="python_nav_backward_expression")) &
+                   .or. value_eq(real_this_command, value_type(name="python_nav_forward_expression_safe"))
         end if
 
         do while (arg > 0)
-            call nav_forward_sexp_1(1_int64, sf, skip, status)
+            call nav_forward_expression_1(1_int64, sf, skip, status)
             if (.not. status%ok()) return
             arg = arg - 1
         end do
 
         do while (arg < 0)
-            call nav_forward_sexp_1(-1_int64, sf, skip, status)
+            call nav_forward_expression_1(-1_int64, sf, skip, status)
             if (.not. status%ok()) return
             arg = arg + 1
         end do
-    end subroutine python_nav_forward_sexp
+    end subroutine python_nav_forward_expression
 
     ! (python-nav-forward-sexp ARG) as the default
-    ! `python_forward_sexp_function'.
+    ! `python_forward_expression_function'.
     ! Not a port.
-    recursive subroutine nav_forward_sexp_default(arg, status)
+    recursive subroutine nav_forward_expression_default(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        call python_nav_forward_sexp(arg, status)
-    end subroutine nav_forward_sexp_default
+        call python_nav_forward_expression(arg, status)
+    end subroutine nav_forward_expression_default
 
     !> Move backward across expressions.
     !> With ARG, do it that many times.  Negative arg -N means move
-    !> forward N times.  When optional argument SAFE is true do not
-    !> throw errors when at end of sexp, skip it instead.  With optional
-    !> argument SKIP_PARENS_P force sexp motion to ignore parenthesized
+    !> forward N times.  When optional argument SAFE is true, no error
+    !> condition occurs at the end of an expression: it is skipped.  With optional
+    !> argument SKIP_PARENS_P force expression motion to ignore parenthesized
     !> expressions when looking at them in either direction (forced to true
     !> in interactive calls).  Port of python.el:python-nav-backward-sexp.
-    recursive subroutine python_nav_backward_sexp(arg, status, safe, skip_parens_p)
+    recursive subroutine python_nav_backward_expression(arg, status, safe, skip_parens_p)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: safe, skip_parens_p
 
-        call python_nav_forward_sexp(-arg, status, safe, skip_parens_p)
-    end subroutine python_nav_backward_sexp
+        call python_nav_forward_expression(-arg, status, safe, skip_parens_p)
+    end subroutine python_nav_backward_expression
 
     !> Move forward safely across expressions.
     !> With ARG, do it that many times.  Negative arg -N means move
     !> backward N times.  With optional argument SKIP_PARENS_P force
-    !> sexp motion to ignore parenthesized expressions when looking at
+    !> expression motion to ignore parenthesized expressions when looking at
     !> them in either direction (forced to true in interactive calls).
     !> Port of python.el:python-nav-forward-sexp-safe.
-    recursive subroutine python_nav_forward_sexp_safe(arg, status, skip_parens_p)
+    recursive subroutine python_nav_forward_expression_safe(arg, status, skip_parens_p)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: skip_parens_p
 
-        call python_nav_forward_sexp(arg, status, .true., skip_parens_p)
-    end subroutine python_nav_forward_sexp_safe
+        call python_nav_forward_expression(arg, status, .true., skip_parens_p)
+    end subroutine python_nav_forward_expression_safe
 
     !> Move backward safely across expressions.
     !> With ARG, do it that many times.  Negative arg -N means move
-    !> forward N times.  With optional argument SKIP_PARENS_P force sexp
+    !> forward N times.  With optional argument SKIP_PARENS_P force expression
     !> motion to ignore parenthesized expressions when looking at them in
     !> either direction (forced to true in interactive calls).  Port of
     !> python.el:python-nav-backward-sexp-safe.
-    recursive subroutine python_nav_backward_sexp_safe(arg, status, skip_parens_p)
+    recursive subroutine python_nav_backward_expression_safe(arg, status, skip_parens_p)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: skip_parens_p
 
-        call python_nav_backward_sexp(arg, status, .true., skip_parens_p)
-    end subroutine python_nav_backward_sexp_safe
+        call python_nav_backward_expression(arg, status, .true., skip_parens_p)
+    end subroutine python_nav_backward_expression_safe
 
-    ! Internal implementation of `python_nav_up_list'.
+    ! Internal implementation of `python_nav_up_group'.
     ! DIR is always 1 or -1 and comes sanitized from
-    ! `python_nav_up_list' calls.  Port of python.el:python-nav--up-list.
-    recursive subroutine nav_up_list_1(dir, status)
+    ! `python_nav_up_group' calls.  Port of python.el:python-nav--up-list.
+    recursive subroutine nav_up_group_1(dir, status)
         integer(int64), intent(in) :: dir
         type(status_type), intent(out) :: status
         integer(int64) :: parent_end_pos, opoint, indentation, prev_block_pos, p
@@ -2355,8 +2360,8 @@ contains
         if (context == PYTHON_CONTEXT_STRING .or. context == PYTHON_CONTEXT_COMMENT) then
             continue
         else if (context == PYTHON_CONTEXT_PAREN) then
-            call up_list_default(dir, status)
-        else if (forward_p .and. python_info_end_of_block_p()) then
+            call up_group_default(dir, status)
+        else if (forward_p .and. is_python_info_end_of_block()) then
             opoint = point()
             indentation = 0
             if (python_nav_beginning_of_block() > 0) indentation = current_indentation()
@@ -2371,7 +2376,7 @@ contains
             if (parent_end_pos > point()) call goto_char(parent_end_pos)
         else if (forward_p) then
             p = python_nav_end_of_block()
-        else if (.not. forward_p .and. current_indentation() > 0 .and. python_info_beginning_of_block_p()) then
+        else if (.not. forward_p .and. current_indentation() > 0 .and. is_python_info_beginning_of_block()) then
             opoint = point()
             indentation = current_indentation()
 
@@ -2386,17 +2391,17 @@ contains
         else if (.not. forward_p) then
             p = python_nav_beginning_of_block()
         end if
-    end subroutine nav_up_list_1
+    end subroutine nav_up_group_1
 
     ! (let ((forward-sexp-function)) (up-list DIR)): up-list-default-function
-    ! without a `forward_sexp_function'.
+    ! without a `forward_expression_function'.
     ! Not a port.
-    recursive subroutine up_list_default(dir, status)
+    recursive subroutine up_group_default(dir, status)
         integer(int64), intent(in) :: dir
         type(status_type), intent(out) :: status
         integer(int64) :: pos
 
-        pos = scan_lists(point(), dir, 1_int64, status)
+        pos = scan_groups(point(), dir, 1_int64, status)
         if (.not. status%ok()) return
 
         if (pos == 0) then
@@ -2408,14 +2413,14 @@ contains
         end if
 
         call goto_char(pos)
-    end subroutine up_list_default
+    end subroutine up_group_default
 
     !> Move forward out of one level of parentheses (or blocks).
     !> With ARG, do this that many times.
     !> A negative argument means move backward but still to a less deep spot.
     !> This command assumes point is not in a string or comment.  Port of
     !> python.el:python-nav-up-list.
-    recursive subroutine python_nav_up_list(arg_in, status)
+    recursive subroutine python_nav_up_group(arg_in, status)
         integer(int64), intent(in) :: arg_in
         type(status_type), intent(out) :: status
         integer(int64) :: arg
@@ -2424,29 +2429,29 @@ contains
         arg = arg_in
 
         do while (arg > 0)
-            call nav_up_list_1(1_int64, status)
+            call nav_up_group_1(1_int64, status)
             if (.not. status%ok()) return
             arg = arg - 1
         end do
 
         do while (arg < 0)
-            call nav_up_list_1(-1_int64, status)
+            call nav_up_group_1(-1_int64, status)
             if (.not. status%ok()) return
             arg = arg + 1
         end do
-    end subroutine python_nav_up_list
+    end subroutine python_nav_up_group
 
     !> Move backward out of one level of parentheses (or blocks).
     !> With ARG, do this that many times.
     !> A negative argument means move forward but still to a less deep spot.
     !> This command assumes point is not in a string or comment.  Port of
     !> python.el:python-nav-backward-up-list.
-    recursive subroutine python_nav_backward_up_list(arg, status)
+    recursive subroutine python_nav_backward_up_group(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        call python_nav_up_list(-arg, status)
-    end subroutine python_nav_backward_up_list
+        call python_nav_up_group(-arg, status)
+    end subroutine python_nav_backward_up_group
 
     !> Move point at the beginning the __main__ block.
     !> When "if __name__ == '__main__':" is found returns its
@@ -2478,12 +2483,12 @@ contains
     ! ------------------------------------------------------------------
 
     !> Return name of surrounding function with Python compatible dotty syntax
-    !> (NAME unallocated if point is not inside a defun).
-    !> Optional argument INCLUDE_TYPE indicates to include the type of the defun.
-    !> This function can be used as the value of `add_log_current_defun_function'
-    !> since it returns nothing if point is not inside a defun.  Port of
+    !> (NAME unallocated if point is not inside a subprogram).
+    !> Optional argument INCLUDE_TYPE indicates to include the type of the subprogram.
+    !> This function can be used as the value of `add_log_current_subprogram_function'
+    !> since it returns nothing if point is not inside a subprogram.  Port of
     !> python.el:python-info-current-defun.
-    recursive subroutine python_info_current_defun(name, include_type)
+    recursive subroutine python_info_current_definition(name, include_type)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(in), optional :: include_type
         type(string_list_type), allocatable :: names(:)
@@ -2511,7 +2516,7 @@ contains
         last_indent = 0
 
         do
-            if (.not. nav_beginning_of_defun(1_int64)) exit
+            if (.not. nav_beginning_of_subprogram(1_int64)) exit
             md = match_data()
             accept = .not. has_last
             if (.not. accept) accept = current_indentation() < last_indent
@@ -2521,13 +2526,13 @@ contains
 
                 if (first_run) then
                     ! If this is the first run, we may add
-                    ! the current defun at point.
+                    ! the current subprogram at point.
                     first_run = .false.
                     p = point()
                     call goto_char(starting_pos)
                     ending = python_nav_beginning_of_statement()
                     call beginning_of_line(1_int64)
-                    accept = looking_at(python_nav_beginning_of_defun_regexp, st)
+                    accept = looking_at(python_nav_beginning_of_definition_regexp, st)
                     call goto_char(p)
                 end if
 
@@ -2537,14 +2542,14 @@ contains
 
                     if (starting_indentation < min_indent) then
                         ! If the starting indentation is not
-                        ! within the min defun indent make the
+                        ! within the min subprogram indent make the
                         ! check fail.
                         ending = starting_pos
                     else
-                        ! Else go to the end of defun and add
+                        ! Else go to the end of subprogram and add
                         ! up the current indentation to the
                         ! ending position.
-                        moved = python_nav_end_of_defun()
+                        moved = python_nav_end_of_definition()
 
                         if (current_indentation() >= min_indent) then
                             ending = point() + 1 + current_indentation()
@@ -2644,11 +2649,11 @@ contains
 
             w2 = s(b:i - 1)
         end subroutine split2
-    end subroutine python_info_current_defun
+    end subroutine python_info_current_definition
 
     !> Return true if current statement opens a block.  Port of
     !> python.el:python-info-statement-starts-block-p.
-    recursive logical function python_info_statement_starts_block_p() result(starts)
+    recursive logical function is_python_info_statement_starts_block() result(starts)
         integer(int64) :: opoint, p
         type(status_type) :: st
 
@@ -2656,11 +2661,11 @@ contains
         p = python_nav_beginning_of_statement()
         starts = looking_at(BLOCK_START_RE, st)
         call goto_char(opoint)
-    end function python_info_statement_starts_block_p
+    end function is_python_info_statement_starts_block
 
     !> Return true if point is at end of block.  Port of
     !> python.el:python-info-statement-ends-block-p.
-    recursive logical function python_info_statement_ends_block_p() result(ends)
+    recursive logical function is_python_info_statement_ends_block() result(ends)
         integer(int64) :: opoint, current_statement, current_ind, next_statement, next_ind, end_of_statement_pos, &
                           end_of_block_pos
         logical :: dummy
@@ -2682,40 +2687,40 @@ contains
         end_of_block_pos = python_nav_end_of_block()
         call goto_char(opoint)
         ends = end_of_block_pos /= 0 .and. end_of_block_pos == end_of_statement_pos
-    end function python_info_statement_ends_block_p
+    end function is_python_info_statement_ends_block
 
     !> Return true if point is at beginning of statement.  Port of
     !> python.el:python-info-beginning-of-statement-p.
-    recursive logical function python_info_beginning_of_statement_p() result(p)
+    recursive logical function is_python_info_beginning_of_statement() result(p)
         integer(int64) :: opoint, b
 
         opoint = point()
         b = python_nav_beginning_of_statement()
         call goto_char(opoint)
         p = opoint == b
-    end function python_info_beginning_of_statement_p
+    end function is_python_info_beginning_of_statement
 
     !> Return true if point is at end of statement.  Port of
     !> python.el:python-info-end-of-statement-p.
-    recursive logical function python_info_end_of_statement_p() result(p)
+    recursive logical function is_python_info_end_of_statement() result(p)
         integer(int64) :: opoint, e
 
         opoint = point()
         e = python_nav_end_of_statement()
         call goto_char(opoint)
         p = opoint == e
-    end function python_info_end_of_statement_p
+    end function is_python_info_end_of_statement
 
     !> Return true if point is at beginning of block.  Port of
     !> python.el:python-info-beginning-of-block-p.
-    recursive logical function python_info_beginning_of_block_p() result(p)
-        p = python_info_beginning_of_statement_p()
-        if (p) p = python_info_statement_starts_block_p()
-    end function python_info_beginning_of_block_p
+    recursive logical function is_python_info_beginning_of_block() result(p)
+        p = is_python_info_beginning_of_statement()
+        if (p) p = is_python_info_statement_starts_block()
+    end function is_python_info_beginning_of_block
 
     !> Return true if point is at end of block.  Port of
     !> python.el:python-info-end-of-block-p.
-    recursive logical function python_info_end_of_block_p() result(p)
+    recursive logical function is_python_info_end_of_block() result(p)
         integer(int64) :: opoint, e
         logical :: dummy
 
@@ -2725,8 +2730,8 @@ contains
         e = point()
         call goto_char(opoint)
         p = opoint == e
-        if (p) p = python_info_statement_ends_block_p()
-    end function python_info_end_of_block_p
+        if (p) p = is_python_info_statement_ends_block()
+    end function is_python_info_end_of_block
 
     !> Return the point of the closest block the current line closes.
     !> Returns 0 if point is not on a dedenter statement or no opening
@@ -2794,7 +2799,7 @@ contains
 
         allocate (opening_blocks(0), collected(0))
         opoint = point()
-        dedenter_pos = python_info_dedenter_statement_p()
+        dedenter_pos = is_python_info_dedenter_statement()
 
         if (dedenter_pos > 0) then
             call goto_char(dedenter_pos)
@@ -2820,8 +2825,8 @@ contains
                     no_back_indent = .true.
 
                     do while (point() < cur_line)
-                        no_back_indent = current_indentation() > indentation .or. python_info_current_line_empty_p() &
-                                         .or. python_info_current_line_comment_p()
+                        no_back_indent = current_indentation() > indentation .or. is_python_info_current_line_empty() &
+                                         .or. is_python_info_current_line_comment()
                         if (.not. no_back_indent) exit
                         shortage = forward_line(1_int64)
                     end do
@@ -2889,7 +2894,7 @@ contains
     !> Return point if current statement is a dedenter (0 if not).
     !> Sets `match_data' to the keyword that starts the dedenter
     !> statement.  Port of python.el:python-info-dedenter-statement-p.
-    recursive integer(int64) function python_info_dedenter_statement_p() result(pos)
+    recursive integer(int64) function is_python_info_dedenter_statement() result(pos)
         integer(int64) :: opoint, p, q
         integer(int64), allocatable :: md(:)
         type(status_type) :: st
@@ -2919,12 +2924,12 @@ contains
         end if
 
         call goto_char(opoint)
-    end function python_info_dedenter_statement_p
+    end function is_python_info_dedenter_statement
 
     !> Return the backslash position if current line ends with backslash
     !> (0 if not).  With optional argument LINE_NUMBER, check that line
     !> instead.  Port of python.el:python-info-line-ends-backslash-p.
-    recursive integer(int64) function python_info_line_ends_backslash_p(line_number) result(pos)
+    recursive integer(int64) function is_python_info_line_ends_backslash(line_number) result(pos)
         integer(int64), intent(in), optional :: line_number
         integer(int64) :: opoint, shortage
 
@@ -2932,7 +2937,7 @@ contains
         if (present(line_number)) call python_util_goto_line(line_number)
 
         do
-            if (eobp()) exit
+            if (is_eob()) exit
             call goto_char(line_end_position())
             if (python_syntax_context(PYTHON_CONTEXT_PAREN) == 0) exit
             if (before_char_at(point()) == iachar("\")) exit
@@ -2942,7 +2947,7 @@ contains
         pos = 0
         if (before_char_at(point()) == iachar("\")) pos = point()
         call goto_char(opoint)
-    end function python_info_line_ends_backslash_p
+    end function is_python_info_line_ends_backslash
 
     !> Return the point where the backslashed line starts (0 if not).
     !> Optional argument LINE_NUMBER forces the line number to check against.
@@ -2956,7 +2961,7 @@ contains
         pos = 0
         if (present(line_number)) call python_util_goto_line(line_number)
 
-        if (python_info_line_ends_backslash_p() > 0) then
+        if (is_python_info_line_ends_backslash() > 0) then
             do
                 q = point()
                 call goto_char(line_beginning_position())
@@ -2977,7 +2982,7 @@ contains
     !> When current line is continuation of another return the point
     !> where the continued line ends (0 if not).  Port of
     !> python.el:python-info-continuation-line-p.
-    recursive integer(int64) function python_info_continuation_line_p() result(pos)
+    recursive integer(int64) function is_python_info_continuation_line() result(pos)
         integer(int64) :: opoint, line_start, context_start
         integer :: context_type
         logical :: dummy
@@ -2999,7 +3004,7 @@ contains
             ! move forward an roll again
             call goto_char(context_start)
             dummy = python_util_forward_comment()
-            pos = python_info_continuation_line_p()
+            pos = is_python_info_continuation_line()
         else
             ! Not within a paren, string or comment, the only way
             ! we are dealing with a continuation line is that
@@ -3009,37 +3014,37 @@ contains
             dummy = python_util_forward_comment(-1)
 
             if (line_start - 1 == line_number_at_pos()) then
-                if (python_info_line_ends_backslash_p() > 0) pos = point()
+                if (is_python_info_line_ends_backslash() > 0) pos = point()
             end if
         end if
 
         call goto_char(opoint)
-    end function python_info_continuation_line_p
+    end function is_python_info_continuation_line
 
     !> Return the start of the block if current line is a continuation of
     !> a block (0 if not).  Port of python.el:python-info-block-continuation-line-p.
-    recursive integer(int64) function python_info_block_continuation_line_p() result(pos)
+    recursive integer(int64) function is_python_info_block_continuation_line() result(pos)
         integer(int64) :: opoint, shortage
         type(status_type) :: st
 
         opoint = point()
         pos = 0
 
-        if (python_info_continuation_line_p() > 0) then
+        if (is_python_info_continuation_line() > 0) then
             shortage = forward_line(-1_int64)
             call back_to_indentation()
             if (looking_at(BLOCK_START_RE, st)) pos = point()
         end if
 
         call goto_char(opoint)
-    end function python_info_block_continuation_line_p
+    end function is_python_info_block_continuation_line
 
     !> Check if current line is an assignment (the point after the
     !> operator, 0 if not).
     !> With argument CURRENT_LINE_ONLY is true, don't follow any
     !> continuations, just check the if current line is an assignment.
     !> Port of python.el:python-info-assignment-statement-p.
-    recursive integer(int64) function python_info_assignment_statement_p(current_line_only) result(pos)
+    recursive integer(int64) function is_python_info_assignment_statement(current_line_only) result(pos)
         logical, intent(in), optional :: current_line_only
         integer(int64) :: opoint, f, p, q
         type(status_type) :: st
@@ -3073,32 +3078,32 @@ contains
         end if
 
         call goto_char(opoint)
-    end function python_info_assignment_statement_p
+    end function is_python_info_assignment_statement
 
     !> Check if current line is the first continuation of an assignment.
     !> When current line is continuation of another with an assignment
     !> return the point of the first non-blank character after the
     !> operator (0 if not).  Port of
     !> python.el:python-info-assignment-continuation-line-p.
-    recursive integer(int64) function python_info_assignment_continuation_line_p() result(pos)
+    recursive integer(int64) function is_python_info_assignment_continuation_line() result(pos)
         integer(int64) :: opoint, shortage
 
         opoint = point()
         pos = 0
 
-        if (python_info_continuation_line_p() > 0) then
+        if (is_python_info_continuation_line() > 0) then
             shortage = forward_line(-1_int64)
-            pos = python_info_assignment_statement_p(.true.)
+            pos = is_python_info_assignment_statement(.true.)
         end if
 
         call goto_char(opoint)
-    end function python_info_assignment_continuation_line_p
+    end function is_python_info_assignment_continuation_line
 
-    !> Check if point is at `beginning_of_defun' using SYNTAX_PPSS.
+    !> Check if point is at `beginning_of_subprogram' using SYNTAX_PPSS.
     !> When CHECK_STATEMENT is true, the current statement is checked
     !> instead of the current physical line.  Port of
     !> python.el:python-info-looking-at-beginning-of-defun.
-    recursive logical function python_info_looking_at_beginning_of_defun(syntax_ppss_state, check_statement) result(p)
+    recursive logical function python_info_looking_at_beginning_of_definition(syntax_ppss_state, check_statement) result(p)
         type(parse_state_type), intent(in), optional :: syntax_ppss_state
         logical, intent(in), optional :: check_statement
         integer(int64) :: opoint, q
@@ -3117,9 +3122,9 @@ contains
             p = python_syntax_context_type() == 0
         end if
 
-        if (p) p = looking_at(python_nav_beginning_of_defun_regexp, st)
+        if (p) p = looking_at(python_nav_beginning_of_definition_regexp, st)
         call goto_char(opoint)
-    end function python_info_looking_at_beginning_of_defun
+    end function python_info_looking_at_beginning_of_definition
 
     !> Check if point is at the beginning of block.  Port of
     !> python.el:python-info-looking-at-beginning-of-block.
@@ -3137,14 +3142,14 @@ contains
 
     !> Return true if current line is a comment line.  Port of
     !> python.el:python-info-current-line-comment-p.
-    recursive logical function python_info_current_line_comment_p()
-        python_info_current_line_comment_p = after_char_at(line_beginning_position() + current_indentation()) &
-                                             == iachar("#")
-    end function python_info_current_line_comment_p
+    recursive logical function is_python_info_current_line_comment()
+        is_python_info_current_line_comment = after_char_at(line_beginning_position() + current_indentation()) &
+                                              == iachar("#")
+    end function is_python_info_current_line_comment
 
     !> Return true if current line is empty, ignoring whitespace.  Port of
     !> python.el:python-info-current-line-empty-p.
-    recursive logical function python_info_current_line_empty_p() result(empty)
+    recursive logical function is_python_info_current_line_empty() result(empty)
         integer(int64) :: opoint
         type(status_type) :: st
         logical :: matched
@@ -3154,15 +3159,15 @@ contains
         matched = looking_at(EMPTY_LINE_RE, st)
         empty = len(match_string_no_properties(1)) == 0
         call goto_char(opoint)
-    end function python_info_current_line_empty_p
+    end function is_python_info_current_line_empty
 
     !> Return true if point is in a docstring.
     !> When optional argument SYNTAX_PPSS is given, use that instead of
     !> point's current `syntax_ppss'.  Port of python.el:python-info-docstring-p.
-    recursive logical function python_info_docstring_p(syntax_ppss_state) result(docstring)
+    recursive logical function is_python_info_docstring(syntax_ppss_state) result(docstring)
         type(parse_state_type), intent(in), optional :: syntax_ppss_state
         character(len=*), parameter :: RE = "[uU]?[rR]?[""']"
-        integer(int64) :: opoint, counter, indentation, backward_sexp_point, last_backward_sexp_point, p
+        integer(int64) :: opoint, counter, indentation, backward_expression_point, last_backward_expression_point, p
         type(status_type) :: st
         logical :: dummy, more, has_last
 
@@ -3179,15 +3184,15 @@ contains
         counter = 1
         indentation = current_indentation()
 
-        if (python_info_assignment_statement_p() == 0 .and. looking_at(RE, st)) then
+        if (is_python_info_assignment_statement() == 0 .and. looking_at(RE, st)) then
             ! Allow up to two consecutive docstrings only.
             has_last = .false.
-            last_backward_sexp_point = 0
+            last_backward_expression_point = 0
 
             do while (counter <= 2)
                 p = point()
-                call python_nav_backward_sexp(1_int64, st)
-                backward_sexp_point = point()
+                call python_nav_backward_expression(1_int64, st)
+                backward_expression_point = point()
                 more = st%ok() .and. indentation == current_indentation()
 
                 if (more) then
@@ -3195,16 +3200,16 @@ contains
                     ! If we get stuck in the same position
                     ! on consecutive loop iterations,
                     ! bail out.
-                    more = .not. (has_last .and. last_backward_sexp_point == backward_sexp_point)
-                    last_backward_sexp_point = backward_sexp_point
+                    more = .not. (has_last .and. last_backward_expression_point == backward_expression_point)
+                    last_backward_expression_point = backward_expression_point
                     has_last = .true.
                     if (more) more = looking_at(RE, st)
                 end if
 
                 call goto_char(p)
                 if (.not. more) exit
-                ! Previous sexp was a string, restore point.
-                call goto_char(backward_sexp_point)
+                ! Previous expression was a string, restore point.
+                call goto_char(backward_expression_point)
                 counter = counter + 1
             end do
 
@@ -3212,25 +3217,25 @@ contains
                 dummy = python_util_forward_comment(-1)
                 p = python_nav_beginning_of_statement()
 
-                if (bobp()) then
+                if (is_bob()) then
                     p = point()
                     dummy = python_util_forward_comment()
                     docstring = looking_at(RE, st)
                     call goto_char(p)
                 end if
 
-                if (.not. docstring) docstring = python_info_assignment_statement_p() > 0
-                if (.not. docstring) docstring = python_info_looking_at_beginning_of_defun()
+                if (.not. docstring) docstring = is_python_info_assignment_statement() > 0
+                if (.not. docstring) docstring = python_info_looking_at_beginning_of_definition()
             end if
         end if
 
         call goto_char(opoint)
-    end function python_info_docstring_p
+    end function is_python_info_docstring
 
     !> Check if point is in a triple quoted string including quotes.
     !> It returns the position of the third quote character of the start
     !> of the string (0 if not).  Port of python.el:python-info-triple-quoted-string-p.
-    recursive integer(int64) function python_info_triple_quoted_string_p() result(found)
+    recursive integer(int64) function is_python_info_triple_quoted_string() result(found)
         integer, parameter :: OFFSETS(6) = [0, 3, -2, 2, -1, 1]
         integer(int64) :: pos, check_pos
         type(parse_state_type) :: ppss
@@ -3250,7 +3255,7 @@ contains
         end do
 
         call goto_char(pos)
-    end function python_info_triple_quoted_string_p
+    end function is_python_info_triple_quoted_string
 
     !> Detect current buffer's encoding from its coding cookie
     !> (ENCODING unallocated if there is none).  Port of
@@ -3377,8 +3382,8 @@ contains
                 is_end = .false.
                 shortage = forward_line(1_int64)
 
-                if (python_info_block_continuation_line_p() > 0) then
-                    do while (python_info_continuation_line_p() > 0 .and. .not. eobp())
+                if (is_python_info_block_continuation_line() > 0) then
+                    do while (is_python_info_continuation_line() > 0 .and. .not. is_eob())
                         shortage = forward_line(1_int64)
                     end do
 
@@ -3506,7 +3511,7 @@ contains
         s = python_syntax_context(PYTHON_CONTEXT_STRING, ppss)
 
         if (s > 0) then
-            if (python_info_docstring_p()) then
+            if (is_python_info_docstring()) then
                 kind = PYTHON_INDENT_INSIDE_DOCSTRING
             else
                 kind = PYTHON_INDENT_INSIDE_STRING
@@ -3547,7 +3552,7 @@ contains
             call goto_char(opoint)
             ! Current line only holds the closing paren.
             p = skip_syntax_forward(" ")
-            cond = python_syntax_closing_paren_p()
+            cond = is_python_syntax_closing_paren()
 
             if (cond) then
                 call goto_char(point() + 1)
@@ -3564,7 +3569,7 @@ contains
 
             ! Current line only holds a closing paren for nested.
             call back_to_indentation()
-            cond = python_syntax_closing_paren_p()
+            cond = is_python_syntax_closing_paren()
             call goto_char(opoint)
 
             if (cond) then
@@ -3619,7 +3624,7 @@ contains
 
         ! After backslash.
         s = 0
-        if (python_syntax_comment_or_string_p(ppss) == 0) s = python_info_line_ends_backslash_p(line_number_at_pos() - 1)
+        if (is_python_syntax_comment_or_string(ppss) == 0) s = is_python_info_line_ends_backslash(line_number_at_pos() - 1)
 
         if (s > 0) then
             ! Continuation of dotted expression.
@@ -3629,7 +3634,7 @@ contains
                 ! Move point back until it's not inside a paren.
                 do
                     shortage = forward_line(-1_int64)
-                    if (bobp()) exit
+                    if (is_bob()) exit
                     if (python_syntax_context(PYTHON_CONTEXT_PAREN) == 0) exit
                 end do
 
@@ -3652,7 +3657,7 @@ contains
 
             call goto_char(opoint)
             ! Continuation of block definition.
-            block_continuation_start = python_info_block_continuation_line_p()
+            block_continuation_start = is_python_info_block_continuation_line()
 
             if (block_continuation_start > 0) then
                 call goto_char(block_continuation_start)
@@ -3664,7 +3669,7 @@ contains
             end if
 
             ! Continuation of assignment.
-            assignment_continuation_start = python_info_assignment_continuation_line_p()
+            assignment_continuation_start = is_python_info_assignment_continuation_line()
 
             if (assignment_continuation_start > 0) then
                 kind = PYTHON_INDENT_AFTER_BACKSLASH_ASSIGNMENT_CONTINUATION
@@ -3703,7 +3708,7 @@ contains
         end if
 
         ! At dedenter statement.
-        s = python_info_dedenter_statement_p()
+        s = is_python_info_dedenter_statement()
 
         if (s > 0) then
             kind = PYTHON_INDENT_AT_DEDENTER_BLOCK_START
@@ -3715,13 +3720,13 @@ contains
         call back_to_indentation()
         p = skip_chars_backward(" "//TAB//LF, st)
 
-        if (bobp()) then
+        if (is_bob()) then
             kind = PYTHON_INDENT_NO_INDENT
             start = 0
         else
             p = python_nav_beginning_of_statement()
 
-            if (python_info_current_line_comment_p()) then
+            if (is_python_info_current_line_comment()) then
                 kind = PYTHON_INDENT_AFTER_COMMENT
             else
                 p = point()
@@ -3995,7 +4000,7 @@ contains
         previous = .false.
 
         do k = 1, size(python_indent_trigger_commands)
-            if (value_eq(this_command, sym(trim(python_indent_trigger_commands(k))))) previous = .true.
+            if (value_eq(this_command, value_type(name=trim(python_indent_trigger_commands(k))))) previous = .true.
         end do
 
         if (previous) previous = value_eq(last_command, this_command)
@@ -4009,7 +4014,7 @@ contains
 
         done = .false.
 
-        if (.not. bolp() .and. python_syntax_comment_or_string_p() == 0 .and. current_indentation() == current_column()) then
+        if (.not. is_bol() .and. is_python_syntax_comment_or_string() == 0 .and. current_indentation() == current_column()) then
             call python_indent_line(st, .true.)
             done = .true.
         end if
@@ -4026,7 +4031,7 @@ contains
         logical :: delete
 
         status = status_type()
-        delete = use_region_p() .and. arg == 1
+        delete = is_use_region() .and. arg == 1
         if (.not. delete) delete = .not. python_indent_dedent_line()
         if (delete) call backward_delete_char_untabify(arg, status)
     end subroutine python_indent_dedent_line_backspace
@@ -4050,16 +4055,16 @@ contains
         call goto_char(end)
         call copy_marker_at(point(), endm, .false., st)
         call goto_char(start)
-        if (.not. bolp()) shortage = forward_line(1_int64)
+        if (.not. is_bol()) shortage = forward_line(1_int64)
 
         do while (point() < mpos(endm))
-            if (.not. (bolp() .and. eolp())) then
+            if (.not. (is_bol() .and. is_eol())) then
                 ! Skip if previous line is empty or a comment.
                 q = point()
-                line_is_comment_p = python_info_current_line_comment_p()
+                line_is_comment_p = is_python_info_current_line_comment()
                 shortage = forward_line(-1_int64)
-                comment_or_empty = python_info_current_line_comment_p() .and. .not. line_is_comment_p
-                if (.not. comment_or_empty) comment_or_empty = python_info_current_line_empty_p()
+                comment_or_empty = is_python_info_current_line_comment() .and. .not. line_is_comment_p
+                if (.not. comment_or_empty) comment_or_empty = is_python_info_current_line_empty()
                 ok = .not. comment_or_empty
                 call goto_char(q)
 
@@ -4069,7 +4074,7 @@ contains
                     if (python_syntax_context(PYTHON_CONTEXT_STRING) > 0) then
                         ok = class_after(point() - 1 + current_indentation() &
                                          + python_syntax_count_quotes(after_char_at(point()), point())) == class_of("|")
-                        if (.not. ok) ok = python_info_docstring_p()
+                        if (.not. ok) ok = is_python_info_docstring()
                     end if
                 end if
 
@@ -4168,7 +4173,7 @@ contains
         status = status_type()
         if (.not. minor_modes%electric_indent_mode%enabled()) return
         ev = -1
-        if (fixnump(last_command_event)) ev = xfixnum(last_command_event)
+        if (vtag(last_command_event) == V_INTEGER) ev = xfixnum(last_command_event)
         if (before_char_at(point()) /= ev) return
         if (python_syntax_context(PYTHON_CONTEXT_STRING) > 0) return
         opoint = point()
@@ -4177,7 +4182,7 @@ contains
         call goto_char(opoint)
         if (.not. ok) return
         ! Electric indent inside parens
-        ok = .not. bolp()
+        ok = .not. is_bol()
 
         if (ok) then
             paren_start = python_syntax_context(PYTHON_CONTEXT_PAREN)
@@ -4208,14 +4213,14 @@ contains
         ! Electric colon
         if (ev /= iachar(":")) return
         if (.not. any(electric_indent_chars_value() == iachar(":"))) return
-        if (.not. nilp(current_prefix_arg)) return
+        if (allocated(current_prefix_arg%a)) return
         ! Trigger electric colon only at end of line
-        if (.not. eolp()) return
+        if (.not. is_eol()) return
         ! Avoid re-indenting on extra colon
         if (before_char_at(point() - 1) == iachar(":")) return
-        if (python_syntax_comment_or_string_p() /= 0) return
+        if (is_python_syntax_comment_or_string() /= 0) return
         ! Just re-indent dedenters
-        dedenter_pos = python_info_dedenter_statement_p()
+        dedenter_pos = is_python_info_dedenter_statement()
         if (dedenter_pos == 0) return
         call copy_marker_at(dedenter_pos, startm, .false., st)
         call copy_marker_at(point(), endm, .false., st)
@@ -4238,20 +4243,20 @@ contains
     ! Mark
     ! ------------------------------------------------------------------
 
-    !> Put mark at end of this defun, point at beginning.
-    !> The defun marked is the one that contains point or follows point.
+    !> Put mark at end of this subprogram, point at beginning.
+    !> The subprogram marked is the one that contains point or follows point.
     !>
     !> Interactively (or with ALLOW_EXTEND true), if this command is
     !> repeated or (in Transient Mark mode) if the mark is active, it
-    !> marks the next defun after the ones already marked.  Port of
+    !> marks the next subprogram after the ones already marked.  Port of
     !> python.el:python-mark-defun.
-    recursive subroutine python_mark_defun(allow_extend, status)
+    recursive subroutine python_mark_definition(allow_extend, status)
         integer(int64), intent(in) :: allow_extend
         type(status_type), intent(out) :: status
 
-        if (python_info_looking_at_beginning_of_defun()) call end_of_line(1_int64)
-        call mark_defun(allow_extend, status)
-    end subroutine python_mark_defun
+        if (python_info_looking_at_beginning_of_definition()) call end_of_line(1_int64)
+        call mark_subprogram(allow_extend, status)
+    end subroutine python_mark_definition
 
     ! ------------------------------------------------------------------
     ! Fill paragraph
@@ -4280,7 +4285,7 @@ contains
         if (python_syntax_context(PYTHON_CONTEXT_COMMENT) > 0) then
             ! Comments
             call python_fill_comment_function(status, done, justify)
-        else if (python_info_triple_quoted_string_p() > 0) then
+        else if (is_python_info_triple_quoted_string() > 0) then
             ! Strings/Docstrings
             call python_fill_string_function(status, done, justify)
         else if (decorator_here()) then
@@ -4342,7 +4347,7 @@ contains
         logical :: multi_line_p
 
         done = .true.
-        call copy_marker_at(python_info_triple_quoted_string_p(), str_start, .false., status)
+        call copy_marker_at(is_python_info_triple_quoted_string(), str_start, .false., status)
         if (.not. status%ok()) return
         ! JT@2021-09-21: Since bug#49518's fix this will always be 1
         num_quotes = python_syntax_count_quotes(after_char_at(mpos(str_start)), mpos(str_start))
@@ -4359,7 +4364,7 @@ contains
         call buffer_substring(mpos(str_start), mpos(str_end), text, st)
         multi_line_p = index(text, LF) > 0
         ! delimiters-style is a cons cell with the form
-        ! (START-NEWLINES .  END-NEWLINES). When any of the sexps
+        ! (START-NEWLINES .  END-NEWLINES). When any of the expressions
         ! is NIL means to not add any newlines for start or end
         ! of docstring.  See `python-fill-docstring-style' for a
         ! graphic idea of each style.
@@ -4397,7 +4402,7 @@ contains
         call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
         q = point()
 
-        if (python_info_docstring_p() .and. python_fill_docstring_style%value /= PYTHON_DOCSTRING_NIL) then
+        if (is_python_info_docstring() .and. python_fill_docstring_style%value /= PYTHON_DOCSTRING_NONE) then
             ! Add the number of newlines indicated by the selected style
             ! at the start of the docstring.
             call goto_char(mpos(str_start) + num_quotes)
@@ -4480,7 +4485,7 @@ contains
             if (python_syntax_context(PYTHON_CONTEXT_PAREN) == 0) moved = skip_syntax_backward("^)")
         end if
 
-        do while (python_syntax_context(PYTHON_CONTEXT_PAREN) > 0 .and. .not. eobp())
+        do while (python_syntax_context(PYTHON_CONTEXT_PAREN) > 0 .and. .not. is_eob())
             call goto_char(point() + 1)
         end do
 
@@ -4508,7 +4513,7 @@ contains
             deallocate (paragraph_separate%value)
         end if
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             shortage = forward_line(1_int64)
             call python_indent_line(st)
             call goto_char(line_end_position())
@@ -4546,7 +4551,7 @@ contains
         status = status_type()
         if (.not. minor_modes%electric_pair_mode%enabled()) return
         ev = -1
-        if (fixnump(last_command_event)) ev = xfixnum(last_command_event)
+        if (vtag(last_command_event) == V_INTEGER) ev = xfixnum(last_command_event)
         if (ev /= iachar('"') .and. ev /= iachar("'")) return
         count = 0
 
@@ -4572,20 +4577,20 @@ contains
         integer, allocatable :: chars(:)
         logical :: saved
 
-        if (.not. syntax_table_live_p(python_mode_syntax_table)) call syms_of_python()
+        if (.not. is_syntax_table_live(python_mode_syntax_table)) call syms_of_python()
         call major_modes%python_base_mode%begin(saved, status)
         if (.not. status%ok()) return
         call tab_width%set_local(8_int64)
         call indent_tabs_mode%set_local(.false.)
         call comment_start%set_local("# ")
         call comment_start_skip%set_local("#+\s-*")
-        call parse_sexp_lookup_properties%set_local(.true.)
-        call parse_sexp_ignore_comments%set_local(.true.)
+        call parse_expression_lookup_properties%set_local(.true.)
+        call parse_expression_ignore_comments%set_local(.true.)
 
-        if (associated(python_forward_sexp_function)) then
-            call forward_sexp_function%set_local(python_forward_sexp_function)
+        if (associated(python_forward_expression_function)) then
+            call forward_expression_function%set_local(python_forward_expression_function)
         else
-            call forward_sexp_function%set_local()
+            call forward_expression_function%set_local()
         end if
 
         call indent_line_function%set_local(python_indent_line_function)
@@ -4599,8 +4604,8 @@ contains
         call paragraph_start%set_local("\s-*$")
         call fill_paragraph_function%set_local(python_fill_paragraph)
         call normal_auto_fill_function%set_local(python_do_auto_fill)
-        call beginning_of_defun_function%set_local(python_nav_beginning_of_defun)
-        call end_of_defun_function%set_local(python_nav_end_of_defun_function)
+        call beginning_of_subprogram_function%set_local(python_nav_beginning_of_definition)
+        call end_of_subprogram_function%set_local(python_nav_end_of_definition_function)
         call post_self_insert_hook%add(python_indent_post_self_insert_function, depth=90, local=.true.)
         if (.not. installed_grep_hook) call install_grep_settings()
         call major_modes%python_base_mode%finish(saved, status)
@@ -4663,7 +4668,7 @@ contains
         type(font_lock_keywords_type) :: levels(4)
         logical :: saved
 
-        if (.not. syntax_table_live_p(python_mode_syntax_table)) call syms_of_python()
+        if (.not. is_syntax_table_live(python_mode_syntax_table)) call syms_of_python()
         call major_modes%python_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! When `font-lock-maximum-decoration' is nil, 1, 2, and more than 1
@@ -4749,7 +4754,7 @@ contains
         call shift_args(start, end, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call python_indent_shift_left(start, end, status)
         else
             call python_indent_shift_left(start, end, status, prefix_numeric_value(current_prefix_arg))
@@ -4765,50 +4770,50 @@ contains
         call shift_args(start, end, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call python_indent_shift_right(start, end, status)
         else
             call python_indent_shift_right(start, end, status, prefix_numeric_value(current_prefix_arg))
         end if
     end subroutine cmd_python_indent_shift_right
 
-    !> Put mark at end of this defun, point at beginning (the command).
+    !> Put mark at end of this subprogram, point at beginning (the command).
     !> Port of python.el:python-mark-defun.
-    recursive subroutine cmd_python_mark_defun(status)
+    recursive subroutine cmd_python_mark_definition(status)
         type(status_type), intent(out) :: status
 
-        call python_mark_defun(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_python_mark_defun
+        call python_mark_definition(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_python_mark_definition
 
     !> Move point to the end of def or class (the command).  Port of
     !> python.el:python-nav-end-of-defun.
-    recursive subroutine cmd_python_nav_end_of_defun(status)
+    recursive subroutine cmd_python_nav_end_of_definition(status)
         type(status_type), intent(out) :: status
         logical :: moved
 
         status = status_type()
-        moved = python_nav_end_of_defun()
-    end subroutine cmd_python_nav_end_of_defun
+        moved = python_nav_end_of_definition()
+    end subroutine cmd_python_nav_end_of_definition
 
-    !> Navigate to closer defun backward ARG times (the command).  Port of
+    !> Navigate to closer subprogram backward ARG times (the command).  Port of
     !> python.el:python-nav-backward-defun.
-    recursive subroutine cmd_python_nav_backward_defun(status)
+    recursive subroutine cmd_python_nav_backward_definition(status)
         type(status_type), intent(out) :: status
         integer(int64) :: p
 
         status = status_type()
-        p = python_nav_backward_defun(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_python_nav_backward_defun
+        p = python_nav_backward_definition(prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_python_nav_backward_definition
 
-    !> Navigate to closer defun forward ARG times (the command).  Port of
+    !> Navigate to closer subprogram forward ARG times (the command).  Port of
     !> python.el:python-nav-forward-defun.
-    recursive subroutine cmd_python_nav_forward_defun(status)
+    recursive subroutine cmd_python_nav_forward_definition(status)
         type(status_type), intent(out) :: status
         integer(int64) :: p
 
         status = status_type()
-        p = python_nav_forward_defun(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_python_nav_forward_defun
+        p = python_nav_forward_definition(prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_python_nav_forward_definition
 
     !> Move to start of current statement (the command).  Port of
     !> python.el:python-nav-beginning-of-statement.
@@ -4890,51 +4895,51 @@ contains
 
     !> Move forward across expressions (the command).  Port of
     !> python.el:python-nav-forward-sexp.
-    recursive subroutine cmd_python_nav_forward_sexp(status)
+    recursive subroutine cmd_python_nav_forward_expression(status)
         type(status_type), intent(out) :: status
 
-        call python_nav_forward_sexp(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_python_nav_forward_sexp
+        call python_nav_forward_expression(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_python_nav_forward_expression
 
     !> Move backward across expressions (the command).  Port of
     !> python.el:python-nav-backward-sexp.
-    recursive subroutine cmd_python_nav_backward_sexp(status)
+    recursive subroutine cmd_python_nav_backward_expression(status)
         type(status_type), intent(out) :: status
 
-        call python_nav_backward_sexp(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_python_nav_backward_sexp
+        call python_nav_backward_expression(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_python_nav_backward_expression
 
     !> Move forward safely across expressions (the command).  Port of
     !> python.el:python-nav-forward-sexp-safe.
-    recursive subroutine cmd_python_nav_forward_sexp_safe(status)
+    recursive subroutine cmd_python_nav_forward_expression_safe(status)
         type(status_type), intent(out) :: status
 
-        call python_nav_forward_sexp_safe(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_python_nav_forward_sexp_safe
+        call python_nav_forward_expression_safe(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_python_nav_forward_expression_safe
 
     !> Move backward safely across expressions (the command).  Port of
     !> python.el:python-nav-backward-sexp-safe.
-    recursive subroutine cmd_python_nav_backward_sexp_safe(status)
+    recursive subroutine cmd_python_nav_backward_expression_safe(status)
         type(status_type), intent(out) :: status
 
-        call python_nav_backward_sexp_safe(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_python_nav_backward_sexp_safe
+        call python_nav_backward_expression_safe(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_python_nav_backward_expression_safe
 
     !> Move forward out of one level of parentheses (or blocks) (the
     !> command).  Port of python.el:python-nav-up-list.
-    recursive subroutine cmd_python_nav_up_list(status)
+    recursive subroutine cmd_python_nav_up_group(status)
         type(status_type), intent(out) :: status
 
-        call python_nav_up_list(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_python_nav_up_list
+        call python_nav_up_group(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_python_nav_up_group
 
     !> Move backward out of one level of parentheses (or blocks) (the
     !> command).  Port of python.el:python-nav-backward-up-list.
-    recursive subroutine cmd_python_nav_backward_up_list(status)
+    recursive subroutine cmd_python_nav_backward_up_group(status)
         type(status_type), intent(out) :: status
 
-        call python_nav_backward_up_list(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_python_nav_backward_up_list
+        call python_nav_backward_up_group(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_python_nav_backward_up_group
 
     !> Move point at the beginning the __main__ block (the command).
     !> Port of python.el:python-nav-if-name-main.
@@ -4953,7 +4958,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: done
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call python_fill_paragraph(status, done)
         else
             call python_fill_paragraph(status, done, JUSTIFY_FULL)

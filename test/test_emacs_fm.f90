@@ -32,7 +32,7 @@ module test_emacs_fm
     use keyboard_fm, only: last_message
     use lisp_fm, only: value_type, xstring
     use data_fm, only: symbol_value, value_eq
-    use lread_fm, only: user_init_file, sym
+    use lread_fm, only: user_init_file
     use emacs_fm, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file, sort_args
     use error_fm, only: format_error, format_message
     use frame_fm, only: selected_frame
@@ -289,9 +289,9 @@ contains
         if (allocated(error)) return
         ! The mode as `major_mode' and `mode_name' read (unallocated slots
         ! mean Fundamental mode, as in a fresh buffer).
-        call symbol_value(sym("major_mode"), mode, vst)
-        call symbol_value(sym("mode_name"), name, vst)
-        call check(error, value_eq(mode, sym("fundamental_mode")), "major_mode")
+        call symbol_value(value_type(name="major_mode"), mode, vst)
+        call symbol_value(value_type(name="mode_name"), name, vst)
+        call check(error, value_eq(mode, value_type(name="fundamental_mode")), "major_mode")
         if (allocated(error)) return
         call check(error, xstring(name) == "Fundamental", xstring(name))
     end subroutine test_scratch

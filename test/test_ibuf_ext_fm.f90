@@ -36,9 +36,9 @@ module test_ibuf_ext_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, make_fixnum
+    use lisp_fm, only: value_type, make_list
     use buffer_fm, only: buffers, current_buffer, set_buffer, kill_buffer, get_buffer_create, get_buffer, &
-                         buffer_live_p, generate_new_buffer_name, restore_buffer_modified_p
+                         is_buffer_live, generate_new_buffer_name, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: point_min, point_max, buffer_string
     use search_fm, only: regexp_quote
@@ -52,7 +52,7 @@ module test_ibuf_ext_fm
     use minibuf_table_fm, only: completion_table_type, TABLE_LIST
     use crm_fm, only: completing_read_multiple
     use bindings_fm, only: init_bindings
-    use ibuffer_fm, only: ibuffer, ibuffer_update, ibuffer_included_in_filters_p, ibuffer_unary_operand, &
+    use ibuffer_fm, only: ibuffer, ibuffer_update, is_ibuffer_included_in_filters, ibuffer_unary_operand, &
                           ibuffer_format_qualifier, ibuffer_save_filters, ibuffer_saved_filters, ibuffer_decompose_filter, &
                           ibuffer_and_filter, ibuffer_or_filter, ibuffer_filter_disable, ibuffer_saved_filter_groups, &
                           ibuffer_switch_to_saved_filter_groups, ibuffer_decompose_filter_group, ibuffer_save_with_custom, &
@@ -132,7 +132,7 @@ contains
         fs(1) = f1
         if (present(f2)) fs(2) = f2
         if (present(f3)) fs(n) = f3
-        incl = ibuffer_included_in_filters_p(buf, fs, last_status)
+        incl = is_ibuffer_included_in_filters(buf, fs, last_status)
     end function incl
 
     ! (should (ibuffer-included-in-filters-p ...)): COND without error.
@@ -187,7 +187,7 @@ contains
         end if
 
         ! prevent query on cleanup
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call set_buffer(old, st)
     end subroutine set_buffer_contents
 
@@ -242,7 +242,7 @@ contains
         ntest_files = 0
 
         do k = ntest_buffers, 1, -1
-            if (buffer_live_p(test_buffers(k))) call kill_buffer(test_buffers(k), st)
+            if (is_buffer_live(test_buffers(k))) call kill_buffer(test_buffers(k), st)
         end do
 
         ntest_buffers = 0
@@ -299,13 +299,13 @@ contains
         type(handle_type), intent(in) :: old, ib
         type(status_type) :: st
 
-        if (buffer_live_p(ib)) then
+        if (is_buffer_live(ib)) then
             call set_buffer(ib, st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call kill_buffer(ib, st)
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine kill_test_ibuffer
 
     ! Set the filters of the current Ibuffer buffer to F1, F2, ... (the
@@ -582,12 +582,12 @@ contains
             if (allocated(error)) return
             old = current_buffer()
             call set_buffer(buf, st)
-            call restore_buffer_modified_p(.true.)
+            call restore_buffer_modified(.true.)
             call set_buffer(old, st)
             call should(error, incl(buf, ibuffer_modified()), "modified")
             if (allocated(error)) return
             call set_buffer(buf, st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call set_buffer(old, st)
             call should(error, incl(buf, ibuffer_not(ibuffer_modified())), "not modified")
             if (allocated(error)) return
@@ -710,14 +710,14 @@ contains
             buff = create_non_file_buffer("*ibuf-test8f*", 8, "", FUNDAMENTAL)
             old = current_buffer()
             call set_buffer(bufa, st)
-            call restore_buffer_modified_p(.true.)
+            call restore_buffer_modified(.true.)
             call set_buffer(old, st)
             call should(error, incl(bufa, ibuffer_and(ibuffer_not(ibuffer_starred_name()), ibuffer_modified(), &
                                                       ibuffer_name("test-8"), ibuffer_not(ibuffer_size_gt(100_int64)), &
                                                       ibuffer_major_mode("text_mode"))), "A modified")
             if (allocated(error)) return
             call set_buffer(bufa, st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call set_buffer(old, st)
             call should(error,.not. incl(bufa, ibuffer_or(ibuffer_starred_name(), ibuffer_visiting_file(), &
                                                           ibuffer_modified())), "A")
@@ -1048,9 +1048,9 @@ contains
 
         call init_bindings()
         call discard_input()
-        items(1) = make_string("foo")
-        items(2) = make_string("bar")
-        items(3) = make_string("qux")
+        items(1) = value_type(text="foo")
+        items(2) = value_type(text="bar")
+        items(3) = value_type(text="qux")
         table%kind = TABLE_LIST
         table%list = make_list(items)
         call key_parse("f o TAB , b TAB RET", evs, st)

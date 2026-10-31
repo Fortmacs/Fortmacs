@@ -31,7 +31,7 @@ module test_ibuffer_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, current_buffer, set_buffer, kill_buffer, get_buffer_create, get_buffer, &
-                         buffer_live_p, generate_new_buffer_name
+                         is_buffer_live, generate_new_buffer_name
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point_min, point_max, pos_bol, pos_eol, buffer_substring, buffer_string
     use cmds_fm, only: beginning_of_line
@@ -98,7 +98,7 @@ contains
         type(handle_type), intent(in) :: old, ib
         type(status_type) :: st
 
-        if (buffer_live_p(ib)) call kill_buffer(ib, st)
+        if (is_buffer_live(ib)) call kill_buffer(ib, st)
         call set_buffer(old, st)
     end subroutine finish
 
@@ -262,7 +262,7 @@ contains
             call check(error, st%ok(), format_error(st))
         end if
 
-        if (.not. allocated(error)) call check(error,.not. buffer_live_p(a), "not killed")
+        if (.not. allocated(error)) call check(error,.not. is_buffer_live(a), "not killed")
 
         if (.not. allocated(error)) then
             call goto_buffer_line("ibuf-gamma", found)
@@ -270,7 +270,7 @@ contains
         end if
 
         ibuffer_expert = saved_expert
-        if (buffer_live_p(a)) call kill_buffer(a, st)
+        if (is_buffer_live(a)) call kill_buffer(a, st)
         call finish(old, ib)
     end subroutine test_kill
 

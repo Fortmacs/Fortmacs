@@ -44,14 +44,14 @@ module buff_menu_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nilp, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, buffer_live_p, buffer_handle, &
-                         buffer_list, frame_buffer_list, buffer_serial_live, kill_buffer, buffer_modified_p, &
-                         restore_buffer_modified_p
-    use editfns_fm, only: point, goto_char, point_min, point_max, eobp, bobp, buffer_size, following_char
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, buffer_handle, &
+                         buffer_list, frame_buffer_list, buffer_serial_live, kill_buffer, is_buffer_modified, &
+                         restore_buffer_modified
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_size, following_char
     use cmds_fm, only: forward_line, beginning_of_line
     use search_fm, only: re_search_forward
     use keyboard_fm, only: read_event
@@ -64,7 +64,7 @@ module buff_menu_fm
     use shell_fm, only: list_buffers_directory
     use frame_fm, only: selected_frame, selected_window, frame_lines
     use window_fm, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
-                         display_alist_type, delete_other_windows, split_window, other_window, bury_buffer, other_buffer
+                         display_action_table_type, delete_other_windows, split_window, other_window, bury_buffer, other_buffer
     use view_fm, only: view_buffer, view_buffer_other_window
     use replace_fm, only: multi_occur, occur_read_primary_args
     use keymap_fm, only: keymap_set
@@ -256,7 +256,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            if (buffer_live_p(buffer_handle(k))) h = buffer_handle(k)
+            if (is_buffer_live(buffer_handle(k))) h = buffer_handle(k)
             return
         end do
     end function id_buffer
@@ -280,7 +280,7 @@ contains
         longest = 0
 
         do k = 1, size(bufs)
-            if (buffer_live_p(bufs(k))) longest = max(longest, len(buffers(bufs(k)%index)%name))
+            if (is_buffer_live(bufs(k))) longest = max(longest, len(buffers(bufs(k)%index)%name))
         end do
 
         cols = 80
@@ -378,7 +378,7 @@ contains
 
     ! FILES-ONLY from the raw prefix argument (nil if not ARG).  Not a port.
     logical function prefix_files_only() result(files_only)
-        files_only = .not. nilp(current_prefix_arg)
+        files_only = allocated(current_prefix_arg%a)
         if (files_only) files_only = prefix_numeric_value(current_prefix_arg) >= 0
     end function prefix_files_only
 
@@ -476,7 +476,7 @@ contains
 
         k = local_index(.true.)
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             locals(k)%files_only = .not. locals(k)%files_only
         else
             locals(k)%files_only = prefix_numeric_value(current_prefix_arg) > 0
@@ -496,7 +496,7 @@ contains
 
         k = local_index(.true.)
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             locals(k)%show_internal = .not. locals(k)%show_internal
         else
             locals(k)%show_internal = prefix_numeric_value(current_prefix_arg) > 0
@@ -508,7 +508,7 @@ contains
 
     !> Return the buffer described by the current Buffer Menu line.
     !> If there is no buffer here, return the null handle if
-    !> ERROR_IF_NON_EXISTENT_P is false or omitted, and signal an error in
+    !> ERROR_IF_NON_EXISTENT_P is false or omitted, and an error condition occurs in
     !> STATUS otherwise.  Port of buff-menu.el:Buffer-menu-buffer.
     function buffer_menu_buffer(status, error_if_non_existent_p) result(buffer)
         type(status_type), intent(out) :: status
@@ -593,7 +593,7 @@ contains
     recursive subroutine cmd_buffer_menu_unmark(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_unmark(status,.not. nilp(current_prefix_arg))
+        call buffer_menu_unmark(status, allocated(current_prefix_arg%a))
     end subroutine cmd_buffer_menu_unmark
 
     !> Cancel a requested operation on all buffers.
@@ -609,7 +609,7 @@ contains
         saved = point()
         call goto_char(point_min())
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             call unmark(mark, status)
             if (.not. status%ok()) exit
             shortage = forward_line()
@@ -650,7 +650,7 @@ contains
         status = status_type()
         shortage = forward_line(-1_int64)
 
-        do while (.not. has_id(tabulated_list_get_id()) .and. .not. bobp())
+        do while (.not. has_id(tabulated_list_get_id()) .and. .not. is_bob())
             shortage = forward_line(-1_int64)
         end do
 
@@ -689,7 +689,7 @@ contains
         buf = buffer_menu_buffer(st)
 
         if (buf%index /= 0) then
-            call buffer_modified_p(buf, modified, st)
+            call is_buffer_modified(buf, modified, st)
             if (modified .and. entry%cols(3)%text == " ") call set_col(3, "*", status)
         end if
     end subroutine unmark
@@ -819,7 +819,7 @@ contains
         old = current_buffer()
         call set_buffer(buf, status)
         if (.not. status%ok()) return
-        call restore_buffer_modified_p(modified)
+        call restore_buffer_modified(modified)
         call set_buffer(old, st)
 
         if (modified) then
@@ -832,7 +832,7 @@ contains
     recursive subroutine cmd_buffer_menu_not_modified(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_not_modified(status,.not. nilp(current_prefix_arg))
+        call buffer_menu_not_modified(status, allocated(current_prefix_arg%a))
     end subroutine cmd_buffer_menu_not_modified
 
     !> Save and/or delete marked buffers in the Buffer Menu.
@@ -852,7 +852,7 @@ contains
         saved = point()
         call buffer_menu_beginning()
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             buffer = id_buffer(tabulated_list_get_id())
             call tabulated_list_get_entry(entry, found)
 
@@ -880,7 +880,7 @@ contains
 
                 if (delete .and. buffer%index /= menu%index) then
                     call kill_buffer(buffer, st)
-                    killed = st%ok() .and. .not. buffer_live_p(buffer)
+                    killed = st%ok() .and. .not. is_buffer_live(buffer)
                     call set_buffer(menu, status)
                     if (.not. status%ok()) exit
                 end if
@@ -1066,7 +1066,7 @@ contains
 
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call display_buffer(buf, window, status, alist=display_alist_type(inhibit_same_window=.true.))
+        call display_buffer(buf, window, status, table=display_action_table_type(inhibit_same_window=.true.))
     end subroutine buffer_menu_switch_other_window
 
     !> Select this line's buffer, with previous buffer in second window.
@@ -1271,7 +1271,7 @@ contains
         n = 0
 
         do j = 1, size(candidates)
-            if (.not. buffer_live_p(candidates(j))) cycle
+            if (.not. is_buffer_live(candidates(j))) cycle
             bi = candidates(j)%index
             call set_buffer(candidates(j), st)
             name = buffers(bi)%name
@@ -1317,7 +1317,7 @@ contains
 
                     e%cols(2)%text = " "
                     if (buffers(bi)%read_only) e%cols(2)%text = "%"
-                    call buffer_modified_p(candidates(j), modified, st)
+                    call is_buffer_modified(candidates(j), modified, st)
                     e%cols(3)%text = " "
                     if (modified) e%cols(3)%text = "*"
                     ! (Buffer-menu--pretty-name.)
@@ -1466,7 +1466,7 @@ contains
 
         if (.not. have) then
             call set_error(status, FM_QUIT)
-        else if (.not. fixnump(ev)) then
+        else if (vtag(ev) /= V_INTEGER) then
             call set_error(status, FM_GENERIC_ERROR, "Non-character input-event")
         else if (xfixnum(ev) == 7) then
             call set_error(status, FM_QUIT)

@@ -31,19 +31,19 @@
 module lread_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use lisp_fm, only: symbols, nsymbols, symbol_type, value_type, &
-                       make_symbol_ref, nil, SYM_NIL, SYM_T
+                       make_symbol_ref, SYM_NIL, SYM_T
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use character_fm, only: string_char_and_length, char_string, char_hexdigit, byte8_to_char, char_byte8_p, &
-                            char_surrogate_p, MAX_MULTIBYTE_LENGTH, CHAR_SHIFT, CHAR_CTL, CHAR_META, &
+    use character_fm, only: string_char_and_length, char_string, char_hexdigit, byte8_to_char, is_char_byte8, &
+                            is_char_surrogate, MAX_MULTIBYTE_LENGTH, CHAR_SHIFT, CHAR_CTL, CHAR_META, &
                             CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_MODIFIER_MASK
     implicit none(type, external)
     private
 
-    public :: intern, intern_soft, sym, ensure_obarray, read_string_literal
+    public :: intern, intern_soft, ensure_obarray, read_string_literal
 
     !> File name, including directory, of user's initialization file.
     !> While the init file's `configure' runs, value is the real name
-    !> of the file.  Port of lread.c user-init-file (unallocated is nil:
+    !> of the file.  Port of lread.c user-init-file (unallocated for none:
     !> -q, or no init file compiled in).
     character(len=:), allocatable, public :: user_init_file
 
@@ -97,7 +97,7 @@ contains
         id = add_symbol("nil")
         symbols(id)%constant = .true.
         symbols(id)%bound = .true.
-        symbols(id)%val = nil()
+        symbols(id)%val = value_type()
         id = add_symbol("t")
         symbols(id)%constant = .true.
         symbols(id)%bound = .true.
@@ -171,15 +171,6 @@ contains
         if (.not. allocated(slots)) call init_obarray()
         id = slots(find_slot(name))
     end function intern_soft
-
-    !> The symbol named `name' as a value (nil for "nil"); the Fortmacs
-    !> spelling of 'name.  Interns it if needed.  Not a port.
-    function sym(name) result(v)
-        character(len=*), intent(in) :: name
-        type(value_type) :: v
-
-        v = make_symbol_ref(intern(name))
-    end function sym
 
     ! ------------------------------------------------------------------
     ! Reading string constants
@@ -498,7 +489,7 @@ contains
                     return
                 end if
 
-                if (char_surrogate_p(i)) then
+                if (is_char_surrogate(i)) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax: \N{"//text(pos:pos + n - 1)//"}")
                     return
                 end if

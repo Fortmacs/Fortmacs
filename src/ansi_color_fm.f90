@@ -31,10 +31,7 @@
 !> `comint_output_filter_functions' and `ansi_color_compilation_filter'
 !> can be put on `compilation_filter_hook'.
 !>
-!> Deferred: the overlay hooks of `ansi_color_make_extent' (the
-!> `modification_hooks' and `insert_behind_hooks' properties are set,
-!> but overlay modification hooks are not ported, so an overlay ending at
-!> a comint's process mark grows with later output there); the obsolete
+!> Deferred: the obsolete
 !> `ansi_color_faces_vector', `ansi_color_names_vector', `ansi_color_map'
 !> and their functions (`ansi_color_make_color_map',
 !> `ansi_color_map_update', `ansi_color_get_face_1',
@@ -44,8 +41,7 @@ module ansi_color_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, make_string, list, xstring, stringp, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, xstring, make_list
     use data_fm, only: integer_setting, logical_setting, add_local_variables_killer, set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer
     use marker_fm, only: make_marker, free_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
@@ -53,7 +49,8 @@ module ansi_color_fm
     use editfns_fm, only: point, point_min, goto_char, delete_region, buffer_substring
     use search_fm, only: string_match, re_search_forward, match_beginning, match_end, SEARCH_NOERROR
     use textprop_fm, only: put_text_property, string_put_text_property, propertized_substring, propertized_concat
-    use itree_fm, only: make_overlay, overlay_put
+    use itree_fm, only: make_overlay, overlay_put, move_overlay, overlay_start, overlay_end
+    use eval_fm, only: property_function_type
     use faces_fm, only: named_face_type, face_attrs, face_box, display_when, face_attributes_type, face_named
     use commands_fm, only: commands
     use process_fm, only: get_buffer_process, process_mark
@@ -66,17 +63,35 @@ module ansi_color_fm
               ansi_color_apply_overlay_face, ansi_color_apply_text_property_face, ansi_color_make_extent, &
               ansi_color_process_output, ansi_color_compilation_filter, ansi_color_for_comint_mode_on, &
               ansi_color_for_comint_mode_off, ansi_color_for_comint_mode_filter, ansi_color_code_as_hex, &
-              syms_of_ansi_color, ansi_color_face_proc, reset_ansi_color_context
+              syms_of_ansi_color, ansi_color_face_proc, reset_ansi_color_context, ansi_color_face_value
+
+    !> A pointer to a named face, an element of
+    !> `ansi_color_face_type%faces'.  Not a port.
+    type, public :: ansi_color_face_ref_type
+        type(named_face_type), pointer :: face => null()
+    end type ansi_color_face_ref_type
+
+    !> The face of text after ANSI escape sequences: its named faces (a
+    !> null pointer for an entry of `ansi_color_basic_faces' that is "")
+    !> and its foreground and background colors ("" for a color face
+    !> that has no color).  Empty (no faces, colors unallocated) means no
+    !> face.  Not a port.
+    type, public :: ansi_color_face_type
+        type(ansi_color_face_ref_type), allocatable :: faces(:)
+        character(len=:), allocatable :: foreground, background
+    contains
+        !> Whether it is empty (no face).
+        procedure :: is_empty => ansi_color_face_is_empty
+    end type ansi_color_face_type
 
     abstract interface
-        !> An `ansi_color_apply_face_function': apply face FACE (a face
-        !> value, nil for none) to the text between BEG and END.
-        !> Not a port.
+        !> An `ansi_color_apply_face_function': apply FACE (empty for
+        !> none) to the text between BEG and END.  Not a port.
         recursive subroutine ansi_color_face_proc(beg, end, face)
-            import :: int64, value_type
+            import :: int64, ansi_color_face_type
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
-            type(value_type), intent(in) :: face
+            type(ansi_color_face_type), intent(in) :: face
         end subroutine ansi_color_face_proc
     end interface
 
@@ -151,7 +166,7 @@ module ansi_color_fm
 
     !> Faces used for SGR control sequences determining a face.
     !> This vector holds the faces used for SGR control sequence
-    !> parameters 0 to 7 ("" is nil).
+    !> parameters 0 to 7 ("" for none).
     !>
     !> Parameter  Description
     !>   0        default
@@ -164,13 +179,13 @@ module ansi_color_fm
     !>   7        negative image
     !>
     !> Port of ansi-color.el ansi-color-basic-faces-vector.
-    character(len=32), public :: ansi_color_basic_faces_vector(0:7) = [character(len=32) :: "", "ansi_color_bold", &
+    character(len=32), public :: ansi_color_basic_faces(0:7) = [character(len=32) :: "", "ansi_color_bold", &
                                                                                           "ansi_color_faint", "ansi_color_italic", &
                                                                                   "ansi_color_underline", "ansi_color_slow_blink", &
                                                                                       "ansi_color_fast_blink", "ansi_color_inverse"]
 
     !> Faces used for SGR control sequences determining a color.
-    !> This vector holds the faces used for SGR control sequence
+    !> This array holds the faces used for SGR control sequence
     !> parameters 30 to 37 (foreground colors) and 40 to 47 (background
     !> colors).
     !>
@@ -185,14 +200,14 @@ module ansi_color_fm
     !>   37  47   white
     !>
     !> Port of ansi-color.el ansi-color-normal-colors-vector.
-    character(len=32), public :: ansi_color_normal_colors_vector(0:7) = [character(len=32) :: "ansi_color_black", &
+    character(len=32), public :: ansi_color_normal_colors(0:7) = [character(len=32) :: "ansi_color_black", &
                                                                                              "ansi_color_red", "ansi_color_green", &
                                                                                            "ansi_color_yellow", "ansi_color_blue", &
                                                                                           "ansi_color_magenta", "ansi_color_cyan", &
                                                                                                                  "ansi_color_white"]
 
     !> Faces used for SGR control sequences determining a "bright"
-    !> color.  This vector holds the faces used for SGR control sequence
+    !> color.  This array holds the faces used for SGR control sequence
     !> parameters 90 to 97 (bright foreground colors) and 100 to 107
     !> (bright background colors).
     !>
@@ -207,15 +222,15 @@ module ansi_color_fm
     !>   97  107   bright white
     !>
     !> Port of ansi-color.el ansi-color-bright-colors-vector.
-    character(len=32), public :: ansi_color_bright_colors_vector(0:7) = [character(len=32) :: &
-                                                                         "ansi_color_bright_black", &
-                                                                         "ansi_color_bright_red", &
-                                                                         "ansi_color_bright_green", &
-                                                                         "ansi_color_bright_yellow", &
-                                                                         "ansi_color_bright_blue", &
-                                                                         "ansi_color_bright_magenta", &
-                                                                         "ansi_color_bright_cyan", &
-                                                                         "ansi_color_bright_white"]
+    character(len=32), public :: ansi_color_bright_colors(0:7) = [character(len=32) :: &
+                                                                  "ansi_color_bright_black", &
+                                                                  "ansi_color_bright_red", &
+                                                                  "ansi_color_bright_green", &
+                                                                  "ansi_color_bright_yellow", &
+                                                                  "ansi_color_bright_blue", &
+                                                                  "ansi_color_bright_magenta", &
+                                                                  "ansi_color_bright_cyan", &
+                                                                  "ansi_color_bright_white"]
 
     !> If set to true, combining ANSI bold and a color produces the bright
     !> version of that color.  Port of ansi-color.el
@@ -237,12 +252,12 @@ module ansi_color_fm
 
     !> Values of `ansi_color_for_comint_mode' and
     !> `ansi_color_for_compilation_mode'.
-    integer, parameter, public :: ANSI_COLOR_NIL = 0, ANSI_COLOR_FILTER = 1, ANSI_COLOR_T = 2
+    integer, parameter, public :: ANSI_COLOR_NO = 0, ANSI_COLOR_FILTER = 1, ANSI_COLOR_YES = 2
 
     !> Determines what to do with comint output.
-    !> If ANSI_COLOR_NIL, do nothing.
+    !> If ANSI_COLOR_NO, do nothing.
     !> If ANSI_COLOR_FILTER, then filter all SGR control sequences.
-    !> If anything else (such as ANSI_COLOR_T), then translate SGR
+    !> If anything else (such as ANSI_COLOR_YES), then translate SGR
     !> control sequences into text properties.
     !>
     !> In order for this to have any effect, `ansi_color_process_output'
@@ -255,15 +270,15 @@ module ansi_color_fm
     !> \[ansi_color_for_comint_mode_filter]
     !> Port of ansi-color.el ansi-color-for-comint-mode.
     type(integer_setting), public :: ansi_color_for_comint_mode = integer_setting(name="ansi_color_for_comint_mode", &
-                                                                                  value=ANSI_COLOR_T)
+                                                                                  value=ANSI_COLOR_YES)
 
     !> Determines what to do with compilation output.
-    !> If ANSI_COLOR_NIL, do nothing.
+    !> If ANSI_COLOR_NO, do nothing.
     !>
     !> If ANSI_COLOR_FILTER, then filter all ANSI graphical control
     !> sequences.
     !>
-    !> If anything else (such as ANSI_COLOR_T), then translate ANSI
+    !> If anything else (such as ANSI_COLOR_YES), then translate ANSI
     !> graphical control sequences into text properties.
     !>
     !> In order for this to have any effect,
@@ -271,7 +286,7 @@ module ansi_color_fm
     !> `compilation_filter_hook'.  Port of ansi-color.el
     !> ansi-color-for-compilation-mode.
     type(integer_setting), public :: ansi_color_for_compilation_mode = &
-                                     integer_setting(name="ansi_color_for_compilation_mode", value=ANSI_COLOR_T)
+                                     integer_setting(name="ansi_color_for_compilation_mode", value=ANSI_COLOR_YES)
 
     ! A buffer's own `ansi_color_apply_face_function'.
     type :: face_function_entry_type
@@ -288,7 +303,7 @@ module ansi_color_fm
         character(len=32) :: name = "ansi_color_apply_face_function"
         type(face_function_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure :: set_local => face_function_set_local
         !> The current buffer's value.
         procedure :: get => face_function_get
@@ -317,6 +332,9 @@ module ansi_color_fm
     end type context_type
 
     type(context_type), allocatable :: contexts(:)
+    !> The property function `ansi_color_freeze_overlay', named by the
+    !> overlays of `ansi_color_make_extent'.
+    type(property_function_type), target :: ansi_color_freeze_overlay_function
 
 contains
 
@@ -360,7 +378,7 @@ contains
     end function context_slot
 
     !> Set the current buffer's `ansi_color_context' and
-    !> `ansi_color_context_region' to nil (as `kill_all_local_variables'
+    !> `ansi_color_context_region' to empty (as `kill_all_local_variables'
     !> does).  Not a port.
     subroutine reset_ansi_color_context()
         type(status_type) :: st
@@ -431,22 +449,22 @@ contains
     ! Convenience functions for comint modes (eg. shell-mode)
     ! ------------------------------------------------------------------
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_T.  Port of
+    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_YES.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-on.
     subroutine ansi_color_for_comint_mode_on(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_T
+        ansi_color_for_comint_mode = ANSI_COLOR_YES
     end subroutine ansi_color_for_comint_mode_on
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_NIL.  Port of
+    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_NO.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-off.
     subroutine ansi_color_for_comint_mode_off(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_NIL
+        ansi_color_for_comint_mode = ANSI_COLOR_NO
     end subroutine ansi_color_for_comint_mode_off
 
     !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_FILTER.  Port of
@@ -491,7 +509,7 @@ contains
         end if
 
         select case (int(ansi_color_for_comint_mode%value))
-        case (ANSI_COLOR_NIL)
+        case (ANSI_COLOR_NO)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(start, end)
         case default
@@ -509,18 +527,18 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         select case (int(ansi_color_for_compilation_mode%value))
-        case (ANSI_COLOR_NIL)
+        case (ANSI_COLOR_NO)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(compilation_filter_start, point())
         case default
             call ansi_color_apply_on_region(compilation_filter_start, point())
         end select
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine ansi_color_compilation_filter
 
     ! ------------------------------------------------------------------
@@ -597,7 +615,7 @@ contains
     !> Every call to this function will set and use the buffer-local
     !> variable `ansi_color_context' to save partial escape sequences.
     !> This information will be used for the next call to
-    !> `ansi_color_apply'.  Set `ansi_color_context' to nil if you don't
+    !> `ansi_color_apply'.  Set `ansi_color_context' to empty if you don't
     !> want this.
     !>
     !> This function can be added to `comint_preoutput_filter_functions'.
@@ -650,7 +668,7 @@ contains
     !> Every call to this function will set and use the buffer-local
     !> variable `ansi_color_context' to save partial escape sequences and
     !> current ansi codes.  This information will be used for the next
-    !> call to `ansi_color_apply'.  Set `ansi_color_context' to nil if you
+    !> call to `ansi_color_apply'.  Set `ansi_color_context' to empty if you
     !> don't want this.
     !>
     !> This function can be added to `comint_preoutput_filter_functions'.
@@ -669,11 +687,11 @@ contains
         k = ensure_string_context()
         face_vec = contexts(k)%string_face_vec
         ! If context was saved and is a string, prepend it.
-        text = propertized_concat(make_string(contexts(k)%fragment), string)
+        text = propertized_concat(value_type(text=contexts(k)%fragment), string)
         contexts(k)%fragment = ""
         raw = xstring(text)
         nchars = nchars_of(raw)
-        res = make_string("")
+        res = value_type(text="")
         start = 0
 
         ! Find the next escape sequence.
@@ -683,8 +701,8 @@ contains
             end = end - 1
             esc_end = match_end(0, st) - 1
             ! Colorize the old block from start to end using old face.
-            face = face_vec_face(face_vec)
-            if (.not. nilp(face)) call string_put_text_property(start, end, sym("font_lock_face"), face, text, st)
+            face = ansi_color_face_value(face_vec_face(face_vec))
+            if (allocated(face%a)) call string_put_text_property(start, end, value_type(name="font_lock_face"), face, text, st)
             res = propertized_concat(res, propertized_substring(text, start, end))
             start = esc_end
             ! If this is a color escape sequence,
@@ -698,8 +716,8 @@ contains
         end do
 
         ! if the rest of the string should have a face, put it there
-        face = face_vec_face(face_vec)
-        if (.not. nilp(face)) call string_put_text_property(start, nchars, sym("font_lock_face"), face, text, st)
+        face = ansi_color_face_value(face_vec_face(face_vec))
+        if (allocated(face%a)) call string_put_text_property(start, nchars, value_type(name="font_lock_face"), face, text, st)
         ! save context, add the remainder of the string to the result
         k = ensure_string_context()
         contexts(k)%string_face_vec = face_vec
@@ -750,45 +768,24 @@ contains
     ! ansi-color.el:ansi-color--face-vec-face.
     function face_vec_face(face_vec) result(face)
         type(face_vec_type), intent(in) :: face_vec
-        type(value_type) :: face
-        type(value_type) :: faces(10)
+        type(ansi_color_face_type) :: face
         integer :: n, i
         logical :: bright
 
         bright = ansi_color_bold_is_bright%value .and. face_vec%basic(1)
+        n = count(face_vec%basic)
+        allocate (face%faces(n))
         n = 0
 
-        ! (The faces are pushed: the list is built backwards.)
-        if (face_vec%fg >= 0) then
-            n = n + 1
-            faces(n) = list(sym(":foreground"), color_value(face_vec%fg, .true.))
-        end if
-
-        if (face_vec%bg >= 0) then
-            n = n + 1
-            faces(n) = list(sym(":background"), color_value(face_vec%bg, .false.))
-        end if
-
-        do i = 7, 0, -1
+        do i = 0, 7
             if (face_vec%basic(i)) then
                 n = n + 1
-
-                if (len_trim(ansi_color_basic_faces_vector(i)) > 0) then
-                    faces(n) = sym(trim(ansi_color_basic_faces_vector(i)))
-                else
-                    faces(n) = nil()
-                end if
+                if (len_trim(ansi_color_basic_faces(i)) > 0) face%faces(n)%face => face_named(trim(ansi_color_basic_faces(i)))
             end if
         end do
 
-        ! Avoid some long-lived conses in the common case.
-        if (n == 0) then
-            face = nil()
-        else if (n == 1) then
-            face = faces(1)
-        else
-            face = make_list(faces(n:1:-1))
-        end if
+        if (face_vec%bg >= 0) face%background = color_value(face_vec%bg, .false.)
+        if (face_vec%fg >= 0) face%foreground = color_value(face_vec%fg, .true.)
 
     contains
 
@@ -797,34 +794,94 @@ contains
         function color_value(code, fg) result(v)
             integer(int64), intent(in) :: code
             logical, intent(in) :: fg
-            type(value_type) :: v
+            character(len=:), allocatable :: v
             character(len=:), allocatable :: hex, name
             type(named_face_type), pointer :: f
 
             hex = ansi_color_code_as_hex(code)
 
             if (len(hex) > 0) then
-                v = make_string(hex)
+                v = hex
                 return
             end if
 
             if (bright .or. code >= 8) then
-                name = trim(ansi_color_bright_colors_vector(modulo(code, 8_int64)))
+                name = trim(ansi_color_bright_colors(modulo(code, 8_int64)))
             else
-                name = trim(ansi_color_normal_colors_vector(modulo(code, 8_int64)))
+                name = trim(ansi_color_normal_colors(modulo(code, 8_int64)))
             end if
 
-            v = nil()
+            v = ""
             f => face_named(name)
             if (.not. associated(f)) return
 
             if (fg) then
-                if (allocated(f%lface%foreground)) v = make_string(f%lface%foreground)
+                if (allocated(f%lface%foreground)) v = f%lface%foreground
             else
-                if (allocated(f%lface%background)) v = make_string(f%lface%background)
+                if (allocated(f%lface%background)) v = f%lface%background
             end if
         end function color_value
     end function face_vec_face
+
+    ! Not a port.
+    logical function ansi_color_face_is_empty(self)
+        class(ansi_color_face_type), intent(in) :: self
+
+        ansi_color_face_is_empty = .true.
+        if (allocated(self%faces)) ansi_color_face_is_empty = size(self%faces) == 0
+        if (allocated(self%foreground) .or. allocated(self%background)) ansi_color_face_is_empty = .false.
+    end function ansi_color_face_is_empty
+
+    !> FACE as the value of a `face' or `font_lock_face' text property:
+    !> its face names, then (:background COLOR) and (:foreground COLOR);
+    !> one element alone, unallocated for an empty face, as
+    !> ansi-color--face-vec-face builds it.  Not a port.
+    function ansi_color_face_value(face) result(v)
+        type(ansi_color_face_type), intent(in) :: face
+        type(value_type) :: v
+        type(value_type), allocatable :: elems(:)
+        integer :: n, k
+
+        n = 0
+        if (allocated(face%faces)) n = size(face%faces)
+        if (allocated(face%background)) n = n + 1
+        if (allocated(face%foreground)) n = n + 1
+        allocate (elems(n))
+        n = 0
+
+        if (allocated(face%faces)) then
+            do k = 1, size(face%faces)
+                n = n + 1
+                if (associated(face%faces(k)%face)) elems(n) = value_type(name=trim(face%faces(k)%face%name))
+            end do
+        end if
+
+        if (allocated(face%background)) then
+            n = n + 1
+            elems(n) = list(value_type(name=":background"), color_string(face%background))
+        end if
+
+        if (allocated(face%foreground)) then
+            n = n + 1
+            elems(n) = list(value_type(name=":foreground"), color_string(face%foreground))
+        end if
+
+        if (n == 1) then
+            v = elems(1)
+        else if (n > 1) then
+            v = make_list(elems)
+        end if
+
+    contains
+
+        ! COLOR as a value: unallocated for "" (a face without the color).
+        function color_string(color) result(c)
+            character(len=*), intent(in) :: color
+            type(value_type) :: c
+
+            if (len(color) > 0) c = value_type(text=color)
+        end function color_string
+    end function ansi_color_face_value
 
     !> Convert COLOR to hexadecimal string representation.
     !> COLOR is an ANSI color code.  If it is between 16 and 255
@@ -909,7 +966,7 @@ contains
     !> information will be used for the next call to
     !> `ansi_color_apply_on_region'.  Specifically, it will override
     !> BEGIN, the start of the region.  Set `ansi_color_context_region'
-    !> to nil if you don't want this.  Port of
+    !> to empty if you don't want this.  Port of
     !> ansi-color.el:ansi-color-filter-region.
     recursive subroutine ansi_color_filter_region(begin, end)
         integer(int64), intent(in) :: begin, end
@@ -964,7 +1021,7 @@ contains
     !> ansi codes.  This information will be used for the next call to
     !> `ansi_color_apply_on_region'.  Specifically, it will override
     !> BEGIN, the start of the region and set the face with which to
-    !> start.  Set `ansi_color_context_region' to nil if you don't want
+    !> start.  Set `ansi_color_context_region' to empty if you don't want
     !> this.
     !>
     !> If PRESERVE_SEQUENCES is true, the sequences are hidden instead of
@@ -975,7 +1032,7 @@ contains
         procedure(ansi_color_face_proc), pointer :: apply
         type(handle_type) :: start_marker, end_marker, ov
         type(face_vec_type) :: face_vec
-        type(value_type) :: faces
+        type(ansi_color_face_type) :: faces
         type(status_type) :: st
         character(len=:), allocatable :: seq
         integer(int64), allocatable :: codes(:)
@@ -1016,7 +1073,7 @@ contains
             if (preserve) then
                 ! Make the escape sequence transparent.
                 call make_overlay(ov, esc_beg, esc_end, st)
-                call overlay_put(ov, "invisible", t_value(), st)
+                call overlay_put(ov, "invisible", value_type(.true.), st)
             else
                 ! Otherwise, strip.
                 call delete_region(esc_beg, esc_end, st)
@@ -1047,7 +1104,7 @@ contains
             ! positions that overlap regions previously colored; these
             ! `codes' should not be applied to that overlap, so we need to
             ! know where they should really start.
-            if (nilp(faces)) then
+            if (faces%is_empty()) then
                 call detach_marker(start_marker, st)
             else
                 call set_marker(start_marker, mpos(end_marker), st)
@@ -1062,29 +1119,29 @@ contains
     end subroutine ansi_color_apply_on_region
 
     !> Make an overlay from BEG to END, and apply face FACE.
-    !> If FACE is nil, do nothing.  Port of
+    !> If FACE is empty, do nothing.  Port of
     !> ansi-color.el:ansi-color-apply-overlay-face.
     recursive subroutine ansi_color_apply_overlay_face(beg, end, face)
         integer(int64), intent(in) :: beg, end
-        type(value_type), intent(in) :: face
+        type(ansi_color_face_type), intent(in) :: face
         type(handle_type) :: ov
         type(status_type) :: st
 
-        if (nilp(face)) return
+        if (face%is_empty()) return
         call ansi_color_make_extent(beg, end, ov)
-        call overlay_put(ov, "face", face, st)
+        call overlay_put(ov, "face", ansi_color_face_value(face), st)
     end subroutine ansi_color_apply_overlay_face
 
     !> Set the `font_lock_face' property to FACE in region BEG..END.
-    !> If FACE is nil, do nothing.  Port of
+    !> If FACE is empty, do nothing.  Port of
     !> ansi-color.el:ansi-color-apply-text-property-face.
     recursive subroutine ansi_color_apply_text_property_face(beg, end, face)
         integer(int64), intent(in) :: beg, end
-        type(value_type), intent(in) :: face
+        type(ansi_color_face_type), intent(in) :: face
         type(status_type) :: st
 
-        if (nilp(face)) return
-        call put_text_property(beg, end, sym("font_lock_face"), face, st)
+        if (face%is_empty()) return
+        call put_text_property(beg, end, value_type(name="font_lock_face"), ansi_color_face_value(face), st)
     end subroutine ansi_color_apply_text_property_face
 
     !> Make an extent for the range [FROM, TO) in the current buffer.
@@ -1100,9 +1157,9 @@ contains
         ! avoid this, we use the `insert-behind-hooks' overlay property to
         ! make sure it works.
         call make_overlay(overlay, from, to, st)
-        call overlay_put(overlay, "evaporate", t_value(), st)
-        call overlay_put(overlay, "modification_hooks", list(sym("ansi_color_freeze_overlay")), st)
-        call overlay_put(overlay, "insert_behind_hooks", list(sym("ansi_color_freeze_overlay")), st)
+        call overlay_put(overlay, "evaporate", value_type(.true.), st)
+        call overlay_put(overlay, "modification_hooks", list(value_type(name="ansi_color_freeze_overlay")), st)
+        call overlay_put(overlay, "insert_behind_hooks", list(value_type(name="ansi_color_freeze_overlay")), st)
     end subroutine ansi_color_make_extent
 
     ! ------------------------------------------------------------------
@@ -1248,13 +1305,35 @@ contains
     ! Setup
     ! ------------------------------------------------------------------
 
-    !> Define the faces and commands of ansi-color, and put
+    !> Prevent OVERLAY from being extended.
+    !> This function can be used for the `modification_hooks' overlay
+    !> property.  Port of ansi-color.el:ansi-color-freeze-overlay.
+    recursive subroutine ansi_color_freeze_overlay(overlay, is_after, begin, end, status, len)
+        type(handle_type), intent(in) :: overlay
+        logical, intent(in) :: is_after
+        integer(int64), intent(in) :: begin, end
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: len
+
+        status = status_type()
+        if (.not. is_after) return
+        if (.not. present(len)) return
+        if (len /= 0) return
+        ! If stuff was inserted at the end of the overlay, reset the end of
+        ! the overlay.
+        if (end == overlay_end(overlay)) call move_overlay(overlay, overlay_start(overlay), begin, status)
+    end subroutine ansi_color_freeze_overlay
+
+    !> Define the faces, commands and property functions of ansi-color, and put
     !> `ansi_color_process_output' first in
     !> `comint_output_filter_functions' (as its default value lists it).
     !> Not a port.
     subroutine syms_of_ansi_color()
         type(face_attributes_type) :: attrs
 
+        ansi_color_freeze_overlay_function = property_function_type("ansi_color_freeze_overlay", &
+                                                                    overlay_change=ansi_color_freeze_overlay)
+        call ansi_color_freeze_overlay_function%define()
         call ansi_color_bold%define("ansi_color_bold", "Face used to render bold text.")
         call ansi_color_bold%spec_entry(display_when(), face_attrs(inherit="bold"))
         call ansi_color_faint%define("ansi_color_faint", "Face used to render faint text.")

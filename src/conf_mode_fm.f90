@@ -30,8 +30,8 @@
 !>
 !> The keyword lists (`conf_font_lock_keywords' and the others) are
 !> arrays of `font_lock_keyword_type'.  `conf_assignment_sign' is a string
-!> (unallocated for nil).  `conf_space_keywords_alist' holds
-!> `conf_space_keywords_entry_type' pairs.
+!> (unallocated for none).  `conf_space_keywords_table' holds
+!> `conf_space_keywords_entry_type' entries.
 !>
 !> Deferred: Outline mode's variables (`outline_regexp',
 !> `outline_heading_end_regexp', `outline_level' with
@@ -44,7 +44,6 @@ module conf_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nilp
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -54,15 +53,15 @@ module conf_mode_fm
     use keymap_fm, only: keymap_set
     use subr_fm, only: delaying_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, run_mode_hooks
     use syntax_fm, only: make_syntax_table, copy_syntax_table, modify_syntax_entry, syntax_table, set_syntax_table, &
-                         syntax_table_live_p, parse_sexp_ignore_comments, forward_comment, scan_lists
-    use editfns_fm, only: point, point_min, point_max, goto_char, eobp, eolp, char_after, char_before, delete_region, &
+                         is_syntax_table_live, parse_expression_ignore_comments, forward_comment, scan_groups
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_eob, is_eol, char_after, char_before, delete_region, &
                           narrow_to_region, widen, region_beginning, region_end, line_end_position
     use cmds_fm, only: forward_line, forward_char, end_of_line
     use insdel_fm, only: insert
     use indent_fm, only: current_column, indent_to
     use search_fm, only: looking_at, re_search_forward, search_forward, string_match, match_beginning, match_end, &
                          set_match_data, regexp_quote, SEARCH_NOERROR
-    use simple_fm, only: use_region_p
+    use simple_fm, only: is_use_region
     use minibuf_fm, only: read_string
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                             font_lock_mode_enabled, FONT_LOCK_OVERRIDE_PREPEND
@@ -149,7 +148,7 @@ module conf_mode_fm
     !> conf-desktop-font-lock-keywords.
     type(font_lock_keyword_type), allocatable, public :: conf_desktop_font_lock_keywords(:)
 
-    !> An entry of `conf_space_keywords_alist': files whose name matches
+    !> An entry of `conf_space_keywords_table': files whose name matches
     !> REGEXP get KEYWORDS as `conf_space_keywords'.
     type :: conf_space_keywords_entry_type
         character(len=:), allocatable :: regexp, keywords
@@ -157,22 +156,22 @@ module conf_mode_fm
 
     !> File-name-based settings for the variable `conf_space_keywords'.
     !> Port of conf-mode.el conf-space-keywords-alist.
-    type(conf_space_keywords_entry_type), allocatable, public :: conf_space_keywords_alist(:)
+    type(conf_space_keywords_entry_type), allocatable, public :: conf_space_keywords_table(:)
 
     !> Regexps for functions that may come before a space assignment.
     !> This allows constructs such as
     !> keyword var value
     !> This variable is best set in the file local variables, or through
-    !> `conf_space_keywords_alist'.  Port of conf-mode.el
+    !> `conf_space_keywords_table'.  Port of conf-mode.el
     !> conf-space-keywords.
     type(string_setting), target, public :: conf_space_keywords = string_setting(name="conf_space_keywords")
 
     !> Sign used for assignments (char or string).  Port of conf-mode.el
-    !> conf-assignment-sign (unallocated for nil).
+    !> conf-assignment-sign (unallocated for none).
     type(string_setting), target, public :: conf_assignment_sign = string_setting(name="conf_assignment_sign")
 
     !> Regexp to recognize assignments.
-    !> It is anchored after the first sexp on a line.  There must be a
+    !> It is anchored after the first expression on a line.  There must be a
     !> grouping for the assignment sign, including leading and trailing
     !> whitespace.  Port of conf-mode.el conf-assignment-regexp.
     type(string_setting), target, public :: conf_assignment_regexp = string_setting(name="conf_assignment_regexp")
@@ -217,7 +216,7 @@ contains
     subroutine syms_of_conf_mode()
         type(status_type) :: st
 
-        if (syntax_table_live_p(conf_mode_syntax_table)) return
+        if (is_syntax_table_live(conf_mode_syntax_table)) return
         call forward_setting(conf_assignment_column)
         call forward_setting(conf_javaprop_assignment_column)
         call forward_setting(conf_colon_assignment_column)
@@ -230,7 +229,7 @@ contains
         if (.not. allocated(conf_assignment_regexp%value)) conf_assignment_regexp = ".+?\([ "//TAB//"]*=[ "//TAB//"]*\)"
         call init_syntax_tables()
         call init_keywords()
-        call init_space_keywords_alist()
+        call init_space_keywords_table()
         call major_modes%conf_mode%define("conf_mode", "Conf[?]", conf_mode, conf_mode_hook, &
                                           syntax_table=conf_mode_syntax_table)
         conf_mode_map = major_modes%conf_mode%map
@@ -284,7 +283,7 @@ contains
         commands%conf_align_assignments%run => cmd_conf_align_assignments
         commands%conf_quote_normal%run => cmd_conf_quote_normal
         commands%conf_mode_maybe%run => conf_mode_maybe
-        commands%conf_mode_maybe%interactive = .false.
+        commands%conf_mode_maybe%is_command = .false.
     end subroutine syms_of_conf_mode
 
     ! Make the syntax tables of the Conf modes.  Port of the values of
@@ -421,11 +420,11 @@ contains
         conf_desktop_font_lock_keywords(5) = font_lock_keyword("\_<%[uUfFick%]\_>", highlights=h1)
     end subroutine init_keywords
 
-    ! Set `conf_space_keywords_alist'.  Port of the value of conf-mode.el's
+    ! Set `conf_space_keywords_table'.  Port of the value of conf-mode.el's
     ! conf-space-keywords-alist.
-    subroutine init_space_keywords_alist()
-        if (allocated(conf_space_keywords_alist)) return
-        allocate (conf_space_keywords_alist(9))
+    subroutine init_space_keywords_table()
+        if (allocated(conf_space_keywords_table)) return
+        allocate (conf_space_keywords_table(9))
         call set_entry(1, "\`/etc/gpm/", "key\|name\|foreground\|background\|border\|head")
         call set_entry(2, "\`/etc/magic\'", "[^ "//TAB//"]+[ "//TAB//"]+\(?:[bl]?e?\(?:short\|long\)\|byte\|string\)[^ " &
                        //TAB//"]*")
@@ -443,10 +442,10 @@ contains
             integer, intent(in) :: k
             character(len=*), intent(in) :: regexp, keywords
 
-            conf_space_keywords_alist(k)%regexp = regexp
-            conf_space_keywords_alist(k)%keywords = keywords
+            conf_space_keywords_table(k)%regexp = regexp
+            conf_space_keywords_table(k)%keywords = keywords
         end subroutine set_entry
-    end subroutine init_space_keywords_alist
+    end subroutine init_space_keywords_table
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -455,7 +454,7 @@ contains
     !> Align the assignments in the buffer or active region.
     !> In Transient Mark mode, if the mark is active, operate on the
     !> contents of the region.  Otherwise, operate on the whole buffer.
-    !> Port of conf-mode.el:conf-align-assignments (ARG absent for nil).
+    !> Port of conf-mode.el:conf-align-assignments (ARG absent for no prefix).
     subroutine conf_align_assignments(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -478,7 +477,7 @@ contains
         zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
         narrowed = .false.
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, status)
             if (status%ok()) call region_end(e, status)
             if (.not. status%ok()) return
@@ -489,7 +488,7 @@ contains
 
         call goto_char(point_min())
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             ! go before comment if within
             cs = comment_beginning()
             if (cs > 0) call goto_char(cs)
@@ -499,7 +498,7 @@ contains
                 if (.not. moved) exit
             end do
 
-            if (.not. eobp()) then
+            if (.not. is_eob()) then
                 if (looking_at(conf_assignment_regexp%value, st)) then
                     b = match_beginning(1, st)
                     e = match_end(1, st)
@@ -514,7 +513,7 @@ contains
                             c = before_char()
                             if (conf_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
 
-                            if (conf_assignment_space%value .and. .not. eolp()) then
+                            if (conf_assignment_space%value .and. .not. is_eol()) then
                                 call insert(conf_assignment_sign%value//" ", status)
                             else
                                 call insert(conf_assignment_sign%value, status)
@@ -526,7 +525,7 @@ contains
                                 call insert(conf_assignment_sign%value, status)
                             end if
 
-                            if (status%ok() .and. .not. eolp()) then
+                            if (status%ok() .and. .not. is_eol()) then
                                 col = indent_to(-column, status)
 
                                 if (status%ok()) then
@@ -535,7 +534,7 @@ contains
                                 end if
                             end if
                         end if
-                    else if (.not. eolp()) then
+                    else if (.not. is_eol()) then
                         if (current_column() >= abs(column)) then
                             call insert(" ", status)
                         else
@@ -586,7 +585,7 @@ contains
     subroutine cmd_conf_align_assignments(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call conf_align_assignments(status)
         else
             call conf_align_assignments(status, prefix_numeric_value(current_prefix_arg))
@@ -601,7 +600,7 @@ contains
     !> and you can correct it with this command.  (Some files even do
     !> both, i.e. quotes delimit strings, except when they are
     !> unbalanced, but hey...)  Port of conf-mode.el:conf-quote-normal
-    !> (ARG absent for nil).
+    !> (ARG absent for no prefix).
     subroutine conf_quote_normal(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -628,7 +627,7 @@ contains
     subroutine cmd_conf_quote_normal(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call conf_quote_normal(status)
         else
             call conf_quote_normal(status, prefix_numeric_value(current_prefix_arg))
@@ -652,7 +651,7 @@ contains
         opoint = point()
         call goto_char(point_min())
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             moved = skip_blanks()
             c = after_char()
 
@@ -662,7 +661,7 @@ contains
                 win = win + 1
             else if (c == iachar("[")) then
                 continue ! nop
-            else if (eolp()) then
+            else if (is_eol()) then
                 continue ! nop
             else if (c == iachar("}")) then
                 continue ! nop
@@ -756,7 +755,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved, recursing
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
 
         ! Redirect to one of the submodes when called directly.  The file
         ! may have "mode: conf" in the local variable block, in which case
@@ -773,7 +772,7 @@ contains
         if (.not. status%ok()) return
         call font_lock_defaults%set_local(keywords=conf_font_lock_keywords, case_fold=.true.)
         ! Let newcomment.el decide this for itself.
-        call parse_sexp_ignore_comments%set_local(.true.)
+        call parse_expression_ignore_comments%set_local(.true.)
         call major_modes%conf_mode%finish(saved, status)
     end subroutine conf_mode
 
@@ -797,7 +796,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_unix_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")
@@ -822,7 +821,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_windows_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize(";")
@@ -846,7 +845,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_javaprop_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_javaprop_font_lock_keywords)
@@ -857,7 +856,7 @@ contains
 
     !> Conf Mode starter for space separated conf files.
     !> "Assignments" are with ` '.  Keywords before the parameters are
-    !> recognized according to the variable `conf_space_keywords_alist'.
+    !> recognized according to the variable `conf_space_keywords_table'.
     !> Alternatively, you can specify a value for the file local variable
     !> `conf_space_keywords'.
     !> Use the function `conf_space_keywords' if you want to specify keywords
@@ -884,7 +883,7 @@ contains
         integer :: k
         type(status_type) :: st
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_space_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_space_font_lock_keywords)
@@ -898,9 +897,9 @@ contains
             call conf_space_keywords%make_local()
             call conf_space_keywords%clear()
 
-            do k = 1, size(conf_space_keywords_alist)
-                if (string_match(conf_space_keywords_alist(k)%regexp, buffers(cur)%filename, st) > 0) then
-                    call conf_space_keywords%set_local(conf_space_keywords_alist(k)%keywords)
+            do k = 1, size(conf_space_keywords_table)
+                if (string_match(conf_space_keywords_table(k)%regexp, buffers(cur)%filename, st) > 0) then
+                    call conf_space_keywords%set_local(conf_space_keywords_table(k)%keywords)
                     exit
                 end if
             end do
@@ -1000,7 +999,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_colon_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_colon_font_lock_keywords)
@@ -1025,7 +1024,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_ppd_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("*%")
@@ -1046,7 +1045,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_xdefaults_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("!")
@@ -1071,7 +1070,7 @@ contains
         if (.not. st%ok() .or. f <= 0) return
         start = point()
         call forward_char(st, -1_int64)
-        pos = scan_lists(point(), 1_int64, 0_int64, st)
+        pos = scan_groups(point(), 1_int64, 0_int64, st)
 
         if (st%ok() .and. pos > 0) then
             call goto_char(pos)
@@ -1109,7 +1108,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_toml_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")
@@ -1137,7 +1136,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_desktop_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_desktop_font_lock_keywords)
@@ -1153,7 +1152,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_npmrc_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")

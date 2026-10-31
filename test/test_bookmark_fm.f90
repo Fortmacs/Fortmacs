@@ -22,18 +22,17 @@
 !> Ports the tests of bookmark-tests.el; the resource files
 !> test/bookmark-resources/test.bmk and test-list.bmk are upstream's in
 !> namelist syntax.  `bookmark_make_record_function' returning upstream's
-!> SECOND format (a nested alist) is not applicable: records are typed.
+!> SECOND format (a nested table) is not applicable: records are typed.
 module test_bookmark_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, list_length, list_elt, xstring
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list_length, list_elt, xstring
     use data_fm, only: set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer_create, &
-                         generate_new_buffer_name, restore_buffer_modified_p, get_buffer
+                         generate_new_buffer_name, restore_buffer_modified, get_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point_min, point_max, point
     use cmds_fm, only: forward_line, beginning_of_line, forward_char
@@ -42,13 +41,13 @@ module test_bookmark_fm
     use sysdep_fm, only: file_stat_type
     use files_fm, only: make_temp_file, delete_file, find_file_noselect, abbreviate_file_name
     use search_fm, only: string_match, looking_at, re_search_forward
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use window_fm, only: switch_to_buffer, window_configuration_type, current_window_configuration, same_handle, &
                          set_window_configuration
     use subr_fm, only: history_delete_duplicates
     use bindings_fm, only: init_bindings
-    use bookmark_fm, only: bookmark_type, bookmark_alist, bookmark_default_file, bookmark_bookmarks_timestamp, &
-                           bookmark_save_flag, BOOKMARK_SAVE_FLAG_NIL, bookmark_use_annotations, &
+    use bookmark_fm, only: bookmark_type, bookmark_table, bookmark_default_file, bookmark_bookmarks_timestamp, &
+                           bookmark_save_flag, BOOKMARK_SAVE_FLAG_NEVER, bookmark_use_annotations, &
                            bookmark_make_record_function, bookmark_all_names, bookmark_get_bookmark, &
                            bookmark_set_name, bookmark_get_filename, bookmark_set_filename, bookmark_get_position, &
                            bookmark_set_position, bookmark_get_front_context_string, &
@@ -67,7 +66,7 @@ module test_bookmark_fm
                            bookmark_bmenu_any_marks, bookmark_bmenu_ensure_position, bookmark_bmenu_mark_all, &
                            bookmark_bmenu_unmark, bookmark_bmenu_unmark_all, bookmark_bmenu_delete, &
                            bookmark_bmenu_execute_deletions, bookmark_bmenu_delete_all, bookmark_bmenu_locate, &
-                           bookmark_bmenu_filter_alist_by_regexp
+                           bookmark_bmenu_filter_table_by_regexp
     use minibuf_fm, only: minibuffer_string_type
     implicit none(type, external)
     private
@@ -127,7 +126,7 @@ contains
                     new_unittest("bookmark-test-bmenu-delete", test_bmenu_delete), &
                     new_unittest("bookmark-test-bmenu-delete-all", test_bmenu_delete_all), &
                     new_unittest("bookmark-test-bmenu-locate", test_bmenu_locate), &
-                    new_unittest("bookmark-test-bmenu-filter-alist-by-regexp", test_bmenu_filter_alist_by_regexp) &
+                    new_unittest("bookmark-test-bmenu-filter-alist-by-regexp", test_bmenu_filter_table_by_regexp) &
                     ]
     end subroutine collect_bookmark_fm
 
@@ -187,11 +186,11 @@ contains
         bookmark_bookmarks_timestamp%mtime_known = found
         bookmark_bookmarks_timestamp%mtime_sec = stat%mtime_sec
         bookmark_bookmarks_timestamp%mtime_nsec = stat%mtime_nsec
-        bookmark_save_flag = BOOKMARK_SAVE_FLAG_NIL
+        bookmark_save_flag = BOOKMARK_SAVE_FLAG_NEVER
         bookmark_use_annotations = .false.
     end subroutine use_default_file
 
-    !> (with-bookmark-test): a temporary buffer is current; `bookmark_alist'
+    !> (with-bookmark-test): a temporary buffer is current; `bookmark_table'
     !> is upstream's cached bookmark.
     subroutine with_bookmark_test(old)
         type(handle_type), intent(out) :: old
@@ -200,9 +199,9 @@ contains
 
         call init_bindings()
         call use_default_file("test.bmk")
-        if (allocated(bookmark_alist)) deallocate (bookmark_alist)
-        allocate (bookmark_alist(1))
-        bookmark_alist(1) = tests_bookmark()
+        if (allocated(bookmark_table)) deallocate (bookmark_table)
+        allocate (bookmark_table(1))
+        bookmark_table(1) = tests_bookmark()
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
@@ -217,11 +216,11 @@ contains
 
         call init_bindings()
         call use_default_file("test-list.bmk")
-        if (allocated(bookmark_alist)) deallocate (bookmark_alist)
-        allocate (bookmark_alist(3))
-        bookmark_alist(1) = cached("name-0", "/some/file-0", "ghi", "jkl", 4_int64)
-        bookmark_alist(2) = cached("name-1", "/some/file-1", "mno", "pqr", 5_int64)
-        bookmark_alist(3) = cached("name-2", "/some/file-2", "stu", "vwx", 6_int64)
+        if (allocated(bookmark_table)) deallocate (bookmark_table)
+        allocate (bookmark_table(3))
+        bookmark_table(1) = cached("name-0", "/some/file-0", "ghi", "jkl", 4_int64)
+        bookmark_table(2) = cached("name-1", "/some/file-1", "mno", "pqr", 5_int64)
+        bookmark_table(3) = cached("name-2", "/some/file-2", "stu", "vwx", 6_int64)
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
@@ -232,7 +231,7 @@ contains
         type(handle_type), intent(in) :: old
         type(status_type) :: st
 
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call kill_buffer(current_buffer(), st)
         call set_buffer(old, st)
     end subroutine done
@@ -330,7 +329,7 @@ contains
         call with_bookmark_test(old)
         k = bookmark_get_bookmark("name", st)
         call check(error, k == 1, "found")
-        if (.not. allocated(error)) call check(error, same_bookmark(bookmark_alist(k), tests_bookmark()), "cached")
+        if (.not. allocated(error)) call check(error, same_bookmark(bookmark_table(k), tests_bookmark()), "cached")
         call done(old)
     end subroutine test_get_bookmark
 
@@ -360,16 +359,16 @@ contains
         type(status_type) :: st
 
         call with_bookmark_test_list(old)
-        call check(error, same_bookmark(bookmark_alist(bookmark_get_bookmark("name-0", st)), &
+        call check(error, same_bookmark(bookmark_table(bookmark_get_bookmark("name-0", st)), &
                                         cached("name-0", "/some/file-0", "ghi", "jkl", 4_int64)), "name-0")
 
         if (.not. allocated(error)) then
-            call check(error, same_bookmark(bookmark_alist(bookmark_get_bookmark("name-1", st)), &
+            call check(error, same_bookmark(bookmark_table(bookmark_get_bookmark("name-1", st)), &
                                             cached("name-1", "/some/file-1", "mno", "pqr", 5_int64)), "name-1")
         end if
 
         if (.not. allocated(error)) then
-            call check(error, same_bookmark(bookmark_alist(bookmark_get_bookmark("name-2", st)), &
+            call check(error, same_bookmark(bookmark_table(bookmark_get_bookmark("name-2", st)), &
                                             cached("name-2", "/some/file-2", "stu", "vwx", 6_int64)), "name-2")
         end if
 
@@ -426,13 +425,13 @@ contains
         logical :: saved
 
         call init_bindings()
-        call set(sym("bookmark_history"), nil(), st)
+        call set(value_type(name="bookmark_history"), value_type(), st)
         saved = history_delete_duplicates
         history_delete_duplicates = .true.
         call bookmark_maybe_historicize_string("foo")
         call bookmark_maybe_historicize_string("foo")
         history_delete_duplicates = saved
-        call symbol_value(sym("bookmark_history"), history, st)
+        call symbol_value(value_type(name="bookmark_history"), history, st)
         call check(error, list_length(history) == 1, "one element")
         if (allocated(error)) return
         call check(error, xstring(list_elt(history, 1_int64)), "foo")
@@ -542,19 +541,19 @@ contains
         call bookmark_make_record_default(record, status)
     end subroutine default_record
 
-    !> Whether `bookmark_alist' (without last-modified times) is RECORDS.
-    logical function alist_is(records) result(same)
+    !> Whether `bookmark_table' (without last-modified times) is RECORDS.
+    logical function table_is(records) result(same)
         type(bookmark_type), intent(in) :: records(:)
         integer :: k
 
-        same = size(bookmark_alist) == size(records)
+        same = size(bookmark_table) == size(records)
         if (.not. same) return
 
         do k = 1, size(records)
-            same = same_bookmark(bookmark_alist(k), records(k), no_time=.true.)
+            same = same_bookmark(bookmark_table(k), records(k), no_time=.true.)
             if (.not. same) return
         end do
-    end function alist_is
+    end function table_is
 
     subroutine test_set(error)
         type(error_type), allocatable, intent(out) :: error
@@ -571,8 +570,8 @@ contains
         bmk2%filename = example_file()
         bmk2%rear_context_string = ".txt ends here."//achar(10)
         bmk2%position = 72
-        deallocate (bookmark_alist)
-        allocate (bookmark_alist(0))
+        deallocate (bookmark_table)
+        allocate (bookmark_table(0))
         call example_buffer(buffer)
         call set_buffer(buffer, st)
 
@@ -581,12 +580,12 @@ contains
             ! Set first bookmark
             call goto_char(point_min())
             call bookmark_set(st, "foo")
-            call check(error, alist_is([bmk1]), "bmk1")
+            call check(error, table_is([bmk1]), "bmk1")
             if (allocated(error)) exit steps
             ! Replace that bookmark
             call goto_char(point_max())
             call bookmark_set(st, "foo")
-            call check(error, alist_is([bmk2]), "bmk2")
+            call check(error, table_is([bmk2]), "bmk2")
             if (allocated(error)) exit steps
             ! Push another bookmark with the same name
             call goto_char(point_min())
@@ -594,7 +593,7 @@ contains
             call bookmark_set(st, "foo", .true.)
             two(1) = bmk1
             two(2) = bmk2
-            call check(error, alist_is(two), "bmk1 bmk2")
+            call check(error, table_is(two), "bmk1 bmk2")
             if (allocated(error)) exit steps
             ! 2. bookmark-set-no-overwrite
             ! Don't overwrite
@@ -602,10 +601,10 @@ contains
             call check(error,.not. st%ok(), "should error")
             if (allocated(error)) exit steps
             ! Set new bookmark
-            deallocate (bookmark_alist)
-            allocate (bookmark_alist(0))
+            deallocate (bookmark_table)
+            allocate (bookmark_table(0))
             call bookmark_set_no_overwrite(st, "foo")
-            call check(error, alist_is([bmk1]), "bmk1 again")
+            call check(error, table_is([bmk1]), "bmk1 again")
             if (allocated(error)) exit steps
             ! Push another bookmark with the same name
             call goto_char(point_max())
@@ -613,7 +612,7 @@ contains
             call bookmark_set_no_overwrite(st, "foo", .true.)
             two(1) = bmk2
             two(2) = bmk1
-            call check(error, alist_is(two), "bmk2 bmk1")
+            call check(error, table_is(two), "bmk2 bmk1")
             if (allocated(error)) exit steps
             ! 3. bookmark-set-internal
             call bookmark_set_internal("foo", BOOKMARK_SET_PUSH + 1, st, "bar")
@@ -642,7 +641,7 @@ contains
             call bookmark_set(st, "foo")
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit steps
-            call check(error, derived_mode_p("bookmark_edit_annotation_mode"), "in the annotation mode")
+            call check(error, is_derived_mode("bookmark_edit_annotation_mode"), "in the annotation mode")
             if (allocated(error)) exit steps
             ! Should return to the original buffer
             call bookmark_edit_annotation_confirm(st)
@@ -810,7 +809,7 @@ contains
 
         call with_bookmark_test(old)
         call bookmark_delete("name", st)
-        call check(error, size(bookmark_alist) == 0, "no bookmarks")
+        call check(error, size(bookmark_table) == 0, "no bookmarks")
         call done(old)
     end subroutine test_delete
 
@@ -821,7 +820,7 @@ contains
 
         call with_bookmark_test_list(old)
         call bookmark_delete_all(st, .true.)
-        call check(error, size(bookmark_alist) == 0, "no bookmarks")
+        call check(error, size(bookmark_table) == 0, "no bookmarks")
         call done(old)
     end subroutine test_delete_all
 
@@ -832,7 +831,7 @@ contains
         integer, intent(in) :: change
         character(len=*), intent(in) :: value
         type(handle_type) :: old
-        type(bookmark_type), allocatable :: old_alist(:)
+        type(bookmark_type), allocatable :: old_table(:)
         type(status_type) :: st
         character(len=:), allocatable :: file
         integer :: k
@@ -850,23 +849,23 @@ contains
             continue
         end select
 
-        allocate (old_alist(size(bookmark_alist)))
+        allocate (old_table(size(bookmark_table)))
 
-        do k = 1, size(bookmark_alist)
-            old_alist(k) = bookmark_alist(k)
+        do k = 1, size(bookmark_table)
+            old_table(k) = bookmark_table(k)
         end do
 
         call bookmark_save(st, file=file, make_default=.true.)
         call check(error, st%ok(), format_error(st))
 
         if (.not. allocated(error)) then
-            deallocate (bookmark_alist)
-            allocate (bookmark_alist(0))
+            deallocate (bookmark_table)
+            allocate (bookmark_table(0))
             call bookmark_load(file, st, no_msg=.true.)
             call check(error, st%ok(), format_error(st))
         end if
 
-        if (.not. allocated(error)) call check(error, alist_is(old_alist), "the bookmarks again")
+        if (.not. allocated(error)) call check(error, table_is(old_table), "the bookmarks again")
         call delete_file(file, st)
         call delete_file(file//"~", st)
         call done(old)
@@ -926,14 +925,14 @@ contains
             call bookmark_load("no/such/file", st)
             call check(error,.not. st%ok(), "should error")
             if (allocated(error)) exit steps
-            deallocate (bookmark_alist)
-            allocate (bookmark_alist(0))
+            deallocate (bookmark_table)
+            allocate (bookmark_table(0))
             call bookmark_load(resource_file("test.bmk"), st, no_msg=.true.)
-            call check(error, alist_is(one), "loaded")
+            call check(error, table_is(one), "loaded")
             if (allocated(error)) exit steps
             ! OVERWRITE is t
             call bookmark_load(resource_file("test.bmk"), st, overwrite=.true., no_msg=.true.)
-            call check(error, alist_is(one), "overwritten")
+            call check(error, table_is(one), "overwritten")
             if (allocated(error)) exit steps
             ! Append
             ! OVERWRITE is nil
@@ -941,7 +940,7 @@ contains
             two(1) = tests_bookmark()
             two(2) = tests_bookmark()
             two(2)%name = "name<2>"
-            call check(error, alist_is(two), "appended")
+            call check(error, table_is(two), "appended")
         end block steps
 
         call done(old)
@@ -1163,7 +1162,7 @@ contains
         do k = 1, 3
             call check(error, looking("^"//tags(k)), "tag "//tags(k))
             if (allocated(error)) return
-            call check(error, same_bookmark(bookmark_alist(bookmark_get_bookmark(bookmark_bmenu_bookmark(), st)), &
+            call check(error, same_bookmark(bookmark_table(bookmark_get_bookmark(bookmark_bmenu_bookmark(), st)), &
                                             list_bookmark(k)), "bookmark")
             if (allocated(error)) return
             shortage = forward_line(1_int64)
@@ -1282,7 +1281,7 @@ contains
         call with_bmenu_test(old, config)
         call bookmark_bmenu_delete(st)
         call bookmark_bmenu_execute_deletions(st)
-        call check(error, size(bookmark_alist) == 0, "no bookmarks")
+        call check(error, size(bookmark_table) == 0, "no bookmarks")
         call bmenu_done(old, config)
     end subroutine test_bmenu_delete
 
@@ -1298,7 +1297,7 @@ contains
         steps: block
             ! Verify that unmarked bookmarks aren't deleted
             call bookmark_bmenu_execute_deletions(st)
-            call check(error, size(bookmark_alist) > 0, "bookmarks left")
+            call check(error, size(bookmark_table) > 0, "bookmarks left")
             if (allocated(error)) exit steps
             here = point_max()
             ! Expect to not move the point
@@ -1311,7 +1310,7 @@ contains
             if (allocated(error)) exit steps
             ! Verify that all bookmarks are deleted
             call bookmark_bmenu_execute_deletions(st)
-            call check(error, size(bookmark_alist) == 0, "no bookmarks")
+            call check(error, size(bookmark_table) == 0, "no bookmarks")
         end block steps
 
         call bmenu_done(old, config)
@@ -1335,16 +1334,16 @@ contains
         call bmenu_done(old, config)
     end subroutine test_bmenu_locate
 
-    subroutine test_bmenu_filter_alist_by_regexp(error)
+    subroutine test_bmenu_filter_table_by_regexp(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
 
         call with_bmenu_test(old, config)
-        call bookmark_bmenu_filter_alist_by_regexp(regexp_unmatchable, st)
+        call bookmark_bmenu_filter_table_by_regexp(regexp_unmatchable, st)
         call goto_char(point_min())
         call check(error, looking("^$"), "empty")
         call bmenu_done(old, config)
-    end subroutine test_bmenu_filter_alist_by_regexp
+    end subroutine test_bmenu_filter_table_by_regexp
 end module test_bookmark_fm

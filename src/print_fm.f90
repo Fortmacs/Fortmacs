@@ -30,17 +30,17 @@
 module print_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, vtag, V_NIL, V_INT, V_SYMBOL, V_STRING, V_LIST, V_BUFFER, V_MARKER, &
+    use lisp_fm, only: value_type, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_BUFFER, V_MARKER, &
                        V_KEYMAP, xfixnum, xstring, xhandle, list_elements
     use data_fm, only: symbol_name
     use buffer_fm, only: buffer_name, buffers
     use handle_fm, only: handle_type
     use marker_fm, only: markers, resolve_marker
-    use keymap_fm, only: keymap_live_p, keymap_full_p, keymap_prompt, keymap_parent, keymap_entries
+    use keymap_fm, only: is_keymap_live, is_keymap_full, keymap_own_prompt, keymap_parent, keymap_entries
     implicit none(type, external)
     private
 
-    public :: prin1_to_string, prin1_string, marker_repr, fortran_repr, fortran_string
+    public :: readable_repr, quoted_repr, marker_repr, fortran_repr, fortran_string
 
 contains
 
@@ -48,7 +48,7 @@ contains
     !> OBJECT can be any Lisp object.  Strings are quoted, a backslash
     !> escaping each double quote and backslash in them.  Port of
     !> print.c:Fprin1_to_string (NOESCAPE nil).
-    recursive function prin1_to_string(object) result(s)
+    recursive function readable_repr(object) result(s)
         type(value_type), intent(in) :: object
         character(len=:), allocatable :: s
         type(value_type), allocatable :: elems(:)
@@ -58,24 +58,24 @@ contains
         integer :: k
 
         select case (vtag(object))
-        case (V_NIL)
+        case (V_NULL)
             s = "nil"
-        case (V_INT)
+        case (V_INTEGER)
             write (buf, "(i0)") xfixnum(object)
             s = trim(buf)
-        case (V_SYMBOL)
+        case (V_NAME)
             call symbol_name(object, s, status)
             if (.not. status%ok()) s = "#<symbol>"
         case (V_STRING)
             text = xstring(object)
-            s = prin1_string(text)
-        case (V_LIST)
+            s = quoted_repr(text)
+        case (V_ARRAY)
             call list_elements(object, elems)
             s = "("
 
             do k = 1, size(elems)
                 if (k > 1) s = s//" "
-                s = s//prin1_to_string(elems(k))
+                s = s//readable_repr(elems(k))
             end do
 
             s = s//")"
@@ -90,7 +90,7 @@ contains
         case (V_MARKER)
             s = marker_repr(xhandle(object))
         case (V_KEYMAP)
-            if (keymap_live_p(xhandle(object)) .and. .not. keymap_full_p(xhandle(object))) then
+            if (is_keymap_live(xhandle(object)) .and. .not. is_keymap_full(xhandle(object))) then
                 s = "("//keymap_elements(xhandle(object))//")"
             else
                 s = "#<keymap>"
@@ -98,13 +98,13 @@ contains
         case default
             s = "#<unknown>"
         end select
-    end function prin1_to_string
+    end function readable_repr
 
     !> OBJECT written as Fortran, as help shows a value: .false. for nil,
     !> .true. for t, integers, strings as Fortran literals (doubling each
     !> double quote), other symbols by name (as named constants are
     !> written), lists as array constructors; buffers, markers and keymaps,
-    !> which have no Fortran notation, as `prin1_to_string' gives them.
+    !> which have no Fortran notation, as `readable_repr' gives them.
     !> (Ours: Fortmacs shows values as Fortran, not as Lisp.)  Not a port.
     recursive function fortran_repr(object) result(s)
         type(value_type), intent(in) :: object
@@ -114,9 +114,9 @@ contains
         integer :: k
 
         select case (vtag(object))
-        case (V_NIL)
+        case (V_NULL)
             s = ".false."
-        case (V_SYMBOL)
+        case (V_NAME)
             call symbol_name(object, s, status)
 
             if (.not. status%ok()) then
@@ -126,7 +126,7 @@ contains
             end if
         case (V_STRING)
             s = fortran_string(xstring(object))
-        case (V_LIST)
+        case (V_ARRAY)
             call list_elements(object, elems)
             s = "["
 
@@ -137,7 +137,7 @@ contains
 
             s = s//"]"
         case default
-            s = prin1_to_string(object)
+            s = readable_repr(object)
         end select
     end function fortran_repr
 
@@ -162,7 +162,7 @@ contains
     !> The printed representation of the string TEXT, as `prin1' writes
     !> it: in double quotes, a backslash escaping each double quote and
     !> backslash.  Port of the string case of print.c:print_object.
-    pure function prin1_string(text) result(s)
+    pure function quoted_repr(text) result(s)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: s
         integer :: k
@@ -175,7 +175,7 @@ contains
         end do
 
         s = s//""""
-    end function prin1_string
+    end function quoted_repr
 
     !> "#<marker at N in BUFFER>", "#<marker in no buffer>", after
     !> "(moves after insertion) " for that insertion type.  Port of
@@ -237,19 +237,19 @@ contains
         do k = 1, size(range_from)
             write (a, "(i0)") range_from(k)
             write (b, "(i0)") range_to(k)
-            s = s//" "//cons_repr("("//trim(a)//" . "//trim(b)//")", range_bindings(k))
+            s = s//" "//keymap_entry_repr("("//trim(a)//" . "//trim(b)//")", range_bindings(k))
         end do
 
         do k = 1, size(events)
-            s = s//" "//cons_repr(prin1_to_string(events(k)), bindings(k))
+            s = s//" "//keymap_entry_repr(readable_repr(events(k)), bindings(k))
         end do
 
-        prompt = keymap_prompt(km)
-        if (vtag(prompt) /= V_NIL) s = s//" "//prin1_to_string(prompt)
+        prompt = keymap_own_prompt(km)
+        if (vtag(prompt) /= V_NULL) s = s//" "//readable_repr(prompt)
         parent = keymap_parent(km)
 
-        if (keymap_live_p(parent)) then
-            if (keymap_full_p(parent)) then
+        if (is_keymap_live(parent)) then
+            if (is_keymap_full(parent)) then
                 s = s//" . #<keymap>"
             else
                 s = s//" "//keymap_elements(parent)
@@ -257,28 +257,30 @@ contains
         end if
     end function keymap_elements
 
-    !> The cons (CAR . CDR) printed, `car' already printed: "(CAR)" for a
-    !> nil CDR, "(CAR ELEMENTS...)" for a list or keymap.  Not a port.
-    recursive function cons_repr(car, cdr) result(s)
-        character(len=*), intent(in) :: car
-        type(value_type), intent(in) :: cdr
+    !> A keymap entry printed, as Lisp prints a keymap: EVENT (already
+    !> printed) and its BINDING: "(EVENT)" for no binding, "(EVENT
+    !> ELEMENTS...)" for an array or a keymap, else "(EVENT . BINDING)".
+    !> Not a port.
+    recursive function keymap_entry_repr(event, binding) result(s)
+        character(len=*), intent(in) :: event
+        type(value_type), intent(in) :: binding
         character(len=:), allocatable :: s
         character(len=:), allocatable :: inner
 
-        select case (vtag(cdr))
-        case (V_NIL)
-            s = "("//car//")"
-        case (V_LIST)
-            inner = prin1_to_string(cdr)
-            s = "("//car//" "//inner(2:)
+        select case (vtag(binding))
+        case (V_NULL)
+            s = "("//event//")"
+        case (V_ARRAY)
+            inner = readable_repr(binding)
+            s = "("//event//" "//inner(2:)
         case (V_KEYMAP)
-            if (keymap_live_p(xhandle(cdr)) .and. .not. keymap_full_p(xhandle(cdr))) then
-                s = "("//car//" "//keymap_elements(xhandle(cdr))//")"
+            if (is_keymap_live(xhandle(binding)) .and. .not. is_keymap_full(xhandle(binding))) then
+                s = "("//event//" "//keymap_elements(xhandle(binding))//")"
             else
-                s = "("//car//" . #<keymap>)"
+                s = "("//event//" . #<keymap>)"
             end if
         case default
-            s = "("//car//" . "//prin1_to_string(cdr)//")"
+            s = "("//event//" . "//readable_repr(binding)//")"
         end select
-    end function cons_repr
+    end function keymap_entry_repr
 end module print_fm

@@ -37,21 +37,21 @@ module test_vc_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, condition_matches, FM_FILE_ALREADY_EXISTS
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list
+    use lisp_fm, only: value_type, make_list
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, current_buffer, &
-                         get_buffer, buffer_live_p, generate_new_buffer_name, get_file_buffer
+                         get_buffer, is_buffer_live, generate_new_buffer_name, get_file_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: buffer_string, point, point_min, goto_char, bobp
+    use editfns_fm, only: buffer_string, point, point_min, goto_char, is_bob
     use search_fm, only: re_search_forward, SEARCH_NOERROR
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists_p, file_directory_p, &
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                          make_directory_internal, write_region, expand_file_name
     use files_fm, only: delete_directory, find_file_noselect, executable_find
     use callproc_fm, only: call_process
-    use process_fm, only: make_process, process_arg_type, process_live_p, accept_process_output
+    use process_fm, only: make_process, process_arg_type, is_process_live, accept_process_output
     use bindings_fm, only: init_bindings
     use vc_hooks_fm, only: vc_string_type, vc_backend, vc_registered, vc_state, vc_working_revision, &
                            vc_checkout_model, vc_file_clearprops, vc_backends, vc_backend_named, vc_clear_context, &
-                           vc_handled_backends, VC_STATE_NIL, VC_UNREGISTERED, VC_ADDED, VC_UP_TO_DATE, VC_EDITED, &
+                           vc_handled_backends, VC_STATE_UNKNOWN, VC_UNREGISTERED, VC_ADDED, VC_UP_TO_DATE, VC_EDITED, &
                            VC_MODEL_IMPLICIT
     use vc_dispatcher_fm, only: vc_do_command, vc_exec_after, vc_action_type, VC_DEST_CURRENT, VC_DEST_DISCARD, &
                                 VC_OKSTATUS_ASYNC
@@ -168,7 +168,7 @@ contains
         call init_fileio()
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Git"]
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call make_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
         call make_directory_internal(tdir(), st)
         call temp_buffer(h)
@@ -184,9 +184,9 @@ contains
         type(handle_type) :: vc
 
         vc = get_buffer("*vc*")
-        if (buffer_live_p(vc)) call kill_buffer(vc, st)
-        if (buffer_live_p(h)) call kill_buffer(h, st)
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_buffer_live(vc)) call kill_buffer(vc, st)
+        if (is_buffer_live(h)) call kill_buffer(h, st)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
         call vc_clear_context()
     end subroutine teardown
@@ -218,11 +218,11 @@ contains
 
         ! One element at a time: function results in an array constructor
         ! of value_type leak.
-        args(1) = make_string("-c")
-        args(2) = make_string("user.name=t")
-        args(3) = make_string("-c")
-        args(4) = make_string("user.email=t@t")
-        args(5) = make_string(a1)
+        args(1) = value_type(text="-c")
+        args(2) = value_type(text="user.name=t")
+        args(3) = value_type(text="-c")
+        args(4) = value_type(text="user.email=t@t")
+        args(5) = value_type(text=a1)
         n = 5
         if (present(a2)) call push(a2)
         if (present(a3)) call push(a3)
@@ -242,7 +242,7 @@ contains
             character(len=*), intent(in) :: a
 
             n = n + 1
-            args(n) = make_string(a)
+            args(n) = value_type(text=a)
         end subroutine push
     end subroutine git
 
@@ -324,7 +324,7 @@ contains
 
         if (okstatus == VC_OKSTATUS_ASYNC) then
             do k = 1, 600
-                if (.not. process_live_p(proc)) exit
+                if (.not. is_process_live(proc)) exit
                 call accept_process_output(got, st, proc, 0.05)
             end do
 
@@ -426,7 +426,7 @@ contains
         integer :: k
 
         do k = 1, 600
-            if (.not. process_live_p(proc)) exit
+            if (.not. is_process_live(proc)) exit
             call accept_process_output(got, st, proc, 0.05)
         end do
 
@@ -517,7 +517,7 @@ contains
         body: block
             call check(error, st%ok(), "create repo: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, file_directory_p(tdir()), "the directory")
+            call check(error, is_file_directory(tdir()), "the directory")
             if (allocated(error)) exit body
             call check(error, vc_responsible_backend(tdir(), st) == git_b(), "responsible backend")
         end block body
@@ -550,7 +550,7 @@ contains
             tmp_name2 = "bla"
             ! Register files.  Check for it.
             call write_file(tmp_name1, "foo")
-            call check(error, file_exists_p(tmp_name1) .and. vc_backend(tmp_name1) == 0 .and. &
+            call check(error, file_exists(tmp_name1) .and. vc_backend(tmp_name1) == 0 .and. &
                        vc_responsible_backend(tmp_name1, st) == git_b() .and. .not. vc_registered(tmp_name1), "foo")
             if (allocated(error)) exit body
             call write_file(tdir()//tmp_name2, "bla")
@@ -576,7 +576,7 @@ contains
             call check(error, vc_backend(tmp_name2) == 0 .and. .not. vc_registered(tmp_name2), "bla unregistered")
             if (allocated(error)) exit body
             ! The files should still exist.
-            call check(error, file_exists_p(tmp_name1) .and. file_exists_p(tdir()//tmp_name2), "still there")
+            call check(error, file_exists(tmp_name1) .and. file_exists(tdir()//tmp_name2), "still there")
         end block body
 
         call teardown(h)
@@ -597,25 +597,25 @@ contains
         body: block
             tmp_name = tdir()//"foo"
             ! Check state of a nonexistent file.
-            call check(error, vc_state(tmp_name) == VC_STATE_NIL, "nonexistent")
+            call check(error, vc_state(tmp_name) == VC_STATE_UNKNOWN, "nonexistent")
             if (allocated(error)) exit body
             ! Write a new file.  Check state.
             call write_file(tmp_name, "foo")
             s = vc_state(tmp_name, git_b())
-            call check(error, s == VC_STATE_NIL .or. s == VC_UNREGISTERED, "new file")
+            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_UNREGISTERED, "new file")
             if (allocated(error)) exit body
             ! Register a file.  Check state.
             fs%backend = git_b()
             fs%files = strings("foo")
             call vc_register(st, fs)
             s = vc_state(tmp_name)
-            call check(error, s == VC_STATE_NIL .or. s == VC_ADDED .or. s == VC_UP_TO_DATE, "registered")
+            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_ADDED .or. s == VC_UP_TO_DATE, "registered")
             if (allocated(error)) exit body
             ! Unregister the file.  Check state.
             call vc_backends(git_b())%unregister(tmp_name, st)
             call vc_file_clearprops(tmp_name)
             s = vc_state(tmp_name, git_b())
-            call check(error, s == VC_STATE_NIL .or. s == VC_UNREGISTERED, "unregistered")
+            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_UNREGISTERED, "unregistered")
         end block body
 
         call teardown(h)
@@ -729,7 +729,7 @@ contains
             buffers(cur)%directory = saved
             call check(error, st%ok(), "rename: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(tmp_name) .and. file_exists_p(new_name), "renamed")
+            call check(error,.not. file_exists(tmp_name) .and. file_exists(new_name), "renamed")
             if (allocated(error)) exit body
             call check(error, vc_state(new_name) == VC_ADDED, "added")
             if (allocated(error)) exit body
@@ -746,7 +746,7 @@ contains
             call vc_rename_file(tmp_name, new_name, st, ok_if_already_exists=.true.)
             call check(error, st%ok(), "ok-if-already-exists: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(tmp_name) .and. file_exists_p(new_name), "replaced")
+            call check(error,.not. file_exists(tmp_name) .and. file_exists(new_name), "replaced")
             if (allocated(error)) exit body
             ! Test moving into an existing directory.
             tmp_name = tdir()//"quux"
@@ -759,7 +759,7 @@ contains
             call vc_rename_file(tmp_name, new_dir, st)
             call check(error, st%ok(), "into a directory: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(tmp_name) .and. file_exists_p(new_name), "moved")
+            call check(error,.not. file_exists(tmp_name) .and. file_exists(new_name), "moved")
         end block body
 
         call teardown(h)
@@ -820,7 +820,7 @@ contains
             call check(error, st%ok(), "version-diff: "//format_error(st))
             if (allocated(error)) exit body
             diff = get_buffer("*vc-diff*")
-            call check(error, buffer_live_p(diff), "*vc-diff*")
+            call check(error, is_buffer_live(diff), "*vc-diff*")
             if (allocated(error)) exit body
             call set_buffer(diff, st)
             rawtext = buffer_string()
@@ -831,10 +831,10 @@ contains
         end block body
 
         diff = get_buffer("*vc-diff*")
-        if (buffer_live_p(diff)) call kill_buffer(diff, st)
+        if (is_buffer_live(diff)) call kill_buffer(diff, st)
         diff = get_buffer("*vc-log*")
-        if (buffer_live_p(diff)) call kill_buffer(diff, st)
-        if (buffer_live_p(buff)) call kill_buffer(buff, st)
+        if (is_buffer_live(diff)) call kill_buffer(diff, st)
+        if (is_buffer_live(buff)) call kill_buffer(buff, st)
         call teardown(h)
 
         do k = 1, 3
@@ -871,9 +871,9 @@ contains
             call vc_rename_file(tdir()//"dir1", tdir()//"dir2", st)
             call check(error, st%ok(), "mixed: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(tmp_dir//"foo") .and. .not. file_exists_p(tmp_dir//"bar") .and. &
-                       file_exists_p(new_dir//"foo") .and. vc_registered(new_dir//"foo") .and. &
-                       file_exists_p(new_dir//"bar") .and. .not. vc_registered(new_dir//"bar"), "mixed")
+            call check(error,.not. file_exists(tmp_dir//"foo") .and. .not. file_exists(tmp_dir//"bar") .and. &
+                       file_exists(new_dir//"foo") .and. vc_registered(new_dir//"foo") .and. &
+                       file_exists(new_dir//"bar") .and. .not. vc_registered(new_dir//"bar"), "mixed")
             if (allocated(error)) exit body
             ! Test only unregistered files.
             tmp_dir = tdir()//"dir3/"
@@ -883,7 +883,7 @@ contains
             call vc_rename_file(tdir()//"dir3", tdir()//"dir4", st)
             call check(error, st%ok(), "unregistered: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(tmp_dir//"foo") .and. file_exists_p(new_dir//"foo") .and. &
+            call check(error,.not. file_exists(tmp_dir//"foo") .and. file_exists(new_dir//"foo") .and. &
                        .not. vc_registered(new_dir//"foo"), "unregistered")
             if (allocated(error)) exit body
             ! Test only registered files.
@@ -896,7 +896,7 @@ contains
             call vc_rename_file(tdir()//"dir5", tdir()//"dir6", st)
             call check(error, st%ok(), "registered: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(tmp_dir//"foo") .and. file_exists_p(new_dir//"foo") .and. &
+            call check(error,.not. file_exists(tmp_dir//"foo") .and. file_exists(new_dir//"foo") .and. &
                        vc_registered(new_dir//"foo"), "registered")
         end block body
 
@@ -954,7 +954,7 @@ contains
             call check(error, buffers(cur)%vc_mode, " Git:main")
         end block body
 
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
         call teardown(h)
     end subroutine test_mode_line
 
@@ -994,7 +994,7 @@ contains
             call kill_buffer(d, st)
         end block body
 
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
         call teardown(h)
     end subroutine test_diff
 
@@ -1012,7 +1012,7 @@ contains
 
         if (proc%index /= 0) then
             do k = 1, 600
-                if (.not. process_live_p(proc)) exit
+                if (.not. is_process_live(proc)) exit
                 call accept_process_output(got, st, proc, 0.05)
             end do
         end if
@@ -1059,7 +1059,7 @@ contains
             call check(error, st%ok(), "vc-print-log: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-change-log*")
-            call check(error, buffer_live_p(log), "*vc-change-log*")
+            call check(error, is_buffer_live(log), "*vc-change-log*")
             if (allocated(error)) exit body
             call wait_buffer_process(log)
             call set_buffer(log, st)
@@ -1118,7 +1118,7 @@ contains
             call kill_buffer(log, st)
         end block body
 
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
         call teardown(h)
     end subroutine test_print_log
 
@@ -1179,7 +1179,7 @@ contains
             call kill_buffer(log, st)
         end block body
 
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
         call teardown(h)
     end subroutine test_print_root_log
 
@@ -1234,7 +1234,7 @@ contains
             call check(error, st%ok(), "vc-dir: "//format_error(st))
             if (allocated(error)) exit body
             dir = get_buffer("*vc-dir*")
-            call check(error, buffer_live_p(dir), "*vc-dir*")
+            call check(error, is_buffer_live(dir), "*vc-dir*")
             if (allocated(error)) exit body
             call wait_vc_dir(dir)
             call set_buffer(dir, st)
@@ -1306,7 +1306,7 @@ contains
             call kill_buffer(dir, st)
         end block body
 
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
         call teardown(h)
     end subroutine test_vc_dir
 

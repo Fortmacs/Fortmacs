@@ -24,23 +24,26 @@
 !> characters, strings and buffer regions, with Unicode title case and the
 !> unconditional special casings (uni_special_casing_fm: ß upcases to SS,
 !> ﬁ to FI), and the Greek final sigma rule.  Words are runs of
-!> word-constituent characters (and symbol constituents with
-!> `case_symbols_as_words') by the current syntax table.
+!> word-constituent characters (and identifier constituents with
+!> `case_identifiers_as_words') by the current syntax table.
 !>
-!> Strings are always multibyte (the unibyte paths are left out).  The
-!> word commands (`upcase_word' and friends) are registered here; their
-!> keys come with the rest of the case commands.  Deferred: noncontiguous
-!> regions (`region_extract_function'), compositions.
+!> Strings are always multibyte here (casefiddle.c's unibyte string paths
+!> are Not applicable); unibyte buffers are cased byte by byte, as
+!> upstream.  The region commands work on each piece of a noncontiguous
+!> region (`region_extract_function').  The word commands (`upcase_word'
+!> and friends) are registered here; their keys come with the rest of the
+!> case commands.  Deferred: compositions.
 module casefiddle_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
     use error_fm, only: status_type
     use data_fm, only: logical_setting
     use character_fm, only: char_string, string_char_and_length, MAX_MULTIBYTE_LENGTH, CHAR_ALT, CHAR_SUPER, &
-                            CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
+                            CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META, unibyte_to_char, char_to_byte8
     use casetab_fm, only: downcase, upcase
     use syntax_fm, only: syntax_entry, char_syntax_class, scan_words, syntax_descriptor_type, SWORD, SSYMBOL
-    use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_bytes, temp_set_point_both
+    use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_bytes, temp_set_point_both, &
+                         buf_fetch_byte, buf_byte_index
     use marker_fm, only: char_to_byte
     use insdel_fm, only: modify_text, replace_range_2, signal_after_change
     use undo_fm, only: record_insert, record_delete
@@ -61,21 +64,21 @@ module casefiddle_fm
     !> The case actions (enum case_action).
     integer, parameter, public :: CASE_UP = 0, CASE_DOWN = 1, CASE_CAPITALIZE = 2, CASE_CAPITALIZE_UP = 3
 
-    !> If true, case functions treat symbol syntax as part of words.
+    !> If true, case functions treat identifier syntax as part of words.
     !>
     !> Functions such as `upcase_initials' and `replace_match' check or
     !> modify the case pattern of sequences of characters.  Normally, these
     !> operate on sequences of characters whose syntax is word constituent.
     !> If this variable is true, then they operate on sequences of
-    !> characters whose syntax is either word constituent or symbol
+    !> characters whose syntax is either word constituent or identifier
     !> constituent.
     !>
     !> This is useful for programming languages and styles where only the
-    !> first letter of a symbol's name is ever capitalized.  Port of
+    !> first letter of an identifier's name is ever capitalized.  Port of
     !> casefiddle.c case-symbols-as-words (automatically buffer-local
     !> when set).
-    type(logical_setting), public :: case_symbols_as_words = &
-                                     logical_setting(name="case_symbols_as_words", value=.false.)
+    type(logical_setting), public :: case_identifiers_as_words = &
+                                     logical_setting(name="case_identifiers_as_words", value=.false.)
 
     !> In Greek, lower case sigma has two forms: one when used in the middle
     !> and one when used at the end of a word.
@@ -102,6 +105,29 @@ module casefiddle_fm
         integer :: len_chars = 0
     end type casing_str_buf
 
+    abstract interface
+        !> simple.el's `region_bounds': the region's pieces [STARTS(k),
+        !> ENDS(k)).  Not a port.
+        recursive subroutine region_bounds_proc(starts, ends, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), allocatable, intent(out) :: starts(:), ends(:)
+            type(status_type), intent(out) :: status
+        end subroutine region_bounds_proc
+
+        !> simple.el's `is_region_noncontiguous'.  Not a port.
+        recursive logical function region_noncontiguous_proc()
+            implicit none(type, external)
+        end function region_noncontiguous_proc
+    end interface
+
+    !> simple_fm's `region_bounds' (set by bindings_fm: simple_fm comes
+    !> after this module).
+    procedure(region_bounds_proc), pointer, public :: region_bounds => null()
+
+    !> simple_fm's `is_region_noncontiguous' (set by bindings_fm).
+    procedure(region_noncontiguous_proc), pointer, public :: is_region_noncontiguous => null()
+
 contains
 
     !> Initialize CTX for casing characters.  Port of
@@ -120,18 +146,18 @@ contains
     logical function case_ch_is_word(syntax)
         integer, intent(in) :: syntax
 
-        case_ch_is_word = syntax == SWORD .or. (case_symbols_as_words%value .and. syntax == SSYMBOL)
+        case_ch_is_word = syntax == SWORD .or. (case_identifiers_as_words%value .and. syntax == SSYMBOL)
     end function case_ch_is_word
 
     !> Whether C has the syntax prefix flag `p'.  Port of
     !> syntax.c:syntax_prefix_flag_p.
-    logical function syntax_prefix_flag_p(c)
+    logical function is_syntax_prefix_flag(c)
         integer(int32), intent(in) :: c
         type(syntax_descriptor_type) :: d
 
         d = syntax_entry(c)
-        syntax_prefix_flag_p = btest(d%code, 20)
-    end function syntax_prefix_flag_p
+        is_syntax_prefix_flag = btest(d%code, 20)
+    end function is_syntax_prefix_flag
 
     !> The value for C in the sorted table KEYS/VALUES, or -1.  Not a port.
     pure integer(int32) function lookup(c, keys, values) result(v)
@@ -228,7 +254,7 @@ contains
         ! Update inword state.
         was_inword = ctx%inword
         ctx%inword = case_ch_is_word(char_syntax_class(ch))
-        if (ctx%inword .and. ctx%inbuffer .and. .not. was_inword) ctx%inword = .not. syntax_prefix_flag_p(ch)
+        if (ctx%inword .and. ctx%inbuffer .and. .not. was_inword) ctx%inword = .not. is_syntax_prefix_flag(ch)
 
         ! Normalize flag so its one of CASE_UP, CASE_DOWN or
         ! CASE_CAPITALIZE.
@@ -245,7 +271,7 @@ contains
         end if
 
         ! Look through the special casing entries.
-        if (present(buf) .and. special_table_p(flag)) then
+        if (present(buf) .and. is_special_table(flag)) then
             if (special_casing(flag, ch, buf)) then
                 if (present(changed)) changed = .true.
                 cased = ch
@@ -271,18 +297,18 @@ contains
         !> Whether the special casing table for normalized FLAG is in use:
         !> upper case unless downcasing, lower case unless upcasing, title
         !> case when capitalizing.
-        logical function special_table_p(normalized)
+        logical function is_special_table(normalized)
             integer, intent(in) :: normalized
 
             select case (normalized)
             case (CASE_UP)
-                special_table_p = ctx%flag /= CASE_DOWN
+                is_special_table = ctx%flag /= CASE_DOWN
             case (CASE_DOWN)
-                special_table_p = ctx%flag /= CASE_UP
+                is_special_table = ctx%flag /= CASE_UP
             case default
-                special_table_p = ctx%flag >= CASE_CAPITALIZE
+                is_special_table = ctx%flag >= CASE_CAPITALIZE
             end select
-        end function special_table_p
+        end function is_special_table
 
         subroutine done()
             if (present(buf)) then
@@ -351,12 +377,14 @@ contains
     end function buf_text
 
     !> Case character CH (with modifier bits) by FLAG.  Port of
-    !> casefiddle.c:do_casify_natnum.
+    !> casefiddle.c:do_casify_natnum (and casefiddle.c:casify_object for a
+    !> character).
     integer(int32) function casify_char(flag, ch) result(r)
         integer, intent(in) :: flag
         integer(int32), intent(in) :: ch
         integer(int32) :: flagbits, flags, c, cased
         type(casing_context) :: ctx
+        logical :: multibyte
 
         flagbits = ior(ior(ior(CHAR_ALT, CHAR_SUPER), ior(CHAR_HYPER, CHAR_SHIFT)), ior(CHAR_CTL, CHAR_META))
         r = ch
@@ -366,13 +394,28 @@ contains
         flags = iand(ch, flagbits)
         c = iand(ch, not(flagbits))
         ctx = prepare_casing_context(flag, .false.)
+        multibyte = c >= 256
+        if (.not. multibyte) multibyte = cur == 0
+        if (.not. multibyte) multibyte = buffers(cur)%multibyte
+        if (.not. multibyte) c = unibyte_to_char(c)
         cased = case_single_character(ctx, c)
         if (cased == c) return
+        if (.not. multibyte) cased = make_char_unibyte(cased)
         r = ior(cased, flags)
     end function casify_char
 
+    !> If C is not ASCII, make it unibyte.  Port of
+    !> casefiddle.c:make_char_unibyte.
+    elemental integer(int32) function make_char_unibyte(c)
+        integer(int32), intent(in) :: c
+
+        make_char_unibyte = c
+        if (c >= 128) make_char_unibyte = char_to_byte8(c)
+    end function make_char_unibyte
+
     !> Case the multibyte string STR by FLAG.  Port of
-    !> casefiddle.c:do_casify_multibyte_string.
+    !> casefiddle.c:do_casify_multibyte_string (and casefiddle.c:casify_object
+    !> for a string).
     function casify_string(flag, str) result(out)
         integer, intent(in) :: flag
         character(len=*), intent(in) :: str
@@ -476,6 +519,36 @@ contains
         upcase_initials_char = casify_char(CASE_CAPITALIZE_UP, ch)
     end function upcase_initials_char
 
+    !> Based on CTX, case region in a unibyte buffer from START to END.
+    !> Save first and last positions that has changed in START and END
+    !> respectively.  If no characters were changed, save -1 to START and
+    !> leave END unspecified.  Always return 0, as
+    !> `do_casify_multibyte_region' returns the number of added characters.
+    !> Port of casefiddle.c:do_casify_unibyte_region.
+    integer(int64) function do_casify_unibyte_region(ctx, start, end) result(added)
+        type(casing_context), intent(inout) :: ctx
+        integer(int64), intent(inout) :: start, end
+        integer(int64) :: first, last, pos, k
+        integer(int32) :: ch, cased
+
+        first = -1
+        last = -1
+
+        do pos = start, end - 1
+            ch = unibyte_to_char(buf_fetch_byte(buffers(cur), pos))
+            cased = case_single_character(ctx, ch)
+            if (cased == ch) cycle
+            last = pos + 1
+            if (first < 0) first = pos
+            k = buf_byte_index(buffers(cur), pos)
+            buffers(cur)%text%beg(k:k) = achar(make_char_unibyte(cased))
+        end do
+
+        start = first
+        end = last
+        added = 0
+    end function do_casify_unibyte_region
+
     !> Based on CTX, case the region of a multibyte buffer from START to
     !> END.  Return the number of added characters (negative if more were
     !> deleted than inserted), and the first and last positions that
@@ -556,8 +629,14 @@ contains
         call record_delete(start, buf_bytes(buffers(cur), char_to_byte(start), char_to_byte(end)), end - start)
         length = end - start
         ostart = start
-        added = do_casify_multibyte_region(ctx, start, end, status)
-        if (.not. status%ok()) return
+
+        if (.not. buffers(cur)%multibyte) then
+            added = do_casify_unibyte_region(ctx, start, end)
+        else
+            added = do_casify_multibyte_region(ctx, start, end, status)
+            if (.not. status%ok()) return
+        end if
+
         call record_insert(ostart, length + added)
         new_end = orig_end + added
         if (start >= 0) call signal_after_change(start, end - start - added, end - start, status)
@@ -568,12 +647,12 @@ contains
     !> of the region to operate on.  When used as a command, the text
     !> between point and the mark is operated on.
     !> See also `capitalize_region'.  Port of casefiddle.c:Fupcase_region.
-    recursive subroutine upcase_region(beg, end, status)
+    recursive subroutine upcase_region(beg, end, status, region_noncontiguous)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
-        integer(int64) :: ignored
+        logical, intent(in), optional :: region_noncontiguous
 
-        ignored = casify_region(CASE_UP, beg, end, status)
+        call casify_pnc_region(CASE_UP, beg, end, status, region_noncontiguous)
     end subroutine upcase_region
 
     !> Convert the region to lower case.  In programs, wants two arguments.
@@ -581,12 +660,12 @@ contains
     !> of the region to operate on.  When used as a command, the text
     !> between point and the mark is operated on.  Port of
     !> casefiddle.c:Fdowncase_region.
-    recursive subroutine downcase_region(beg, end, status)
+    recursive subroutine downcase_region(beg, end, status, region_noncontiguous)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
-        integer(int64) :: ignored
+        logical, intent(in), optional :: region_noncontiguous
 
-        ignored = casify_region(CASE_DOWN, beg, end, status)
+        call casify_pnc_region(CASE_DOWN, beg, end, status, region_noncontiguous)
     end subroutine downcase_region
 
     !> Convert the region to capitalized form.
@@ -594,12 +673,12 @@ contains
     !> title case or upper case, and the rest to lower case.
     !> In programs, give two arguments, the starting and ending character
     !> positions to operate on.  Port of casefiddle.c:Fcapitalize_region.
-    recursive subroutine capitalize_region(beg, end, status)
+    recursive subroutine capitalize_region(beg, end, status, region_noncontiguous)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
-        integer(int64) :: ignored
+        logical, intent(in), optional :: region_noncontiguous
 
-        ignored = casify_region(CASE_CAPITALIZE, beg, end, status)
+        call casify_pnc_region(CASE_CAPITALIZE, beg, end, status, region_noncontiguous)
     end subroutine capitalize_region
 
     !> Upcase the initial of each word in the region.
@@ -608,13 +687,44 @@ contains
     !> In programs, give two arguments, the starting and ending character
     !> positions to operate on.  Port of
     !> casefiddle.c:Fupcase_initials_region.
-    recursive subroutine upcase_initials_region(beg, end, status)
+    recursive subroutine upcase_initials_region(beg, end, status, region_noncontiguous)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
-        integer(int64) :: ignored
+        logical, intent(in), optional :: region_noncontiguous
 
-        ignored = casify_region(CASE_CAPITALIZE_UP, beg, end, status)
+        call casify_pnc_region(CASE_CAPITALIZE_UP, beg, end, status, region_noncontiguous)
     end subroutine upcase_initials_region
+
+    !> Casify a possibly noncontiguous region according to FLAG.  BEG and
+    !> END specify the bounds, except that if REGION_NONCONTIGUOUS is
+    !> true, the region's bounds are specified by `region_bounds'
+    !> (`region_extract_function') instead.  Port of
+    !> casefiddle.c:casify_pnc_region.
+    recursive subroutine casify_pnc_region(flag, beg, end, status, region_noncontiguous)
+        integer, intent(in) :: flag
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: region_noncontiguous
+        integer(int64), allocatable :: starts(:), ends(:)
+        integer(int64) :: ignored
+        integer :: k
+        logical :: noncontiguous
+
+        noncontiguous = .false.
+        if (present(region_noncontiguous)) noncontiguous = region_noncontiguous
+
+        if (noncontiguous .and. associated(region_bounds)) then
+            call region_bounds(starts, ends, status)
+            if (.not. status%ok()) return
+
+            do k = 1, size(starts)
+                ignored = casify_region(flag, starts(k), ends(k), status)
+                if (.not. status%ok()) return
+            end do
+        else
+            ignored = casify_region(flag, beg, end, status)
+        end if
+    end subroutine casify_pnc_region
 
     !> Case from point over ARG words by FLAG.  Port of
     !> casefiddle.c:casify_word.
@@ -701,18 +811,22 @@ contains
         call capitalize_word(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_capitalize_word
 
-    !> The region commands take the region (interactive
-    !> "(list (region-beginning) (region-end) ...)").  Not a port.
+    !> The region commands take the region (interactive "(list
+    !> (region-beginning) (region-end) (region-noncontiguous-p))").
+    !> Not a port.
     subroutine region_command(flag, status)
         integer, intent(in) :: flag
         type(status_type), intent(out) :: status
-        integer(int64) :: b, e, ignored
+        integer(int64) :: b, e
+        logical :: noncontiguous
 
         call region_beginning(b, status)
         if (.not. status%ok()) return
         call region_end(e, status)
         if (.not. status%ok()) return
-        ignored = casify_region(flag, b, e, status)
+        noncontiguous = .false.
+        if (associated(is_region_noncontiguous)) noncontiguous = is_region_noncontiguous()
+        call casify_pnc_region(flag, b, e, status, noncontiguous)
     end subroutine region_command
 
     subroutine cmd_upcase_region(status)

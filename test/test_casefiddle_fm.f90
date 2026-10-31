@@ -33,14 +33,17 @@ module test_casefiddle_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur
+    use lisp_fm, only: value_type
+    use simple_fm, only: region_extract_function, region_extract_proc, region_bounds
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max, buffer_string
     use character_fm, only: string_char
     use casefiddle_fm, only: upcase_string, downcase_string, capitalize_string, upcase_initials_string, &
                              upcase_char, downcase_char, capitalize_char, upcase_initials_char, upcase_region, &
                              downcase_region, capitalize_region, upcase_initials_region, upcase_word, &
-                             downcase_word, capitalize_word, case_symbols_as_words
+                             downcase_word, capitalize_word, case_identifiers_as_words, &
+                             casefiddle_region_bounds => region_bounds
     implicit none(type, external)
     private
 
@@ -58,7 +61,9 @@ contains
                     new_unittest("casefiddle-tests-casing", test_casing), &
                     new_unittest("casefiddle-tests-casing-byte8", test_casing_byte8), &
                     new_unittest("casefiddle-tests-char-casing", test_char_casing), &
-                    new_unittest("casefiddle-case-symbols-as-words", test_symbols_as_words) &
+                    new_unittest("casefiddle-case-symbols-as-words", test_identifiers_as_words), &
+                    new_unittest("casefiddle-noncontiguous-region", test_noncontiguous), &
+                    new_unittest("casefiddle-unibyte-buffer", test_unibyte) &
                     ]
     end subroutine collect_casefiddle_fm
 
@@ -278,14 +283,14 @@ contains
         end do
     end subroutine test_char_casing
 
-    subroutine test_symbols_as_words(error)
+    subroutine test_identifiers_as_words(error)
         type(error_type), allocatable, intent(out) :: error
 
         call syms("Aa_bb Cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
         call syms("Aa_bb cc_DD", "Aa_Bb Cc_DD", "Aa_bb Cc_DD")
         call syms("aa_bb cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
         call syms("Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd")
-        case_symbols_as_words = .false.
+        case_identifiers_as_words = .false.
 
     contains
 
@@ -293,11 +298,63 @@ contains
             character(len=*), intent(in) :: init, with_words, with_symbols
 
             if (allocated(error)) return
-            case_symbols_as_words = .false.
+            case_identifiers_as_words = .false.
             call check(error, upcase_initials_string(init) == with_words, init//" words")
             if (allocated(error)) return
-            case_symbols_as_words = .true.
+            case_identifiers_as_words = .true.
             call check(error, upcase_initials_string(init) == with_symbols, init//" symbols")
         end subroutine syms
-    end subroutine test_symbols_as_words
+    end subroutine test_identifiers_as_words
+
+    !> A region of two pieces, "abc" and "def" of "abc def ghi".
+    recursive subroutine two_pieces(method, string, starts, ends, status)
+        integer, intent(in) :: method
+        type(value_type), intent(out) :: string
+        integer(int64), allocatable, intent(out) :: starts(:), ends(:)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        string = value_type()
+        if (method < 0) return
+        starts = [1_int64, 5_int64]
+        ends = [4_int64, 8_int64]
+    end subroutine two_pieces
+
+    !> The region commands case each piece of a noncontiguous region.
+    subroutine test_noncontiguous(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        procedure(region_extract_proc), pointer :: saved
+
+        call temp_buffer(h)
+        call insert("abc def ghi", st)
+        saved => region_extract_function
+        region_extract_function => two_pieces
+        casefiddle_region_bounds => region_bounds
+        call upcase_region(1_int64, 12_int64, st, region_noncontiguous=.true.)
+        region_extract_function => saved
+        call check(error, buffer_string() == "ABC DEF ghi")
+        call kill_buffer(h, st)
+    end subroutine test_noncontiguous
+
+    !> In a unibyte buffer, the region is cased byte by byte and the
+    !> characters 128 to 255 are raw bytes, which have no case.
+    subroutine test_unibyte(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call temp_buffer(h)
+        call insert("foo bar", st)
+        call check(error, upcase_char(255_int32) == 376)
+        if (allocated(error)) return
+        buffers(cur)%multibyte = .false.
+        call upcase_region(1_int64, 8_int64, st)
+        call check(error, buffer_string() == "FOO BAR")
+        if (allocated(error)) return
+        call check(error, upcase_char(255_int32) == 255 .and. upcase_char(97_int32) == 65)
+        buffers(cur)%multibyte = .true.
+        call kill_buffer(h, st)
+    end subroutine test_unibyte
 end module test_casefiddle_fm

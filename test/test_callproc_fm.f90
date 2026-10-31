@@ -26,7 +26,7 @@ module test_callproc_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error, FM_FILE_MISSING
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, t_value, list, fixnump, xfixnum, stringp, xstring
+    use lisp_fm, only: value_type, list, xfixnum, xstring, vtag, V_INTEGER, V_STRING
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
                          current_buffer
     use insdel_fm, only: insert
@@ -89,7 +89,7 @@ contains
         call fresh_buffer("*callproc-test*", "Buffer contents"//new_line("a"), h)
         call call_process_region("true", r, st, delete=.true.)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, fixnump(r) .and. xfixnum(r) == 0, "status 0")
+        if (.not. allocated(error)) call check(error, vtag(r) == V_INTEGER .and. xfixnum(r) == 0, "status 0")
         if (.not. allocated(error)) call check(error, buffer_size(), 0_int64)
         call done(h)
     end subroutine test_region_delete
@@ -102,8 +102,8 @@ contains
         type(status_type) :: st
 
         call fresh_buffer("*callproc-test*", "", h)
-        call call_process("echo", r, st, destination=t_value(), &
-                          args=list(make_string("hello"), make_string("w"//char(195)//char(182)//"rld")))
+        call call_process("echo", r, st, destination=value_type(.true.), &
+                          args=list(value_type(text="hello"), value_type(text="w"//char(195)//char(182)//"rld")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, xfixnum(r) == 0, "status 0")
 
@@ -118,14 +118,14 @@ contains
         ! destination.
         if (.not. allocated(error)) then
             call erase_buffer(st)
-            call call_process("sh", r, st, destination=t_value(), &
-                              args=list(make_string("-c"), make_string("echo out; echo err >&2")))
+            call call_process("sh", r, st, destination=value_type(.true.), &
+                              args=list(value_type(text="-c"), value_type(text="echo out; echo err >&2")))
             call check(error, buffer_string(), "out"//new_line("a")//"err"//new_line("a"))
         end if
 
         if (.not. allocated(error)) then
             call erase_buffer(st)
-            call call_process("echo", r, st, args=list(make_string("discarded")))
+            call call_process("echo", r, st, args=list(value_type(text="discarded")))
             call check(error, st%ok() .and. buffer_size() == 0, "discarded")
         end if
 
@@ -138,9 +138,9 @@ contains
         type(status_type) :: st
 
         call call_process("false", r, st)
-        call check(error, st%ok() .and. fixnump(r) .and. xfixnum(r) == 1, "false")
+        call check(error, st%ok() .and. vtag(r) == V_INTEGER .and. xfixnum(r) == 1, "false")
         if (allocated(error)) return
-        call call_process("sh", r, st, args=list(make_string("-c"), make_string("exit 42")))
+        call call_process("sh", r, st, args=list(value_type(text="-c"), value_type(text="exit 42")))
         call check(error, xfixnum(r), 42_int64)
     end subroutine test_exit_status
 
@@ -150,8 +150,8 @@ contains
         type(value_type) :: r
         type(status_type) :: st
 
-        call call_process("sh", r, st, args=list(make_string("-c"), make_string("kill -TERM $$")))
-        call check(error, st%ok() .and. stringp(r), "a string")
+        call call_process("sh", r, st, args=list(value_type(text="-c"), value_type(text="kill -TERM $$")))
+        call check(error, st%ok() .and. vtag(r) == V_STRING, "a string")
         if (.not. allocated(error)) call check(error, xstring(r), "Terminated")
     end subroutine test_signal
 
@@ -180,7 +180,7 @@ contains
         call fresh_buffer("*callproc-test*", "from a file", h)
         call write_region(file, .false., st)
         call erase_buffer(st)
-        call call_process("cat", r, st, infile=file, destination=t_value())
+        call call_process("cat", r, st, infile=file, destination=value_type(.true.))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "from a file")
         call delete_file_internal(file, st)
@@ -201,8 +201,8 @@ contains
         type(status_type) :: st
 
         call fresh_buffer("*callproc-test*", "", h)
-        call call_process("echo", r, st, destination=make_string("*callproc-out*"), &
-                          args=list(make_string("elsewhere")))
+        call call_process("echo", r, st, destination=value_type(text="*callproc-out*"), &
+                          args=list(value_type(text="elsewhere")))
         call check(error, st%ok() .and. buffer_size() == 0, "not in the current buffer")
         if (allocated(error)) return
         now = current_buffer()
@@ -227,7 +227,7 @@ contains
 
         call fresh_buffer("*callproc-test*", "", h)
         buffers(cur)%directory = "/"
-        call call_process("pwd", r, st, destination=t_value())
+        call call_process("pwd", r, st, destination=value_type(.true.))
         call check(error, buffer_string(), "/"//new_line("a"))
 
         if (.not. allocated(error)) then
@@ -245,7 +245,7 @@ contains
             e = sys_setenv("HOME", "/")
             call erase_buffer(st)
             buffers(cur)%directory = "~/"
-            call call_process("pwd", r, st, destination=t_value())
+            call call_process("pwd", r, st, destination=value_type(.true.))
 
             if (stat == 0) then
                 e = sys_setenv("HOME", home)
@@ -267,14 +267,14 @@ contains
         type(status_type) :: st
 
         call fresh_buffer("*callproc-test*", "hello world", h)
-        call call_process_region("tr", r, st, 1_int64, 6_int64, destination=t_value(), &
-                                 args=list(make_string("a-z"), make_string("A-Z")))
+        call call_process_region("tr", r, st, 1_int64, 6_int64, destination=value_type(.true.), &
+                                 args=list(value_type(text="a-z"), value_type(text="A-Z")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hello worldHELLO")
 
         if (.not. allocated(error)) then
-            call call_process_region("tr", r, st, 1_int64, 6_int64, delete=.true., destination=t_value(), &
-                                     args=list(make_string("a-z"), make_string("A-Z")))
+            call call_process_region("tr", r, st, 1_int64, 6_int64, delete=.true., destination=value_type(.true.), &
+                                     args=list(value_type(text="a-z"), value_type(text="A-Z")))
             call check(error, buffer_string(), " worldHELLOHELLO")
         end if
 

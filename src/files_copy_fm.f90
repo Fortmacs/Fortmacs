@@ -20,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `copy_directory', `file_in_directory_p', `file_equal_p',
+!> `copy_directory', `is_file_in_directory', `is_file_equal',
 !> `make_empty_file' and the symbolic file modes
 !> (`file_modes_symbolic_to_number', `file_modes_number_to_symbolic'):
 !> a submodule because `copy_directory' uses dired_fm
@@ -58,7 +58,7 @@ contains
         contents = .false.
         if (present(copy_contents)) contents = copy_contents
 
-        if (file_in_directory_p(newname, directory)) then
+        if (is_file_in_directory(newname, directory)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Cannot copy `")//directory// &
                            format_message("' into its subdirectory `")//newname//format_message("'"))
             return
@@ -72,10 +72,10 @@ contains
         if (.not. status%ok()) return
 
         ! If DIRECTORY is a symlink, create a symlink with the same target.
-        if (file_symlink_p(dir) .and. copy_directory_create_symlink) then
+        if (is_file_symlink(dir) .and. copy_directory_create_symlink) then
             target = file_symlink_target(dir)
 
-            if (directory_name_p(new)) then
+            if (is_directory_name(new)) then
                 call make_symbolic_link(target, new//file_name_nondirectory(dir), status, .true.)
             else
                 call make_symbolic_link(target, new, status, .true.)
@@ -87,7 +87,7 @@ contains
         ! Else proceed to copy as a regular directory first by creating
         ! the destination directory if needed, preparing to follow any
         ! symlink to a directory we did not create.
-        if (.not. directory_name_p(new)) then
+        if (.not. is_directory_name(new)) then
             ! If NEWNAME is not a directory name, create it; that is where
             ! we will copy the files of DIRECTORY.
             call make_directory(new, status, mkparents, follow)
@@ -100,7 +100,7 @@ contains
             call make_directory(directory_file_name(new), err, mkparents, follow)
 
             if (.not. err%ok()) then
-                if (.not. file_directory_p(new)) then
+                if (.not. is_file_directory(new)) then
                     status = err
                     return
                 end if
@@ -149,7 +149,7 @@ contains
         end if
     end subroutine copy_directory
 
-    module function file_in_directory_p(file, dir) result(inside)
+    module function is_file_in_directory(file, dir) result(inside)
         character(len=*), intent(in) :: file, dir
         logical :: inside
         character(len=:), allocatable :: f, d, root
@@ -159,7 +159,7 @@ contains
 
         inside = .false.
         ! DIR must exist.
-        if (.not. file_directory_p(dir)) return
+        if (.not. is_file_directory(dir)) return
         call file_truename(file, f, st)
         if (.not. st%ok()) return
         call file_truename(dir, d, st)
@@ -196,7 +196,7 @@ contains
             j1 = j2 + 1
         end do
 
-        if (.not. mismatch) inside = file_equal_p(root, dir)
+        if (.not. mismatch) inside = is_file_equal(root, dir)
 
     contains
 
@@ -226,9 +226,9 @@ contains
                 finish = start + slash - 2
             end if
         end subroutine next_component
-    end function file_in_directory_p
+    end function is_file_in_directory
 
-    module function file_equal_p(file1, file2) result(same)
+    module function is_file_equal(file1, file2) result(same)
         character(len=*), intent(in) :: file1, file2
         logical :: same
         character(len=:), allocatable :: t1, t2
@@ -250,7 +250,7 @@ contains
                a1%size == a2%size .and. a1%mtime_sec == a2%mtime_sec .and. a1%mtime_nsec == a2%mtime_nsec .and. &
                a1%atime_sec == a2%atime_sec .and. a1%atime_nsec == a2%atime_nsec .and. a1%dev == a2%dev .and. &
                a1%ino == a2%ino
-    end function file_equal_p
+    end function is_file_equal
 
     module subroutine make_empty_file(filename, status, parents)
         character(len=*), intent(in) :: filename
@@ -265,7 +265,7 @@ contains
         mkparents = .false.
         if (present(parents)) mkparents = parents
 
-        if (file_exists_p(filename) .and. .not. mkparents) then
+        if (file_exists(filename) .and. .not. mkparents) then
             call set_error(status, FM_FILE_ALREADY_EXISTS, "File exists: "//filename)
             return
         end if
@@ -273,7 +273,7 @@ contains
         paren_dir = file_name_directory(filename)
 
         if (len(paren_dir) > 0) then
-            if (.not. file_exists_p(paren_dir)) then
+            if (.not. file_exists(paren_dir)) then
                 call make_directory(paren_dir, status, mkparents)
                 if (.not. status%ok()) return
             end if
@@ -540,7 +540,7 @@ contains
         end function special
     end function file_modes_number_to_symbolic
 
-    !> `rename_file''s directory copy: (copy-directory FILE NEWNAME t nil).
+    !> `rename_file''s directory copy: `copy_directory' of FILE to NEWNAME, keeping the time (KEEP-TIME .true., PARENTS .false.).
     !> Not a port.
     recursive subroutine copy_directory_for_rename(directory, newname, status)
         character(len=*), intent(in) :: directory, newname
@@ -558,7 +558,7 @@ contains
         call delete_directory(file, status, .true.)
     end subroutine delete_directory_for_rename
 
-    !> `rename_file''s deletion of a file: (delete-file FILE nil).
+    !> `rename_file''s deletion of a file: `delete_file' of FILE (TRASH .false.).
     !> Not a port.
     recursive subroutine delete_file_for_rename(file, status)
         character(len=*), intent(in) :: file

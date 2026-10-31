@@ -29,9 +29,9 @@
 module dired_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: value_type, make_string, make_list, nil, t_value
+    use lisp_fm, only: value_type, make_list
     use fileio_fm, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
-                         file_directory_p, file_attributes, file_stat_type
+                         is_file_directory, file_attributes, file_stat_type
     use minibuf_fm, only: completion_ignore_case, completion_predicate
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use sysdep_fm, only: sys_string_type, emacs_directory_entries, system_user_names, system_group_names, &
@@ -68,7 +68,7 @@ contains
     !> If FULL is true, return absolute file names.  Otherwise return names
     !>  that are relative to the specified directory.
     !> If NOSORT is true, the list is not sorted--its order is unpredictable.
-    !>  Otherwise, the list returned is sorted with `string_lessp'.
+    !>  Otherwise, the list returned is sorted with `is_string_less'.
     !>  NOSORT is useful if you plan to sort the result yourself.
     !> If COUNT is present and a natural number, the function will return
     !>  COUNT number of file names (if so many are present).  Port of
@@ -87,11 +87,11 @@ contains
         integer :: n, k, j, key
         logical :: absolute, sorted
 
-        files = nil()
+        files = value_type()
 
         if (present(count)) then
             if (count < 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "wholenump")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (>= 0)")
                 return
             end if
         end if
@@ -125,7 +125,7 @@ contains
                 j = k - 1
 
                 do while (j >= 1)
-                    if (.not. lessp(names(key)%s, names(order(j))%s)) exit
+                    if (.not. is_less(names(key)%s, names(order(j))%s)) exit
                     order(j + 1) = order(j)
                     j = j - 1
                 end do
@@ -138,9 +138,9 @@ contains
 
         do k = 1, n
             if (absolute) then
-                elems(k) = make_string(file_name_as_directory(dirfilename)//names(order(k))%s)
+                elems(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%s)
             else
-                elems(k) = make_string(names(order(k))%s)
+                elems(k) = value_type(text=names(order(k))%s)
             end if
         end do
 
@@ -150,24 +150,24 @@ contains
     !> Whether `a' sorts before `b', comparing bytes (UTF-8 sorts as its
     !> code points do) with a prefix first.  As fns.c:Fstring_lessp.
     !> Not a port.
-    pure logical function lessp(a, b)
+    pure logical function is_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
 
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
-                lessp = iachar(a(k:k)) < iachar(b(k:k))
+                is_less = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
 
-        lessp = len(a) < len(b)
-    end function lessp
+        is_less = len(a) < len(b)
+    end function is_less
 
     !> Complete file name FILE in directory DIRECTORY.
     !> Returns the longest string common to all file names in DIRECTORY
     !> that start with FILE.  If there is only one and FILE matches it
-    !> exactly, returns t.  Returns nil if DIRECTORY contains no name
+    !> exactly, returns it with exact .true..  Returns "" if DIRECTORY contains no name
     !> starting with FILE.
     !>
     !> If PREDICATE is present, call it with each possible completion (in
@@ -245,7 +245,7 @@ contains
         integer :: k, matchcount, nall
         logical :: directoryp, canexclude, includeall, have_best
 
-        result = nil()
+        result = value_type()
         call expand_file_name(dirname, dir, status)
         if (.not. status%ok()) return
         dir = file_name_as_directory(dir)
@@ -272,7 +272,7 @@ contains
             name = names(k)%s
             if (schars(name) < nfile) cycle
             if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
-            directoryp = file_directory_p(dir//name)
+            directoryp = is_file_directory(dir//name)
 
             ! If all_flag is set, always include all.  It would not actually
             ! be helpful to the user to ignore any possible completions when
@@ -308,7 +308,7 @@ contains
 
             ! Test the predicate, if any.
             if (present(predicate)) then
-                if (.not. predicate(make_string(name))) cycle
+                if (.not. predicate(value_type(text=name))) cycle
             end if
 
             ! Suitably record this match.
@@ -317,7 +317,7 @@ contains
 
             if (all_flag) then
                 nall = nall + 1
-                all(nall) = make_string(name)
+                all(nall) = value_type(text=name)
             else if (.not. have_best) then
                 bestmatch = name
                 bestmatchsize = nname
@@ -361,11 +361,11 @@ contains
         ! Return t if the supplied string is an exact match (counting
         ! case); it does not require any change to be made.
         if (matchcount == 1 .and. bestmatch == file .and. len(bestmatch) == len(file)) then
-            result = t_value()
+            result = value_type(.true.)
             return
         end if
 
-        result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
+        result = value_type(text=substring(bestmatch, 0_int64, bestmatchsize))
     end subroutine file_name_completion_1
 
     !> Return a list of user names currently registered in the system.
@@ -387,7 +387,7 @@ contains
             ! At least current user is always known.
             call passwd_name_of_user(me, found)
             allocate (elems(1))
-            elems(1) = make_string(me)
+            elems(1) = value_type(text=me)
             users = make_list(elems)
             return
         end if
@@ -396,7 +396,7 @@ contains
 
         ! Consed: the last entry first.
         do k = 1, n
-            elems(k) = make_string(names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%s)
         end do
 
         users = make_list(elems)
@@ -416,7 +416,7 @@ contains
         allocate (elems(n))
 
         do k = 1, n
-            elems(k) = make_string(names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%s)
         end do
 
         groups = make_list(elems)

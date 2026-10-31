@@ -1,0 +1,72 @@
+# Lisp vocabulary that tools/lisp-candidates.sh reports in new lines, so
+# that a Lisp-ism nobody has decided on yet is seen before it lands
+# (PORTING.md, "Fortran-first decision guide").  It only warns: a word here
+# is a candidate to look at, not an error.  Each candidate a PR adds is
+# listed in the PR description with its decision: confirmed by the owner
+# (and then a line of tools/fortran-names), or why it is not a Lisp-ism
+# here (a keyboard macro, a POSIX signal, a Lisp mode).
+#
+# fortran-names: off
+# One word per line, matched as a whole word in prose and as an
+# underscore-delimited part of an identifier, ignoring case.  Words the
+# owner has already decided (defun, sexp, alist, nil, ...) are enforced by
+# tools/fortran-names and the prose check, and are not repeated here.
+# fortran-names: on
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU General Public License,
+# version 3 or later (see LICENSE).
+
+advice
+apply
+assoc
+assq
+atom
+autoload
+backquote
+bignum
+boundp
+caar
+cadr
+catch
+closure
+dolist
+dotimes
+dynamic
+eval
+evaluate
+evaluated
+fboundp
+feature
+fixnum
+form
+funcall
+intern
+interactive
+keyword
+keywordp
+lambda
+let
+macro
+makunbound
+mapc
+mapcar
+mapconcat
+obarray
+predicate
+prin1
+princ
+progn
+provide
+quote
+quoted
+setf
+setq
+signal
+special
+symbol
+symbols
+throw
+unwind
+vector

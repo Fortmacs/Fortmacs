@@ -22,20 +22,20 @@
 
 module test_simple_shell_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
-                         current_buffer, buffer_live_p, set_buffer_read_only
+                         current_buffer, is_buffer_live, set_buffer_read_only
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, goto_char, buffer_string, mark_position
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
     use simple_fm, only: shell_command, shell_command_on_region, shell_command_dont_erase_buffer, push_mark, &
-                         deactivate_mark, shell_command_buffer_name, DONT_ERASE_NIL, DONT_ERASE_ERASE, &
+                         deactivate_mark, shell_command_buffer_name, DONT_ERASE_NO, DONT_ERASE_ERASE, &
                          DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
     use window_fm, only: get_buffer_window
     implicit none(type, external)
@@ -43,7 +43,7 @@ module test_simple_shell_fm
 
     public :: collect_simple_shell_fm
 
-    integer, parameter :: SAVE_POS(5) = [DONT_ERASE_ERASE, DONT_ERASE_NIL, DONT_ERASE_BEG_LAST_OUT, &
+    integer, parameter :: SAVE_POS(5) = [DONT_ERASE_ERASE, DONT_ERASE_NO, DONT_ERASE_BEG_LAST_OUT, &
                                          DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT]
 
 contains
@@ -147,7 +147,7 @@ contains
                 else
                     if (SAVE_POS(k) == DONT_ERASE_ERASE) then
                         expected = str
-                    else if (SAVE_POS(k) == DONT_ERASE_NIL) then
+                    else if (SAVE_POS(k) == DONT_ERASE_NO) then
                         if (output_is_current) then
                             expected = str//str
                         else
@@ -167,9 +167,9 @@ contains
             if (allocated(error)) exit
         end do
 
-        shell_command_dont_erase_buffer = DONT_ERASE_NIL
+        shell_command_dont_erase_buffer = DONT_ERASE_NO
         call kill_buffer(caller, st)
-        if (buffer_live_p(output)) call kill_buffer(output, st)
+        if (is_buffer_live(output)) call kill_buffer(output, st)
     end subroutine with_dont_erase_buffer
 
     !> The output buffer is erased or not according to
@@ -294,7 +294,7 @@ contains
         call check(error, last_message, "(Shell command succeeded with some error output)")
         if (allocated(error)) return
         eb = get_buffer("*Shell Errors*")
-        call check(error, buffer_live_p(eb), "error buffer")
+        call check(error, is_buffer_live(eb), "error buffer")
         if (allocated(error)) return
         call set_buffer(eb, st)
         call check(error, buffer_string(), "oops"//new_line("a"))
@@ -329,7 +329,7 @@ contains
         call system_clock(start, rate)
 
         do
-            if (.not. buffer_live_p(buffer)) exit
+            if (.not. is_buffer_live(buffer)) exit
             proc = get_buffer_process(buffer)
             if (proc%index == 0) exit
             call system_clock(now)
@@ -369,7 +369,7 @@ contains
         if (allocated(error)) return
         ! First command should neither have nor display output.
         buffer = get_buffer(first)
-        call check(error, buffer_live_p(buffer), "first buffer")
+        call check(error, is_buffer_live(buffer), "first buffer")
         if (allocated(error)) return
         proc = get_buffer_process(buffer)
         call check(error, proc%index /= 0, "first process")
@@ -379,7 +379,7 @@ contains
         if (allocated(error)) return
         ! Second command should both have and display output.
         buffer = get_buffer(second)
-        call check(error, buffer_live_p(buffer), "second buffer "//second)
+        call check(error, is_buffer_live(buffer), "second buffer "//second)
         if (allocated(error)) return
         call system_clock(start, rate)
 
@@ -399,7 +399,7 @@ contains
         do k = 1, 2
             if (k == 1) buffer = get_buffer(first)
             if (k == 2) buffer = get_buffer(second)
-            if (.not. buffer_live_p(buffer)) cycle
+            if (.not. is_buffer_live(buffer)) cycle
             proc = get_buffer_process(buffer)
             if (proc%index /= 0) call delete_process(proc, st)
             call kill_buffer(buffer, st)
@@ -426,7 +426,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         buffer = get_buffer("*Async Shell Command*")
-        call check(error, buffer_live_p(buffer), "output buffer")
+        call check(error, is_buffer_live(buffer), "output buffer")
         if (allocated(error)) return
         call wait_process(buffer)
         call set_buffer(buffer, st)
@@ -447,7 +447,7 @@ contains
         call init_bindings()
         call fresh("*shell-test*", h)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         last_message = ""
         call kbd_store_bytes(achar(27)//"!echo hi"//achar(13))
         call command_loop(st)

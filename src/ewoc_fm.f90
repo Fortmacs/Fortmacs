@@ -25,17 +25,16 @@
 !> refreshed, located from a buffer position and walked.
 !>
 !> An ewoc is a handle (`ewoc_type'), freed with `ewoc_free' (there is no
-!> GC).  Its nodes are numbers within it, 0 standing for nil.  The data
+!> GC).  Its nodes are numbers within it, 0 standing for none.  The data
 !> of a node is an integer the caller gives meaning to (typically an
 !> index into the caller's own array of elements).
 module ewoc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle, slot_table_type
-    use lisp_fm, only: value_type, t_value, nil
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use data_fm, only: symbol_value, set
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live
     use marker_fm, only: copy_marker_at, marker_position, set_marker, free_marker
     use editfns_fm, only: point, goto_char, delete_region
     use textprop_fm, only: put_text_property
@@ -279,7 +278,7 @@ contains
                 call insert(e%nodes(node)%hf(k)%text, st)
 
                 if (len(e%nodes(node)%hf(k)%face) > 0 .and. point() > beg) then
-                    call put_text_property(beg, point(), sym("face"), sym(e%nodes(node)%hf(k)%face), st)
+                    call put_text_property(beg, point(), value_type(name="face"), value_type(name=e%nodes(node)%hf(k)%face), st)
                 end if
             end do
             ! The header and footer are always separated by a newline
@@ -331,9 +330,9 @@ contains
         m = mpos(ewocs(i), node)
         r = ewocs(i)%nodes(node)%right
         end = mpos(ewocs(i), r)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        if (.not. st%ok()) saved = value_type()
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         opoint = point()
         at_end = opoint == end
         has_offset = .false.
@@ -363,7 +362,7 @@ contains
             call goto_char(min(m + offset, end - 1))
         end if
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine refresh_node
 
     ! with-current-buffer of an ewoc's buffer: make it current, keeping
@@ -382,7 +381,7 @@ contains
         type(handle_type), intent(in) :: old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine leave_buffer
 
     ! ------------------------------------------------------------------
@@ -579,7 +578,7 @@ contains
     end function ewoc_enter_before
 
     !> Return the node in EWOC that follows NODE.
-    !> Return nil if NODE is nil or the last element.  Port of
+    !> Return 0 if NODE is 0 or the last element.  Port of
     !> ewoc.el:ewoc-next.
     integer function ewoc_next(ewoc, node) result(next)
         type(ewoc_type), intent(in) :: ewoc
@@ -593,7 +592,7 @@ contains
     end function ewoc_next
 
     !> Return the node in EWOC that precedes NODE.
-    !> Return nil if NODE is nil or the first element.  Port of
+    !> Return 0 if NODE is 0 or the first element.  Port of
     !> ewoc.el:ewoc-prev.
     integer function ewoc_prev(ewoc, node) result(prev)
         type(ewoc_type), intent(in) :: ewoc
@@ -607,7 +606,7 @@ contains
     end function ewoc_prev
 
     !> Return the Nth node.
-    !> N counts from zero.  Return nil if there is less than N elements.
+    !> N counts from zero.  Return 0 if there are less than N elements.
     !> If N is negative, return the -(N+1)th last element.
     !> Thus, ewoc_nth(ewoc, 0) returns the first node,
     !> and ewoc_nth(ewoc, -1) returns the last node.
@@ -710,9 +709,9 @@ contains
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        if (.not. st%ok()) saved = value_type()
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         allocate (goodbye(ewocs(i)%n))
         n = 0
         node = node_nth(ewocs(i), 1)
@@ -729,7 +728,7 @@ contains
 
         call leave_buffer(old)
         call ewoc_delete(ewoc, goodbye(n:1:-1))
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine ewoc_filter
 
     !> Return the node that POS (a buffer position) is within.
@@ -738,7 +737,7 @@ contains
     !>
     !> If POS points before the first element, the first node is returned.
     !> If POS points after the last element, the last node is returned.
-    !> If the EWOC is empty, nil is returned.  Port of ewoc.el:ewoc-locate.
+    !> If the EWOC is empty, 0 is returned.  Port of ewoc.el:ewoc-locate.
     integer function ewoc_locate(ewoc, pos_in, guess) result(node)
         type(ewoc_type), intent(in) :: ewoc
         integer(int64), intent(in), optional :: pos_in
@@ -883,7 +882,7 @@ contains
     end function ewoc_goto_prev
 
     !> Move point to the ARGth next element in EWOC.
-    !> Return the node (or nil if we just passed the last node).  Port of
+    !> Return the node (or 0 if we just passed the last node).  Port of
     !> ewoc.el:ewoc-goto-next.
     integer function ewoc_goto_next(ewoc, arg_in, status) result(node)
         type(ewoc_type), intent(in) :: ewoc
@@ -951,9 +950,9 @@ contains
         if (i == 0) return
         call enter_buffer(i, old)
         footer = ewocs(i)%footer
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        if (.not. st%ok()) saved = value_type()
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call delete_region(mpos(ewocs(i), node_nth(ewocs(i), 1)), mpos(ewocs(i), footer), st)
         call goto_char(mpos(ewocs(i), footer))
         node = node_nth(ewocs(i), 1)
@@ -964,7 +963,7 @@ contains
             node = node_next(ewocs(i), node)
         end do
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         call set_marker(ewocs(i)%nodes(footer)%start_marker, point(), st)
         call leave_buffer(old)
     end subroutine ewoc_refresh
@@ -1009,7 +1008,7 @@ contains
     end subroutine ewoc_collect
 
     !> Return the buffer that is associated with EWOC.
-    !> Return nil (the null handle) if the buffer has been deleted.  Port of
+    !> Return the null handle if the buffer has been deleted.  Port of
     !> ewoc.el:ewoc-buffer.
     function ewoc_buffer(ewoc) result(buf)
         type(ewoc_type), intent(in) :: ewoc
@@ -1019,7 +1018,7 @@ contains
         buf = null_handle()
         i = slot(ewoc)
         if (i == 0) return
-        if (buffer_live_p(ewocs(i)%buffer)) buf = ewocs(i)%buffer
+        if (is_buffer_live(ewocs(i)%buffer)) buf = ewocs(i)%buffer
     end function ewoc_buffer
 
     !> Return the HEADER and FOOTER of EWOC.  Port of ewoc.el:ewoc-get-hf.

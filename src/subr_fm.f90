@@ -19,20 +19,17 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Questions (`read_key', `y_or_n_p', `read_number'),
+!> Questions (`read_key', `read_y_or_n', `read_number'),
 !> `add_to_history', and the match data helpers (`match_string',
-!> `string_match_p', `looking_at_p', `looking_back').
+!> `string_matches', `is_looking_at', `looking_back').
 module subr_fm
-    use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP
+    use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use lisp_fm, only: value_type, fixnump, xfixnum, nil, nilp, listp, make_string, cons, list_length, list_elt, &
-                       make_keymap_ref, symbolp, xsymbol, symbols, &
-                       list_elements, make_list, stringp, xstring, t_value
-    use lread_fm, only: sym
-    use data_fm, only: symbol_value, set, value_eq
-    use fns_fm, only: get
+    use lisp_fm, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
+                       list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
+    use data_fm, only: symbol_value, set, value_eq, history_setting, find_history, history_length, history_delete_duplicates
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified, &
                          invisibility_entry_type
     use insdel_fm, only: inhibit_modification_hooks
     use keyboard_fm, only: read_event, discard_input, this_command_keys
@@ -40,21 +37,21 @@ module subr_fm
     use commands_fm, only: commands
     use callint_fm, only: prefix_arg
     use xdisp_fm, only: message, message_nolog, cursor_in_echo_area
-    use keymap_fm, only: define_key, current_global_map, key_description, make_sparse_keymap, keymap_live_p, &
+    use keymap_fm, only: define_key, current_global_map, key_description, make_sparse_keymap, is_keymap_live, &
                          key_parse, lookup_key
     use handle_fm, only: handle_type
     use search_fm, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
                          re_search_forward, SEARCH_MOVE, regexp_quote, &
-                         match_in_string_p, string_index_to_offset, SEARCH_NOERROR, match_data, &
+                         is_match_in_string, string_index_to_offset, SEARCH_NOERROR, match_data, &
                          set_match_data, match_data_translate, replace_match
     use syntax_fm, only: skip_syntax_backward
     use editfns_fm, only: buffer_substring, point, goto_char, point_min, point_max, narrow_to_region, widen
     implicit none(type, external)
     private
 
-    public :: read_key, y_or_n_p, query_replace_answer, add_to_history
-    public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_symbol, find_tag_default, &
-              find_tag_default_as_regexp, find_tag_default_as_symbol_regexp
+    public :: read_key, read_y_or_n, query_replace_answer, add_to_history, history_length, history_delete_duplicates
+    public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_identifier, find_tag_default, &
+              find_tag_default_as_regexp, find_tag_default_as_identifier_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
     public :: replace_string_in_region, replace_regexp_in_region
     public :: add_to_invisibility_spec, remove_from_invisibility_spec
@@ -62,7 +59,7 @@ module subr_fm
 
     !> A numerical progress reporter (`make_progress_reporter' with
     !> MIN_VALUE and MAX_VALUE): the value at which to report next (the
-    !> car of upstream's cons) and the parameters vector.
+    !> first of upstream's two values) and the parameters vector.
     type, public :: progress_reporter_type
         real(real64) :: next_value = 0
         !> The time of the next echo area update, in seconds.
@@ -88,8 +85,8 @@ module subr_fm
     !> Normal hook run at the very end of major mode functions.  Port of
     !> subr.el after-change-major-mode-hook.
     type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after_change_major_mode_hook")
-    public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
-              match_substitute_replacement, subregexp_context_p
+    public :: match_string, match_string_no_properties, string_matches, is_looking_at, looking_back, &
+              match_substitute_replacement, is_subregexp_context
 
     !> Give KEY a global binding as COMMAND (a command name or any key
     !> definition).
@@ -97,20 +94,6 @@ module subr_fm
         module procedure global_set_key_value, global_set_key_command
     end interface global_set_key
 
-    !> Maximum length of history lists before truncation takes place.
-    !> A number means truncate to that length; truncation deletes old
-    !> elements, and is done just after inserting a new element.
-    !>
-    !> This variable only affects history lists that don't specify their own
-    !> maximum lengths.  Setting the `history_length' property of a history
-    !> variable overrides this default.  Port of minibuf.c history-length
-    !> (the value t, no truncation, is not ported: Deferred).
-    integer, public :: history_length = 100
-    !> True means to delete duplicates in history.
-    !> If set to true when adding a new history element, all previous identical
-    !> elements are deleted from the history list.  Port of minibuf.c
-    !> history-delete-duplicates.
-    logical, public :: history_delete_duplicates = .false.
     public :: ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, &
               ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE, &
               ANSWER_EDIT_REPLACEMENT, ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, &
@@ -151,7 +134,7 @@ module subr_fm
                           ANSWER_SCROLL_UP = 18, ANSWER_EXIT_PREFIX = 19, ANSWER_SCROLL_DOWN = 20, &
                           ANSWER_SCROLL_OTHER_WINDOW = 21, ANSWER_SCROLL_OTHER_WINDOW_DOWN = 22
 
-    !> Use `read_key' when reading answers to "y or n" questions by `y_or_n_p'.
+    !> Use `read_key' when reading answers to "y or n" questions by `read_y_or_n'.
     !> Otherwise, use the `read_from_minibuffer' to read the answers.
     !>
     !> When reading via the minibuffer, you can use the normal commands
@@ -160,11 +143,11 @@ module subr_fm
     !> to the minibuffer before entering the character.  This is not
     !> possible when using `read_key', but using `read_key' may be less
     !> confusing to some users.  Port of subr.el y-or-n-p-use-read-key.
-    logical, public :: y_or_n_p_use_read_key = .false.
+    logical, public :: read_y_or_n_use_read_key = .false.
 
-    !> Name of the history list to add `y_or_n_p' answers to (unallocated for
+    !> Name of the history list to add `read_y_or_n' answers to (unallocated for
     !> no history).  Port of subr.el y-or-n-p-history-variable.
-    character(len=:), allocatable, public :: y_or_n_p_history_variable
+    character(len=:), allocatable, public :: read_y_or_n_history_variable
 
     !> What `silent_modifications_begin' changed, for
     !> `silent_modifications_end' to restore (the bindings of
@@ -190,7 +173,7 @@ module subr_fm
         !> Ask user a "y or n" question.
         !> Return true (in ANSWER) if answer is "y" and false if it is "n".
         !>
-        !> PROMPT is the string to display to ask the question; `y_or_n_p'
+        !> PROMPT is the string to display to ask the question; `read_y_or_n'
         !> adds "(y or n) " to it.  If PROMPT is a non-empty string, and
         !> it ends with a non-space character, a space character will be
         !> appended to it.
@@ -210,16 +193,16 @@ module subr_fm
         !> and ask again.
         !>
         !> By default, this function uses the minibuffer to read the key.
-        !> If `y_or_n_p_use_read_key' is true, `read_key' is used
+        !> If `read_y_or_n_use_read_key' is true, `read_key' is used
         !> instead (which means that the user can't change buffers (and the
-        !> like) while `y_or_n_p' is running).  Port of subr.el:y-or-n-p
+        !> like) while `read_y_or_n' is running).  Port of subr.el:y-or-n-p
         !> (no help-form or dialog boxes).  (In subr_read_fm.)
-        recursive module subroutine y_or_n_p(prompt, answer, status)
+        recursive module subroutine read_y_or_n(prompt, answer, status)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             logical, intent(out) :: answer
             type(status_type), intent(out) :: status
-        end subroutine y_or_n_p
+        end subroutine read_y_or_n
 
         !> Register subr.el's commands (and keyboard.c's
         !> abort-recursive-edit).  (In subr_read_fm.)
@@ -230,20 +213,20 @@ module subr_fm
         !> HISTORY, if present, names the history list variable to use for
         !> navigating in input history using \`M-p' and \`M-n', with \`RET' to
         !> select a character from history.
-        !> If HELP_FORM is present (upstream's `help_form' bound around the
+        !> If HELP_PROCEDURE is present (upstream's `help_form' bound around the
         !> call), then pressing `help_char' displays it.  There is no need to
         !> explicitly add `help_char' to CHARS; `help_char' is bound
-        !> automatically to `help_form_show'.  Port of
+        !> automatically to `help_procedure_show'.  Port of
         !> subr.el:read-char-from-minibuffer (exiting after other
         !> insertions, its `post_command_hook', is deferred).  (In
         !> subr_read_fm.)
-        recursive module subroutine read_char_from_minibuffer(prompt, c, status, chars, history, help_form)
+        recursive module subroutine read_char_from_minibuffer(prompt, c, status, chars, history, help_procedure)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer, intent(out) :: c
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: chars(:)
-            character(len=*), intent(in), optional :: history, help_form
+            character(len=*), intent(in), optional :: history, help_procedure
         end subroutine read_char_from_minibuffer
 
         !> Read and return one of the characters in CHARS, prompting with PROMPT.
@@ -257,17 +240,17 @@ module subr_fm
         !> argument INHIBIT_KEYBOARD_QUIT is ignored.  However, if
         !> `read_char_choice_use_read_key' is true, the modal `read_key'
         !> function is used instead (see read_char_choice_with_read_key),
-        !> and INHIBIT_KEYBOARD_QUIT is passed to it.  HELP_FORM is the text
+        !> and INHIBIT_KEYBOARD_QUIT is passed to it.  HELP_PROCEDURE is the text
         !> `help_char' shows (upstream's `help_form').  Port of
         !> subr.el:read-char-choice.  (In subr_read_fm.)
-        recursive module subroutine read_char_choice(prompt, chars, c, status, inhibit_keyboard_quit, help_form)
+        recursive module subroutine read_char_choice(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer, intent(in) :: chars(:)
             integer, intent(out) :: c
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: inhibit_keyboard_quit
-            character(len=*), intent(in), optional :: help_form
+            character(len=*), intent(in), optional :: help_procedure
         end subroutine read_char_choice
 
         !> Set up subr.el's commands.  Not a port: upstream defines them where
@@ -285,7 +268,7 @@ module subr_fm
         !>
         !> DEFAULTS, in place of DEFAULT, is an array of defaults: the first
         !> is the default, all are offered by M-n; with NO_DEFAULT, the list
-        !> starts with a nil default (there is none, the others are offered
+        !> starts with an empty default (there is none, the others are offered
         !> by M-n).  Port of subr.el:read-number (the answer is read as
         !> upstream's reader reads an integer; floats are not ported).  (In
         !> subr_read_fm.)
@@ -519,11 +502,11 @@ contains
                 b%invisibility_spec_t = .false.
                 if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
                 allocate (b%invisibility_spec(1))
-                b%invisibility_spec(1)%atom = t_value()
+                b%invisibility_spec(1)%atom = value_type(.true.)
             end if
 
             if (.not. allocated(b%invisibility_spec)) allocate (b%invisibility_spec(0))
-            e%atom = sym(element)
+            e%atom = value_type(name=element)
 
             if (present(ellipsis)) then
                 e%cons = .true.
@@ -558,7 +541,7 @@ contains
                 b%invisibility_spec_t = .false.
                 if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
                 allocate (b%invisibility_spec(1))
-                b%invisibility_spec(1)%atom = t_value()
+                b%invisibility_spec(1)%atom = value_type(.true.)
                 return
             end if
 
@@ -577,7 +560,7 @@ contains
         logical function same_entry(e)
             type(invisibility_entry_type), intent(in) :: e
 
-            same_entry = value_eq(e%atom, sym(element)) .and. (e%cons .eqv. present(ellipsis))
+            same_entry = value_eq(e%atom, value_type(name=element)) .and. (e%cons .eqv. present(ellipsis))
             if (same_entry .and. present(ellipsis)) same_entry = e%ellipsis .eqv. ellipsis
         end function same_entry
     end subroutine remove_from_invisibility_spec
@@ -631,11 +614,11 @@ contains
         type(status_type) :: st
 
         if (cur == 0) return
-        call buffer_modified_p(current_buffer(), s%modified, st)
+        call is_buffer_modified(current_buffer(), s%modified, st)
         s%undo_enabled = buffers(cur)%undo_enabled
         buffers(cur)%undo_enabled = .false.
-        call symbol_value(sym("inhibit_read_only"), s%inhibit_read_only, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), s%inhibit_read_only, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         s%inhibit_modification_hooks = inhibit_modification_hooks%value
         inhibit_modification_hooks = .true.
     end subroutine silent_modifications_begin
@@ -649,9 +632,9 @@ contains
 
         if (cur == 0) return
         inhibit_modification_hooks = s%inhibit_modification_hooks
-        call set(sym("inhibit_read_only"), s%inhibit_read_only, st)
+        call set(value_type(name="inhibit_read_only"), s%inhibit_read_only, st)
         buffers(cur)%undo_enabled = s%undo_enabled
-        call restore_buffer_modified_p(s%modified)
+        call restore_buffer_modified(s%modified)
     end subroutine silent_modifications_end
 
     !> Read one key with `prompt' in the echo area and the cursor after it.
@@ -685,12 +668,12 @@ contains
         type(status_type) :: st
         integer :: k
 
-        if (keymap_live_p(query_replace_map)) return
+        if (is_keymap_live(query_replace_map)) return
         call make_sparse_keymap(query_replace_map)
 
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
-            if (st%ok()) call define_key(query_replace_map, seq, sym(trim(QRM_ANSWERS(k))), st)
+            if (st%ok()) call define_key(query_replace_map, seq, value_type(name=trim(QRM_ANSWERS(k))), st)
         end do
     end subroutine init_query_replace_map
 
@@ -706,7 +689,7 @@ contains
         answer = ANSWER_NONE
         call init_query_replace_map()
         call lookup_key(make_keymap_ref(query_replace_map), [key], def, st, .true.)
-        if (.not. st%ok() .or. .not. symbolp(def)) return
+        if (.not. st%ok() .or. (vtag(def) /= V_NAME .and. vtag(def) /= V_NULL)) return
         name = symbols(xsymbol(def))%name
 
         select case (name)
@@ -759,95 +742,36 @@ contains
         end select
     end function query_replace_answer
 
-    !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
+    !> Add NEWELT to the history list called HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.
-    !> Otherwise, the maximum history length is the value of the `history_length'
-    !> property on symbol HISTORY-VAR, if set, or the value of the `history_length'
-    !> variable.  The possible values of maximum length have the same meaning as
-    !> the values of `history_length'.
-    !> Remove duplicates of NEWELT if `history_delete_duplicates' is non-nil.
-    !> If optional fourth arg KEEP-ALL is non-nil, add NEWELT to history even
+    !> Otherwise, the maximum history length is the history's `%length',
+    !> if set, or the value of the `history_length' variable.  The possible
+    !> values of maximum length have the same meaning as the values of
+    !> `history_length'.
+    !> Remove duplicates of NEWELT if `history_delete_duplicates' is .true..
+    !> If optional fourth arg KEEP-ALL is .true., add NEWELT to history even
     !> if it is empty or duplicates the most recent entry in the history.
-    !> Port of subr.el:add-to-history (NEWELT a string; `added' says
-    !> whether the list changed; a void HISTORY-VAR is a void-variable
-    !> error in `status').
+    !> Port of subr.el:add-to-history (the history is found by name, see
+    !> `find_history'; `added' says whether the list changed; a name that
+    !> is no history is a `void_variable' error in `status').
     subroutine add_to_history(history_var, newelt, maxelt, keep_all, added, status)
         character(len=*), intent(in) :: history_var, newelt
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
         logical, intent(out), optional :: added
         type(status_type), intent(out), optional :: status
-        type(value_type) :: history, prop, first
-        type(value_type), allocatable :: elems(:), kept(:)
-        type(status_type) :: st
-        logical :: all, limited
-        integer :: limit, k, n
+        type(history_setting), pointer :: history
 
         if (present(added)) added = .false.
         if (present(status)) status = status_type()
-        limited = .true.
-        limit = history_length
+        history => find_history(history_var)
 
-        if (present(maxelt)) then
-            limit = maxelt
-        else
-            call get(sym(history_var), sym("history_length"), prop, st)
-
-            if (fixnump(prop)) then
-                limit = int(xfixnum(prop))
-            else if (.not. nilp(prop)) then
-                ! A non-integer MAXELT: no truncation.
-                limited = .false.
-            end if
-        end if
-
-        all = .false.
-        if (present(keep_all)) all = keep_all
-        call symbol_value(sym(history_var), history, st)
-
-        if (.not. st%ok()) then
-            if (present(status)) status = st
+        if (.not. associated(history)) then
+            if (present(status)) call set_error(status, FM_VOID_VARIABLE, history_var)
             return
         end if
 
-        if (.not. listp(history)) return
-        if (.not. all .and. len(newelt) == 0) return
-
-        if (.not. all .and. list_length(history) > 0) then
-            first = list_elt(history, 1_int64)
-
-            if (stringp(first)) then
-                if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
-            end if
-        end if
-
-        call list_elements(history, elems)
-        allocate (kept(size(elems) + 1))
-        kept(1) = make_string(newelt)
-        n = 1
-
-        do k = 1, size(elems)
-            if (history_delete_duplicates) then
-                ! (delete newelt history)
-                if (stringp(elems(k))) then
-                    if (xstring(elems(k)) == newelt .and. len(xstring(elems(k))) == len(newelt)) cycle
-                end if
-            end if
-
-            n = n + 1
-            kept(n) = elems(k)
-        end do
-
-        if (limited) then
-            if (limit <= 0) then
-                n = 0
-            else
-                n = min(n, limit)
-            end if
-        end if
-
-        call set(sym(history_var), make_list(kept(1:n)), st)
-        if (present(added)) added = .true.
+        call history%add(newelt, maxelt, keep_all, added)
     end subroutine add_to_history
 
     !> Beep to tell the user this binding is undefined.  Port of
@@ -861,18 +785,18 @@ contains
         call message(key_description(this_command_keys)//" is undefined")
         ! If this is a down-mouse event, don't reset prefix-arg; pass it to
         ! the command run by the up event.
-        prefix_arg = nil()
+        prefix_arg = value_type()
     end subroutine undefined
 
-    !> (defvar NAME nil): give the variable NAME the value nil unless it
-    !> has a value already.  Port of eval.c:Fdefvar (INITVALUE nil).
+    !> Give the variable NAME an unallocated value unless it
+    !> has a value already.  Port of eval.c:Fdefvar (INITVALUE empty).
     subroutine defvar_nil(name)
         character(len=*), intent(in) :: name
         type(value_type) :: v
         type(status_type) :: st
 
-        call symbol_value(sym(name), v, st)
-        if (.not. st%ok()) call set(sym(name), nil(), st)
+        call symbol_value(value_type(name=name), v, st)
+        if (.not. st%ok()) call set(value_type(name=name), value_type(), st)
     end subroutine defvar_nil
 
     !> Give KEY a global binding as COMMAND.
@@ -880,7 +804,7 @@ contains
     !> recommended function to use instead.
     !>
     !> COMMAND is the command definition to use; usually it is
-    !> a symbol naming an interactively-callable function.
+    !> a name of an interactively-callable function.
     !> KEY is a key sequence: a vector of events, as `key_parse' makes.
     !>
     !> Note that if KEY has a local binding in the current buffer,
@@ -899,7 +823,7 @@ contains
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
 
-        call define_key(current_global_map(), key, sym(command), status)
+        call define_key(current_global_map(), key, value_type(name=command), status)
     end subroutine global_set_key_command
 
     !> Return the string of text matched by the previous search or regexp
@@ -908,7 +832,7 @@ contains
     !> means the entire text matched by the whole regexp or whole string.
     !>
     !> The return value is an empty string (and `matched' false) if NUMth
-    !> pair didn't match, or there were less than NUM pairs.
+    !> subexpression didn't match, or there were less than NUM subexpressions.
     !>
     !> STRING should be given if the last search was by `string_match' on
     !> STRING.  If STRING is absent, the current buffer should be the same
@@ -938,8 +862,8 @@ contains
 
     !> Return string of text matched by last search, without text
     !> properties.  NUM specifies which parenthesized expression in the
-    !> last regexp.  Value is an empty string if NUMth pair didn't match, or there
-    !> were less than NUM pairs.  Zero means the entire text matched by
+    !> last regexp.  Value is an empty string if NUMth subexpression didn't match, or there
+    !> were less than NUM subexpressions.  Zero means the entire text matched by
     !> the whole regexp or whole string.  STRING should be given if the
     !> last search was by `string_match' on STRING.  If STRING is absent, the
     !> current buffer should be the same buffer as the one in which the
@@ -989,7 +913,7 @@ contains
     !> than POS, and known to be in a subregexp context.  (POS and START are
     !> 1-based character indices: the text before the character at POS
     !> is examined.)  Port of subr.el:subregexp-context-p.
-    recursive logical function subregexp_context_p(regexp, pos, status, start) result(context)
+    recursive logical function is_subregexp_context(regexp, pos, status, start) result(context)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
@@ -1006,26 +930,26 @@ contains
                          status%detail == """Trailing backslash""")
         status = status_type()
         if (idx < 0) continue
-    end function subregexp_context_p
+    end function is_subregexp_context
 
-    !> Same as `string_match' except this function does not change the
-    !> match data.  Port of subr.el:string-match-p.
-    integer(int64) function string_match_p(regexp, string, status, start) result(idx)
+    !> Whether REGEXP matches STRING, as `string_match' finds; this function
+    !> does not change the match data.  Port of subr.el:string-match-p.
+    logical function string_matches(regexp, string, status, start) result(found)
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
 
-        idx = string_match(regexp, string, status, start, inhibit_modify=.true.)
-    end function string_match_p
+        found = string_match(regexp, string, status, start, inhibit_modify=.true.) > 0
+    end function string_matches
 
     !> Same as `looking_at' except this function does not change the match
     !> data.  Port of subr.el:looking-at-p.
-    logical function looking_at_p(regexp, status)
+    logical function is_looking_at(regexp, status)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
 
-        looking_at_p = looking_at(regexp, status, inhibit_modify=.true.)
-    end function looking_at_p
+        is_looking_at = looking_at(regexp, status, inhibit_modify=.true.)
+    end function is_looking_at
 
     !> Return true if text before point matches regular expression
     !> REGEXP.  Like `looking_at' except matches before point, and is
@@ -1195,12 +1119,12 @@ contains
         call message(reporter%text//" "//pulse_characters(k:k))
     end subroutine progress_reporter_pulse
 
-    !> Move point to the next position that is the end of a symbol.
-    !> A symbol is any sequence of characters that are in either the
-    !> word constituent or symbol constituent syntax class.
+    !> Move point to the next position that is the end of an identifier.
+    !> An identifier is any sequence of characters that are in either the
+    !> word constituent or identifier constituent syntax class.
     !> With prefix argument ARG, do it ARG times if positive, or move
     !> backwards ARG times if negative.  Port of subr.el:forward-symbol.
-    subroutine forward_symbol(arg)
+    subroutine forward_identifier(arg)
         integer(int64), intent(in) :: arg
         integer(int64) :: found, moved, n
         type(status_type) :: st
@@ -1216,13 +1140,13 @@ contains
                 n = n + 1
             end do
         end if
-    end subroutine forward_symbol
+    end subroutine forward_identifier
 
-    !> The bounds of the symbol at point (`found' false if none).
+    !> The bounds of the identifier at point (`found' false if none).
     !> Port of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
     !> forward-symbol, beginning-op thing-at-point--beginning-of-symbol,
     !> whose search failing is an error ignored).
-    subroutine bounds_of_symbol_at_point(beg, end, found)
+    subroutine bounds_of_identifier_at_point(beg, end, found)
         integer(int64), intent(out) :: beg, end
         logical, intent(out) :: found
         integer(int64) :: orig, at, real_end, real_beg
@@ -1244,8 +1168,8 @@ contains
 
         call goto_char(orig)
         ! Try moving forward, then back.
-        call forward_symbol(1_int64)
-        call beginning_of_symbol(ok)
+        call forward_identifier(1_int64)
+        call beginning_of_identifier(ok)
 
         if (.not. ok) then
             call goto_char(orig)
@@ -1258,7 +1182,7 @@ contains
             ! If that brings us all the way back to ORIG, it worked.  But
             ! END may not be the real end.  So find the real end that
             ! corresponds to BEG.
-            call forward_symbol(1_int64)
+            call forward_identifier(1_int64)
             real_end = point()
 
             if (orig <= real_end .and. beg < real_end) then
@@ -1269,12 +1193,12 @@ contains
             call goto_char(orig)
             ! Try a second time, moving backward first and then forward,
             ! so that we can find a thing that ends at ORIG.
-            call beginning_of_symbol(ok)
+            call beginning_of_identifier(ok)
 
             if (ok) then
-                call forward_symbol(1_int64)
+                call forward_identifier(1_int64)
                 end = point()
-                call beginning_of_symbol(ok)
+                call beginning_of_identifier(ok)
 
                 if (ok) then
                     real_beg = point()
@@ -1293,7 +1217,7 @@ contains
 
         ! thing-at-point--beginning-of-symbol: `ok' false when the search
         ! signals.
-        subroutine beginning_of_symbol(ok)
+        subroutine beginning_of_identifier(ok)
             logical, intent(out) :: ok
             integer(int64) :: found, moved
             type(status_type) :: st
@@ -1301,8 +1225,8 @@ contains
             call re_search_backward("\(\sw\|\s_\)+", found, st)
             ok = st%ok() .and. found > 0
             if (ok) moved = skip_syntax_backward("w_")
-        end subroutine beginning_of_symbol
-    end subroutine bounds_of_symbol_at_point
+        end subroutine beginning_of_identifier
+    end subroutine bounds_of_identifier_at_point
 
     !> Determine default tag to search for, based on text at point.
     !> If there is no plausible default, `found' is false.  Port of
@@ -1314,7 +1238,7 @@ contains
         type(status_type) :: st
 
         tag = ""
-        call bounds_of_symbol_at_point(beg, end, found)
+        call bounds_of_identifier_at_point(beg, end, found)
         if (found) call buffer_substring(beg, end, tag, st)
     end subroutine find_tag_default
 
@@ -1332,14 +1256,14 @@ contains
         if (found) regexp = regexp_quote(tag)
     end subroutine find_tag_default_as_regexp
 
-    !> Return regexp that matches the default tag at point as symbol.
+    !> Return regexp that matches the default tag at point as identifier.
     !> If there is no tag at point, `found' is false.  Port of
     !> subr.el:find-tag-default-as-symbol-regexp.
-    subroutine find_tag_default_as_symbol_regexp(regexp, found)
+    subroutine find_tag_default_as_identifier_regexp(regexp, found)
         character(len=:), allocatable, intent(out) :: regexp
         logical, intent(out) :: found
 
         call find_tag_default_as_regexp(regexp, found)
         if (found) regexp = "\_<"//regexp//"\_>"
-    end subroutine find_tag_default_as_symbol_regexp
+    end subroutine find_tag_default_as_identifier_regexp
 end module subr_fm

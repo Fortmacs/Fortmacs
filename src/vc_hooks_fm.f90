@@ -41,10 +41,10 @@ module vc_hooks_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_VC_NOT_SUPPORTED
     use handle_fm, only: handle_type
     use ewoc_fm, only: ewoc_part_type
-    use lisp_fm, only: make_keymap_ref
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_file_buffer, buffer_live_p
+    use lisp_fm, only: make_keymap_ref, value_type
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_file_buffer, is_buffer_live
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
-                         file_exists_p, file_directory_p, file_modes, copy_file, file_attributes, file_stat_type, &
+                         file_exists, is_file_directory, file_modes, copy_file, file_attributes, file_stat_type, &
                          user_real_uid
     use files_fm, only: locate_dominating_file, locate_dominating_stop_dir_regexp, find_file_hook, kill_buffer_hook, &
                         vc_before_save_proc, vc_after_save_proc, file_truename, find_file_noselect, &
@@ -52,7 +52,7 @@ module vc_hooks_fm
     use search_fm, only: string_match
     use keymap_fm, only: make_sparse_keymap, keymap_set, define_key
     use xdisp_fm, only: message
-    use fns_fm, only: yes_or_no_p
+    use fns_fm, only: read_yes_or_no
     use faces_fm, only: named_face_type, display_when, face_attrs
     implicit none(type, external)
     private
@@ -63,10 +63,10 @@ module vc_hooks_fm
               vc_file_get_checkout_time, vc_file_set_git_symbolic_ref, vc_file_get_git_symbolic_ref, &
               vc_clear_context, vc_touch_reset, vc_touched
     public :: vc_find_root, vc_registered, vc_backend, vc_checkout_model, vc_state, vc_state_refresh, &
-              vc_up_to_date_p, vc_working_revision, vc_symbolic_working_revision, vc_short_revision, &
+              is_vc_up_to_date, vc_working_revision, vc_symbolic_working_revision, vc_short_revision, &
               vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
-              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible_p, vc_call_make_version_backups_p, &
+              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible, is_vc_call_make_version_backups, &
               vc_not_supported
     public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_proc
 
@@ -76,14 +76,14 @@ module vc_hooks_fm
     end type vc_string_type
 
     !> The kinds of a switches option (vc-diff-switches and the like):
-    !> nil (unspecified: try the next option), t (no switches at all), or
-    !> a list of strings (a string is a list of one).
-    integer, parameter, public :: VC_SWITCHES_NIL = 0, VC_SWITCHES_T = 1, VC_SWITCHES_LIST = 2
+    !> VC_SWITCHES_UNSPECIFIED (unspecified: try the next option), VC_SWITCHES_NONE (no switches at all), or
+    !> VC_SWITCHES_LIST, an array of strings (a string is an array of one).
+    integer, parameter, public :: VC_SWITCHES_UNSPECIFIED = 0, VC_SWITCHES_NONE = 1, VC_SWITCHES_LIST = 2
 
     !> The value of a switches option: its kind and, for
     !> VC_SWITCHES_LIST, the switches.
     type, public :: vc_switches_type
-        integer :: kind = VC_SWITCHES_NIL
+        integer :: kind = VC_SWITCHES_UNSPECIFIED
         type(vc_string_type), allocatable :: list(:)
     end type vc_switches_type
 
@@ -115,27 +115,27 @@ module vc_hooks_fm
     !> Port of vc-hooks.el vc-make-backup-files.
     logical, public :: vc_make_backup_files = .false.
 
-    !> Values of `vc_follow_symlinks' (nil, t, `ask').
-    integer, parameter, public :: VC_FOLLOW_SYMLINKS_NIL = 0, VC_FOLLOW_SYMLINKS_T = 1, VC_FOLLOW_SYMLINKS_ASK = 2
+    !> Values of `vc_follow_symlinks' (VC_FOLLOW_SYMLINKS_NO, VC_FOLLOW_SYMLINKS_YES, VC_FOLLOW_SYMLINKS_ASK).
+    integer, parameter, public :: VC_FOLLOW_SYMLINKS_NO = 0, VC_FOLLOW_SYMLINKS_YES = 1, VC_FOLLOW_SYMLINKS_ASK = 2
 
     !> What to do if visiting a symbolic link to a file under version control.
     !> Editing such a file through the link bypasses the version control system,
     !> which is dangerous and probably not what you want.
     !>
-    !> If this variable is VC_FOLLOW_SYMLINKS_T, VC follows the link and visits the real file,
+    !> If this variable is VC_FOLLOW_SYMLINKS_YES, VC follows the link and visits the real file,
     !> telling you about it in the echo area.  If it is VC_FOLLOW_SYMLINKS_ASK, VC asks for
-    !> confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NIL, the link is
+    !> confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NO, the link is
     !> visited and a warning displayed.  Port of vc-hooks.el vc-follow-symlinks.
     integer, public :: vc_follow_symlinks = VC_FOLLOW_SYMLINKS_ASK
 
-    !> Values of `vc_display_status' (nil, t, `no-backend').
-    integer, parameter, public :: VC_DISPLAY_STATUS_NIL = 0, VC_DISPLAY_STATUS_T = 1, VC_DISPLAY_STATUS_NO_BACKEND = 2
+    !> Values of `vc_display_status' (VC_DISPLAY_STATUS_NO, VC_DISPLAY_STATUS_YES, VC_DISPLAY_STATUS_NO_BACKEND).
+    integer, parameter, public :: VC_DISPLAY_STATUS_NO = 0, VC_DISPLAY_STATUS_YES = 1, VC_DISPLAY_STATUS_NO_BACKEND = 2
 
     !> If true, display revision number and lock status in mode line.
     !> If false, only the backend name is displayed.  When the value
     !> is VC_DISPLAY_STATUS_NO_BACKEND, then no backend name is displayed before the
     !> revision number and lock status.  Port of vc-hooks.el vc-display-status.
-    integer, public :: vc_display_status = VC_DISPLAY_STATUS_T
+    integer, public :: vc_display_status = VC_DISPLAY_STATUS_YES
 
     !> If true, identify work files by searching for version headers.
     !> Port of vc-hooks.el vc-consult-headers.
@@ -164,29 +164,29 @@ module vc_hooks_fm
     ! States and checkout models
     ! ------------------------------------------------------------------
 
-    !> The version control states of `vc_state': none known (nil), and
+    !> The version control states of `vc_state': none known (VC_STATE_UNKNOWN), and
     !> `up-to-date', `edited', locked by another user (USER, whose name
     !> `vc_state_locker' gives), `needs-update', `needs-merge',
     !> `unlocked-changes', `added', `removed', `conflict', `missing',
     !> `ignored' and `unregistered'.
-    integer, parameter, public :: VC_STATE_NIL = 0, VC_UP_TO_DATE = 1, VC_EDITED = 2, VC_LOCKED = 3, &
+    integer, parameter, public :: VC_STATE_UNKNOWN = 0, VC_UP_TO_DATE = 1, VC_EDITED = 2, VC_LOCKED = 3, &
                                   VC_NEEDS_UPDATE = 4, VC_NEEDS_MERGE = 5, VC_UNLOCKED_CHANGES = 6, VC_ADDED = 7, &
                                   VC_REMOVED = 8, VC_CONFLICT = 9, VC_MISSING = 10, VC_IGNORED = 11, &
                                   VC_UNREGISTERED = 12
 
-    !> The checkout models of `vc_checkout_model': unknown (nil),
+    !> The checkout models of `vc_checkout_model': unknown (VC_MODEL_UNKNOWN),
     !> `implicit', `locking' and `announce'.
-    integer, parameter, public :: VC_MODEL_NIL = 0, VC_MODEL_IMPLICIT = 1, VC_MODEL_LOCKING = 2, VC_MODEL_ANNOUNCE = 3
+    integer, parameter, public :: VC_MODEL_UNKNOWN = 0, VC_MODEL_IMPLICIT = 1, VC_MODEL_LOCKING = 2, VC_MODEL_ANNOUNCE = 3
 
     ! ------------------------------------------------------------------
     ! Backends
     ! ------------------------------------------------------------------
 
-    !> Kinds of a log's LIMIT: none (nil, unlimited), a number of entries,
+    !> Kinds of a log's LIMIT: none (unlimited), a number of entries,
     !> or a revision before which to stop.
     integer, parameter, public :: VC_LIMIT_NONE = 0, VC_LIMIT_NUMBER = 1, VC_LIMIT_REVISION = 2
 
-    !> The LIMIT of the log commands: nil, a number or a revision string.
+    !> The LIMIT of the log commands: none, a number or a revision string.
     type, public :: vc_log_limit_type
         integer :: kind = VC_LIMIT_NONE
         integer(int64) :: n = 0
@@ -195,7 +195,7 @@ module vc_hooks_fm
 
     !> Rename states of a file's backend-specific information: none, a copy
     !> and a rename.
-    integer, parameter, public :: VC_RENAME_NIL = 0, VC_RENAME_COPY = 1, VC_RENAME_RENAME = 2
+    integer, parameter, public :: VC_RENAME_NONE = 0, VC_RENAME_COPY = 1, VC_RENAME_RENAME = 2
 
     !> One (FILE STATE EXTRA) entry of a backend's `dir_status_files': the
     !> file's name relative to the directory, its state, and the
@@ -206,7 +206,7 @@ module vc_hooks_fm
         integer :: state = 0
         logical :: has_extra = .false.
         integer :: old_perm = 0, new_perm = 0
-        integer :: rename_state = VC_RENAME_NIL
+        integer :: rename_state = VC_RENAME_NONE
         character(len=:), allocatable :: orig_name
     end type vc_dir_entry_type
 
@@ -236,7 +236,7 @@ module vc_hooks_fm
             implicit none(type, external)
             character(len=*), intent(in) :: file
         end function vc_file_state_function
-        !> A backend function of FILE giving a string, or nil (FOUND false):
+        !> A backend function of FILE giving a string, or none (FOUND .false.):
         !> `working_revision', `root', `responsible_p', `mode_line_string',
         !> `find_ignore_file'.  Not a port.
         subroutine vc_file_string_function(file, s, found)
@@ -436,7 +436,7 @@ module vc_hooks_fm
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
     !> functions of the backend API it implements (vc-BACKEND-FUN;
-    !> unassociated ones use vc-default-FUN or signal `vc_not_supported').
+    !> unassociated ones use vc-default-FUN or a `vc_not_supported' error condition occurs).
     type :: vc_backend_type
         character(len=:), allocatable :: name
         procedure(vc_file_predicate), pointer, nopass :: registered => null()
@@ -513,7 +513,7 @@ module vc_hooks_fm
     ! Per-file properties
     ! ------------------------------------------------------------------
 
-    !> The per-file properties (vc-file-prop-obarray), by property.
+    !> The per-file properties (upstream's vc-file-prop-obarray), by property.
     integer, parameter, public :: VC_PROP_BACKEND = 1, VC_PROP_STATE = 2, VC_PROP_WORKING_REVISION = 3, &
                                   VC_PROP_CHECKOUT_TIME = 4, VC_PROP_GIT_SYMBOLIC_REF = 5
     integer, parameter :: NPROPS = 5
@@ -524,13 +524,13 @@ module vc_hooks_fm
     !> VC's properties of a file (an expanded name): which are set, the
     !> backend (an index of `vc_backends', or VC_BACKEND_NONE), the
     !> state (and the locker of VC_LOCKED), the working revision, the
-    !> checkout time (seconds and nanoseconds; nil when unset) and Git's
+    !> checkout time (seconds and nanoseconds; none when unset) and Git's
     !> symbolic ref.
     type :: vc_props_type
         character(len=:), allocatable :: file
         logical :: set(NPROPS) = .false.
         integer :: backend = 0
-        integer :: state = VC_STATE_NIL
+        integer :: state = VC_STATE_UNKNOWN
         character(len=:), allocatable :: locker
         character(len=:), allocatable :: working_revision
         integer(int64) :: checkout_sec = 0
@@ -643,8 +643,8 @@ contains
         if (associated(vc_backends(b)%registered)) r = vc_backends(b)%registered(file)
     end function call_registered
 
-    !> Backend B's `root' of FILE: the root directory (FOUND false for
-    !> nil); an error if it doesn't implement it.  Not a port.
+    !> Backend B's `root' of FILE: the root directory (FOUND .false. for
+    !> none); an error if it doesn't implement it.  Not a port.
     subroutine vc_call_root(b, file, root, found, status)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
@@ -664,9 +664,9 @@ contains
     end subroutine vc_call_root
 
     !> Backend B's `responsible_p' of FILE: the directory it is
-    !> responsible for FILE from (vc-default-responsible-p: nil).
+    !> responsible for FILE from (vc-default-responsible-p: none).
     !> Not a port.
-    subroutine vc_call_responsible_p(b, file, dir, found)
+    subroutine vc_call_responsible(b, file, dir, found)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: dir
@@ -675,19 +675,19 @@ contains
         dir = ""
         found = .false.
         if (associated(vc_backends(b)%responsible_p)) call vc_backends(b)%responsible_p(file, dir, found)
-    end subroutine vc_call_responsible_p
+    end subroutine vc_call_responsible
 
     !> Backend B's `make_version_backups_p' of FILE.  Port of
     !> vc-hooks.el:vc-default-make-version-backups-p as the default:
     !> return true if unmodified versions should be backed up locally.
     !> The default is to switch off this feature.
-    logical function vc_call_make_version_backups_p(b, file) result(r)
+    logical function is_vc_call_make_version_backups(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
 
         r = .false.
         if (associated(vc_backends(b)%make_version_backups_p)) r = vc_backends(b)%make_version_backups_p(file)
-    end function vc_call_make_version_backups_p
+    end function is_vc_call_make_version_backups
 
     ! ------------------------------------------------------------------
     ! Per-file properties
@@ -743,7 +743,7 @@ contains
     end function vc_touched
 
     !> Set per-file VC property `vc-backend' for FILE to backend B (0 for
-    !> nil, VC_BACKEND_NONE for `none').  Port of vc-hooks.el:vc-file-setprop.
+    !> unknown, VC_BACKEND_NONE for none).  Port of vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_backend(file, b)
         character(len=*), intent(in) :: file
         integer, intent(in) :: b
@@ -755,7 +755,7 @@ contains
         props(k)%set(VC_PROP_BACKEND) = b /= 0
     end subroutine vc_file_set_backend
 
-    !> Get per-file VC property `vc-backend' for FILE (0 for nil).  Port of
+    !> Get per-file VC property `vc-backend' for FILE (0 for none).  Port of
     !> vc-hooks.el:vc-file-getprop.
     integer function vc_file_get_backend(file) result(b)
         character(len=*), intent(in) :: file
@@ -768,7 +768,7 @@ contains
     end function vc_file_get_backend
 
     !> Set per-file VC property `vc-state' for FILE to STATE (LOCKER for
-    !> VC_LOCKED; VC_STATE_NIL for nil).  Port of
+    !> VC_LOCKED; VC_STATE_UNKNOWN for none).  Port of
     !> vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_state(file, state, locker)
         character(len=*), intent(in) :: file
@@ -779,7 +779,7 @@ contains
         call touch(VC_PROP_STATE)
         k = prop_index(file, .true.)
         props(k)%state = state
-        props(k)%set(VC_PROP_STATE) = state /= VC_STATE_NIL
+        props(k)%set(VC_PROP_STATE) = state /= VC_STATE_UNKNOWN
 
         if (present(locker)) then
             props(k)%locker = locker
@@ -788,15 +788,15 @@ contains
         end if
     end subroutine vc_file_set_state
 
-    !> Get per-file VC property `vc-state' for FILE (VC_STATE_NIL for
-    !> nil), and with LOCKER the user of VC_LOCKED.  Port of
+    !> Get per-file VC property `vc-state' for FILE (VC_STATE_UNKNOWN for
+    !> none), and with LOCKER the user of VC_LOCKED.  Port of
     !> vc-hooks.el:vc-file-getprop.
     integer function vc_file_get_state(file, locker) result(state)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out), optional :: locker
         integer :: k
 
-        state = VC_STATE_NIL
+        state = VC_STATE_UNKNOWN
         if (present(locker)) locker = ""
         k = prop_index(file, .false.)
         if (k == 0) return
@@ -818,7 +818,7 @@ contains
     end subroutine vc_file_set_working_revision
 
     !> Get per-file VC property `vc-working-revision' for FILE (FOUND
-    !> false for nil).  Port of vc-hooks.el:vc-file-getprop.
+    !> .false. for none).  Port of vc-hooks.el:vc-file-getprop.
     subroutine vc_file_get_working_revision(file, rev, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: rev
@@ -833,7 +833,7 @@ contains
         if (found) rev = props(k)%working_revision
     end subroutine vc_file_get_working_revision
 
-    !> Set per-file VC property `vc-checkout-time' for FILE (nil with SEC
+    !> Set per-file VC property `vc-checkout-time' for FILE (none with SEC
     !> absent).  Port of vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_checkout_time(file, sec, nsec)
         character(len=*), intent(in) :: file
@@ -849,8 +849,8 @@ contains
         if (present(nsec)) props(k)%checkout_nsec = nsec
     end subroutine vc_file_set_checkout_time
 
-    !> Get per-file VC property `vc-checkout-time' for FILE (FOUND false
-    !> for nil).  Port of vc-hooks.el:vc-file-getprop.
+    !> Get per-file VC property `vc-checkout-time' for FILE (FOUND .false.
+    !> for none).  Port of vc-hooks.el:vc-file-getprop.
     subroutine vc_file_get_checkout_time(file, sec, nsec, found)
         character(len=*), intent(in) :: file
         integer(int64), intent(out) :: sec
@@ -868,7 +868,7 @@ contains
         nsec = props(k)%checkout_nsec
     end subroutine vc_file_get_checkout_time
 
-    !> Set per-file VC property `vc-git-symbolic-ref' for FILE (nil with
+    !> Set per-file VC property `vc-git-symbolic-ref' for FILE (none with
     !> REF absent).  Port of vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_git_symbolic_ref(file, ref)
         character(len=*), intent(in) :: file
@@ -882,7 +882,7 @@ contains
     end subroutine vc_file_set_git_symbolic_ref
 
     !> Get per-file VC property `vc-git-symbolic-ref' for FILE (FOUND
-    !> false for nil).  Port of vc-hooks.el:vc-file-getprop.
+    !> .false. for none).  Port of vc-hooks.el:vc-file-getprop.
     subroutine vc_file_get_git_symbolic_ref(file, ref, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: ref
@@ -987,7 +987,7 @@ contains
     !>
     !> This function returns cached information.  To query the VCS regarding
     !> whether FILE is registered or unregistered, use `vc_registered'.
-    !> Port of vc-hooks.el:vc-backend (a single file; "" is nil).
+    !> Port of vc-hooks.el:vc-backend (a single file; "" for none).
     integer function vc_backend(file) result(b)
         character(len=*), intent(in) :: file
 
@@ -1010,7 +1010,7 @@ contains
     !> Indicate how FILES are checked out.
     !>
     !> If FILES are not registered, this function always returns
-    !> VC_MODEL_NIL.  For registered files, the possible values are:
+    !> VC_MODEL_UNKNOWN.  For registered files, the possible values are:
     !>
     !>   VC_MODEL_IMPLICIT   FILES are always writable, and checked out `implicitly'
     !>               when the user saves the first changes to the file.
@@ -1027,14 +1027,14 @@ contains
         integer, intent(in) :: b
         type(vc_string_type), intent(in) :: files(:)
 
-        model = VC_MODEL_NIL
+        model = VC_MODEL_UNKNOWN
         if (b <= 0) return
         if (associated(vc_backends(b)%checkout_model)) model = vc_backends(b)%checkout_model(files)
     end function vc_checkout_model
 
     !> Return the version control state of FILE.
     !>
-    !> A return of VC_STATE_NIL from this function means we have no information on the
+    !> A return of VC_STATE_UNKNOWN from this function means we have no information on the
     !> status of this file.  Otherwise, the value returned is one of:
     !>
     !>   VC_UP_TO_DATE       The working file is unmodified with respect to the
@@ -1084,7 +1084,7 @@ contains
     !>                      indicating the version-control system is ignoring it,
     !>                      Note: This property is not set reliably (some VCSes
     !>                      don't have useful directory-status commands) so assume
-    !>                      that any file with vc_state VC_STATE_NIL might be ignorable
+    !>                      that any file with vc_state VC_STATE_UNKNOWN might be ignorable
     !>                      without VC knowing it.
     !>
     !>   VC_UNREGISTERED     The file is not under version control.
@@ -1102,7 +1102,7 @@ contains
             state = vc_file_get_state(file)
         end if
 
-        if (state /= VC_STATE_NIL) return
+        if (state /= VC_STATE_UNKNOWN) return
         if (len(file) == 0) return
         b = 0
         if (present(backend)) b = backend
@@ -1118,18 +1118,18 @@ contains
         character(len=*), intent(in) :: file
         integer, intent(in) :: b
 
-        state = VC_STATE_NIL
+        state = VC_STATE_UNKNOWN
         if (associated(vc_backends(b)%state)) state = vc_backends(b)%state(file)
         call vc_file_set_state(file, state)
     end function vc_state_refresh
 
     !> Convenience function to check whether `vc_state' of FILE is
     !> VC_UP_TO_DATE.  Port of vc-hooks.el:vc-up-to-date-p.
-    logical function vc_up_to_date_p(file)
+    logical function is_vc_up_to_date(file)
         character(len=*), intent(in) :: file
 
-        vc_up_to_date_p = vc_state(file) == VC_UP_TO_DATE
-    end function vc_up_to_date_p
+        is_vc_up_to_date = vc_state(file) == VC_UP_TO_DATE
+    end function is_vc_up_to_date
 
     !> The name of state STATE as upstream's symbol (`up-to-date'), or
     !> the user LOCKER of VC_LOCKED.  Not a port.
@@ -1172,7 +1172,7 @@ contains
     !> Return the repository version from which FILE was checked out
     !> (FOUND false if FILE is not registered).
     !>
-    !> This function does not return nil without first confirming with the
+    !> This function does not return no revision without first confirming with the
     !> underlying VCS that FILE is unregistered; this is in contrast to
     !> `vc_symbolic_working_revision'.  Port of vc-hooks.el:vc-working-revision.
     subroutine vc_working_revision(file, rev, found, backend)
@@ -1229,7 +1229,7 @@ contains
         if (present(backend)) b = backend
         cached = 0
 
-        if (.not. (file_directory_p(file) .and. b /= 0)) then
+        if (.not. (is_file_directory(file) .and. b /= 0)) then
             cached = vc_backend(file)
             if (cached == 0) return
         end if
@@ -1335,7 +1335,7 @@ contains
     end function vc_version_backup_file_name
 
     !> The directory of FILE, or `default_directory' (expand-file-name's
-    !> default for a nil DIRECTORY).  Not a port.
+    !> default for an absent DIRECTORY).  Not a port.
     function file_name_directory_or_default(file) result(dir)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: dir
@@ -1397,13 +1397,13 @@ contains
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%filename)) return
         file = buffers(cur)%filename
-        if (.not. file_exists_p(file)) call vc_file_clearprops(file)
+        if (.not. file_exists(file)) call vc_file_clearprops(file)
         b = vc_backend(file)
         if (b == 0) return
-        if (.not. vc_up_to_date_p(file)) return
+        if (.not. is_vc_up_to_date(file)) return
         files(1)%s = file
         if (vc_checkout_model(b, files) /= VC_MODEL_IMPLICIT) return
-        if (.not. vc_call_make_version_backups_p(b, file)) return
+        if (.not. is_vc_call_make_version_backups(b, file)) return
         call vc_make_version_backup(file)
     end subroutine vc_before_save
 
@@ -1440,15 +1440,15 @@ contains
             end if
 
             state = vc_state_refresh(file, b)
-            if (state /= VC_STATE_NIL) call vc_mode_line(file, b)
+            if (state /= VC_STATE_UNKNOWN) call vc_mode_line(file, b)
         else if (vc_file_get_state(file) == VC_UP_TO_DATE) then
             ! If we saved an unlocked file on a locking based VCS, that
             ! file is not longer up-to-date.
-            call vc_file_set_state(file, VC_STATE_NIL)
+            call vc_file_set_state(file, VC_STATE_UNKNOWN)
         end if
 
         ! Resynch *vc-dir* buffers, if any are present.
-        if (vc_dir_buffers_p() .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
+        if (has_vc_dir_buffers() .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
     end subroutine vc_after_save
 
     !> Update VC-Dir contents after reverting a buffer from disk.  Port of
@@ -1457,7 +1457,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. vc_dir_buffers_p()) return
+        if (.not. has_vc_dir_buffers()) return
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%filename)) return
         if (vc_backend(buffers(cur)%filename) == 0) return
@@ -1465,10 +1465,10 @@ contains
     end subroutine vc_after_revert
 
     !> Whether `vc_dir_buffers' is not empty.  Not a port.
-    logical function vc_dir_buffers_p()
-        vc_dir_buffers_p = .false.
-        if (allocated(vc_dir_buffers)) vc_dir_buffers_p = size(vc_dir_buffers) > 0
-    end function vc_dir_buffers_p
+    logical function has_vc_dir_buffers()
+        has_vc_dir_buffers = .false.
+        if (allocated(vc_dir_buffers)) has_vc_dir_buffers = size(vc_dir_buffers) > 0
+    end function has_vc_dir_buffers
 
     ! ------------------------------------------------------------------
     ! The mode line
@@ -1495,7 +1495,7 @@ contains
 
         if (b == 0) then
             if (allocated(buffers(cur)%vc_mode)) deallocate (buffers(cur)%vc_mode)
-        else if (vc_display_status == VC_DISPLAY_STATUS_NIL) then
+        else if (vc_display_status == VC_DISPLAY_STATUS_NO) then
             buffers(cur)%vc_mode = " "//vc_backend_name(b)
         else
             if (associated(vc_backends(b)%mode_line_string)) then
@@ -1676,15 +1676,15 @@ contains
         if (truename /= buffers(cur)%filename) link_type = vc_backend(truename)
         if (link_type == 0) return
 
-        if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NIL) then
+        if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NO) then
             call message("Warning: symbolic link to "//vc_backend_name(link_type)//"-controlled source file")
         else if (vc_follow_symlinks /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
             call vc_follow_link()
             call message("Followed link to "//buffers(cur)%filename)
             call vc_refresh_state(status)
         else
-            call yes_or_no_p("Symbolic link to "//vc_backend_name(link_type)// &
-                             "-controlled source file; follow link? ", yes, status)
+            call read_yes_or_no("Symbolic link to "//vc_backend_name(link_type)// &
+                                "-controlled source file; follow link? ", yes, status)
             if (.not. status%ok()) return
 
             if (yes) then
@@ -1781,7 +1781,7 @@ contains
     !> Set up VC's resident part: the options, faces, hooks and
     !> `vc_prefix_map' on C-x v in CTL_X_MAP.  Not a port.
     subroutine syms_of_vc_hooks(ctl_x_map)
-        use lisp_fm, only: value_type, make_fixnum
+        use lisp_fm, only: value_type
         type(handle_type), intent(in) :: ctl_x_map
         type(value_type) :: key(1)
         type(status_type) :: st
@@ -1819,7 +1819,7 @@ contains
         call keymap_set(vc_prefix_map, "~", "vc_revision_other_window", st)
         call keymap_set(vc_prefix_map, "R", "vc_rename_file", st)
         call keymap_set(vc_prefix_map, "x", "vc_delete_file", st)
-        key(1) = make_fixnum(int(iachar("v"), int64))
+        key(1) = value_type(int(iachar("v"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(vc_prefix_map), st)
     end subroutine syms_of_vc_hooks
 end module vc_hooks_fm

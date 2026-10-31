@@ -43,15 +43,14 @@
 module font_core_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, list_elements, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, list_elements, make_list, vtag, V_ARRAY
     use data_fm, only: symbol_value, setq_local, set, set_default, boundp, add_local_variables_killer, value_eq
-    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, buffer_modified_p, &
-                         restore_buffer_modified_p, current_buffer
+    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, is_buffer_modified, &
+                         restore_buffer_modified, current_buffer
     use handle_fm, only: handle_type
     use eval_fm, only: hook_type, change_major_mode_hook
     use subr_fm, only: after_change_major_mode_hook
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use easy_mmode_fm, only: minor_mode_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
@@ -68,10 +67,10 @@ module font_core_fm
               font_lock_form_proc, font_lock_function_proc, major_mode_of_current, font_lock_properties_proc
 
     !> Overrides of a highlight (OVERRIDE in `font_lock_keywords'): keep
-    !> an existing face (nil), override it (t), keep it and add only where
+    !> an existing face (FONT_LOCK_OVERRIDE_NO), override it (FONT_LOCK_OVERRIDE_YES), keep it and add only where
     !> there is none (`keep'), merge before it (`prepend') or after it
     !> (`append').
-    integer, parameter, public :: FONT_LOCK_OVERRIDE_NIL = 0, FONT_LOCK_OVERRIDE_T = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
+    integer, parameter, public :: FONT_LOCK_OVERRIDE_NO = 0, FONT_LOCK_OVERRIDE_YES = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
                                   FONT_LOCK_OVERRIDE_PREPEND = 3, FONT_LOCK_OVERRIDE_APPEND = 4
 
     abstract interface
@@ -135,13 +134,13 @@ module font_core_fm
     !> The face may come with text properties to give the text as well
     !> (a FACENAME of the form (face FACE PROP VAL ...)): the names in
     !> `true_properties' are set to true, those in `nil_properties' to
-    !> false (nil), `display' is the `display' property, and
+    !> .false., `display' is the `display' property, and
     !> `properties_function' gives the ones that depend on the match.
     type, public :: font_lock_match_highlight_type
         integer :: subexp = 0
         character(len=:), allocatable :: face
         procedure(font_lock_face_proc), pointer, nopass :: face_function => null()
-        integer :: override = FONT_LOCK_OVERRIDE_NIL
+        integer :: override = FONT_LOCK_OVERRIDE_NO
         logical :: laxmatch = .false.
         character(len=64), allocatable :: true_properties(:)
         character(len=64), allocatable :: nil_properties(:)
@@ -229,7 +228,7 @@ module font_core_fm
         type(font_lock_keywords_type), allocatable :: levels(:)
         logical :: keywords_only = .false.
         logical :: case_fold = .false.
-        type(font_lock_syntax_entry_type), allocatable :: syntax_alist(:)
+        type(font_lock_syntax_entry_type), allocatable :: syntax_modifications(:)
         !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'
         !> (null leaves it alone).
         procedure(font_lock_syntactic_face_proc), pointer, nopass :: syntactic_face_function => null()
@@ -247,8 +246,8 @@ module font_core_fm
     !>
     !>  (KEYWORDS [KEYWORDS-ONLY [CASE-FOLD [SYNTAX-ALIST ...]]])
     !>
-    !> KEYWORDS may be a symbol (a variable or function whose value is the
-    !> keywords to use for fontification) or a list of symbols (specifying
+    !> KEYWORDS may be a name (a variable or function whose value is the
+    !> keywords to use for fontification) or a list of names (specifying
     !> different levels of fontification).
     !>
     !> If KEYWORDS-ONLY is true, syntactic fontification (strings and
@@ -257,8 +256,8 @@ module font_core_fm
     !> If CASE-FOLD is true, the case of the keywords is ignored when
     !> fontifying.
     !>
-    !> If SYNTAX-ALIST is true, it should be a list of cons pairs of the
-    !> form (CHAR-OR-STRING . STRING) used to set the local Font Lock
+    !> If SYNTAX-ALIST is true, it should be an array of entries of two values, of the
+    !> form CHAR-OR-STRING and STRING used to set the local Font Lock
     !> syntax table, for keyword and syntactic fontification (see
     !> `modify_syntax_entry').
     !>
@@ -273,13 +272,13 @@ module font_core_fm
         character(len=48) :: name = "font_lock_defaults"
         type(defaults_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer these defaults (setq-local): its
+        !> Give the current buffer these defaults (set_local): its
         !> KEYWORDS (or the keyword lists of its decoration LEVELS),
-        !> KEYWORDS_ONLY, CASE_FOLD and SYNTAX_ALIST.
+        !> KEYWORDS_ONLY, CASE_FOLD and SYNTAX_MODIFICATIONS.
         procedure :: set_local => defaults_set_local
         !> Whether the current buffer has defaults (font-lock-defaults is
-        !> non-nil).
-        procedure :: present_p => defaults_present_p
+        !> set).
+        procedure :: present_p => has_defaults
         !> The current buffer's defaults (call only when present_p).
         procedure :: get => defaults_get
         !> Forget the current buffer's defaults.
@@ -301,7 +300,7 @@ module font_core_fm
 
     !> Whether the current buffer is ready for fontification
     !> (font-lock-specified-p of font_lock_fm, installed by it).
-    procedure(specified_proc), pointer, public :: font_lock_specified_p_proc => null()
+    procedure(specified_proc), pointer, public :: is_font_lock_specified_proc => null()
 
     !> The first fontification after Font Lock mode is turned on (its
     !> :after-hook, font-lock-initial-fontify of font_lock_fm, installed by
@@ -378,21 +377,21 @@ contains
                                                       body=global_font_lock_mode_body, hook=global_font_lock_mode_hook)
         commands%global_font_lock_mode%run => global_font_lock_mode
         commands%turn_on_font_lock%run => turn_on_font_lock
-        commands%turn_on_font_lock%interactive = .false.
+        commands%turn_on_font_lock%is_command = .false.
         commands%turn_on_font_lock_if_desired%run => turn_on_font_lock_if_desired
-        commands%turn_on_font_lock_if_desired%interactive = .false.
+        commands%turn_on_font_lock_if_desired%is_command = .false.
         commands%font_lock_change_mode%run => font_lock_change_mode
-        commands%font_lock_change_mode%interactive = .false.
+        commands%font_lock_change_mode%is_command = .false.
         commands%font_lock_defontify%run => font_lock_defontify
-        commands%font_lock_defontify%interactive = .false.
+        commands%font_lock_defontify%is_command = .false.
         commands%global_font_lock_mode_enable_in_buffer%run => global_font_lock_mode_enable_in_buffer
-        commands%global_font_lock_mode_enable_in_buffer%interactive = .false.
+        commands%global_font_lock_mode_enable_in_buffer%is_command = .false.
         commands%font_lock_mode_set_explicitly%run => font_lock_mode_set_explicitly
-        commands%font_lock_mode_set_explicitly%interactive = .false.
+        commands%font_lock_mode_set_explicitly%is_command = .false.
         if (.not. associated(font_lock_function)) font_lock_function => font_lock_default_function
         ! textprop.c's char-property-alias-alist (nil by default).
-        call boundp(sym("char_property_alias_alist"), bound, st)
-        if (.not. bound) call set_default(sym("char_property_alias_alist"), nil(), st)
+        call boundp(value_type(name="char_property_alias_table"), bound, st)
+        if (.not. bound) call set_default(value_type(name="char_property_alias_table"), value_type(), st)
         call add_local_variables_killer(kill_font_core_locals)
         ! (add-hook 'font-lock-mode-hook #'font-lock-mode-set-explicitly)
         call font_lock_mode_hook%add(font_lock_mode_set_explicitly)
@@ -441,14 +440,14 @@ contains
     end function defaults_index
 
     ! Not a port.
-    subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_alist, syntactic_face_function)
+    subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_modifications, syntactic_face_function)
         class(font_lock_defaults_setting), intent(inout) :: self
         !> The keywords, for a mode with one decoration level.
         type(font_lock_keyword_type), intent(in), optional :: keywords(:)
         !> The keyword lists of the decoration levels, least first.
         type(font_lock_keywords_type), intent(in), optional :: levels(:)
         logical, intent(in), optional :: keywords_only, case_fold
-        type(font_lock_syntax_entry_type), intent(in), optional :: syntax_alist(:)
+        type(font_lock_syntax_entry_type), intent(in), optional :: syntax_modifications(:)
         !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'.
         procedure(font_lock_syntactic_face_proc), optional :: syntactic_face_function
         integer :: k
@@ -475,24 +474,24 @@ contains
         if (present(keywords_only)) self%entries(k)%value%keywords_only = keywords_only
         if (present(case_fold)) self%entries(k)%value%case_fold = case_fold
 
-        if (present(syntax_alist)) then
-            self%entries(k)%value%syntax_alist = syntax_alist
+        if (present(syntax_modifications)) then
+            self%entries(k)%value%syntax_modifications = syntax_modifications
         else
-            allocate (self%entries(k)%value%syntax_alist(0))
+            allocate (self%entries(k)%value%syntax_modifications(0))
         end if
 
         if (present(syntactic_face_function)) self%entries(k)%value%syntactic_face_function => syntactic_face_function
     end subroutine defaults_set_local
 
     ! Not a port.
-    logical function defaults_present_p(self) result(p)
+    logical function has_defaults(self) result(p)
         class(font_lock_defaults_setting), intent(inout) :: self
         integer :: k
 
         k = defaults_index(self, .false.)
         p = .false.
         if (k > 0) p = self%entries(k)%set
-    end function defaults_present_p
+    end function has_defaults
 
     ! Not a port.
     function defaults_get(self) result(v)
@@ -656,43 +655,43 @@ contains
 
         status = status_type()
         if (cur == 0) return
-        call buffer_modified_p(current_buffer(), modp, status)
+        call is_buffer_modified(current_buffer(), modp, status)
         if (.not. status%ok()) return
-        call symbol_value(sym("inhibit_read_only"), inhibit, status)
-        call set(sym("inhibit_read_only"), t_value(), status)
+        call symbol_value(value_type(name="inhibit_read_only"), inhibit, status)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), status)
         begv = buffers(cur)%begv
         zv = buffers(cur)%zv
         call widen()
-        call remove_list_of_text_properties(point_min(), point_max(), list(sym("font_lock_face")), changed, status)
+        call remove_list_of_text_properties(point_min(), point_max(), list(value_type(name="font_lock_face")), changed, status)
         call narrow_to_region(begv, zv, status)
-        call set(sym("inhibit_read_only"), inhibit, status)
-        call restore_buffer_modified_p(modp)
+        call set(value_type(name="inhibit_read_only"), inhibit, status)
+        call restore_buffer_modified(modp)
     end subroutine font_lock_defontify
 
     !> The default `font_lock_function': with MODE, make `font_lock_face'
-    !> an alias of the `face' property (in `char_property_alias_alist'),
+    !> an alias of the `face' property (in `char_property_alias_table'),
     !> without, remove the alias; then, if the buffer is ready for
     !> fontification, turn the fontification itself on or off.  Port of
     !> font-core.el:font-lock-default-function.
     subroutine font_lock_default_function(mode, status)
         logical, intent(in) :: mode
         type(status_type), intent(out) :: status
-        type(value_type) :: alist, elt, face, flf
+        type(value_type) :: table, elt, face, flf
         type(value_type), allocatable :: elts(:), members(:), kept(:)
         integer :: k, j, n, found
         logical :: has
 
         status = status_type()
-        face = sym("face")
-        flf = sym("font_lock_face")
-        call symbol_value(sym("char_property_alias_alist"), alist, status)
+        face = value_type(name="face")
+        flf = value_type(name="font_lock_face")
+        call symbol_value(value_type(name="char_property_alias_table"), table, status)
         status = status_type()
         allocate (elts(0))
-        if (consp(alist)) call list_elements(alist, elts)
+        if (vtag(table) == V_ARRAY) call list_elements(table, elts)
         found = 0
 
         do k = 1, size(elts)
-            if (.not. consp(elts(k))) cycle
+            if (vtag(elts(k)) /= V_ARRAY) cycle
             call list_elements(elts(k), members)
 
             if (value_eq(members(1), face)) then
@@ -708,19 +707,19 @@ contains
                 has = .false.
 
                 do j = 2, size(members)
-                    if (value_eq(members(j), sym("font_lock_face"))) has = .true.
+                    if (value_eq(members(j), value_type(name="font_lock_face"))) has = .true.
                 end do
 
                 if (.not. has) then
-                    elt = append_symbol(members, sym("font_lock_face"))
+                    elt = append_symbol(members, value_type(name="font_lock_face"))
                     elts(found) = elt
                 end if
 
-                alist = make_list(elts)
+                table = make_list(elts)
             else
-                elt = list(face, sym("font_lock_face"))
+                elt = list(face, value_type(name="font_lock_face"))
                 elts = [elt, elts]
-                alist = make_list(elts)
+                table = make_list(elts)
             end if
         else if (found > 0) then
             ! Remove `font_lock_face' as an alias for the `face' property.
@@ -752,16 +751,16 @@ contains
                 elts(found) = make_list(kept(1:n))
             end if
 
-            alist = make_list(elts)
+            table = make_list(elts)
         end if
 
-        call setq_local("char_property_alias_alist", alist, status)
+        call setq_local("char_property_alias_table", table, status)
         if (.not. status%ok()) return
 
         ! Only do hard work if the mode has specified stuff in
         ! `font_lock_defaults'.
-        if (associated(font_lock_specified_p_proc) .and. associated(font_lock_mode_internal_proc)) then
-            if (font_lock_specified_p_proc(mode)) call font_lock_mode_internal_proc(mode, status)
+        if (associated(is_font_lock_specified_proc) .and. associated(font_lock_mode_internal_proc)) then
+            if (is_font_lock_specified_proc(mode)) call font_lock_mode_internal_proc(mode, status)
         end if
 
     contains

@@ -26,15 +26,15 @@ module test_character_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_GENERIC_ERROR
-    use character_fm, only: byte8_to_char, bytes_by_char_head, char_byte8_head_p, char_bytes, &
+    use character_fm, only: byte8_to_char, bytes_by_char_head, is_char_byte8_head, char_bytes, &
                             char_ctl, char_hexdigit, char_leading_code, char_meta, &
-                            char_resolve_modifier_mask, char_shift, char_string, char_surrogate_p, &
-                            char_to_byte8, char_to_byte_safe, char_valid_p, &
-                            char_variation_selector_p, count_size_as_multibyte, leading_code_p, &
+                            char_resolve_modifier_mask, char_shift, char_string, is_char_surrogate, &
+                            char_to_byte8, char_to_byte_safe, is_char_valid, &
+                            variation_selector_number, count_size_as_multibyte, is_leading_code, &
                             max_char, max_multibyte_length, multibyte_chars_in_text, &
                             multibyte_length, parse_str_as_multibyte, raw_prev_char_len, &
                             str_as_multibyte, str_as_unibyte, str_to_multibyte, string_char, &
-                            string_char_and_length, trailing_code_p, unibyte_to_char
+                            string_char_and_length, is_trailing_code, unibyte_to_char
     implicit none(type, external)
     private
 
@@ -141,7 +141,7 @@ contains
         ! Raw-byte forms are only valid when allow_8bit is set.
         call check(error, multibyte_length(bytes([193, 191]), 1_int64, .false.), 0_int32)
         if (allocated(error)) return
-        call check(error, char_byte8_head_p(193_int32), "C1 not a byte8 head")
+        call check(error, is_char_byte8_head(193_int32), "C1 not a byte8 head")
     end subroutine test_raw_bytes
 
     subroutine test_invalid(error)
@@ -276,14 +276,14 @@ contains
         if (allocated(error)) return
         call check(error, char_hexdigit(int(iachar("G"), int32)), -1_int32)
         if (allocated(error)) return
-        call check(error, char_surrogate_p(int(z'DABC', int32)), "surrogate")
+        call check(error, is_char_surrogate(int(z'DABC', int32)), "surrogate")
         if (allocated(error)) return
-        call check(error, char_variation_selector_p(int(z'FE0F', int32)), 16_int32)
+        call check(error, variation_selector_number(int(z'FE0F', int32)), 16_int32)
         if (allocated(error)) return
-        call check(error, char_variation_selector_p(int(z'E0100', int32)), 17_int32)
+        call check(error, variation_selector_number(int(z'E0100', int32)), 17_int32)
         if (allocated(error)) return
-        call check(error, char_valid_p(MAX_CHAR) .and. .not. char_valid_p(MAX_CHAR + 1), "char_valid_p")
+        call check(error, is_char_valid(MAX_CHAR) .and. .not. is_char_valid(MAX_CHAR + 1), "is_char_valid")
         if (allocated(error)) return
-        call check(error, leading_code_p(195_int32) .and. trailing_code_p(169_int32), "lead/trail")
+        call check(error, is_leading_code(195_int32) .and. is_trailing_code(169_int32), "lead/trail")
     end subroutine test_predicates
 end module test_character_fm

@@ -27,12 +27,12 @@ module test_view_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer, &
-                         get_file_buffer, buffer_live_p
+                         get_file_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, goto_char
     use keyboard_fm, only: discard_input, kbd_store_bytes, command_loop, last_message
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, write_region, make_directory_internal, &
-                         file_directory_p
+                         is_file_directory
     use files_fm, only: delete_directory, view_read_only
     use simple_fm, only: line_number_at_pos
     use window_fm, only: windows, window_start
@@ -95,7 +95,7 @@ contains
         end do
 
         call goto_char(point_min())
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call make_directory_internal(tdir(), st)
     end subroutine setup
 
@@ -105,12 +105,12 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
         call get_buffer_create("*scratch*", scratch, st)
         call set_buffer(scratch, st)
         call show_alone()
         view_read_only = .false.
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
     end subroutine teardown
 
     subroutine keys(text)
@@ -215,7 +215,7 @@ contains
             call check(error, st%ok() .and. fbuf%index /= 0 .and. view_mode_enabled(), format_error(st))
             if (allocated(error)) exit body
             call keys("q")
-            call check(error,.not. buffer_live_p(fbuf) .and. buffers(cur)%name == "*scratch*", "killed")
+            call check(error,.not. is_buffer_live(fbuf) .and. buffers(cur)%name == "*scratch*", "killed")
         end block body
 
         call teardown(buf)

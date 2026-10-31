@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Paragraph and sentence motion, by the regexps `paragraph_start',
-!> `paragraph_separate' and `sentence_end', honouring `fill_prefix' and
+!> `paragraph_separate' and `sentence_end', honoring `fill_prefix' and
 !> the left margin.
 !>
 !> Deferred: `use_hard_newlines', `repunctuate_sentences' (query-replace),
@@ -32,7 +32,7 @@ module paragraphs_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use buffer_fm, only: buffers, cur, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
     use marker_fm, only: char_to_byte
-    use editfns_fm, only: point, goto_char, bobp, eobp, bolp, point_min, point_max, constrain_to_field, &
+    use editfns_fm, only: point, goto_char, is_bob, is_eob, is_bol, point_min, point_max, constrain_to_field, &
                           narrow_to_region, widen, inhibit_field_text_motion
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use indent_fm, only: current_column, move_to_left_margin, current_left_margin
@@ -173,16 +173,16 @@ contains
     end function skip
 
     !> (looking-at REGEXP), false for an invalid one.  Not a port.
-    logical function looking_at_p(regexp)
+    logical function is_looking_at(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: status
 
-        looking_at_p = looking_at(regexp, status)
-        if (.not. status%ok()) looking_at_p = .false.
-    end function looking_at_p
+        is_looking_at = looking_at(regexp, status)
+        if (.not. status%ok()) is_looking_at = .false.
+    end function is_looking_at
 
-    !> (re-search-backward REGEXP BOUND NOERROR) for NOERROR t or other
-    !> than nil and t (`mode').  Not a port.
+    !> `re_search_backward' of REGEXP with BOUND, for NOERROR (`mode')
+    !> SEARCH_NOERROR or SEARCH_MOVE: .true. when found.  Not a port.
     logical function re_search_back(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -194,8 +194,8 @@ contains
         found = status%ok() .and. pos > 0
     end function re_search_back
 
-    !> (re-search-forward REGEXP BOUND NOERROR) for NOERROR t or other than
-    !> nil and t (`mode').  Not a port.
+    !> `re_search_forward' of REGEXP with BOUND, for NOERROR (`mode')
+    !> SEARCH_NOERROR or SEARCH_MOVE: .true. when found.  Not a port.
     logical function re_search_fwd(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -274,10 +274,10 @@ contains
         sp_parstart = "^[ "//achar(TAB)//"]*\(?:"//parstart//"\|"//parsep//"\)"
         start = point()
 
-        do while (left < 0 .and. .not. bobp())
-            if (.not. looking_at_p(parsep) .and. re_search_back("^"//achar(NEWLINE), SEARCH_NOERROR, &
-                                                                max(point() - 1, point_min())) .and. &
-                looking_at_p(parsep)) then
+        do while (left < 0 .and. .not. is_bob())
+            if (.not. is_looking_at(parsep) .and. re_search_back("^"//achar(NEWLINE), SEARCH_NOERROR, &
+                                                                 max(point() - 1, point_min())) .and. &
+                is_looking_at(parsep)) then
                 left = left + 1
             else
                 start = point()
@@ -285,13 +285,13 @@ contains
                 call goto_char(point() - 1)
                 call beginning_of_line()
 
-                do while (.not. bobp())
+                do while (.not. is_bob())
                     call to_left_margin()
-                    if (.not. looking_at_p(parsep)) exit
+                    if (.not. is_looking_at(parsep)) exit
                     shortage = forward_line(-1_int64)
                 end do
 
-                if (.not. bobp()) then
+                if (.not. is_bob()) then
                     left = left + 1
                     ! Go to end of the previous (non-separating) line.
                     call end_of_line()
@@ -302,15 +302,15 @@ contains
                         ! There is a fill prefix; it overrides parstart.
                         do
                             call beginning_of_line()
-                            if (bobp()) exit
+                            if (is_bob()) exit
                             call to_left_margin()
-                            if (looking_at_p(parsep)) exit
-                            if (.not. looking_at_p(fill_prefix_regexp)) exit
+                            if (is_looking_at(parsep)) exit
+                            if (.not. is_looking_at(fill_prefix_regexp)) exit
                             shortage = forward_line(-1_int64)
                         end do
 
                         call to_left_margin()
-                        found_start = .not. bobp()
+                        found_start = .not. is_bob()
                     else
                         do
                             if (.not. re_search_back(sp_parstart, SEARCH_MOVE)) exit
@@ -319,8 +319,8 @@ contains
                             ! REAL parstart.
                             start = point()
                             call to_left_margin()
-                            if (looking_at_p(parsep)) exit
-                            if (looking_at_p(parstart)) exit
+                            if (is_looking_at(parsep)) exit
+                            if (is_looking_at(parstart)) exit
                             found_start = .false.
                             call goto_char(start)
                         end do
@@ -330,9 +330,9 @@ contains
                         ! Move forward over paragraph separators.  We know
                         ! this cannot reach the place we started because we
                         ! know we moved back over a non-separator.
-                        do while (.not. eobp())
+                        do while (.not. is_eob())
                             call to_left_margin()
-                            if (.not. looking_at_p(parsep)) exit
+                            if (.not. is_looking_at(parsep)) exit
                             shortage = forward_line(1_int64)
                         end do
 
@@ -344,7 +344,7 @@ contains
                             call goto_char(point() + 1)
                         else
                             call skip_blanks_backward()
-                            if (.not. bolp()) shortage = forward_line(1_int64)
+                            if (.not. is_bol()) shortage = forward_line(1_int64)
                         end if
                     else
                         ! No starter or separator line => use buffer beg.
@@ -354,26 +354,26 @@ contains
             end if
         end do
 
-        do while (left > 0 .and. .not. eobp())
+        do while (left > 0 .and. .not. is_eob())
             ! Move forward over separator lines...
-            do while (.not. eobp())
+            do while (.not. is_eob())
                 call to_left_margin()
-                if (eobp()) exit
-                if (.not. looking_at_p(parsep)) exit
+                if (is_eob()) exit
+                if (.not. is_looking_at(parsep)) exit
                 shortage = forward_line(1_int64)
             end do
 
-            if (.not. eobp()) left = left - 1
+            if (.not. is_eob()) left = left - 1
             ! ... and one more line.
             shortage = forward_line(1_int64)
 
             if (have_fpr) then
                 ! There is a fill prefix; it overrides parstart.
-                do while (.not. eobp())
+                do while (.not. is_eob())
                     call to_left_margin()
-                    if (eobp()) exit
-                    if (looking_at_p(parsep)) exit
-                    if (.not. looking_at_p(fill_prefix_regexp)) exit
+                    if (is_eob()) exit
+                    if (is_looking_at(parsep)) exit
+                    if (.not. is_looking_at(fill_prefix_regexp)) exit
                     shortage = forward_line(1_int64)
                 end do
             else
@@ -381,10 +381,10 @@ contains
                     if (.not. re_search_fwd(sp_parstart, SEARCH_MOVE)) exit
                     start = match_beginning(0, status)
                     call goto_char(start)
-                    if (eobp()) exit
+                    if (is_eob()) exit
                     call to_left_margin()
-                    if (looking_at_p(parsep)) exit
-                    if (looking_at_p(parstart)) exit
+                    if (is_looking_at(parsep)) exit
+                    if (is_looking_at(parstart)) exit
                     call goto_char(point() + 1)
                 end do
 

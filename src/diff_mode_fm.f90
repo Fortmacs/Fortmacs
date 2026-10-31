@@ -49,15 +49,13 @@ module diff_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum
-    use lread_fm, only: sym
     use data_fm, only: logical_setting, forward_setting, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer
     use data_fm, only: symbol_value, set
-    use lisp_fm, only: t_value, make_keymap_ref
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, buffer_substring, &
-                          line_beginning_position, line_end_position, narrow_to_region, widen, buffer_narrowed_p, &
+    use lisp_fm, only: make_keymap_ref, value_type, xfixnum
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
+                          line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
                           char_after, delete_region
     use cmds_fm, only: forward_line, beginning_of_line
     use insdel_fm, only: insert
@@ -65,10 +63,10 @@ module diff_mode_fm
                          SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use simple_fm, only: kill_region, special_mode_map, set_next_error_function, read_only_mode_hook, use_region_p
+    use simple_fm, only: kill_region, special_mode_map, set_next_error_function, read_only_mode_hook, is_use_region
     use editfns_fm, only: region_beginning, region_end
-    use fileio_fm, only: file_regular_p, file_exists_p, expand_file_name, file_name_directory, file_name_nondirectory
-    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, keymap_set, add_minor_mode_map, keymap_live_p, &
+    use fileio_fm, only: is_file_regular, file_exists, expand_file_name, file_name_directory, file_name_nondirectory
+    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, keymap_set, add_minor_mode_map, is_keymap_live, &
                          free_keymap
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
@@ -216,7 +214,7 @@ module diff_mode_fm
     !> A Diff buffer's own variables, by buffer serial number:
     !> diff-buffer-type, diff-default-directory, diff-remembered-defdir and
     !> diff-remembered-files-alist, diff-apply-hunk-to-backup-file,
-    !> diff-narrowed-to (0 nil, 1 hunk, 2 file).
+    !> diff-narrowed-to (0 none, 1 hunk, 2 file).
     type :: diff_locals_type
         integer(int64) :: serial = 0
         integer :: kind = DIFF_BUFFER_PLAIN
@@ -225,7 +223,7 @@ module diff_mode_fm
         logical :: apply_to_backup = .false.
         integer :: narrowed_to = 0
         !> `diff_vc_backend' (the name of the VC backend that produced
-        !> the diff, unallocated for nil) and `diff_vc_revisions'.
+        !> the diff, unallocated for none) and `diff_vc_revisions'.
         character(len=:), allocatable :: vc_backend, vc_rev1, vc_rev2
     end type diff_locals_type
 
@@ -238,7 +236,7 @@ module diff_mode_fm
     end type diff_text_type
 
     !> What `diff_find_source_location' finds: the source buffer, the
-    !> line offset of the text in it (`found' false for nil), the bounds
+    !> line offset of the text in it (`found' .false. for none), the bounds
     !> of the text, the variant found (SRC) and the other (DST), and
     !> whether they were switched (the patch is already applied).
     type, public :: diff_source_location_type
@@ -256,7 +254,7 @@ module diff_mode_fm
             implicit none(type, external)
         end function entry_index
 
-        !> (let ((inhibit-read-only t)) ...): bind it, keeping the old value
+        !> Set `inhibit_read_only' to .true., keeping the old value
         !> in SAVED.  Not a port.
         module subroutine bind_inhibit_read_only(saved)
             implicit none(type, external)
@@ -325,7 +323,7 @@ module diff_mode_fm
 
         !> Return the literal source text from HUNK as (TEXT . OFFSET).
         !> If DESTP is false, TEXT is the source, otherwise the destination
-        !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for nil),
+        !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for none),
         !> and OFFSET is the corresponding char-offset in TEXT.  Port of
         !> diff-mode.el:diff-hunk-text.  (In diff_mode_apply_fm.)
         module subroutine diff_hunk_text(hunk, destp, char_offset, res, status)
@@ -590,7 +588,7 @@ contains
 
     !> Return true if point is inside a diff header: the position of its
     !> start, else 0.  Port of diff-mode.el:diff--at-diff-header-p.
-    integer(int64) function diff_at_diff_header_p() result(pos)
+    integer(int64) function diff_header_position() result(pos)
         integer(int64) :: orig, shortage, found
 
         pos = 0
@@ -614,7 +612,7 @@ contains
 
                 if (at(diff_file_junk_re)) then
                     ! Git diff junk.
-                    do while (at(diff_file_junk_re) .and. .not. bobp())
+                    do while (at(diff_file_junk_re) .and. .not. is_bob())
                         shortage = forward_line(-1_int64)
                     end do
 
@@ -626,11 +624,11 @@ contains
         end if
 
         call goto_char(orig)
-    end function diff_at_diff_header_p
+    end function diff_header_position
 
     !> Move back to the previous hunk beginning, and return its position.
     !> If point is in a file header rather than a hunk, advance to the
-    !> next hunk if TRY_HARDER is true; otherwise signal an error.
+    !> next hunk if TRY_HARDER is true; otherwise an error condition occurs.
     !> Port of diff-mode.el:diff-beginning-of-hunk.
     recursive integer(int64) function diff_beginning_of_hunk(status, try_harder) result(pos)
         type(status_type), intent(out) :: status
@@ -645,7 +643,7 @@ contains
         pos = point()
         ! At hunk header.
         if (at(diff_hunk_header_re)) return
-        header = diff_at_diff_header_p()
+        header = diff_header_position()
 
         if (header /= 0) then
             ! At junk diff header.
@@ -675,15 +673,15 @@ contains
 
     !> Whether the hunk at point is a unified one.  Port of
     !> diff-mode.el:diff-unified-hunk-p.
-    logical function diff_unified_hunk_p()
+    logical function is_diff_unified_hunk()
         integer(int64) :: saved, pos
         type(status_type) :: st
 
         saved = point()
         pos = diff_beginning_of_hunk(st)
-        diff_unified_hunk_p = st%ok() .and. at("^@@")
+        is_diff_unified_hunk = st%ok() .and. at("^@@")
         call goto_char(saved)
-    end function diff_unified_hunk_p
+    end function is_diff_unified_hunk
 
     !> Move to the beginning of the file header of point's file.  Port of
     !> diff-mode.el:diff-beginning-of-file.
@@ -804,7 +802,7 @@ contains
 
     !> Return the bounds of the diff hunk at point.
     !> The return value is (BEG END), which are the hunk's start and end
-    !> positions.  Signal an error if no hunk is found.  If point is in a
+    !> positions.  An error condition occurs if no hunk is found.  If point is in a
     !> file header, return the bounds of the next hunk.  Port of
     !> diff-mode.el:diff-bounds-of-hunk.
     recursive subroutine diff_bounds_of_hunk(beg, end, status)
@@ -892,14 +890,14 @@ contains
 
     !> Whether the buffer has hunks.  Port of
     !> diff-mode.el:diff--some-hunks-p.
-    logical function diff_some_hunks_p()
+    logical function has_diff_hunks()
         integer(int64) :: saved
 
         saved = point()
         call goto_char(point_min())
-        diff_some_hunks_p = search_fwd(diff_hunk_header_re) /= 0
+        has_diff_hunks = search_fwd(diff_hunk_header_re) /= 0
         call goto_char(saved)
-    end function diff_some_hunks_p
+    end function has_diff_hunks
 
     !> Kill the hunk at point.
     !> When killing the last hunk left for a file, kill the file header
@@ -934,7 +932,7 @@ contains
 
         status = status_type()
 
-        if (buffer_narrowed_p()) then
+        if (is_buffer_narrowed()) then
             call set_error(status, FM_USER_ERROR, "Command is not safe in a narrowed buffer")
             return
         end if
@@ -989,7 +987,7 @@ contains
 
         do while (at(diff_file_junk_re))
             shortage = forward_line(1_int64)
-            if (eobp()) exit
+            if (is_eob()) exit
         end do
 
         start = point()
@@ -1063,7 +1061,7 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
 
-        if (.not. diff_some_hunks_p()) then
+        if (.not. has_diff_hunks()) then
             call set_error(status, FM_GENERIC_ERROR, "No hunks")
             return
         end if
@@ -1308,7 +1306,7 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
 
-        if (.not. diff_some_hunks_p()) then
+        if (.not. has_diff_hunks()) then
             call set_error(status, FM_GENERIC_ERROR, "No hunks")
             return
         end if
@@ -1341,7 +1339,7 @@ contains
         end if
 
         call goto_char(e)
-        pos = diff_at_diff_header_p()
+        pos = diff_header_position()
         if (pos /= 0) call goto_char(pos)
         e = point()
         call bind_inhibit_read_only(saved)
@@ -1404,7 +1402,7 @@ contains
     !> You can customize `diff_ask_before_revert_and_kill_hunk' to control
     !> that.  Port of diff-mode.el:diff-revert-and-kill-hunk.
     recursive subroutine diff_revert_and_kill_hunk(status, beg, end)
-        use subr_fm, only: y_or_n_p
+        use subr_fm, only: read_y_or_n
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: beg, end
         logical :: yes
@@ -1419,7 +1417,7 @@ contains
         yes = .true.
 
         if (diff_ask_before_revert_and_kill_hunk) then
-            call y_or_n_p("Really reverse-apply and kill hunk(s)?", yes, status)
+            call read_y_or_n("Really reverse-apply and kill hunk(s)?", yes, status)
             if (.not. status%ok()) return
         end if
 
@@ -1430,7 +1428,7 @@ contains
     ! File names
     ! ------------------------------------------------------------------
 
-    !> FILE without its first directory (nil, unallocated, if it has
+    !> FILE without its first directory (unallocated if it has
     !> none).  Port of diff-mode.el:diff-filename-drop-dir.
     subroutine diff_filename_drop_dir(file, rest)
         character(len=*), intent(in) :: file
@@ -1442,11 +1440,11 @@ contains
     end subroutine diff_filename_drop_dir
 
     !> Merge the diff between ANCESTOR and FROM into TO.
-    !> Returns the merged string if successful (MERGED true) or nil
+    !> Returns the merged string if successful (MERGED .true.) or MERGED .false.
     !> otherwise.  The strings are assumed not to contain any "\n" (i.e.
     !> end of line).  If ANCESTOR = FROM, returns TO.  If ANCESTOR = TO,
     !> returns FROM.  The heuristic is simplistic and only really works for
-    !> cases like (diff_merge_strings "b/foo" "b/bar" "/a/c/foo").  Port of
+    !> cases like diff_merge_strings("b/foo", "b/bar", "/a/c/foo", result, merged).  Port of
     !> diff-mode.el:diff-merge-strings.
     subroutine diff_merge_strings(ancestor, from, to, result, merged)
         use search_fm, only: string_match
@@ -1580,10 +1578,10 @@ contains
 
     !> Return the file corresponding to the current patch (FOUND false
     !> for none).  OLD true means that we want the old file.  NOPROMPT
-    !> true means to prefer returning nil than to prompt the user.
+    !> true means to prefer returning no file name than to prompt the user.
     !> Port of diff-mode.el:diff-find-file-name (no cvs-pcl-cvs).
     recursive subroutine diff_find_file_name(file, found, status, old, noprompt)
-        use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_T
+        use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NO, REQUIRE_MATCH_YES
         character(len=:), allocatable, intent(out) :: file
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -1649,7 +1647,7 @@ contains
                 call diff_merge_strings(rf%names(1)%s, fs(1)%s, rf%file, newfile, ok)
 
                 if (ok) then
-                    if (file_exists_p(newfile)) then
+                    if (file_exists(newfile)) then
                         file = newfile
                         found = .true.
                         call done()
@@ -1664,7 +1662,7 @@ contains
 
         do while (size(files) > 0)
             do k = 1, size(files)
-                if (file_regular_p(files(k)%s)) then
+                if (is_file_regular(files(k)%s)) then
                     file = files(k)%s
                     found = .true.
                     call done()
@@ -1700,7 +1698,7 @@ contains
 
             if (j > 4) then
                 if (buffers(cur)%filename(j - 3:) == ".rej") then
-                    if (file_exists_p(buffers(cur)%filename(:j - 4))) then
+                    if (file_exists(buffers(cur)%filename(:j - 4))) then
                         file = buffers(cur)%filename(:j - 4)
                         found = .true.
                         call done()
@@ -1719,10 +1717,10 @@ contains
             call expand_file_name(prompt_file, newfile, st)
             call done()
             call read_file_name("Use file "//newfile//": ", answer, status, dir=file_name_directory(newfile), &
-                                default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NIL, REQUIRE_MATCH_T, creation), &
+                                default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NO, REQUIRE_MATCH_YES, creation), &
                                 initial=file_name_nondirectory(newfile))
             if (.not. status%ok()) return
-            if (.not. creation .or. file_exists_p(answer)) call remember(entry_index(), fs, answer)
+            if (.not. creation .or. file_exists(answer)) call remember(entry_index(), fs, answer)
             file = answer
             found = .true.
             return
@@ -1784,8 +1782,8 @@ contains
     end subroutine diff_setup_buffer_type
 
     !> Set the current buffer's `diff_vc_backend' to BACKEND (the VC
-    !> backend name; absent for nil) and `diff_vc_revisions' to (REV1
-    !> REV2).  Port of the setq-local of diff-mode.el diff-vc-backend and
+    !> backend name; absent for none) and `diff_vc_revisions' to (REV1
+    !> REV2).  Port of the buffer-local setting of diff-mode.el diff-vc-backend and
     !> diff-vc-revisions.
     subroutine set_diff_vc_backend(backend, rev1, rev2)
         character(len=*), intent(in), optional :: backend, rev1, rev2
@@ -1800,7 +1798,7 @@ contains
         if (present(rev2)) diff_buffers(k)%vc_rev2 = rev2
     end subroutine set_diff_vc_backend
 
-    !> The current buffer's `diff_vc_backend' ("" for nil).  Not a port.
+    !> The current buffer's `diff_vc_backend' ("" for none).  Not a port.
     function diff_vc_backend() result(name)
         character(len=:), allocatable :: name
         integer :: k
@@ -1810,7 +1808,7 @@ contains
         if (allocated(diff_buffers(k)%vc_backend)) name = diff_buffers(k)%vc_backend
     end function diff_vc_backend
 
-    !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN (nil),
+    !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN,
     !> DIFF_BUFFER_GIT or DIFF_BUFFER_HG.  Port of the buffer-local
     !> diff-mode.el:diff-buffer-type.
     integer function diff_buffer_type() result(kind)
@@ -2094,7 +2092,7 @@ contains
         integer(int64), intent(out) :: beg, end
         type(status_type) :: st
 
-        have = use_region_p()
+        have = is_use_region()
         beg = 0
         end = 0
 
@@ -2170,7 +2168,7 @@ contains
     recursive subroutine cmd_diff_restrict_view(status)
         type(status_type), intent(out) :: status
 
-        call diff_restrict_view(status,.not. nilp(current_prefix_arg))
+        call diff_restrict_view(status, allocated(current_prefix_arg%a))
     end subroutine cmd_diff_restrict_view
 
     recursive subroutine cmd_diff_split_hunk(status)
@@ -2189,7 +2187,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
 
-        if (.not. nilp(current_prefix_arg) .or. use_region_p()) then
+        if (allocated(current_prefix_arg%a) .or. is_use_region()) then
             call region_beginning(beg, status)
             if (status%ok()) call region_end(end, status)
             if (status%ok()) call diff_fixup_modifs(beg, end, status)
@@ -2201,7 +2199,7 @@ contains
     recursive subroutine cmd_diff_goto_source(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call diff_goto_source(status)
         else
             call diff_goto_source(status, .true., p_arg())
@@ -2216,16 +2214,16 @@ contains
         call region_args(have, beg, end)
 
         if (have) then
-            call diff_apply_hunk(status,.not. nilp(current_prefix_arg), beg, end)
+            call diff_apply_hunk(status, allocated(current_prefix_arg%a), beg, end)
         else
-            call diff_apply_hunk(status,.not. nilp(current_prefix_arg))
+            call diff_apply_hunk(status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_diff_apply_hunk
 
     recursive subroutine cmd_diff_test_hunk(status)
         type(status_type), intent(out) :: status
 
-        call diff_test_hunk(status,.not. nilp(current_prefix_arg))
+        call diff_test_hunk(status, allocated(current_prefix_arg%a))
     end subroutine cmd_diff_test_hunk
 
     recursive subroutine cmd_diff_revert_and_kill_hunk(status)
@@ -2251,9 +2249,9 @@ contains
         call region_args(have, beg, end)
 
         if (have) then
-            call diff_apply_buffer(failures, status, beg, end,.not. nilp(current_prefix_arg))
+            call diff_apply_buffer(failures, status, beg, end, allocated(current_prefix_arg%a))
         else
-            call diff_apply_buffer(failures, status, reverse=.not. nilp(current_prefix_arg))
+            call diff_apply_buffer(failures, status, reverse=allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_diff_apply_buffer
 
@@ -2374,7 +2372,7 @@ contains
         commands%diff_revert_and_kill_hunk%run => cmd_diff_revert_and_kill_hunk
         commands%diff_apply_buffer%run => cmd_diff_apply_buffer
         ! diff-mode-shared-map.
-        if (keymap_live_p(diff_mode_shared_map)) call free_keymap(diff_mode_shared_map, st)
+        if (is_keymap_live(diff_mode_shared_map)) call free_keymap(diff_mode_shared_map, st)
         call make_sparse_keymap(diff_mode_shared_map)
         call keymap_set(diff_mode_shared_map, "n", "diff_hunk_next", st)
         call keymap_set(diff_mode_shared_map, "N", "diff_file_next", st)
@@ -2391,7 +2389,7 @@ contains
         ! other-window
         call keymap_set(diff_mode_shared_map, "o", "diff_goto_source", st)
         ! diff-mode-read-only-map.
-        if (keymap_live_p(diff_mode_read_only_map)) call free_keymap(diff_mode_read_only_map, st)
+        if (is_keymap_live(diff_mode_read_only_map)) call free_keymap(diff_mode_read_only_map, st)
         call make_sparse_keymap(diff_mode_read_only_map)
         call keymap_set(diff_mode_read_only_map, "W", "widen", st)
         call keymap_set(diff_mode_read_only_map, "r", "diff_restrict_view", st)
@@ -2411,7 +2409,7 @@ contains
         call keymap_set(diff_mode_map, "C-c C-t", "diff_test_hunk", st)
         ! diff-read-only-map (composed of diff-mode-read-only-map and
         ! special-mode-map), active while diff-mode-read-only.
-        if (keymap_live_p(diff_read_only_map)) call free_keymap(diff_read_only_map, st)
+        if (is_keymap_live(diff_read_only_map)) call free_keymap(diff_read_only_map, st)
         call make_sparse_keymap(diff_read_only_map)
         call set_keymap_parent(diff_read_only_map, diff_mode_read_only_map, st)
         call forward_setting(diff_mode_read_only, local_if_set=.true.)

@@ -35,43 +35,42 @@ module paren_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, fixnump, xfixnum
-    use lread_fm, only: sym
-    use data_fm, only: local_variable_p, kill_local_variable, default_value, set_default, make_local_variable, &
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
+    use data_fm, only: is_local_variable, kill_local_variable, default_value, set_default, make_local_variable, &
                        symbol_value, set, add_local_variables_killer
     use commands_fm, only: commands
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, buffer_serial_live
     use editfns_fm, only: point, point_min, point_max, goto_char, narrow_to_region, widen, char_after, char_before, &
                           line_end_position
-    use syntax_fm, only: syntax_entry, syntax_descriptor_type, parse_state_type, syntax_ppss, scan_sexps, &
-                         skip_syntax_backward, skip_chars_backward, parse_sexp_ignore_comments, SOPEN, SCLOSE, SMATH
-    use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, overlayp
-    use timer_fm, only: run_with_idle_timer, free_timer, timerp
+    use syntax_fm, only: syntax_entry, syntax_descriptor_type, parse_state_type, syntax_ppss, scan_expressions, &
+                         skip_syntax_backward, skip_chars_backward, parse_expression_ignore_comments, SOPEN, SCLOSE, SMATH
+    use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, is_overlay
+    use timer_fm, only: run_with_idle_timer, free_timer, is_timer
     use modes_fm, only: minor_modes
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use simple_fm, only: blink_matching_paren_distance, blink_paren_open_paren_line_string, back_to_indentation
     use minibuffer_fm, only: minibuffer_message
-    use window_fm, only: pos_visible_in_window_p
+    use window_fm, only: is_pos_visible_in_window
     use frame_fm, only: selected_window
     use dispnew_fm, only: ding
     use syntax_propertize_fm, only: syntax_propertize
     implicit none(type, external)
     private
 
-    public :: set_local_show_paren_data_function, current_show_paren_data_function, show_paren_data_function_local_p, &
+    public :: set_local_show_paren_data_function, current_show_paren_data_function, is_show_paren_data_function_local, &
               kill_local_show_paren_data_function
     public :: syms_of_paren, show_paren_mode, show_paren_local_mode, show_paren_function, show_paren_default, &
-              show_paren_unescaped_p, show_paren_categorize_paren, show_paren_locate_near_paren, &
-              show_paren_enabled_p, show_paren_default_predicate, show_paren_data_proc, show_paren_predicate_proc
+              is_show_paren_unescaped, show_paren_categorize_paren, show_paren_locate_near_paren, &
+              is_show_paren_enabled, show_paren_default_predicate, show_paren_data_proc, show_paren_predicate_proc
 
     !> Values of `show_paren_style'.
     integer, parameter, public :: SHOW_PAREN_PARENTHESIS = 0, SHOW_PAREN_EXPRESSION = 1, SHOW_PAREN_MIXED = 2
 
     !> Values of `show_paren_not_in_comments_or_strings': never highlight
-    !> parens inside comments and strings (`all'), don't highlight
-    !> mismatched parens there (`on-mismatch'), always highlight parens
-    !> (nil).
+    !> parens inside comments and strings (SHOW_PAREN_COMMENTS_STRINGS_ALL), don't highlight
+    !> mismatched parens there (SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH), always highlight parens
+    !> (SHOW_PAREN_COMMENTS_STRINGS_ALWAYS).
     integer, parameter, public :: SHOW_PAREN_COMMENTS_STRINGS_ALWAYS = 0, SHOW_PAREN_COMMENTS_STRINGS_ALL = 1, &
                                   SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH = 2
 
@@ -133,7 +132,7 @@ module paren_fm
 
     !> What `show_paren_data_function' finds: the opener/closer "near"
     !> point from HERE_BEG to HERE_END, its match from THERE_BEG to
-    !> THERE_END (0 for none, upstream's nil) and whether they mismatch.
+    !> THERE_END (0 for none) and whether they mismatch.
     type, public :: show_paren_data_type
         integer(int64) :: here_beg = 0, here_end = 0, there_beg = 0, there_end = 0
         logical :: mismatch = .false.
@@ -141,7 +140,7 @@ module paren_fm
 
     abstract interface
         !> A `show_paren_data_function': FOUND is false if there's no
-        !> opener/closer near point (upstream's nil), else DATA describes it.
+        !> opener/closer near point, else DATA describes it.
         !> Not a port.
         subroutine show_paren_data_proc(found, data)
             import :: show_paren_data_type
@@ -211,7 +210,7 @@ contains
     end function data_local_index
 
     !> Give the current buffer its own `show_paren_data_function'
-    !> FN (setq-local); absent is nil.  Not a port.
+    !> FN (set_local); absent clears it.  Not a port.
     subroutine set_local_show_paren_data_function(fn)
         procedure(show_paren_data_proc), optional :: fn
         type(data_entry_type), allocatable :: grown(:)
@@ -250,7 +249,7 @@ contains
     end subroutine set_local_show_paren_data_function
 
     !> The value of `show_paren_data_function' in the current buffer
-    !> (null for nil).  Not a port.
+    !> (null when unset).  Not a port.
     function current_show_paren_data_function() result(fn)
         procedure(show_paren_data_proc), pointer :: fn
         integer :: i
@@ -266,9 +265,9 @@ contains
 
     !> Whether the current buffer has its own `show_paren_data_function'.
     !> Not a port.
-    logical function show_paren_data_function_local_p()
-        show_paren_data_function_local_p = data_local_index() > 0
-    end function show_paren_data_function_local_p
+    logical function is_show_paren_data_function_local()
+        is_show_paren_data_function_local = data_local_index() > 0
+    end function is_show_paren_data_function_local
 
     !> Make the current buffer use the default `show_paren_data_function'
     !> (also what `kill_all_local_variables' does to it).  Not a port.
@@ -288,7 +287,7 @@ contains
                                                 hook=show_paren_mode_hook)
         commands%show_paren_mode%run => show_paren_mode
         call minor_modes%show_paren_local_mode%define("show_paren_local_mode", body=show_paren_local_mode_body, &
-                                                      hook=show_paren_local_mode_hook, getter=show_paren_enabled_p)
+                                                      hook=show_paren_local_mode_hook, getter=is_show_paren_enabled)
         commands%show_paren_local_mode%run => show_paren_local_mode
         if (.not. associated(show_paren_data_function)) show_paren_data_function => show_paren_default
         call add_local_variables_killer(kill_local_show_paren_data_function)
@@ -320,7 +319,7 @@ contains
         status = status_type()
         if (on) continue
         ! First get rid of the old idle timer.
-        if (timerp(idle_timer)) call free_timer(idle_timer)
+        if (is_timer(idle_timer)) call free_timer(idle_timer)
         idle_timer = null_handle()
         call run_with_idle_timer(idle_timer, real(show_paren_delay, real64), .true., show_paren_function_timer, &
                                  status)
@@ -342,7 +341,7 @@ contains
     end subroutine show_paren_local_mode
 
     !> The body of Show Paren Local mode with its new state VAL: the
-    !> setter (setq-local show-paren-mode VAL), then the body.
+    !> setter (`show_paren_mode' set locally to VAL), then the body.
     !> Port of paren.el:show-paren-local-mode in part.
     subroutine show_paren_local_mode_body(val, status)
         logical, intent(in) :: val
@@ -352,18 +351,18 @@ contains
 
         status = status_type()
         call minor_modes%show_paren_mode%state%set_local(val)
-        call default_value(sym("show_paren_mode"), default, st)
+        call default_value(value_type(name="show_paren_mode"), default, st)
 
-        if (minor_modes%show_paren_mode%state%value .eqv. .not. nilp(default)) then
+        if (minor_modes%show_paren_mode%state%value .eqv. allocated(default%a)) then
             if (.not. minor_modes%show_paren_mode%state%value) then
                 call show_paren_delete_overlays()
-                call kill_local_variable(sym("show_paren_mode"), st)
+                call kill_local_variable(value_type(name="show_paren_mode"), st)
             end if
-        else if (nilp(default)) then
+        else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             call minor_modes%show_paren_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("show_paren_mode"), nil(), st)
+            call set_default(value_type(name="show_paren_mode"), value_type(), st)
         else
             ! Locally disabled only.
             call show_paren_delete_overlays()
@@ -372,7 +371,7 @@ contains
 
     !> Determine whether the paren after POS is unescaped.  Port of
     !> paren.el:show-paren--unescaped-p.
-    logical function show_paren_unescaped_p(pos) result(unescaped)
+    logical function is_show_paren_unescaped(pos) result(unescaped)
         integer(int64), intent(in) :: pos
         integer(int64) :: opoint, moved
 
@@ -381,7 +380,7 @@ contains
         moved = skip_syntax_backward("/\")
         unescaped = iand(abs(moved), 1_int64) == 0
         call goto_char(opoint)
-    end function show_paren_unescaped_p
+    end function is_show_paren_unescaped
 
     !> The syntax class of the character after POS, or -1 if there is none
     !> (syntax-class of syntax-after).  Not a port.
@@ -400,7 +399,7 @@ contains
     end function syntax_class_after
 
     !> The matching character of the syntax of the character after POS
-    !> (the cdr of syntax-after), or -1 for nil.  Not a port.
+    !> (the matching character of `syntax_after'), or -1 for none.  Not a port.
     integer function syntax_match_after(pos) result(m)
         integer(int64), intent(in) :: pos
         integer :: c
@@ -421,7 +420,7 @@ contains
     !> and if so, give DIR 1 for an open paren, -1 for a close paren, and
     !> OUTSIDE the buffer position of the outside of the paren.  If the
     !> character isn't a paren, or it is an escaped paren, DIR is 0
-    !> (upstream's nil).  Port of paren.el:show-paren--categorize-paren.
+    !> Port of paren.el:show-paren--categorize-paren.
     subroutine show_paren_categorize_paren(pos, dir, outside)
         integer(int64), intent(in) :: pos
         integer, intent(out) :: dir
@@ -431,12 +430,12 @@ contains
         outside = 0
 
         if (syntax_class_after(pos) == SOPEN) then
-            if (show_paren_unescaped_p(pos)) then
+            if (is_show_paren_unescaped(pos)) then
                 dir = 1
                 outside = pos
             end if
         else if (syntax_class_after(pos) == SCLOSE) then
-            if (show_paren_unescaped_p(pos)) then
+            if (is_show_paren_unescaped(pos)) then
                 dir = -1
                 outside = pos + 1
             end if
@@ -511,10 +510,10 @@ contains
         opoint = point()
         call syntax_ppss(ppss)
         call goto_char(opoint)
-        saved_ignore = parse_sexp_ignore_comments%value
-        if (ppss%incomment /= 0) parse_sexp_ignore_comments%value = .false.
+        saved_ignore = parse_expression_ignore_comments%value
+        if (ppss%incomment /= 0) parse_expression_ignore_comments%value = .false.
 
-        ! Find the other end of the sexp.
+        ! Find the other end of the expression.
         if (dir /= 0) then
             if (dir == 1) then
                 data%here_beg = outside
@@ -536,11 +535,11 @@ contains
                 call narrow_to_region(beg, min(point_max(), point() + blink_matching_paren_distance), st)
             end if
 
-            ! Scan across one sexp within that range.  Errors or nil mean
+            ! Scan across one expression within that range.  Errors or nil mean
             ! there is a mismatch.
             mismatch = .false.
             have_pos = .false.
-            pos = scan_sexps(outside, int(dir, int64), st)
+            pos = scan_expressions(outside, int(dir, int64), st)
 
             if (.not. st%ok()) then
                 mismatch = .true.
@@ -553,7 +552,7 @@ contains
             ! match.  Maybe the one at point is escaped and doesn't really
             ! count, or one is inside a comment.
             if (have_pos) then
-                back = scan_sexps(pos, int(-dir, int64), st)
+                back = scan_expressions(pos, int(-dir, int64), st)
                 if (.not. st%ok() .or. back /= outside) have_pos = .false.
             end if
 
@@ -605,26 +604,26 @@ contains
             call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
         end if
 
-        parse_sexp_ignore_comments%value = saved_ignore
+        parse_expression_ignore_comments%value = saved_ignore
     end subroutine show_paren_default
 
     !> Whether Show Paren mode is on in the current buffer.  Port of
     !> paren.el:show-paren--enabled-p.
-    logical function show_paren_enabled_p() result(enabled)
+    logical function is_show_paren_enabled() result(enabled)
         enabled = minor_modes%show_paren_mode%state%value
         if (.not. enabled) return
         ! If we're using `show_paren_local_mode', then always heed the
         ! value.
-        if (local_variable_p(sym("show_paren_mode"))) return
+        if (is_local_variable(value_type(name="show_paren_mode"))) return
         ! If not, check that the predicate matches.
         if (associated(show_paren_predicate)) enabled = show_paren_predicate()
-    end function show_paren_enabled_p
+    end function is_show_paren_enabled
 
     !> The default `show_paren_predicate': true unless the major mode
     !> derives from `special_mode' (paren.el's (not (derived-mode
     !> . special-mode))).  Not a port.
     logical function show_paren_default_predicate() result(usable)
-        usable = .not. derived_mode_p(["special_mode"])
+        usable = .not. is_derived_mode(["special_mode"])
     end function show_paren_default_predicate
 
     !> Whether position POS is in a string or comment: the context of
@@ -641,17 +640,17 @@ contains
     end function in_string_or_comment
 
     !> The overlays, made (empty and deleted) on first use, with
-    !> front-advance as upstream's (make-overlay (point) (point) nil t).
+    !> front-advance, as upstream's `make-overlay' at point with FRONT-ADVANCE.
     !> Not a port.
     subroutine ensure_overlays()
         type(status_type) :: st
 
-        if (.not. overlayp(overlay)) then
+        if (.not. is_overlay(overlay)) then
             call make_overlay(overlay, point(), point(), st, front_advance=.true.)
             call delete_overlay(overlay)
         end if
 
-        if (.not. overlayp(overlay_1)) then
+        if (.not. is_overlay(overlay_1)) then
             call make_overlay(overlay_1, point(), point(), st, front_advance=.true.)
             call delete_overlay(overlay_1)
         end if
@@ -665,16 +664,16 @@ contains
     end subroutine show_paren_function_timer
 
     !> The last position of point for which `show_paren_function' was
-    !> called (show-paren--last-pos, buffer-local), or 0 for nil.
+    !> called (show-paren--last-pos, buffer-local), or 0 for none.
     !> Not a port.
     integer(int64) function last_pos()
         type(value_type) :: v
         type(status_type) :: st
 
         last_pos = 0
-        if (.not. local_variable_p(sym("show_paren__last_pos"))) return
-        call symbol_value(sym("show_paren__last_pos"), v, st)
-        if (fixnump(v)) last_pos = xfixnum(v)
+        if (.not. is_local_variable(value_type(name="show_paren__last_pos"))) return
+        call symbol_value(value_type(name="show_paren__last_pos"), v, st)
+        if (vtag(v) == V_INTEGER) last_pos = xfixnum(v)
     end function last_pos
 
     ! Not a port.
@@ -682,8 +681,8 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type) :: st
 
-        call make_local_variable(sym("show_paren__last_pos"), st)
-        call set(sym("show_paren__last_pos"), make_fixnum(pos), st)
+        call make_local_variable(value_type(name="show_paren__last_pos"), st)
+        call set(value_type(name="show_paren__last_pos"), value_type(pos), st)
     end subroutine set_last_pos
 
     !> Highlight the parentheses until the next input arrives.  Port of
@@ -702,7 +701,7 @@ contains
         call ensure_overlays()
         found = .false.
 
-        if (show_paren_enabled_p()) then
+        if (is_show_paren_enabled()) then
             data_fn => current_show_paren_data_function()
             if (associated(data_fn)) call data_fn(found, data)
         end if
@@ -726,7 +725,7 @@ contains
                 closest = data%there_beg + 1
             end if
 
-            highlight_expression = .not. pos_visible_in_window_p(closest, selected_window())
+            highlight_expression = .not. is_pos_visible_in_window(closest, selected_window())
         end if
 
         if (data%mismatch) then
@@ -756,8 +755,8 @@ contains
         else
             call move_overlay(overlay_1, data%here_beg, data%here_end, st)
             ! Always set the overlay face, since it varies.
-            call overlay_put(overlay_1, "priority", make_fixnum(int(show_paren_priority, int64)), st)
-            call overlay_put(overlay_1, "face", sym(face), st)
+            call overlay_put(overlay_1, "priority", value_type(int(show_paren_priority, int64)), st)
+            call overlay_put(overlay_1, "face", value_type(name=face), st)
         end if
 
         ! Turn on highlighting for the matching paren, if found.  If it's
@@ -782,7 +781,7 @@ contains
         openparen = min(data%here_beg, data%there_beg)
 
         if (show_paren_context_when_offscreen .and. last_pos() /= point() .and. data%there_beg < data%here_beg) then
-            if (.not. pos_visible_in_window_p(openparen, selected_window())) then
+            if (.not. is_pos_visible_in_window(openparen, selected_window())) then
                 context = blink_paren_open_paren_line_string(openparen)
                 call minibuffer_message("Matches "//context)
             end if
@@ -790,7 +789,7 @@ contains
 
         call set_last_pos(point())
         ! Always set the overlay face, since it varies.
-        call overlay_put(overlay, "priority", make_fixnum(int(show_paren_priority, int64)), st)
-        call overlay_put(overlay, "face", sym(face), st)
+        call overlay_put(overlay, "priority", value_type(int(show_paren_priority, int64)), st)
+        call overlay_put(overlay, "face", value_type(name=face), st)
     end subroutine show_paren_function
 end module paren_fm

@@ -48,8 +48,8 @@ module commands_fm
         type(command_type) :: apropos_follow
         type(command_type) :: apropos_function
         type(command_type) :: apropos_mode
-        type(command_type) :: apropos_next_symbol
-        type(command_type) :: apropos_previous_symbol
+        type(command_type) :: apropos_next_name
+        type(command_type) :: apropos_previous_name
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
@@ -60,23 +60,23 @@ module commands_fm
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
         type(command_type) :: backward_delete_char_untabify
+        type(command_type) :: backward_expression
+        type(command_type) :: backward_group
+        type(command_type) :: backward_kill_expression
         type(command_type) :: backward_kill_paragraph
         type(command_type) :: backward_kill_sentence
-        type(command_type) :: backward_kill_sexp
         type(command_type) :: backward_kill_word
-        type(command_type) :: backward_list
         type(command_type) :: backward_page
         type(command_type) :: backward_paragraph
         type(command_type) :: backward_sentence
-        type(command_type) :: backward_sexp
-        type(command_type) :: backward_up_list
+        type(command_type) :: backward_up_group
         type(command_type) :: backward_word
         type(command_type) :: beginning_of_buffer
-        type(command_type) :: beginning_of_defun
-        type(command_type) :: beginning_of_defun_comments
-        type(command_type) :: beginning_of_defun_raw
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
+        type(command_type) :: beginning_of_subprogram
+        type(command_type) :: beginning_of_subprogram_comments
+        type(command_type) :: beginning_of_subprogram_raw
         type(command_type) :: blink_matching_open
         type(command_type) :: bookmark_bmenu_1_window
         type(command_type) :: bookmark_bmenu_2_window
@@ -123,6 +123,7 @@ module commands_fm
         type(command_type) :: bookmark_set_no_overwrite
         type(command_type) :: bookmark_write
         type(command_type) :: bookmark_yank_word
+        type(command_type) :: buffer_enable_undo
         type(command_type) :: buffer_menu
         type(command_type) :: buffer_menu_1_window
         type(command_type) :: buffer_menu_2_window
@@ -226,7 +227,7 @@ module commands_fm
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
-        type(command_type) :: complete_symbol
+        type(command_type) :: complete_name
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
@@ -290,7 +291,7 @@ module commands_fm
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
         type(command_type) :: describe_mode
-        type(command_type) :: describe_symbol
+        type(command_type) :: describe_name
         type(command_type) :: describe_variable
         type(command_type) :: diff
         type(command_type) :: diff_apply_buffer
@@ -316,7 +317,7 @@ module commands_fm
         type(command_type) :: digit_argument
         type(command_type) :: dired
         type(command_type) :: dired_backup_diff
-        type(command_type) :: dired_build_subdir_alist
+        type(command_type) :: dired_build_subdir_table
         type(command_type) :: dired_change_marks
         type(command_type) :: dired_copy_filename_as_kill
         type(command_type) :: dired_create_directory
@@ -387,7 +388,7 @@ module commands_fm
         type(command_type) :: dired_why
         type(command_type) :: disable_command
         type(command_type) :: do_auto_fill
-        type(command_type) :: down_list
+        type(command_type) :: down_group
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
         type(command_type) :: edit_abbrevs
@@ -402,13 +403,14 @@ module commands_fm
         type(command_type) :: enable_command
         type(command_type) :: end_kbd_macro
         type(command_type) :: end_of_buffer
-        type(command_type) :: end_of_defun
         type(command_type) :: end_of_line
+        type(command_type) :: end_of_subprogram
         type(command_type) :: exchange_point_and_mark
         type(command_type) :: executable_self_display
         type(command_type) :: executable_set_magic
         type(command_type) :: execute_extended_command
         type(command_type) :: exit_minibuffer
+        type(command_type) :: exit_recursive_edit
         type(command_type) :: expand_abbrev
         type(command_type) :: expand_region_abbrevs
         type(command_type) :: f90_abbrev_help
@@ -469,12 +471,12 @@ module commands_fm
         type(command_type) :: font_lock_refresh_defaults
         type(command_type) :: font_lock_update
         type(command_type) :: forward_char
+        type(command_type) :: forward_expression
+        type(command_type) :: forward_group
         type(command_type) :: forward_line
-        type(command_type) :: forward_list
         type(command_type) :: forward_page
         type(command_type) :: forward_paragraph
         type(command_type) :: forward_sentence
-        type(command_type) :: forward_sexp
         type(command_type) :: forward_word
         type(command_type) :: fundamental_mode
         type(command_type) :: global_auto_revert_mode
@@ -491,11 +493,10 @@ module commands_fm
         type(command_type) :: grep_find_toggle_abbreviation
         type(command_type) :: grep_mode
         type(command_type) :: help_for_help
-        type(command_type) :: help_form_show
         type(command_type) :: help_mode
+        type(command_type) :: help_procedure_show
         type(command_type) :: help_quit
         type(command_type) :: how_many
-        type(command_type) :: html_mode
         type(command_type) :: ibuffer
         type(command_type) :: ibuffer_add_saved_filters
         type(command_type) :: ibuffer_add_to_tmp_hide
@@ -656,8 +657,8 @@ module commands_fm
         type(command_type) :: info_last_menu_item
         type(command_type) :: info_last_preorder
         type(command_type) :: info_lookup_file
+        type(command_type) :: info_lookup_name
         type(command_type) :: info_lookup_reset
-        type(command_type) :: info_lookup_symbol
         type(command_type) :: info_menu
         type(command_type) :: info_mode
         type(command_type) :: info_next
@@ -728,6 +729,7 @@ module commands_fm
         type(command_type) :: kill_all_abbrevs
         type(command_type) :: kill_buffer
         type(command_type) :: kill_compilation
+        type(command_type) :: kill_expression
         type(command_type) :: kill_grep
         type(command_type) :: kill_line
         type(command_type) :: kill_matching_lines
@@ -736,7 +738,6 @@ module commands_fm
         type(command_type) :: kill_region
         type(command_type) :: kill_ring_save
         type(command_type) :: kill_sentence
-        type(command_type) :: kill_sexp
         type(command_type) :: kill_whole_line
         type(command_type) :: kill_word
         type(command_type) :: kmacro_add_counter
@@ -813,6 +814,7 @@ module commands_fm
         type(command_type) :: log_view_toggle_mark_entry
         type(command_type) :: log_view_unmark_all_entries
         type(command_type) :: log_view_unmark_entry
+        type(command_type) :: lossage_size
         type(command_type) :: makefile_automake_mode
         type(command_type) :: makefile_backslash_region
         type(command_type) :: makefile_bsdmake_mode
@@ -837,11 +839,11 @@ module commands_fm
         type(command_type) :: makefile_pickup_targets
         type(command_type) :: makefile_previous_dependency
         type(command_type) :: map_query_replace_regexp
-        type(command_type) :: mark_defun
         type(command_type) :: mark_end_of_sentence
+        type(command_type) :: mark_expression
         type(command_type) :: mark_page
         type(command_type) :: mark_paragraph
-        type(command_type) :: mark_sexp
+        type(command_type) :: mark_subprogram
         type(command_type) :: mark_whole_buffer
         type(command_type) :: mark_word
         type(command_type) :: messages_buffer_mode
@@ -862,9 +864,9 @@ module commands_fm
         type(command_type) :: move_to_window_line_top_bottom
         type(command_type) :: multi_occur
         type(command_type) :: multi_occur_in_matching_buffers
-        type(command_type) :: narrow_to_defun
         type(command_type) :: narrow_to_page
         type(command_type) :: narrow_to_region
+        type(command_type) :: narrow_to_subprogram
         type(command_type) :: negative_argument
         type(command_type) :: newline
         type(command_type) :: newline_and_indent
@@ -887,6 +889,7 @@ module commands_fm
         type(command_type) :: occur_next
         type(command_type) :: occur_prev
         type(command_type) :: occur_rename_buffer
+        type(command_type) :: open_dribble_file
         type(command_type) :: open_line
         type(command_type) :: open_rectangle
         type(command_type) :: other_window
@@ -913,31 +916,31 @@ module commands_fm
         type(command_type) :: python_indent_guess_indent_offset
         type(command_type) :: python_indent_shift_left
         type(command_type) :: python_indent_shift_right
-        type(command_type) :: python_mark_defun
+        type(command_type) :: python_mark_definition
         type(command_type) :: python_mode
         type(command_type) :: python_nav_backward_block
-        type(command_type) :: python_nav_backward_defun
-        type(command_type) :: python_nav_backward_sexp
-        type(command_type) :: python_nav_backward_sexp_safe
+        type(command_type) :: python_nav_backward_definition
+        type(command_type) :: python_nav_backward_expression
+        type(command_type) :: python_nav_backward_expression_safe
         type(command_type) :: python_nav_backward_statement
-        type(command_type) :: python_nav_backward_up_list
+        type(command_type) :: python_nav_backward_up_group
         type(command_type) :: python_nav_beginning_of_block
         type(command_type) :: python_nav_beginning_of_statement
         type(command_type) :: python_nav_end_of_block
-        type(command_type) :: python_nav_end_of_defun
+        type(command_type) :: python_nav_end_of_definition
         type(command_type) :: python_nav_end_of_statement
         type(command_type) :: python_nav_forward_block
-        type(command_type) :: python_nav_forward_defun
-        type(command_type) :: python_nav_forward_sexp
-        type(command_type) :: python_nav_forward_sexp_safe
+        type(command_type) :: python_nav_forward_definition
+        type(command_type) :: python_nav_forward_expression
+        type(command_type) :: python_nav_forward_expression_safe
         type(command_type) :: python_nav_forward_statement
         type(command_type) :: python_nav_if_name_main
-        type(command_type) :: python_nav_up_list
+        type(command_type) :: python_nav_up_group
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
         type(command_type) :: quit_window
         type(command_type) :: quoted_insert
-        type(command_type) :: raise_sexp
+        type(command_type) :: raise_expression
         type(command_type) :: re_search_backward
         type(command_type) :: re_search_forward
         type(command_type) :: read_char_from_minibuffer_insert_char
@@ -945,6 +948,9 @@ module commands_fm
         type(command_type) :: read_only_mode
         type(command_type) :: read_passwd_mode
         type(command_type) :: read_passwd_toggle_visibility
+        type(command_type) :: read_y_or_n_insert_n
+        type(command_type) :: read_y_or_n_insert_other
+        type(command_type) :: read_y_or_n_insert_y
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
@@ -964,6 +970,8 @@ module commands_fm
         type(command_type) :: rectangle_number_lines
         type(command_type) :: rectangle_previous_line
         type(command_type) :: rectangle_right_char
+        type(command_type) :: recursive_edit
+        type(command_type) :: redraw_display
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
@@ -1003,24 +1011,6 @@ module commands_fm
         type(command_type) :: set_mark_command
         type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
-        type(command_type) :: sgml_close_tag
-        type(command_type) :: sgml_delete_tag
-        type(command_type) :: sgml_guess_indent
-        type(command_type) :: sgml_indent_line
-        type(command_type) :: sgml_maybe_end_tag
-        type(command_type) :: sgml_maybe_name_self
-        type(command_type) :: sgml_mode
-        type(command_type) :: sgml_name_8bit_mode
-        type(command_type) :: sgml_name_char
-        type(command_type) :: sgml_name_self
-        type(command_type) :: sgml_namify_char
-        type(command_type) :: sgml_pretty_print
-        type(command_type) :: sgml_quote
-        type(command_type) :: sgml_skip_tag_backward
-        type(command_type) :: sgml_skip_tag_forward
-        type(command_type) :: sgml_slash
-        type(command_type) :: sgml_slash_matching
-        type(command_type) :: sgml_validate
         type(command_type) :: sh_add
         type(command_type) :: sh_assignment
         type(command_type) :: sh_backslash_region
@@ -1056,10 +1046,10 @@ module commands_fm
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
         type(command_type) :: smie__next_indent_change
-        type(command_type) :: smie_backward_sexp_command
+        type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
-        type(command_type) :: smie_down_list
-        type(command_type) :: smie_forward_sexp_command
+        type(command_type) :: smie_down_group
+        type(command_type) :: smie_forward_expression_command
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
@@ -1076,6 +1066,7 @@ module commands_fm
         type(command_type) :: tabulated_list_sort
         type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
+        type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
         type(command_type) :: transpose_lines
@@ -1097,7 +1088,7 @@ module commands_fm
         type(command_type) :: universal_argument_minus
         type(command_type) :: universal_argument_more
         type(command_type) :: universal_coding_system_argument
-        type(command_type) :: up_list
+        type(command_type) :: up_group
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
@@ -1186,9 +1177,6 @@ module commands_fm
         type(command_type) :: window_configuration_to_register
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
-        type(command_type) :: y_or_n_p_insert_n
-        type(command_type) :: y_or_n_p_insert_other
-        type(command_type) :: y_or_n_p_insert_y
         type(command_type) :: yank
         type(command_type) :: yank_pop
         type(command_type) :: yank_rectangle
@@ -1199,7 +1187,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1160) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1148) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1215,8 +1203,8 @@ module commands_fm
                                                                   "apropos_follow", &
                                                                   "apropos_function", &
                                                                   "apropos_mode", &
-                                                                  "apropos_next_symbol", &
-                                                                  "apropos_previous_symbol", &
+                                                                  "apropos_next_name", &
+                                                                  "apropos_previous_name", &
                                                                   "apropos_user_option", &
                                                                   "apropos_variable", &
                                                                   "async_shell_command", &
@@ -1227,23 +1215,23 @@ module commands_fm
                                                                   "back_to_indentation", &
                                                                   "backward_char", &
                                                                   "backward_delete_char_untabify", &
+                                                                  "backward_expression", &
+                                                                  "backward_group", &
+                                                                  "backward_kill_expression", &
                                                                   "backward_kill_paragraph", &
                                                                   "backward_kill_sentence", &
-                                                                  "backward_kill_sexp", &
                                                                   "backward_kill_word", &
-                                                                  "backward_list", &
                                                                   "backward_page", &
                                                                   "backward_paragraph", &
                                                                   "backward_sentence", &
-                                                                  "backward_sexp", &
-                                                                  "backward_up_list", &
+                                                                  "backward_up_group", &
                                                                   "backward_word", &
                                                                   "beginning_of_buffer", &
-                                                                  "beginning_of_defun", &
-                                                                  "beginning_of_defun_comments", &
-                                                                  "beginning_of_defun_raw", &
                                                                   "beginning_of_line", &
                                                                   "beginning_of_line_text", &
+                                                                  "beginning_of_subprogram", &
+                                                                  "beginning_of_subprogram_comments", &
+                                                                  "beginning_of_subprogram_raw", &
                                                                   "blink_matching_open", &
                                                                   "bookmark_bmenu_1_window", &
                                                                   "bookmark_bmenu_2_window", &
@@ -1290,6 +1278,7 @@ module commands_fm
                                                                   "bookmark_set_no_overwrite", &
                                                                   "bookmark_write", &
                                                                   "bookmark_yank_word", &
+                                                                  "buffer_enable_undo", &
                                                                   "buffer_menu", &
                                                                   "buffer_menu_1_window", &
                                                                   "buffer_menu_2_window", &
@@ -1393,7 +1382,7 @@ module commands_fm
                                                                   "compilation_shell_minor_mode", &
                                                                   "compile", &
                                                                   "compile_goto_error", &
-                                                                  "complete_symbol", &
+                                                                  "complete_name", &
                                                                   "completion_at_point", &
                                                                   "completion_help_at_point", &
                                                                   "completion_in_region_mode", &
@@ -1457,7 +1446,7 @@ module commands_fm
                                                                   "describe_key", &
                                                                   "describe_key_briefly", &
                                                                   "describe_mode", &
-                                                                  "describe_symbol", &
+                                                                  "describe_name", &
                                                                   "describe_variable", &
                                                                   "diff", &
                                                                   "diff_apply_buffer", &
@@ -1483,7 +1472,7 @@ module commands_fm
                                                                   "digit_argument", &
                                                                   "dired", &
                                                                   "dired_backup_diff", &
-                                                                  "dired_build_subdir_alist", &
+                                                                  "dired_build_subdir_table", &
                                                                   "dired_change_marks", &
                                                                   "dired_copy_filename_as_kill", &
                                                                   "dired_create_directory", &
@@ -1554,7 +1543,7 @@ module commands_fm
                                                                   "dired_why", &
                                                                   "disable_command", &
                                                                   "do_auto_fill", &
-                                                                  "down_list", &
+                                                                  "down_group", &
                                                                   "downcase_region", &
                                                                   "downcase_word", &
                                                                   "edit_abbrevs", &
@@ -1569,13 +1558,14 @@ module commands_fm
                                                                   "enable_command", &
                                                                   "end_kbd_macro", &
                                                                   "end_of_buffer", &
-                                                                  "end_of_defun", &
                                                                   "end_of_line", &
+                                                                  "end_of_subprogram", &
                                                                   "exchange_point_and_mark", &
                                                                   "executable_self_display", &
                                                                   "executable_set_magic", &
                                                                   "execute_extended_command", &
                                                                   "exit_minibuffer", &
+                                                                  "exit_recursive_edit", &
                                                                   "expand_abbrev", &
                                                                   "expand_region_abbrevs", &
                                                                   "f90_abbrev_help", &
@@ -1636,12 +1626,12 @@ module commands_fm
                                                                   "font_lock_refresh_defaults", &
                                                                   "font_lock_update", &
                                                                   "forward_char", &
+                                                                  "forward_expression", &
+                                                                  "forward_group", &
                                                                   "forward_line", &
-                                                                  "forward_list", &
                                                                   "forward_page", &
                                                                   "forward_paragraph", &
                                                                   "forward_sentence", &
-                                                                  "forward_sexp", &
                                                                   "forward_word", &
                                                                   "fundamental_mode", &
                                                                   "global_auto_revert_mode", &
@@ -1658,11 +1648,10 @@ module commands_fm
                                                                   "grep_find_toggle_abbreviation", &
                                                                   "grep_mode", &
                                                                   "help_for_help", &
-                                                                  "help_form_show", &
                                                                   "help_mode", &
+                                                                  "help_procedure_show", &
                                                                   "help_quit", &
                                                                   "how_many", &
-                                                                  "html_mode", &
                                                                   "ibuffer", &
                                                                   "ibuffer_add_saved_filters", &
                                                                   "ibuffer_add_to_tmp_hide", &
@@ -1823,8 +1812,8 @@ module commands_fm
                                                                   "info_last_menu_item", &
                                                                   "info_last_preorder", &
                                                                   "info_lookup_file", &
+                                                                  "info_lookup_name", &
                                                                   "info_lookup_reset", &
-                                                                  "info_lookup_symbol", &
                                                                   "info_menu", &
                                                                   "info_mode", &
                                                                   "info_next", &
@@ -1895,6 +1884,7 @@ module commands_fm
                                                                   "kill_all_abbrevs", &
                                                                   "kill_buffer", &
                                                                   "kill_compilation", &
+                                                                  "kill_expression", &
                                                                   "kill_grep", &
                                                                   "kill_line", &
                                                                   "kill_matching_lines", &
@@ -1903,7 +1893,6 @@ module commands_fm
                                                                   "kill_region", &
                                                                   "kill_ring_save", &
                                                                   "kill_sentence", &
-                                                                  "kill_sexp", &
                                                                   "kill_whole_line", &
                                                                   "kill_word", &
                                                                   "kmacro_add_counter", &
@@ -1980,6 +1969,7 @@ module commands_fm
                                                                   "log_view_toggle_mark_entry", &
                                                                   "log_view_unmark_all_entries", &
                                                                   "log_view_unmark_entry", &
+                                                                  "lossage_size", &
                                                                   "makefile_automake_mode", &
                                                                   "makefile_backslash_region", &
                                                                   "makefile_bsdmake_mode", &
@@ -2004,11 +1994,11 @@ module commands_fm
                                                                   "makefile_pickup_targets", &
                                                                   "makefile_previous_dependency", &
                                                                   "map_query_replace_regexp", &
-                                                                  "mark_defun", &
                                                                   "mark_end_of_sentence", &
+                                                                  "mark_expression", &
                                                                   "mark_page", &
                                                                   "mark_paragraph", &
-                                                                  "mark_sexp", &
+                                                                  "mark_subprogram", &
                                                                   "mark_whole_buffer", &
                                                                   "mark_word", &
                                                                   "messages_buffer_mode", &
@@ -2029,9 +2019,9 @@ module commands_fm
                                                                   "move_to_window_line_top_bottom", &
                                                                   "multi_occur", &
                                                                   "multi_occur_in_matching_buffers", &
-                                                                  "narrow_to_defun", &
                                                                   "narrow_to_page", &
                                                                   "narrow_to_region", &
+                                                                  "narrow_to_subprogram", &
                                                                   "negative_argument", &
                                                                   "newline", &
                                                                   "newline_and_indent", &
@@ -2054,6 +2044,7 @@ module commands_fm
                                                                   "occur_next", &
                                                                   "occur_prev", &
                                                                   "occur_rename_buffer", &
+                                                                  "open_dribble_file", &
                                                                   "open_line", &
                                                                   "open_rectangle", &
                                                                   "other_window", &
@@ -2080,31 +2071,31 @@ module commands_fm
                                                                   "python_indent_guess_indent_offset", &
                                                                   "python_indent_shift_left", &
                                                                   "python_indent_shift_right", &
-                                                                  "python_mark_defun", &
+                                                                  "python_mark_definition", &
                                                                   "python_mode", &
                                                                   "python_nav_backward_block", &
-                                                                  "python_nav_backward_defun", &
-                                                                  "python_nav_backward_sexp", &
-                                                                  "python_nav_backward_sexp_safe", &
+                                                                  "python_nav_backward_definition", &
+                                                                  "python_nav_backward_expression", &
+                                                                  "python_nav_backward_expression_safe", &
                                                                   "python_nav_backward_statement", &
-                                                                  "python_nav_backward_up_list", &
+                                                                  "python_nav_backward_up_group", &
                                                                   "python_nav_beginning_of_block", &
                                                                   "python_nav_beginning_of_statement", &
                                                                   "python_nav_end_of_block", &
-                                                                  "python_nav_end_of_defun", &
+                                                                  "python_nav_end_of_definition", &
                                                                   "python_nav_end_of_statement", &
                                                                   "python_nav_forward_block", &
-                                                                  "python_nav_forward_defun", &
-                                                                  "python_nav_forward_sexp", &
-                                                                  "python_nav_forward_sexp_safe", &
+                                                                  "python_nav_forward_definition", &
+                                                                  "python_nav_forward_expression", &
+                                                                  "python_nav_forward_expression_safe", &
                                                                   "python_nav_forward_statement", &
                                                                   "python_nav_if_name_main", &
-                                                                  "python_nav_up_list", &
+                                                                  "python_nav_up_group", &
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
                                                                   "quit_window", &
                                                                   "quoted_insert", &
-                                                                  "raise_sexp", &
+                                                                  "raise_expression", &
                                                                   "re_search_backward", &
                                                                   "re_search_forward", &
                                                                   "read_char_from_minibuffer_insert_char", &
@@ -2112,6 +2103,9 @@ module commands_fm
                                                                   "read_only_mode", &
                                                                   "read_passwd_mode", &
                                                                   "read_passwd_toggle_visibility", &
+                                                                  "read_y_or_n_insert_n", &
+                                                                  "read_y_or_n_insert_other", &
+                                                                  "read_y_or_n_insert_y", &
                                                                   "recenter", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
@@ -2131,6 +2125,8 @@ module commands_fm
                                                                   "rectangle_number_lines", &
                                                                   "rectangle_previous_line", &
                                                                   "rectangle_right_char", &
+                                                                  "recursive_edit", &
+                                                                  "redraw_display", &
                                                                   "reindent_then_newline_and_indent", &
                                                                   "repeat", &
                                                                   "repeat_exit", &
@@ -2170,24 +2166,6 @@ module commands_fm
                                                                   "set_mark_command", &
                                                                   "set_terminal_coding_system", &
                                                                   "set_variable", &
-                                                                  "sgml_close_tag", &
-                                                                  "sgml_delete_tag", &
-                                                                  "sgml_guess_indent", &
-                                                                  "sgml_indent_line", &
-                                                                  "sgml_maybe_end_tag", &
-                                                                  "sgml_maybe_name_self", &
-                                                                  "sgml_mode", &
-                                                                  "sgml_name_8bit_mode", &
-                                                                  "sgml_name_char", &
-                                                                  "sgml_name_self", &
-                                                                  "sgml_namify_char", &
-                                                                  "sgml_pretty_print", &
-                                                                  "sgml_quote", &
-                                                                  "sgml_skip_tag_backward", &
-                                                                  "sgml_skip_tag_forward", &
-                                                                  "sgml_slash", &
-                                                                  "sgml_slash_matching", &
-                                                                  "sgml_validate", &
                                                                   "sh_add", &
                                                                   "sh_assignment", &
                                                                   "sh_backslash_region", &
@@ -2223,10 +2201,10 @@ module commands_fm
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
                                                                   "smie__next_indent_change", &
-                                                                  "smie_backward_sexp_command", &
+                                                                  "smie_backward_expression_command", &
                                                                   "smie_close_block", &
-                                                                  "smie_down_list", &
-                                                                  "smie_forward_sexp_command", &
+                                                                  "smie_down_group", &
+                                                                  "smie_forward_expression_command", &
                                                                   "special_mode", &
                                                                   "split_window_below", &
                                                                   "split_window_right", &
@@ -2243,6 +2221,7 @@ module commands_fm
                                                                   "tabulated_list_sort", &
                                                                   "tabulated_list_widen_current_column", &
                                                                   "text_mode", &
+                                                                  "top_level", &
                                                                   "transient_mark_mode", &
                                                                   "transpose_chars", &
                                                                   "transpose_lines", &
@@ -2264,7 +2243,7 @@ module commands_fm
                                                                   "universal_argument_minus", &
                                                                   "universal_argument_more", &
                                                                   "universal_coding_system_argument", &
-                                                                  "up_list", &
+                                                                  "up_group", &
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
                                                                   "upcase_word", &
@@ -2353,9 +2332,6 @@ module commands_fm
                                                                   "window_configuration_to_register", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
-                                                                  "y_or_n_p_insert_n", &
-                                                                  "y_or_n_p_insert_other", &
-                                                                  "y_or_n_p_insert_y", &
                                                                   "yank", &
                                                                   "yank_pop", &
                                                                   "yank_rectangle", &
@@ -2402,10 +2378,10 @@ contains
             p => commands%apropos_function
         case ("apropos_mode")
             p => commands%apropos_mode
-        case ("apropos_next_symbol")
-            p => commands%apropos_next_symbol
-        case ("apropos_previous_symbol")
-            p => commands%apropos_previous_symbol
+        case ("apropos_next_name")
+            p => commands%apropos_next_name
+        case ("apropos_previous_name")
+            p => commands%apropos_previous_name
         case ("apropos_user_option")
             p => commands%apropos_user_option
         case ("apropos_variable")
@@ -2426,40 +2402,40 @@ contains
             p => commands%backward_char
         case ("backward_delete_char_untabify")
             p => commands%backward_delete_char_untabify
+        case ("backward_expression")
+            p => commands%backward_expression
+        case ("backward_group")
+            p => commands%backward_group
+        case ("backward_kill_expression")
+            p => commands%backward_kill_expression
         case ("backward_kill_paragraph")
             p => commands%backward_kill_paragraph
         case ("backward_kill_sentence")
             p => commands%backward_kill_sentence
-        case ("backward_kill_sexp")
-            p => commands%backward_kill_sexp
         case ("backward_kill_word")
             p => commands%backward_kill_word
-        case ("backward_list")
-            p => commands%backward_list
         case ("backward_page")
             p => commands%backward_page
         case ("backward_paragraph")
             p => commands%backward_paragraph
         case ("backward_sentence")
             p => commands%backward_sentence
-        case ("backward_sexp")
-            p => commands%backward_sexp
-        case ("backward_up_list")
-            p => commands%backward_up_list
+        case ("backward_up_group")
+            p => commands%backward_up_group
         case ("backward_word")
             p => commands%backward_word
         case ("beginning_of_buffer")
             p => commands%beginning_of_buffer
-        case ("beginning_of_defun")
-            p => commands%beginning_of_defun
-        case ("beginning_of_defun_comments")
-            p => commands%beginning_of_defun_comments
-        case ("beginning_of_defun_raw")
-            p => commands%beginning_of_defun_raw
         case ("beginning_of_line")
             p => commands%beginning_of_line
         case ("beginning_of_line_text")
             p => commands%beginning_of_line_text
+        case ("beginning_of_subprogram")
+            p => commands%beginning_of_subprogram
+        case ("beginning_of_subprogram_comments")
+            p => commands%beginning_of_subprogram_comments
+        case ("beginning_of_subprogram_raw")
+            p => commands%beginning_of_subprogram_raw
         case ("blink_matching_open")
             p => commands%blink_matching_open
         case ("bookmark_bmenu_1_window")
@@ -2552,6 +2528,8 @@ contains
             p => commands%bookmark_write
         case ("bookmark_yank_word")
             p => commands%bookmark_yank_word
+        case ("buffer_enable_undo")
+            p => commands%buffer_enable_undo
         case ("buffer_menu")
             p => commands%buffer_menu
         case ("buffer_menu_1_window")
@@ -2758,8 +2736,8 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
-        case ("complete_symbol")
-            p => commands%complete_symbol
+        case ("complete_name")
+            p => commands%complete_name
         case ("completion_at_point")
             p => commands%completion_at_point
         case ("completion_help_at_point")
@@ -2886,8 +2864,8 @@ contains
             p => commands%describe_key_briefly
         case ("describe_mode")
             p => commands%describe_mode
-        case ("describe_symbol")
-            p => commands%describe_symbol
+        case ("describe_name")
+            p => commands%describe_name
         case ("describe_variable")
             p => commands%describe_variable
         case ("diff")
@@ -2938,8 +2916,8 @@ contains
             p => commands%dired
         case ("dired_backup_diff")
             p => commands%dired_backup_diff
-        case ("dired_build_subdir_alist")
-            p => commands%dired_build_subdir_alist
+        case ("dired_build_subdir_table")
+            p => commands%dired_build_subdir_table
         case ("dired_change_marks")
             p => commands%dired_change_marks
         case ("dired_copy_filename_as_kill")
@@ -3080,8 +3058,8 @@ contains
             p => commands%disable_command
         case ("do_auto_fill")
             p => commands%do_auto_fill
-        case ("down_list")
-            p => commands%down_list
+        case ("down_group")
+            p => commands%down_group
         case ("downcase_region")
             p => commands%downcase_region
         case ("downcase_word")
@@ -3110,10 +3088,10 @@ contains
             p => commands%end_kbd_macro
         case ("end_of_buffer")
             p => commands%end_of_buffer
-        case ("end_of_defun")
-            p => commands%end_of_defun
         case ("end_of_line")
             p => commands%end_of_line
+        case ("end_of_subprogram")
+            p => commands%end_of_subprogram
         case ("exchange_point_and_mark")
             p => commands%exchange_point_and_mark
         case ("executable_self_display")
@@ -3124,6 +3102,8 @@ contains
             p => commands%execute_extended_command
         case ("exit_minibuffer")
             p => commands%exit_minibuffer
+        case ("exit_recursive_edit")
+            p => commands%exit_recursive_edit
         case ("expand_abbrev")
             p => commands%expand_abbrev
         case ("expand_region_abbrevs")
@@ -3244,18 +3224,18 @@ contains
             p => commands%font_lock_update
         case ("forward_char")
             p => commands%forward_char
+        case ("forward_expression")
+            p => commands%forward_expression
+        case ("forward_group")
+            p => commands%forward_group
         case ("forward_line")
             p => commands%forward_line
-        case ("forward_list")
-            p => commands%forward_list
         case ("forward_page")
             p => commands%forward_page
         case ("forward_paragraph")
             p => commands%forward_paragraph
         case ("forward_sentence")
             p => commands%forward_sentence
-        case ("forward_sexp")
-            p => commands%forward_sexp
         case ("forward_word")
             p => commands%forward_word
         case ("fundamental_mode")
@@ -3288,16 +3268,14 @@ contains
             p => commands%grep_mode
         case ("help_for_help")
             p => commands%help_for_help
-        case ("help_form_show")
-            p => commands%help_form_show
         case ("help_mode")
             p => commands%help_mode
+        case ("help_procedure_show")
+            p => commands%help_procedure_show
         case ("help_quit")
             p => commands%help_quit
         case ("how_many")
             p => commands%how_many
-        case ("html_mode")
-            p => commands%html_mode
         case ("ibuffer")
             p => commands%ibuffer
         case ("ibuffer_add_saved_filters")
@@ -3618,10 +3596,10 @@ contains
             p => commands%info_last_preorder
         case ("info_lookup_file")
             p => commands%info_lookup_file
+        case ("info_lookup_name")
+            p => commands%info_lookup_name
         case ("info_lookup_reset")
             p => commands%info_lookup_reset
-        case ("info_lookup_symbol")
-            p => commands%info_lookup_symbol
         case ("info_menu")
             p => commands%info_menu
         case ("info_mode")
@@ -3762,6 +3740,8 @@ contains
             p => commands%kill_buffer
         case ("kill_compilation")
             p => commands%kill_compilation
+        case ("kill_expression")
+            p => commands%kill_expression
         case ("kill_grep")
             p => commands%kill_grep
         case ("kill_line")
@@ -3778,8 +3758,6 @@ contains
             p => commands%kill_ring_save
         case ("kill_sentence")
             p => commands%kill_sentence
-        case ("kill_sexp")
-            p => commands%kill_sexp
         case ("kill_whole_line")
             p => commands%kill_whole_line
         case ("kill_word")
@@ -3932,6 +3910,8 @@ contains
             p => commands%log_view_unmark_all_entries
         case ("log_view_unmark_entry")
             p => commands%log_view_unmark_entry
+        case ("lossage_size")
+            p => commands%lossage_size
         case ("makefile_automake_mode")
             p => commands%makefile_automake_mode
         case ("makefile_backslash_region")
@@ -3980,16 +3960,16 @@ contains
             p => commands%makefile_previous_dependency
         case ("map_query_replace_regexp")
             p => commands%map_query_replace_regexp
-        case ("mark_defun")
-            p => commands%mark_defun
         case ("mark_end_of_sentence")
             p => commands%mark_end_of_sentence
+        case ("mark_expression")
+            p => commands%mark_expression
         case ("mark_page")
             p => commands%mark_page
         case ("mark_paragraph")
             p => commands%mark_paragraph
-        case ("mark_sexp")
-            p => commands%mark_sexp
+        case ("mark_subprogram")
+            p => commands%mark_subprogram
         case ("mark_whole_buffer")
             p => commands%mark_whole_buffer
         case ("mark_word")
@@ -4030,12 +4010,12 @@ contains
             p => commands%multi_occur
         case ("multi_occur_in_matching_buffers")
             p => commands%multi_occur_in_matching_buffers
-        case ("narrow_to_defun")
-            p => commands%narrow_to_defun
         case ("narrow_to_page")
             p => commands%narrow_to_page
         case ("narrow_to_region")
             p => commands%narrow_to_region
+        case ("narrow_to_subprogram")
+            p => commands%narrow_to_subprogram
         case ("negative_argument")
             p => commands%negative_argument
         case ("newline")
@@ -4080,6 +4060,8 @@ contains
             p => commands%occur_prev
         case ("occur_rename_buffer")
             p => commands%occur_rename_buffer
+        case ("open_dribble_file")
+            p => commands%open_dribble_file
         case ("open_line")
             p => commands%open_line
         case ("open_rectangle")
@@ -4132,46 +4114,46 @@ contains
             p => commands%python_indent_shift_left
         case ("python_indent_shift_right")
             p => commands%python_indent_shift_right
-        case ("python_mark_defun")
-            p => commands%python_mark_defun
+        case ("python_mark_definition")
+            p => commands%python_mark_definition
         case ("python_mode")
             p => commands%python_mode
         case ("python_nav_backward_block")
             p => commands%python_nav_backward_block
-        case ("python_nav_backward_defun")
-            p => commands%python_nav_backward_defun
-        case ("python_nav_backward_sexp")
-            p => commands%python_nav_backward_sexp
-        case ("python_nav_backward_sexp_safe")
-            p => commands%python_nav_backward_sexp_safe
+        case ("python_nav_backward_definition")
+            p => commands%python_nav_backward_definition
+        case ("python_nav_backward_expression")
+            p => commands%python_nav_backward_expression
+        case ("python_nav_backward_expression_safe")
+            p => commands%python_nav_backward_expression_safe
         case ("python_nav_backward_statement")
             p => commands%python_nav_backward_statement
-        case ("python_nav_backward_up_list")
-            p => commands%python_nav_backward_up_list
+        case ("python_nav_backward_up_group")
+            p => commands%python_nav_backward_up_group
         case ("python_nav_beginning_of_block")
             p => commands%python_nav_beginning_of_block
         case ("python_nav_beginning_of_statement")
             p => commands%python_nav_beginning_of_statement
         case ("python_nav_end_of_block")
             p => commands%python_nav_end_of_block
-        case ("python_nav_end_of_defun")
-            p => commands%python_nav_end_of_defun
+        case ("python_nav_end_of_definition")
+            p => commands%python_nav_end_of_definition
         case ("python_nav_end_of_statement")
             p => commands%python_nav_end_of_statement
         case ("python_nav_forward_block")
             p => commands%python_nav_forward_block
-        case ("python_nav_forward_defun")
-            p => commands%python_nav_forward_defun
-        case ("python_nav_forward_sexp")
-            p => commands%python_nav_forward_sexp
-        case ("python_nav_forward_sexp_safe")
-            p => commands%python_nav_forward_sexp_safe
+        case ("python_nav_forward_definition")
+            p => commands%python_nav_forward_definition
+        case ("python_nav_forward_expression")
+            p => commands%python_nav_forward_expression
+        case ("python_nav_forward_expression_safe")
+            p => commands%python_nav_forward_expression_safe
         case ("python_nav_forward_statement")
             p => commands%python_nav_forward_statement
         case ("python_nav_if_name_main")
             p => commands%python_nav_if_name_main
-        case ("python_nav_up_list")
-            p => commands%python_nav_up_list
+        case ("python_nav_up_group")
+            p => commands%python_nav_up_group
         case ("query_replace")
             p => commands%query_replace
         case ("query_replace_regexp")
@@ -4180,8 +4162,8 @@ contains
             p => commands%quit_window
         case ("quoted_insert")
             p => commands%quoted_insert
-        case ("raise_sexp")
-            p => commands%raise_sexp
+        case ("raise_expression")
+            p => commands%raise_expression
         case ("re_search_backward")
             p => commands%re_search_backward
         case ("re_search_forward")
@@ -4196,6 +4178,12 @@ contains
             p => commands%read_passwd_mode
         case ("read_passwd_toggle_visibility")
             p => commands%read_passwd_toggle_visibility
+        case ("read_y_or_n_insert_n")
+            p => commands%read_y_or_n_insert_n
+        case ("read_y_or_n_insert_other")
+            p => commands%read_y_or_n_insert_other
+        case ("read_y_or_n_insert_y")
+            p => commands%read_y_or_n_insert_y
         case ("recenter")
             p => commands%recenter
         case ("recenter_top_bottom")
@@ -4234,6 +4222,10 @@ contains
             p => commands%rectangle_previous_line
         case ("rectangle_right_char")
             p => commands%rectangle_right_char
+        case ("recursive_edit")
+            p => commands%recursive_edit
+        case ("redraw_display")
+            p => commands%redraw_display
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
         case ("repeat")
@@ -4312,42 +4304,6 @@ contains
             p => commands%set_terminal_coding_system
         case ("set_variable")
             p => commands%set_variable
-        case ("sgml_close_tag")
-            p => commands%sgml_close_tag
-        case ("sgml_delete_tag")
-            p => commands%sgml_delete_tag
-        case ("sgml_guess_indent")
-            p => commands%sgml_guess_indent
-        case ("sgml_indent_line")
-            p => commands%sgml_indent_line
-        case ("sgml_maybe_end_tag")
-            p => commands%sgml_maybe_end_tag
-        case ("sgml_maybe_name_self")
-            p => commands%sgml_maybe_name_self
-        case ("sgml_mode")
-            p => commands%sgml_mode
-        case ("sgml_name_8bit_mode")
-            p => commands%sgml_name_8bit_mode
-        case ("sgml_name_char")
-            p => commands%sgml_name_char
-        case ("sgml_name_self")
-            p => commands%sgml_name_self
-        case ("sgml_namify_char")
-            p => commands%sgml_namify_char
-        case ("sgml_pretty_print")
-            p => commands%sgml_pretty_print
-        case ("sgml_quote")
-            p => commands%sgml_quote
-        case ("sgml_skip_tag_backward")
-            p => commands%sgml_skip_tag_backward
-        case ("sgml_skip_tag_forward")
-            p => commands%sgml_skip_tag_forward
-        case ("sgml_slash")
-            p => commands%sgml_slash
-        case ("sgml_slash_matching")
-            p => commands%sgml_slash_matching
-        case ("sgml_validate")
-            p => commands%sgml_validate
         case ("sh_add")
             p => commands%sh_add
         case ("sh_assignment")
@@ -4418,14 +4374,14 @@ contains
             p => commands%show_paren_mode
         case ("smie__next_indent_change")
             p => commands%smie__next_indent_change
-        case ("smie_backward_sexp_command")
-            p => commands%smie_backward_sexp_command
+        case ("smie_backward_expression_command")
+            p => commands%smie_backward_expression_command
         case ("smie_close_block")
             p => commands%smie_close_block
-        case ("smie_down_list")
-            p => commands%smie_down_list
-        case ("smie_forward_sexp_command")
-            p => commands%smie_forward_sexp_command
+        case ("smie_down_group")
+            p => commands%smie_down_group
+        case ("smie_forward_expression_command")
+            p => commands%smie_forward_expression_command
         case ("special_mode")
             p => commands%special_mode
         case ("split_window_below")
@@ -4458,6 +4414,8 @@ contains
             p => commands%tabulated_list_widen_current_column
         case ("text_mode")
             p => commands%text_mode
+        case ("top_level")
+            p => commands%top_level
         case ("transient_mark_mode")
             p => commands%transient_mark_mode
         case ("transpose_chars")
@@ -4500,8 +4458,8 @@ contains
             p => commands%universal_argument_more
         case ("universal_coding_system_argument")
             p => commands%universal_coding_system_argument
-        case ("up_list")
-            p => commands%up_list
+        case ("up_group")
+            p => commands%up_group
         case ("upcase_initials_region")
             p => commands%upcase_initials_region
         case ("upcase_region")
@@ -4678,12 +4636,6 @@ contains
             p => commands%write_abbrev_file
         case ("write_file")
             p => commands%write_file
-        case ("y_or_n_p_insert_n")
-            p => commands%y_or_n_p_insert_n
-        case ("y_or_n_p_insert_other")
-            p => commands%y_or_n_p_insert_other
-        case ("y_or_n_p_insert_y")
-            p => commands%y_or_n_p_insert_y
         case ("yank")
             p => commands%yank
         case ("yank_pop")

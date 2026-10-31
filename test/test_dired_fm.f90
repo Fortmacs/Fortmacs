@@ -111,7 +111,7 @@ contains
             if (allocated(error)) exit body
             ! A negative COUNT is an error.
             call directory_files(testdir, files, st, count=-1_int64)
-            call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "wholenump")
+            call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer (>= 0)")
             if (allocated(error)) exit body
             call directory_files(testdir//"/missing", files, st)
             call check(error, format_error(st), "Opening directory: No such file or directory, "// &

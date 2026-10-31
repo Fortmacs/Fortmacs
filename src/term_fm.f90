@@ -27,15 +27,14 @@
 !> the face table to draw with, indexed by face id from 0.
 !>
 !> Not ported: menus, mouse (GPM), glyph production (produce_glyphs, in
-!> the redisplay step), colour-mode switching (tty_setup_colors),
+!> the redisplay step), color-mode switching (tty_setup_colors),
 !> tty-mode-set-strings, the termscript, char_ins_del cost vectors, the
 !> DOS/Windows/Android branches.
 module term_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, make_fixnum, list
-    use lread_fm, only: sym
-    use character_fm, only: MAX_MULTIBYTE_LENGTH, char_string, char_byte8_p, &
+    use lisp_fm, only: value_type, list
+    use character_fm, only: MAX_MULTIBYTE_LENGTH, char_string, is_char_byte8, &
                             char_to_byte8
     use terminfo_fm, only: terminfo_type, tgetent, tgetstr, tgetnum, tgetflag, tigetstr, &
                            tigetflag, tparam, delete_padding
@@ -48,15 +47,16 @@ module term_fm
                              face_tty_specified_color, TTY_CAP_INVERSE, TTY_CAP_UNDERLINE, &
                              TTY_CAP_UNDERLINE_STYLED, TTY_CAP_BOLD, TTY_CAP_DIM, TTY_CAP_ITALIC, &
                              TTY_CAP_STRIKE_THROUGH
-    use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p
+    use keymap_fm, only: make_sparse_keymap, define_key, is_keymap_live
     use keyboard_fm, only: input_decode_map
-    use coding_fm, only: terminal_coding_system, coding_system_type, encode_coding_string, char_encodable_p
-    use sysdep_fm, only: get_tty_size, tabs_safe_p, init_sys_modes, &
+    use coding_fm, only: terminal_coding_system, coding_system_type, encode_coding_string, is_char_encodable
+    use sysdep_fm, only: get_tty_size, is_tabs_safe, init_sys_modes, &
                          reset_sys_modes
     implicit none(type, external)
     private
 
     public :: init_tty, init_tty_entry, delete_tty, calculate_costs, term_get_fkeys
+    public :: is_tty_display_color, tty_display_color_cells, tty_type, is_controlling_tty, tty_no_underline
     public :: tty_ring_bell, tty_set_terminal_modes, tty_reset_terminal_modes, &
               tty_update_end, tty_set_terminal_window, tty_set_scroll_region, &
               tty_turn_on_insert, tty_turn_off_insert, tty_turn_on_highlight, &
@@ -64,7 +64,7 @@ module term_fm
               tty_cursor_to, tty_raw_cursor_to, tty_clear_to_end, &
               tty_clear_frame, tty_clear_end_of_line, tty_write_glyphs, &
               tty_insert_glyphs, tty_delete_glyphs, tty_ins_del_lines, &
-              turn_on_face, turn_off_face, encode_terminal_code, tty_capable_p
+              turn_on_face, turn_off_face, encode_terminal_code, is_tty_capable
 
     !> True means try to flash the frame to represent a bell.
     !>
@@ -150,7 +150,8 @@ contains
         integer :: length, stat
 
         tty%type = terminal_type
-        tty%name = terminal_type
+        ! The controlling tty (init_tty with NAME null: dev_tty).
+        tty%name = "/dev/tty"
         tty%input = fd
         tty%output = fd
         tty%ti = ti
@@ -362,6 +363,7 @@ contains
         tty%specified_window = tty%wcm%cm_rows
 
         if (wcm_init(tty) == -1) then
+            ! term.c:maybe_fatal: the error goes back to the caller.
             call set_error(status, FM_GENERIC_ERROR, 'Terminal type "'//terminal_type// &
                            '" is not powerful enough to run Emacs')
             return
@@ -374,7 +376,7 @@ contains
         end if
 
         tty%wcm%cm_usetabs = .false.
-        if (fd >= 0) tty%wcm%cm_usetabs = tabs_safe_p(fd) .and. tty%wcm%cm_tabwidth == 8
+        if (fd >= 0) tty%wcm%cm_usetabs = is_tabs_safe(fd) .and. tty%wcm%cm_tabwidth == 8
         tty%scroll_region_ok = allocated(tty%wcm%cm_abs) .and. &
                                (allocated(tty%ts_set_window) .or. allocated(tty%ts_set_scroll_region) &
                                 .or. allocated(tty%ts_set_scroll_region_1))
@@ -495,7 +497,7 @@ contains
 
     !> Map the escape sequences the terminal's function keys send to
     !> function-key events in input-decode-map.  Port of
-    !> term.c:term_get_fkeys (keys that would clash with a non-prefix
+    !> term.c:term_get_fkeys and term.c:term_get_fkeys_1 (keys that would clash with a non-prefix
     !> binding are skipped, as upstream ignores the error).
     subroutine term_get_fkeys(tty)
         type(tty_display_info), intent(in) :: tty
@@ -524,7 +526,7 @@ contains
         logical :: found, found0, found_semi
         integer :: i
 
-        if (.not. keymap_live_p(input_decode_map)) call make_sparse_keymap(input_decode_map)
+        if (.not. is_keymap_live(input_decode_map)) call make_sparse_keymap(input_decode_map)
 
         do i = 1, NKEYS
             if (caps(i) == "  ") cycle
@@ -579,10 +581,10 @@ contains
             allocate (key(len(sequence)))
 
             do k = 1, len(sequence)
-                key(k) = make_fixnum(int(iachar(sequence(k:k)), int64))
+                key(k) = value_type(int(iachar(sequence(k:k)), int64))
             end do
 
-            call define_key(input_decode_map, key, list(sym(name)), st)
+            call define_key(input_decode_map, key, list(value_type(name=name)), st)
         end subroutine define_fkey
 
         subroutine reassign(cap1, cap2, name)
@@ -898,7 +900,7 @@ contains
                         cycle
                     end if
 
-                    unencodable = .not. char_encodable_p(int(glyphs(k)%ch), coding)
+                    unencodable = .not. is_char_encodable(int(glyphs(k)%ch), coding)
 
                     if (unencodable) then
                         ! C is not encodable.
@@ -919,7 +921,7 @@ contains
         do k = 1, size(glyphs)
             if (glyphs(k)%padding) cycle
 
-            if (char_byte8_p(glyphs(k)%ch)) then
+            if (is_char_byte8(glyphs(k)%ch)) then
                 bytes = bytes//char(char_to_byte8(glyphs(k)%ch))
             else
                 call char_string(glyphs(k)%ch, buf, n, status)
@@ -946,7 +948,7 @@ contains
     !> Return true if the terminal TTY is capable of displaying all the
     !> attributes in CAPS (TTY_CAP_* bits), else false.  Port of
     !> term.c:tty_capable_p.
-    logical function tty_capable_p(tty, caps) result(capable)
+    logical function is_tty_capable(tty, caps) result(capable)
         type(tty_display_info), intent(in) :: tty
         integer, intent(in) :: caps
 
@@ -972,7 +974,7 @@ contains
             try = .true.
             if (iand(caps, cap) /= 0) try = have .and. may_use_with_colors(tty, nc_bit)
         end function try
-    end function tty_capable_p
+    end function is_tty_capable
 
     !> Output a color capability for `color'.  Not a port.
     subroutine set_color(tty, cap, color)
@@ -1328,4 +1330,54 @@ contains
             call tty_clear_to_end(tty)
         end if
     end subroutine tty_ins_del_lines
+
+    ! ------------------------------------------------------------------
+    ! Lisp-visible functions on a tty (TERMINAL is its display info)
+    ! ------------------------------------------------------------------
+
+    !> Return true if the tty device TERMINAL can display colors.
+    !> Port of term.c:Ftty_display_color_p.
+    logical function is_tty_display_color(tty)
+        type(tty_display_info), intent(in) :: tty
+
+        is_tty_display_color = tty%tn_max_colors > 0
+    end function is_tty_display_color
+
+    !> Return the number of colors supported by the tty device TERMINAL.
+    !> Port of term.c:Ftty_display_color_cells.
+    integer function tty_display_color_cells(tty)
+        type(tty_display_info), intent(in) :: tty
+
+        tty_display_color_cells = tty%tn_max_colors
+    end function tty_display_color_cells
+
+    !> Return the type of the tty device that TERMINAL uses (the empty
+    !> string if it is not on a tty device).  Port of term.c:Ftty_type
+    !> (with term.c:tty_type_name).
+    function tty_type(tty) result(name)
+        type(tty_display_info), intent(in) :: tty
+        character(len=:), allocatable :: name
+
+        name = ""
+        if (allocated(tty%type)) name = tty%type
+    end function tty_type
+
+    !> Return true if TERMINAL is the controlling tty of the Emacs process.
+    !> Port of term.c:Fcontrolling_tty_p.
+    logical function is_controlling_tty(tty)
+        type(tty_display_info), intent(in) :: tty
+
+        is_controlling_tty = .false.
+        if (allocated(tty%name)) is_controlling_tty = tty%name == "/dev/tty"
+    end function is_controlling_tty
+
+    !> Declare that the tty used by TERMINAL does not handle underlining.
+    !> This is used to override the terminfo data, for certain terminals that
+    !> do not really do underlining, but say that they do.  Port of
+    !> term.c:Ftty_no_underline.
+    subroutine tty_no_underline(tty)
+        type(tty_display_info), intent(inout) :: tty
+
+        if (allocated(tty%ts_enter_underline_mode)) deallocate (tty%ts_enter_underline_mode)
+    end subroutine tty_no_underline
 end module term_fm

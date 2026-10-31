@@ -25,7 +25,7 @@
 submodule(vc_fm) vc_deduce_fm
     use vc_dir_fm, only: vc_dir_backend, vc_dir_deduce_fileset, vc_dir_current_file
     use log_view_fm, only: log_view_vc_backend, log_view_vc_fileset
-    use derived_fm, only: mode_p => derived_mode_p
+    use derived_fm, only: mode_p => is_derived_mode
     use buffer_fm, only: set_buffer
     use files_fm, only: find_file_noselect
     use log_edit_fm, only: log_edit_vc_backend

@@ -32,9 +32,8 @@ module test_js_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
     use insdel_fm, only: insert
-    use lisp_fm, only: value_type, nilp, consp, symbolp, xsymbol, list_elements, symbols
-    use lread_fm, only: sym
-    use editfns_fm, only: point, point_min, point_max, goto_char, widen, bobp, eobp, buffer_substring
+    use lisp_fm, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, symbols
+    use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, buffer_substring
     use cmds_fm, only: forward_line
     use simple_fm, only: back_to_indentation
     use indent_fm, only: indent_region, current_column, indent_tabs_mode
@@ -43,11 +42,11 @@ module test_js_fm
     use textprop_fm, only: get_text_property
     use font_lock_fm, only: font_lock_ensure
     use modes_fm, only: minor_modes
-    use lisp_cmds_fm, only: beginning_of_defun, end_of_defun
+    use expression_motion_fm, only: beginning_of_subprogram, end_of_subprogram
     use bindings_fm, only: init_bindings
     use js_fm, only: js_mode, js_indent_line, js_syntactic_context, js_indent_level, js_chain_indent, &
-                     js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NIL, &
-                     JS_INDENT_FIRST_INIT_T, JS_INDENT_FIRST_INIT_DYNAMIC, JS_CONTEXT_TOPLEVEL, JS_CONTEXT_FUNCTION
+                     js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NO, &
+                     JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC, JS_CONTEXT_TOPLEVEL, JS_CONTEXT_FUNCTION
     implicit none(type, external)
     private
 
@@ -87,7 +86,7 @@ module test_js_fm
                                    //"// js-indent-level: 2"//LF &
                                    //"// End:"//LF
     ! js-indent-align-list-continuation-nil.js.
-    character(len=*), parameter :: R_JS_INDENT_ALIGN_LIST_CONTINUATION_NIL = &
+    character(len=*), parameter :: R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION = &
                                    "const funcAssignment = function (arg1,"//LF &
                                    //"    arg2,"//LF &
                                    //"    arg3) {"//LF &
@@ -141,7 +140,7 @@ module test_js_fm
                                    //"  ,"//LF &
                                    //"  bar = 8;"//LF
     ! js-indent-init-t.js.
-    character(len=*), parameter :: R_JS_INDENT_INIT_T = &
+    character(len=*), parameter :: R_JS_INDENT_INIT_DONE = &
                                    "var foo = function() {"//LF &
                                    //"      return 7;"//LF &
                                    //"    };"//LF &
@@ -353,10 +352,10 @@ contains
                      new_unittest("js-indent-test/js-chain.js", test_indent_chain), &
                      new_unittest("js-indent-test/js-indent-align-list-continuation-nil.js", test_indent_align_nil), &
                      new_unittest("js-indent-test/js-indent-init-dynamic.js", test_indent_init_dynamic), &
-                     new_unittest("js-indent-test/js-indent-init-t.js", test_indent_init_t), &
+                     new_unittest("js-indent-test/js-indent-init-t.js", test_indent_INIT_DONE), &
                      new_unittest("js-indent-test/js.js", test_indent_js), &
-                     new_unittest("js-mode-beginning-of-defun", test_beginning_of_defun), &
-                     new_unittest("js-mode-end-of-defun", test_end_of_defun), &
+                     new_unittest("js-mode-beginning-of-defun", test_beginning_of_function), &
+                     new_unittest("js-mode-end-of-defun", test_end_of_function), &
                      new_unittest("js-syntactic-context", test_syntactic_context), &
                      new_unittest("js-font-lock-function-name", test_font_lock_function_name)]
     end subroutine collect_js_fm
@@ -410,15 +409,15 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(point(), sym("face"), v, st)
+        call get_text_property(point(), value_type(name="face"), v, st)
 
-        if (consp(v)) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
             v = elts(1)
         end if
 
-        if (nilp(v)) return
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if (.not. allocated(v%a)) return
+        if (vtag(v) == V_NAME) name = symbols(xsymbol(v))%name
     end function face
 
     ! Fontify the current buffer.
@@ -599,16 +598,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(R_JS_CHAIN, .false.)
-        call set_locals(2, .true., .true., JS_INDENT_FIRST_INIT_NIL)
+        call set_locals(2, .true., .true., JS_INDENT_FIRST_INIT_NO)
         call check_indent(error, R_JS_CHAIN)
     end subroutine test_indent_chain
 
     subroutine test_indent_align_nil(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer(R_JS_INDENT_ALIGN_LIST_CONTINUATION_NIL, .false.)
-        call set_locals(4, .false., .false., JS_INDENT_FIRST_INIT_NIL)
-        call check_indent(error, R_JS_INDENT_ALIGN_LIST_CONTINUATION_NIL)
+        call temp_buffer(R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION, .false.)
+        call set_locals(4, .false., .false., JS_INDENT_FIRST_INIT_NO)
+        call check_indent(error, R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION)
     end subroutine test_indent_align_nil
 
     subroutine test_indent_init_dynamic(error)
@@ -619,74 +618,74 @@ contains
         call check_indent(error, R_JS_INDENT_INIT_DYNAMIC)
     end subroutine test_indent_init_dynamic
 
-    subroutine test_indent_init_t(error)
+    subroutine test_indent_INIT_DONE(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer(R_JS_INDENT_INIT_T, .false.)
-        call set_locals(2, .false., .true., JS_INDENT_FIRST_INIT_T)
-        call check_indent(error, R_JS_INDENT_INIT_T)
-    end subroutine test_indent_init_t
+        call temp_buffer(R_JS_INDENT_INIT_DONE, .false.)
+        call set_locals(2, .false., .true., JS_INDENT_FIRST_INIT_YES)
+        call check_indent(error, R_JS_INDENT_INIT_DONE)
+    end subroutine test_indent_INIT_DONE
 
     subroutine test_indent_js(error)
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(R_JS, .false.)
-        call set_locals(2, .false., .true., JS_INDENT_FIRST_INIT_NIL)
+        call set_locals(2, .false., .true., JS_INDENT_FIRST_INIT_NO)
         call check_indent(error, R_JS)
     end subroutine test_indent_js
 
-    ! The buffer of the defun tests.
-    subroutine defun_buffer()
+    ! The buffer of the function motion tests.
+    subroutine function_buffer()
         call temp_buffer("function foo() {"//LF//"  var value = 1;"//LF//"}"//LF//LF//"/** A comment. */"//LF &
                          //"function bar() {"//LF//"  var value = 1;"//LF//"}"//LF, .false.)
-    end subroutine defun_buffer
+    end subroutine function_buffer
 
-    subroutine test_beginning_of_defun(error)
+    subroutine test_beginning_of_function(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: found
 
-        call defun_buffer()
+        call function_buffer()
         ! Move point inside `foo'.
         call goto_char(18_int64)
-        call beginning_of_defun(1_int64, found, st)
-        call check(error, bobp(), "inside foo")
+        call beginning_of_subprogram(1_int64, found, st)
+        call check(error, is_bob(), "inside foo")
         if (allocated(error)) return
         ! Move point between the two functions.
         call goto_char(37_int64)
-        call beginning_of_defun(1_int64, found, st)
-        call check(error, bobp(), "between the functions")
+        call beginning_of_subprogram(1_int64, found, st)
+        call check(error, is_bob(), "between the functions")
         if (allocated(error)) return
         ! Move point inside `bar'.
         call goto_char(73_int64)
-        call beginning_of_defun(1_int64, found, st)
+        call beginning_of_subprogram(1_int64, found, st)
         ! Point should move to the beginning of `bar'.
         call check(error, point(), 56_int64)
-    end subroutine test_beginning_of_defun
+    end subroutine test_beginning_of_function
 
-    subroutine test_end_of_defun(error)
+    subroutine test_end_of_function(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call defun_buffer()
+        call function_buffer()
         call goto_char(point_min())
-        call end_of_defun(1_int64, st)
+        call end_of_subprogram(1_int64, st)
         ! end-of-defun from the beginning of the buffer should go to the
         ! end of `foo'.
         call check(error, point(), 37_int64)
         if (allocated(error)) return
         ! Move point to the beginning of /** A comment. */
         call goto_char(38_int64)
-        call end_of_defun(1_int64, st)
+        call end_of_subprogram(1_int64, st)
         ! end-of-defun should move point to eob.
-        call check(error, eobp(), "not at eob")
-    end subroutine test_end_of_defun
+        call check(error, is_eob(), "not at eob")
+    end subroutine test_end_of_function
 
     ! Own: the syntactic context inside and outside a function.
     subroutine test_syntactic_context(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call defun_buffer()
+        call function_buffer()
         call goto_char(20_int64)
         call check(error, js_syntactic_context(), JS_CONTEXT_FUNCTION)
         if (allocated(error)) return

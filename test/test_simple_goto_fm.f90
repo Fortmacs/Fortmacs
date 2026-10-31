@@ -31,11 +31,10 @@ module test_simple_goto_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: t_value, list
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region, buffer_narrowed_p
+    use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region, is_buffer_narrowed
     use cmds_fm, only: forward_char
     use textprop_fm, only: put_text_property
     use keymap_fm, only: key_parse, key_binding
@@ -95,7 +94,7 @@ contains
             start = point()
             call insert("test ", st)
             ! (propertize "test " 'field (cons nil nil)): a field of its own.
-            call put_text_property(start, point(), sym("field"), list(sym("x"), t_value()), st)
+            call put_text_property(start, point(), value_type(name="field"), list(value_type(name="x"), value_type(.true.)), st)
         end do
 
         call check(error, count_words(point_min(), point_max()) == 10, "10 words")
@@ -126,12 +125,12 @@ contains
             ! A line outside the narrowing widens (widen_automatically).
             call narrow_to_region(1_int64, 4_int64, st)
             call goto_line(5_int64, st)
-            call check(error, point() == 9 .and. .not. buffer_narrowed_p(), "line 5 widens")
+            call check(error, point() == 9 .and. .not. is_buffer_narrowed(), "line 5 widens")
             if (allocated(error)) exit checks
             ! A line inside it keeps the narrowing.
             call narrow_to_region(3_int64, 8_int64, st)
             call goto_line(3_int64, st)
-            call check(error, point() == 5 .and. buffer_narrowed_p(), "line 3 in the narrowing")
+            call check(error, point() == 5 .and. is_buffer_narrowed(), "line 3 in the narrowing")
         end block checks
 
         call widen()
@@ -228,7 +227,7 @@ contains
         if (allocated(error)) return
         call expect_key("C-x n g", "goto_line_relative", error)
         if (allocated(error)) return
-        call expect_key("C-x n d", "narrow_to_defun", error)
+        call expect_key("C-x n d", "narrow_to_subprogram", error)
         if (allocated(error)) return
         call expect_key("C-x n p", "narrow_to_page", error)
         if (allocated(error)) return
@@ -238,11 +237,11 @@ contains
         if (allocated(error)) return
         call expect_key("M-=", "count_words_region", error)
         if (allocated(error)) return
-        call expect_key("C-M-a", "beginning_of_defun", error)
+        call expect_key("C-M-a", "beginning_of_subprogram", error)
         if (allocated(error)) return
-        call expect_key("C-M-e", "end_of_defun", error)
+        call expect_key("C-M-e", "end_of_subprogram", error)
         if (allocated(error)) return
-        call expect_key("C-M-h", "mark_defun", error)
+        call expect_key("C-M-h", "mark_subprogram", error)
         if (allocated(error)) return
         call expect_key("M-(", "insert_parentheses", error)
     end subroutine test_keys
@@ -257,6 +256,6 @@ contains
         call temp_buffer("")
         call key_parse(keys, key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym(command)), keys//" is not "//command)
+        call check(error, value_eq(binding, value_type(name=command)), keys//" is not "//command)
     end subroutine expect_key
 end module test_simple_goto_fm

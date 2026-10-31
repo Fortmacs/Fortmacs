@@ -28,16 +28,16 @@
 !> defined; and the variables major modes set to describe their comments
 !> (`comment_start', `comment_end', `comment_start_skip', ...).
 !>
-!> Values: `comment_use_syntax' is COMMENT_USE_SYNTAX_NIL, _T or
+!> Values: `comment_use_syntax' is COMMENT_USE_SYNTAX_NO, _T or
 !> _UNDECIDED; `comment_style' one of the COMMENT_STYLE_* constants (the
 !> styles of `comment_styles'); `comment_empty_lines' one of the
 !> COMMENT_EMPTY_LINES_* constants; `comment_fill_column' negative for
-!> nil (use `fill_column'); `comment_padding' a string (upstream's integer
-!> N is N spaces, and nil the empty string).  A function that computes a
+!> none (use `fill_column'); `comment_padding' a string (upstream's integer
+!> N is N spaces, and no padding the empty string).  A function that computes a
 !> comment's indentation (`comment_indent_function') gives its answer as
-!> a `comment_indent_type' (a column, a range (MIN . MAX), or none for
-!> nil).  The region functions take the prefix argument as a number ARG
-!> (absent for nil) and UNIVERSAL, true when it was C-u (a list).
+!> a `comment_indent_type' (a column, a range (MIN and MAX), or none
+!> (COMMENT_INDENT_NONE).  The region functions take the prefix argument as a number ARG
+!> (absent for no prefix) and UNIVERSAL, .true. when it was C-u.
 !>
 !> Deferred: `combine_change_calls' (the region functions run the change
 !> hooks for each change, as with `comment_combine_change_calls' false),
@@ -45,7 +45,7 @@
 !> everywhere in Fortmacs), buffer-local values of
 !> `comment_region_function', `uncomment_region_function' and
 !> `comment_quote_nested_function' (one global value each),
-!> `use_hard_newlines', `comment_valid_prefix_p''s `string_width' of
+!> `use_hard_newlines', `is_comment_valid_prefix''s `string_width' of
 !> non-ASCII prefixes (counted as one column per character), and the
 !> obsolete aliases `indent_for_comment', `set_comment_column',
 !> `kill_comment' and `indent_new_comment_line' as commands of their own
@@ -54,9 +54,8 @@ module newcomment_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, consp, fixnump, xfixnum
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER, V_ARRAY
     use data_fm, only: value_eq, add_local_variables_killer
-    use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, function_setting, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -66,7 +65,7 @@ module newcomment_fm
     use insdel_fm, only: insert, insert_before_markers
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: interactive_region, &
-                          point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
+                          point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
                           line_beginning_position, line_end_position, delete_region, buffer_substring, &
                           narrow_to_region, widen, region_beginning, region_end
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
@@ -74,7 +73,7 @@ module newcomment_fm
                          replace_match, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string
     use fns_fm, only: substring, schars
-    use syntax_fm, only: forward_comment, parse_partial_sexp, syntax_ppss, parse_state_type, skip_syntax_backward, &
+    use syntax_fm, only: forward_comment, parse_partial_expression, syntax_ppss, parse_state_type, skip_syntax_backward, &
                          skip_syntax_forward, skip_chars_forward, skip_chars_backward, string_to_syntax, &
                          syntax_descriptor_type, syntax_entry, syntax_table, set_syntax_table, COMMENTSTOP_COMMENT
     use textprop_fm, only: get_text_property
@@ -83,7 +82,7 @@ module newcomment_fm
     use xdisp_fm, only: message, tab_width
     use minibuf_fm, only: read_string
     use fill_fm, only: adaptive_fill_mode
-    use simple_fm, only: newline, delete_horizontal_space, kill_region, use_region_p, back_to_indentation, &
+    use simple_fm, only: newline, delete_horizontal_space, kill_region, is_use_region, back_to_indentation, &
                          comment_line_break_function, fill_prefix, simple_count_lines => count_lines
     implicit none(type, external)
     private
@@ -94,23 +93,23 @@ module newcomment_fm
               comment_search_backward, comment_beginning, comment_forward, comment_enter_backward, &
               comment_indent_default, comment_choose_indent, comment_indent, comment_set_column, comment_kill, &
               comment_padright, comment_padleft, uncomment_region, uncomment_region_default, comment_region, &
-              comment_region_default, comment_box, comment_only_p, comment_or_uncomment_region, comment_dwim, &
-              comment_add_count, comment_indent_new_line, comment_line, comment_valid_prefix_p, &
+              comment_region_default, comment_box, is_comment_only, comment_or_uncomment_region, comment_dwim, &
+              comment_add_count, comment_indent_new_line, comment_line, is_comment_valid_prefix, &
               comment_quote_nested_default, comment_make_bol_ws
 
-    !> `comment_use_syntax' values: nil, t and `undecided'.
-    integer, parameter, public :: COMMENT_USE_SYNTAX_NIL = 0, COMMENT_USE_SYNTAX_T = 1, COMMENT_USE_SYNTAX_UNDECIDED = 2
+    !> `comment_use_syntax' values: COMMENT_USE_SYNTAX_NO, COMMENT_USE_SYNTAX_YES and COMMENT_USE_SYNTAX_UNDECIDED.
+    integer, parameter, public :: COMMENT_USE_SYNTAX_NO = 0, COMMENT_USE_SYNTAX_YES = 1, COMMENT_USE_SYNTAX_UNDECIDED = 2
 
     !> `comment_style' values: the styles of `comment_styles'.
     integer, parameter, public :: COMMENT_STYLE_PLAIN = 1, COMMENT_STYLE_INDENT_OR_TRIPLE = 2, COMMENT_STYLE_INDENT = 3, &
                                   COMMENT_STYLE_ALIGNED = 4, COMMENT_STYLE_BOX = 5, COMMENT_STYLE_EXTRA_LINE = 6, &
                                   COMMENT_STYLE_MULTI_LINE = 7, COMMENT_STYLE_BOX_MULTI = 8
 
-    !> `comment_empty_lines' values: nil, t and `eol'.
-    integer, parameter, public :: COMMENT_EMPTY_LINES_NIL = 0, COMMENT_EMPTY_LINES_T = 1, COMMENT_EMPTY_LINES_EOL = 2
+    !> `comment_empty_lines' values: COMMENT_EMPTY_LINES_NO, COMMENT_EMPTY_LINES_ALWAYS and COMMENT_EMPTY_LINES_EOL.
+    integer, parameter, public :: COMMENT_EMPTY_LINES_NO = 0, COMMENT_EMPTY_LINES_ALWAYS = 1, COMMENT_EMPTY_LINES_EOL = 2
 
     !> What a `comment_indent_function' answers: a column, a range of
-    !> acceptable columns (MIN . MAX), or nothing (nil).
+    !> acceptable columns (MIN and MAX), or nothing.
     integer, parameter, public :: COMMENT_INDENT_NONE = 0, COMMENT_INDENT_COLUMN = 1, COMMENT_INDENT_RANGE = 2
 
     !> The answer of a `comment_indent_function'.
@@ -130,7 +129,7 @@ module newcomment_fm
         end subroutine comment_indent_proc
 
         !> Comment or uncomment BEG .. END (correctly ordered), with the
-        !> prefix argument ARG (absent for nil; UNIVERSAL true when it was a
+        !> prefix argument ARG (absent for no prefix; UNIVERSAL true when it was a
         !> C-u list, ARG then its numeric value).  Not a port.
         subroutine comment_region_proc(beg, end, status, arg, universal)
             import :: int64, status_type
@@ -164,26 +163,26 @@ module newcomment_fm
         procedure(comment_indent_proc), pointer, nopass :: value => null()
         type(indent_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => indent_function_set_local
         !> The current buffer's function.
         procedure :: get => indent_function_get
         !> Whether the current buffer has its own function.
-        procedure :: local_p => indent_function_local_p
+        procedure :: local_p => is_indent_function_local
         !> Make the current buffer use the default function again.
         procedure :: kill_local => indent_function_kill_local
     end type comment_indent_function_type
 
-    !> Non-nil if syntax-tables can be used instead of regexps.
+    !> True if syntax-tables can be used instead of regexps.
     !> Can also be `undecided' which means that a somewhat expensive test will
     !> be used to try to determine whether syntax-tables should be trusted
     !> to understand comments or not in the given buffer.
     !> Major modes should set this variable.  Port of newcomment.el
-    !> comment-use-syntax (COMMENT_USE_SYNTAX_NIL, _T or _UNDECIDED).
+    !> comment-use-syntax (COMMENT_USE_SYNTAX_NO, _T or _UNDECIDED).
     type(integer_setting), target, public :: comment_use_syntax = &
                                              integer_setting(name="comment_use_syntax", value=COMMENT_USE_SYNTAX_UNDECIDED)
 
-    !> Column to use for `comment_indent'.  If negative (nil), use
+    !> Column to use for `comment_indent'.  If negative, use
     !> `fill_column' instead.  Port of newcomment.el comment-fill-column.
     type(integer_setting), target, public :: comment_fill_column = integer_setting(name="comment_fill_column", value=-1)
 
@@ -200,9 +199,9 @@ module newcomment_fm
     type(string_setting), target, public :: comment_start = string_setting(name="comment_start")
 
     !> Regexp to match the start of a comment plus everything up to its body.
-    !> If there are any \(...\) pairs and `comment_use_syntax' is nil,
+    !> If there are any \(...\) groups and `comment_use_syntax' is COMMENT_USE_SYNTAX_NO,
     !> the comment delimiter text is held to begin at the place matched
-    !> by the close of the first pair.  Port of newcomment.el
+    !> by the close of the first group.  Port of newcomment.el
     !> comment-start-skip.
     type(string_setting), target, public :: comment_start_skip = string_setting(name="comment_start_skip")
 
@@ -219,8 +218,8 @@ module newcomment_fm
     !> This function is called with no args with point at the beginning
     !> of the comment's starting delimiter and should return either the
     !> desired column indentation, a range of acceptable
-    !> indentation (MIN . MAX), or nil.
-    !> If nil is returned, indentation is delegated to
+    !> indentation (MIN and MAX), or none.
+    !> If none is returned, indentation is delegated to
     !> `indent_according_to_mode'.  Port of newcomment.el
     !> comment-indent-function (`set_local' gives a buffer its own).
     type(comment_indent_function_type), public :: comment_indent_function
@@ -297,7 +296,7 @@ module newcomment_fm
     !> Comment region style definitions.
     !> Each style is defined with a form (STYLE . (MULTI ALIGN EXTRA INDENT DOC)).
     !> DOC should succinctly describe the style.
-    !> STYLE should be a mnemonic symbol.
+    !> STYLE should be a mnemonic name.
     !> MULTI specifies that comments are allowed to span multiple lines.
     !> ALIGN specifies that the `comment_end' markers should be aligned.
     !> EXTRA specifies that an extra line should be used before and after the
@@ -350,13 +349,13 @@ module newcomment_fm
     !> Port of newcomment.el comment-multi-line.
     type(logical_setting), target, public :: comment_multi_line = logical_setting(name="comment_multi_line", value=.false.)
 
-    !> If COMMENT_EMPTY_LINES_NIL, `comment_region' does not comment out
-    !> empty lines.  If COMMENT_EMPTY_LINES_T, it always comments out empty
+    !> If COMMENT_EMPTY_LINES_NO, `comment_region' does not comment out
+    !> empty lines.  If COMMENT_EMPTY_LINES_ALWAYS, it always comments out empty
     !> lines.  If COMMENT_EMPTY_LINES_EOL, it only comments out empty lines
     !> if comments are terminated by the end of line (i.e., `comment_end'
     !> is empty).  Port of newcomment.el comment-empty-lines.
     type(integer_setting), target, public :: comment_empty_lines = &
-                                             integer_setting(name="comment_empty_lines", value=COMMENT_EMPTY_LINES_NIL)
+                                             integer_setting(name="comment_empty_lines", value=COMMENT_EMPTY_LINES_NO)
 
     !> Function to set up variables needed by commenting functions (null
     !> to do nothing).  Port of newcomment.el comment-setup-function.
@@ -496,7 +495,7 @@ contains
     end function indent_function_get
 
     ! Whether the current buffer has a local function.  Not a port.
-    logical function indent_function_local_p(self) result(local)
+    logical function is_indent_function_local(self) result(local)
         class(comment_indent_function_type), intent(in) :: self
         integer :: i
 
@@ -510,7 +509,7 @@ contains
                 return
             end if
         end do
-    end function indent_function_local_p
+    end function is_indent_function_local
 
     ! Forget the current buffer's local function.  Not a port.
     subroutine indent_function_kill_local(self)
@@ -536,7 +535,7 @@ contains
 
     ! ------------------------------------------------------------------
     ! Small helpers.
-    !> Lisp's (string-match RE S): the 0-based index of the match, -1 for
+    !> `string_match' of RE on S: the 0-based index of the match, -1 for
     !> none.  Not a port.
     integer(int64) function smatch(re, s) result(idx)
         character(len=*), intent(in) :: re, s
@@ -582,7 +581,7 @@ contains
         me = match_end(n, st)
     end function me
 
-    !> Lisp's (looking-at RE).  Not a port.
+    !> `looking_at' of RE.  Not a port.
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
@@ -591,7 +590,7 @@ contains
         if (.not. st%ok()) looking = .false.
     end function looking
 
-    !> Lisp's (re-search-forward RE BOUND NOERROR); true when found.
+    !> `re_search_forward' of RE with BOUND and NOERROR; .true. when found.
     !> Not a port.
     logical function re_forward(re, bound, noerror)
         character(len=*), intent(in) :: re
@@ -604,7 +603,7 @@ contains
         re_forward = st%ok() .and. found > 0
     end function re_forward
 
-    !> Lisp's (re-search-backward RE BOUND NOERROR); true when found.
+    !> `re_search_backward' of RE with BOUND and NOERROR; .true. when found.
     !> Not a port.
     logical function re_backward(re, bound, noerror)
         character(len=*), intent(in) :: re
@@ -671,7 +670,7 @@ contains
         if (.not. st%ok()) r = ""
     end function sub
 
-    !> The current buffer's comment-start, empty if it is nil.  Not a port.
+    !> The current buffer's comment-start, empty if it is unset.  Not a port.
     function cstart() result(s)
         character(len=:), allocatable :: s
 
@@ -687,7 +686,7 @@ contains
         if (allocated(comment_end%value)) s = comment_end%value
     end function cend
 
-    !> The current buffer's comment-start-skip, empty if it is nil.
+    !> The current buffer's comment-start-skip, empty if it is unset.
     !> Not a port.
     function cskip() result(s)
         character(len=:), allocatable :: s
@@ -704,10 +703,10 @@ contains
         if (allocated(comment_padding%value)) s = comment_padding%value
     end function cpad
 
-    !> Whether comment-use-syntax is true (anything but nil: `undecided'
-    !> counts as true, as in Lisp).  Not a port.
+    !> Whether comment-use-syntax is true (anything but COMMENT_USE_SYNTAX_NO: COMMENT_USE_SYNTAX_UNDECIDED
+    !> counts as true, as upstream).  Not a port.
     logical function use_syntax()
-        use_syntax = comment_use_syntax%value /= COMMENT_USE_SYNTAX_NIL
+        use_syntax = comment_use_syntax%value /= COMMENT_USE_SYNTAX_NO
     end function use_syntax
 
     !> A marker at POS that advances when text is inserted at it if
@@ -860,14 +859,14 @@ contains
             call insert(cs//" hello "//ce, st)
             call goto_char(point_min())
             ok = forward_comment(1_int64)
-            if (ok) ok = eobp()
+            if (ok) ok = is_eob()
             call set_buffer(old, st)
             call kill_buffer(tmp, st)
 
             if (ok) then
-                call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_T)
+                call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_YES)
             else
-                call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_NIL)
+                call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_NO)
             end if
         end if
 
@@ -892,7 +891,7 @@ contains
         if (.not. ok) then
             skip = ""
 
-            if (comment_use_syntax%value /= COMMENT_USE_SYNTAX_T) then
+            if (comment_use_syntax%value /= COMMENT_USE_SYNTAX_YES) then
                 ! `syntax-ppss' will detect escaping.
                 skip = "\(\(^\|[^\"//LF//"]\)\(\\\\\)*\)"
             end if
@@ -1023,7 +1022,7 @@ contains
     !> Find a comment start between point and LIMIT (0: no limit).
     !> Moves point to inside the comment and returns the position of the
     !> comment-starter.  If no comment is found, moves point to LIMIT
-    !> and raises an error or returns 0 (nil) if NOERROR is true.
+    !> and raises an error or returns 0 if NOERROR is true.
     !>
     !> Ensure that `comment_normalize_vars' has been called before you use
     !> this.  Port of newcomment.el:comment-search-forward.
@@ -1066,9 +1065,9 @@ contains
         ! Assume (at first) that pt is outside of any string.
         if (comment_use_global_state) then
             call syntax_ppss(old, pt)
-            call parse_partial_sexp(pt, to, s, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
+            call parse_partial_expression(pt, to, s, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
         else
-            call parse_partial_sexp(pt, to, s, st, commentstop=COMMENTSTOP_COMMENT)
+            call parse_partial_expression(pt, to, s, st, commentstop=COMMENTSTOP_COMMENT)
         end if
 
         if (s%comstr_start > 0 .and. s%instring /= -1 .and. .not. comment_use_global_state) then
@@ -1077,7 +1076,7 @@ contains
             old = parse_state_type()
             old%instring = s%instring
             call goto_char(pt)
-            call parse_partial_sexp(pt, to, s2, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
+            call parse_partial_expression(pt, to, s2, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
             s = s2
         end if
 
@@ -1117,7 +1116,7 @@ contains
     !> Find a comment start between LIMIT (0: none) and point.
     !> Moves point to inside the comment and returns the position of the
     !> comment-starter.  If no comment is found, moves point to LIMIT
-    !> and raises an error or returns 0 (nil) if NOERROR is true.
+    !> and raises an error or returns 0 if NOERROR is true.
     !>
     !> Ensure that `comment_normalize_vars' has been called before you use
     !> this.  Port of newcomment.el:comment-search-backward.
@@ -1167,7 +1166,7 @@ contains
     end function comment_search_backward
 
     !> Find the beginning of the enclosing comment.
-    !> Returns 0 (nil) if not inside a comment, else moves point and returns
+    !> Returns 0 if not inside a comment, else moves point and returns
     !> the same as `comment_search_backward'.  Port of
     !> newcomment.el:comment-beginning.
     recursive integer(int64) function comment_beginning() result(start)
@@ -1200,8 +1199,8 @@ contains
         end if
 
         ! Can't rely on the syntax table, let's guess based on font-lock.
-        call get_text_property(point(), sym("face"), face, st)
-        if (value_eq(face, sym("font_lock_string_face"))) return
+        call get_text_property(point(), value_type(name="face"), face, st)
+        if (value_eq(face, value_type(name="font_lock_string_face"))) return
         pt = point()
         cs = comment_search_backward(0_int64, .true., st)
         if (cs == 0) return
@@ -1216,14 +1215,14 @@ contains
 
         if (.not. is_cs) then
             ! Maybe font-lock knows that it's a `cs'?
-            call get_text_property(me(0), sym("face"), face, st)
-            is_cs = value_eq(face, sym("font_lock_comment_face"))
+            call get_text_property(me(0), value_type(name="face"), face, st)
+            is_cs = value_eq(face, value_type(name="font_lock_comment_face"))
         end if
 
         if (.not. is_cs) then
-            call get_text_property(point(), sym("face"), face, st)
+            call get_text_property(point(), value_type(name="face"), face, st)
 
-            if (.not. value_eq(face, sym("font_lock_comment_face"))) then
+            if (.not. value_eq(face, value_type(name="font_lock_comment_face"))) then
                 ! Let's assume it's a `cs' if we're on the same line.
                 is_cs = line_end_position() >= pt
             end if
@@ -1236,7 +1235,7 @@ contains
             if (fwd) then
                 is_cs = point() > pt
             else
-                is_cs = eobp()
+                is_cs = is_eob()
             end if
         end if
 
@@ -1295,7 +1294,7 @@ contains
         logical :: found
         type(status_type) :: st
 
-        if (bolp()) then
+        if (is_bol()) then
             ! comment-end = ""
             call goto_char(point() - 1)
             moved = skip_syntax_backward(" ")
@@ -1336,7 +1335,7 @@ contains
         end if
     end subroutine comment_enter_backward
 
-    !> The raw syntax code (with flags) of the character at POS (car of
+    !> The raw syntax code (with flags) of the character at POS (the first element of
     !> syntax-after), 0 outside the buffer.  Not a port.
     integer(int32) function syntax_code_at(pos)
         integer(int64), intent(in) :: pos
@@ -1441,7 +1440,7 @@ contains
 
             ! Leave at least `comment-inline-offset' space after
             ! other nonwhite text on the line.
-            if (bolp()) then
+            if (is_bol()) then
                 min = 0
             else
                 min = comment_inline_offset%value + current_column()
@@ -1619,7 +1618,7 @@ contains
         ! If `indent' is nil and there's code before the comment, we can't
         ! use `indent-according-to-mode', so we default to comment-column.
         moved = skip_chars_backward(" "//TAB, st)
-        at_bol = bolp()
+        at_bol = is_bol()
         call goto_char(opoint)
 
         if (indent%kind == COMMENT_INDENT_NONE .and. .not. at_bol) then
@@ -1732,9 +1731,9 @@ contains
     recursive subroutine cmd_comment_set_column(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call comment_set_column(status)
-        else if (value_eq(current_prefix_arg, sym("-"))) then
+        else if (value_eq(current_prefix_arg, value_type(name="-"))) then
             call comment_set_column(status, minus=.true.)
         else
             call comment_set_column(status, arg=.true.)
@@ -1743,7 +1742,7 @@ contains
 
     !> Kill the first comment on this line, if any.
     !> With prefix ARG, kill comments on that many lines starting with this
-    !> one.  Port of newcomment.el:comment-kill (ARG absent for nil).
+    !> one.  Port of newcomment.el:comment-kill (ARG absent for no prefix).
     recursive subroutine comment_kill(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -1767,7 +1766,7 @@ contains
                 cs = point()
                 done = comment_forward(1_int64)
                 e = point()
-                if (bolp()) e = e - 1
+                if (is_bol()) e = e - 1
                 call kill_region(cs, e, status)
                 if (.not. status%ok()) return
                 call indent_according_to_mode(status)
@@ -1786,7 +1785,7 @@ contains
     recursive subroutine cmd_comment_kill(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call comment_kill(status)
         else
             call comment_kill(status, prefix_numeric_value(current_prefix_arg))
@@ -1799,7 +1798,7 @@ contains
     !> ignored from `comment_padding'.
     !> N defaults to 0.
     !> If RE is true, a regexp is returned instead, that would match
-    !> the string for any N (upstream's N `re').  FOUND is false (nil)
+    !> the string for any N (upstream's N `re').  FOUND is .false.
     !> when STR is unallocated or has no non-whitespace character.
     !>
     !> Ensure that `comment_normalize_vars' has been called before you
@@ -1886,7 +1885,7 @@ contains
     !> ignored from `comment_padding'.
     !> N defaults to 0.
     !> If RE is true, a regexp is returned instead, that would match the
-    !> string for any N.  FOUND is false (nil) when STR is absent or empty.
+    !> string for any N.  FOUND is .false. when STR is absent or empty.
     !>
     !> Ensure that `comment_normalize_vars' has been called before you
     !> use this.  Port of newcomment.el:comment-padleft.
@@ -2007,9 +2006,9 @@ contains
         type(status_type), intent(out) :: status
         procedure(comment_region_proc) :: region_fn
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call region_fn(beg, end, status)
-        else if (consp(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_ARRAY) then
             call region_fn(beg, end, status, prefix_numeric_value(current_prefix_arg), .true.)
         else
             call region_fn(beg, end, status, prefix_numeric_value(current_prefix_arg))
@@ -2069,7 +2068,7 @@ contains
 
             if (.not. comment_forward(1_int64)) then
                 ! Allow non-terminated comments.
-                if (.not. eobp()) then
+                if (.not. is_eob()) then
                     call set_error(status, FM_GENERIC_ERROR, "Can't find the comment end")
                     exit
                 end if
@@ -2122,7 +2121,7 @@ contains
                 call delete_char(-numarg, status)
                 ok = .false.
 
-                if (.not. bobp()) then
+                if (.not. is_bob()) then
                     pos = point()
                     call goto_char(point_min())
                     ok = looking(cskip())
@@ -2155,14 +2154,14 @@ contains
             end if
 
             if (.not. looking("\("//LF//"\|\s-\)*\'")) then
-                if (bolp() .and. .not. bobp()) call goto_char(point() - 1)
+                if (is_bol() .and. .not. is_bob()) call goto_char(point() - 1)
 
                 if (.not. present(arg)) then
                     call delete_region(point(), point_max(), status)
                 else
                     moved = skip_syntax_forward(" ")
                     call delete_char(numarg, status)
-                    ok = eobp()
+                    ok = is_eob()
                     if (.not. ok) ok = looking(comment_end_skip%value)
                     ! If there's something left but it doesn't look like
                     ! a comment-end any more, just remove it.
@@ -2234,7 +2233,7 @@ contains
         call unmark(endm)
     end subroutine uncomment_region_default_1
 
-    !> `comment_continue' as an optional argument: absent when nil.
+    !> `comment_continue' as an optional argument: absent when unset.
     !> Not a port.
     function comment_continue_or_absent() result(s)
         character(len=:), allocatable :: s
@@ -2366,7 +2365,7 @@ contains
     !> LINES indicates that an extra lines will be used at the beginning
     !> and end of the region for CE and CS.
     !> INDENT indicates to put CS and CCS at the current indentation of
-    !> the region rather than at left margin.  Absent strings are nil.
+    !> the region rather than at left margin.  Absent strings mean none.
     !> Port of newcomment.el:comment-region-internal.
     recursive subroutine comment_region_internal(beg, end, cs_in, status, ce_in, ccs_in, cce_in, block, lines, indent)
         integer(int64), intent(in) :: beg, end
@@ -2398,8 +2397,8 @@ contains
         has_cce = present(cce_in)
         cce = ""
         if (has_cce) cce = cce_in
-        no_empty = .not. (comment_empty_lines%value == COMMENT_EMPTY_LINES_T .or. &
-                          (comment_empty_lines%value /= COMMENT_EMPTY_LINES_NIL .and. len(ce) == 0))
+        no_empty = .not. (comment_empty_lines%value == COMMENT_EMPTY_LINES_ALWAYS .or. &
+                          (comment_empty_lines%value /= COMMENT_EMPTY_LINES_NO .and. len(ce) == 0))
         ! Sanitize CE and CCE.
         if (has_ce .and. ce == "") has_ce = .false.
         ce_sanitized = has_ce
@@ -2437,7 +2436,7 @@ contains
 
         ! If the end is not at the end of a line and the comment-end
         ! is implicit (i.e. a newline), explicitly insert a newline.
-        if (.not. (ce_sanitized .or. eolp())) then
+        if (.not. (ce_sanitized .or. is_eol())) then
             call insert(LF, status)
             if (.not. status%ok()) return
             call indent_according_to_mode(status)
@@ -2465,7 +2464,7 @@ contains
             if (.not. looking("[ "//TAB//"]*$")) min_indent = min(min_indent, current_indentation())
             call end_of_line(1_int64)
             max_indent = max(max_indent, current_column())
-            if (eobp()) exit
+            if (is_eob()) exit
             sh = forward_line(1_int64)
         end do
 
@@ -2501,7 +2500,7 @@ contains
                 cs = ccs
                 call end_of_line(1_int64)
 
-                if (eobp()) then
+                if (is_eob()) then
                     cce = ce
                     has_cce = has_ce .and. len(ce) > 0
                 end if
@@ -2514,7 +2513,7 @@ contains
             end if
 
             call end_of_line(1_int64)
-            if (eobp()) exit
+            if (is_eob()) exit
             sh = forward_line(1_int64)
         end do
 
@@ -2621,15 +2620,15 @@ contains
         logical, intent(in), optional :: universal
         integer(int64) :: beg, end, numarg, moved, k
         integer :: style
-        logical :: lines, block, multi, multi_char, triple, indent, ok, cons_arg, has
+        logical :: lines, block, multi, multi_char, triple, indent, ok, universal_arg, has
         character(len=:), allocatable :: cs, ce, ccs, cce, s
         type(status_type) :: st
 
         status = status_type()
         numarg = 1
         if (present(arg)) numarg = arg
-        cons_arg = .false.
-        if (present(universal)) cons_arg = universal
+        universal_arg = .false.
+        if (present(universal)) universal_arg = universal
         style = int(comment_style%value)
         if (style < 1 .or. style > 8) style = COMMENT_STYLE_INDENT
         lines = style_extra(style)
@@ -2679,7 +2678,7 @@ contains
         ! don't add end-markers just because the user asked for `block'
         if (.not. (lines .or. cend() == "")) block = .false.
 
-        if (cons_arg) then
+        if (universal_arg) then
             call uncomment_region(beg, end, status)
             return
         else if (numarg < 0) then
@@ -2819,7 +2818,7 @@ contains
 
     !> Return true if the text between BEG and END is all comments.
     !> Port of newcomment.el:comment-only-p.
-    recursive logical function comment_only_p(beg, end) result(only)
+    recursive logical function is_comment_only(beg, end) result(only)
         integer(int64), intent(in) :: beg, end
         integer(int64) :: opoint
         logical :: done
@@ -2829,7 +2828,7 @@ contains
         done = comment_forward(point_max())
         only = end <= point()
         call goto_char(opoint)
-    end function comment_only_p
+    end function is_comment_only
 
     !> Call `comment_region', unless the region only consists of comments,
     !> in which case call `uncomment_region'.  If a prefix arg is given, it
@@ -2846,7 +2845,7 @@ contains
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
 
-        if (comment_only_p(beg, end)) then
+        if (is_comment_only(beg, end)) then
             call uncomment_region(beg, end, status, arg, universal)
         else
             call comment_region(beg, end, status, arg, universal)
@@ -2892,7 +2891,7 @@ contains
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_bounds(beg, end, status)
             if (.not. status%ok()) return
             call with_prefix(beg, end, status, comment_or_uncomment_region)
@@ -2907,8 +2906,8 @@ contains
         if (.not. blank) then
             ! FIXME: If there's no comment to kill on this line and ARG is
             ! specified, calling comment-kill is not very clever.
-            if (.not. nilp(current_prefix_arg)) then
-                if (fixnump(current_prefix_arg)) then
+            if (allocated(current_prefix_arg%a)) then
+                if (vtag(current_prefix_arg) == V_INTEGER) then
                     call comment_kill(status, xfixnum(current_prefix_arg))
                 else
                     call comment_kill(status)
@@ -2960,7 +2959,7 @@ contains
     !> Otherwise obey `comment_add'.  Port of newcomment.el:comment-add
     !> (ARG is the current prefix argument).
     integer(int64) function comment_add_count() result(n)
-        if (nilp(current_prefix_arg) .and. smatch("[ "//TAB//"]*\'", cstart()) == 1) then
+        if (.not. allocated(current_prefix_arg%a) .and. smatch("[ "//TAB//"]*\'", cstart()) == 1) then
             n = comment_add%value
         else
             n = prefix_numeric_value(current_prefix_arg) - 1
@@ -2972,7 +2971,7 @@ contains
     !> COMPOS is the position of the beginning of the comment we're in, or 0
     !> if we're not inside a comment.  Port of
     !> newcomment.el:comment-valid-prefix-p.
-    recursive logical function comment_valid_prefix_p(prefix, compos) result(valid)
+    recursive logical function is_comment_valid_prefix(prefix, compos) result(valid)
         character(len=*), intent(in) :: prefix
         integer(int64), intent(in) :: compos
         character(len=:), allocatable :: prefix_com, prefix_space, prefix_comstart
@@ -2996,7 +2995,7 @@ contains
         ! Accept any prefix if the current comment is not EOL-terminated.
         call goto_char(compos)
         done = comment_forward(1_int64)
-        valid = .not. bolp()
+        valid = .not. is_bol()
         call goto_char(opoint)
         if (valid) return
         ! Accept any prefix that starts with the same comment-start marker
@@ -3024,7 +3023,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end function comment_valid_prefix_p
+    end function is_comment_valid_prefix
 
     !> Break line at point and indent, continuing comment if within one.
     !> This indents the body of the continued comment
@@ -3107,7 +3106,7 @@ contains
         ! If there's an adaptive prefix, use it unless we're inside
         ! a comment and the prefix is not a comment starter.
         if (allocated(fill_prefix%value)) then
-            if (comment_valid_prefix_p(fill_prefix%value, compos)) then
+            if (is_comment_valid_prefix(fill_prefix%value, compos)) then
                 call indent_to_left_margin(status, noindent)
                 if (status%ok()) call insert(fill_prefix%value, status)
                 return
@@ -3163,7 +3162,7 @@ contains
         ! Important for modes like Python/Haskell where
         ! auto-indentation is unreliable.
         pt = skip_chars_backward(" "//TAB, st)
-        own_line = bolp()
+        own_line = is_bol()
         call goto_char(opoint)
         saved_column = comment_column%value
         saved_fn => comment_indent_function%get()
@@ -3266,7 +3265,7 @@ contains
         status = status_type()
         n = n_in
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_bounds(b, e, status)
             if (.not. status%ok()) return
             call goto_char(b)
@@ -3277,7 +3276,7 @@ contains
             return
         end if
 
-        if (value_eq(last_command, sym("comment_line_backward")) .and. n >= 0) n = -n
+        if (value_eq(last_command, value_type(name="comment_line_backward")) .and. n >= 0) n = -n
         a = line_beginning_position()
         z = line_end_position(n)
         call goto_char(z)
@@ -3285,7 +3284,7 @@ contains
         if (.not. status%ok()) return
         sh = forward_line(1_int64)
         call back_to_indentation()
-        if (n < 0) this_command = sym("comment_line_backward")
+        if (n < 0) this_command = value_type(name="comment_line_backward")
     end subroutine comment_line
 
     !> Comment or uncomment current line and leave point after it.

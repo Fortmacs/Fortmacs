@@ -41,20 +41,19 @@ module view_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type, change_major_mode_hook
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_live_p, resolve_buffer, buffer_handle, &
-                         buffer_modified_p, kill_buffer, get_file_buffer
-    use editfns_fm, only: point, point_min, point_max, goto_char, eobp, line_end_position
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, resolve_buffer, buffer_handle, &
+                         is_buffer_modified, kill_buffer, get_file_buffer
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_eob, line_end_position
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use search_fm, only: re_search_forward, looking_at, SEARCH_NOERROR
-    use fileio_fm, only: file_exists_p, expand_file_name
+    use fileio_fm, only: file_exists, expand_file_name
     use files_fm, only: find_file_noselect, view_read_only
-    use window_fm, only: windows, window_live_p, window_leaves, window_body_lines, scroll_up_command, &
-                         scroll_down_command, recenter, pos_visible_in_window_p, quit_window, switch_to_buffer, &
-                         pop_to_buffer, display_alist_type, next_screen_context_lines, scroll_error_top_bottom, &
+    use window_fm, only: windows, is_window_live, window_leaves, window_body_lines, scroll_up_command, &
+                         scroll_down_command, recenter, is_pos_visible_in_window, quit_window, switch_to_buffer, &
+                         pop_to_buffer, display_action_table_type, next_screen_context_lines, scroll_error_top_bottom, &
                          other_buffer, same_handle, QR_NONE
     use frame_fm, only: selected_frame, selected_window
     use keymap_fm, only: keymap_set
@@ -64,7 +63,7 @@ module view_fm
     use dispnew_fm, only: ding
     use simple_fm, only: push_mark, pop_mark, mark
     use minibuf_fm, only: read_string
-    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_T
+    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_fm, only: substitute_command_keys, register_keymap_name
     use print_fm, only: fortran_string
     use derived_fm, only: major_mode_type, major_mode_named
@@ -128,7 +127,7 @@ module view_fm
         logical :: set = .false.
         !> view-old-buffer-read-only
         logical :: old_read_only = .false.
-        !> view-page-size and view-half-page-size (has_...: non-nil)
+        !> view-page-size and view-half-page-size (has_...: set)
         logical :: has_page_size = .false., has_half_page_size = .false.
         integer(int64) :: page_size = 0, half_page_size = 0
         !> view-last-regexp: none, a string, or (if last_no) a list of it
@@ -158,7 +157,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            serial_live = buffer_live_p(buffer_handle(k))
+            serial_live = is_buffer_live(buffer_handle(k))
             return
         end do
     end function serial_live
@@ -226,7 +225,7 @@ contains
         if (locals(k)%has_view_read_only) view_read_only_value = locals(k)%view_read_only
     end function view_read_only_value
 
-    !> (setq-local view-read-only VALUE).  Not a port.
+    !> Give the current buffer its own `view_read_only', VALUE (set_local).  Not a port.
     subroutine set_view_read_only_local(value)
         logical, intent(in) :: value
         integer :: k
@@ -255,8 +254,8 @@ contains
         logical :: modified
 
         status = status_type()
-        if (.not. buffer_live_p(buf)) return
-        call buffer_modified_p(buf, modified, status)
+        if (.not. is_buffer_live(buf)) return
+        call is_buffer_modified(buf, modified, status)
         if (.not. status%ok()) return
         if (.not. modified) call kill_buffer(buf, status)
     end subroutine kill_buffer_if_not_modified
@@ -291,7 +290,7 @@ contains
 
         status = status_type()
 
-        if (.not. file_exists_p(file)) then
+        if (.not. file_exists(file)) then
             call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
             return
         end if
@@ -322,7 +321,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
-        call read_file_name("View file: ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("View file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call view_file(file, status)
     end subroutine cmd_view_file
@@ -339,7 +338,7 @@ contains
 
         status = status_type()
 
-        if (.not. file_exists_p(file)) then
+        if (.not. file_exists(file)) then
             call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
             return
         end if
@@ -377,7 +376,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
-        call read_file_name("In other window view file: ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("In other window view file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call view_file_other_window(file, status)
     end subroutine cmd_view_file_other_window
@@ -432,9 +431,9 @@ contains
         if (.not. st%ok()) b = 0
 
         if (b > 0) then
-            call read_buffer("View buffer: ", name, status, def=buffers(b)%name, require_match=REQUIRE_MATCH_T)
+            call read_buffer("View buffer: ", name, status, def=buffers(b)%name, require_match=REQUIRE_MATCH_YES)
         else
-            call read_buffer("View buffer: ", name, status, require_match=REQUIRE_MATCH_T)
+            call read_buffer("View buffer: ", name, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -450,7 +449,7 @@ contains
         h = handle_type()
 
         do k = 1, size(buffers, kind=int64)
-            if (.not. buffer_live_p(buffer_handle(k))) cycle
+            if (.not. is_buffer_live(buffer_handle(k))) cycle
             if (.not. allocated(buffers(k)%name)) cycle
 
             if (buffers(k)%name == name .and. len(buffers(k)%name) == len(name)) then
@@ -468,11 +467,11 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), optional :: exit_action
-        type(display_alist_type) :: alist
+        type(display_action_table_type) :: table
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer t))
-        alist%inhibit_same_window = .true.
-        call pop_to_buffer(buffer, status, alist=alist)
+        table%inhibit_same_window = .true.
+        call pop_to_buffer(buffer, status, table=table)
         if (.not. status%ok()) return
 
         if (special_major_mode()) then
@@ -512,9 +511,9 @@ contains
 
         if (b > 0) then
             call read_buffer("In other window view buffer: ", name, status, def=buffers(b)%name, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         else
-            call read_buffer("In other window view buffer: ", name, status, require_match=REQUIRE_MATCH_T)
+            call read_buffer("In other window view buffer: ", name, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -687,7 +686,7 @@ contains
 
             ! Avoid spamming the echo area if `view_mode' is entered
             ! non-interactively, e.g., in a temporary buffer (bug#44629).
-            if (.not. view_inhibit_help_message .and. .not. nilp(this_command)) then
+            if (.not. view_inhibit_help_message .and. allocated(this_command%a)) then
                 call message(substitute_command_keys("View mode: type \[help_command] for help, "// &
                                                      "\[describe_mode] for commands, \[view_quit] to quit."))
             end if
@@ -741,7 +740,7 @@ contains
                 wins = buffer_window_list(current_buffer())
 
                 do k = 1, size(wins)
-                    if (window_live_p(wins(k))) call quit_window(.false., status, wins(k))
+                    if (is_window_live(wins(k))) call quit_window(.false., status, wins(k))
                     if (.not. status%ok()) return
                 end do
             else if (same_handle(window_buffer(selected_window()), current_buffer())) then
@@ -759,12 +758,12 @@ contains
         type(handle_type) :: buffer
 
         buffer = handle_type()
-        if (window_live_p(window)) buffer = windows(window%index)%buffer
+        if (is_window_live(window)) buffer = windows(window%index)%buffer
     end function window_buffer
 
     !> The windows of the selected frame showing BUFFER, the selected
     !> window first, then in cyclic order.  Port of
-    !> window.el:get-buffer-window-list (MINIBUF and ALL-FRAMES nil).
+    !> window.el:get-buffer-window-list (MINIBUF and ALL-FRAMES absent).
     function buffer_window_list(buffer) result(list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable :: list(:)
@@ -921,7 +920,7 @@ contains
 
         view_window_size = 1
         w = selected_window()
-        if (window_live_p(w)) view_window_size = window_body_lines(windows(w%index))
+        if (is_window_live(w)) view_window_size = window_body_lines(windows(w%index))
     end function view_window_size
 
     !> Recenter point in window and redisplay normally.  Port of
@@ -929,11 +928,11 @@ contains
     subroutine view_recenter()
         type(status_type) :: st
 
-        call recenter(list(make_fixnum(1_int64)), .false., st)
+        call recenter(list(value_type(1_int64)), .false., st)
     end subroutine view_recenter
 
-    !> If LINES (HAS_LINES false for nil) is nil, 0, or larger than
-    !> `view_window_size', return nil (HAS false).  Otherwise, return
+    !> If LINES (HAS_LINES .false. for none) is absent, 0, or larger than
+    !> `view_window_size', return none (HAS .false.).  Otherwise, return
     !> LINES.  Port of view.el:view-page-size-default.
     subroutine view_page_size_default(has_lines, lines, has, n)
         logical, intent(in) :: has_lines
@@ -984,13 +983,13 @@ contains
         locals(k)%half_page_size = n
     end subroutine view_set_half_page_size_default
 
-    !> The prefix argument as "P" gives it: HAS false for nil, else its
+    !> The prefix argument raw: HAS .false. for none, else its
     !> numeric value.  Not a port.
     subroutine raw_prefix(has, n)
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
 
-        has = .not. nilp(current_prefix_arg)
+        has = allocated(current_prefix_arg%a)
         n = prefix_numeric_value(current_prefix_arg)
     end subroutine raw_prefix
 
@@ -1058,7 +1057,7 @@ contains
     !> This function does the job for all the scrolling commands.
     !> Scroll forward LINES lines.  If BACKWARD is true, scroll backwards.
     !> If LINES is negative scroll in the other direction.
-    !> If LINES is 0 or nil, scroll DEFAULT lines (if DEFAULT is nil, scroll
+    !> If LINES is 0 or absent, scroll DEFAULT lines (if DEFAULT is absent, scroll
     !> by one page).  If MAXDEFAULT is true, scroll no more than a window.
     !> Port of view.el:view-scroll-lines.
     recursive subroutine view_scroll_lines(has_lines_in, lines_in, backward_in, has_default, default, maxdefault, &
@@ -1087,9 +1086,9 @@ contains
         if (maxdefault .and. has_lines .and. lines > view_window_size()) has_lines = .false.
 
         if (has_lines) then
-            arg = make_fixnum(lines)
+            arg = value_type(lines)
         else
-            arg = nil()
+            arg = value_type()
         end if
 
         if (backward) then
@@ -1114,8 +1113,8 @@ contains
     !> deferred: false).
     logical function view_really_at_end()
         view_really_at_end = .false.
-        if (.not. (.not. scroll_error_top_bottom .or. eobp())) return
-        view_really_at_end = pos_visible_in_window_p(point_max(), selected_window())
+        if (.not. (.not. scroll_error_top_bottom .or. is_eob())) return
+        view_really_at_end = is_pos_visible_in_window(point_max(), selected_window())
     end function view_really_at_end
 
     !> Tell that we are at end of buffer.  Port of
@@ -1127,7 +1126,7 @@ contains
         call goto_char(point_max())
         w = selected_window()
         quit_restore = .false.
-        if (window_live_p(w)) quit_restore = windows(w%index)%quit_restore%kind /= QR_NONE
+        if (is_window_live(w)) quit_restore = windows(w%index)%quit_restore%kind /= QR_NONE
 
         if (quit_restore) then
             if (view_scroll_auto_exit) then
@@ -1148,10 +1147,10 @@ contains
         integer(int64) :: p
         logical :: visible
 
-        visible = pos_visible_in_window_p(point_max(), selected_window())
+        visible = is_pos_visible_in_window(point_max(), selected_window())
         p = point()
         call goto_char(point_max())
-        call recenter(make_fixnum(-1_int64), .false., status)
+        call recenter(value_type(-1_int64), .false., status)
         if (visible) call goto_char(p)
     end subroutine view_scroll_to_buffer_end
 
@@ -1495,7 +1494,7 @@ contains
             if (forward_line(step) /= 0) exit
 
             ! (forward-line 1) returns 0 on moving within the last line.
-            if (eobp()) then
+            if (is_eob()) then
                 times = -1
             else
                 call re_search_forward(regexp, found, status, bound=line_end_position(), noerror=SEARCH_NOERROR)

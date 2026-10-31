@@ -31,8 +31,8 @@ submodule(search_fm) search_regexp_fm
     use syntax_fm, only: syntax_table, syntax_modiff
     use minibuf_fm, only: read_string
     use casefiddle_fm, only: upcase_string, upcase_initials_string, upcase_region, upcase_initials_region, &
-                             case_symbols_as_words
-    use casetab_fm, only: lowercasep, uppercasep
+                             case_identifiers_as_words
+    use casetab_fm, only: is_lowercase, is_uppercase
     use syntax_fm, only: char_syntax_class, SWORD, SSYMBOL
     use insdel_fm, only: replace_range
     use editfns_fm, only: buffer_substring, goto_char
@@ -70,7 +70,7 @@ contains
     !> Compile PATTERN for case folding `translate' and Posix backtracking
     !> `posix', or find it already compiled, and return its index in the
     !> cache, moved to the front as most recently used.  Port of
-    !> search.c:compile_pattern and compile_pattern_1.
+    !> search.c:compile_pattern and search.c:compile_pattern_1.
     subroutine compile_pattern(pattern, translate, posix, k, status)
         character(len=*), intent(in) :: pattern
         logical, intent(in) :: translate, posix
@@ -140,6 +140,22 @@ contains
         end associate
     end subroutine compile_pattern
 
+    !> Mark cache entry K busy while a match uses it, so that a nested
+    !> search compiles elsewhere.  Port of search.c:freeze_pattern (the
+    !> busy flag: unfreeze_pattern clears it).
+    subroutine freeze_pattern(k)
+        integer, intent(in) :: k
+
+        searchbufs(k)%busy = .true.
+    end subroutine freeze_pattern
+
+    !> Port of search.c:unfreeze_pattern.
+    subroutine unfreeze_pattern(k)
+        integer, intent(in) :: k
+
+        searchbufs(k)%busy = .false.
+    end subroutine unfreeze_pattern
+
     !> Whether two handles are the same.  Not a port.
     pure logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
@@ -192,14 +208,15 @@ contains
     integer :: k
 
     matched = .false.
+    if (running_asynch_code) call save_search_regs()
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_buffer()
 
     associate (b => buffers(cur))
-        searchbufs(k)%busy = .true.
+        call freeze_pattern(k)
         i = re_match(searchbufs(k)%buf, subj, b%pt_byte - b%begv_byte, regs, b%zv_byte - b%begv_byte)
-        searchbufs(k)%busy = .false.
+        call unfreeze_pattern(k)
     end associate
 
     if (i == -2) then
@@ -211,6 +228,54 @@ contains
     if (modify_data .and. matched) call set_regs_from_buffer(regs)
     end procedure looking_at_1
 
+    !> Port of search.c:fast_string_match_internal.
+    module procedure fast_string_match
+    type(re_subject_type) :: subj
+    integer(int64) :: val
+    integer :: k
+
+    idx = 0
+    call compile_pattern(regexp, fold, .false., k, status)
+    if (.not. status%ok()) return
+    subj = subject_from_string(string)
+    call freeze_pattern(k)
+    val = re_search(searchbufs(k)%buf, subj, 0_int64, len(string, kind=int64), stop=len(string, kind=int64))
+    call unfreeze_pattern(k)
+
+    if (val == -2) then
+        call matcher_overflow(status)
+        return
+    end if
+
+    if (val >= 0) idx = string_offset_to_index(string, val)
+    end procedure fast_string_match
+
+    !> Port of search.c:fast_looking_at.
+    module procedure fast_looking_at
+    type(re_subject_type) :: subj
+    integer(int64) :: pos_byte, limit_byte
+    integer :: k
+
+    length = -1
+    call compile_pattern(regexp, .false., .false., k, status)
+    if (.not. status%ok()) return
+
+    if (present(string)) then
+        pos_byte = string_index_to_offset(string, pos)
+        limit_byte = string_index_to_offset(string, limit)
+        subj = subject_from_string(string)
+    else
+        pos_byte = char_to_byte(pos) - buffers(cur)%begv_byte
+        limit_byte = char_to_byte(limit) - buffers(cur)%begv_byte
+        subj = subject_from_buffer()
+    end if
+
+    call freeze_pattern(k)
+    length = re_match(searchbufs(k)%buf, subj, pos_byte, stop=limit_byte)
+    call unfreeze_pattern(k)
+    if (length == -2) call matcher_overflow(status)
+    end procedure fast_looking_at
+
     !> Port of search.c:string_match_1.
     module procedure string_match_1
     type(re_subject_type) :: subj
@@ -221,6 +286,7 @@ contains
 
     idx = 0
     status = status_type()
+    if (running_asynch_code) call save_search_regs()
     pos = 1
 
     if (present(start)) then
@@ -241,10 +307,10 @@ contains
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_string(string)
-    searchbufs(k)%busy = .true.
+    call freeze_pattern(k)
     val = re_search(searchbufs(k)%buf, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
                     len(string, kind=int64))
-    searchbufs(k)%busy = .false.
+    call unfreeze_pattern(k)
 
     if (val == -2) then
         call matcher_overflow(status)
@@ -275,10 +341,10 @@ contains
 
     do while (n < 0)
         ! Don't allow match past current point.
-        searchbufs(k)%busy = .true.
+        call freeze_pattern(k)
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         pos_byte - begv_byte)
-        searchbufs(k)%busy = .false.
+        call unfreeze_pattern(k)
 
         if (val == -2) then
             call matcher_overflow(status)
@@ -298,10 +364,10 @@ contains
     end do
 
     do while (n > 0)
-        searchbufs(k)%busy = .true.
+        call freeze_pattern(k)
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         lim_byte - begv_byte)
-        searchbufs(k)%busy = .false.
+        call unfreeze_pattern(k)
 
         if (val == -2) then
             call matcher_overflow(status)
@@ -394,22 +460,22 @@ contains
             call string_char_and_length(buftext, i, c, clen)
             i = i + clen
 
-            if (lowercasep(c)) then
+            if (is_lowercase(c)) then
                 ! Cannot be all caps if any original char is lower case.
                 some_lowercase = .true.
 
-                if (.not. word_or_symbol(prevc)) then
+                if (.not. word_or_identifier(prevc)) then
                     some_nonuppercase_initial = .true.
                 else
                     some_multiletter_word = .true.
                 end if
-            else if (uppercasep(c)) then
+            else if (is_uppercase(c)) then
                 some_uppercase = .true.
-                if (word_or_symbol(prevc)) some_multiletter_word = .true.
+                if (word_or_identifier(prevc)) some_multiletter_word = .true.
             else
                 ! If the initial is a caseless word constituent, treat that
                 ! like a lowercase initial.
-                if (.not. word_or_symbol(prevc)) some_nonuppercase_initial = .true.
+                if (.not. word_or_identifier(prevc)) some_nonuppercase_initial = .true.
             end if
 
             prevc = c
@@ -600,14 +666,14 @@ contains
         if (present(flag)) present_true = flag
     end function present_true
 
-    !> SYNTAX (prevc) is a word (or a symbol, with case-symbols-as-words).
-    logical function word_or_symbol(ch)
+    !> SYNTAX (prevc) is a word (or an identifier, with case-symbols-as-words).
+    logical function word_or_identifier(ch)
         integer(int32), intent(in) :: ch
         integer :: syn
 
         syn = char_syntax_class(ch)
-        word_or_symbol = syn == SWORD .or. (case_symbols_as_words%value .and. syn == SSYMBOL)
-    end function word_or_symbol
+        word_or_identifier = syn == SWORD .or. (case_identifiers_as_words%value .and. syn == SSYMBOL)
+    end function word_or_identifier
 
     !> Characters B to E (exclusive, 1-based) of STR.
     function substring(str, b, e) result(sub_text)

@@ -25,7 +25,7 @@
 !> of buffer-local variable `save_place_mode' to determine whether to
 !> save position or not.
 !>
-!> `save_place_alist' is an array of `save_place_type' records, saved
+!> `save_place_table' is an array of `save_place_type' records, saved
 !> in `save_place_file' in namelist syntax (namelist_fm):
 !>
 !>     &saveplace
@@ -37,28 +37,27 @@
 !>
 !> Deferred: Hexl mode's addresses (hexl.el is not ported), and the
 !> effect of setting `save_place_abbreviate_file_names' after the places
-!> are loaded (upstream's :set function rewrites the alist; here it is
+!> are loaded (upstream's :set function rewrites the table; here it is
 !> rewritten the next time the file is loaded).
 module saveplace_fm
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lread_fm, only: sym
     use data_fm, only: symbol_value, set, make_variable_buffer_local
-    use lisp_fm, only: value_type, nilp, t_value, nil
+    use lisp_fm, only: value_type
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, free_timer, timerp
+    use timer_fm, only: run_with_timer, free_timer, is_timer
     use buffer_fm, only: buffers, cur, buffer_list, set_buffer, current_buffer, get_buffer_create, &
                          generate_new_buffer_name, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, buffer_string
-    use fileio_fm, only: file_readable_p, expand_file_name, write_region, insert_file_contents
+    use fileio_fm, only: is_file_readable, expand_file_name, write_region, insert_file_contents
     use files_fm, only: find_file_hook, kill_buffer_hook, abbreviate_file_name, revert_buffer_in_progress
     use config_fm, only: state_directory
     use coding_fm, only: coding_system_for_write
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use dired_mode_fm, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
                              dired_goto_file, dired_subdir_dirs, dired_string_type
     use search_fm, only: string_match
@@ -70,11 +69,11 @@ module saveplace_fm
     implicit none(type, external)
     private
 
-    public :: save_place_mode, save_place_local_mode, save_place_to_alist, save_place_forget_unreadable_files, &
-              save_place_alist_to_file, save_places_to_alist, save_place_find_file_hook, save_place_dired_hook, &
-              save_place_load_alist_from_file, save_place_kill_emacs_hook, syms_of_saveplace
+    public :: save_place_mode, save_place_local_mode, save_place_to_table, save_place_forget_unreadable_files, &
+              save_place_table_to_file, save_places_to_table, save_place_find_file_hook, save_place_dired_hook, &
+              save_place_load_table_from_file, save_place_kill_emacs_hook, syms_of_saveplace
 
-    !> An element of `save_place_alist': FILE with the POSITION to go back
+    !> An element of `save_place_table': FILE with the POSITION to go back
     !> to (upstream's (FILENAME . POSITION)), or a directory FILE ending
     !> in a slash with the DIRED_FILENAME point was on in its Dired
     !> listing ((DIRECTORY (dired-filename . FILENAME))).
@@ -85,7 +84,7 @@ module saveplace_fm
         character(len=:), allocatable :: dired_filename
     end type save_place_type
 
-    !> Alist of saved places to go back to when revisiting files.
+    !> Table of saved places to go back to when revisiting files.
     !> Each element gives a FILE and a POSITION; visiting file FILE goes
     !> automatically to position POSITION rather than the beginning of the
     !> buffer.  An element can also give a DIRED_FILENAME, where FILE is
@@ -95,35 +94,35 @@ module saveplace_fm
     !> the DIRED_FILENAME is the file where point was located in the Dired
     !> listing of the directory when the place in that buffer was recorded.
     !>
-    !> This alist is saved between Fortmacs sessions.  Port of
+    !> This table is saved between Fortmacs sessions.  Port of
     !> saveplace.el save-place-alist.
-    type(save_place_type), allocatable, public :: save_place_alist(:)
+    type(save_place_type), allocatable, public :: save_place_table(:)
 
-    !> Name of the file that records `save_place_alist' value.  Port of
+    !> Name of the file that records `save_place_table' value.  Port of
     !> saveplace.el save-place-file (in the state directory,
     !> `~/.local/state/fortmacs/places').
     character(len=:), allocatable, public :: save_place_file
 
-    !> Values of `save_place_version_control': t, nil, `never' and
-    !> `nospecial'.
-    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_T = 1, SAVE_PLACE_VERSION_CONTROL_NIL = 0, &
+    !> Values of `save_place_version_control': SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING,
+    !> SAVE_PLACE_VERSION_CONTROL_NEVER and SAVE_PLACE_VERSION_CONTROL_NOSPECIAL.
+    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_NUMBERED = 1, SAVE_PLACE_VERSION_CONTROL_EXISTING = 0, &
                                   SAVE_PLACE_VERSION_CONTROL_NEVER = 2, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL = 3
 
     !> Controls whether to make numbered backups of master `save_place'
-    !> file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_T,
+    !> file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_NUMBERED,
     !> _NIL, _NEVER, and _NOSPECIAL.  The first three have the same
     !> meaning that they do for the variable `version_control', and the
     !> final value _NOSPECIAL means just use the value of
     !> `version_control'.  Port of saveplace.el save-place-version-control
     !> (as upstream, writing the file with `write_region' makes no
     !> backups).
-    integer, public :: save_place_version_control = SAVE_PLACE_VERSION_CONTROL_NIL
+    integer, public :: save_place_version_control = SAVE_PLACE_VERSION_CONTROL_EXISTING
 
     !> True means that the `save_place_file' has been loaded.  Port of
     !> saveplace.el save-place-loaded.
     logical, public :: save_place_loaded = .false.
 
-    !> `save_place_limit' for no limit (nil upstream).
+    !> `save_place_limit' for no limit.
     integer, parameter, public :: SAVE_PLACE_NO_LIMIT = huge(0)
 
     !> Maximum number of entries to retain in the list; SAVE_PLACE_NO_LIMIT
@@ -132,13 +131,13 @@ module saveplace_fm
 
     !> True means forget place in unreadable files.
     !>
-    !> The filenames in `save_place_alist' that do not match
+    !> The filenames in `save_place_table' that do not match
     !> `save_place_skip_check_regexp' are filtered through
-    !> `file_readable_p'.  If false, their alist entries are removed.
+    !> `is_file_readable'.  If false, their table entries are removed.
     !>
     !> You may do this anytime by calling the complementary function,
     !> `save_place_forget_unreadable_files'.  When this option is turned
-    !> on, this happens automatically before saving `save_place_alist' to
+    !> on, this happens automatically before saving `save_place_table' to
     !> `save_place_file'.  Port of saveplace.el
     !> save-place-forget-unreadable-files.
     logical, public :: save_place_forget_unreadable_files_option = .true.
@@ -151,7 +150,7 @@ module saveplace_fm
 
     !> If true, remember files matching `save_place_skip_check_regexp'.
     !>
-    !> When filtering `save_place_alist' for unreadable files, some will
+    !> When filtering `save_place_table' for unreadable files, some will
     !> not be checked, based on said regexp, and instead saved or forgotten
     !> based on this flag.  Port of saveplace.el save-place-save-skipped.
     logical, public :: save_place_save_skipped = .true.
@@ -176,7 +175,7 @@ module saveplace_fm
 
     !> The interval between auto saves of buffer places, in seconds.
     !> If set to 0, disables timer-based auto saving.  Port of saveplace.el
-    !> save-place-autosave-interval (0 for nil).
+    !> save-place-autosave-interval (0 for none).
     integer, public :: save_place_autosave_interval = 0
 
     !> Hook run at the end of `save_place_find_file_hook'.  Port of
@@ -193,9 +192,9 @@ module saveplace_fm
 
 contains
 
-    !> Read the places of `save_place_file' into `save_place_alist', once.
+    !> Read the places of `save_place_file' into `save_place_table', once.
     !> Port of saveplace.el:save-place-load-alist-from-file.
-    recursive subroutine save_place_load_alist_from_file()
+    recursive subroutine save_place_load_table_from_file()
         character(len=:), allocatable :: file, text
         type(namelist_group_type), allocatable :: groups(:)
         type(status_type) :: st
@@ -206,15 +205,15 @@ contains
         save_place_loaded = .true.
         file = expand(save_place_file)
 
-        if (file_readable_p(file)) then
+        if (is_file_readable(file)) then
             call file_text(file, text, st)
             if (st%ok()) call read_namelist(text, groups, st)
 
             if (.not. st%ok()) then
                 ! (with-demoted-errors "Error reading save-place-file: %S")
                 call message("Error reading save-place-file: "//file)
-                if (allocated(save_place_alist)) deallocate (save_place_alist)
-                allocate (save_place_alist(0))
+                if (allocated(save_place_table)) deallocate (save_place_table)
+                allocate (save_place_table(0))
             else
                 n = 0
 
@@ -255,8 +254,8 @@ contains
                     end do
                 end do
 
-                if (allocated(save_place_alist)) deallocate (save_place_alist)
-                allocate (save_place_alist(0))
+                if (allocated(save_place_table)) deallocate (save_place_table)
+                allocate (save_place_table(0))
 
                 do k = 1, n
                     if (allocated(places(k)%file)) call append_place(places(k))
@@ -264,17 +263,17 @@ contains
 
                 if (save_place_limit /= SAVE_PLACE_NO_LIMIT) then
                     if (save_place_limit <= 0) then
-                        deallocate (save_place_alist)
-                        allocate (save_place_alist(0))
-                    else if (size(save_place_alist) > save_place_limit) then
+                        deallocate (save_place_table)
+                        allocate (save_place_table(0))
+                    else if (size(save_place_table) > save_place_limit) then
                         call truncate_places(save_place_limit)
                     end if
                 end if
             end if
         end if
 
-        call save_place_normalize_alist()
-    end subroutine save_place_load_alist_from_file
+        call save_place_normalize_table()
+    end subroutine save_place_load_table_from_file
 
     !> The text of FILE.  Not a port.
     recursive subroutine file_text(file, text, status)
@@ -295,22 +294,22 @@ contains
         call set_buffer(old, st)
     end subroutine file_text
 
-    !> Append PLACE to `save_place_alist'.  Not a port.
+    !> Append PLACE to `save_place_table'.  Not a port.
     subroutine append_place(place)
         type(save_place_type), intent(in) :: place
         type(save_place_type), allocatable :: grown(:)
         integer :: k, n
 
-        if (.not. allocated(save_place_alist)) allocate (save_place_alist(0))
-        n = size(save_place_alist)
+        if (.not. allocated(save_place_table)) allocate (save_place_table(0))
+        n = size(save_place_table)
         allocate (grown(n + 1))
 
         do k = 1, n
-            call move_place(save_place_alist(k), grown(k))
+            call move_place(save_place_table(k), grown(k))
         end do
 
         grown(n + 1) = place
-        call move_alloc(grown, save_place_alist)
+        call move_alloc(grown, save_place_table)
     end subroutine append_place
 
     ! Move place FROM to TO.  Not a port.
@@ -332,10 +331,10 @@ contains
         allocate (kept(n))
 
         do k = 1, n
-            call move_place(save_place_alist(k), kept(k))
+            call move_place(save_place_table(k), kept(k))
         end do
 
-        call move_alloc(kept, save_place_alist)
+        call move_alloc(kept, save_place_table)
     end subroutine truncate_places
 
     !> Remove place K.  Not a port.
@@ -344,13 +343,13 @@ contains
         type(save_place_type), allocatable :: kept(:)
         integer :: j
 
-        allocate (kept(size(save_place_alist) - 1))
+        allocate (kept(size(save_place_table) - 1))
 
         do j = 1, size(kept)
-            call move_place(save_place_alist(merge(j, j + 1, j < k)), kept(j))
+            call move_place(save_place_table(merge(j, j + 1, j < k)), kept(j))
         end do
 
-        call move_alloc(kept, save_place_alist)
+        call move_alloc(kept, save_place_table)
     end subroutine delete_place
 
     !> FILE abbreviated or expanded, as `save_place_abbreviate_file_names'
@@ -366,30 +365,30 @@ contains
         end if
     end function normal_name
 
-    !> Abbreviate or expand the file names of `save_place_alist', and drop
+    !> Abbreviate or expand the file names of `save_place_table', and drop
     !> the later of two places of the same file.  Port of
     !> saveplace.el:save-place--normalize-alist.
-    subroutine save_place_normalize_alist()
+    subroutine save_place_normalize_table()
         integer :: k, j
         logical :: dup
 
-        if (.not. allocated(save_place_alist)) allocate (save_place_alist(0))
+        if (.not. allocated(save_place_table)) allocate (save_place_table(0))
 
-        do k = 1, size(save_place_alist)
-            save_place_alist(k)%file = normal_name(save_place_alist(k)%file)
+        do k = 1, size(save_place_table)
+            save_place_table(k)%file = normal_name(save_place_table(k)%file)
 
-            if (allocated(save_place_alist(k)%dired_filename)) then
-                save_place_alist(k)%dired_filename = normal_name(save_place_alist(k)%dired_filename)
+            if (allocated(save_place_table(k)%dired_filename)) then
+                save_place_table(k)%dired_filename = normal_name(save_place_table(k)%dired_filename)
             end if
         end do
 
         k = 2
 
-        do while (k <= size(save_place_alist))
+        do while (k <= size(save_place_table))
             dup = .false.
 
             do j = 1, k - 1
-                if (same(save_place_alist(j)%file, save_place_alist(k)%file)) then
+                if (same(save_place_table(j)%file, save_place_table(k)%file)) then
                     dup = .true.
                     exit
                 end if
@@ -401,7 +400,7 @@ contains
                 k = k + 1
             end if
         end do
-    end subroutine save_place_normalize_alist
+    end subroutine save_place_normalize_table
 
     !> FILE expanded (expand_file_name), or FILE itself if that fails.
     !> Not a port.
@@ -422,14 +421,14 @@ contains
         if (same) same = a == b
     end function same
 
-    !> The index of FILE's place in `save_place_alist', 0 for none.
+    !> The index of FILE's place in `save_place_table', 0 for none.
     !> Not a port.
     integer function place_index(file) result(k)
         character(len=*), intent(in) :: file
 
-        if (allocated(save_place_alist)) then
-            do k = 1, size(save_place_alist)
-                if (same(save_place_alist(k)%file, file)) return
+        if (allocated(save_place_table)) then
+            do k = 1, size(save_place_table)
+                if (same(save_place_table(k)%file, file)) return
             end do
         end if
 
@@ -439,7 +438,7 @@ contains
     !> Cancel `save_place_autosave' timer, if set.  Port of
     !> saveplace.el:save-place--cancel-timer.
     subroutine save_place_cancel_timer()
-        if (timerp(save_place_autosave_timer)) call free_timer(save_place_autosave_timer)
+        if (is_timer(save_place_autosave_timer)) call free_timer(save_place_autosave_timer)
         save_place_autosave_timer = handle_type()
     end subroutine save_place_cancel_timer
 
@@ -450,7 +449,7 @@ contains
         type(status_type) :: st
 
         if (save_place_mode_on() .and. save_place_autosave_interval > 0 .and. &
-            .not. timerp(save_place_autosave_timer)) then
+            .not. is_timer(save_place_autosave_timer)) then
             call run_with_timer(save_place_autosave_timer, real(save_place_autosave_interval, real64), &
                                 save_place_autosave, st, real(save_place_autosave_interval, real64))
         else
@@ -464,8 +463,8 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call save_places_to_alist()
-        call save_place_alist_to_file()
+        call save_places_to_table()
+        call save_place_table_to_file()
     end subroutine save_place_autosave
 
     !> The value of `save_place_mode' (buffer-local) in the current buffer.
@@ -474,8 +473,8 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call symbol_value(sym("save_place_mode"), v, st)
-        on = st%ok() .and. .not. nilp(v)
+        call symbol_value(value_type(name="save_place_mode"), v, st)
+        on = st%ok() .and. allocated(v%a)
     end function save_place_mode_on
 
     !> Port of saveplace.el:save-place--setup-hooks (nothing is removed
@@ -487,7 +486,7 @@ contains
         call find_file_hook%add(save_place_find_file_hook_proc, depth=90)
         call dired_initial_position_hook%add(save_place_dired_hook_proc)
         call kill_emacs_hook%add(save_place_kill_emacs_hook_proc)
-        call kill_buffer_hook%add(save_place_to_alist_proc)
+        call kill_buffer_hook%add(save_place_to_table_proc)
     end subroutine save_place_setup_hooks
 
     !> True means automatically save place in each file.
@@ -535,9 +534,9 @@ contains
 
         ! (:variable save-place-mode: the body sets it.)
         if (enable) then
-            call set(sym("save_place_mode"), t_value(), st)
+            call set(value_type(name="save_place_mode"), value_type(.true.), st)
         else
-            call set(sym("save_place_mode"), nil(), st)
+            call set(value_type(name="save_place_mode"), value_type(), st)
         end if
 
         if (.not. (allocated(buffers(cur)%filename) .or. len(dired_directory()) > 0)) then
@@ -555,21 +554,21 @@ contains
         type(status_type) :: st
 
         dir = ""
-        if (.not. derived_mode_p("dired_mode")) return
+        if (.not. is_derived_mode("dired_mode")) return
         dirs = dired_subdir_dirs()
         if (size(dirs) == 0) return
         dir = dired_current_directory(st)
         if (.not. st%ok()) dir = ""
     end function dired_directory
 
-    !> Add current buffer filename and position to `save_place_alist'.
+    !> Add current buffer filename and position to `save_place_table'.
     !> Put filename and point in a record at the front of the
-    !> `save_place_alist', if `save_place_mode' is true.  Otherwise, just
-    !> delete that file from the alist.
+    !> `save_place_table', if `save_place_mode' is true.  Otherwise, just
+    !> delete that file from the table.
     !>
     !> If `save_place_abbreviate_file_names' is true, abbreviate the file
     !> names.  Port of saveplace.el:save-place-to-alist.
-    recursive subroutine save_place_to_alist()
+    recursive subroutine save_place_to_table()
         type(save_place_type) :: place
         type(save_place_type), allocatable :: grown(:)
         type(status_type) :: st
@@ -577,7 +576,7 @@ contains
         logical :: found
         integer :: k, n
 
-        if (.not. save_place_loaded) call save_place_load_alist_from_file()
+        if (.not. save_place_loaded) call save_place_load_table_from_file()
         directory = dired_directory()
 
         if (allocated(buffers(cur)%filename)) then
@@ -596,7 +595,7 @@ contains
         place%file = item
         place%position = point()
 
-        if (derived_mode_p("dired_mode") .and. len(directory) > 0) then
+        if (is_derived_mode("dired_mode") .and. len(directory) > 0) then
             call dired_get_filename(filename, found, st, no_error_if_not_filep=.true.)
 
             if (found) then
@@ -611,25 +610,25 @@ contains
 
         ! Optimize out the degenerate case.
         if (save_place_mode_on() .and. .not. (.not. allocated(place%dired_filename) .and. place%position == 1)) then
-            n = size(save_place_alist)
+            n = size(save_place_table)
             allocate (grown(n + 1))
             grown(1) = place
 
             do k = 1, n
-                call move_place(save_place_alist(k), grown(k + 1))
+                call move_place(save_place_table(k), grown(k + 1))
             end do
 
-            call move_alloc(grown, save_place_alist)
+            call move_alloc(grown, save_place_table)
         end if
-    end subroutine save_place_to_alist
+    end subroutine save_place_to_table
 
-    ! `save_place_to_alist' as a hook function.  Not a port.
-    recursive subroutine save_place_to_alist_proc(status)
+    ! `save_place_to_table' as a hook function.  Not a port.
+    recursive subroutine save_place_to_table_proc(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call save_place_to_alist()
-    end subroutine save_place_to_alist_proc
+        call save_place_to_table()
+    end subroutine save_place_to_table_proc
 
     !> Whether the place of FILE is kept when forgetting unreadable files.
     !> Not a port.
@@ -640,22 +639,22 @@ contains
         if (string_match(save_place_skip_check_regexp, file, st) > 0) then
             keep = save_place_save_skipped
         else
-            keep = file_readable_p(file)
+            keep = is_file_readable(file)
         end if
     end function keep_place
 
-    !> Remove unreadable files from `save_place_alist'.
-    !> For each entry in the alist, if `file_readable_p' returns false for
+    !> Remove unreadable files from `save_place_table'.
+    !> For each entry in the table, if `is_file_readable' returns false for
     !> the filename, remove the entry.  Port of
     !> saveplace.el:save-place-forget-unreadable-files.
     recursive subroutine save_place_forget_unreadable_files()
         integer :: k
 
-        if (.not. allocated(save_place_alist)) return
+        if (.not. allocated(save_place_table)) return
         k = 1
 
-        do while (k <= size(save_place_alist))
-            if (keep_place(save_place_alist(k)%file)) then
+        do while (k <= size(save_place_table))
+            if (keep_place(save_place_table(k)%file)) then
                 k = k + 1
             else
                 call delete_place(k)
@@ -670,9 +669,9 @@ contains
         call save_place_forget_unreadable_files()
     end subroutine cmd_save_place_forget_unreadable_files
 
-    !> Write `save_place_alist' to `save_place_file'.  Port of
+    !> Write `save_place_table' to `save_place_file'.  Port of
     !> saveplace.el:save-place-alist-to-file.
-    recursive subroutine save_place_alist_to_file()
+    recursive subroutine save_place_table_to_file()
         type(namelist_group_type) :: group
         type(namelist_item_type) :: item
         type(handle_type) :: old, h
@@ -684,20 +683,20 @@ contains
         if (save_place_forget_unreadable_files_option) call save_place_forget_unreadable_files()
         group%name = "saveplace"
 
-        if (allocated(save_place_alist)) then
-            do k = 1, size(save_place_alist)
+        if (allocated(save_place_table)) then
+            do k = 1, size(save_place_table)
                 item = namelist_item_type(name="place", component="file", subscripted=.true., lower=k, upper=k)
-                call item%add_string(save_place_alist(k)%file)
+                call item%add_string(save_place_table(k)%file)
                 call group%add(item)
 
-                if (allocated(save_place_alist(k)%dired_filename)) then
+                if (allocated(save_place_table(k)%dired_filename)) then
                     item = namelist_item_type(name="place", component="dired_filename", subscripted=.true., &
                                               lower=k, upper=k)
-                    call item%add_string(save_place_alist(k)%dired_filename)
+                    call item%add_string(save_place_table(k)%dired_filename)
                 else
                     item = namelist_item_type(name="place", component="position", subscripted=.true., &
                                               lower=k, upper=k)
-                    call item%add_integer(save_place_alist(k)%position)
+                    call item%add_integer(save_place_table(k)%position)
                 end if
 
                 call group%add(item)
@@ -720,13 +719,13 @@ contains
         else if (mode_called_interactively) then
             call message(wrote)
         end if
-    end subroutine save_place_alist_to_file
+    end subroutine save_place_table_to_file
 
-    !> Save all buffer filenames and positions to `save_place_alist'.
-    !> See `save_place_to_alist'.  Port of
+    !> Save all buffer filenames and positions to `save_place_table'.
+    !> See `save_place_to_table'.  Port of
     !> saveplace.el:save-places-to-alist (no `find_file_literally'
     !> buffers: that command is not ported).
-    recursive subroutine save_places_to_alist()
+    recursive subroutine save_places_to_table()
         type(handle_type), allocatable :: list(:)
         type(handle_type) :: old
         type(status_type) :: st
@@ -738,11 +737,11 @@ contains
         do k = 1, size(list)
             call set_buffer(list(k), st)
             if (.not. st%ok()) cycle
-            if (allocated(buffers(cur)%filename) .or. len(dired_directory()) > 0) call save_place_to_alist()
+            if (allocated(buffers(cur)%filename) .or. len(dired_directory()) > 0) call save_place_to_table()
         end do
 
         call set_buffer(old, st)
-    end subroutine save_places_to_alist
+    end subroutine save_places_to_table
 
     !> Function added to `find_file_hook' by `save_place_mode'.
     !> It runs the hook `save_place_after_find_file_hook'.  Port of
@@ -752,7 +751,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        if (.not. save_place_loaded) call save_place_load_alist_from_file()
+        if (.not. save_place_loaded) call save_place_load_table_from_file()
         k = 0
 
         if (allocated(buffers(cur)%filename)) then
@@ -764,11 +763,11 @@ contains
         end if
 
         if (k > 0) then
-            if (.not. revert_buffer_in_progress .and. .not. allocated(save_place_alist(k)%dired_filename)) then
-                call goto_char(save_place_alist(k)%position)
+            if (.not. revert_buffer_in_progress .and. .not. allocated(save_place_table(k)%dired_filename)) then
+                call goto_char(save_place_table(k)%position)
             end if
 
-            call set(sym("save_place_mode"), t_value(), st)
+            call set(value_type(name="save_place_mode"), value_type(.true.), st)
         end if
 
         call save_place_after_find_file_hook%run(status)
@@ -790,7 +789,7 @@ contains
         integer(int64) :: pos
         integer :: k
 
-        if (.not. save_place_loaded) call save_place_load_alist_from_file()
+        if (.not. save_place_loaded) call save_place_load_table_from_file()
         directory = dired_directory()
         if (len(directory) == 0) return
         item = expand(directory)
@@ -799,14 +798,14 @@ contains
         if (k == 0) return
 
         if (.not. revert_buffer_in_progress) then
-            if (allocated(save_place_alist(k)%dired_filename)) then
-                pos = dired_goto_file(expand(save_place_alist(k)%dired_filename), st)
+            if (allocated(save_place_table(k)%dired_filename)) then
+                pos = dired_goto_file(expand(save_place_table(k)%dired_filename), st)
             else
-                call goto_char(save_place_alist(k)%position)
+                call goto_char(save_place_table(k)%position)
             end if
         end if
 
-        call set(sym("save_place_mode"), t_value(), st)
+        call set(value_type(name="save_place_mode"), value_type(.true.), st)
     end subroutine save_place_dired_hook
 
     ! `save_place_dired_hook' as a hook function.  Not a port.
@@ -819,8 +818,8 @@ contains
 
     !> Port of saveplace.el:save-place-kill-emacs-hook.
     recursive subroutine save_place_kill_emacs_hook()
-        call save_places_to_alist()
-        if (save_place_loaded) call save_place_alist_to_file()
+        call save_places_to_table()
+        if (save_place_loaded) call save_place_table_to_file()
     end subroutine save_place_kill_emacs_hook
 
     ! `save_place_kill_emacs_hook' as a hook function.  Not a port.
@@ -846,10 +845,10 @@ contains
                                              //"bzr_log\.[[:alnum:]]+\)$"
         end if
 
-        if (.not. allocated(save_place_alist)) allocate (save_place_alist(0))
+        if (.not. allocated(save_place_table)) allocate (save_place_table(0))
         call minor_modes%save_place_mode%define("save_place_mode", global=.true., hook=save_place_mode_hook, &
                                                 body=save_place_mode_body)
-        call make_variable_buffer_local(sym("save_place_mode"), st)
+        call make_variable_buffer_local(value_type(name="save_place_mode"), st)
         call minor_modes%save_place_local_mode%define("save_place_local_mode", variable="save_place_mode", &
                                                       hook=save_place_local_mode_hook, &
                                                       body=save_place_local_mode_body)

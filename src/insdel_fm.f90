@@ -47,31 +47,36 @@
 module insdel_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_MEMORY_FULL
-    use character_fm, only: char_string, multibyte_chars_in_text, &
+    use character_fm, only: char_string, multibyte_chars_in_text, string_char_and_length, str_to_multibyte, &
                             MAX_MULTIBYTE_LENGTH
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, BEG, BUF_BYTES_MAX, GAP_BYTES_DFL, &
                          GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
-                         buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, buf_next_char_len
+                         buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, buf_next_char_len, &
+                         current_buffer, set_buffer, set_buffer_if_live, is_buffer_live, set_buffer_internal
     use marker_fm, only: char_to_byte, byte_to_char, markers, clear_charpos_cache, copy_marker_at, &
-                         marker_position, free_marker
-    use undo_fm, only: record_insert, record_delete, record_first_change
-    use intervals_fm, only: offset_intervals
-    use textprop_fm, only: verify_interval_modification
-    use data_fm, only: logical_setting
+                         marker_position, free_marker, buf_charpos_to_bytepos
+    use undo_fm, only: record_insert, record_delete, record_first_change, undo_auto_undoable_change
+    use intervals_fm, only: offset_intervals, graft_intervals_into_buffer, copy_intervals
+    use textprop_fm, only: verify_interval_modification, report_interval_modification, inhibit_modification_hooks, &
+                           interval_insert_behind_hooks, interval_insert_in_front_hooks
+    use lisp_fm, only: value_type, xstring, string_intervals
     use eval_fm, only: hook_type, change_hook_type, after_change_hook_type
     use search_fm, only: update_search_regs
-    use itree_fm, only: adjust_overlays_for_insert, adjust_overlays_for_delete
+    use itree_fm, only: adjust_overlays_for_insert, adjust_overlays_for_delete, buffer_has_overlays, report_overlay_modification
     implicit none(type, external)
     private
 
     public :: move_gap_both, make_gap
     public :: insert, insert_char, insert_before_markers, insert_1_both
+    public :: insert_and_inherit, insert_before_markers_and_inherit, insert_from_string, &
+              insert_from_string_before_markers, insert_from_buffer, copy_text, make_gap_1, safe_del_range
     public :: del_range, del_range_1, del_range_byte, del_range_both, &
               del_range_2
     public :: modify_text, prepare_to_modify_buffer, prepare_to_modify_buffer_1
     public :: signal_before_change, signal_after_change
     public :: replace_range, replace_range_2
+    public :: inhibit_modification_hooks, combine_after_change_execute
 
     !> Functions to call before each text change.
     !> Two arguments are passed to each function: the positions of
@@ -112,19 +117,18 @@ module insdel_fm
     !> Port of buffer.c first-change-hook.
     type(hook_type), public, target :: first_change_hook = hook_type(name="first_change_hook")
 
-    !> True means don't run any of the hooks that respond to buffer changes.
-    !> This affects `before_change_functions' and `after_change_functions',
-    !> as well as hooks attached to text properties and overlays.
-    !> Setting this variable true also inhibits file locks and checks
-    !> whether files are locked by another Emacs session, as well as
-    !> handling of the active region per `select_active_regions'.
-    !>
-    !> To delay change hooks during a series of changes, use
-    !> `combine_change_calls' or `combine_after_change_calls' instead of
-    !> setting this variable.
-    !>
-    !> Port of insdel.c inhibit-modification-hooks.
-    type(logical_setting), public :: inhibit_modification_hooks = logical_setting(name="inhibit_modification_hooks", value=.false.)
+    !> Used internally by the `combine_after_change_calls' macro.
+    !> Port of insdel.c combine-after-change-calls.
+    logical, public :: combine_after_change_calls = .false.
+
+    !> The changes recorded while `combine_after_change_calls' is true, one
+    !> per column: the characters unchanged at the beginning of the buffer
+    !> and at its end, and the change in length (insdel.c
+    !> combine_after_change_list), and the buffer they were made in
+    !> (combine_after_change_buffer).
+    integer(int64), allocatable :: combine_list(:, :)
+    integer :: combine_count = 0
+    type(handle_type) :: combine_after_change_buffer
 
 contains
 
@@ -201,7 +205,8 @@ contains
         end if
     end subroutine make_gap
 
-    !> Port of insdel.c:make_gap_larger.  Upstream enlarges the block and
+    !> Port of insdel.c:make_gap_larger (with insdel.c:buffer_overflow, the
+    !> error, and buffer.c:enlarge_buffer_text, the reallocation).  Upstream enlarges the block and
     !> slides the gap; here the text is copied into a larger string with the
     !> gap already in place, which gives the same layout.
     subroutine make_gap_larger(nbytes_requested, status)
@@ -280,7 +285,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> Insert `string' (in the buffer's representation) before point.
-    !> Port of insdel.c:insert.
+    !> Port of insdel.c:insert (and insdel.c:insert_string, the same for a C
+    !> string).
     recursive subroutine insert(string, status)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
@@ -349,8 +355,9 @@ contains
     !> Insert `nchars' characters occupying the `nbytes' bytes of `string'
     !> before point.  `prepare' checks that the text may be modified and
     !> runs the before-change hooks; the caller runs the after-change
-    !> hooks.  `inherit' (text properties) and `before_markers' take effect
-    !> once intervals and markers exist.  Port of insdel.c:insert_1_both.
+    !> hooks.  `inherit' makes the text inherit the properties of the text
+    !> around it (by stickiness); `before_markers' moves the markers at
+    !> point after the text.  Port of insdel.c:insert_1_both.
     recursive subroutine insert_1_both(string, nchars_in, nbytes, inherit, prepare, before_markers, status)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: nchars_in, nbytes
@@ -399,14 +406,250 @@ contains
         call adjust_markers_for_insert(buffers(cur)%pt, buffers(cur)%pt_byte, &
                                        buffers(cur)%pt + nchars, buffers(cur)%pt_byte + nbytes, &
                                        before_markers)
-        ! The inserted text gets an interval of its own with no properties
+        ! The inserted text gets an interval of its own: with no properties
         ! (upstream: offset_intervals, then set_text_properties to nil when
-        ! not inheriting).  Inheriting via stickiness is pending; the no-op
-        ! reference keeps `inherit` in the interface without a warning.
-        call offset_intervals(buffers(cur)%text%intervals, buffers(cur)%pt, nchars)
-        if (inherit) continue
+        ! not inheriting), or with those it inherits by stickiness.
+        call offset_intervals(buffers(cur)%text%intervals, buffers(cur)%pt, nchars, inherit)
         call adjust_point(nchars, nbytes)
     end subroutine insert_1_both
+
+    ! ------------------------------------------------------------------
+    ! Inserting with text properties
+    ! ------------------------------------------------------------------
+
+    !> Make a gap of NBYTES bytes in buffer slot B.  Port of
+    !> insdel.c:make_gap_1.
+    subroutine make_gap_1(b, nbytes, status)
+        integer(int64), intent(in) :: b, nbytes
+        type(status_type), intent(out) :: status
+        integer(int64) :: oldb
+
+        oldb = cur
+        call set_buffer_internal(b)
+        call make_gap(nbytes, status)
+        call set_buffer_internal(oldb)
+    end subroutine make_gap_1
+
+    !> The text FROM (multibyte if FROM_MULTIBYTE) as TO_MULTIBYTE says to
+    !> store it: multibyte characters stored as unibyte keep their low 8
+    !> bits; unibyte bytes stored as multibyte become their raw-byte
+    !> characters (ASCII stays itself).  Port of insdel.c:copy_text.
+    function copy_text(from, from_multibyte, to_multibyte) result(to)
+        character(len=*), intent(in) :: from
+        logical, intent(in) :: from_multibyte, to_multibyte
+        character(len=:), allocatable :: to
+        integer(int64) :: p, n
+        integer(int32) :: c, thislen
+
+        if (from_multibyte .eqv. to_multibyte) then
+            to = from
+        else if (from_multibyte) then
+            allocate (character(len=len(from)) :: to)
+            p = 1
+            n = 0
+
+            do while (p <= len(from, kind=int64))
+                call string_char_and_length(from, p, c, thislen)
+                if (c > 127) c = iand(c, 255_int32)
+                n = n + 1
+                to(n:n) = char(c)
+                p = p + thislen
+            end do
+
+            to = to(1:n)
+        else
+            ! Convert single-byte to multibyte.
+            to = str_to_multibyte(from)
+        end if
+    end function copy_text
+
+    !> Insert `string' before point, inheriting the text properties of the
+    !> text around it as its stickiness says.  Port of
+    !> insdel.c:insert_and_inherit.
+    recursive subroutine insert_and_inherit(string, status)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+
+        call insert_inheriting(string, .false., status)
+    end subroutine insert_and_inherit
+
+    !> Like `insert_and_inherit', but markers at point end up after the
+    !> text.  Port of insdel.c:insert_before_markers_and_inherit.
+    recursive subroutine insert_before_markers_and_inherit(string, status)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+
+        call insert_inheriting(string, .true., status)
+    end subroutine insert_before_markers_and_inherit
+
+    ! Not a port.
+    recursive subroutine insert_inheriting(string, before_markers, status)
+        character(len=*), intent(in) :: string
+        logical, intent(in) :: before_markers
+        type(status_type), intent(out) :: status
+        integer(int64) :: nchars, opoint
+
+        status = status_type()
+        if (len(string) == 0) return
+        call chars_in_text(string, nchars, status)
+        if (.not. status%ok()) return
+        call insert_1_both(string, nchars, len(string, kind=int64), .true., .true., before_markers, status)
+        if (.not. status%ok()) return
+        opoint = buffers(cur)%pt - nchars
+        call signal_after_change(opoint, 0_int64, nchars, status)
+    end subroutine insert_inheriting
+
+    !> Insert the part of the text of STRING (a string value) consisting
+    !> of the LENGTH characters starting at character POS (0-based) before
+    !> point.  If the text of STRING has properties, copy them into the
+    !> buffer (with INHERIT, add them to those the text inherits).  Port of
+    !> insdel.c:insert_from_string.
+    recursive subroutine insert_from_string(string, pos, length, inherit, status)
+        type(value_type), intent(in) :: string
+        integer(int64), intent(in) :: pos, length
+        logical, intent(in) :: inherit
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint
+
+        status = status_type()
+        if (len(xstring(string)) == 0) return
+        opoint = buffers(cur)%pt
+        call insert_from_string_1(string, pos, length, inherit, .false., status)
+        if (.not. status%ok()) return
+        call signal_after_change(opoint, 0_int64, buffers(cur)%pt - opoint, status)
+    end subroutine insert_from_string
+
+    !> Like `insert_from_string' except that all markers pointing at the
+    !> place where the insertion happens are adjusted to point after it.
+    !> Port of insdel.c:insert_from_string_before_markers.
+    recursive subroutine insert_from_string_before_markers(string, pos, length, inherit, status)
+        type(value_type), intent(in) :: string
+        integer(int64), intent(in) :: pos, length
+        logical, intent(in) :: inherit
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint
+
+        status = status_type()
+        if (len(xstring(string)) == 0) return
+        opoint = buffers(cur)%pt
+        call insert_from_string_1(string, pos, length, inherit, .true., status)
+        if (.not. status%ok()) return
+        call signal_after_change(opoint, 0_int64, buffers(cur)%pt - opoint, status)
+    end subroutine insert_from_string_before_markers
+
+    !> Subroutine of the insertion functions above: insert the characters
+    !> POS to POS + NCHARS of STRING (strings hold multibyte text) and graft
+    !> their properties.  Port of insdel.c:insert_from_string_1.
+    recursive subroutine insert_from_string_1(string, pos, nchars, inherit, before_markers, status)
+        type(value_type), intent(in) :: string
+        integer(int64), intent(in) :: pos, nchars
+        logical, intent(in) :: inherit, before_markers
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s, text
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        integer(int64) :: from_byte, to_byte, k, at
+
+        status = status_type()
+        if (nchars <= 0) return
+        s = xstring(string)
+        from_byte = string_char_to_byte(s, pos)
+        to_byte = string_char_to_byte(s, pos + nchars)
+        ! Copy the string text, perhaps converting between single-byte and
+        ! multibyte.
+        text = copy_text(s(from_byte:to_byte - 1), .true., buffers(cur)%multibyte)
+        at = buffers(cur)%pt
+        call insert_1_both(text, nchars, len(text, kind=int64), inherit, .true., before_markers, status)
+        if (.not. status%ok()) return
+        ! Get the intervals for the part of the string we are inserting.
+        call string_intervals(string, starts, ends, plists)
+
+        do k = 1, size(starts)
+            starts(k) = starts(k) - pos
+            ends(k) = ends(k) - pos
+        end do
+
+        ! Insert those intervals.
+        call graft_intervals_into_buffer(buffers(cur)%text%intervals, buffers(cur)%text%z, starts, ends, plists, &
+                                         at, nchars, inherit)
+    end subroutine insert_from_string_1
+
+    !> Byte index (1-based) in multibyte S of character CHARPOS (0-based).
+    !> Not a port.
+    integer(int64) function string_char_to_byte(s, charpos) result(b)
+        character(len=*), intent(in) :: s
+        integer(int64), intent(in) :: charpos
+        integer(int64) :: n
+        integer(int32) :: c, l
+
+        b = 1
+        n = 0
+
+        do while (n < charpos .and. b <= len(s, kind=int64))
+            call string_char_and_length(s, b, c, l)
+            b = b + l
+            n = n + 1
+        end do
+    end function string_char_to_byte
+
+    !> Insert before point NCHARS characters of buffer slot BUF, starting
+    !> at character position CHARPOS, with their text properties (with
+    !> INHERIT, added to those the text inherits).  Port of
+    !> insdel.c:insert_from_buffer.
+    recursive subroutine insert_from_buffer(buf, charpos, nchars, inherit, status)
+        integer(int64), intent(in) :: buf, charpos, nchars
+        logical, intent(in) :: inherit
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint
+
+        opoint = buffers(cur)%pt
+        call insert_from_buffer_1(buf, charpos, nchars, inherit, status)
+        if (.not. status%ok()) return
+        call signal_after_change(opoint, 0_int64, buffers(cur)%pt - opoint, status)
+    end subroutine insert_from_buffer
+
+    !> Subroutine of `insert_from_buffer'.  Port of
+    !> insdel.c:insert_from_buffer_1.
+    recursive subroutine insert_from_buffer_1(buf, from, nchars, inherit, status)
+        integer(int64), intent(in) :: buf, from, nchars
+        logical, intent(in) :: inherit
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        integer(int64) :: from_byte, to_byte, at
+
+        status = status_type()
+        if (nchars == 0) return
+        ! Do this before moving and increasing the gap, because the
+        ! before-change hooks might move the gap or make it smaller.
+        at = buffers(cur)%pt
+        call prepare_to_modify_buffer(at, at, status)
+        if (.not. status%ok()) return
+        from_byte = buf_charpos_to_bytepos(buf, from)
+        to_byte = buf_charpos_to_bytepos(buf, from + nchars)
+        text = copy_text(buf_bytes(buffers(buf), from_byte, to_byte), buffers(buf)%multibyte, buffers(cur)%multibyte)
+        ! Get the intervals for the part of the text we are inserting.
+        call copy_intervals(buffers(buf)%text%intervals, from, nchars, starts, ends, plists)
+        at = buffers(cur)%pt
+        call insert_1_both(text, nchars, len(text, kind=int64), inherit, .false., .false., status)
+        if (.not. status%ok()) return
+        ! Insert those intervals.
+        call graft_intervals_into_buffer(buffers(cur)%text%intervals, buffers(cur)%text%z, starts, ends, plists, &
+                                         at, nchars, inherit)
+    end subroutine insert_from_buffer_1
+
+    !> Delete FROM..TO like `del_range', but return true instead of an
+    !> error if the deletion fails.  Port of insdel.c:safe_del_range (with
+    !> insdel.c:safe_del_range_1, the deletion, and insdel.c:safe_del_range_2,
+    !> the true on failure).
+    recursive logical function safe_del_range(from, to) result(failed)
+        integer(int64), intent(in) :: from, to
+        type(status_type) :: status
+
+        call del_range(from, to, status)
+        failed = .not. status%ok()
+    end function safe_del_range
 
     !> Relocate the current buffer's markers for an insertion spanning
     !> `from'..`to'.  Markers at the insertion point advance only if their
@@ -827,7 +1070,8 @@ contains
 
     !> Recompute the byte position of each marker after FROM from its
     !> character position.  Port of insdel.c:adjust_markers_bytepos (TO_Z
-    !> true).
+    !> true), with insdel.c:count_bytes (the inner loop, counting forward
+    !> from FROM).
     subroutine adjust_markers_bytepos(from, from_byte)
         integer(int64), intent(in) :: from, from_byte
         integer(int64) :: m, pos, pos_byte
@@ -916,26 +1160,47 @@ contains
         end associate
     end subroutine modify_text
 
+    !> Run `undo_auto__undoable_change' unless the current buffer keeps no
+    !> undo information.  Port of insdel.c:run_undoable_change.
+    subroutine run_undoable_change()
+        if (.not. buffers(cur)%undo_enabled) return
+        call undo_auto_undoable_change()
+    end subroutine run_undoable_change
+
     !> Check that it is okay to modify the buffer between START and END,
     !> which are char positions: the buffer's read-only state and
-    !> `read_only' text properties.  Then, unless
-    !> `inhibit_modification_hooks', run the before-change hooks and set
-    !> `deactivate_mark'.  If PRESERVE is present, relocate it for what
-    !> the hooks do by holding its value temporarily in a marker.  Port of
-    !> insdel.c:prepare_to_modify_buffer_1 (locking the visited file and
-    !> saving the region for `select_active_regions' are deferred).
+    !> `read_only' text properties, running the text properties'
+    !> modification hooks.  Then, unless `inhibit_modification_hooks', run
+    !> the before-change hooks and set `deactivate_mark'.  If PRESERVE is
+    !> present, relocate it for what the hooks do by holding its value
+    !> temporarily in a marker.  Port of insdel.c:prepare_to_modify_buffer_1
+    !> (locking the visited file and saving the region for
+    !> `select_active_regions' are deferred).
     recursive subroutine prepare_to_modify_buffer_1(start, end, status, preserve)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         integer(int64), intent(inout), optional :: preserve
+        type(handle_type) :: preserve_marker
+        type(status_type) :: st
 
         call barf_if_buffer_read_only(status, start)
         if (.not. status%ok()) return
+        call run_undoable_change()
         buffers(cur)%text%redisplay = .true.
-        ! (No Lisp runs here: text property modification hooks are
-        ! deferred, so PRESERVE needs no marker yet.)
-        call verify_interval_modification(start, end, status)
-        if (.not. status%ok()) return
+
+        if (buffers(cur)%text%intervals%n > 0) then
+            if (present(preserve)) then
+                call copy_marker_at(preserve, preserve_marker, .false., st)
+                call verify_interval_modification(start, end, status)
+                call marker_position(preserve_marker, preserve, st)
+                call free_marker(preserve_marker, st)
+            else
+                call verify_interval_modification(start, end, status)
+            end if
+
+            if (.not. status%ok()) return
+        end if
+
         if (inhibit_modification_hooks%value) return
         call signal_before_change(start, end, status, preserve)
         if (.not. status%ok()) return
@@ -974,8 +1239,9 @@ contains
     !> `inhibit_modification_hooks' true; positions are kept in markers
     !> while they run.  An error in `before_change_functions' empties it
     !> (in the current buffer) and is returned.  Port of
-    !> insdel.c:signal_before_change (overlay modification hooks are
-    !> deferred).
+    !> insdel.c:signal_before_change, with insdel.c:reset_var_on_error (the
+    !> hook emptied on an error).  The overlays' modification hooks run
+    !> last.
     recursive subroutine signal_before_change(start_int, end_int, status, preserve)
         integer(int64), intent(in) :: start_int, end_int
         type(status_type), intent(out) :: status
@@ -1020,6 +1286,19 @@ contains
             end if
         end if
 
+        if (status%ok() .and. buffer_has_overlays()) then
+            call preserve_value()
+            s = start_int
+            e = end_int
+
+            if (have_start_end) then
+                call marker_position(start_marker, s, st)
+                call marker_position(end_marker, e, st)
+            end if
+
+            call report_overlay_modification(s, e, .false., s, e, status)
+        end if
+
         if (have_start_end) then
             call free_marker(start_marker, st)
             call free_marker(end_marker, st)
@@ -1056,23 +1335,160 @@ contains
     !> whole buffer; just the part that was changed.)  LENINS is the
     !> number of characters in that part of the text after the change.
     !> Runs `after_change_functions' with `inhibit_modification_hooks'
-    !> true, unless it is true already; an error empties the hook (in the
-    !> current buffer) and is returned.  Port of
-    !> insdel.c:signal_after_change (combine-after-change-calls and the
-    !> modification hooks of overlays and text properties are deferred).
+    !> true, unless it is true already (an error empties the hook in the
+    !> current buffer and is returned), then the overlays' modification
+    !> hooks and, after an insertion, the text properties' insert hooks.
+    !> While `combine_after_change_calls' is true and nothing else needs
+    !> the change reported at once, the change is only recorded, for
+    !> `combine_after_change_execute'.  Port of insdel.c:signal_after_change
+    !> (`syntax_ppss_flush_cache' is never on `before_change_functions'
+    !> here, so only an empty hook lets the change be deferred).
     recursive subroutine signal_after_change(charpos, lendel, lenins, status)
         integer(int64), intent(in) :: charpos, lendel, lenins
         type(status_type), intent(out) :: status
+        type(value_type) :: save_insert_behind_hooks, save_insert_in_front_hooks
         logical :: saved_inhibit
 
         status = status_type()
         if (inhibit_modification_hooks%value) return
-        if (after_change_functions%empty()) return
+
+        ! If we are deferring calls to the after-change functions and there
+        ! are no before-change functions, just record the args that we were
+        ! going to use.
+        if (combine_after_change_calls .and. before_change_functions%empty() .and. .not. buffer_has_overlays()) then
+            if (combine_count > 0) then
+                if (.not. same_buffer(combine_after_change_buffer)) call combine_after_change_execute(status)
+                if (.not. status%ok()) return
+            end if
+
+            call combine_record(charpos - BEG, buffers(cur)%text%z - (charpos - lendel + lenins), lenins - lendel)
+            combine_after_change_buffer = current_buffer()
+            return
+        end if
+
+        ! Save and restore the insert-*-hooks, because other hooks like
+        ! after-change-functions, called below, could clobber them if they
+        ! manipulate text properties.
+        save_insert_behind_hooks = interval_insert_behind_hooks
+        save_insert_in_front_hooks = interval_insert_in_front_hooks
+
+        if (combine_count > 0) then
+            call combine_after_change_execute(status)
+            if (.not. status%ok()) return
+        end if
+
         saved_inhibit = inhibit_modification_hooks%value
         inhibit_modification_hooks%value = .true.
-        call after_change_functions%run(charpos, charpos + lenins, lendel, status)
-        ! Reset after-change-functions to nil on an error.
-        if (.not. status%ok()) call after_change_functions%clear()
+
+        if (.not. after_change_functions%empty()) then
+            call after_change_functions%run(charpos, charpos + lenins, lendel, status)
+
+            ! Reset after-change-functions to nil on an error.
+            if (.not. status%ok()) then
+                call after_change_functions%clear()
+                inhibit_modification_hooks%value = saved_inhibit
+                return
+            end if
+        end if
+
+        interval_insert_behind_hooks = save_insert_behind_hooks
+        interval_insert_in_front_hooks = save_insert_in_front_hooks
+
+        if (buffer_has_overlays()) then
+            call report_overlay_modification(charpos, charpos + lenins, .true., charpos, charpos + lenins, status, lendel)
+        end if
+
+        ! After an insertion, call the text properties insert-behind-hooks
+        ! or insert-in-front-hooks.
+        if (status%ok() .and. lendel == 0) call report_interval_modification(charpos, charpos + lenins, status)
         inhibit_modification_hooks%value = saved_inhibit
     end subroutine signal_after_change
+
+    !> Whether H is the current buffer.  Not a port.
+    logical function same_buffer(h)
+        type(handle_type), intent(in) :: h
+        type(handle_type) :: c
+
+        c = current_buffer()
+        same_buffer = c%index == h%index .and. c%generation == h%generation
+    end function same_buffer
+
+    !> Push the change (BEG, END, CHANGE) on combine_after_change_list.
+    !> Not a port.
+    subroutine combine_record(beg, end, change)
+        integer(int64), intent(in) :: beg, end, change
+        integer(int64), allocatable :: grown(:, :)
+
+        if (.not. allocated(combine_list)) allocate (combine_list(3, 16))
+
+        if (combine_count == size(combine_list, 2)) then
+            allocate (grown(3, 2*combine_count))
+            grown(:, 1:combine_count) = combine_list(:, 1:combine_count)
+            call move_alloc(grown, combine_list)
+        end if
+
+        combine_count = combine_count + 1
+        combine_list(:, combine_count) = [beg, end, change]
+    end subroutine combine_record
+
+    !> Set `combine_after_change_calls' back to VAL.  Port of
+    !> insdel.c:Fcombine_after_change_execute_1.
+    subroutine combine_after_change_execute_1(val)
+        logical, intent(in) :: val
+
+        combine_after_change_calls = val
+    end subroutine combine_after_change_execute_1
+
+    !> This function is for use internally in the function
+    !> `combine_after_change_calls'.  It reports the changes recorded while
+    !> `combine_after_change_calls' was true as one change covering them
+    !> all, in the buffer where they were made.  Port of
+    !> insdel.c:Fcombine_after_change_execute (compositions are not ported,
+    !> so there are none to update).
+    recursive subroutine combine_after_change_execute(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: nbeg, nend, change, begpos, endpos, k
+        logical :: saved
+
+        status = status_type()
+        if (combine_count == 0) return
+
+        ! It is rare for combine_after_change_buffer to be invalid, but
+        ! possible.
+        if (.not. is_buffer_live(combine_after_change_buffer)) then
+            combine_count = 0
+            return
+        end if
+
+        old = current_buffer()
+        call set_buffer(combine_after_change_buffer, st)
+        ! # chars unchanged at beginning of buffer.
+        nbeg = buffers(cur)%text%z - BEG
+        ! # chars unchanged at end of buffer.
+        nend = nbeg
+        ! Total amount of insertion (negative for deletion).
+        change = 0
+
+        ! Scan the various individual changes, accumulating the range info
+        ! in BEG, END and CHANGE.
+        do k = 1, combine_count
+            change = change + combine_list(3, k)
+            if (combine_list(1, k) < nbeg) nbeg = combine_list(1, k)
+            if (combine_list(2, k) < nend) nend = combine_list(2, k)
+        end do
+
+        ! Get the current start and end positions of the range that was
+        ! changed.
+        begpos = BEG + nbeg
+        endpos = buffers(cur)%text%z - nend
+        ! We are about to handle these, so discard them.
+        combine_count = 0
+        ! Now run the after-change functions for real.
+        saved = combine_after_change_calls
+        call signal_after_change(begpos, endpos - begpos - change, endpos - begpos, status)
+        call combine_after_change_execute_1(saved)
+        call set_buffer_if_live(old)
+    end subroutine combine_after_change_execute
 end module insdel_fm

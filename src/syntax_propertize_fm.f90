@@ -41,21 +41,20 @@ module syntax_propertize_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, buffer_serial_live
-    use lisp_fm, only: value_type, nil, nilp, list, symbolp, make_syntax_table_ref
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, make_syntax_table_ref, vtag, V_NULL, V_NAME
     use data_fm, only: value_eq, add_local_variables_killer
     use eval_fm, only: region_hook_type, region_entry_type
     use insdel_fm, only: before_change_functions
     use textprop_fm, only: get_text_property, put_text_property, remove_text_properties, &
                            previous_single_property_change, text_property_any
-    use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_table, set_syntax_table, syntax_table_live_p, &
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_table, set_syntax_table, is_syntax_table_live, &
                          string_to_syntax, syntax_descriptor_type, syntax_descriptor_value, syntax_propertize__done, &
-                         parse_sexp_lookup_properties, internal_syntax_propertize, syntax_ppss_function
+                         parse_expression_lookup_properties, internal_syntax_propertize, syntax_ppss_function
     use search_fm, only: re_search_forward, string_match, match_beginning, match_end, match_data, set_match_data, &
                          string_index_to_offset, SEARCH_NOERROR
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, &
-                       subregexp_context_p
-    use editfns_fm, only: point, goto_char, point_min, point_max, bolp, line_beginning_position, &
+                       is_subregexp_context
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bol, line_beginning_position, &
                           inhibit_field_text_motion
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use xdisp_fm, only: message
@@ -65,18 +64,18 @@ module syntax_propertize_fm
 
     public :: syntax_propertize, internal_syntax_propertize_function, syntax_ppss_cached, syntax_ppss_flush_cache, &
               syntax_propertize_wholelines, syntax_propertize_multiline, syntax_propertize_shift_groups_and_backrefs, &
-              syntax_propertize_in_process_p, syntax_ppss_depth, syntax_ppss_toplevel_pos, syntax_ppss_context, &
+              is_syntax_propertize_in_process, syntax_ppss_depth, syntax_ppss_toplevel_pos, syntax_ppss_context, &
               syms_of_syntax_propertize
 
     !> What `syntax_ppss_context' returns: neither, a string, a comment.
     integer, parameter, public :: SYNTAX_PPSS_NONE = 0, SYNTAX_PPSS_STRING = 1, SYNTAX_PPSS_COMMENT = 2
 
     !> most-positive-fixnum, the value of `syntax_propertize__done' while
-    !> `syntax_propertize' runs (upstream's let-binding against recursion).
+    !> `syntax_propertize' runs (saved and restored against recursion, as upstream binds it).
     integer(int64), parameter :: MOST_POSITIVE_FIXNUM = 2_int64**61 - 1
 
     !> A value of the `syntax_table' property: a raw syntax descriptor,
-    !> or the syntax table `table' (when `is_table'); `apply' false is nil.
+    !> or the syntax table `table' (when `is_table'); `apply' .false. is none.
     type, public :: syntax_property_type
         logical :: apply = .false.
         type(syntax_descriptor_type) :: descriptor
@@ -95,7 +94,7 @@ module syntax_propertize_fm
         end subroutine syntax_propertize_proc
 
         !> The SYNTAX of a highlight given as code: the value to apply as
-        !> `syntax_table' property, in PROPERTY (none for nil).  It may move
+        !> `syntax_table' property, in PROPERTY (none when unset).  It may move
         !> point.  Not a port.
         subroutine syntax_value_proc(property, status)
             import :: syntax_property_type, status_type
@@ -176,14 +175,14 @@ module syntax_propertize_fm
     end type function_entry_type
 
     !> The type of `syntax_propertize_function': a default `value'
-    !> (assign with `=>'; null is nil) and buffers' own (`set_local').
+    !> (assign with `=>'; null when unset) and buffers' own (`set_local').
     type, public :: syntax_propertize_function_type
         procedure(syntax_propertize_proc), pointer, nopass :: value => null()
         type(function_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => function_set_local
-        !> The current buffer's function (null for nil).
+        !> The current buffer's function (null when unset).
         procedure :: get => function_get
         !> Make the current buffer use the default again.
         procedure :: kill_local => function_kill_local
@@ -214,14 +213,14 @@ module syntax_propertize_fm
     end type ppss_data_type
 
     !> The type of `syntax_ppss_table': buffers' own syntax tables
-    !> (`set_local'; no table is nil).
+    !> (`set_local'; no table when unset).
     type, public :: syntax_ppss_table_type
     contains
-        !> Make H the current buffer's table (setq-local).
+        !> Make H the current buffer's table (set_local).
         procedure, nopass :: set_local => ppss_table_set_local
         !> Whether the current buffer has a table, and which (FOUND).
         procedure, nopass :: get => ppss_table_get
-        !> Make the current buffer's value nil again.
+        !> Make the current buffer's value unset again.
         procedure, nopass :: kill_local => ppss_table_kill_local
     end type syntax_ppss_table_type
 
@@ -290,7 +289,7 @@ module syntax_propertize_fm
 
     !> Function to move back outside of any comment/string/paren.
     !> This function should move the cursor back to some syntactically safe
-    !> point (where the PPSS is equivalent to nil).  Port of syntax.el
+    !> point (where the PPSS is equivalent to the empty state).  Port of syntax.el
     !> syntax-begin-function (obsolete since 25.1).
     procedure(syntax_begin_proc), pointer, public :: syntax_begin_function => null()
 
@@ -482,7 +481,7 @@ contains
         call ppss_table_get(h, found)
 
         if (found) then
-            if (syntax_table_live_p(h)) return
+            if (is_syntax_table_live(h)) return
         end if
 
         h = syntax_table()
@@ -532,10 +531,10 @@ contains
         inhibit_field_text_motion = .true.
         call goto_char(beg)
         new_beg = beg
-        if (.not. bolp()) new_beg = syntax_lbp()
+        if (.not. is_bol()) new_beg = syntax_lbp()
         call goto_char(end)
         new_end = end
-        if (.not. bolp()) new_end = syntax_lbp(2_int64)
+        if (.not. is_bol()) new_end = syntax_lbp(2_int64)
         inhibit_field_text_motion = saved
     end subroutine syntax_propertize_wholelines
 
@@ -554,22 +553,22 @@ contains
         status = status_type()
 
         if (beg > point_min()) then
-            call get_text_property(beg - 1, sym("syntax_multiline"), val, status)
+            call get_text_property(beg - 1, value_type(name="syntax_multiline"), val, status)
             if (.not. status%ok()) return
 
-            if (.not. nilp(val)) then
-                call previous_single_property_change(beg, sym("syntax_multiline"), pos, found, status)
+            if (allocated(val%a)) then
+                call previous_single_property_change(beg, value_type(name="syntax_multiline"), pos, found, status)
                 if (.not. status%ok()) return
                 new_beg = point_min()
                 if (found) new_beg = pos
             end if
         end if
 
-        call get_text_property(end, sym("syntax_multiline"), val, status)
+        call get_text_property(end, value_type(name="syntax_multiline"), val, status)
         if (.not. status%ok()) return
 
-        if (.not. nilp(val)) then
-            call text_property_any(end, point_max(), sym("syntax_multiline"), nil(), pos, found, status)
+        if (allocated(val%a)) then
+            call text_property_any(end, point_max(), value_type(name="syntax_multiline"), value_type(), pos, found, status)
             if (.not. status%ok()) return
             new_end = point_max()
             if (found) new_end = pos
@@ -621,7 +620,7 @@ contains
             pos = 1 + mb
             ! With \N, the \ must be in a subregexp context, i.e.,
             ! not in a character class or in a \{\} repetition.
-            context = subregexp_context_p(new_re, mb0, status)
+            context = is_subregexp_context(new_re, mb0, status)
             if (.not. status%ok()) return
 
             if (context) then
@@ -863,7 +862,7 @@ contains
         if (allocated(step%highlight%syntax)) then
             mb = match_beginning(step%gn, status)
             me = match_end(step%gn, status)
-            call put_text_property(mb, me, sym("syntax_table"), syntax_descriptor_value(step%descriptor), status)
+            call put_text_property(mb, me, value_type(name="syntax_table"), syntax_descriptor_value(step%descriptor), status)
             if (.not. status%ok()) return
         else if (associated(step%highlight%value)) then
             mb = match_beginning(step%gn, status)
@@ -887,9 +886,9 @@ contains
         type(status_type), intent(out) :: status
 
         if (prop%is_table) then
-            call put_text_property(start, end, sym("syntax_table"), make_syntax_table_ref(prop%table), status)
+            call put_text_property(start, end, value_type(name="syntax_table"), make_syntax_table_ref(prop%table), status)
         else
-            call put_text_property(start, end, sym("syntax_table"), syntax_descriptor_value(prop%descriptor), status)
+            call put_text_property(start, end, value_type(name="syntax_table"), syntax_descriptor_value(prop%descriptor), status)
         end if
     end subroutine put_property
 
@@ -900,9 +899,9 @@ contains
     !> It's also used so that `syntax_ppss_flush_cache' can be used from within
     !> `syntax_propertize' without ruining the `syntax_table' already set.
     !> Port of syntax.el:syntax-propertize--in-process-p.
-    logical function syntax_propertize_in_process_p()
-        syntax_propertize_in_process_p = syntax_propertize__done%value == MOST_POSITIVE_FIXNUM
-    end function syntax_propertize_in_process_p
+    logical function is_syntax_propertize_in_process()
+        is_syntax_propertize_in_process = syntax_propertize__done%value == MOST_POSITIVE_FIXNUM
+    end function is_syntax_propertize_in_process
 
     !> Ensure that syntax-table properties are set until POS (a buffer point).
     !> Port of syntax.el:syntax-propertize.
@@ -928,7 +927,7 @@ contains
             return
         end if
 
-        call parse_sexp_lookup_properties%set_local(.true.)
+        call parse_expression_lookup_properties%set_local(.true.)
 
         if (syntax_propertize__done%value < point_min()) then
             if (syntax_propertize__done%value > 0) then
@@ -951,7 +950,7 @@ contains
         call set_syntax_table(ppss_syntax_table(), st)
         ! Just in case!
         call syntax_propertize__done%make_local()
-        ! Make sure we let-bind it only buffer-locally.
+        ! Make sure we save and restore it only buffer-locally.
         k = data_index()
         saved_updated = data(k)%updated_cache
         data(k)%updated_cache = .false.
@@ -994,7 +993,8 @@ contains
             ! Move the limit before calling the function, so it's
             ! done in case of errors.
             call syntax_propertize__done%set_local(end)
-            call remove_text_properties(start, end, list(sym("syntax_table"), nil(), sym("syntax_multiline"), nil()), &
+            call remove_text_properties(start, end, list(value_type(name="syntax_table"), value_type(), &
+                                                         value_type(name="syntax_multiline"), value_type()), &
                                         changed, status)
             if (.not. status%ok()) exit body
             ! Bind `syntax_propertize__done' to avoid recursion!
@@ -1024,7 +1024,7 @@ contains
     end subroutine syntax_propertize
 
     !> Propertize far enough beyond CHARPOS for the syntax scanner (called
-    !> from syntax_fm's parse_sexp_propertize; its errors are ignored, as
+    !> from syntax_fm's parse_expression_propertize; its errors are ignored, as
     !> upstream's safe_calln does).  Port of
     !> syntax.el:internal--syntax-propertize.
     recursive subroutine internal_syntax_propertize_function(charpos)
@@ -1050,7 +1050,7 @@ contains
     end function syntax_ppss_depth
 
     !> Get the latest syntactically outermost position found in a syntactic scan.
-    !> PPSS is a scan state, as returned by `parse_partial_sexp' or `syntax_ppss'.
+    !> PPSS is a scan state, as returned by `parse_partial_expression' or `syntax_ppss'.
     !> An "outermost position" means one that it is outside of any syntactic entity:
     !> outside of any parentheses, comments, or strings encountered in the scan.
     !> If no such position is recorded in PPSS (because the end of the scan was
@@ -1108,7 +1108,7 @@ contains
         if (cur == 0) return
 
         ! Set syntax-propertize to refontify anything past beg.
-        if (.not. syntax_propertize_in_process_p()) then
+        if (.not. is_syntax_propertize_in_process()) then
             call syntax_propertize__done%set_local(min(beg, syntax_propertize__done%value))
         end if
 
@@ -1144,7 +1144,7 @@ contains
                     ! BEG=(car (nth 10 syntax-ppss-last)) don't reuse that data because the
                     ! assumed nil state at BEG may not be valid any more.
                     limit = syntax_ppss_toplevel_pos(cell%last_ppss)
-                    if (limit == 0) limit = cell%last_ppss%last_sexp_start
+                    if (limit == 0) limit = cell%last_ppss%last_expression_start
 
                     if (beg <= limit) then
                         cell%has_last = .false.
@@ -1238,13 +1238,13 @@ contains
     !> Parse-Partial-Sexp State at POS, defaulting to point.
     !> If POS is given, this function moves point to POS.
     !>
-    !> The returned value is the same as that of `parse_partial_sexp'
+    !> The returned value is the same as that of `parse_partial_expression'
     !> run from `point_min' to POS except that values at positions 2 and 6
     !> in the returned list (counting from 0) cannot be relied upon.
     !>
     !> It is necessary to call `syntax_ppss_flush_cache' explicitly if
     !> this function is called while `before_change_functions' is
-    !> temporarily let-bound, or if the buffer is modified without
+    !> temporarily saved and changed, or if the buffer is modified without
     !> running the hook.  Port of syntax.el:syntax-ppss.
     recursive subroutine syntax_ppss_cached(state, pos)
         type(parse_state_type), intent(out) :: state
@@ -1285,7 +1285,7 @@ contains
             if (old_pos /= 0) then
                 if (p - old_pos < (2*stats_total(5))/stats_count(5)) then
                     call update_stats(0, old_pos, p)
-                    call parse_partial_sexp(old_pos, p, state, status, oldstate=old_ppss)
+                    call parse_partial_expression(old_pos, p, state, status, oldstate=old_ppss)
                     if (.not. status%ok()) exit body
                     call set_syntax_table(old_table, st)
                     return
@@ -1304,12 +1304,12 @@ contains
                 ! as when the whole file is wrapped in a set
                 ! of parentheses.
                 pt_min = syntax_ppss_toplevel_pos(old_ppss)
-                if (pt_min == 0) pt_min = old_ppss%last_sexp_start
+                if (pt_min == 0) pt_min = old_ppss%last_expression_start
             end if
 
             if (pt_min /= 0 .and. pt_min <= p .and. p - pt_min < syntax_ppss_max_span) then
                 call update_stats(1, pt_min, p)
-                call parse_partial_sexp(pt_min, p, ppss, status)
+                call parse_partial_expression(pt_min, p, ppss, status)
                 if (.not. status%ok()) exit body
             else
                 ! The OLD-* data can't be used.  Consult the cache.
@@ -1377,12 +1377,12 @@ contains
                     if (use_begin) use_begin = point() < p
 
                     if (use_begin) then
-                        call get_text_property(point(), sym("face"), face, st)
+                        call get_text_property(point(), value_type(name="face"), face, st)
 
-                        if (symbolp(face)) then
-                            if (value_eq(face, sym("font_lock_string_face")) .or. &
-                                value_eq(face, sym("font_lock_doc_face")) .or. &
-                                value_eq(face, sym("font_lock_comment_face"))) use_begin = .false.
+                        if ((vtag(face) == V_NAME .or. vtag(face) == V_NULL)) then
+                            if (value_eq(face, value_type(name="font_lock_string_face")) .or. &
+                                value_eq(face, value_type(name="font_lock_doc_face")) .or. &
+                                value_eq(face, value_type(name="font_lock_comment_face"))) use_begin = .false.
                         end if
                     end if
 
@@ -1398,9 +1398,9 @@ contains
                     call update_stats(2, pt_best, p)
 
                     if (has_best) then
-                        call parse_partial_sexp(pt_best, p, ppss, status, oldstate=ppss_best)
+                        call parse_partial_expression(pt_best, p, ppss, status, oldstate=ppss_best)
                     else
-                        call parse_partial_sexp(pt_best, p, ppss, status)
+                        call parse_partial_expression(pt_best, p, ppss, status)
                     end if
 
                     if (.not. status%ok()) exit body
@@ -1469,7 +1469,7 @@ contains
         ! we may end up calling parse-partial-sexp with a position before
         ! point-min.  In that case, just parse from point-min assuming
         ! a nil state.
-        if (status%code == FM_ARGS_OUT_OF_RANGE) call parse_partial_sexp(point_min(), p, state, status)
+        if (status%code == FM_ARGS_OUT_OF_RANGE) call parse_partial_expression(point_min(), p, state, status)
         call set_syntax_table(old_table, st)
 
     contains
@@ -1480,9 +1480,9 @@ contains
             type(parse_state_type) :: next
 
             if (has_ppss) then
-                call parse_partial_sexp(from, to, next, status, oldstate=ppss)
+                call parse_partial_expression(from, to, next, status, oldstate=ppss)
             else
-                call parse_partial_sexp(from, to, next, status)
+                call parse_partial_expression(from, to, next, status)
             end if
 
             ppss = next

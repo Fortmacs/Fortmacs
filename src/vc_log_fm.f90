@@ -32,9 +32,9 @@
 submodule(vc_fm) vc_log_fm
     use log_view_fm, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
     use vc_dispatcher_fm, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
-    use lisp_fm, only: t_value, nilp
+    use lisp_fm, only: vtag, V_INTEGER, value_type
     use callint_fm, only: current_prefix_arg
-    use fileio_fm, only: file_directory_p
+    use fileio_fm, only: is_file_directory
     implicit none(type, external)
 
 contains
@@ -53,7 +53,7 @@ contains
     dir_present = .false.
 
     do k = 1, size(files)
-        if (file_directory_p(files(k)%s)) dir_present = .true.
+        if (is_file_directory(files(k)%s)) dir_present = .true.
     end do
 
     if (dir_present) then
@@ -66,7 +66,7 @@ contains
     if (shortlog) the_type = VC_LOG_VIEW_SHORT
 
     if (present(type)) then
-        if (type /= VC_LOG_VIEW_NIL) the_type = type
+        if (type /= VC_LOG_VIEW_NONE) the_type = type
     end if
 
     call vc_log_internal_common(backend, "*vc-change-log*", files, the_type, shortlog, working_revision, is_start, &
@@ -126,8 +126,8 @@ contains
         call set_buffer(buffer, st)
         ! log-view-mode used to be called with inhibit-read-only bound
         ! to t, so let's keep doing it, just in case.
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         if (associated(vc_backends(backend)%log_view_mode)) then
             call vc_backends(backend)%log_view_mode(status)
@@ -135,7 +135,7 @@ contains
             call log_view_mode(status)
         end if
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
 
         if (status%ok()) then
             call set_log_view_vc_backend(backend)
@@ -177,11 +177,11 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        if (.not. buffer_live_p(action%buffer)) return
+        if (.not. is_buffer_live(action%buffer)) return
         old = current_buffer()
         call set_buffer(action%buffer, st)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         ! When it's nil, point really shouldn't move (bug#15322).
         if (len(action%s1) > 0) then
@@ -192,10 +192,10 @@ contains
             vc_sentinel_movepoint = point()
         end if
 
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call vc_log_finish_functions%run(status)
-        call set(sym("inhibit_read_only"), saved, st)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine log_finish
 
     ! The `revert_buffer_function' of a log buffer: show the log again.
@@ -268,13 +268,13 @@ contains
     with_diff = lim%kind == VC_LIMIT_NUMBER .and. lim%n == 1 .and. len(rev) > 0
     saved_style = vc_log_short_style
     if (with_diff) vc_log_short_style = vc_log_short_style_type(directory=.false., file=.false.)
-    the_type = VC_LOG_VIEW_NIL
+    the_type = VC_LOG_VIEW_NONE
     if (with_diff) the_type = VC_LOG_VIEW_WITH_DIFF
     old = current_buffer()
     call vc_print_log_internal(fs%backend, fs%files, rev, status, len(rev) > 0, lim, the_type)
     vc_log_short_style = saved_style
 
-    if (buffer_live_p(old)) then
+    if (is_buffer_live(old)) then
         call set_buffer(old, st)
         buffers(cur)%directory = saved_dir
         call set_buffer(get_buffer("*vc-change-log*"), st)
@@ -310,7 +310,7 @@ contains
     character(len=:), allocatable :: rev
     integer(int64) :: lim
 
-    if (.not. nilp(current_prefix_arg)) then
+    if (allocated(current_prefix_arg%a)) then
         call read_from_minibuffer("Leave point at revision (default last revision): ", rev, status)
         if (.not. status%ok()) return
         call read_limit(lim, status)
@@ -322,12 +322,12 @@ contains
     end procedure cmd_vc_print_log
 
     module procedure cmd_vc_print_root_log
-    use lisp_fm, only: fixnump, xfixnum
+    use lisp_fm, only: xfixnum, value_type
     use minibuf_fm, only: read_string
     character(len=:), allocatable :: default, revision, prompt
     integer(int64) :: lim
 
-    if (fixnump(current_prefix_arg)) then
+    if (vtag(current_prefix_arg) == V_INTEGER) then
         if (xfixnum(current_prefix_arg) == 1) then
             default = word_at_point()
             prompt = "Revision to show: "
@@ -338,7 +338,7 @@ contains
         else
             call vc_print_root_log(status, xfixnum(current_prefix_arg))
         end if
-    else if (.not. nilp(current_prefix_arg)) then
+    else if (allocated(current_prefix_arg%a)) then
         call read_limit(lim, status)
         if (.not. status%ok()) return
         call vc_print_root_log(status, max(lim, 0_int64))

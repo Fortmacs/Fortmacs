@@ -40,7 +40,7 @@
 !> font-lock-extend-after-change-region-function,
 !> font-lock-mark-block-function), font-lock-remove-keywords,
 !> font-lock-ignore, keywords given as forms to evaluate, faces given as
-!> (face FACE PROP VAL...), the mode alist forms of
+!> (face FACE PROP VAL...), the mode table forms of
 !> `font_lock_maximum_decoration' and `font_lock_verbose', the
 !> toplevel-defun warning keyword (syntax-begin-function), the obsolete
 !> face variables (font-lock-comment-face as a variable: not applicable).
@@ -48,10 +48,9 @@ module font_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list, make_string
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, symbols, xsymbol, list_elements, make_list, vtag, V_NULL, V_NAME, V_ARRAY
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified
     use marker_fm, only: make_marker, free_marker, set_marker, marker_position
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region, line_beginning_position, &
                           line_end_position
@@ -62,23 +61,23 @@ module font_lock_fm
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change, &
                            remove_list_of_text_properties, text_property_any, text_property_not_all
     use syntax_fm, only: syntax_table, set_syntax_table, copy_syntax_table, modify_syntax_entry
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use faces_fm, only: init_faces, named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_CLASS_GRAYSCALE, &
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use font_core_fm, only: font_lock_defaults, font_lock_defaults_type, font_lock_keyword_type, &
                             font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
-                            font_lock_mode_internal_proc, font_lock_specified_p_proc, font_lock_initial_fontify_proc, &
-                            font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, &
+                            font_lock_mode_internal_proc, is_font_lock_specified_proc, font_lock_initial_fontify_proc, &
+                            font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NO, FONT_LOCK_OVERRIDE_YES, &
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
                             font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current, &
                             font_lock_properties_proc
-    use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
     use data_fm, only: string_setting, forward_setting
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
     use insdel_fm, only: after_change_functions
     use jit_lock_fm, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
-                           jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, jit_lock_mode_p
+                           jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, is_jit_lock_mode
     use textprop_fm, only: previous_single_property_change
     use error_fm, only: format_error
     use modes_fm, only: minor_modes
@@ -102,7 +101,7 @@ module font_lock_fm
     !> `cpp_font_lock_keywords'.
     !> Port of font-lock.el:cpp-font-lock-keywords.source-depth.
     integer, parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH = 0
-    public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
+    public :: syms_of_font_lock, is_font_lock_specified, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
               font_lock_flush, font_lock_ensure, font_lock_update, font_lock_default_fontify_region, &
               font_lock_default_unfontify_region, font_lock_fontify_keywords_region, font_lock_after_change_function, &
@@ -111,8 +110,7 @@ module font_lock_fm
               font_lock_remove_face_from_text_property, font_lock_keyword, font_lock_highlight, &
               font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer, set_font_lock_keywords
 
-    !> `font_lock_maximum_decoration' for the maximum decoration available
-    !> (upstream's t).
+    !> `font_lock_maximum_decoration' for the maximum decoration available.
     integer, parameter, public :: FONT_LOCK_DECORATION_MAX = huge(0)
 
     !> Maximum decoration level for fontification.
@@ -121,7 +119,7 @@ module font_lock_fm
     !> available.
     !> If a number, use that level of decoration (or if not available the
     !> maximum).  The higher the number, the more decoration is done.
-    !> Port of font-lock.el:font-lock-maximum-decoration (the alist form,
+    !> Port of font-lock.el:font-lock-maximum-decoration (the table form,
     !> by major mode, is deferred).
     integer, public :: font_lock_maximum_decoration = FONT_LOCK_DECORATION_MAX
 
@@ -167,7 +165,7 @@ module font_lock_fm
     !> the end, or instead of the existing ones.
     integer, parameter, public :: FONT_LOCK_ADD_BEGINNING = 0, FONT_LOCK_ADD_END = 1, FONT_LOCK_ADD_SET = 2
 
-    !> Alist of additional `font_lock_keywords' elements for major modes.
+    !> Table of additional `font_lock_keywords' elements for major modes.
     !>
     !> Each element has the form (MODE KEYWORDS . HOW).
     !> Function `font_lock_set_defaults' adds the elements in the list
@@ -176,7 +174,7 @@ module font_lock_fm
     !>
     !> This is normally set via `font_lock_add_keywords'.  Port of
     !> font-lock.el:font-lock-keywords-alist.
-    type(added_keywords_type), allocatable :: font_lock_keywords_alist(:)
+    type(added_keywords_type), allocatable :: font_lock_keywords_table(:)
 
     abstract interface
         !> `font_lock_syntactic_face_function': FACE gets the name of the
@@ -212,7 +210,7 @@ module font_lock_fm
         logical :: keywords_only = .false.
         !> `font_lock_keywords_case_fold_search'.
         logical :: keywords_case_fold_search = .false.
-        !> `font_lock_syntax_table' (the null handle for nil) and
+        !> `font_lock_syntax_table' (the null handle for none) and
         !> `font_lock__syntax_table_affects_ppss'.
         type(handle_type) :: syntax_table
         logical :: syntax_table_affects_ppss = .false.
@@ -239,7 +237,7 @@ module font_lock_fm
 
     !> Function to determine which face to use when fontifying
     !> syntactically.  The function is called with a single parameter (the
-    !> state as returned by `parse_partial_sexp' at the beginning of the
+    !> state as returned by `parse_partial_expression' at the beginning of the
     !> region to highlight) and should give the name of a face.  This is
     !> normally set via `font_lock_defaults'.  Port of
     !> font-lock.el:font-lock-syntactic-face-function.
@@ -353,7 +351,7 @@ contains
 
     !> A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face
     !> FACE (or the face FACE_FUNCTION names), combined with existing
-    !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),
+    !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NO by default),
     !> LAXMATCH if SUBEXP need not match.  Not a port.
     function font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties, nil_properties, &
                                  display, properties_function) result(h)
@@ -364,7 +362,7 @@ contains
         procedure(font_lock_face_proc), optional :: face_function
         !> Text properties to set to true along with the face.
         character(len=*), intent(in), optional :: true_properties(:)
-        !> Text properties to set to false (nil) along with the face.
+        !> Text properties to set to .false. along with the face.
         character(len=*), intent(in), optional :: nil_properties(:)
         !> The `display' property to give along with the face.
         character(len=*), intent(in), optional :: display
@@ -499,7 +497,7 @@ contains
     end function local_index
 
     !> Give the current buffer its own `font_lock_fontify_region_function'
-    !> FN (setq-local).  Port of font-lock.el
+    !> FN (set_local).  Port of font-lock.el
     !> font-lock-fontify-region-function (buffer-local; its default is
     !> `font_lock_default_fontify_region').
     subroutine set_local_font_lock_fontify_region_function(fn)
@@ -542,8 +540,8 @@ contains
         if (locals(k)%keywords_set) keywords = locals(k)%keywords
     end function font_lock_keywords_of_buffer
 
-    !> Make KEYWORDS the current buffer's `font_lock_keywords' (setq
-    !> font-lock-keywords).  Not a port.
+    !> Make KEYWORDS the current buffer's `font_lock_keywords'
+    !> (set_local).  Not a port.
     subroutine set_font_lock_keywords(keywords)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
@@ -563,7 +561,7 @@ contains
     !> Return true if the current buffer is ready for fontification.
     !> The MODE argument, if true, means Font Lock mode is about to
     !> be enabled.  Port of font-lock.el:font-lock-specified-p.
-    logical function font_lock_specified_p(mode) result(p)
+    logical function is_font_lock_specified(mode) result(p)
         logical, intent(in) :: mode
         integer :: k
 
@@ -580,7 +578,7 @@ contains
         if (mode .and. locals(k)%set_defaults .and. allocated(locals(k)%major_mode)) then
             if (len(locals(k)%major_mode) > 0) p = locals(k)%major_mode /= major_mode_of_current()
         end if
-    end function font_lock_specified_p
+    end function is_font_lock_specified
 
     !> The first fontification after turning the mode on.  This must only
     !> be called after the mode hooks have been run.  Port of
@@ -590,7 +588,7 @@ contains
 
         status = status_type()
         if (.not. font_lock_mode_enabled()) return
-        if (.not. font_lock_specified_p(.true.)) return
+        if (.not. is_font_lock_specified(.true.)) return
         if (font_lock_fontified()) return
         call font_lock_fontify_buffer(status)
     end subroutine font_lock_initial_fontify
@@ -663,7 +661,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. jit_lock_mode_p()) return
+        if (.not. is_jit_lock_mode()) return
         call jit_lock_unregister(jit_fontify_region, status)
         ! Reset local vars to the non-jit-lock case.
         k = local_index(.false.)
@@ -767,20 +765,20 @@ contains
         ! Extend the region obeying font-lock-multiline properties,
         ! indicating which part of the buffer needs to be refontified.
         if (beg > point_min()) then
-            call get_text_property(beg - 1, sym("font_lock_multiline"), v, status)
+            call get_text_property(beg - 1, value_type(name="font_lock_multiline"), v, status)
 
-            if (.not. nilp(v)) then
-                call previous_single_property_change(beg, sym("font_lock_multiline"), pos, found, status)
+            if (allocated(v%a)) then
+                call previous_single_property_change(beg, value_type(name="font_lock_multiline"), pos, found, status)
                 beg = point_min()
                 if (found) beg = pos
             end if
         end if
 
         if (end < point_max()) then
-            call get_text_property(end, sym("font_lock_multiline"), v, status)
+            call get_text_property(end, value_type(name="font_lock_multiline"), v, status)
 
-            if (.not. nilp(v)) then
-                call text_property_any(end, point_max(), sym("font_lock_multiline"), nil(), pos, found, status)
+            if (allocated(v%a)) then
+                call text_property_any(end, point_max(), value_type(name="font_lock_multiline"), value_type(), pos, found, status)
                 end = point_max()
                 if (found) end = pos
             else
@@ -848,7 +846,7 @@ contains
             if (len(locals(k)%major_mode) > 0) then
                 ! (derived-mode-p is true for the mode itself.)
                 if (locals(k)%major_mode == major_mode_of_current()) return
-                if (derived_mode_p(locals(k)%major_mode)) return
+                if (is_derived_mode(locals(k)%major_mode)) return
             end if
         end if
 
@@ -885,13 +883,13 @@ contains
             locals(k)%syntax_table_affects_ppss = .false.
             locals(k)%syntax_table = null_handle()
 
-            if (allocated(defaults%syntax_alist)) then
-                if (size(defaults%syntax_alist) > 0) then
+            if (allocated(defaults%syntax_modifications)) then
+                if (size(defaults%syntax_modifications) > 0) then
                     call copy_syntax_table(locals(k)%syntax_table, status, syntax_table())
                     if (.not. status%ok()) return
 
-                    do i = 1, size(defaults%syntax_alist)
-                        associate (selem => defaults%syntax_alist(i))
+                    do i = 1, size(defaults%syntax_modifications)
+                        associate (selem => defaults%syntax_modifications(i))
                             do j = 1, len(selem%chars)
                                 call modify_syntax_entry(ichar(selem%chars(j:j)), ichar(selem%chars(j:j)), selem%syntax, &
                                                          status, locals(k)%syntax_table)
@@ -901,7 +899,7 @@ contains
                     end do
 
                     ! (Whether the changes affect syntax-ppss is not
-                    ! analysed: they are taken to.)
+                    ! analyzed: they are taken to.)
                     locals(k)%syntax_table_affects_ppss = .true.
                 end if
             end if
@@ -917,10 +915,10 @@ contains
         locals(k)%keywords_set = .true.
 
         ! Local fontification?
-        if (allocated(font_lock_keywords_alist)) then
-            do i = 1, size(font_lock_keywords_alist)
-                if (trim(font_lock_keywords_alist(i)%mode) /= major_mode_of_current()) cycle
-                call add_keywords_here(font_lock_keywords_alist(i)%keywords, font_lock_keywords_alist(i)%how)
+        if (allocated(font_lock_keywords_table)) then
+            do i = 1, size(font_lock_keywords_table)
+                if (trim(font_lock_keywords_table(i)%mode) /= major_mode_of_current()) cycle
+                call add_keywords_here(font_lock_keywords_table(i)%keywords, font_lock_keywords_table(i)%how)
             end do
         end if
 
@@ -928,7 +926,7 @@ contains
     end subroutine font_lock_set_defaults
 
     !> Make `font_lock_set_defaults' set the defaults up again in the
-    !> current buffer: (setq font-lock-set-defaults nil).  Not a port.
+    !> current buffer (clears `font_lock_set_defaults').  Not a port.
     subroutine font_lock_forget_defaults()
         integer :: k
 
@@ -1004,34 +1002,34 @@ contains
         if (present(how)) h = how
 
         if (len(mode) > 0) then
-            ! Add the KEYWORDS and HOW spec to `font_lock_keywords_alist'
+            ! Add the KEYWORDS and HOW spec to `font_lock_keywords_table'
             ! so `font_lock_set_defaults' uses them.
-            if (.not. allocated(font_lock_keywords_alist)) allocate (font_lock_keywords_alist(0))
+            if (.not. allocated(font_lock_keywords_table)) allocate (font_lock_keywords_table(0))
 
             if (h == FONT_LOCK_ADD_SET) then
                 ! Replace the mode's earlier specs.
                 n = 0
                 allocate (grown(0))
 
-                do i = 1, size(font_lock_keywords_alist)
-                    if (trim(font_lock_keywords_alist(i)%mode) == mode) cycle
-                    grown = [grown, font_lock_keywords_alist(i)]
+                do i = 1, size(font_lock_keywords_table)
+                    if (trim(font_lock_keywords_table(i)%mode) == mode) cycle
+                    grown = [grown, font_lock_keywords_table(i)]
                 end do
 
-                call move_alloc(grown, font_lock_keywords_alist)
+                call move_alloc(grown, font_lock_keywords_table)
             end if
 
-            n = size(font_lock_keywords_alist)
+            n = size(font_lock_keywords_table)
             allocate (grown(n + 1))
-            grown(1:n) = font_lock_keywords_alist
+            grown(1:n) = font_lock_keywords_table
             grown(n + 1)%mode = mode
             grown(n + 1)%keywords = keywords
             grown(n + 1)%how = h
-            call move_alloc(grown, font_lock_keywords_alist)
+            call move_alloc(grown, font_lock_keywords_table)
             return
         end if
 
-        if (font_lock_mode_enabled() .and. .not. font_lock_specified_p(.false.)) then
+        if (font_lock_mode_enabled() .and. .not. is_font_lock_specified(.false.)) then
             ! The major mode has not set any keywords, so when we enabled
             ! font-lock-mode it only enabled the font-core.el part, not the
             ! font-lock-mode-internal.  Try again.
@@ -1178,7 +1176,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. font_lock_specified_p(.true.)) return
+        if (.not. is_font_lock_specified(.true.)) return
         call font_lock_set_defaults(status)
         if (.not. status%ok()) return
         b = point_min()
@@ -1213,7 +1211,7 @@ contains
 
         pt = point()
 
-        if (nilp(current_prefix_arg) .and. font_lock_mode_enabled()) then
+        if (.not. allocated(current_prefix_arg%a) .and. font_lock_mode_enabled()) then
             call font_lock_fontify_region(point_min(), point_max(), status)
         else
             call font_lock_unfontify_region(point_min(), point_max(), status)
@@ -1315,11 +1313,11 @@ contains
         changed = .false.
 
         if (beg > point_min()) then
-            call get_text_property(beg - 1, sym("font_lock_multiline"), v, st)
+            call get_text_property(beg - 1, value_type(name="font_lock_multiline"), v, st)
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 changed = .true.
-                call previous_change(beg, sym("font_lock_multiline"), pos, found)
+                call previous_change(beg, value_type(name="font_lock_multiline"), pos, found)
                 beg = point_min()
                 if (found) beg = pos
             end if
@@ -1327,10 +1325,10 @@ contains
 
         ! If `font_lock_multiline' starts at END, do not extend the region.
         before_end = max(point_min(), end - 1)
-        call get_text_property(before_end, sym("font_lock_multiline"), v, st)
+        call get_text_property(before_end, value_type(name="font_lock_multiline"), v, st)
 
-        if (.not. nilp(v)) then
-            call text_property_any(before_end, point_max(), sym("font_lock_multiline"), nil(), pos, found, st)
+        if (allocated(v%a)) then
+            call text_property_any(before_end, point_max(), value_type(name="font_lock_multiline"), value_type(), pos, found, st)
             new_end = point_max()
             if (found) new_end = pos
 
@@ -1424,12 +1422,12 @@ contains
 
         if (allocated(font_lock_extra_managed_props)) then
             do k = 1, size(font_lock_extra_managed_props)
-                names(k) = sym(trim(font_lock_extra_managed_props(k)))
+                names(k) = value_type(name=trim(font_lock_extra_managed_props(k)))
             end do
         end if
 
-        names(n - 1) = sym("face")
-        names(n) = sym("font_lock_multiline")
+        names(n - 1) = value_type(name="face")
+        names(n) = value_type(name="font_lock_multiline")
         props = make_list(names)
         call remove_list_of_text_properties(beg, end, props, changed, status)
     end subroutine font_lock_default_unfontify_region
@@ -1480,7 +1478,7 @@ contains
 
         ! A single face (a plist of face attributes, or a name) or a list
         ! of faces.
-        if (consp(value) .and. .not. keyword_head(value)) then
+        if (vtag(value) == V_ARRAY .and. .not. keyword_head(value)) then
             call list_elements(value, val)
         else
             allocate (val(1))
@@ -1496,11 +1494,11 @@ contains
             call get_text_property(start, prop, prev, status)
             if (.not. status%ok()) return
             ! Canonicalize old forms of face property.
-            if (consp(prev) .and. keyword_head(prev)) prev = list(prev)
+            if (vtag(prev) == V_ARRAY .and. keyword_head(prev)) prev = list(prev)
 
-            if (nilp(prev)) then
+            if (.not. allocated(prev%a)) then
                 allocate (prev_items(0))
-            else if (consp(prev)) then
+            else if (vtag(prev) == V_ARRAY) then
                 call list_elements(prev, prev_items)
             else
                 allocate (prev_items(1))
@@ -1527,9 +1525,9 @@ contains
         type(value_type), allocatable :: elts(:)
 
         keyword_head = .false.
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
-        if (.not. symbolp(elts(1))) return
+        if ((vtag(elts(1)) /= V_NAME .and. vtag(elts(1)) /= V_NULL)) return
 
         associate (name => symbols(xsymbol(elts(1)))%name)
             if (len(name) > 0) keyword_head = name(1:1) == ":"
@@ -1571,14 +1569,14 @@ contains
         integer(int64) :: start, next
         logical :: found, found_next
 
-        call text_property_any(start_in, end, prop, nil(), start, found, status)
+        call text_property_any(start_in, end, prop, value_type(), start, found, status)
 
         do while (found .and. status%ok())
             call next_single_property_change(start, prop, next, found_next, status, end)
             if (.not. found_next) next = end
             call put_text_property(start, next, prop, value, status)
             if (.not. status%ok()) return
-            call text_property_any(next, end, prop, nil(), start, found, status)
+            call text_property_any(next, end, prop, value_type(), start, found, status)
         end do
     end subroutine font_lock_fillin_text_property
 
@@ -1599,14 +1597,14 @@ contains
         logical :: found, changed, member, atom
         integer :: i, n
 
-        call text_property_not_all(start_in, end, prop, nil(), start, found, status)
+        call text_property_not_all(start_in, end, prop, value_type(), start, found, status)
 
         do while (found .and. status%ok())
             call next_single_property_change(start, prop, next, found, status, end)
             if (.not. status%ok()) return
             if (.not. found) next = end
             call get_text_property(start, prop, prev, status)
-            atom = .not. consp(prev)
+            atom = vtag(prev) /= V_ARRAY
             if (.not. atom) atom = keyword_head(prev) .or. color_head(prev)
 
             if (atom) then
@@ -1640,7 +1638,7 @@ contains
             end if
 
             if (.not. status%ok()) return
-            call text_property_not_all(next, end, prop, nil(), start, found, status)
+            call text_property_not_all(next, end, prop, value_type(), start, found, status)
         end do
 
     contains
@@ -1653,7 +1651,7 @@ contains
             color_head = .false.
             call list_elements(v, e)
             if (size(e) == 0) return
-            if (.not. symbolp(e(1))) return
+            if ((vtag(e(1)) /= V_NAME .and. vtag(e(1)) /= V_NULL)) return
             color_head = symbols(xsymbol(e(1)))%name == "foreground_color" .or. &
                          symbols(xsymbol(e(1)))%name == "background_color"
         end function color_head
@@ -1708,20 +1706,20 @@ contains
         ! (face FACE PROP VAL ...): add the properties.
         if (allocated(highlight%true_properties)) then
             do k = 1, size(highlight%true_properties)
-                call put_text_property(start, end, sym(trim(highlight%true_properties(k))), t_value(), status)
+                call put_text_property(start, end, value_type(name=trim(highlight%true_properties(k))), value_type(.true.), status)
                 if (.not. status%ok()) return
             end do
         end if
 
         if (allocated(highlight%nil_properties)) then
             do k = 1, size(highlight%nil_properties)
-                call put_text_property(start, end, sym(trim(highlight%nil_properties(k))), nil(), status)
+                call put_text_property(start, end, value_type(name=trim(highlight%nil_properties(k))), value_type(), status)
                 if (.not. status%ok()) return
             end do
         end if
 
         if (allocated(highlight%display)) then
-            call put_text_property(start, end, sym("display"), make_string(highlight%display), status)
+            call put_text_property(start, end, value_type(name="display"), value_type(text=highlight%display), status)
             if (.not. status%ok()) return
         end if
 
@@ -1731,31 +1729,31 @@ contains
         end if
 
         face = highlight_face(highlight)
-        val = nil()
-        if (len(face) > 0) val = sym(face)
+        val = value_type()
+        if (len(face) > 0) val = value_type(name=face)
 
-        if (nilp(val) .and. highlight%override /= FONT_LOCK_OVERRIDE_T) then
+        if (.not. allocated(val%a) .and. highlight%override /= FONT_LOCK_OVERRIDE_YES) then
             ! If `val' is nil, don't do anything.
             return
         end if
 
         select case (highlight%override)
-        case (FONT_LOCK_OVERRIDE_NIL)
+        case (FONT_LOCK_OVERRIDE_NO)
             ! Cannot override existing fontification.
-            call text_property_not_all(start, end, sym("face"), nil(), pos, found, status)
-            if (.not. found .and. status%ok()) call put_text_property(start, end, sym("face"), val, status)
-        case (FONT_LOCK_OVERRIDE_T)
+            call text_property_not_all(start, end, value_type(name="face"), value_type(), pos, found, status)
+            if (.not. found .and. status%ok()) call put_text_property(start, end, value_type(name="face"), val, status)
+        case (FONT_LOCK_OVERRIDE_YES)
             ! Override existing fontification.
-            call put_text_property(start, end, sym("face"), val, status)
+            call put_text_property(start, end, value_type(name="face"), val, status)
         case (FONT_LOCK_OVERRIDE_PREPEND)
             ! Prepend to existing fontification.
-            call font_lock_prepend_text_property(start, end, sym("face"), val, status)
+            call font_lock_prepend_text_property(start, end, value_type(name="face"), val, status)
         case (FONT_LOCK_OVERRIDE_APPEND)
             ! Append to existing fontification.
-            call font_lock_append_text_property(start, end, sym("face"), val, status)
+            call font_lock_append_text_property(start, end, value_type(name="face"), val, status)
         case (FONT_LOCK_OVERRIDE_KEEP)
             ! Keep existing fontification.
-            call font_lock_fillin_text_property(start, end, sym("face"), val, status)
+            call font_lock_fillin_text_property(start, end, value_type(name="face"), val, status)
         case default
             continue
         end select
@@ -1988,7 +1986,7 @@ contains
             ! differs from the standard one in ways which affects PPSS,
             ! then we can't use `syntax_ppss' since that would pollute
             ! and be polluted by its cache.
-            call parse_partial_sexp(point_min(), start, state, status)
+            call parse_partial_expression(point_min(), start, state, status)
             if (.not. status%ok()) return
         else
             call syntax_ppss(state, start)
@@ -2006,18 +2004,18 @@ contains
                 end if
 
                 beg = max(state%comstr_start, start)
-                call parse_partial_sexp(point(), end, next, status, oldstate=state, &
-                                        commentstop=COMMENTSTOP_SYNTAX_TABLE)
+                call parse_partial_expression(point(), end, next, status, oldstate=state, &
+                                              commentstop=COMMENTSTOP_SYNTAX_TABLE)
                 if (.not. status%ok()) return
                 state = next
-                if (len(face) > 0) call put_text_property(beg, point(), sym("face"), sym(face), status)
+                if (len(face) > 0) call put_text_property(beg, point(), value_type(name="face"), value_type(name=face), status)
                 if (.not. status%ok()) return
                 if (face == "font_lock_comment_face") call comment_delimiters(beg, status)
                 if (.not. status%ok()) return
             end if
 
             if (point() >= end) exit
-            call parse_partial_sexp(point(), end, next, status, oldstate=state, commentstop=COMMENTSTOP_SYNTAX_TABLE)
+            call parse_partial_expression(point(), end, next, status, oldstate=state, commentstop=COMMENTSTOP_SYNTAX_TABLE)
             if (.not. status%ok()) return
             state = next
         end do
@@ -2050,7 +2048,7 @@ contains
 
         if (looking_at(skip, st)) then
             me = match_end(0, st)
-            call put_text_property(beg, me, sym("face"), sym("font_lock_comment_delimiter_face"), status)
+            call put_text_property(beg, me, value_type(name="face"), value_type(name="font_lock_comment_delimiter_face"), status)
         end if
 
         call goto_char(pt)
@@ -2067,7 +2065,7 @@ contains
 
         if (looking_back(skip, st, line_beginning_position(), .true.)) then
             mb = match_beginning(0, st)
-            call put_text_property(mb, pt, sym("face"), sym("font_lock_comment_delimiter_face"), status)
+            call put_text_property(mb, pt, value_type(name="face"), value_type(name="font_lock_comment_delimiter_face"), status)
         end if
     end subroutine comment_delimiters
 
@@ -2084,7 +2082,7 @@ contains
         call forward_setting(font_lock_comment_start_skip)
         call forward_setting(font_lock_comment_end_skip)
         font_lock_mode_internal_proc => font_lock_mode_internal
-        font_lock_specified_p_proc => font_lock_specified_p
+        is_font_lock_specified_proc => is_font_lock_specified
         font_lock_initial_fontify_proc => font_lock_initial_fontify
 
         if (.not. associated(font_lock_syntactic_face_function)) then
@@ -2097,8 +2095,8 @@ contains
         commands%font_lock_fontify_block%run => font_lock_fontify_block
         commands%font_lock_debug_fontify%run => font_lock_debug_fontify
         commands%font_lock_refresh_defaults%run => font_lock_refresh_defaults
-        commands%font_lock_refresh_defaults%interactive = .false.
-        commands%font_lock_change_mode%interactive = .false.
+        commands%font_lock_refresh_defaults%is_command = .false.
+        commands%font_lock_change_mode%is_command = .false.
     end subroutine syms_of_font_lock
 
     !> Fontify some lines the way `font_lock_fontify_buffer' would.
@@ -2119,7 +2117,7 @@ contains
         end if
 
         lines = 16
-        if (.not. nilp(current_prefix_arg)) lines = prefix_numeric_value(current_prefix_arg)
+        if (allocated(current_prefix_arg%a)) lines = prefix_numeric_value(current_prefix_arg)
         pt = point()
         saved_match = match_data()
         shortage = forward_line(-lines)

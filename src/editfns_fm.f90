@@ -21,21 +21,25 @@
 
 !> Editing primitives on the current buffer.
 !>
-!> Lisp functions that return nil for "no such position" take a `found'
+!> Upstream functions that return no position for "no such position" take a `found'
 !> (or similar) logical here.  Text comes back as byte strings in the
 !> buffer's representation.
 !>
-!> Point is set with `temp_set_point_both': upstream's SET_PT also runs
-!> text-property hooks (`point_entered' etc.), which arrive with
-!> intervals.  Labeled restrictions (`with_restriction') are deferred, as
+!> `goto_char' sets point with `set_point_both' (intervals.c, in textprop_fm:
+!> `intangible', `point_entered' and `point_left' when
+!> `inhibit_point_motion_hooks' is false); the other primitives that use
+!> SET_PT upstream still set it with `temp_set_point_both' (the same while
+!> that variable is true, its default).  Labeled restrictions
+!> (`with_restriction') are deferred, as
 !> are `format', fields, `transpose_regions' and
 !> `compare_buffer_substrings' (they need case tables, intervals or undo).
 module editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: vtag, V_NULL, value_type
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
     use handle_fm, only: handle_type
-    use character_fm, only: char_head_p, char_valid_p, char_string, &
+    use character_fm, only: is_char_head, is_char_valid, char_string, &
                             MAX_MULTIBYTE_LENGTH
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, BUF_BYTES_MAX, &
                          buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buf_byte_index, &
@@ -47,11 +51,10 @@ module editfns_fm
     use insdel_fm, only: insert, del_range, del_range_1, modify_text, signal_after_change
     use undo_fm, only: record_delete, record_insert
     use search_fm, only: scan_newline_from_point, find_before_next_newline, find_newline
-    use lisp_fm, only: value_type, nilp, nil
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use data_fm, only: value_eq
     use textprop_fm, only: get_text_property, text_property_stickiness, &
-                           next_single_char_property_change, previous_single_char_property_change
+                           next_single_char_property_change, previous_single_char_property_change, set_point_both
     use error_fm, only: format_message
     implicit none(type, external)
     private
@@ -60,11 +63,11 @@ module editfns_fm
               gap_position, gap_size
     public :: goto_char, goto_char_marker, set_point_from_marker
     public :: point_marker, point_min_marker, point_max_marker
-    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, region_position_proc
+    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, check_mark, region_position_proc
     public :: position_bytes, byte_to_position
-    public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
+    public :: following_char, preceding_char, is_bob, is_eob, is_bol, is_eol, &
               char_after, char_before
-    public :: insert_char_n, narrow_to_region, widen, buffer_narrowed_p, current_time_string, validate_region, subst_char_in_region
+    public :: insert_char_n, narrow_to_region, widen, is_buffer_narrowed, current_time_string, validate_region, subst_char_in_region
     public :: buffer_substring, buffer_string, insert_buffer_substring, delete_region, &
               delete_and_extract_region
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
@@ -160,18 +163,20 @@ contains
     end function gap_size
 
     !> Set point to `position', clipped to the accessible region.
-    !> Port of editfns.c:Fgoto_char (integer POSITION).
-    subroutine goto_char(position)
+    !> Port of editfns.c:Fgoto_char (integer POSITION; an error of a
+    !> `point_left' or `point_entered' function is dropped).
+    recursive subroutine goto_char(position)
         integer(int64), intent(in) :: position
         integer(int64) :: pos
+        type(status_type) :: st
 
         pos = max(buffers(cur)%begv, min(position, buffers(cur)%zv))
-        call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
+        call set_point_both(pos, char_to_byte(pos), st)
     end subroutine goto_char
 
     !> Set point to marker `m'.  Port of editfns.c:Fgoto_char (marker
     !> POSITION), i.e. intervals.c:set_point_from_marker.
-    subroutine goto_char_marker(m, status)
+    recursive subroutine goto_char_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
 
@@ -180,7 +185,7 @@ contains
 
     !> Port of intervals.c:set_point_from_marker.  The marker's byte
     !> position is only trusted if it is in the current buffer.
-    subroutine set_point_from_marker(m, status)
+    recursive subroutine set_point_from_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
         integer(int64) :: i, charpos, bytepos
@@ -193,17 +198,15 @@ contains
             return
         end if
 
-        associate (b => buffers(cur))
-            charpos = max(b%begv, min(markers(i)%charpos, b%zv))
+        charpos = max(buffers(cur)%begv, min(markers(i)%charpos, buffers(cur)%zv))
 
-            if (markers(i)%buffer /= cur) then
-                bytepos = buf_charpos_to_bytepos(cur, charpos)
-            else
-                bytepos = max(b%begv_byte, min(markers(i)%bytepos, b%zv_byte))
-            end if
+        if (markers(i)%buffer /= cur) then
+            bytepos = buf_charpos_to_bytepos(cur, charpos)
+        else
+            bytepos = max(buffers(cur)%begv_byte, min(markers(i)%bytepos, buffers(cur)%zv_byte))
+        end if
 
-            call temp_set_point_both(b, charpos, bytepos)
-        end associate
+        call set_point_both(charpos, bytepos, status)
     end subroutine set_point_from_marker
 
     !> A new marker at point; the caller frees it.
@@ -228,8 +231,8 @@ contains
         m = buffers(cur)%mark
     end subroutine mark_marker
 
-    !> The position of the current buffer's mark, or 0 if it has none (nil
-    !> upstream): `(marker-position (mark-marker))'.  Not a port.
+    !> The position of the current buffer's mark, or 0 if it has none:
+    !> the position of `mark_marker'.  Not a port.
     integer(int64) function mark_position() result(pos)
         integer(int64) :: i
         type(status_type) :: st
@@ -304,18 +307,47 @@ contains
         call region_limit(.false., pos, status)
     end subroutine primitive_region_end
 
-    !> The region as the arguments of a command whose interactive spec
-    !> has `r': point and the mark, the smaller first.  An inactive mark
-    !> is an error as for `region_beginning', which rectangle_mark_mode's
-    !> advice does not change here.  Port of the `r' code of
+    !> Check that the mark is set in the current buffer and, in Transient
+    !> Mark mode unless `mark_even_if_inactive', active: an error
+    !> otherwise.  FOR_REGION words the error for the region.  Port of
+    !> callint.c:check_mark.
+    subroutine check_mark(for_region, status)
+        logical, intent(in) :: for_region
+        type(status_type), intent(out) :: status
+
+        if (mark_position() == 0) then
+            if (for_region) then
+                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now, so there is no region")
+            else
+                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now")
+            end if
+
+            return
+        end if
+
+        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
+            call set_error(status, FM_MARK_INACTIVE)
+        end if
+    end subroutine check_mark
+
+    !> The region as the arguments of a command that reads the region
+    !> (`r'): point and the mark, the smaller first (as they are, not
+    !> limited to the accessible part).  `check_mark' reports a mark that
+    !> is not set or inactive; rectangle_mark_mode's advice of
+    !> `region_beginning' does not apply.  Port of the `r' code of
     !> callint.c:Fcall_interactively.
     subroutine interactive_region(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
+        integer(int64) :: mark
 
+        beg = 0
         end = 0
-        call region_limit(.true., beg, status)
-        if (status%ok()) call region_limit(.false., end, status)
+        call check_mark(.true., status)
+        if (.not. status%ok()) return
+        mark = mark_position()
+        beg = min(buffers(cur)%pt, mark)
+        end = max(buffers(cur)%pt, mark)
     end subroutine interactive_region
 
     !> Port of editfns.c:Fpoint_min_marker.
@@ -370,7 +402,7 @@ contains
         if (buffers(cur)%text%z /= buffers(cur)%text%z_byte) then
             ! Back up to the start of the character containing BYTEPOS.
             do while (pos_byte < buffers(cur)%text%z_byte)
-                if (char_head_p(buf_fetch_byte(buffers(cur), pos_byte))) exit
+                if (is_char_head(buf_fetch_byte(buffers(cur), pos_byte))) exit
                 pos_byte = pos_byte - 1
             end do
         end if
@@ -414,35 +446,35 @@ contains
     !> Return true if point is at the beginning of the buffer.
     !> If the buffer is narrowed, this means the beginning of the narrowed part.
     !> Port of editfns.c:Fbobp.
-    logical function bobp()
-        bobp = buffers(cur)%pt == buffers(cur)%begv
-    end function bobp
+    logical function is_bob()
+        is_bob = buffers(cur)%pt == buffers(cur)%begv
+    end function is_bob
 
     !> Return true if point is at the end of the buffer.
     !> If the buffer is narrowed, this means the end of the narrowed part.
     !> Port of editfns.c:Feobp.
-    logical function eobp()
-        eobp = buffers(cur)%pt == buffers(cur)%zv
-    end function eobp
+    logical function is_eob()
+        is_eob = buffers(cur)%pt == buffers(cur)%zv
+    end function is_eob
 
     !> Return true if point is at the beginning of a line.  Port of
     !> editfns.c:Fbolp.
-    logical function bolp()
+    logical function is_bol()
         associate (b => buffers(cur))
-            bolp = b%pt == b%begv
-            if (.not. bolp) bolp = buf_fetch_byte(b, b%pt_byte - 1) == 10
+            is_bol = b%pt == b%begv
+            if (.not. is_bol) is_bol = buf_fetch_byte(b, b%pt_byte - 1) == 10
         end associate
-    end function bolp
+    end function is_bol
 
     !> Return true if point is at the end of a line.
     !> `End of a line' includes point being at the end of the buffer.  Port of
     !> editfns.c:Feolp.
-    logical function eolp()
+    logical function is_eol()
         associate (b => buffers(cur))
-            eolp = b%pt == b%zv
-            if (.not. eolp) eolp = buf_fetch_byte(b, b%pt_byte) == 10
+            is_eol = b%pt == b%zv
+            if (.not. is_eol) is_eol = buf_fetch_byte(b, b%pt_byte) == 10
         end associate
-    end function eolp
+    end function is_eol
 
     !> Character at `pos' (default: point); `found' is false outside the
     !> accessible region.  Port of editfns.c:Fchar_after (integer POS).
@@ -508,8 +540,8 @@ contains
         integer(int32) :: clen
         integer(int64) :: n, chunk, reps
 
-        if (.not. char_valid_p(c)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+        if (.not. is_char_valid(c)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -777,9 +809,9 @@ contains
 
     !> Return true if the current buffer is narrowed.  Port of
     !> subr.el:buffer-narrowed-p.
-    logical function buffer_narrowed_p()
-        buffer_narrowed_p = buffers(cur)%zv - buffers(cur)%begv /= buffers(cur)%text%z - BEG
-    end function buffer_narrowed_p
+    logical function is_buffer_narrowed()
+        is_buffer_narrowed = buffers(cur)%zv - buffers(cur)%begv /= buffers(cur)%text%z - BEG
+    end function is_buffer_narrowed
 
     !> Remove narrowing.  Port of editfns.c:Fwiden.
     subroutine widen()
@@ -856,21 +888,20 @@ contains
     !> If the current buffer is multibyte and BUFFER is unibyte, or vice
     !> versa, strings are converted from unibyte to multibyte or vice versa
     !> using `string_make_multibyte' or `string_make_unibyte', which see.
-    !> Port of editfns.c:Finsert_buffer_substring (text properties pending,
-    !> as for `buffer_substring'; both buffers multibyte).
+    !> Port of editfns.c:Finsert_buffer_substring.
     recursive subroutine insert_buffer_substring(buffer, status, start, end)
-        use buffer_fm, only: set_buffer, buffer_live_p
+        use buffer_fm, only: set_buffer, is_buffer_live
+        use insdel_fm, only: insert_from_buffer
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
         type(handle_type) :: old
         type(status_type) :: st
-        character(len=:), allocatable :: text
-        integer(int64) :: b, e
+        integer(int64) :: b, e, bp
 
         status = status_type()
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
             return
         end if
@@ -878,14 +909,15 @@ contains
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
+        bp = cur
         b = point_min()
         e = point_max()
         if (present(start)) b = start
         if (present(end)) e = end
-        call buffer_substring(b, e, text, status)
+        call validate_region(b, e, status)
         call set_buffer(old, st)
         if (.not. status%ok()) return
-        call insert(text, status)
+        call insert_from_buffer(bp, b, e - b, .false., status)
     end subroutine insert_buffer_substring
 
     !> Delete the text between `start' and `end' (either order).
@@ -989,14 +1021,14 @@ contains
     ! properties only, as there are no overlays yet).
     ! ------------------------------------------------------------------
 
-    !> The `field' symbol.  Not a port.
+    !> The `field' name.  Not a port.
     function qfield() result(v)
         type(value_type) :: v
 
-        v = sym("field")
+        v = value_type(name="field")
     end function qfield
 
-    !> `prop' of the current buffer's character at `pos' (nil outside the
+    !> `prop' of the current buffer's character at `pos' (unallocated outside the
     !> accessible text); get_char_property without overlays.  Not a port.
     function char_property(pos, prop) result(v)
         integer(int64), intent(in) :: pos
@@ -1008,7 +1040,7 @@ contains
     end function char_property
 
     !> The value of `prop' that a character inserted at `position' would
-    !> get from its neighbours.  Port of editfns.c:Fget_pos_property (text
+    !> get from its neighbors.  Port of editfns.c:Fget_pos_property (text
     !> properties only).
     function get_pos_property(position, prop) result(v)
         integer(int64), intent(in) :: position
@@ -1023,7 +1055,7 @@ contains
         else if (stickiness < 0 .and. position > buffers(cur)%begv) then
             v = char_property(position - 1, prop)
         else
-            v = nil()
+            v = value_type()
         end if
     end function get_pos_property
 
@@ -1042,7 +1074,7 @@ contains
 
         at_field_start = .false.
         at_field_end = .false.
-        boundary = sym("boundary")
+        boundary = value_type(name="boundary")
         after_field = char_property(pos, qfield())
 
         if (pos > buffers(cur)%begv) then
@@ -1057,9 +1089,9 @@ contains
             if (.not. value_eq(field, after_field)) at_field_end = .true.
             if (.not. value_eq(field, before_field)) at_field_start = .true.
 
-            ! A nil field between non-nil ones is a field not meant for
+            ! A field without a value between ones with a value is a field not meant for
             ! editing (like a prompt), not a zero-length field.
-            if (nilp(field) .and. at_field_start .and. at_field_end) then
+            if (.not. allocated(field%a) .and. at_field_start .and. at_field_end) then
                 at_field_end = .false.
                 at_field_start = .false.
             end if
@@ -1134,7 +1166,7 @@ contains
 
     !> `new_pos' moved, if needed, to stay in the field of `old_pos'.  With
     !> `escape_from_edge', `old_pos' at a field edge may count as in the
-    !> neighbouring field; with `only_in_line', constrain only if the
+    !> neighboring field; with `only_in_line', constrain only if the
     !> field edge is on the same line.  Port of
     !> editfns.c:Fconstrain_to_field (NEW-POS given; no
     !> INHIBIT-CAPTURE-PROPERTY).
@@ -1148,13 +1180,13 @@ contains
         pos = new_pos
         if (inhibit_field_text_motion .or. new_pos == old_pos) return
 
-        if (nilp(char_property(new_pos, qfield())) .and. nilp(char_property(old_pos, qfield()))) then
+        if (vtag(char_property(new_pos, qfield())) == V_NULL .and. vtag(char_property(old_pos, qfield())) == V_NULL) then
             ! hazard-ok(short-circuit): char_property() takes any position.
             if (.not. (new_pos > buffers(cur)%begv .and. &
-                       .not. nilp(char_property(new_pos - 1, qfield())))) then
+                       vtag(char_property(new_pos - 1, qfield())) /= V_NULL)) then
                 ! hazard-ok(short-circuit): char_property() takes any position.
                 if (.not. (old_pos > buffers(cur)%begv .and. &
-                           .not. nilp(char_property(old_pos - 1, qfield())))) return
+                           vtag(char_property(old_pos - 1, qfield())) /= V_NULL)) return
             end if
         end if
 
@@ -1208,13 +1240,15 @@ contains
         call validate_region(s, e, status)
         if (.not. status%ok()) return
 
-        if (.not. char_valid_p(fromchar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(fromchar, int64)))
+        if (.not. is_char_valid(fromchar)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer (a character code), got "//int_text(int(fromchar, int64)))
             return
         end if
 
-        if (.not. char_valid_p(tochar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(tochar, int64)))
+        if (.not. is_char_valid(tochar)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer (a character code), got "//int_text(int(tochar, int64)))
             return
         end if
 

@@ -23,15 +23,14 @@ module test_term_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, list, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use fns_fm, only: value_equal
     use terminfo_fm, only: terminfo_type, builtin_xterm
     use termchar_fm, only: tty_display_info, tty_take_output, tty_flush
     use cm_fm, only: cmat
     use dispextern_fm, only: glyph_type, face_type, FACE_UNDERLINE_SINGLE
     use keymap_fm, only: lookup_key
-    use lisp_fm, only: make_keymap_ref
+    use lisp_fm, only: make_keymap_ref, value_type
     use keyboard_fm, only: input_decode_map
     use sysdep_fm, only: open_pty, close_fd, input_available, emacs_read, &
                          set_tty_size
@@ -39,7 +38,8 @@ module test_term_fm
                        tty_clear_end_of_line, tty_clear_frame, tty_clear_to_end, tty_cursor_to, &
                        tty_delete_glyphs, tty_ins_del_lines, tty_insert_glyphs, &
                        tty_reset_terminal_modes, tty_ring_bell, tty_set_terminal_modes, &
-                       tty_update_end, tty_write_glyphs
+                       tty_update_end, tty_write_glyphs, is_tty_display_color, tty_display_color_cells, &
+                       tty_type, is_controlling_tty, tty_no_underline
     implicit none(type, external)
     private
 
@@ -64,7 +64,8 @@ contains
                     new_unittest("terminal-modes", test_modes), &
                     new_unittest("function-keys", test_fkeys), &
                     new_unittest("encode-terminal-code", test_encode), &
-                    new_unittest("pty-output", test_pty) &
+                    new_unittest("pty-output", test_pty), &
+                    new_unittest("tty-display-functions", test_tty_functions) &
                     ]
     end subroutine collect_term_fm
 
@@ -78,6 +79,24 @@ contains
         call builtin_xterm(ti)
         call init_tty_entry(tty, ti, "xterm-256color", -1_int32, st)
     end subroutine xterm
+
+    !> tty-display-color-p, tty-display-color-cells, tty-type,
+    !> controlling-tty-p and tty-no-underline on the built-in xterm.
+    subroutine test_tty_functions(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(tty_display_info) :: tty
+        type(status_type) :: st
+
+        call xterm(tty)
+        call check(error, is_tty_display_color(tty) .and. tty_display_color_cells(tty) == 256 .and. &
+                   tty_type(tty) == "xterm-256color" .and. is_controlling_tty(tty), "an xterm")
+        if (allocated(error)) return
+        call check(error, allocated(tty%ts_enter_underline_mode), "it underlines")
+        if (allocated(error)) return
+        call tty_no_underline(tty)
+        call check(error,.not. allocated(tty%ts_enter_underline_mode), "tty-no-underline")
+        call delete_tty(tty, st)
+    end subroutine test_tty_functions
 
     function glyphs(text, face_id) result(g)
         character(len=*), intent(in) :: text
@@ -279,11 +298,11 @@ contains
         type(status_type) :: st
 
         call xterm(tty)
-        key(1) = make_fixnum(27_int64)
-        key(2) = make_fixnum(int(iachar("O"), int64))
-        key(3) = make_fixnum(int(iachar("A"), int64))
+        key(1) = value_type(27_int64)
+        key(2) = value_type(int(iachar("O"), int64))
+        key(3) = value_type(int(iachar("A"), int64))
         call lookup_key(make_keymap_ref(input_decode_map), key, v, st)
-        call check(error, value_equal(v, list(sym("up"))), "ESC O A")
+        call check(error, value_equal(v, list(value_type(name="up"))), "ESC O A")
     end subroutine test_fkeys
 
     subroutine test_encode(error)

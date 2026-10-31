@@ -25,8 +25,7 @@ module test_ansi_color_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_string, list, xstring
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, xstring
     use fns_fm, only: value_equal
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer
     use insdel_fm, only: insert
@@ -37,13 +36,17 @@ module test_ansi_color_fm
     use faces_fm, only: face_spec_recalc_all
     use ansi_color_fm, only: ansi_color_apply_on_region, ansi_color_filter_region, ansi_color_filter_apply, &
                              ansi_color_apply, ansi_color_bold_is_bright, reset_ansi_color_context, &
-                             ansi_color_apply_face_function, ansi_color_apply_text_property_face
+                             ansi_color_apply_face_function, ansi_color_apply_text_property_face, &
+                             ansi_color_face_type, ansi_color_bold
     implicit none(type, external)
     private
 
     public :: collect_ansi_color_fm
 
     character(len=*), parameter :: ESC = achar(27)
+
+    ! The faces test_face_record's face function was given.
+    type(ansi_color_face_type), allocatable :: seen(:)
 
     ! One of ansi-color-tests--strings: INPUT, TEXT and the faces
     ! expected (normal, and with `ansi_color_bold_is_bright').
@@ -63,7 +66,8 @@ contains
                     new_unittest("ansi-color-apply-on-region-test", test_apply_on_region), &
                     new_unittest("ansi-color-apply-on-region-bold-is-bright-test", test_bold_is_bright), &
                     new_unittest("ansi-color-apply-on-region-preserving-test", test_preserving), &
-                    new_unittest("ansi-color-incomplete-sequences-test", test_incomplete) &
+                    new_unittest("ansi-color-incomplete-sequences-test", test_incomplete), &
+                    new_unittest("ansi-color-face-function-record", test_face_record) &
                     ]
     end subroutine collect_ansi_color_fm
 
@@ -75,15 +79,15 @@ contains
         call init_bindings()
         ! The faces' attributes on the frame, as when the frame is made.
         call face_spec_recalc_all()
-        yellow = make_string("yellow3")
-        bright_yellow = make_string("yellow2")
-        custom_color = make_string("#87FFFF")
+        yellow = value_type(text="yellow3")
+        bright_yellow = value_type(text="yellow2")
+        custom_color = value_type(text="#87FFFF")
         allocate (cases(14))
-        call set(1, "Hello World", "Hello World", nil())
-        call set(2, ESC//"[33mHello World"//ESC//"[0m", "Hello World", list(sym(":foreground"), yellow))
-        call set(3, ESC//"[43mHello World"//ESC//"[0m", "Hello World", list(sym(":background"), yellow))
-        call set(4, ESC//"[93mHello World"//ESC//"[0m", "Hello World", list(sym(":foreground"), bright_yellow))
-        call set(5, ESC//"[103mHello World"//ESC//"[0m", "Hello World", list(sym(":background"), bright_yellow))
+        call set(1, "Hello World", "Hello World", value_type())
+        call set(2, ESC//"[33mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":foreground"), yellow))
+        call set(3, ESC//"[43mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":background"), yellow))
+        call set(4, ESC//"[93mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":foreground"), bright_yellow))
+        call set(5, ESC//"[103mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":background"), bright_yellow))
         call set(6, ESC//"[1;33mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
         call set(7, ESC//"[33;1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
         call set(8, ESC//"[1m"//ESC//"[33mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), &
@@ -91,13 +95,14 @@ contains
         call set(9, ESC//"[33m"//ESC//"[1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), &
                  bold_fg(bright_yellow))
         call set(10, ESC//"[1m"//ESC//"[3m"//ESC//"[5mbold italics blink"//ESC//"[0m", "bold italics blink", &
-                 list(sym("ansi_color_bold"), sym("ansi_color_italic"), sym("ansi_color_slow_blink")))
-        call set(11, ESC//"[10munrecognized"//ESC//"[0m", "unrecognized", nil())
+                 list(value_type(name="ansi_color_bold"), value_type(name="ansi_color_italic"), &
+                      value_type(name="ansi_color_slow_blink")))
+        call set(11, ESC//"[10munrecognized"//ESC//"[0m", "unrecognized", value_type())
         call set(12, ESC//"[38;5;3;1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
         call set(13, ESC//"[48;5;123;1mHello World"//ESC//"[0m", "Hello World", &
-                 list(sym("ansi_color_bold"), list(sym(":background"), custom_color)))
+                 list(value_type(name="ansi_color_bold"), list(value_type(name=":background"), custom_color)))
         call set(14, ESC//"[48;2;135;255;255;1mHello World"//ESC//"[0m", "Hello World", &
-                 list(sym("ansi_color_bold"), list(sym(":background"), custom_color)))
+                 list(value_type(name="ansi_color_bold"), list(value_type(name=":background"), custom_color)))
 
     contains
 
@@ -121,7 +126,7 @@ contains
             type(value_type), intent(in) :: color
             type(value_type) :: v
 
-            v = list(sym("ansi_color_bold"), list(sym(":foreground"), color))
+            v = list(value_type(name="ansi_color_bold"), list(value_type(name=":foreground"), color))
         end function bold_fg
     end subroutine strings
 
@@ -168,11 +173,11 @@ contains
             call check(error, buffer_string(), cases(k)%text)
 
             if (.not. allocated(error)) then
-                call check(error, value_equal(get_char_property(point_min(), sym("face")), cases(k)%face), &
+                call check(error, value_equal(get_char_property(point_min(), value_type(name="face")), cases(k)%face), &
                            "face of: "//cases(k)%text)
             end if
 
-            if (.not. allocated(error) .and. .not. nilp(cases(k)%face)) then
+            if (.not. allocated(error) .and. allocated(cases(k)%face%a)) then
                 call check(error, overlays_at_start(), "an overlay")
             end if
 
@@ -203,11 +208,11 @@ contains
             call check(error, buffer_string(), cases(k)%text)
 
             if (.not. allocated(error)) then
-                call check(error, value_equal(get_char_property(point_min(), sym("face")), face), &
+                call check(error, value_equal(get_char_property(point_min(), value_type(name="face")), face), &
                            "face of: "//cases(k)%text)
             end if
 
-            if (.not. allocated(error) .and. .not. nilp(face)) call check(error, overlays_at_start(), "an overlay")
+            if (.not. allocated(error) .and. allocated(face%a)) call check(error, overlays_at_start(), "an overlay")
             call end_temp_buffer(old, b)
             if (allocated(error)) exit
         end do
@@ -292,7 +297,7 @@ contains
         if (allocated(error)) return
         ! Test for `ansi_color_apply'
         call temp_buffer(old, b)
-        propertized = ansi_color_apply(make_string(complete_str))
+        propertized = ansi_color_apply(value_type(text=complete_str))
         call check(error, xstring(propertized), filtered_str)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
@@ -320,4 +325,44 @@ contains
         call end_temp_buffer(old, b)
         call reset_ansi_color_context()
     end subroutine test_incomplete
+
+    !> An `ansi_color_apply_face_function' receives the face as a record:
+    !> named faces and colors, empty for no face.  Ours (A5).
+    subroutine test_face_record(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old, b
+        type(status_type) :: st
+        integer(int64) :: opoint
+
+        allocate (seen(0))
+        call temp_buffer(old, b)
+        call ansi_color_apply_face_function%set_local(record_face)
+        opoint = point()
+        call insert(ESC//"[1;31mbold red"//ESC//"[0m plain", st)
+        call ansi_color_apply_on_region(opoint, point())
+        call end_temp_buffer(old, b)
+        call check(error, size(seen) >= 2, "two stretches")
+        if (allocated(error)) return
+        call check(error, size(seen(1)%faces) == 1, "one named face")
+        if (allocated(error)) return
+        call check(error, associated(seen(1)%faces(1)%face, ansi_color_bold), "ansi_color_bold")
+        if (allocated(error)) return
+        call check(error, allocated(seen(1)%foreground) .and. .not. allocated(seen(1)%background), "a foreground")
+        if (allocated(error)) return
+        call check(error, seen(size(seen))%is_empty(), "no face after the reset")
+    end subroutine test_face_record
+
+    recursive subroutine record_face(beg, end, face)
+        integer(int64), intent(in) :: beg, end
+        type(ansi_color_face_type), intent(in) :: face
+        type(ansi_color_face_type), allocatable :: grown(:)
+        integer :: n
+
+        if (end <= beg) return
+        n = size(seen)
+        allocate (grown(n + 1))
+        grown(1:n) = seen
+        grown(n + 1) = face
+        call move_alloc(grown, seen)
+    end subroutine record_face
 end module test_ansi_color_fm

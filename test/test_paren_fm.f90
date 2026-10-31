@@ -26,13 +26,12 @@ module test_paren_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max
     use itree_fm, only: overlays_at, overlay_get
-    use paren_fm, only: show_paren_unescaped_p, show_paren_categorize_paren, show_paren_locate_near_paren, &
+    use paren_fm, only: is_show_paren_unescaped, show_paren_categorize_paren, show_paren_locate_near_paren, &
                         show_paren_default, show_paren_data_type, show_paren_function, &
                         show_paren_when_point_inside_paren, show_paren_when_point_in_periphery, show_paren_style, &
                         SHOW_PAREN_EXPRESSION, SHOW_PAREN_PARENTHESIS
@@ -57,7 +56,7 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("paren-tests-unescaped-p", test_unescaped_p), &
+                    new_unittest("paren-tests-unescaped-p", test_unescaped), &
                     new_unittest("paren-tests-categorize-paren", test_categorize_paren), &
                     new_unittest("paren-tests-locate-near-paren", test_locate_near_paren), &
                     new_unittest("paren-tests-locate-near-paren-inside", test_locate_near_paren_inside), &
@@ -82,19 +81,19 @@ contains
         call insert(text, st)
     end subroutine temp_buffer
 
-    subroutine test_unescaped_p(error)
+    subroutine test_unescaped(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call temp_buffer(h, "(insert)")
         call goto_char(point() - 1)
-        call check(error, show_paren_unescaped_p(point()), "unescaped")
+        call check(error, is_show_paren_unescaped(point()), "unescaped")
         if (allocated(error)) return
         call insert("\", st)
-        call check(error,.not. show_paren_unescaped_p(point()), "escaped")
+        call check(error,.not. is_show_paren_unescaped(point()), "escaped")
         call kill_buffer(h, st)
-    end subroutine test_unescaped_p
+    end subroutine test_unescaped
 
     subroutine test_categorize_paren(error)
         type(error_type), allocatable, intent(out) :: error
@@ -274,9 +273,9 @@ contains
 
         do k = 1, size(vec)
             face = overlay_get(vec(k), "face")
-            if (value_eq(face, sym("show_paren_match"))) name = "show_paren_match"
-            if (value_eq(face, sym("show_paren_mismatch"))) name = "show_paren_mismatch"
-            if (value_eq(face, sym("show_paren_match_expression"))) name = "show_paren_match_expression"
+            if (value_eq(face, value_type(name="show_paren_match"))) name = "show_paren_match"
+            if (value_eq(face, value_type(name="show_paren_mismatch"))) name = "show_paren_mismatch"
+            if (value_eq(face, value_type(name="show_paren_match_expression"))) name = "show_paren_match_expression"
             if (len(name) > 0) return
         end do
     end function face_at

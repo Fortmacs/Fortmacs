@@ -27,19 +27,21 @@ module test_editfns_fm
     use error_fm, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, format_error, format_message
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, &
-                         current_buffer, buffer_live_p, erase_buffer
+                         current_buffer, is_buffer_live, erase_buffer
     use marker_fm, only: make_marker, set_marker, free_marker, marker_position
     use insdel_fm, only: insert
-    use editfns_fm, only: bobp, bolp, buffer_size, buffer_size_of, buffer_string, buffer_substring, &
+    use editfns_fm, only: is_bob, is_bol, buffer_size, buffer_size_of, buffer_string, buffer_substring, &
                           byte_to_position, char_after, char_before, delete_and_extract_region, &
-                          delete_region, eobp, eolp, following_char, gap_position, goto_char, &
+                          delete_region, is_eob, is_eol, following_char, gap_position, goto_char, &
                           goto_char_marker, insert_char_n, narrow_to_region, point, point_marker, &
                           point_max, point_max_marker, point_min, point_min_marker, position_bytes, &
                           preceding_char, widen, field_beginning, field_end, field_string, &
                           constrain_to_field, line_beginning_position, line_end_position, &
-                          delete_field, subst_char_in_region
-    use lisp_fm, only: list, t_value
-    use lread_fm, only: sym
+                          delete_field, subst_char_in_region, interactive_region, check_mark, mark_marker
+    use buffer_fm, only: buffers, cur, transient_mark_mode
+    use callint_fm, only: mark_even_if_inactive
+    use error_fm, only: FM_MARK_INACTIVE
+    use lisp_fm, only: list, value_type
     use textprop_fm, only: add_text_properties, put_text_property, get_text_property
     use lisp_fm, only: value_type
     use data_fm, only: value_eq
@@ -72,7 +74,8 @@ contains
                     new_unittest("erase-buffer-widens", test_erase), &
                     new_unittest("find-fields", test_find_fields), &
                     new_unittest("prompt-field", test_prompt_field), &
-                    new_unittest("subst-char-in-region", test_subst_char) &
+                    new_unittest("subst-char-in-region", test_subst_char), &
+                    new_unittest("interactive-region", test_interactive_region) &
                     ]
     end subroutine collect_editfns_fm
 
@@ -90,7 +93,7 @@ contains
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -218,16 +221,16 @@ contains
 
         call enter("te-lines", h, old)
         call insert("ab"//new_line("a")//"cd", st)
-        call check(error, eolp() .and. eobp() .and. .not. bolp(), "at end")
+        call check(error, is_eol() .and. is_eob() .and. .not. is_bol(), "at end")
         if (allocated(error)) return
         call goto_char(4_int64)
-        call check(error, bolp() .and. .not. eolp(), "start of line 2")
+        call check(error, is_bol() .and. .not. is_eol(), "start of line 2")
         if (allocated(error)) return
         call goto_char(3_int64)
-        call check(error, eolp() .and. .not. bolp(), "end of line 1")
+        call check(error, is_eol() .and. .not. is_bol(), "end of line 1")
         if (allocated(error)) return
         call goto_char(1_int64)
-        call check(error, bobp() .and. bolp(), "beginning")
+        call check(error, is_bob() .and. is_bol(), "beginning")
         call leave(h, old)
     end subroutine test_lines
 
@@ -245,7 +248,7 @@ contains
         if (allocated(error)) return
         call check(error, buffer_string(), "2345")
         if (allocated(error)) return
-        call check(error, bobp() .eqv. .false., "bobp")
+        call check(error, is_bob() .eqv. .false., "is_bob")
         if (allocated(error)) return
         call narrow_to_region(0_int64, 5_int64, st)
         call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
@@ -311,13 +314,13 @@ contains
 
         call enter("te-subst", h, old)
         call insert("a"//char(9)//"b"//char(9)//"c", st)
-        call put_text_property(2_int64, 3_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 3_int64, value_type(name="face"), value_type(name="bold"), st)
         call goto_char(3_int64)
         call subst_char_in_region(6_int64, 1_int64, 9, 32, st)
         call check(error, st%ok() .and. buffer_string() == "a b c" .and. point() == 3, "subst: "//buffer_string())
         if (allocated(error)) return
-        call get_text_property(2_int64, sym("face"), v, st)
-        call check(error, value_eq(v, sym("bold")), "property kept")
+        call get_text_property(2_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="bold")), "property kept")
         if (allocated(error)) return
         call subst_char_in_region(1_int64, 9_int64, 32, 95, st)
         call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == "Args out of range: 1, 9", &
@@ -421,7 +424,7 @@ contains
 
         call enter("te-fields", h, old)
         call insert("foobarzot", st)
-        call add_text_properties(4_int64, 7_int64, list(sym("field"), sym("bar")), changed, st)
+        call add_text_properties(4_int64, 7_int64, list(value_type(name="field"), value_type(name="bar")), changed, st)
         call goto_char(point_min())
         call check(error, field_beginning(point(), .false.) == point_min() .and. &
                    field_end(point(), .false.) == 4)
@@ -451,8 +454,9 @@ contains
         call enter("te-prompt", h, old)
         call insert("Find file: ", st)
         call add_text_properties(1_int64, point(), &
-                                 list(sym("field"), t_value(), sym("front_sticky"), t_value(), &
-                                      sym("rear_nonsticky"), t_value()), changed, st)
+                                 list(value_type(name="field"), value_type(.true.), value_type(name="front_sticky"), &
+                                      value_type(.true.), &
+                                      value_type(name="rear_nonsticky"), value_type(.true.)), changed, st)
         call insert("/tmp/x", st)
         call check(error, line_beginning_position() == 12, "C-a stops after the prompt")
         if (allocated(error)) return
@@ -469,4 +473,39 @@ contains
         call check(error, line_beginning_position() == 1)
         call leave(h, old)
     end subroutine test_prompt_field
+
+    !> The `r' code of call-interactively (callint.c:check_mark): point
+    !> and the mark as they are, even outside the accessible part; errors
+    !> for no mark and an inactive one.
+    subroutine test_interactive_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, m
+        type(status_type) :: st
+        integer(int64) :: b, e
+        logical :: saved
+
+        call enter("te-ireg", h, old)
+        call insert("abcdefghij", st)
+        call interactive_region(b, e, st)
+        call check(error, format_error(st), "The mark is not set now, so there is no region")
+        if (allocated(error)) return
+        call check_mark(.false., st)
+        call check(error, format_error(st), "The mark is not set now")
+        if (allocated(error)) return
+        call mark_marker(m)
+        call set_marker(m, 2_int64, st)
+        buffers(cur)%mark_active = .true.
+        call narrow_to_region(4_int64, 8_int64, st)
+        call goto_char(6_int64)
+        call interactive_region(b, e, st)
+        call check(error, st%ok() .and. b == 2 .and. e == 6, "the mark outside the narrowing")
+        if (allocated(error)) return
+        saved = mark_even_if_inactive
+        buffers(cur)%mark_active = .false.
+        mark_even_if_inactive = .false.
+        call interactive_region(b, e, st)
+        mark_even_if_inactive = saved
+        call check(error, st%code == FM_MARK_INACTIVE .and. transient_mark_mode%value, "inactive mark")
+        call leave(h, old)
+    end subroutine test_interactive_region
 end module test_editfns_fm

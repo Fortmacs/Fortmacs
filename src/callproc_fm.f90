@@ -25,12 +25,12 @@
 !> error together) goes into a buffer or is discarded; the result is its
 !> exit status, or a description of the signal that killed it.
 !>
-!>     call call_process("ls", result, status, destination=t_value(), &
-!>                       args=list(make_string("-l")))
+!>     call call_process("ls", result, status, destination=value_type(.true.), &
+!>                       args=list(value_type(text="-l")))
 !>
 !> Standard error can go to a file of its own (DESTINATION's
 !> (REAL-DESTINATION ERROR-FILE) form, as `error_file').  Not ported yet:
-!> DESTINATION 0 (not waiting), `(:file FILE)', an ERROR-FILE of nil
+!> DESTINATION 0 (not waiting), `(:file FILE)', an absent ERROR-FILE
 !> (discarding standard error), DISPLAY,
 !> quitting (killing the process on C-g), coding systems (output is
 !> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
@@ -41,17 +41,16 @@ module callproc_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, fixnump, xfixnum, &
-                       stringp, xstring, bufferp, xhandle, vtag, V_SYMBOL, SYM_T, xsymbol, &
-                       list_elements
+    use lisp_fm, only: value_type, xfixnum, xstring, xhandle, vtag, V_NAME, SYM_T, xsymbol, list_elements, V_INTEGER, &
+                       V_STRING, V_BUFFER
     use data_fm, only: check_string, string_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, BEG, &
-                         buffer_live_p
+                         is_buffer_live
     use character_fm, only: str_as_multibyte
     use insdel_fm, only: insert, del_range
     use editfns_fm, only: point_min, point_max, widen, delete_region, validate_region
-    use fileio_fm, only: expand_file_name, file_name_as_directory, file_accessible_directory_p, &
-                         file_executable_p, file_directory_p, &
+    use fileio_fm, only: expand_file_name, file_name_as_directory, is_file_accessible_directory, &
+                         is_file_executable, is_file_directory, &
                          report_file_errno, write_region, delete_file_internal, emacs_wd
     use files_fm, only: temporary_file_directory
     use env_fm, only: getenv
@@ -96,7 +95,7 @@ contains
     !> output.)
     !> If DESTINATION is a buffer or the name of a buffer, or t (which
     !> stands for the current buffer), it means insert output in that buffer
-    !> before point.  If DESTINATION is nil (or absent), it means discard
+    !> before point.  If DESTINATION is absent, it means discard
     !> output.
     !>
     !> ARGS, a list of strings, are passed as command arguments to PROGRAM.
@@ -110,7 +109,7 @@ contains
     !> for PROGRAM in PATH.
     !>
     !> If executable PROGRAM can't be found as an executable,
-    !> `call_process' signals an error.  `call_process' reports errors in
+    !> a `file_missing' error condition occurs in `call_process'.  `call_process' reports errors in
     !> execution of the program only through its return and output.
     !>
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
@@ -138,7 +137,7 @@ contains
         integer(int64) :: n, k
         type(status_type) :: rst
 
-        result = nil()
+        result = value_type()
         call get_current_directory(dir, status)
         if (.not. status%ok()) return
         input = "/dev/null"
@@ -160,30 +159,30 @@ contains
         discard = .true.
 
         if (present(destination)) then
-            if (nilp(destination)) then
+            if (.not. allocated(destination%a)) then
                 ! nil: discard the output.
                 discard = .true.
-            else if (fixnump(destination)) then
+            else if (vtag(destination) == V_INTEGER) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "call-process with DESTINATION 0 (not waiting) is not supported yet")
                 return
-            else if (vtag(destination) == V_SYMBOL) then
+            else if (vtag(destination) == V_NAME) then
                 if (xsymbol(destination) == SYM_T) then
                     discard = .false.
                     buffer = current_buffer()
-                else if (.not. nilp(destination)) then
+                else if (allocated(destination%a)) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call_process")
                     return
                 end if
-            else if (bufferp(destination)) then
+            else if (vtag(destination) == V_BUFFER) then
                 discard = .false.
                 buffer = xhandle(destination)
 
-                if (.not. buffer_live_p(buffer)) then
+                if (.not. is_buffer_live(buffer)) then
                     call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
                     return
                 end if
-            else if (stringp(destination)) then
+            else if (vtag(destination) == V_STRING) then
                 discard = .false.
                 call get_buffer_create(xstring(destination), buffer, status)
                 if (.not. status%ok()) return
@@ -291,9 +290,9 @@ contains
         end if
 
         if (sig /= 0) then
-            result = make_string(emacs_strsignal(sig))
+            result = value_type(text=emacs_strsignal(sig))
         else
-            result = make_fixnum(int(code, int64))
+            result = value_type(int(code, int64))
         end if
     end subroutine call_process
 
@@ -319,7 +318,7 @@ contains
         if (.not. status%ok()) return
         dir = file_name_as_directory(expanded)
 
-        if (.not. file_accessible_directory_p(dir)) then
+        if (.not. is_file_accessible_directory(dir)) then
             call report_file_errno("Setting current directory", curdir, ENOENT, status)
         end if
     end subroutine get_current_directory
@@ -340,7 +339,7 @@ contains
 
         if (index(program, "/") > 0) then
             call expand_file_name(program, candidate, st, dir)
-            if (st%ok() .and. executable_file_p(candidate)) path = candidate
+            if (st%ok() .and. is_executable_file(candidate)) path = candidate
             return
         end if
 
@@ -361,7 +360,7 @@ contains
             if (len(entry) == 0) entry = dir
             call expand_file_name(program, candidate, st, file_name_as_directory(entry))
 
-            if (st%ok() .and. executable_file_p(candidate)) then
+            if (st%ok() .and. is_executable_file(candidate)) then
                 path = candidate
                 return
             end if
@@ -371,11 +370,11 @@ contains
 
     contains
 
-        logical function executable_file_p(name)
+        logical function is_executable_file(name)
             character(len=*), intent(in) :: name
 
-            executable_file_p = file_executable_p(name) .and. .not. file_directory_p(name)
-        end function executable_file_p
+            is_executable_file = is_file_executable(name) .and. .not. is_file_directory(name)
+        end function is_executable_file
     end subroutine locate_program
 
     !> Insert the program output `bytes' at point, decoded as UTF-8 in a
@@ -404,7 +403,7 @@ contains
     !> Delete the text if DELETE is true.
     !>
     !> Insert output in DESTINATION before point; t means current buffer;
-    !> nil (or absent) means discard it.  DESTINATION can be a string which
+    !> absent means discard it.  DESTINATION can be a string which
     !> is the name of a buffer.
     !> ARGS, a list of strings, are passed to PROGRAM at startup as
     !> command-line arguments.
@@ -430,7 +429,7 @@ contains
         logical :: whole, empty_input
         type(status_type) :: dst
 
-        result = nil()
+        result = value_type()
         whole = .not. (present(start) .and. present(end))
 
         if (whole) then

@@ -29,28 +29,27 @@ module test_help_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, make_fixnum, make_string, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list
     use print_fm, only: fortran_repr
     use callint_fm, only: current_prefix_arg
     use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NEVER
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_modified_p, &
-                         auto_fill_function, buffer_live_p
+    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
+                         auto_fill_function, is_buffer_live
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string
     use keymap_fm, only: key_parse, keymap_global_set, keymap_set
     use text_mode_fm, only: text_mode, text_mode_map
-    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
+    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
-    use isearch_fm, only: search_upper_case, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use isearch_fm, only: search_upper_case, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS
     use simple_fm, only: fill_prefix, do_auto_fill
     use help_fm, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                        make_separator_line, register_keymap_name
     use xdisp_fm, only: message, message_nolog
     use keymap_fm, only: make_sparse_keymap, free_keymap
-    use lisp_fm, only: make_keymap_ref
+    use lisp_fm, only: make_keymap_ref, value_type
     use help_fns_fm, only: describe_function_1, describe_variable_text
     implicit none(type, external)
     private
@@ -101,7 +100,7 @@ contains
                     new_unittest("describe-map-tree-ranges-and-prefixes", test_map_tree_ranges), &
                     new_unittest("describe-bindings", test_describe_bindings), &
                     new_unittest("describe-mode", test_describe_mode), &
-                    new_unittest("help-fns-test-describe-symbol", test_describe_symbol), &
+                    new_unittest("help-fns-test-describe-symbol", test_describe_name), &
                     new_unittest("describe-command", test_describe_command_x), &
                     new_unittest("describe-variable-customize", test_describe_variable_customize), &
                     new_unittest("view-lossage", test_view_lossage), &
@@ -157,14 +156,19 @@ contains
         name = buffers(windows(selected_frame%selected_window%index)%buffer%index)%name
     end function selected_buffer_name
 
-    !> Queue `keys` (a key_valid_p string) as input.
+    !> Queue `keys` (an is_key_valid string) as input.
     subroutine type_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+        integer :: k
 
         call key_parse(keys, evs, st)
-        call unread_command_events(evs)
+
+        ! As typed: into the event queue.
+        do k = 1, size(evs)
+            call store_event(evs(k))
+        end do
     end subroutine type_keys
 
     !> Check that substitute-command-keys turns `input` into `want`.
@@ -331,9 +335,13 @@ contains
         call check(error, index(text, "a Fortran subroutine in "//LQ//"insdel_fm.f90"//RQ//"."//LF//LF// &
                                 "call insert(") == 1, text)
         if (allocated(error)) return
+        ! The call line, then the declaration block of its arguments.
+        call check(error, index(text, "call insert(string, status)"//LF//"character(len=*), intent(in) :: string"//LF// &
+                                "type(status_type), intent(out) :: status"//LF//LF) > 0, text)
+        if (allocated(error)) return
         call describe_function_1("point", text)
         call check(error, index(text, "a Fortran function in "//LQ//"editfns_fm.f90"//RQ) == 1 .and. &
-                   index(text, LF//"point()"//LF) > 0, text)
+                   index(text, LF//"point()"//LF//"integer(int64) :: point"//LF) > 0, text)
         if (allocated(error)) return
         call describe_function_1("no-such-function", text)
         call check(error, index(text, "Not documented.") > 0, text)
@@ -373,10 +381,10 @@ contains
         if (allocated(error)) return
         ! An original value of 20 characters or more starts on the next
         ! line.
-        search_upper_case = UPPER_CASE_T
+        search_upper_case = UPPER_CASE_YES
         call describe_variable_text("search_upper_case", text, found)
         search_upper_case = UPPER_CASE_NOT_YANKS
-        call check(error, index(text, "Its value is UPPER_CASE_T"//LF// &
+        call check(error, index(text, "Its value is UPPER_CASE_YES"//LF// &
                                 "Original value was "//LF//"UPPER_CASE_NOT_YANKS"//LF) > 0, text)
         if (allocated(error)) return
         ! A value fits on the "Its value is" line when it is shorter than
@@ -433,10 +441,10 @@ contains
         call check(error, index(text, "Its value is indent_relative"//LF) > 0, text)
         if (allocated(error)) return
         ! A C-u prefix argument.
-        elems(1) = make_fixnum(4_int64)
+        elems(1) = value_type(4_int64)
         current_prefix_arg = make_list(elems)
         call describe_variable_text("current_prefix_arg", text, found)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error, index(text, "Its value is [4]"//LF) > 0, text)
         if (allocated(error)) return
         ! A hook has no printed form yet: the documentation follows the
@@ -492,17 +500,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: elems(3)
 
-        call check(error, fortran_repr(nil()) == ".false." .and. fortran_repr(t_value()) == ".true.")
+        call check(error, fortran_repr(value_type()) == ".false." .and. fortran_repr(value_type(.true.)) == ".true.")
         if (allocated(error)) return
-        call check(error, fortran_repr(make_fixnum(-12_int64)) == "-12", fortran_repr(make_fixnum(-12_int64)))
+        call check(error, fortran_repr(value_type(-12_int64)) == "-12", fortran_repr(value_type(-12_int64)))
         if (allocated(error)) return
-        call check(error, fortran_repr(make_string('say "hi"')) == '"say ""hi"""', fortran_repr(make_string('say "hi"')))
+        call check(error, fortran_repr(value_type(text='say "hi"')) == '"say ""hi"""', fortran_repr(value_type(text='say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(sym("UPPER_CASE_T")) == "UPPER_CASE_T")
+        call check(error, fortran_repr(value_type(name="UPPER_CASE_YES")) == "UPPER_CASE_YES")
         if (allocated(error)) return
-        elems(1) = make_fixnum(1_int64)
-        elems(2) = make_string("a")
-        elems(3) = nil()
+        elems(1) = value_type(1_int64)
+        elems(2) = value_type(text="a")
+        elems(3) = value_type()
         call check(error, fortran_repr(make_list(elems)) == '[1, "a", .false.]', fortran_repr(make_list(elems)))
     end subroutine test_fortran_repr
 
@@ -514,7 +522,7 @@ contains
         call fresh_scratch()
         call type_keys("C-h f RET")
         call command_loop(st)
-        call check(error, last_message, "You didn"//RQ//"t specify a function symbol")
+        call check(error, last_message, "You didn"//RQ//"t specify a function name")
         if (allocated(error)) return
         call type_keys("C-h v RET")
         call command_loop(st)
@@ -544,7 +552,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message == "Type C-x 1 to delete the help window.", last_message)
         if (allocated(error)) return
-        call buffer_modified_p(help, modified, st)
+        call is_buffer_modified(help, modified, st)
         call check(error,.not. modified, "*Help* is unmodified")
         if (allocated(error)) return
         ! q in the help window deletes it.
@@ -618,7 +626,7 @@ contains
         call command_loop(st)
         call check(error, index(help_text(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
                    help_text())
-        call keymap_set(text_mode_map, "C-c t", nil(), st)
+        call keymap_set(text_mode_map, "C-c t", value_type(), st)
         call fresh_scratch()
     end subroutine test_binding_locus
 
@@ -711,7 +719,7 @@ contains
         call make_sparse_keymap(map)
 
         do k = 1, size(keys)
-            call keymap_set(map, trim(keys(k)), sym(trim(defs(k))), st)
+            call keymap_set(map, trim(keys(k)), value_type(name=trim(defs(k))), st)
         end do
 
         call register_keymap_name("help_tests_test_keymap", map)
@@ -763,10 +771,10 @@ contains
         type(status_type) :: st
 
         call make_sparse_keymap(map)
-        call keymap_set(map, "C-a", sym("foo"), st)
-        call keymap_set(map, "C-b", sym("bar"), st)
+        call keymap_set(map, "C-a", value_type(name="foo"), st)
+        call keymap_set(map, "C-b", value_type(name="bar"), st)
         call make_sparse_keymap(s)
-        call keymap_set(s, "C-a", sym("baz"), st)
+        call keymap_set(s, "C-a", value_type(name="baz"), st)
         allocate (shadow(1))
         shadow(1) = make_keymap_ref(s)
     end subroutine shadow_maps
@@ -809,8 +817,8 @@ contains
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
-        call keymap_set(map, "C-a", sym("foo"), st)
-        call keymap_set(map, "C-b", sym("undefined"), st)
+        call keymap_set(map, "C-a", value_type(name="foo"), st)
+        call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .true., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF)
         call free_keymap(map, st)
@@ -825,8 +833,8 @@ contains
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
-        call keymap_set(map, "C-a", sym("foo"), st)
-        call keymap_set(map, "C-b", sym("undefined"), st)
+        call keymap_set(map, "C-a", value_type(name="foo"), st)
+        call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .false., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF//"C-b"//TAB//TAB//"undefined"//LF)
         call free_keymap(map, st)
@@ -844,13 +852,13 @@ contains
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
-        call keymap_set(map, "a", sym("self_insert_command"), st)
-        call keymap_set(map, "b", sym("self_insert_command"), st)
-        call keymap_set(map, "c", sym("self_insert_command"), st)
-        call keymap_set(map, "<f11>", sym("eleven"), st)
-        call keymap_set(map, "<f2>", sym("two"), st)
-        call keymap_set(map, "C-c C-x", sym("ccx"), st)
-        call keymap_set(map, "C-c <some-long-key-name>", sym("long"), st)
+        call keymap_set(map, "a", value_type(name="self_insert_command"), st)
+        call keymap_set(map, "b", value_type(name="self_insert_command"), st)
+        call keymap_set(map, "c", value_type(name="self_insert_command"), st)
+        call keymap_set(map, "<f11>", value_type(name="eleven"), st)
+        call keymap_set(map, "<f2>", value_type(name="two"), st)
+        call keymap_set(map, "C-c C-x", value_type(name="ccx"), st)
+        call keymap_set(map, "C-c <some-long-key-name>", value_type(name="long"), st)
         call check(error, map_tree_text(map, .true., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"a .. c"//TAB//TAB//"self_insert_command"//LF// &
                    "<f2>"//TAB//TAB//"two"//LF//"<f11>"//TAB//TAB//"eleven"//LF//LF// &
@@ -872,7 +880,7 @@ contains
         call keymap_set(text_mode_map, "C-f", "backward_char", st)
         call type_keys("C-h b")
         call command_loop(st)
-        call keymap_set(text_mode_map, "C-f", nil(), st)
+        call keymap_set(text_mode_map, "C-f", value_type(), st)
         text = help_text()
         k1 = index(text, FF//LF//LQ//"text_mode"//RQ//" Major Mode Bindings:"//LF//LF//"Key             Binding"//LF// &
                    sep())
@@ -920,7 +928,7 @@ contains
 
     !> describe-symbol shows a function and a variable of that name, with
     !> a separator line between them.
-    subroutine test_describe_symbol(error)
+    subroutine test_describe_name(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -940,7 +948,7 @@ contains
         call command_loop(st)
         call check(error, last_message, "You didn"//RQ//"t specify a function or variable")
         call fresh_scratch()
-    end subroutine test_describe_symbol
+    end subroutine test_describe_name
 
     subroutine test_describe_command_x(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1067,7 +1075,7 @@ contains
 
         call fresh_scratch()
         call type_keys("C-h C-h SPC f")
-        ev(1) = sym("x")
+        ev(1) = value_type(name="x")
         call unread_command_events(ev)
         call discard_input()
         call type_keys("C-h C-h k C-f")
@@ -1110,7 +1118,7 @@ contains
 
         old = current_buffer()
         text = "(none)"
-        if (.not. buffer_live_p(get_buffer(name))) return
+        if (.not. is_buffer_live(get_buffer(name))) return
         call set_buffer(get_buffer(name), st)
         text = buffer_string()
         call set_buffer(old, st)

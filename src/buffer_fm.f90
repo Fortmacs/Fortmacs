@@ -40,10 +40,11 @@
 !> file visiting and locking, and hooks.
 module buffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, nilp, make_symbol_ref
+    use lisp_fm, only: value_type, make_symbol_ref
     use lread_fm, only: intern
     use data_fm, only: symbol_value, integer_setting, logical_setting, function_setting
     use intervals_fm, only: intervals_type, find_interval, textget
@@ -85,7 +86,7 @@ module buffer_fm
     integer, parameter, public :: UE_BOUNDARY = 0, UE_INSERTION = 1, UE_DELETION = 2, &
                                   UE_POINT = 3, UE_FIRST_CHANGE = 4
 
-    !> One entry of `buffer_undo_list': a boundary (nil); an insertion
+    !> One entry of `buffer_undo_list': a boundary; an insertion
     !> (BEG . END); a deletion (TEXT . POSITION), POSITION negative when
     !> point was at the end of the text; point (POSITION, in `beg'); or the
     !> first change since the buffer was unmodified, (t . TIME), with the
@@ -98,7 +99,7 @@ module buffer_fm
     end type undo_entry_type
 
     !> An element of a buffer's invisibility spec: `ATOM', or
-    !> `(ATOM . ELLIPSIS)' (`cons') with ELLIPSIS true or false.
+    !> ATOM with ELLIPSIS (`with_ellipsis') .true. or .false..
     type, public :: invisibility_entry_type
         type(value_type) :: atom
         logical :: cons = .false., ellipsis = .false.
@@ -115,7 +116,7 @@ module buffer_fm
     end type header_line_segment_type
 
     !> A header line: its segments in order.  A buffer shows no header line
-    !> while SEGMENTS is unallocated (nil upstream); `add' starts one.
+    !> while SEGMENTS is unallocated; `add' starts one.
     !> (The %-constructs, `:eval' and the other mode-line-format elements
     !> are Deferred, as for the mode line.)
     type, public :: header_line_format_type
@@ -124,7 +125,7 @@ module buffer_fm
         !> Append a segment: TEXT, in FACE if present, at column ALIGN_TO
         !> if present.
         procedure :: add => header_line_add
-        !> No header line (nil).
+        !> No header line.
         procedure :: clear => header_line_clear
     end type header_line_format_type
 
@@ -138,13 +139,21 @@ module buffer_fm
         integer(int64) :: zv = BEG, zv_byte = BEG_BYTE
         !> BVAR enable_multibyte_characters.
         logical :: multibyte = .true.
+        !> BVAR bidi_display_reordering (`bidi_display_reordering'): true
+        !> means reorder bidirectional text for display in the visual order.
+        logical :: bidi_display_reordering = .true.
+        !> BVAR bidi_paragraph_direction (`bidi_paragraph_direction'): 0
+        !> to determine each paragraph's direction dynamically, 1
+        !> (`left-to-right') or 2 (`right-to-left') to force it (bidi_fm
+        !> L2R and R2L).
+        integer :: bidi_paragraph_direction = 0
         !> BVAR read_only.
         logical :: read_only = .false.
         !> Upstream sets undo_list to t (disabled) for names starting with SPC.
         logical :: undo_enabled = .true.
         !> BVAR undo_list (`buffer_undo_list'): entries 1 to `undo_count',
         !> the newest last.  A list position k (entries 1 to k, the head
-        !> being entry k) stands for a tail of the Lisp list.
+        !> being entry k) stands for a tail of upstream's list.
         type(undo_entry_type), allocatable :: undo_list(:)
         integer(int64) :: undo_count = 0
         !> simple.el undo-equiv-table, keyed by list position (0 to
@@ -156,11 +165,18 @@ module buffer_fm
         !> BVAR syntax_table: the syntax table, or the null handle for the
         !> standard one (syntax_fm).
         type(handle_type) :: syntax_table
+        !> BVAR downcase_table, upcase_table, case_canon_table and
+        !> case_eqv_table: the case table and its companions (char-tables),
+        !> or null handles for the standard ones (casetab_fm).
+        type(handle_type) :: downcase_table, upcase_table, case_canon_table, case_eqv_table
+        !> BVAR category_table: the category table, or the null handle for
+        !> the standard one (category_fm).
+        type(handle_type) :: category_table
         !> BVAR filename (`buffer_file_name'): the visited file's expanded
         !> name; unallocated when the buffer visits no file.
         character(len=:), allocatable :: filename
         !> BVAR directory (`default_directory'), ending in a slash;
-        !> unallocated for nil.
+        !> unallocated when unset.
         character(len=:), allocatable :: directory
         !> `buffer_backed_up': a backup was made since the file was visited.
         logical :: backed_up = .false.
@@ -205,12 +221,12 @@ module buffer_fm
         integer(int64) :: display_count = 0
         !> BVAR display_time (`buffer_display_time'): the time when the
         !> buffer was last displayed in a window, in seconds and nanoseconds
-        !> since the epoch (unset, nil upstream, while DISPLAY_TIME_SET is
+        !> since the epoch (unset while DISPLAY_TIME_SET is
         !> false).
         logical :: display_time_set = .false.
         integer(int64) :: display_time_sec = 0
         integer(int32) :: display_time_nsec = 0
-        !> BVAR local_var_alist: the variables local to this buffer (symbol
+        !> buffer.h:local_var_alist (BVAR): the variables local to this buffer (name
         !> ids) and, while the buffer is not current, their values (data_fm
         !> swaps them in and out).
         integer(int64), allocatable :: local_ids(:)
@@ -255,6 +271,11 @@ module buffer_fm
     !> `deactivate_mark').
     logical, public :: deactivate_mark_variable = .false.
 
+    !> The value of `fill_column' that is upstream's unset fill column
+    !> (obsolete upstream): no fill column; `current_fill_column' then gives the
+    !> largest fixnum.  Not a port.
+    integer(int64), parameter, public :: FILL_COLUMN_NONE = -huge(0_int64)
+
     !> Column beyond which automatic line-wrapping should happen.
     !> It is used by filling commands, such as `fill_region' and `fill_paragraph',
     !> and by `auto_fill_mode', which see.
@@ -286,7 +307,7 @@ module buffer_fm
     !> the `auto_fill_chars' table.
     !> NOTE: This variable is not a hook;
     !> its value may not be several functions.  Port of buffer.c
-    !> auto-fill-function (null is nil; one global value).
+    !> auto-fill-function (null when unset; one global value).
     type(function_setting), public :: auto_fill_function = function_setting(name="auto_fill_function")
 
     !> Swaps the buffer-local variables on a change of current buffer; set
@@ -307,8 +328,8 @@ module buffer_fm
     !> Live buffers, least recently selected first (upstream Vbuffer_alist,
     !> most recent first): `record_buffer'ed ones go last, new and buried
     !> ones first.
-    type(handle_type), allocatable :: alist(:)
-    integer(int64) :: alist_count = 0
+    type(handle_type), allocatable :: buffer_order(:)
+    integer(int64) :: buffer_order_count = 0
 
     !> The selected frame's buffer lists (frame.h buffer_list and
     !> buried_buffer_list), most recent first: the buffers selected in
@@ -355,21 +376,50 @@ module buffer_fm
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine erase_buffer
+
+        !> Run `buffer_list_update_hook' unless buffer slot I inhibits
+        !> buffer hooks.  Port of buffer.c:run_buffer_list_update_hook.
+        !> (In buffer_ops_fm.)
+        recursive module subroutine run_buffer_list_update_hook(i, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: i
+            type(status_type), intent(out) :: status
+        end subroutine run_buffer_list_update_hook
+
+        !> Return the buffer with buffer-local VARIABLE `equal' to VALUE.
+        !> If there is no such live buffer, return the null handle.
+        !> See also `find_buffer_visiting'.
+        !> Port of buffer.c:Ffind_buffer (the null handle for none).  (In
+        !> buffer_ops_fm.)
+        module function find_buffer(variable, value) result(h)
+            implicit none(type, external)
+            type(value_type), intent(in) :: variable, value
+            type(handle_type) :: h
+        end function find_buffer
+
+        !> Define the commands of buffer.c.  Port of buffer.c:syms_of_buffer
+        !> (its commands; its variables are typed settings).  (In
+        !> buffer_ops_fm.)
+        module subroutine syms_of_buffer()
+            implicit none(type, external)
+        end subroutine syms_of_buffer
     end interface
 
-    public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
+    public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
               set_buffer_internal
     public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, &
               frame_seen_buffers, bury_buffer_internal, frames_discard_buffer
     public :: set_buffer, kill_buffer, erase_buffer
-    public :: buffer_modified_p, restore_buffer_modified_p, &
+    public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_chars_modified_tick
     public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
     public :: modiff_incr, buf_compute_unchanged
     public :: buf_byte_index, buf_fetch_byte, buf_fetch_char, &
               buf_next_char_len, buf_prev_char_len, buf_bytes
     public :: temp_set_point_both
+    public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
+              set_buffer_if_live, run_buffer_list_update_hook, find_buffer, syms_of_buffer
     public :: buffer_serial_live
 
 contains
@@ -401,7 +451,7 @@ contains
         call move_alloc(grown, self%segments)
     end subroutine header_line_add
 
-    !> Make header line SELF nil: no header line.  Not a port.
+    !> Clear header line SELF: no header line.  Not a port.
     subroutine header_line_clear(self)
         class(header_line_format_type), intent(inout) :: self
 
@@ -423,11 +473,11 @@ contains
     end subroutine resolve_buffer
 
     !> Port of buffer.c:Fbuffer_live_p.
-    logical function buffer_live_p(h)
+    logical function is_buffer_live(h)
         type(handle_type), intent(in) :: h
 
-        buffer_live_p = table%is_live(h)
-    end function buffer_live_p
+        is_buffer_live = table%is_live(h)
+    end function is_buffer_live
 
     !> Whether a live buffer has serial number SERIAL (for Fortran objects
     !> keeping per-buffer values by serial number).  Not a port.
@@ -440,7 +490,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            live = buffer_live_p(buffer_handle(k))
+            live = is_buffer_live(buffer_handle(k))
             return
         end do
     end function buffer_serial_live
@@ -453,9 +503,9 @@ contains
 
         h = null_handle()
 
-        do k = 1, alist_count
-            if (alist(k)%index == cur) then
-                h = alist(k)
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == cur) then
+                h = buffer_order(k)
                 return
             end if
         end do
@@ -471,7 +521,8 @@ contains
     end function buffer_handle
 
     !> Live buffer named `name', or the null handle.
-    !> Port of buffer.c:Fget_buffer (string argument).
+    !> Port of buffer.c:Fget_buffer (string argument; the names compared
+    !> as buffer.c:assoc_ignore_text_properties does).
     function get_buffer(name) result(h)
         character(len=*), intent(in) :: name
         type(handle_type) :: h
@@ -479,10 +530,10 @@ contains
 
         h = null_handle()
 
-        do k = 1, alist_count
-            if (buffers(alist(k)%index)%name == name .and. &
-                len(buffers(alist(k)%index)%name) == len(name)) then
-                h = alist(k)
+        do k = 1, buffer_order_count
+            if (buffers(buffer_order(k)%index)%name == name .and. &
+                len(buffers(buffer_order(k)%index)%name) == len(name)) then
+                h = buffer_order(k)
                 return
             end if
         end do
@@ -499,8 +550,9 @@ contains
 
     !> Live buffer named `name', created (empty, multibyte) if needed.
     !> The first buffer created becomes current.
-    !> Port of buffer.c:Fget_buffer_create.
-    subroutine get_buffer_create(name, h, status, inhibit_buffer_hooks)
+    !> Port of buffer.c:Fget_buffer_create (with buffer.c:reset_buffer and
+    !> buffer.c:alloc_buffer_text, in part: the fields Fortmacs keeps).
+    recursive subroutine get_buffer_create(name, h, status, inhibit_buffer_hooks)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
         type(status_type), intent(out) :: status
@@ -550,12 +602,13 @@ contains
         end if
 
         if (present(inhibit_buffer_hooks)) buffers(i)%inhibit_buffer_hooks = inhibit_buffer_hooks
-        ! Put this in the alist of all live buffers (at its end, the least
+        ! Put this in `buffer_order', the live buffers (at its end, the least
         ! recently selected one).
-        call alist_append(h)
-        alist(2:alist_count) = alist(1:alist_count - 1)
-        alist(1) = h
+        call buffer_order_append(h)
+        buffer_order(2:buffer_order_count) = buffer_order(1:buffer_order_count - 1)
+        buffer_order(1) = h
         if (cur == 0) call set_buffer_internal(i)
+        call run_buffer_list_update_hook(i, status)
     end subroutine get_buffer_create
 
     !> The live buffer visiting `filename', or the null handle.  The caller
@@ -570,14 +623,14 @@ contains
 
         h = handle_type()
 
-        do k = 1, alist_count
-            call resolve_buffer(alist(k), i, status)
+        do k = 1, buffer_order_count
+            call resolve_buffer(buffer_order(k), i, status)
             if (.not. status%ok()) cycle
             if (.not. allocated(buffers(i)%filename)) cycle
 
             if (buffers(i)%filename == filename .and. &
                 len(buffers(i)%filename) == len(filename)) then
-                h = alist(k)
+                h = buffer_order(k)
                 return
             end if
         end do
@@ -650,7 +703,7 @@ contains
 
     !> Return the name of BUFFER (handle `h'), as a string.  Port of
     !> buffer.c:Fbuffer_name (a killed buffer is an error, where upstream
-    !> returns nil).
+    !> returns no name).
     subroutine buffer_name(h, name, status)
         type(handle_type), intent(in) :: h
         character(len=:), allocatable, intent(out) :: name
@@ -677,7 +730,7 @@ contains
     !> Rename the current buffer to `newname'; with `unique', pick a free
     !> variant instead of failing.  `actual' receives the name given.
     !> Port of buffer.c:Frename_buffer.
-    subroutine rename_buffer(newname, unique, actual, status)
+    recursive subroutine rename_buffer(newname, unique, actual, status)
         character(len=*), intent(in) :: newname
         logical, intent(in) :: unique
         character(len=:), allocatable, intent(out) :: actual
@@ -715,17 +768,18 @@ contains
 
         buffers(cur)%last_name = oldname
         buffers(cur)%name = actual
+        call run_buffer_list_update_hook(cur, status)
     end subroutine rename_buffer
 
     !> Return a list of all live buffers, most recently selected first.
-    !> Port of buffer.c:Fbuffer_list (FRAME nil).
+    !> Port of buffer.c:Fbuffer_list (FRAME absent).
     function buffer_list() result(list)
         type(handle_type), allocatable :: list(:)
 
-        if (alist_count == 0) then
+        if (buffer_order_count == 0) then
             allocate (list(0))
         else
-            list = alist(alist_count:1:-1)
+            list = buffer_order(buffer_order_count:1:-1)
         end if
     end function buffer_list
 
@@ -814,7 +868,7 @@ contains
         end do
     end subroutine list_delq
 
-    !> (cons h (delq h list)) Not a port.
+    !> Move H to the front of LIST (removing it elsewhere).  Not a port.
     subroutine list_push(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
@@ -829,14 +883,15 @@ contains
 
     !> Move BUFFER to the end of the buffer list.  Port of
     !> buffer.c:Fbury_buffer_internal.
-    subroutine bury_buffer_internal(h)
+    recursive subroutine bury_buffer_internal(h)
         type(handle_type), intent(in) :: h
         integer(int64) :: k
+        type(status_type) :: status
 
-        do k = 1, alist_count
-            if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
-                alist(2:k) = alist(1:k - 1)
-                alist(1) = h
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == h%index .and. buffer_order(k)%generation == h%generation) then
+                buffer_order(2:k) = buffer_order(1:k - 1)
+                buffer_order(1) = h
                 exit
             end if
         end do
@@ -844,6 +899,7 @@ contains
         ! Update buffer lists of selected frame.
         call list_delq(frame_buffers, h)
         call list_push(frame_buried, h)
+        call run_buffer_list_update_hook(h%index, status)
     end subroutine bury_buffer_internal
 
     !> Drop the killed buffer `h' from the frame's buffer lists.  Port of
@@ -855,7 +911,8 @@ contains
         call list_delq(frame_buried, h)
     end subroutine frames_discard_buffer
 
-    !> Make `h' the current buffer.  Port of buffer.c:Fset_buffer.
+    !> Make `h' the current buffer.  Port of buffer.c:Fset_buffer (also
+    !> buffer.c:restore_buffer, the same as an unwind function).
     subroutine set_buffer(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
@@ -873,7 +930,8 @@ contains
 
     !> Make buffer slot `i' (0 for none) current, swapping the buffer-local
     !> variables of the old and new current buffers.  Port of
-    !> buffer.c:set_buffer_internal_2.
+    !> buffer.c:set_buffer_internal_2 and buffer.c:set_buffer_internal_1
+    !> (no markers of indirect buffers to record or fetch).
     subroutine set_buffer_internal(i)
         integer(int64), intent(in) :: i
 
@@ -884,17 +942,18 @@ contains
 
     !> Move buffer `h' to the most recently selected end of the buffer
     !> list.  Port of buffer.c:record_buffer.
-    subroutine record_buffer(h)
+    recursive subroutine record_buffer(h)
         type(handle_type), intent(in) :: h
         integer(int64) :: k, j
+        type(status_type) :: status
 
-        do k = 1, alist_count
-            if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
-                do j = k, alist_count - 1
-                    alist(j) = alist(j + 1)
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == h%index .and. buffer_order(k)%generation == h%generation) then
+                do j = k, buffer_order_count - 1
+                    buffer_order(j) = buffer_order(j + 1)
                 end do
 
-                alist(alist_count) = h
+                buffer_order(buffer_order_count) = h
                 exit
             end if
         end do
@@ -902,24 +961,25 @@ contains
         ! Update buffer list of selected frame.
         call list_push(frame_buffers, h)
         call list_delq(frame_buried, h)
+        call run_buffer_list_update_hook(h%index, status)
     end subroutine record_buffer
 
     ! Not a port.
-    subroutine alist_append(h)
+    subroutine buffer_order_append(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
 
-        if (.not. allocated(alist)) allocate (alist(16))
+        if (.not. allocated(buffer_order)) allocate (buffer_order(16))
 
-        if (alist_count == size(alist, kind=int64)) then
-            allocate (grown(2*size(alist)))
-            grown(1:alist_count) = alist(1:alist_count)
-            call move_alloc(grown, alist)
+        if (buffer_order_count == size(buffer_order, kind=int64)) then
+            allocate (grown(2*size(buffer_order)))
+            grown(1:buffer_order_count) = buffer_order(1:buffer_order_count)
+            call move_alloc(grown, buffer_order)
         end if
 
-        alist_count = alist_count + 1
-        alist(alist_count) = h
-    end subroutine alist_append
+        buffer_order_count = buffer_order_count + 1
+        buffer_order(buffer_order_count) = h
+    end subroutine buffer_order_append
 
     ! ------------------------------------------------------------------
     ! Modification state
@@ -961,7 +1021,7 @@ contains
 
     !> Port of buffer.c:Fbuffer_modified_p (the `autosaved' state is not
     !> tracked yet).
-    subroutine buffer_modified_p(h, modified, status)
+    subroutine is_buffer_modified(h, modified, status)
         type(handle_type), intent(in) :: h
         logical, intent(out) :: modified
         type(status_type), intent(out) :: status
@@ -971,12 +1031,12 @@ contains
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
         modified = buffers(i)%text%save_modiff < buffers(i)%text%modiff
-    end subroutine buffer_modified_p
+    end subroutine is_buffer_modified
 
     !> Mark the current buffer modified or unmodified.
-    !> Port of buffer.c:Frestore_buffer_modified_p (also the behaviour of
+    !> Port of buffer.c:Frestore_buffer_modified_p (also the behavior of
     !> Fset_buffer_modified_p, minus mode-line updates and file locks).
-    subroutine restore_buffer_modified_p(flag)
+    subroutine restore_buffer_modified(flag)
         logical, intent(in) :: flag
 
         if (cur == 0) return
@@ -988,7 +1048,7 @@ contains
                 call modiff_incr(t%modiff, 1_int64, t%save_modiff)
             end if
         end associate
-    end subroutine restore_buffer_modified_p
+    end subroutine restore_buffer_modified
 
     !> Port of buffer.c:Fbuffer_modified_tick.
     subroutine buffer_modified_tick(h, tick, status)
@@ -1016,7 +1076,7 @@ contains
         tick = buffers(i)%text%chars_modiff
     end subroutine buffer_chars_modified_tick
 
-    !> Value of the variable `inhibit_read_only' (nil when unbound).
+    !> Value of the variable `inhibit_read_only' (.false. when it has no value).
     !> Port of buffer.c:Vinhibit_read_only (global value only).
     function inhibit_read_only() result(v)
         type(value_type) :: v
@@ -1026,8 +1086,8 @@ contains
     end function inhibit_read_only
 
     !> Fail with buffer-read-only if the current buffer is read-only,
-    !> unless `inhibit_read_only' is non-nil or the text at `position'
-    !> (default: point) has a non-nil `inhibit_read_only' property.
+    !> unless `inhibit_read_only' is .true. or the text at `position'
+    !> (default: point) has an `inhibit_read_only' text property that is not .false..
     !> Port of buffer.c:Fbarf_if_buffer_read_only.
     subroutine barf_if_buffer_read_only(status, position)
         type(status_type), intent(out) :: status
@@ -1037,7 +1097,7 @@ contains
 
         if (cur == 0) return
         if (.not. buffers(cur)%read_only) return
-        if (.not. nilp(inhibit_read_only())) return
+        if (vtag(inhibit_read_only()) /= V_NULL) return
         pos = buffers(cur)%pt
         if (present(position)) pos = position
 
@@ -1046,7 +1106,7 @@ contains
             if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
                 k = find_interval(iv, pos)
                 props = iv%runs(k)%plist
-                if (.not. nilp(textget(props, make_symbol_ref(intern("inhibit_read_only"))))) return
+                if (vtag(textget(props, make_symbol_ref(intern("inhibit_read_only")))) /= V_NULL) return
             end if
         end associate
 
@@ -1158,4 +1218,115 @@ contains
         b%pt = charpos
         b%pt_byte = bytepos
     end subroutine temp_set_point_both
+
+    ! ------------------------------------------------------------------
+    ! More of buffer.c
+    ! ------------------------------------------------------------------
+
+    !> Signal the error for a buffer argument that names no live buffer:
+    !> "No such buffer NAME" if NAME is present, else "Invalid buffer
+    !> argument".  Port of buffer.c:nsberror.
+    subroutine nsberror(status, name)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: name
+
+        if (present(name)) then
+            call set_error(status, FM_GENERIC_ERROR, "No such buffer "//name)
+        else
+            call set_error(status, FM_GENERIC_ERROR, "Invalid buffer argument")
+        end if
+    end subroutine nsberror
+
+    !> Start keeping undo information for buffer BUFFER.
+    !> An absent argument means do this for the current buffer.
+    !> Port of buffer.c:Fbuffer_enable_undo (BUFFER a buffer; a buffer
+    !> name is looked up with `get_buffer' by the command).
+    subroutine buffer_enable_undo(status, buffer)
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(in), optional :: buffer
+        integer(int64) :: i
+
+        i = cur
+
+        if (present(buffer)) then
+            call resolve_buffer(buffer, i, status)
+
+            if (.not. status%ok()) then
+                call nsberror(status)
+                return
+            end if
+        end if
+
+        if (i == 0) return
+
+        if (.not. buffers(i)%undo_enabled) then
+            buffers(i)%undo_enabled = .true.
+            buffers(i)%undo_count = 0
+        end if
+    end subroutine buffer_enable_undo
+
+    !> Mark current buffer as modified or unmodified according to FLAG.
+    !> A true FLAG means mark the buffer modified.
+    !> In addition, this function unconditionally forces redisplay of the
+    !> mode lines of the windows that display the current buffer, and also
+    !> locks or unlocks the file visited by the buffer, depending on whether
+    !> the function's argument is true, but only if both `buffer_file_name'
+    !> and `buffer_file_truename' are true.
+    !> Port of buffer.c:Fset_buffer_modified_p (file locking is deferred,
+    !> as in `restore_buffer_modified').
+    subroutine set_buffer_modified(flag)
+        logical, intent(in) :: flag
+
+        call restore_buffer_modified(flag)
+        call force_mode_line_update(.false.)
+    end subroutine set_buffer_modified
+
+    !> Force redisplay of the current buffer's mode line and header line.
+    !> With optional true ALL, force redisplay of all mode lines, tab lines and
+    !> header lines.  This function also forces recomputation of the
+    !> menu bar menus and the frame title.
+    !> Port of buffer.c:Fforce_mode_line_update.  Redisplay (xdisp_fm)
+    !> recomputes every mode line and header line each time, so there is
+    !> no update_mode_lines flag to set: the next redisplay shows them.
+    subroutine force_mode_line_update(all)
+        logical, intent(in) :: all
+
+        if (all) continue
+    end subroutine force_mode_line_update
+
+    !> Return absolute name of file BUFFER is visiting, or FOUND .false. if none.
+    !> An absent argument means use the current buffer.
+    !> Port of buffer.c:Fbuffer_file_name (FOUND .false. for none).
+    subroutine buffer_file_name(filename, found, status, buffer)
+        character(len=:), allocatable, intent(out) :: filename
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(in), optional :: buffer
+        integer(int64) :: i
+
+        found = .false.
+        filename = ""
+        i = cur
+
+        if (present(buffer)) then
+            call resolve_buffer(buffer, i, status)
+            if (.not. status%ok()) return
+        end if
+
+        if (i == 0) return
+        if (.not. allocated(buffers(i)%filename)) return
+        filename = buffers(i)%filename
+        found = .true.
+    end subroutine buffer_file_name
+
+    !> Make buffer H current if it is live; do nothing otherwise.
+    !> Port of buffer.c:set_buffer_if_live.
+    subroutine set_buffer_if_live(h)
+        type(handle_type), intent(in) :: h
+        integer(int64) :: i
+        type(status_type) :: status
+
+        call resolve_buffer(h, i, status)
+        if (status%ok()) call set_buffer_internal(i)
+    end subroutine set_buffer_if_live
 end module buffer_fm

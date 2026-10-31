@@ -27,7 +27,7 @@ module pcvs_util_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use insdel_fm, only: insert
-    use editfns_fm, only: bolp, delete_region, point
+    use editfns_fm, only: is_bol, delete_region, point
     use indent_fm, only: current_column
     use xdisp_fm, only: tab_width
     use frame_fm, only: frame_selected_window_ref
@@ -73,7 +73,7 @@ contains
 
         ! The insertion should be "sensible" no matter what choices were made.
         do k = 1, size(strings)
-            if (.not. bolp()) then
+            if (.not. is_bol()) then
                 call insert(" "//achar(9), status)
                 if (.not. status%ok()) return
 

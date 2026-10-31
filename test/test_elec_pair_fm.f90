@@ -33,11 +33,11 @@
 !> electric-quote and electric-layout cases wait for those modes.
 module test_elec_pair_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check, test_failed
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, transient_mark_mode
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max, buffer_string
@@ -46,14 +46,14 @@ module test_elec_pair_fm
     use cmds_fm, only: delete_char, forward_char
     use simple_fm, only: fundamental_mode, blink_paren_function, newline, undo, deactivate_mark
     use text_mode_fm, only: text_mode
-    use lisp_cmds_fm, only: mark_sexp
+    use expression_motion_fm, only: mark_expression
     use undo_fm, only: undo_boundary
     use modes_fm, only: minor_modes
     use bindings_fm, only: init_bindings
     use elec_pair_fm, only: electric_pair_syntax_info, electric_pair_info_type, electric_pair_delete_pair, &
                             electric_pair_skip_whitespace, electric_pair_pairs, electric_pair_type, &
-                            ELECTRIC_PAIR_SKIP_WHITESPACE_T, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
-    use lisp_fm, only: command_proc
+                            ELECTRIC_PAIR_SKIP_WHITESPACE_YES, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
+    use lisp_fm, only: command_proc, value_type
     use test_support, only: show_alone
     implicit none(type, external)
     private
@@ -161,14 +161,14 @@ contains
         saved_indent = minor_modes%electric_indent_mode%enabled()
         call minor_modes%electric_pair_mode%disable(st)
         call minor_modes%electric_indent_mode%disable(st)
-        last_command_event = make_fixnum(int(char, int64))
+        last_command_event = value_type(int(char, int64))
         transient_mark_mode = .true.
         call goto_char(where)
         call fixture_fn()
         call bindings(.true.)
-        if (present(prefix)) current_prefix_arg = make_fixnum(prefix)
-        call call_interactively(sym("self_insert_command"), st)
-        current_prefix_arg = nil()
+        if (present(prefix)) current_prefix_arg = value_type(prefix)
+        call call_interactively(value_type(name="self_insert_command"), st)
+        current_prefix_arg = value_type()
         call bindings(.false.)
         call minor_modes%electric_pair_mode%disable(st)
         if (saved_indent) call minor_modes%electric_indent_mode%enable(st)
@@ -401,7 +401,7 @@ contains
 
         if (bind) then
             saved_skip_whitespace = electric_pair_skip_whitespace
-            electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_T
+            electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_YES
         else
             electric_pair_skip_whitespace = saved_skip_whitespace
         end if
@@ -480,7 +480,7 @@ contains
         type(status_type) :: st
 
         call minor_modes%electric_pair_mode%enable(st)
-        call mark_sexp(1_int64, .true., .false., st)
+        call mark_expression(1_int64, .true., .false., st)
     end subroutine mark_forward
 
     !> (electric-pair-mode 1) (goto-char (point-max)) (skip-chars-backward
@@ -495,7 +495,7 @@ contains
             if (buffer_string_tail() == '"') call goto_char(point() - 1)
         end if
 
-        call mark_sexp(-1_int64, .true., .false., st)
+        call mark_expression(-1_int64, .true., .false., st)
     end subroutine mark_backward
 
     !> The last character of the buffer.
@@ -583,8 +583,8 @@ contains
 
         call minor_modes%electric_pair_local_mode%enable(st)
         call insert("/", st)
-        last_command_event = make_fixnum(int(iachar("*"), int64))
-        call call_interactively(sym("self_insert_command"), st)
+        last_command_event = value_type(int(iachar("*"), int64))
+        call call_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), expected)
         call move_alloc(saved, electric_pair_pairs)
         call minor_modes%electric_pair_local_mode%disable(st)
@@ -631,15 +631,15 @@ contains
         call init_bindings()
         call temp_buffer(h, "")
         call minor_modes%electric_pair_local_mode%enable(st)
-        last_command_event = make_fixnum(int(iachar("("), int64))
-        call call_interactively(sym("self_insert_command"), st)
+        last_command_event = value_type(int(iachar("("), int64))
+        call call_interactively(value_type(name="self_insert_command"), st)
         call undo_boundary()
-        last_command_event = make_fixnum(int(iachar("a"), int64))
-        call call_interactively(sym("self_insert_command"), st)
+        last_command_event = value_type(int(iachar("a"), int64))
+        call call_interactively(value_type(name="self_insert_command"), st)
         call undo_boundary()
-        call undo(nil(), st)
-        last_command_event = make_fixnum(int(iachar("("), int64))
-        call call_interactively(sym("self_insert_command"), st)
+        call undo(value_type(), st)
+        last_command_event = value_type(int(iachar("("), int64))
+        call call_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "(())")
         call minor_modes%electric_pair_local_mode%disable(st)
         call kill_buffer(h, st)
@@ -681,12 +681,12 @@ contains
         call check(error, minor_modes%electric_pair_local_mode%enabled() .and. &
                    .not. minor_modes%electric_pair_mode%enabled(), "locally on, globally off")
         if (allocated(error)) return
-        last_command_event = make_fixnum(int(iachar("("), int64))
-        call call_interactively(sym("self_insert_command"), st)
+        last_command_event = value_type(int(iachar("("), int64))
+        call call_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "()")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call call_interactively(sym("self_insert_command"), st)
+        call call_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "(")
         if (allocated(error)) return
         call set_buffer(a, st)

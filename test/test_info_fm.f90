@@ -29,13 +29,12 @@ module test_info_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string, nilp, stringp, xstring, symbolp, symbols, xsymbol, nil
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, xstring, symbols, xsymbol, vtag, V_NULL, V_NAME, V_STRING
     use textprop_fm, only: get_text_property, get_char_property
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
     use search_fm, only: search_forward, SEARCH_NOERROR
-    use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_exists_p, &
+    use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_exists, &
                          file_name_directory, file_name_nondirectory
     use files_fm, only: make_temp_file, delete_file
     use callproc_fm, only: call_process
@@ -627,9 +626,9 @@ contains
         zipped = temp//".info.gz"
         command = resource_dir()
         command = "gzip -c "//command//"test.info > "//zipped
-        call call_process("sh", result, st, args=list(make_string("-c"), make_string(command)))
+        call call_process("sh", result, st, args=list(value_type(text="-c"), value_type(text=command)))
 
-        if (.not. file_exists_p(zipped)) then
+        if (.not. file_exists(zipped)) then
             ! (No gzip: nothing to test.)
             return
         end if
@@ -661,7 +660,7 @@ contains
         call search_forward(text, pos, st, noerror=SEARCH_NOERROR)
         found = pos > 0
         if (.not. found) return
-        call get_text_property(pos - len(text), sym(prop), val, st)
+        call get_text_property(pos - len(text), value_type(name=prop), val, st)
     end subroutine property_at
 
     !> The name of the symbol V, "" if V is not a symbol.
@@ -670,7 +669,7 @@ contains
         character(len=:), allocatable :: name
 
         name = ""
-        if (symbolp(v)) name = trim(symbols(xsymbol(v))%name)
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = trim(symbols(xsymbol(v))%name)
     end function symbol_text
 
     subroutine test_fontify_node(error)
@@ -690,7 +689,7 @@ contains
         ! "See *note" shows as "See" ("*note" displays as nothing).
         if (.not. allocated(error)) then
             call property_at("*note Second", "display", val, found)
-            call check(error, found .and. stringp(val), "a display string on *note")
+            call check(error, found .and. vtag(val) == V_STRING, "a display string on *note")
         end if
 
         if (.not. allocated(error)) call check(error, xstring(val), "")
@@ -699,7 +698,7 @@ contains
 
         if (.not. allocated(error)) then
             call property_at("*Note Section", "display", val, found)
-            call check(error, found .and. stringp(val), "a display string on *Note")
+            call check(error, found .and. vtag(val) == V_STRING, "a display string on *Note")
         end if
 
         if (.not. allocated(error)) call check(error, xstring(val), "See ")
@@ -730,7 +729,7 @@ contains
 
         if (.not. allocated(error)) then
             call property_at(" (line 6)", "invisible", val, found)
-            call check(error, found .and. .not. nilp(val), "the line number hidden")
+            call check(error, found .and. allocated(val%a), "the line number hidden")
         end if
 
         call done(old, config)
@@ -746,8 +745,8 @@ contains
 
         ! The first line is replaced by the breadcrumbs.
         if (.not. allocated(error)) then
-            val = get_char_property(point_min(), sym("display"))
-            call check(error, stringp(val), "breadcrumbs on the first line")
+            val = get_char_property(point_min(), value_type(name="display"))
+            call check(error, vtag(val) == V_STRING, "breadcrumbs on the first line")
         end if
 
         if (.not. allocated(error)) call check(error, xstring(val), "(test)Top > First Chapter > Section One"//achar(10))
@@ -907,7 +906,7 @@ contains
 
         ! C-s goes on through the other nodes.
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(nil())
+            call isearch_repeat_forward(value_type())
             call check(error, isearch_success, "found in another node")
         end if
 
@@ -920,7 +919,7 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(nil())
+            call isearch_repeat_forward(value_type())
             call check_node(error, "Section One", status_type())
         end if
 

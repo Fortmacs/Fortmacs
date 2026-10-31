@@ -34,7 +34,7 @@
 !> A coding system is named by a string, its upstream symbol's name
 !> (`"utf-8"', `"iso-latin-1-dos"'), because the names are data that
 !> files and the user give (`-*- coding: utf-8 -*-').  The empty string
-!> stands for nil.  Each base coding system without an end-of-line type
+!> stands for none.  Each base coding system without an end-of-line type
 !> has the three subsidiaries NAME-unix, NAME-dos and NAME-mac, as
 !> upstream makes them.
 !>
@@ -62,13 +62,13 @@
 !> translation tables; compositions and charset annotations; the
 !> `:post-read-conversion' and `:pre-write-conversion' functions;
 !> `define_coding_system' for user-defined coding systems;
-!> `coding_system_put'; `network_coding_system_alist' and
-!> `process_coding_system_alist'; and the functions in
-!> `file_coding_system_alist' (xml, po and latexenc detection).
+!> `coding_system_put'; `network_coding_system_table' and
+!> `process_coding_system_table'; and the functions in
+!> `file_coding_system_table' (xml, po and latexenc detection).
 module coding_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_CODING_SYSTEM_ERROR, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
-    use character_fm, only: char_string, string_char_and_length, char_byte8_p, byte8_to_char, char_to_byte8, &
+    use character_fm, only: char_string, string_char_and_length, is_char_byte8, byte8_to_char, char_to_byte8, &
                             multibyte_length, MAX_MULTIBYTE_LENGTH, MAX_CHAR, MAX_UNICODE_CHAR, MAX_5_BYTE_CHAR
     use character_fm, only: str_to_multibyte
     use data_fm, only: logical_setting, string_setting
@@ -80,15 +80,15 @@ module coding_fm
 
     public :: set_terminal_coding_system_internal, terminal_coding_system, set_keyboard_coding_system_internal, &
               keyboard_coding_system
-    public :: syms_of_coding, coding_system_p, check_coding_system, coding_system_id, coding_system_name, &
+    public :: syms_of_coding, is_coding_system, check_coding_system, coding_system_id, coding_system_name, &
               coding_system_eol_type, coding_system_subsidiaries, coding_system_base, coding_system_type, &
               coding_system_mnemonic, coding_system_doc_string, coding_system_aliases, coding_system_equal, &
               coding_system_list, coding_system_priority_list, set_coding_system_priority, coding_system_category, &
-              coding_system_for_unibyte_p, coding_system_ascii_compatible_p, coding_system_mime_charset, &
-              coding_system_charset_list, coding_system_bom, coding_system_endian, coding_system_prefer_utf_8_p, &
+              is_coding_system_for_unibyte, is_coding_system_ascii_compatible, coding_system_mime_charset, &
+              coding_system_charset_list, coding_system_bom, coding_system_endian, is_coding_system_prefer_utf_8, &
               coding_system_change_eol_conversion, coding_system_change_text_conversion, &
               coding_system_eol_type_mnemonic, coding_inherit_eol_type, raw_text_coding_system, &
-              detect_coding_bytes, decode_coding_bytes, encode_coding_text, char_encodable_p, &
+              detect_coding_bytes, decode_coding_bytes, encode_coding_text, is_char_encodable, &
               check_coding_systems_text, find_coding_systems_text, define_coding_system_alias, &
               find_operation_coding_system, coding_system_list_entry_type, unencodable_type, decode_coding_string, &
               encode_coding_string, detect_coding_string, detect_coding_region, decode_coding_region, encode_coding_region
@@ -100,8 +100,8 @@ module coding_fm
     !> first three, or EOL_UNDECIDED for a coding system that has
     !> subsidiaries (upstream's vector).
     integer, parameter, public :: EOL_UNIX = 0, EOL_DOS = 1, EOL_MAC = 2, EOL_UNDECIDED = -1
-    !> BOM handling of UTF coding systems (the `:bom' attribute: nil, t
-    !> or a cons of the two coding systems to choose from).
+    !> BOM handling of UTF coding systems (the `:bom' attribute: BOM_NONE, BOM_WITH
+    !> or BOM_DETECT, which chooses between two coding systems).
     integer, parameter, public :: BOM_NONE = 0, BOM_WITH = 1, BOM_DETECT = 2
 
     ! The charsets a coding system can encode (its `:charset-list').
@@ -173,9 +173,9 @@ module coding_fm
         integer :: id = 0
     end type alias_type
 
-    !> An entry of `file_coding_system_alist': a regexp matching file
+    !> An entry of `file_coding_system_table': a regexp matching file
     !> names, and the coding systems for decoding and for encoding ("" for
-    !> nil).
+    !> none).
     type, public :: file_coding_type
         character(len=:), allocatable :: pattern, decoding, encoding
     end type file_coding_type
@@ -194,10 +194,10 @@ module coding_fm
     !> Specify the coding system for read operations.
     !> It is useful to bind this variable temporarily, but do not set it globally.
     !> If the value is a coding system, it is used for decoding on read operation.
-    !> If not, an appropriate element is used from one of the coding system alists.
-    !> There are three such tables: `file_coding_system_alist',
-    !> `process_coding_system_alist', and `network_coding_system_alist'.
-    !> Port of coding.c coding-system-for-read (unallocated is nil).
+    !> If not, an appropriate element is used from one of the coding system tables.
+    !> There are three such tables: `file_coding_system_table',
+    !> `process_coding_system_table', and `network_coding_system_table'.
+    !> Port of coding.c coding-system-for-read (unallocated when unset).
     type(string_setting), public :: coding_system_for_read = string_setting(name="coding_system_for_read")
 
     !> Specify the coding system for write operations.
@@ -206,12 +206,12 @@ module coding_fm
     !> when writing it to a file and when sending it to a file or subprocess.
     !>
     !> If this does not specify a coding system, an appropriate element
-    !> is used from one of the coding system alists.
-    !> There are three such tables: `file_coding_system_alist',
-    !> `process_coding_system_alist', and `network_coding_system_alist'.
+    !> is used from one of the coding system tables.
+    !> There are three such tables: `file_coding_system_table',
+    !> `process_coding_system_table', and `network_coding_system_table'.
     !> For output to files, if the above procedure does not specify a coding system,
     !> the value of `buffer_file_coding_system' is used.  Port of coding.c
-    !> coding-system-for-write (unallocated is nil).
+    !> coding-system-for-write (unallocated when unset).
     type(string_setting), public :: coding_system_for_write = string_setting(name="coding_system_for_write")
 
     !> Coding system used in the latest file or process I/O.  Port of
@@ -278,22 +278,22 @@ module coding_fm
     !> Port of coding.c eol-mnemonic-undecided.
     type(string_setting), public :: eol_mnemonic_undecided = string_setting(name="eol_mnemonic_undecided")
 
-    !> Cons of coding systems used for process I/O by default.
-    !> The first element is used for decoding a process output,
-    !> the second is used for encoding a text to be sent to a process.
+    !> Coding systems used for process I/O by default.
+    !> The first (`decoding') is used for decoding a process output,
+    !> the second (`encoding') is used for encoding a text to be sent to a process.
     !> Port of coding.c default-process-coding-system (the value
     !> prefer-coding-system gives it in a UTF-8 locale).
     character(len=40), public :: default_process_coding_system(2) = ["utf-8-unix", "utf-8-unix"]
 
-    !> Alist to decide a coding system to use for a file I/O operation.
+    !> Table to decide a coding system to use for a file I/O operation.
     !> Each element has a PATTERN, a regular expression matching a file
     !> name, and the coding systems for decoding and for encoding the
     !> file contents ("" for none).  See also the function
-    !> `find_operation_coding_system' and the variable `auto_coding_alist'.
+    !> `find_operation_coding_system' and the variable `auto_coding_table'.
     !> Port of coding.c file-coding-system-alist, with mule-conf.el's value
     !> (without its functions: the xml, po and latexenc detection is
     !> Deferred).
-    type(file_coding_type), allocatable, public :: file_coding_system_alist(:)
+    type(file_coding_type), allocatable, public :: file_coding_system_table(:)
 
     !> Coding system to use with system messages.
     !> Potentially also used for decoding keyboard input on X Windows, and is
@@ -314,8 +314,8 @@ module coding_fm
     !> and other functions that use `write_region'.
     !> It does not apply to sending output to subprocesses, however.
     !>
-    !> If this is nil, the buffer is saved without any code conversion
-    !> unless some coding system is specified in `file_coding_system_alist'
+    !> If this is unallocated, the buffer is saved without any code conversion
+    !> unless some coding system is specified in `file_coding_system_table'
     !> for the buffer file.
     !>
     !> If the text to be saved cannot be encoded as specified by this variable,
@@ -434,14 +434,14 @@ contains
         call define_coding_system_alias("ascii", "us-ascii")
 
         ! mule-conf.el's file-coding-system-alist, without its functions.
-        if (.not. allocated(file_coding_system_alist)) then
-            allocate (file_coding_system_alist(6))
-            file_coding_system_alist(1) = file_coding_type("\.elc\'", "utf-8-emacs", "utf-8-emacs")
-            file_coding_system_alist(2) = file_coding_type("\.el\'", "prefer-utf-8", "prefer-utf-8")
-            file_coding_system_alist(3) = file_coding_type("\.utf\(-8\)?\'", "utf-8", "utf-8")
-            file_coding_system_alist(4) = file_coding_type("\(\`\|/\)loaddefs.el\'", "raw-text", "raw-text-unix")
-            file_coding_system_alist(5) = file_coding_type("\.tar\'", "no-conversion", "no-conversion")
-            file_coding_system_alist(6) = file_coding_type("", "undecided", "")
+        if (.not. allocated(file_coding_system_table)) then
+            allocate (file_coding_system_table(6))
+            file_coding_system_table(1) = file_coding_type("\.elc\'", "utf-8-emacs", "utf-8-emacs")
+            file_coding_system_table(2) = file_coding_type("\.el\'", "prefer-utf-8", "prefer-utf-8")
+            file_coding_system_table(3) = file_coding_type("\.utf\(-8\)?\'", "utf-8", "utf-8")
+            file_coding_system_table(4) = file_coding_type("\(\`\|/\)loaddefs.el\'", "raw-text", "raw-text-unix")
+            file_coding_system_table(5) = file_coding_type("\.tar\'", "no-conversion", "no-conversion")
+            file_coding_system_table(6) = file_coding_type("", "undecided", "")
         end if
 
         ! reset-language-environment: utf-8, iso-2022-7bit, iso-latin-1,
@@ -589,27 +589,27 @@ contains
         if (id > 0 .and. id <= ncodings) name = codings(id)%name
     end function coding_system_name
 
-    !> Return t if OBJECT is nil or a coding-system.
+    !> Return .true. if OBJECT is "" or a coding-system.
     !> See the documentation of `define_coding_system' for information
     !> about coding-system objects.  Port of coding.c:Fcoding_system_p
-    !> ("" is nil).
-    logical function coding_system_p(object)
+    !> ("" for none).
+    logical function is_coding_system(object)
         character(len=*), intent(in) :: object
 
-        coding_system_p = len(object) == 0
-        if (.not. coding_system_p) coding_system_p = coding_system_id(object) > 0
-    end function coding_system_p
+        is_coding_system = len(object) == 0
+        if (.not. is_coding_system) is_coding_system = coding_system_id(object) > 0
+    end function is_coding_system
 
     !> Check validity of CODING-SYSTEM.
-    !> If valid, return CODING-SYSTEM, else signal a `coding_system_error' error.
-    !> It is valid if it is nil or a symbol defined as a coding system by the
+    !> If valid, return CODING-SYSTEM, else a `coding_system_error' error condition occurs.
+    !> It is valid if it is "" or a name defined as a coding system by the
     !> function `define_coding_system'.  Port of
     !> coding.c:Fcheck_coding_system.
     subroutine check_coding_system(coding_system, status)
         character(len=*), intent(in) :: coding_system
         type(status_type), intent(out) :: status
 
-        if (coding_system_p(coding_system)) return
+        if (is_coding_system(coding_system)) return
         call set_error(status, FM_CODING_SYSTEM_ERROR, coding_system)
     end subroutine check_coding_system
 
@@ -624,7 +624,7 @@ contains
     !> coding system whose eol-type is N.  Port of
     !> coding.c:Fcoding_system_eol_type (EOL_UNDECIDED for a vector, whose
     !> elements `coding_system_subsidiaries' gives; EOL_UNDECIDED also for
-    !> nil and a name that is not a coding system).
+    !> "" and a name that is not a coding system).
     integer function coding_system_eol_type(coding_system) result(eol)
         character(len=*), intent(in) :: coding_system
         integer :: id
@@ -654,7 +654,7 @@ contains
 
     !> Return the base of CODING-SYSTEM.
     !> Any alias or subsidiary coding system is not a base coding system.
-    !> Port of coding.c:Fcoding_system_base ("" for nil).
+    !> Port of coding.c:Fcoding_system_base ("" for none).
     function coding_system_base(coding_system) result(base)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: base
@@ -666,7 +666,7 @@ contains
     end function coding_system_base
 
     !> Return the coding type of CODING-SYSTEM.
-    !> A coding type is a symbol indicating the encoding method of CODING-SYSTEM.
+    !> A coding type is a name indicating the encoding method of CODING-SYSTEM.
     !> See the function `define_coding_system' for more detail.  Port of
     !> mule.el:coding-system-type ("undecided", "utf-8", "utf-16",
     !> "charset" or "raw-text").
@@ -695,7 +695,7 @@ contains
 
     !> Return the mnemonic character of CODING-SYSTEM.
     !> The mnemonic character of a coding system is used in mode line to
-    !> indicate the coding system.  If CODING-SYSTEM is nil, return ?=.
+    !> indicate the coding system.  If CODING-SYSTEM is "", return ?=.
     !> Port of mule.el:coding-system-mnemonic.
     integer function coding_system_mnemonic(coding_system) result(c)
         character(len=*), intent(in) :: coding_system
@@ -789,35 +789,35 @@ contains
 
     !> Whether CODING_SYSTEM reads files into unibyte buffers (`:for-unibyte').
     !> Not a port.
-    logical function coding_system_for_unibyte_p(coding_system)
+    logical function is_coding_system_for_unibyte(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
 
-        coding_system_for_unibyte_p = .false.
+        is_coding_system_for_unibyte = .false.
         id = coding_system_id(coding_system)
-        if (id > 0) coding_system_for_unibyte_p = codings(id)%for_unibyte
-    end function coding_system_for_unibyte_p
+        if (id > 0) is_coding_system_for_unibyte = codings(id)%for_unibyte
+    end function is_coding_system_for_unibyte
 
     !> Whether CODING_SYSTEM is ASCII compatible (`:ascii-compatible-p').
     !> Not a port.
-    logical function coding_system_ascii_compatible_p(coding_system)
+    logical function is_coding_system_ascii_compatible(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
 
-        coding_system_ascii_compatible_p = .false.
+        is_coding_system_ascii_compatible = .false.
         id = coding_system_id(coding_system)
-        if (id > 0) coding_system_ascii_compatible_p = codings(id)%ascii_compatible
-    end function coding_system_ascii_compatible_p
+        if (id > 0) is_coding_system_ascii_compatible = codings(id)%ascii_compatible
+    end function is_coding_system_ascii_compatible
 
     !> Whether CODING_SYSTEM prefers UTF-8 (`:prefer-utf-8').  Not a port.
-    logical function coding_system_prefer_utf_8_p(coding_system)
+    logical function is_coding_system_prefer_utf_8(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
 
-        coding_system_prefer_utf_8_p = .false.
+        is_coding_system_prefer_utf_8 = .false.
         id = coding_system_id(coding_system)
-        if (id > 0) coding_system_prefer_utf_8_p = codings(id)%prefer_utf_8
-    end function coding_system_prefer_utf_8_p
+        if (id > 0) is_coding_system_prefer_utf_8 = codings(id)%prefer_utf_8
+    end function is_coding_system_prefer_utf_8
 
     !> The coding category of CODING_SYSTEM (`:category').  Port of
     !> international/mule.el:coding-system-category.
@@ -856,7 +856,7 @@ contains
     end subroutine coding_system_aliases
 
     !> Return true if the two coding systems are the same.
-    !> Two coding systems are identical if both symbols are equal
+    !> Two coding systems are identical if both names are equal
     !> or one is an alias of the other.  Port of
     !> mule.el:coding-system-equal.
     logical function coding_system_equal(coding_system_1, coding_system_2)
@@ -999,9 +999,9 @@ contains
     !> Return a coding system which differs from CODING-SYSTEM in EOL conversion.
     !> The returned coding system converts end-of-line by EOL-TYPE
     !> but text as the same way as CODING-SYSTEM.
-    !> EOL-TYPE should be `unix', `dos', `mac', or nil (EOL_UNIX, EOL_DOS,
+    !> EOL-TYPE should be `unix', `dos', `mac', or undecided (EOL_UNIX, EOL_DOS,
     !> EOL_MAC or EOL_UNDECIDED here).
-    !> If EOL-TYPE is nil, the returned coding system detects
+    !> If EOL-TYPE is EOL_UNDECIDED, the returned coding system detects
     !> how end-of-line is formatted automatically while decoding.
     !>
     !> EOL-TYPE can be specified by an integer 0, 1, or 2.
@@ -1036,7 +1036,7 @@ contains
     !> Return a coding system which differs from CODING-SYSTEM in text conversion.
     !> The returned coding system converts text by CODING
     !> but end-of-line as the same way as CODING-SYSTEM.
-    !> If CODING is nil, the returned coding system detects
+    !> If CODING is "", the returned coding system detects
     !> how text is formatted automatically while decoding.  Port of
     !> mule.el:coding-system-change-text-conversion.
     function coding_system_change_text_conversion(coding_system, coding) result(cs)
@@ -1073,8 +1073,8 @@ contains
 
     !> If CODING_SYSTEM doesn't specify end-of-line format, return the
     !> subsidiary that has the end-of-line format of PARENT (if it is
-    !> not nil and specifies one) or the system's (unix).  Port of
-    !> coding.c:coding_inherit_eol_type ("" is nil, meaning raw-text).
+    !> not "" and specifies one) or the system's (unix).  Port of
+    !> coding.c:coding_inherit_eol_type ("" means raw-text).
     function coding_inherit_eol_type(coding_system, parent) result(cs)
         character(len=*), intent(in) :: coding_system, parent
         character(len=:), allocatable :: cs
@@ -1116,7 +1116,7 @@ contains
     end function raw_text_coding_system
 
     !> Choose a coding system for an operation based on the target name.
-    !> The value names a pair of coding systems: (DECODING-SYSTEM . ENCODING-SYSTEM).
+    !> The value names two coding systems, DECODING-SYSTEM and ENCODING-SYSTEM.
     !> DECODING-SYSTEM is the coding system to use for decoding
     !> (in case OPERATION does decoding), and ENCODING-SYSTEM is the coding system
     !> for encoding (in case OPERATION does encoding).
@@ -1129,7 +1129,7 @@ contains
     !> is selected as the TARGET.  For file I/O, the file name is the target.
     !>
     !> This function looks up what is specified for TARGET in
-    !> `file_coding_system_alist'.  If no match is found, both are "".
+    !> `file_coding_system_table'.  If no match is found, both are "".
     !> Port of coding.c:Ffind_operation_coding_system (file operations
     !> only: process and network operations are Deferred; MATCHER, a
     !> regexp matcher returning whether a pattern matches, keeps this
@@ -1149,10 +1149,10 @@ contains
         encoding = ""
         if (ncodings == 0) call syms_of_coding()
 
-        do k = 1, size(file_coding_system_alist)
-            if (matcher(file_coding_system_alist(k)%pattern, filename)) then
-                decoding = file_coding_system_alist(k)%decoding
-                encoding = file_coding_system_alist(k)%encoding
+        do k = 1, size(file_coding_system_table)
+            if (matcher(file_coding_system_table(k)%pattern, filename)) then
+                decoding = file_coding_system_table(k)%decoding
+                encoding = file_coding_system_table(k)%encoding
                 return
             end if
         end do
@@ -1196,7 +1196,7 @@ contains
             else
                 call string_char_and_length(src, p, ch, length)
 
-                if (char_byte8_p(ch)) then
+                if (is_char_byte8(ch)) then
                     ch = char_to_byte8(ch)
                 else
                     ch = -ch
@@ -1214,13 +1214,6 @@ contains
     ! ------------------------------------------------------------------
     ! Detection
     ! ------------------------------------------------------------------
-
-    ! Not a port.
-    logical function has(mask, cat)
-        integer, intent(in) :: mask, cat
-
-        has = btest(mask, cat)
-    end function has
 
     !> Whether the text is UTF-8, counting characters and checking for a
     !> BOM.  Port of coding.c:detect_coding_utf_8.
@@ -1509,7 +1502,7 @@ contains
         eol_seen = EOL_SEEN_NONE
         total = 0
 
-        if (has(MASK_UTF_16, category)) then
+        if (btest(MASK_UTF_16, category)) then
             msb = 0
             if (category == CAT_UTF_16_LE .or. category == CAT_UTF_16_LE_NOSIG) msb = 1
             lsb = 1 - msb
@@ -1688,13 +1681,13 @@ contains
                     info%rejected = ior(info%rejected, 2**category)
                 else if (category >= CAT_RAW_TEXT) then
                     cycle
-                else if (has(info%checked, category)) then
-                    if (has(info%found, category)) then
+                else if (btest(info%checked, category)) then
+                    if (btest(info%found, category)) then
                         hit = .true.
                         exit
                     end if
                 else if (run_detector(category, units, head_ascii, info)) then
-                    if (has(info%found, category)) then
+                    if (btest(info%found, category)) then
                         hit = .true.
                         exit
                     end if
@@ -1713,7 +1706,7 @@ contains
                 do i = 0, CAT_RAW_TEXT - 1
                     category = priorities(i)
 
-                    if (.not. has(info%rejected, category)) then
+                    if (.not. btest(info%rejected, category)) then
                         found_id = category_id(category)
                         exit
                     end if
@@ -1731,7 +1724,7 @@ contains
             if (head_ascii == len(src, kind=int64)) then
                 found_id = coding_system_id(codings(id)%bom_without)
             else if (detect_coding_utf_8(units, 0_int64, info)) then
-                if (has(info%found, CAT_UTF_8_SIG)) then
+                if (btest(info%found, CAT_UTF_8_SIG)) then
                     found_id = coding_system_id(codings(id)%bom_with)
                 else
                     found_id = coding_system_id(codings(id)%bom_without)
@@ -1741,9 +1734,9 @@ contains
             found_id = id
 
             if (detect_coding_utf_16(units, info)) then
-                if (has(info%found, CAT_UTF_16_LE)) then
+                if (btest(info%found, CAT_UTF_16_LE)) then
                     found_id = coding_system_id(codings(id)%bom_with)
-                else if (has(info%found, CAT_UTF_16_BE)) then
+                else if (btest(info%found, CAT_UTF_16_BE)) then
                     found_id = coding_system_id(codings(id)%bom_without)
                 end if
             end if
@@ -1767,7 +1760,7 @@ contains
 
         if (category == CAT_UTF_8_AUTO) then
             if (codings(this)%bom == BOM_DETECT) then
-                if (has(info%found, CAT_UTF_8_SIG)) then
+                if (btest(info%found, CAT_UTF_8_SIG)) then
                     id = coding_system_id(codings(this)%bom_with)
                 else
                     id = coding_system_id(codings(this)%bom_without)
@@ -1775,9 +1768,9 @@ contains
             end if
         else if (category == CAT_UTF_16_AUTO) then
             if (codings(this)%bom == BOM_DETECT) then
-                if (has(info%found, CAT_UTF_16_LE)) then
+                if (btest(info%found, CAT_UTF_16_LE)) then
                     id = coding_system_id(codings(this)%bom_with)
-                else if (has(info%found, CAT_UTF_16_BE)) then
+                else if (btest(info%found, CAT_UTF_16_BE)) then
                     id = coding_system_id(codings(this)%bom_without)
                 end if
             end if
@@ -1838,15 +1831,15 @@ contains
                         info%rejected = ior(info%rejected, 2**category)
                     else if (category >= CAT_RAW_TEXT) then
                         cycle
-                    else if (has(info%checked, category)) then
-                        if (top .and. has(info%found, category)) then
+                    else if (btest(info%checked, category)) then
+                        if (top .and. btest(info%found, category)) then
                             hit = .true.
                             exit
                         end if
                     else if (run_detector(category, units, head_ascii, info)) then
-                        if (top .and. has(info%found, category)) then
+                        if (top .and. btest(info%found, category)) then
                             if (category == CAT_UTF_16_AUTO) then
-                                if (has(info%found, CAT_UTF_16_LE)) then
+                                if (btest(info%found, CAT_UTF_16_LE)) then
                                     category = CAT_UTF_16_LE
                                 else
                                     category = CAT_UTF_16_BE
@@ -1878,7 +1871,7 @@ contains
                 ids(1) = this
             else
                 do i = 0, CAT_RAW_TEXT - 1
-                    if (.not. has(info%rejected, priorities(i))) then
+                    if (.not. btest(info%rejected, priorities(i))) then
                         info%found = 2**priorities(i)
                         n = 1
                         ids(1) = category_id(priorities(i))
@@ -1895,7 +1888,7 @@ contains
             do i = 0, CAT_RAW_TEXT - 1
                 category = priorities(i)
 
-                if (has(info%found, category)) then
+                if (btest(info%found, category)) then
                     if (category_id(category) > 0) then
                         n = n + 1
                         ids(n) = category_id(category)
@@ -1910,7 +1903,7 @@ contains
             do i = CAT_RAW_TEXT - 1, 0, -1
                 category = priorities(i)
 
-                if (.not. has(mask, category)) then
+                if (.not. btest(mask, category)) then
                     found = ibset(found, category)
                     if (category_id(category) > 0) k = category_id(category)
                 end if
@@ -2510,7 +2503,7 @@ contains
             do k = 1, n
                 c = chars(k)
 
-                if (char_byte8_p(c)) then
+                if (is_char_byte8(c)) then
                     call emit(out, q, char(char_to_byte8(c)))
                 else if (c < 128) then
                     call emit(out, q, char(c))
@@ -2548,7 +2541,7 @@ contains
 
                 if (c < 128) then
                     call emit(out, q, char(c))
-                else if (char_byte8_p(c)) then
+                else if (is_char_byte8(c)) then
                     call emit(out, q, char(char_to_byte8(c)))
                 else if (c <= limit) then
                     call emit(out, q, char(c))
@@ -2563,7 +2556,7 @@ contains
 
                 if (c < 128) then
                     call emit(out, q, char(c))
-                else if (char_byte8_p(c)) then
+                else if (is_char_byte8(c)) then
                     call emit(out, q, char(char_to_byte8(c)))
                 else if (mb) then
                     call emit(out, q, internal_bytes(c))
@@ -2596,37 +2589,37 @@ contains
 
     !> Whether coding system CODING can encode character C.  Port of
     !> coding.c:char_encodable_p.
-    logical function char_encodable_p(c, coding)
+    logical function is_char_encodable(c, coding)
         integer, intent(in) :: c
         character(len=*), intent(in) :: coding
         integer :: id
 
-        char_encodable_p = .false.
+        is_char_encodable = .false.
         id = coding_system_id(coding)
         if (id == 0) return
 
         select case (codings(id)%charset)
         case (CS_ASCII)
-            char_encodable_p = c < 128
+            is_char_encodable = c < 128
         case (CS_LATIN1)
-            char_encodable_p = c < 256
+            is_char_encodable = c < 256
         case (CS_UNICODE)
-            char_encodable_p = c <= MAX_UNICODE_CHAR
+            is_char_encodable = c <= MAX_UNICODE_CHAR
         case (CS_EMACS)
-            char_encodable_p = c <= MAX_5_BYTE_CHAR
+            is_char_encodable = c <= MAX_5_BYTE_CHAR
         case default
-            char_encodable_p = .true.
+            is_char_encodable = .true.
         end select
-    end function char_encodable_p
+    end function is_char_encodable
 
     !> Check if TEXT (multibyte, starting at position FIRST) is encodable
     !> by CODING_SYSTEMS.
     !>
     !> If all coding systems in CODING-SYSTEM-LIST can encode the region, the
-    !> function returns nil (an empty RESULT).
+    !> function returns an empty RESULT.
     !>
     !> If some of the coding systems cannot encode the whole region, value is
-    !> an alist, each element of which has the form (CODING-SYSTEM POS1 POS2 ...),
+    !> a table, each element of which has the form (CODING-SYSTEM POS1 POS2 ...),
     !> which means that CODING-SYSTEM cannot encode the text at buffer positions
     !> POS1, POS2, ...  (FIRST, FIRST + 1, ...; FIRST is 0 for a string
     !> as upstream counts.)  Port of coding.c:Fcheck_coding_systems_region.
@@ -2663,7 +2656,7 @@ contains
                 p = p + length
 
                 do k = 1, size(coding_systems)
-                    if (.not. char_encodable_p(c, trim(coding_systems(k)))) then
+                    if (.not. is_char_encodable(c, trim(coding_systems(k)))) then
                         counts(k) = counts(k) + 1
                         pos(counts(k), k) = first + chars
                     end if
@@ -2719,7 +2712,7 @@ contains
             p = p + length
 
             do id = 1, ncodings
-                if (safe(id)) safe(id) = char_encodable_p(c, codings(id)%name)
+                if (safe(id)) safe(id) = is_char_encodable(c, codings(id)%name)
             end do
         end do
 
@@ -2762,7 +2755,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Decode STRING (bytes, unless MULTIBYTE) by CODING-SYSTEM into RESULT.
-    !> If CODING-SYSTEM is nil, it returns STRING itself.  The value is a
+    !> If CODING-SYSTEM is "", it returns STRING itself.  The value is a
     !> multibyte string.  This function sets `last_coding_system_used' to
     !> the precise coding system used to decode STRING, which may be
     !> different from CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided').
@@ -2790,7 +2783,7 @@ contains
     end subroutine decode_coding_string
 
     !> Encode STRING (multibyte, unless MULTIBYTE is false) to CODING-SYSTEM
-    !> into RESULT, the bytes.  If CODING-SYSTEM is nil, it returns STRING
+    !> into RESULT, the bytes.  If CODING-SYSTEM is "", it returns STRING
     !> itself.  This function sets `last_coding_system_used' to the precise
     !> coding system used to encode STRING, which may be different from
     !> CODING-SYSTEM.  Port of coding.c:Fencode_coding_string (no NOCOPY or
@@ -2977,7 +2970,7 @@ contains
     end subroutine set_terminal_coding_system_internal
 
     !> Return coding system specified for terminal output on the
-    !> terminal ("" for nil).  Port of coding.c:Fterminal_coding_system.
+    !> terminal ("" for none).  Port of coding.c:Fterminal_coding_system.
     function terminal_coding_system() result(name)
         character(len=:), allocatable :: name
 

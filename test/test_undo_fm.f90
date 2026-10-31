@@ -24,14 +24,13 @@
 
 module test_undo_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
-                         buffer_modified_p, restore_buffer_modified_p, current_buffer
+                         is_buffer_modified, restore_buffer_modified, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, delete_region
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_command, this_command
@@ -72,8 +71,8 @@ contains
         call kill_buffer(h, st)
         call get_buffer_create("*undo-test*", h, st)
         call set_buffer(h, st)
-        last_command = nil()
-        this_command = nil()
+        last_command = value_type()
+        this_command = value_type()
         call show_alone()
     end subroutine fresh
 
@@ -86,9 +85,9 @@ contains
 
         do k = 1, size(cmds)
             last_command = this_command
-            this_command = sym(trim(cmds(k)))
-            prefix_arg = nil()
-            call call_interactively(sym(trim(cmds(k))), st)
+            this_command = value_type(name=trim(cmds(k)))
+            prefix_arg = value_type()
+            call call_interactively(value_type(name=trim(cmds(k))), st)
             call undo_boundary()
         end do
     end subroutine exec
@@ -99,8 +98,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call undo(nil(), st)
-        if (st%ok()) call undo(nil(), st)
+        call undo(value_type(), st)
+        if (st%ok()) call undo(value_type(), st)
         call check(error, format_error(st), "No further undo information")
         if (allocated(error)) return
         call undo_boundary()
@@ -120,8 +119,8 @@ contains
         call undo_boundary()
         call check(error, buffer_string(), "With ")
         if (allocated(error)) return
-        last_command = nil()
-        call undo(nil(), st)
+        last_command = value_type()
+        call undo(value_type(), st)
         call check(error, buffer_string(), "With That")
         if (allocated(error)) return
         call undo_more(4_int64, st)
@@ -147,8 +146,8 @@ contains
         call goto_char(1_int64)
         call insert("Zero", st)
         call undo_boundary()
-        last_command = nil()
-        call undo(nil(), st)
+        last_command = value_type()
+        call undo(value_type(), st)
         before = buffer_string()
         call check(error, before, "One ")
         if (allocated(error)) return
@@ -157,8 +156,8 @@ contains
         if (allocated(error)) return
         ! A new undo series first undoes the undos (they have no boundary
         ! of their own here), then the change before them.
-        last_command = nil()
-        call undo(nil(), st)
+        last_command = value_type()
+        call undo(value_type(), st)
         call check(error, buffer_string(), before)
         call kill_buffer(h, st)
     end subroutine test_undo2
@@ -173,11 +172,11 @@ contains
         call fresh(h)
         call insert("1", st)
         call undo_boundary()
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call insert("2", st)
-        last_command = nil()
-        call undo(nil(), st)
-        call buffer_modified_p(h, modified, st)
+        last_command = value_type()
+        call undo(value_type(), st)
+        call is_buffer_modified(h, modified, st)
         call check(error,.not. modified, "unmodified")
         call kill_buffer(h, st)
     end subroutine test_buffer_modified
@@ -198,11 +197,11 @@ contains
         call set_buffer(buf, st)
         call insert("1", st)
         call undo_boundary()
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call insert("2", st)
-        last_command = nil()
-        call undo(nil(), st)
-        call buffer_modified_p(buf, modified, st)
+        last_command = value_type()
+        call undo(value_type(), st)
+        call is_buffer_modified(buf, modified, st)
         call check(error,.not. modified, "unmodified")
         call kill_buffer(buf, st)
         call kill_buffer(h, st)
@@ -271,7 +270,7 @@ contains
 
         call fresh(h)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call insert("a"//achar(10)//"b"//achar(10)//"c"//achar(10), st)
         call goto_char(point_max())
@@ -292,7 +291,7 @@ contains
 
         call fresh(h)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call kbd_store_bytes("abc"//achar(1)//"xyz"//achar(31))
         call command_loop(st)

@@ -24,40 +24,40 @@
 !> `executable_find' (files_fm cannot use callproc_fm, which uses it).
 !>
 !> Deferred: `executable_interpret' (C-c C-x; it needs rule specifications
-!> in `compilation_error_regexp_alist', so `executable_error_regexp_alist'
+!> in `compilation_error_regexp_names', so `executable_error_regexp_table'
 !> is deferred with it) and `executable_command_find_posix_p' (needs
 !> `data_directory').
 module executable_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, format_error, FM_GENERIC_ERROR
+    use lisp_fm, only: value_type
     use buffer_fm, only: buffers, cur, current_buffer
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, widen, narrow_to_region
     use search_fm, only: looking_at, string_match, match_beginning, match_end, replace_match, match_data, set_match_data
     use insdel_fm, only: insert
-    use fileio_fm, only: file_name_absolute_p, file_name_nondirectory, file_executable_p, set_file_modes, &
+    use fileio_fm, only: is_file_name_absolute, file_name_nondirectory, is_file_executable, set_file_modes, &
                          file_modes, default_file_modes
     use callproc_fm, only: locate_program
     use files_fm, only: after_save_hook
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
-    use font_core_fm, only: font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_T
+    use font_core_fm, only: font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_YES
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight
     use commands_fm, only: commands
     use keyboard_fm, only: this_command
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     implicit none(type, external)
     private
 
     public :: executable_find, executable_chmod_function, executable_set_magic, executable_self_display_command, &
-              executable_make_buffer_file_executable_if_script_p, syms_of_executable
+              executable_make_buffer_file_executable_if_script, syms_of_executable
 
     !> Values of `executable_query'.
-    integer, parameter, public :: EXECUTABLE_QUERY_NIL = 0, EXECUTABLE_QUERY_FUNCTION = 1, EXECUTABLE_QUERY_T = 2
+    integer, parameter, public :: EXECUTABLE_QUERY_NO = 0, EXECUTABLE_QUERY_FUNCTION = 1, EXECUTABLE_QUERY_ALWAYS = 2
 
-    !> The value of `executable_chmod' that is nil.
-    integer, parameter, public :: EXECUTABLE_CHMOD_NIL = -huge(0)
+    !> The value of `executable_chmod' that means not to change the modes.
+    integer, parameter, public :: EXECUTABLE_CHMOD_NONE = -huge(0)
 
     !> True means offer to add a magic number to a file.
     !> This takes effect when you switch to certain major modes,
@@ -66,7 +66,7 @@ module executable_fm
     !> update the magic number.  Port of executable.el executable-insert.
     logical, public :: executable_insert = .true.
 
-    !> If true (not `EXECUTABLE_QUERY_NIL'), ask user before changing an
+    !> If true (not `EXECUTABLE_QUERY_NO'), ask user before changing an
     !> existing magic number.  When this is `EXECUTABLE_QUERY_FUNCTION',
     !> only ask when called non-interactively.  Port of executable.el
     !> executable-query.
@@ -91,7 +91,7 @@ module executable_fm
     !> After saving, if the file is not executable, set this mode.
     !> This mode passed to `set_file_modes' is taken absolutely when negative, or
     !> relative to the files existing modes.  Do nothing if this is
-    !> `EXECUTABLE_CHMOD_NIL'.
+    !> `EXECUTABLE_CHMOD_NONE'.
     !> Typical values are 73 (+x) or -493 (rwxr-xr-x).  Port of
     !> executable.el executable-chmod.
     integer, public :: executable_chmod = 73
@@ -132,10 +132,10 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (executable_chmod == EXECUTABLE_CHMOD_NIL) return
+        if (executable_chmod == EXECUTABLE_CHMOD_NONE) return
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%filename)) return
-        if (file_executable_p(buffers(cur)%filename)) return
+        if (is_file_executable(buffers(cur)%filename)) return
 
         if (executable_chmod < 0) then
             call set_file_modes(buffers(cur)%filename, int(-executable_chmod, int32), status)
@@ -168,7 +168,7 @@ contains
         if (present(insert_flag)) insert_it = insert_flag
         status = status_type()
 
-        if (file_name_absolute_p(interpreter_in)) then
+        if (is_file_name_absolute(interpreter_in)) then
             interpreter = interpreter_in
         else
             interpreter = executable_find(interpreter_in)
@@ -231,12 +231,12 @@ contains
             end if
 
             if (ok) then
-                if (executable_query /= EXECUTABLE_QUERY_NIL .and. .not. noquery) then
+                if (executable_query /= EXECUTABLE_QUERY_NO .and. .not. noquery) then
                     ! (save-match-data (save-window-excursion ...)): make
                     ! buffer visible before question.
                     saved = match_data()
-                    call y_or_n_p(format_message("Replace magic number by `#!")//argument//format_message("'? "), &
-                                  ok, status)
+                    call read_y_or_n(format_message("Replace magic number by `#!")//argument//format_message("'? "), &
+                                     ok, status)
                     call set_match_data(saved)
 
                     if (.not. status%ok()) then
@@ -277,7 +277,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: result
 
-        if (value_eq(this_command, sym("executable_self_display"))) this_command = sym("executable_set_magic")
+        if (value_eq(this_command, &
+                     value_type(name="executable_self_display"))) this_command = value_type(name="executable_set_magic")
         call executable_set_magic(executable_self_display, result, status, "-n+2")
     end subroutine executable_self_display_command
 
@@ -285,7 +286,7 @@ contains
     !> If file already has any execute bits set at all, do not change existing
     !> file modes.  Port of
     !> executable.el:executable-make-buffer-file-executable-if-script-p.
-    subroutine executable_make_buffer_file_executable_if_script_p(status)
+    subroutine executable_make_buffer_file_executable_if_script(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: head
         integer(int64) :: begv, zv
@@ -304,14 +305,14 @@ contains
         if (head /= "#!") return
 
         if (.not. allocated(buffers(cur)%filename)) then
-            call message("Unable to make file executable: Wrong type argument: stringp, nil")
+            call message("Unable to make file executable: Wrong type argument: expected character(len=*), unallocated")
             return
         end if
 
         current_mode = file_modes(buffers(cur)%filename)
 
         if (current_mode < 0) then
-            call message("Unable to make file executable: Wrong type argument: integerp, nil")
+            call message("Unable to make file executable: Wrong type argument: expected integer")
             return
         end if
 
@@ -319,7 +320,7 @@ contains
         if (iand(int(o'111', int32), current_mode) /= 0 .or. add_mode == 0) return
         call set_file_modes(buffers(cur)%filename, ior(current_mode, add_mode), st)
         if (.not. st%ok()) call message("Unable to make file executable: "//format_error(st))
-    end subroutine executable_make_buffer_file_executable_if_script_p
+    end subroutine executable_make_buffer_file_executable_if_script
 
     !> Give the variables their defaults and register the commands.
     !> Not a port.
@@ -334,7 +335,7 @@ contains
 
         if (.not. allocated(executable_font_lock_keywords)) then
             allocate (executable_font_lock_keywords(1))
-            h(1) = font_lock_highlight(1, "font_lock_keyword_face", override=FONT_LOCK_OVERRIDE_T)
+            h(1) = font_lock_highlight(1, "font_lock_keyword_face", override=FONT_LOCK_OVERRIDE_YES)
             executable_font_lock_keywords(1) = font_lock_keyword("\`#!.*/\([^ "//achar(9)//achar(10)//"]+\)", &
                                                                  highlights=h)
         end if

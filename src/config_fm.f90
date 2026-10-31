@@ -39,13 +39,13 @@ module config_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, t_value, fixnump, xfixnum, xstring, list_elements
+    use lisp_fm, only: value_type, make_list, xfixnum, xstring, list_elements, vtag, V_INTEGER
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer
     use editfns_fm, only: buffer_string
     use env_fm, only: getenv
     use fileio_fm, only: file_name_as_directory, file_name_directory, directory_file_name, &
-                         file_name_nondirectory, file_name_absolute_p, get_homedir, file_exists_p, &
-                         file_readable_p, file_executable_p, rename_file, report_file_errno, &
+                         file_name_nondirectory, is_file_name_absolute, get_homedir, file_exists, &
+                         is_file_readable, is_file_executable, rename_file, report_file_errno, &
                          delete_file_internal, delete_directory_internal, copy_file, &
                          make_symbolic_link, file_attributes, file_stat_type
     use dired_fm, only: directory_files
@@ -82,7 +82,7 @@ contains
         call getenv(variable, value, found)
 
         if (found .and. len(value) > 0) then
-            if (file_name_absolute_p(value)) then
+            if (is_file_name_absolute(value)) then
                 dir = file_name_as_directory(value)//"fortmacs/"
                 return
             end if
@@ -154,7 +154,7 @@ contains
         if (len(bin) < 4) return
         if (bin(len(bin) - 3:) /= "/bin") return
         prefix = file_name_directory(bin)
-        found = file_exists_p(prefix//"lib/libfortmacs.a")
+        found = file_exists(prefix//"lib/libfortmacs.a")
     end subroutine install_prefix
 
     !> The main program of a user build: `run' with the user's
@@ -233,14 +233,14 @@ contains
         log = ""
         init = init_file_name()
 
-        if (.not. file_readable_p(init)) then
+        if (.not. is_file_readable(init)) then
             call report_file_errno("Opening init file", init, ENOENT, status)
             return
         end if
 
         library = prefix//"lib/libfortmacs.a"
 
-        if (.not. file_exists_p(library)) then
+        if (.not. file_exists(library)) then
             call set_error(status, FM_GENERIC_ERROR, "Can't find "//library// &
                            "; install Fortmacs with `fpm install`")
             return
@@ -270,20 +270,20 @@ contains
         ! gfortran -O2 -J CACHE -I PREFIX/include INIT DRIVER
         !     -L PREFIX/lib -lfortmacs -o GENERATION/fortmacs
         built = gen//"fortmacs"
-        args(1) = make_string("-O2")
-        args(2) = make_string("-J")
-        args(3) = make_string(cache)
-        args(4) = make_string("-I")
-        args(5) = make_string(prefix//"include")
-        args(6) = make_string("-o")
-        args(7) = make_string(built)
-        args(8) = make_string(init)
-        args(9) = make_string(driver)
-        args(10) = make_string("-L")
-        args(11) = make_string(prefix//"lib")
-        args(12) = make_string("-lfortmacs")
-        args(13) = make_string("-fdiagnostics-plain-output")
-        args(14) = make_string("-fno-diagnostics-color")
+        args(1) = value_type(text="-O2")
+        args(2) = value_type(text="-J")
+        args(3) = value_type(text=cache)
+        args(4) = value_type(text="-I")
+        args(5) = value_type(text=prefix//"include")
+        args(6) = value_type(text="-o")
+        args(7) = value_type(text=built)
+        args(8) = value_type(text=init)
+        args(9) = value_type(text=driver)
+        args(10) = value_type(text="-L")
+        args(11) = value_type(text=prefix//"lib")
+        args(12) = value_type(text="-lfortmacs")
+        args(13) = value_type(text="-fdiagnostics-plain-output")
+        args(14) = value_type(text="-fno-diagnostics-color")
         ! The compiler's output goes to a buffer, made in the cache
         ! directory so the compiler runs there.
         old = current_buffer()
@@ -292,7 +292,7 @@ contains
         call set_buffer(buf, status)
         if (.not. status%ok()) return
         buffers(cur)%directory = cache
-        call call_process(compiler, result, status, destination=t_value(), args=make_list(args))
+        call call_process(compiler, result, status, destination=value_type(.true.), args=make_list(args))
         log = buffer_string()
         call kill_buffer(buf, ignore)
         if (old%index /= 0) call set_buffer(old, ignore)
@@ -302,14 +302,14 @@ contains
             return
         end if
 
-        if (.not. fixnump(result)) then
+        if (vtag(result) /= V_INTEGER) then
             call set_error(status, FM_GENERIC_ERROR, compiler//" was killed: "//xstring(result))
         else if (xfixnum(result) /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Compiling "//init//" failed")
         end if
 
         if (.not. status%ok()) then
-            if (file_exists_p(built)) call delete_file_internal(built, ignore)
+            if (file_exists(built)) call delete_file_internal(built, ignore)
             call delete_directory_internal(gen, ignore)
             return
         end if
@@ -356,7 +356,7 @@ contains
         integer :: k, j, n, v
 
         allocate (numbers(0))
-        if (.not. file_exists_p(generations_directory())) return
+        if (.not. file_exists(generations_directory())) return
         call directory_files(generations_directory(), files, status)
         if (.not. status%ok()) return
         call list_elements(files, names)
@@ -411,7 +411,7 @@ contains
 
         dir = generations_directory()
 
-        if (n <= 0 .or. .not. file_executable_p(dir//itoa(n)//"/fortmacs")) then
+        if (n <= 0 .or. .not. is_file_executable(dir//itoa(n)//"/fortmacs")) then
             call set_error(status, FM_GENERIC_ERROR, "There is no generation "//itoa(n))
             return
         end if

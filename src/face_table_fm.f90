@@ -74,6 +74,7 @@ module face_table_fm
     use compile_fm, only: compilation_mode_line_fail
     use compile_fm, only: compilation_mode_line_run
     use compile_fm, only: compilation_warning
+    use minibuffer_fm, only: completions_annotations
     use css_mode_fm, only: css_property
     use css_mode_fm, only: css_proprietary_property
     use css_mode_fm, only: css_selector
@@ -299,6 +300,7 @@ module face_table_fm
         type(named_face_type), pointer :: compilation_mode_line_fail => compilation_mode_line_fail
         type(named_face_type), pointer :: compilation_mode_line_run => compilation_mode_line_run
         type(named_face_type), pointer :: compilation_warning => compilation_warning
+        type(named_face_type), pointer :: completions_annotations => completions_annotations
         type(named_face_type), pointer :: css_property => css_property
         type(named_face_type), pointer :: css_proprietary_property => css_proprietary_property
         type(named_face_type), pointer :: css_selector => css_selector

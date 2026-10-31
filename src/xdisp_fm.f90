@@ -68,7 +68,7 @@
 !>
 !> Sizes are pixels, as upstream's: on a terminal frame every glyph is
 !> one pixel (column) wide and every row one pixel (line) high, so pixels
-!> and cells coincide.  A window-system frame (frame_window_p: one with a
+!> and cells coincide.  A window-system frame (FRAME_WINDOW_P: one with a
 !> redisplay interface; so far only the tests' fake device) lays out text
 !> in the fonts of its faces (xdisp.c:gui_produce_glyphs): each character
 !> is one glyph as wide as the font says, a TAB a stretch glyph to the
@@ -98,9 +98,9 @@ module xdisp_fm
     use itree_fm, only: overlays_in, overlay_start, overlay_end, overlay_get
     use buffer_fm, only: cur, set_buffer_internal
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
-                         buf_fetch_byte, buf_next_char_len, buffer_modified_p, transient_mark_mode
+                         buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
-    use character_fm, only: char_byte8_p, char_to_byte8, string_char_and_length, multibyte_length, &
+    use character_fm, only: is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
                             byte8_to_char, multibyte_chars_in_text
     use dispextern_fm, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                              HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
@@ -108,37 +108,42 @@ module xdisp_fm
     use font_fm, only: font_type, font_metrics_type
     use xfaces_fm, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
                          TEXT_PROP_DISTANCE_LIMIT
-    use frame_fm, only: frame_type, selected_frame, selected_window, frame_window_p, frame_lines, frame_cols, window_pixel_left, &
+    use frame_fm, only: frame_type, selected_frame, selected_window, frame_lines, frame_cols, window_pixel_left, &
                         window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
     use window_fm, only: window_type, set_window_buffer, window_start, &
                          set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
-                         window_valid_p, make_window, resize_window_tree, window_leaves, same_window, &
+                         is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
-    use lisp_fm, only: value_type, nilp, stringp, xstring, consp, list_elements, fixnump, xfixnum, windowp, xhandle, &
-                       string_intervals
+    use lisp_fm, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
+                       V_STRING, V_ARRAY, V_WINDOW
     use intervals_fm, only: textget
-    use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer, value_eq
-    use coding_fm, only: coding_system_p, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
+    use coding_fm, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
                          buffer_file_coding_system
-    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, buffer_live_p, temp_set_point_both, BEG, BEG_BYTE
+    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, is_buffer_live, temp_set_point_both, BEG, BEG_BYTE
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
     use insdel_fm, only: insert_1_both, del_range_both, inhibit_modification_hooks
     use search_fm, only: scan_newline
-    use lisp_fm, only: command_proc
+    use lisp_fm, only: command_proc, value_type
+    use bidi_fm, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_find_first_overridden, bidi_set_string, &
+                       bidi_shelved_type, bidi_shelve_cache, bidi_unshelve_cache, NEUTRAL_DIR, L2R, R2L
+    use editfns_fm, only: validate_region
+    use error_fm, only: set_error, FM_ARGS_OUT_OF_RANGE
+    use search_fm, only: fast_looking_at, find_newline_no_quit
     implicit none(type, external)
     private
 
     public :: add_minor_mode_lighter, mode_line_modes, mode_line_modes_faces
     public :: set_mode_line_process, clear_mode_line_process, mode_line_process_text, add_mode_line_modes_entry, &
               mode_line_modes_prefix
-    public :: redisplay, init_frame_windows, glyph_width, &
+    public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
-              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisible_p
+              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
     public :: highlight_region_proc, unhighlight_region_proc
+    public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
 
     !> The window redisplay is displaying (it->w); the null handle
     !> between windows.
@@ -148,7 +153,7 @@ module xdisp_fm
         !> Highlight the region START..END of the current buffer in
         !> WINDOW, which shows it.  RB and RE are what redisplay paints in
         !> the `region' face (upstream's region overlay of priority
-        !> (nil . 100)); both 0 when the function shows the region itself.
+        !> 100); both 0 when the function shows the region itself.
         !> Not a port.
         subroutine highlight_region_proc(start, end, window, rb, re)
             import :: int64, handle_type
@@ -180,7 +185,7 @@ module xdisp_fm
     procedure(unhighlight_region_proc), pointer, public :: redisplay_unhighlight_region_function => &
         redisplay_unhighlight_overlay_function
 
-    !> Values of `invisible_p': hidden, and replaced by an ellipsis.
+    !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
     !> Values of `message_log_max' other than a number of lines.
@@ -190,7 +195,7 @@ module xdisp_fm
     !> If MESSAGE_LOG_DISABLED, disable message logging.  If
     !> MESSAGE_LOG_UNLIMITED, log messages but don't truncate the buffer
     !> when it becomes large.  Port of xdisp.c message-log-max (named
-    !> constants for nil and t).
+    !> constants for none and no limit).
     integer(int64), public :: message_log_max = 1000
 
     !> The name of the buffer where messages are logged.  xdisp.c
@@ -216,12 +221,17 @@ module xdisp_fm
     type(position_hook_type), target, public :: fontification_functions = &
                                                 position_hook_type(name="fontification_functions")
 
-    !> fontification-functions is bound to nil while its functions run.
+    !> `fontification_functions' is emptied, then restored, while its functions run.
     logical :: fontifying = .false.
 
     !> xdisp.c cursor-in-echo-area: put the cursor after the echo area
     !> text (while a prompt there waits for an answer).
     logical, public :: cursor_in_echo_area = .false.
+
+    !> The value of `tab_width' that is upstream's unset one: the display uses
+    !> the default width, 8 (buffer.h:sanitize_tab_width), as for any value
+    !> out of range.  Not a port.
+    integer(int64), parameter, public :: TAB_WIDTH_DEFAULT = -huge(0_int64)
 
     !> Distance between tab stops (for display of tab characters), in columns.
     !> This controls the width of a TAB character on display.
@@ -243,8 +253,8 @@ module xdisp_fm
     !> A value of 0 means to respect the value of `truncate_lines'.
     !>
     !> Port of
-    !> xdisp.c truncate-partial-width-windows (0 for nil, huge(0) for any
-    !> other non-nil value); the truncation itself is
+    !> xdisp.c truncate-partial-width-windows (0 or a
+    !> number of columns, huge(0) for all widths); the truncation itself is
     !> not ported yet (Deferred), only commands that test the variable.
     integer, public :: truncate_partial_width_windows = 50
 
@@ -256,7 +266,7 @@ module xdisp_fm
             implicit none(type, external)
         end function lighter_active_proc
         !> The TEXT a minor-mode-alist entry shows for buffer slot BI, whose
-        !> variable holds the text itself ("" when it is nil).  (A
+        !> variable holds the text itself ("" when it is unallocated).  (A
         !> subroutine: gfortran frees the target of a procedure pointer
         !> component returning an allocatable string when an array of the
         !> type is deallocated.) Not a port.
@@ -438,12 +448,12 @@ contains
         rows = frame_lines(f)
         cols = frame_cols(f)
 
-        if (.not. window_valid_p(f%root_window)) then
+        if (.not. is_window_valid(f%root_window)) then
             call make_window(f%root_window)
             f%selected_window = f%root_window
         end if
 
-        if (.not. window_valid_p(f%minibuffer_window)) then
+        if (.not. is_window_valid(f%minibuffer_window)) then
             call make_window(f%minibuffer_window)
             windows(f%minibuffer_window%index)%mini = .true.
         end if
@@ -489,7 +499,8 @@ contains
     !> gui_produce_glyph; ^X and \ooo are display vectors, one glyph an
     !> element, as on a terminal.
     !> Port of xdisp.c:get_next_display_element and term.c:produce_glyphs,
-    !> in part.
+    !> in part, with term.c:append_glyph (a wide character's padding
+    !> glyph).
     subroutine produce_char(c, x, cells, n, gui)
         integer(int32), intent(in) :: c
         integer, intent(in) :: x
@@ -517,7 +528,7 @@ contains
             n = 2
             cells(1)%ch = iachar("^")
             cells(2)%ch = ieor(c, 64_int32)
-        else if (char_byte8_p(c)) then
+        else if (is_char_byte8(c)) then
             byte = char_to_byte8(c)
             n = 4
             cells(1)%ch = iachar("\")
@@ -636,14 +647,15 @@ contains
 
     !> The continuation glyph: \ in the default face, sized for frame `f'.
     !> The IT_CONTINUATION part of xdisp.c:produce_special_glyphs (no
-    !> display table).  Port of xdisp.c:produce_special_glyphs, in part.
+    !> display table).  Port of xdisp.c:produce_special_glyphs, in part, and on
+    !> a terminal of term.c:tty_append_glyph.
     function continuation_glyph(f) result(g)
         type(frame_type), intent(in) :: f
         type(glyph_type) :: g
 
         g = glyph_type(face_id=DEFAULT_FACE_ID)
         g%ch = iachar("\")
-        if (frame_window_p(f)) call gui_produce_glyph(f, g, 0)
+        if (associated(f%rif)) call gui_produce_glyph(f, g, 0)
     end function continuation_glyph
 
     !> The width of the continuation glyph, which the text area leaves
@@ -669,7 +681,7 @@ contains
         integer :: id
 
         height = 1
-        if (.not. frame_window_p(f)) return
+        if (.not. associated(f%rif)) return
         height = f%line_height
         if (.not. allocated(f%faces) .or. .not. associated(f%font_driver)) return
         if (face_id > ubound(f%faces, 1)) return
@@ -695,11 +707,11 @@ contains
     !> Note that whether text with `invisible' property is actually hidden
     !> on display may depend on `buffer_invisibility_spec', which see.
     !> Port of xdisp.c:Finvisible_p (a position).
-    integer function invisible_p(pos) result(invis)
+    integer function invisibility(pos) result(invis)
         integer(int64), intent(in) :: pos
 
-        invis = text_prop_means_invisible(get_char_property(pos, sym("invisible")))
-    end function invisible_p
+        invis = text_prop_means_invisible(get_char_property(pos, value_type(name="invisible")))
+    end function invisibility
 
     !> Look at the properties of the text at `s%pos' in buffer slot `bi'
     !> and its overlay strings, and set up `s' to show what goes there:
@@ -708,9 +720,11 @@ contains
     !> makes it invisible), text with a string or a space for its
     !> `display' property is replaced by it (after the overlay strings at
     !> its start), and the overlay strings of the position come before
-    !> its text.  Port of xdisp.c:handle_stop with handle_invisible_prop,
-    !> handle_display_prop (string and space display specs) and
-    !> handle_overlay_change (load_overlay_strings).
+    !> its text.  Port of xdisp.c:handle_stop with xdisp.c:handle_invisible_prop
+    !> (and xdisp.c:setup_for_ellipsis, xdisp.c:next_element_from_ellipsis and
+    !> xdisp.c:in_ellipses_for_invisible_text_p), xdisp.c:handle_display_prop (string
+    !> and space display specs) and xdisp.c:handle_overlay_change
+    !> (load_overlay_strings).
     subroutine handle_stop(bi, s)
         integer(int64), intent(in) :: bi
         type(row_start_type), intent(inout) :: s
@@ -736,7 +750,7 @@ contains
             call load_overlay_strings(p, s%items)
         else
             s%stop = next_char_property_change(p, zv)
-            call get_char_property_and_overlay(p, sym("invisible"), prop, ov)
+            call get_char_property_and_overlay(p, value_type(name="invisible"), prop, ov)
             invis = text_prop_means_invisible(prop)
 
             if (invis /= 0) then
@@ -745,9 +759,9 @@ contains
                 newpos = p
 
                 do
-                    newpos = next_single_char_property_change(newpos, sym("invisible"), zv)
+                    newpos = next_single_char_property_change(newpos, value_type(name="invisible"), zv)
                     if (newpos >= zv) exit
-                    invis = text_prop_means_invisible(get_char_property(newpos, sym("invisible")))
+                    invis = text_prop_means_invisible(get_char_property(newpos, value_type(name="invisible")))
                     ! If there are adjacent invisible texts, don't lose the
                     ! second one's ellipsis.
                     if (invis == 2) ellipsis = .true.
@@ -761,10 +775,10 @@ contains
                 if (ellipsis) call push_item(s%items, ITEM_ELLIPSIS, "...")
                 call hide(newpos)
             else
-                disp = get_char_property(p, sym("display"))
+                disp = get_char_property(p, value_type(name="display"))
 
-                if (stringp(disp)) then
-                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                if (vtag(disp) == V_STRING) then
+                    endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
 
                     if (len(xstring(disp)) > 0) then
@@ -776,11 +790,11 @@ contains
                     end if
                 else if (fringe_spec(disp)) then
                     ! A terminal has no fringes: the text is not shown.
-                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
                     call hide(endpos)
                 else if (space_spec(disp, width, align_to)) then
-                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
                     call push_item(s%items, ITEM_STRETCH, "", width, align_to)
                     call hide(endpos, p + 1)
@@ -900,14 +914,14 @@ contains
             logical, intent(in) :: after_p
             type(value_type) :: priority
 
-            if (.not. stringp(string)) return
+            if (vtag(string) /= V_STRING) return
             if (len(xstring(string)) == 0) return
             n = n + 1
             entries(n)%s = xstring(string)
             strings(n) = string
             priority = overlay_get(overlay, "priority")
             prio(n) = 0
-            if (fixnump(priority)) prio(n) = xfixnum(priority)
+            if (vtag(priority) == V_INTEGER) prio(n) = xfixnum(priority)
             ids(n) = overlay%index
             after(n) = after_p
         end subroutine record
@@ -947,10 +961,10 @@ contains
         type(value_type) :: window
 
         window = overlay_get(overlay, "window")
-        applies = .not. windowp(window)
+        applies = vtag(window) /= V_WINDOW
 
         if (applies) then
-            applies = nilp(window)
+            applies = .not. allocated(window%a)
             return
         end if
 
@@ -963,7 +977,7 @@ contains
         type(handle_type) :: w
 
         w = displayed_window
-        if (.not. window_valid_p(w)) w = selected_window()
+        if (.not. is_window_valid(w)) w = selected_window()
     end function iterator_window
 
     !> Append to ITEMS the overlay string STRING: its text, and a stretch
@@ -984,14 +998,14 @@ contains
         pos = 0
 
         do k = 1, size(starts)
-            if (fringe_spec(textget(plists(k), sym("display")))) then
+            if (fringe_spec(textget(plists(k), value_type(name="display")))) then
                 ! Not shown on a terminal, which has no fringes.
                 call push_text(pos, starts(k))
                 pos = ends(k)
                 cycle
             end if
 
-            if (.not. space_spec(textget(plists(k), sym("display")), width, align_to)) cycle
+            if (.not. space_spec(textget(plists(k), value_type(name="display")), width, align_to)) cycle
             call push_text(pos, starts(k))
             call push_item(items, ITEM_STRETCH, "", width, align_to)
 
@@ -1000,8 +1014,8 @@ contains
                 it%prop_beg = [1_int64]
                 it%prop_end = [2_int64]
                 allocate (it%prop_face(1), it%prop_cursor(1))
-                it%prop_face(1) = textget(plists(k), sym("face"))
-                it%prop_cursor(1) = textget(plists(k), sym("cursor"))
+                it%prop_face(1) = textget(plists(k), value_type(name="face"))
+                it%prop_cursor(1) = textget(plists(k), value_type(name="cursor"))
             end associate
 
             pos = ends(k)
@@ -1059,8 +1073,8 @@ contains
             end do
 
             item%prop_end(n) = byte
-            item%prop_face(n) = textget(plists(k), sym("face"))
-            item%prop_cursor(n) = textget(plists(k), sym("cursor"))
+            item%prop_face(n) = textget(plists(k), value_type(name="face"))
+            item%prop_cursor(n) = textget(plists(k), value_type(name="cursor"))
         end do
     end subroutine string_display_props
 
@@ -1101,19 +1115,19 @@ contains
         is_space = .false.
         width = 0
         align_to = -1
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
         if (size(elts) < 1) return
-        if (.not. value_eq(elts(1), sym("space"))) return
+        if (.not. value_eq(elts(1), value_type(name="space"))) return
         is_space = .true.
 
         do k = 2, size(elts) - 1, 2
             if (.not. number_of(elts(k + 1), n)) cycle
 
-            if (value_eq(elts(k), sym(":width"))) then
+            if (value_eq(elts(k), value_type(name=":width"))) then
                 width = max(0, n)
                 return
-            else if (value_eq(elts(k), sym(":align-to"))) then
+            else if (value_eq(elts(k), value_type(name=":align-to"))) then
                 align_to = max(0, n)
                 return
             end if
@@ -1129,13 +1143,13 @@ contains
             ok = .true.
             n = 0
 
-            if (fixnump(x)) then
+            if (vtag(x) == V_INTEGER) then
                 n = int(xfixnum(x))
-            else if (consp(x)) then
+            else if (vtag(x) == V_ARRAY) then
                 call list_elements(x, px)
                 ok = .false.
                 if (size(px) /= 1) return
-                if (.not. fixnump(px(1))) return
+                if (vtag(px(1)) /= V_INTEGER) return
                 n = int(xfixnum(px(1)))
                 ok = .true.
             else
@@ -1155,16 +1169,18 @@ contains
         type(value_type), allocatable :: elts(:)
 
         is_fringe = .false.
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
         if (size(elts) < 2) return
-        is_fringe = value_eq(elts(1), sym("left_fringe")) .or. value_eq(elts(1), sym("right_fringe"))
+        is_fringe = value_eq(elts(1), value_type(name="left_fringe")) .or. value_eq(elts(1), value_type(name="right_fringe"))
     end function fringe_spec
 
     !> What comes next from `s' in buffer slot `bi' (without moving
     !> past it), handling the properties at stops on the way.
     !> (xdisp.c:get_next_display_element.)
-    !> Port of xdisp.c:get_next_display_element.
+    !> Port of xdisp.c:get_next_display_element, with
+    !> xdisp.c:next_element_from_buffer, xdisp.c:next_element_from_string
+    !> and xdisp.c:next_element_from_stretch for the items ported.
     subroutine peek_element(bi, s, el)
         integer(int64), intent(in) :: bi
         type(row_start_type), intent(inout) :: s
@@ -1305,7 +1321,7 @@ contains
     !> the row, or the row's start) to N after it.  (The `cursor' property
     !> part of xdisp.c:set_cursor_from_row; other values than integers
     !> are Deferred.) Port of xdisp.c:set_cursor_from_row, in part.
-    logical function string_cursor_p(s, el, pt, bpos_max) result(here)
+    logical function is_string_cursor(s, el, pt, bpos_max) result(here)
         type(row_start_type), intent(in) :: s
         type(element_type), intent(in) :: el
         integer(int64), intent(in) :: pt, bpos_max
@@ -1314,10 +1330,10 @@ contains
         if (.not. el%overlay_string .or. el%run == 0) return
 
         associate (cprop => s%items(s%item)%prop_cursor(el%run))
-            if (.not. fixnump(cprop)) return
+            if (vtag(cprop) /= V_INTEGER) return
             here = bpos_max <= pt .and. pt <= bpos_max + xfixnum(cprop)
         end associate
-    end function string_cursor_p
+    end function is_string_cursor
 
     !> Whether a glyph of element `el' from `s' shows the cursor of `pt':
     !> a buffer character at `pt'; the first glyph of a display string or
@@ -1359,8 +1375,8 @@ contains
     !> into it for ^X and \ooo, `nobreak_space' and `nobreak_hyphen' for
     !> non-ASCII spaces and hyphens; after the text of a line a space in
     !> the face of the newline, and the rest of the row in the face the
-    !> newline's face extends with (append_space_for_newline and
-    !> extend_face_to_end_of_line).  `cursor_col' is the column of `pt' if
+    !> newline's face extends with (xdisp.c:append_space_for_newline and
+    !> xdisp.c:extend_face_to_end_of_line, in part).  `cursor_col' is the column of `pt' if
     !> it is shown on this row, else -1; `used' the columns used.  The
     !> terminal part of xdisp.c:display_line with
     !> xdisp.c:get_next_display_element and term.c:produce_glyphs.  On a
@@ -1412,7 +1428,7 @@ contains
         if (present(descent)) descent = 0
 
         if (faces) then
-            if (frame_window_p(f)) then
+            if (associated(f%rif)) then
                 call display_row_gui(bi, s, last_x, pt, ends, cursor_col, hpos, used, glyphs, rbeg, rend, f, asc, desc)
                 if (present(cursor_hpos)) cursor_hpos = hpos
                 if (present(ascent)) ascent = asc
@@ -1496,7 +1512,7 @@ contains
                 end if
             end if
 
-            if (string_cursor_p(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
+            if (is_string_cursor(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
                 cursor_col = col
                 cursor_by_prop = .true.
             end if
@@ -1589,7 +1605,7 @@ contains
     !> glyphs used; `ascent' and `descent' the row's (the tallest fonts of
     !> the glyphs shown and the newline; for an empty row the space's).
     !> Port of the window-system part of xdisp.c:display_line with
-    !> gui_produce_glyphs and append_space_for_newline.
+    !> gui_produce_glyphs and xdisp.c:append_space_for_newline.
     subroutine display_row_gui(bi, s, last_x, pt, ends, cursor_x, cursor_hpos, used, glyphs, rbeg, rend, f, &
                                ascent, descent)
         integer(int64), intent(in) :: bi, pt, rbeg, rend
@@ -1665,7 +1681,7 @@ contains
                 cells(1:n)%face_id = char_face(f, el%c, string_face(f, s, el, face_id))
             end if
 
-            if (string_cursor_p(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
+            if (is_string_cursor(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
                 call set_cursor()
                 cursor_by_prop = .true.
             end if
@@ -1823,9 +1839,9 @@ contains
             ! (The nil value always present at the end of the buffer is
             ! ignored: no amount of fontifying will change it.)
             if (pos < buffers(bi)%text%z) then
-                call get_text_property(pos, sym("fontified"), prop, st)
+                call get_text_property(pos, value_type(name="fontified"), prop, st)
 
-                if (nilp(prop)) then
+                if (.not. allocated(prop%a)) then
                     fontifying = .true.
                     call fontification_functions%run(pos, st, safe=.true.)
                     fontifying = .false.
@@ -1834,7 +1850,7 @@ contains
                 end if
             end if
 
-            call next_single_property_change(pos, sym("fontified"), next, found, st, limit)
+            call next_single_property_change(pos, value_type(name="fontified"), next, found, st, limit)
             if (.not. found) next = limit
         end if
 
@@ -1844,20 +1860,21 @@ contains
     !> The face of character C in text whose face is FACE_ID on frame F:
     !> control characters and raw bytes shown as ^X or \ooo in the
     !> escape-glyph face merged in, non-ASCII spaces and hyphens with
-    !> nobreak-space and nobreak-hyphen (nobreak-char-display t).  The
+    !> nobreak-space and nobreak-hyphen (`nobreak_char_display' .true.).  The
     !> face part of xdisp.c:get_next_display_element.
-    !> Port of xdisp.c:get_next_display_element, in part.
+    !> Port of xdisp.c:get_next_display_element, in part, with
+    !> xdisp.c:merge_escape_glyph_face.
     integer(int32) function char_face(f, c, face_id) result(id)
         type(frame_type), intent(inout) :: f
         integer(int32), intent(in) :: c, face_id
 
         id = face_id
 
-        ! hazard-ok(short-circuit): char_byte8_p() takes any character code.
-        if (c /= 9 .and. c /= 10 .and. (c < 32 .or. c == 127 .or. char_byte8_p(c))) then
+        ! hazard-ok(short-circuit): is_char_byte8() takes any character code.
+        if (c /= 9 .and. c /= 10 .and. (c < 32 .or. c == 127 .or. is_char_byte8(c))) then
             ! merge_escape_glyph_face.
             id = merge_faces(f, "escape_glyph", 0_int32, face_id)
-        else if (nonascii_blank_p(c)) then
+        else if (is_nonascii_blank(c)) then
             ! Merge `nobreak-space' into the current face.
             id = merge_faces(f, "nobreak_space", 0_int32, face_id)
         else if (c == int(z'AD', int32) .or. c == int(z'2010', int32) .or. c == int(z'2011', int32)) then
@@ -1869,13 +1886,13 @@ contains
     !> Whether C is a non-ASCII blank (Unicode general category Zs), as
     !> character.c:blankp tells for the characters `nobreak_char_display'
     !> highlights.  Not a port.
-    elemental logical function nonascii_blank_p(c)
+    elemental logical function is_nonascii_blank(c)
         integer(int32), intent(in) :: c
 
-        nonascii_blank_p = c == int(z'A0', int32) .or. c == int(z'1680', int32) .or. &
-                           (c >= int(z'2000', int32) .and. c <= int(z'200A', int32)) .or. &
-                           c == int(z'202F', int32) .or. c == int(z'205F', int32) .or. c == int(z'3000', int32)
-    end function nonascii_blank_p
+        is_nonascii_blank = c == int(z'A0', int32) .or. c == int(z'1680', int32) .or. &
+                            (c >= int(z'2000', int32) .and. c <= int(z'200A', int32)) .or. &
+                            c == int(z'202F', int32) .or. c == int(z'205F', int32) .or. c == int(z'3000', int32)
+    end function is_nonascii_blank
 
     !> The screen rows of the line starting at `bol' in buffer slot `bi',
     !> rows(1:nrows) where each starts, and `eol' where the line ends (its
@@ -1895,7 +1912,7 @@ contains
         logical :: gui
 
         gui = .false.
-        if (present(f)) gui = frame_window_p(f)
+        if (present(f)) gui = associated(f%rif)
         if (gui) allocate (scratch(last_x/max(1, f%smallest_char_width) + 4))
         allocate (rows(8))
         nrows = 0
@@ -1957,14 +1974,15 @@ contains
 
         do while (bol > buffers(bi)%begv)
             ! Check the newline before for invisibility.
-            if (text_prop_means_invisible(get_char_property(bol - 1, sym("invisible"))) == 0) exit
+            if (text_prop_means_invisible(get_char_property(bol - 1, value_type(name="invisible"))) == 0) exit
             bol = raw_line_beginning(bi, bol - 1)
         end do
 
         if (saved > 0) call set_buffer_internal(saved)
     end function line_beginning
 
-    !> The start of the line holding `pos' in buffer slot `bi'.  Not a port.
+    !> The start of the line holding `pos' in buffer slot `bi'.  Port of
+    !> xdisp.c:back_to_previous_line_start.
     integer(int64) function raw_line_beginning(bi, pos) result(bol)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: byte, begv_byte
@@ -2042,7 +2060,7 @@ contains
         if (present(cursor_hpos)) cursor_hpos = 1
         reached_end = .false.
         gui = .false.
-        if (present(f)) gui = frame_window_p(f)
+        if (present(f)) gui = associated(f%rif)
         rb = 0
         re = 0
 
@@ -2170,7 +2188,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make row `vpos' of the desired matrix a full-width blank row, to be
-    !> filled by the windows on it.  Not a port.
+    !> filled by the windows on it.  Port of dispnew.c:blank_row.
     subroutine blank_row(f, vpos)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: vpos
@@ -2192,7 +2210,10 @@ contains
 
     !> Copy window rows into the frame's desired matrix, from column
     !> `left' (0-based), with the vertical border after them if `divider'.
-    !> Not a port.
+    !> Redisplay lays out windows straight into the frame matrix (there are
+    !> no window matrices): the job of dispnew.c:build_frame_matrix,
+    !> dispnew.c:build_frame_matrix_from_window_tree and
+    !> dispnew.c:update_tty_frame.  Port of those, in part.
     subroutine put_rows(f, top, left, rows, divider)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: top, left
@@ -2217,7 +2238,7 @@ contains
     end subroutine put_rows
 
     !> Highlight START..END in WINDOW with the `region' face, an overlay
-    !> of priority (nil . 100) for WINDOW only (here the range redisplay
+    !> of priority 100 for WINDOW only (here the range redisplay
     !> paints, RB..RE).  Port of
     !> simple.el:redisplay--highlight-overlay-function.
     subroutine redisplay_highlight_overlay_function(start, end, window, rb, re)
@@ -2254,7 +2275,7 @@ contains
 
         call resolve_buffer(w%buffer, bi, status)
         if (.not. status%ok()) return
-        gui = frame_window_p(f)
+        gui = associated(f%rif)
         body = window_body_lines(w)
         w%header_line_height = 0
         width = window_text_cols(w)
@@ -2368,8 +2389,9 @@ contains
         if (.not. w%mini) call display_mode_line(f, w, bi, start, pt, selected)
     end subroutine redisplay_window
 
-    !> 1 + the number of newlines before `pos' in buffer slot `bi'.
-    !> Not a port.
+    !> 1 + the number of newlines before `pos' in buffer slot `bi' (the
+    !> line number of `%l').  Port of xdisp.c:display_count_lines and
+    !> xdisp.c:display_count_lines_logically.
     integer(int64) function line_number(bi, pos) result(n)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: byte, end_byte
@@ -2465,9 +2487,9 @@ contains
         if (.not. graphic) s = "UU"
         call syms_of_coding()
         cs = ""
-        call buffer_local_value(sym("buffer_file_coding_system"), bi, v, st)
+        call buffer_local_value(value_type(name="buffer_file_coding_system"), bi, v, st)
 
-        if (st%ok() .and. stringp(v)) then
+        if (st%ok() .and. vtag(v) == V_STRING) then
             cs = xstring(v)
         else if (allocated(buffer_file_coding_system%value)) then
             ! Not forwarded yet (mule_fm not set up): the default.
@@ -2476,7 +2498,7 @@ contains
 
         if (.not. buffers(bi)%multibyte) then
             s = s//" "
-        else if (.not. coding_system_p(cs) .or. len(cs) == 0) then
+        else if (.not. is_coding_system(cs) .or. len(cs) == 0) then
             ! Not yet decided.
             s = s//"-"
         else
@@ -2487,7 +2509,7 @@ contains
     end function mode_line_mule_info
 
     !> The `vc_mode' of buffer BI, "" when its file is not under version
-    !> control (nil).  Not a port.
+    !> control.  Not a port.
     function buffer_vc_mode(bi) result(vc)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: vc
@@ -2673,7 +2695,7 @@ contains
     !> What %p shows: the percentage of the accessible text above window
     !> start `start', or All, Top or Bottom.  `at_end' says the window
     !> shows the end of the accessible text.  Port of the %p case of
-    !> xdisp.c:decode_mode_spec, with percent99.
+    !> xdisp.c:decode_mode_spec, with xdisp.c:percent99.
     function mode_line_percent(bi, start, at_end) result(s)
         integer(int64), intent(in) :: bi, start
         logical, intent(in) :: at_end
@@ -2705,7 +2727,7 @@ contains
     !> `start': point's line number, or ?? when the lines before the
     !> window start are too long to count (line-number-display-limit-width
     !> 200).  The counting part of the %l case of xdisp.c:decode_mode_spec
-    !> (no base line cache, line-number-display-limit nil).
+    !> (no base line cache, `line_number_display_limit' unset).
     !> Port of xdisp.c:decode_mode_spec, in part.
     function mode_line_line(bi, start, pt, height) result(s)
         integer(int64), intent(in) :: bi, start, pt
@@ -2774,7 +2796,7 @@ contains
         base = MODE_LINE_ACTIVE_FACE_ID
         if (present(face_id)) base = face_id
         gui = .false.
-        if (present(f)) gui = frame_window_p(f)
+        if (present(f)) gui = associated(f%rif)
         row = glyph_type()
         call decode_string(text, chars, nchars)
 
@@ -2870,13 +2892,13 @@ contains
         end function span_face_of
     end subroutine mode_line_row
 
-    !> Show LIGHTER in the mode line while VARIABLE is non-nil (replacing
+    !> Show LIGHTER in the mode line while VARIABLE is .true. (replacing
     !> VARIABLE's earlier lighter), in FACE if present (a propertized
     !> lighter).  ACTIVE, if present, tells whether VARIABLE is true (a
     !> variable kept in Fortran).  TEXT, if present, gives the text for
     !> an entry (VARIABLE VARIABLE) whose variable holds the text (a
-    !> Fortran-kept string, "" for nil).  With FIRST, a new entry goes in
-    !> front (consed onto minor-mode-alist).  Port of the mode-line part of
+    !> Fortran-kept string, "" for none).  With FIRST, a new entry goes in
+    !> front (added to the front of `minor_mode_table').  Port of the mode-line part of
     !> subr.el:add-minor-mode (minor-mode-alist).
     subroutine add_minor_mode_lighter(variable, lighter, face, active, text, first)
         character(len=*), intent(in) :: variable, lighter
@@ -2944,8 +2966,8 @@ contains
         k = 0
     end function process_entry_of
 
-    !> Give the current buffer the `mode_line_process' PARTS (setq
-    !> mode-line-process, a buffer-local variable).
+    !> Give the current buffer the `mode_line_process' PARTS
+    !> (set_local: `mode_line_process' is a buffer-local variable).
     !>
     !> Mode line construct for displaying info on process status.
     !> Normally unallocated in most modes, since there is no process to
@@ -2977,7 +2999,7 @@ contains
         process_entries(k)%parts = parts
     end subroutine set_mode_line_process
 
-    !> Make the current buffer's `mode_line_process' empty (nil): when its
+    !> Make the current buffer's `mode_line_process' empty: when its
     !> local variables are killed, as kill_all_local_variables does.
     !> Not a port.
     subroutine clear_mode_line_process()
@@ -3090,7 +3112,7 @@ contains
 
     !> The modes part of buffer BI's mode line: `mode_name', " Narrow"
     !> if the buffer is narrowed (%n), and the lighters of
-    !> `minor_mode_alist' whose variables are non-nil there.  Not a port.
+    !> `minor_mode_table' whose variables are .true. there.  Not a port.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
@@ -3161,9 +3183,9 @@ contains
             if (associated(lighters(i)%active)) then
                 on = lighters(i)%active()
             else
-                call buffer_local_value(sym(lighters(i)%variable), bi, v, st)
+                call buffer_local_value(value_type(name=lighters(i)%variable), bi, v, st)
                 if (.not. st%ok()) cycle
-                on = .not. nilp(v)
+                on = allocated(v%a)
             end if
 
             if (.not. on) cycle
@@ -3188,11 +3210,12 @@ contains
     !> column of the border glyph of a window with one to its right.  The
     !> mode line is in the mode_line_active face if `w' is the selected
     !> window (or was when the minibuffer was entered), else in
-    !> mode_line_inactive (mode-line-in-non-selected-windows t); the
+    !> mode_line_inactive (`mode_line_in_non_selected_windows' .true.); the
     !> buffer name (mode-line-buffer-identification, "%12b") has the
     !> mode_line_buffer_id face merged in.  Port of the terminal part of
     !> xdisp.c:display_mode_line (CURRENT_MODE_LINE_ACTIVE_FACE_ID_3),
-    !> with the border of dispnew.c:build_frame_matrix_from_leaf_window.
+    !> with the border of dispnew.c:build_frame_matrix_from_leaf_window;
+    !> called for each window as xdisp.c:display_mode_lines does.
     subroutine display_mode_line(f, w, bi, start, pt, selected)
         type(frame_type), intent(inout) :: f
         type(window_type), intent(in) :: w
@@ -3209,8 +3232,8 @@ contains
         integer :: width, nmodes, ntext, k, offset, name_at, asc, desc, height
         integer(int32) :: face_id
 
-        call buffer_modified_p(w%buffer, modified, status)
-        gui = frame_window_p(f)
+        call is_buffer_modified(w%buffer, modified, status)
+        gui = associated(f%rif)
         width = window_text_cols(w)
         mule = mode_line_mule_info(bi, gui)
         call mode_line_modes_faces(bi, modes, spans, faces)
@@ -3316,7 +3339,7 @@ contains
         integer :: width, x, k, i, j, n, nchars, nglyphs, asc, desc, column
         logical :: gui
 
-        gui = frame_window_p(f)
+        gui = associated(f%rif)
         base = HEADER_LINE_INACTIVE_FACE_ID
         if (selected) base = HEADER_LINE_ACTIVE_FACE_ID
 
@@ -3434,7 +3457,7 @@ contains
 
     !> Where and how large the cursor of window `w' on window-system frame
     !> `f' is drawn: on glyph `hpos' of `row' at pixel `x' of the text
-    !> area (less wide on a stretch glyph, x-stretch-cursor nil), as high
+    !> area (less wide on a stretch glyph, `x_stretch_cursor' .false.), as high
     !> as the glyph within the row, kept above `text_bottom' (the bottom of
     !> the text area).  Port of xdisp.c:get_phys_cursor_geometry (no tab or
     !> header line), stored as w->phys_cursor.
@@ -3518,7 +3541,8 @@ contains
     !> Show the last message in the minibuffer window, or blank it: its
     !> first screen line, a line that does not fit continued with \ in the
     !> last column.  Port of the display part of xdisp.c:echo_area_display
-    !> (one line: resize-mini-windows is not ported).
+    !> (one line: resize-mini-windows is not ported), with
+    !> xdisp.c:display_echo_area and xdisp.c:display_echo_area_1.
     subroutine display_echo_area(f, endcol)
         type(frame_type), intent(inout) :: f
         !> Column after the text.
@@ -3527,7 +3551,7 @@ contains
         integer(int32), allocatable :: chars(:)
         integer :: nchars, i, x, n, k, cols, last_x
 
-        if (frame_window_p(f)) then
+        if (associated(f%rif)) then
             call display_echo_area_gui(f, endcol)
             return
         end if
@@ -3791,8 +3815,11 @@ contains
     !> instead, enclosed in [...] unless it already is, until the next
     !> input event.  The text also goes into the *Messages* buffer
     !> (`message_dolog'), if `message_log_max' allows.  Port of
-    !> editfns.c:Fmessage (with a plain string) with xdisp.c:message3,
-    !> set_message and clear_message calling minibuffer.el's
+    !> editfns.c:Fmessage (with a plain string) with xdisp.c:message3
+    !> (xdisp.c:message1 and xdisp.c:message3_frame: one frame; the C
+    !> printf forms xdisp.c:message, xdisp.c:vmessage and
+    !> xdisp.c:message_with_string are the callers' format_message),
+    !> xdisp.c:set_message and xdisp.c:clear_message calling minibuffer.el's
     !> set-minibuffer-message and clear-minibuffer-message
     !> (set-message-functions, clear-message-function).
     recursive subroutine message(text)
@@ -3827,15 +3854,16 @@ contains
     !> Like `message', without logging the text in *Messages*: as
     !> upstream's `message' with `message_log_max' bound to
     !> MESSAGE_LOG_DISABLED, or the echo-area prompts of read-key-sequence.
-    !> Port of xdisp.c:message3_nolog.
+    !> Port of xdisp.c:message3_nolog (with xdisp.c:message1_nolog and
+    !> xdisp.c:message3_frame_nolog).
     subroutine message_nolog(text)
         character(len=*), intent(in) :: text
 
         if (len(text) == 0) then
             if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
             last_message = ""
-        else if (minibuffer_active_p()) then
-            if (bracketed_message_p(text)) then
+        else if (is_minibuffer_active()) then
+            if (is_bracketed_message(text)) then
                 set_minibuffer_message_text = text
             else
                 set_minibuffer_message_text = " ["//text//"]"
@@ -3851,7 +3879,9 @@ contains
     !> `message_log_max' are deleted from the beginning.  The buffer is
     !> made on first use, in Messages Buffer mode
     !> (`messages_buffer_mode_function', if set), with undo disabled.
-    !> Port of xdisp.c:message_dolog (multibyte text; no redisplay
+    !> Port of xdisp.c:message_dolog (with
+    !> xdisp.c:add_to_log, xdisp.c:vadd_to_log and xdisp.c:format_nargs, the
+    !> callers formatting with format_message) (multibyte text; no redisplay
     !> bookkeeping).
     recursive subroutine message_dolog(text, nlflag)
         character(len=*), intent(in) :: text
@@ -3866,7 +3896,7 @@ contains
         oldbuf = current_buffer()
         ! Ensure the Messages buffer exists, and switch to it.  If we
         ! created it, set the major-mode.
-        newbuffer = .not. buffer_live_p(get_buffer(MESSAGES_BUFFER_NAME))
+        newbuffer = .not. is_buffer_live(get_buffer(MESSAGES_BUFFER_NAME))
         call get_buffer_create(MESSAGES_BUFFER_NAME, buf, st)
         if (.not. st%ok()) return
         call set_buffer(buf, st)
@@ -3956,7 +3986,7 @@ contains
         call free_marker(oldpoint, st)
         call free_marker(oldbegv, st)
         call free_marker(oldzv, st)
-        if (buffer_live_p(oldbuf)) call set_buffer(oldbuf, st)
+        if (is_buffer_live(oldbuf)) call set_buffer(oldbuf, st)
     end subroutine message_dolog
 
     !> The number of times the line of the *Messages* buffer before the
@@ -4044,7 +4074,7 @@ contains
     end function chars_in_text
 
     !> Whether `text' matches "\` *\[.+\]\'".  Not a port.
-    pure logical function bracketed_message_p(text) result(p)
+    pure logical function is_bracketed_message(text) result(p)
         character(len=*), intent(in) :: text
         integer :: k
 
@@ -4053,26 +4083,27 @@ contains
         if (k == 0 .or. len(text) - k < 2) return
         if (text(k:k) /= "[" .or. text(len(text):len(text)) /= "]") return
         p = index(text(k + 1:len(text) - 1), achar(10)) == 0
-    end function bracketed_message_p
+    end function is_bracketed_message
 
     !> Whether the selected frame's minibuffer is active (the minibuffer
     !> window shows a minibuffer): minibuf.c:Factive_minibuffer_window.
     !> Port of minibuf.c:Factive_minibuffer_window, in part.
-    logical function minibuffer_active_p() result(p)
+    logical function is_minibuffer_active() result(p)
         integer(int64) :: bi
         type(status_type) :: status
 
         p = .false.
-        if (.not. window_valid_p(selected_frame%minibuffer_window)) return
+        if (.not. is_window_valid(selected_frame%minibuffer_window)) return
         call resolve_buffer(windows(selected_frame%minibuffer_window%index)%buffer, bi, status)
         p = status%ok()
-    end function minibuffer_active_p
+    end function is_minibuffer_active
 
     !> Redisplay the frame: each window with its mode line (the selected
     !> one showing the current buffer unless the minibuffer is selected),
     !> and the echo area or active minibuffer, then update the terminal.
-    !> Port of the core of xdisp.c:redisplay_internal.
-    subroutine redisplay(f, status)
+    !> Port of the core of xdisp.c:redisplay_internal, with
+    !> xdisp.c:redisplay_windows (every window of the tree).
+    subroutine redisplay_internal(f, status)
         type(frame_type), intent(inout) :: f
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
@@ -4081,14 +4112,14 @@ contains
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
 
-        gui = frame_window_p(f)
+        gui = associated(f%rif)
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
-        if (.not. window_valid_p(f%root_window)) call init_frame_windows(f)
+        if (.not. is_window_valid(f%root_window)) call init_frame_windows(f)
         if (windows(f%root_window%index)%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
 
         if (gui) then
-            ! clear_garbaged_frames; a window-system frame is drawn as it
+            ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
             ! is laid out.
             if (f%garbaged) call redraw_frame(f)
         else
@@ -4157,5 +4188,170 @@ contains
         end associate
 
         call update_frame(f, status)
-    end subroutine redisplay
+    end subroutine redisplay_internal
+
+    ! ------------------------------------------------------------------
+    ! Bidirectional text
+    ! ------------------------------------------------------------------
+
+    !> Return paragraph direction at point in BUFFER.
+    !> Value is either L2R (`left-to-right') or R2L (`right-to-left').
+    !> If BUFFER is omitted, it defaults to the current buffer.
+    !> Paragraph direction determines how the text in the paragraph is displayed.
+    !> In left-to-right paragraphs, text begins at the left margin of the window
+    !> and the reading direction is generally left to right.  In right-to-left
+    !> paragraphs, text begins at the right margin and is read from right to left.
+    !> See also `bidi_paragraph_direction'.  Port of
+    !> xdisp.c:Fcurrent_bidi_paragraph_direction.
+    integer function current_bidi_paragraph_direction(buffer) result(dir)
+        type(handle_type), intent(in), optional :: buffer
+        integer(int64) :: old
+        type(bidi_it_type) :: itb
+        type(bidi_shelved_type) :: itb_data
+        type(status_type) :: st
+        integer(int64) :: pos, bytepos, bi
+        integer(int32) :: c
+
+        dir = L2R
+        bi = cur
+        if (present(buffer)) call resolve_buffer(buffer, bi, st)
+        if (.not. buffers(bi)%bidi_display_reordering .or. .not. buffers(bi)%multibyte) return
+
+        if (buffers(bi)%bidi_paragraph_direction /= NEUTRAL_DIR) then
+            dir = buffers(bi)%bidi_paragraph_direction
+            return
+        end if
+
+        old = cur
+        call set_buffer_internal(bi)
+        itb_data = bidi_shelve_cache()
+        pos = buffers(cur)%pt
+        bytepos = buffers(cur)%pt_byte
+
+        ! Find the previous non-empty line: we need the direction of the
+        ! current or previous paragraph.
+        if (pos >= buffers(cur)%zv .and. pos > buffers(cur)%begv) then
+            pos = pos - 1
+            bytepos = buf_charpos_to_bytepos(cur, pos)
+        end if
+
+        if (fast_looking_at("[         ]*"//achar(10), pos, buffers(cur)%zv, st) > 0) then
+            do
+                c = buf_fetch_byte(buffers(cur), bytepos)
+                if (.not. (c == 10 .or. c == 32 .or. c == 9 .or. c == 12)) exit
+                if (bytepos <= buffers(cur)%begv_byte) exit
+                bytepos = bytepos - 1
+                pos = pos - 1
+            end do
+
+            do while (iand(buf_fetch_byte(buffers(cur), bytepos), int(z'C0', int32)) == int(z'80', int32))
+                bytepos = bytepos - 1
+            end do
+        end if
+
+        call bidi_init_it(pos, bytepos, associated(selected_frame%rif), itb)
+        itb%paragraph_dir = NEUTRAL_DIR
+        call bidi_paragraph_init(NEUTRAL_DIR, itb, .true.)
+        call bidi_unshelve_cache(itb_data, .false.)
+        call set_buffer_internal(old)
+        dir = itb%paragraph_dir
+    end function current_bidi_paragraph_direction
+
+    !> Return position between FROM and TO where directionality was overridden.
+    !> This function returns the first character position in the specified
+    !> region of OBJECT where characters have their bidirectional
+    !> properties affected in a way that might make its text look confusingly
+    !> on display.  For example, characters whose `bidi-class' property is `L',
+    !> could be forced to display as `R' by a directional override, and
+    !> likewise characters whose `bidi-class' is `R' or `AL' that are
+    !> forced to display as `L'.
+    !> If no such character is found, the function returns -1.
+    !> OBJECT is the current buffer, or STRING when given (FROM and TO then
+    !> 0-based character indices into it).
+    !> Optional argument BASE_DIR specifies the base paragraph directory
+    !> of the text: L2R (`left-to-right', the default) or R2L
+    !> (`right-to-left').
+    !> Strong directional characters `L', `R', and `AL' can have their
+    !> intrinsic directionality overridden by directional override control
+    !> characters RLO (u+202E) and LRO (u+202D).  They can also have their
+    !> directionality affected by other formatting control characters: LRE
+    !> (u+202A), RLE (u+202B), LRI (u+2066), and RLI (u+2067).  Characters
+    !> whose intrinsic directionality is weak or neutral, such as numbers or
+    !> punctuation characters, can be forced to display in a very different
+    !> place with respect of its surrounding characters, so as to make the
+    !> surrounding text confuse the user regarding what the text says.
+    !> Port of xdisp.c:Fbidi_find_overridden_directionality (a window
+    !> OBJECT, for its window-specific overlays, is Deferred with display
+    !> properties in the bidi iteration).
+    integer(int64) function bidi_find_overridden_directionality(from, to, status, string, base_dir) result(pos)
+        integer(int64), intent(in) :: from, to
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: string
+        integer, intent(in), optional :: base_dir
+        type(bidi_it_type) :: itb
+        type(bidi_shelved_type) :: itb_data
+        integer(int64) :: from_pos, to_pos, found, end, bpos
+        integer :: bdir
+
+        pos = -1
+        status = status_type()
+        from_pos = from
+        to_pos = to
+
+        if (present(string)) then
+            call bidi_set_string(itb, string)
+            end = itb%string%schars
+
+            if (from_pos < 0 .or. to_pos > end .or. from_pos > to_pos) then
+                call set_error(status, FM_ARGS_OUT_OF_RANGE, "")
+                return
+            end if
+
+            if (from_pos >= end) return
+            itb_data = bidi_shelve_cache()
+            itb%paragraph_dir = NEUTRAL_DIR
+            call bidi_init_it(0_int64, 0_int64, associated(selected_frame%rif), itb)
+        else
+            ! Nothing this fancy can happen in unibyte buffers, or in a
+            ! buffer that disabled reordering, or if FROM is at EOB.
+            if (.not. buffers(cur)%bidi_display_reordering .or. .not. buffers(cur)%multibyte) return
+            call validate_region(from_pos, to_pos, status)
+            if (.not. status%ok()) return
+            end = buffers(cur)%zv
+            if (from_pos >= end) return
+            itb_data = bidi_shelve_cache()
+            bpos = buf_charpos_to_bytepos(cur, from_pos)
+
+            if (from_pos == buffers(cur)%begv) then
+                itb%charpos = buffers(cur)%begv
+                itb%bytepos = buffers(cur)%begv_byte
+            else if (buf_fetch_byte(buffers(cur), bpos - 1) == 10) then
+                itb%charpos = from_pos
+                itb%bytepos = bpos
+            else
+                itb%charpos = find_newline_no_quit(from_pos, bpos, -1_int64, itb%bytepos)
+            end if
+
+            itb%paragraph_dir = NEUTRAL_DIR
+            call bidi_init_it(itb%charpos, itb%bytepos, associated(selected_frame%rif), itb)
+        end if
+
+        bdir = L2R
+        if (present(base_dir)) bdir = merge(R2L, L2R, base_dir == R2L)
+
+        do
+            call bidi_paragraph_init(bdir, itb, .false.)
+
+            do
+                found = bidi_find_first_overridden(itb)
+                if (found >= from_pos) exit
+            end do
+
+            ! (Upstream compares with ZV for a string too.)
+            if (.not. (found == buffers(cur)%zv .and. itb%ch == 10 .and. itb%charpos < to_pos)) exit
+        end do
+
+        call bidi_unshelve_cache(itb_data, .false.)
+        if (from_pos <= found .and. found < to_pos) pos = found
+    end function bidi_find_overridden_directionality
 end module xdisp_fm

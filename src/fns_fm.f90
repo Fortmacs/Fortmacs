@@ -28,9 +28,9 @@ module fns_fm
     use print_fm, only: fortran_string
     use character_fm, only: multibyte_chars_in_text, string_char_and_length
     use casetab_fm, only: upcase
-    use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
-                       make_list, symbols, v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, &
-                       v_string, v_symbol, v_syntax_table, v_window, value_type, vtag, xsymbol
+    use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, &
+                       make_list, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
+                       v_string, V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol
     use lread_fm, only: ensure_obarray
     use data_fm, only: value_eq, check_symbol
     use marker_fm, only: markers, resolve_marker
@@ -49,22 +49,22 @@ module fns_fm
     end interface
 
     public :: value_predicate
-    public :: value_equal, length, nth, nthcdr, memq, member
-    public :: string_lessp, string_greaterp, compare_strings, COMPARE_EQUAL, schars, substring
+    public :: value_equal
+    public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, schars, substring
 
     !> The value of `compare_strings' for strings that match (t).
     integer(int64), parameter :: COMPARE_EQUAL = 0
     public :: plist_get, plist_put, plist_member, get, put
-    public :: yes_or_no_p
+    public :: read_yes_or_no
 
-    !> True means `yes_or_no_p' accepts single-key answers "y" or "n".
-    !> When true, `yes_or_no_p' will use `y_or_n_p' to read the answer.
+    !> True means `read_yes_or_no' accepts single-key answers "y" or "n".
+    !> When true, `read_yes_or_no' will use `read_y_or_n' to read the answer.
     !> This means the user will be able to press just one key to answer, whereas
     !> by default the user needs to type the full "yes" or "no" response
     !> and then press RET.  Port of fns.c use-short-answers.
     logical, public :: use_short_answers = .false.
 
-    !> String to append when `yes_or_no_p' asks a question.
+    !> String to append when `read_yes_or_no' asks a question.
     !> For best results this should end in a space.  Port of fns.c
     !> yes-or-no-prompt.
     character(len=:), allocatable, public :: yes_or_no_prompt
@@ -73,7 +73,7 @@ module fns_fm
         !> Ask user a yes-or-no question.
         !> Return true if answer is yes, and false if the answer is no.
         !>
-        !> PROMPT is the string to display to ask the question; `yes_or_no_p'
+        !> PROMPT is the string to display to ask the question; `read_yes_or_no'
         !> appends `yes_or_no_prompt' (default "(yes or no) ") to it.  If
         !> PROMPT is a non-empty string, and it ends with a non-space character,
         !> a space character will be appended to it.
@@ -86,12 +86,12 @@ module fns_fm
         !> ignore the value of `yes_or_no_prompt').  Port of
         !> fns.c:Fyes_or_no_p (no dialog boxes).  (In submodule fns_ask_fm,
         !> as the minibuffer depends on this module.)
-        recursive module subroutine yes_or_no_p(prompt, answer, status)
+        recursive module subroutine read_yes_or_no(prompt, answer, status)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             logical, intent(out) :: answer
             type(status_type), intent(out) :: status
-        end subroutine yes_or_no_p
+        end subroutine read_yes_or_no
     end interface
 
 contains
@@ -107,7 +107,7 @@ contains
         eq = .false.
         if (vtag(a) /= vtag(b)) return
 
-        if (vtag(a) == V_NIL) then
+        if (vtag(a) == V_NULL) then
             eq = .true.
             return
         end if
@@ -142,9 +142,9 @@ contains
         if (x%tag /= y%tag) return
 
         select case (x%tag)
-        case (V_NIL)
+        case (V_NULL)
             eq = .true.
-        case (V_INT, V_SYMBOL, V_LIST)
+        case (V_INTEGER, V_NAME, V_ARRAY)
             eq = x%i == y%i
         case (V_STRING)
             eq = len(x%s) == len(y%s)
@@ -169,101 +169,6 @@ contains
         end select
     end function atom_equal
 
-    !> Elements of a list, or characters of a string.
-    !> Port of fns.c:Flength (lists and strings).
-    subroutine length(sequence, n, status)
-        type(value_type), intent(in) :: sequence
-        integer(int64), intent(out) :: n
-        type(status_type), intent(out) :: status
-        type(status_type) :: st
-
-        n = 0
-
-        select case (vtag(sequence))
-        case (V_NIL)
-            n = 0
-        case (V_LIST)
-            n = list_length(sequence)
-        case (V_STRING)
-            call multibyte_chars_in_text(sequence%a(1)%s, n, st)
-            if (.not. st%ok()) n = len(sequence%a(1)%s, kind=int64)
-        case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep")
-        end select
-    end subroutine length
-
-    !> The `n'th element (0-based) of `list', or nil.  Port of fns.c:Fnth.
-    subroutine nth(n, list, v, status)
-        integer(int64), intent(in) :: n
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        select case (vtag(list))
-        case (V_NIL)
-        case (V_LIST)
-            v = list_elt(list, max(n, 0_int64) + 1)
-        case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
-        end select
-    end subroutine nth
-
-    !> `list' without its first `n' elements.  Port of fns.c:Fnthcdr.
-    subroutine nthcdr(n, list, v, status)
-        integer(int64), intent(in) :: n
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        if (n <= 0) then
-            v = list
-            return
-        end if
-
-        select case (vtag(list))
-        case (V_NIL)
-        case (V_LIST)
-            v = list_tail(list, n)
-        case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
-        end select
-    end subroutine nthcdr
-
-    !> The tail of `list' starting with an element `eq' to `elt', or nil.
-    !> Port of fns.c:Fmemq.
-    function memq(elt, list) result(tail)
-        type(value_type), intent(in) :: elt, list
-        type(value_type) :: tail
-        type(value_type), allocatable :: elems(:)
-        integer(int64) :: k
-
-        call list_elements(list, elems)
-
-        do k = 1, size(elems, kind=int64)
-            if (value_eq(elems(k), elt)) then
-                tail = list_tail(list, k - 1)
-                return
-            end if
-        end do
-    end function memq
-
-    !> Like `memq', comparing with `equal'.  Port of fns.c:Fmember.
-    function member(elt, list) result(tail)
-        type(value_type), intent(in) :: elt, list
-        type(value_type) :: tail
-        type(value_type), allocatable :: elems(:)
-        integer(int64) :: k
-
-        call list_elements(list, elems)
-
-        do k = 1, size(elems, kind=int64)
-            if (value_equal(elems(k), elt)) then
-                tail = list_tail(list, k - 1)
-                return
-            end if
-        end do
-    end function member
-
     !> Text of a string, or the name of a symbol; `ok' false otherwise.
     !> Not a port.
     subroutine string_or_name(v, text, ok)
@@ -276,7 +181,7 @@ contains
         select case (vtag(v))
         case (V_STRING)
             text = v%a(1)%s
-        case (V_SYMBOL, V_NIL)
+        case (V_NAME, V_NULL)
             call ensure_obarray()
             text = symbols(xsymbol(v))%name
         case default
@@ -289,14 +194,14 @@ contains
     !> Symbols stand for their names; anything else compares false (the
     !> predicate interface has no status).  Port of fns.c:Fstring_lessp
     !> (string_cmp).
-    logical function string_lessp(a, b)
+    logical function is_string_less(a, b)
         type(value_type), intent(in) :: a, b
         character(len=:), allocatable :: sa, sb
         logical :: oka, okb
         integer(int64) :: pa, pb
         integer(int32) :: ca, cb, na, nb
 
-        string_lessp = .false.
+        is_string_less = .false.
         call string_or_name(a, sa, oka)
         call string_or_name(b, sb, okb)
         if (.not. (oka .and. okb)) return
@@ -308,7 +213,7 @@ contains
             call string_char_and_length(sb, pb, cb, nb)
 
             if (ca /= cb) then
-                string_lessp = ca < cb
+                is_string_less = ca < cb
                 return
             end if
 
@@ -317,8 +222,8 @@ contains
         end do
 
         ! Equal up to the shorter length: the shorter one is less.
-        string_lessp = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
-    end function string_lessp
+        is_string_less = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
+    end function is_string_less
 
     !> Compare the contents of two strings.
     !> The arguments START1, END1, START2, and END2, if present, are
@@ -542,11 +447,11 @@ contains
     end subroutine string_chars
 
     !> Port of fns.c:Fstring_greaterp.
-    logical function string_greaterp(a, b)
+    logical function is_string_greater(a, b)
         type(value_type), intent(in) :: a, b
 
-        string_greaterp = string_lessp(b, a)
-    end function string_greaterp
+        is_string_greater = is_string_less(b, a)
+    end function is_string_greater
 
     !> Compare with `predicate', or `eq' by default.  Not a port.
     logical function matches(a, b, predicate)
@@ -590,8 +495,8 @@ contains
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k, n
 
-        if (.not. listp(plist)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
+        if ((vtag(plist) /= V_ARRAY .and. vtag(plist) /= V_NULL)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
             return
         end if
 
@@ -607,7 +512,7 @@ contains
         end do
 
         if (mod(n, 2_int64) /= 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
             return
         end if
 

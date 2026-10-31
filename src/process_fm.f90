@@ -44,15 +44,15 @@
 !> Not ported yet (Deferred): network, serial and pipe processes
 !> (`make_network_process', `make_pipe_process', `make_serial_process')
 !> and `:stderr'; a `:connection_type' of the form (INPUT . OUTPUT);
-!> `process_coding_system_alist' and the coding systems of
+!> `process_coding_system_table' and the coding systems of
 !> `find_operation_coding_system' for processes; `exec_path' (PATH is searched) and
 !> `process_environment' (the editor's environment is passed); remote
 !> directories and file name handlers; stopped processes (`stop_process',
 !> `continue_process', `stop' statuses); `set_process_filter' with t
-!> (stopping output); a CURRENT_GROUP of `lambda' (signal only when the
+!> (stopping output); a special CURRENT_GROUP (signal only when the
 !> shell does not own the terminal); `signal_process'
 !> with names, `interrupt_process_functions', `signal_process_functions';
-!> the process plist (`process_get', `process_put'); threads locking
+!> the process attributes (`process_get', `process_put'); threads locking
 !> processes (`set_process_thread'); `set_process_window_size';
 !> `process_running_child_p'; adaptive read buffering; `inhibit_sentinels';
 !> the saving of the match data around filters and sentinels; quitting
@@ -66,7 +66,7 @@ module process_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use data_fm, only: logical_setting
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, set_buffer_internal, buffer_live_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, set_buffer_internal, is_buffer_live, &
                          resolve_buffer, kill_buffer_processes_hook, deactivate_mark_variable, BEG, buffer_handle
     use marker_fm, only: make_marker, free_marker, marker_buffer, marker_position, set_marker_both, &
                          set_marker, char_to_byte
@@ -76,7 +76,7 @@ module process_fm
     use coding_fm, only: default_process_coding_system, coding_system_for_read, coding_system_for_write, &
                          last_coding_system_used, check_coding_system, coding_system_type, coding_system_eol_type, &
                          decode_coding_bytes, encode_coding_text, EOL_DOS
-    use fileio_fm, only: file_directory_p, report_file_errno, expand_file_name
+    use fileio_fm, only: is_file_directory, report_file_errno, expand_file_name
     use callproc_fm, only: get_current_directory, locate_program, init_callproc
     use sysdep_fm, only: sys_string_type, emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
                          close_fd, emacs_strsignal, emacs_strerror, emacs_dup_cloexec, emacs_num_processors, ENOENT, EPIPE
@@ -89,7 +89,7 @@ module process_fm
     private
 
     public :: process_arg_type, process_filter_proc, process_sentinel_proc
-    public :: make_process, start_process, delete_process, free_process, processp, process_live_p, &
+    public :: make_process, start_process, delete_process, free_process, is_process, is_process_live, &
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
               set_process_filter, set_process_sentinel, process_tty_name, set_process_query_on_exit_flag, &
@@ -159,7 +159,7 @@ module process_fm
         !> Marker set to end of last buffer-inserted output from this process.
         type(handle_type) :: mark
         integer(int32) :: pid = 0
-        !> Symbol indicating status of process (ST_*), with the exit code or
+        !> Name indicating status of process (ST_*), with the exit code or
         !> signal number and whether a core was dumped.
         integer :: state = ST_RUN
         integer(int32) :: code = 0
@@ -194,12 +194,28 @@ module process_fm
     type(process_type), allocatable :: procs(:)
 
     !> Vprocess_alist: the listed processes, the newest first.
-    type(handle_type), allocatable :: alist(:)
-    integer :: alist_count = 0
+    type(handle_type), allocatable :: process_order(:)
+    integer :: process_order_count = 0
 
     !> Incremented for each change in any process status (process_tick),
     !> and the value status_notify last saw (update_tick).
     integer(int64) :: process_tick = 0, update_tick = 0
+
+    abstract interface
+        !> What keeps a process filter or sentinel from changing the match
+        !> data (search_fm): one runs before it (OUTER becomes the earlier
+        !> state of running_asynch_code, SAVED what to reinstate), one
+        !> after it.  Not a port.
+        subroutine asynch_code_proc(outer, saved)
+            import :: int64
+            implicit none(type, external)
+            logical, intent(inout) :: outer
+            integer(int64), allocatable, intent(inout) :: saved(:)
+        end subroutine asynch_code_proc
+    end interface
+
+    !> Set by search_fm (search.c's side of process.c's running_asynch_code).
+    procedure(asynch_code_proc), pointer, public :: begin_asynch_code => null(), end_asynch_code => null()
 
 contains
 
@@ -214,15 +230,15 @@ contains
         type(status_type), intent(out) :: status
 
         call table%resolve(proc, i, status)
-        if (.not. status%ok()) status%detail = "Wrong type argument: processp"
+        if (.not. status%ok()) status%detail = "Wrong type argument: expected type(process_type)"
     end subroutine resolve
 
-    !> Return t if OBJECT is a process.  Port of process.c:Fprocessp.
-    logical function processp(object)
+    !> Return .true. if OBJECT is a process.  Port of process.c:Fprocessp.
+    logical function is_process(object)
         type(handle_type), intent(in) :: object
 
-        processp = table%is_live(object)
-    end function processp
+        is_process = table%is_live(object)
+    end function is_process
 
     !> Make room for slot `n'.  Not a port.
     subroutine grow(n)
@@ -265,7 +281,7 @@ contains
         name1 = name
         k = 1
 
-        do while (processp(get_process(name1)))
+        do while (is_process(get_process(name1)))
             write (suffix, "('<', i0, '>')") k
             name1 = name//trim(suffix)
             k = k + 1
@@ -283,27 +299,27 @@ contains
         procs(i)%decode_coding_system = trim(default_process_coding_system(1))
         procs(i)%encode_coding_system = trim(default_process_coding_system(2))
         allocate (procs(i)%command(0))
-        call alist_push(h)
+        call process_order_push(h)
         procs(i)%listed = .true.
     end subroutine new_process
 
     ! Not a port.
-    subroutine alist_push(h)
+    subroutine process_order_push(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: bigger(:)
 
-        if (.not. allocated(alist)) allocate (alist(8))
+        if (.not. allocated(process_order)) allocate (process_order(8))
 
-        if (alist_count == size(alist)) then
-            allocate (bigger(2*alist_count))
-            bigger(1:alist_count) = alist(1:alist_count)
-            call move_alloc(bigger, alist)
+        if (process_order_count == size(process_order)) then
+            allocate (bigger(2*process_order_count))
+            bigger(1:process_order_count) = process_order(1:process_order_count)
+            call move_alloc(bigger, process_order)
         end if
 
-        alist(2:alist_count + 1) = alist(1:alist_count)
-        alist(1) = h
-        alist_count = alist_count + 1
-    end subroutine alist_push
+        process_order(2:process_order_count + 1) = process_order(1:process_order_count)
+        process_order(1) = h
+        process_order_count = process_order_count + 1
+    end subroutine process_order_push
 
     !> Take process `proc' off the process list and deactivate it.  Port of
     !> process.c:remove_process.
@@ -311,10 +327,10 @@ contains
         integer(int64), intent(in) :: i
         integer :: k
 
-        do k = 1, alist_count
-            if (alist(k)%index == i) then
-                alist(k:alist_count - 1) = alist(k + 1:alist_count)
-                alist_count = alist_count - 1
+        do k = 1, process_order_count
+            if (process_order(k)%index == i) then
+                process_order(k:process_order_count - 1) = process_order(k + 1:process_order_count)
+                process_order_count = process_order_count - 1
                 exit
             end if
         end do
@@ -430,7 +446,7 @@ contains
     !> "exit" -- for a process that has exited.
     !> "signal" -- for a process that has got a fatal signal.
     !> "" -- if PROCESS is not a process.
-    !> Port of process.c:Fprocess_status (status symbols as strings).
+    !> Port of process.c:Fprocess_status (status names as strings).
     function process_status(process) result(status_name)
         type(handle_type), intent(in) :: process
         character(len=:), allocatable :: status_name
@@ -470,12 +486,12 @@ contains
     !> Return true if PROCESS is alive.
     !> A process is considered alive if its status is `run'.  Port of
     !> subr.el:process-live-p.
-    logical function process_live_p(process)
+    logical function is_process_live(process)
         type(handle_type), intent(in) :: process
 
-        process_live_p = .false.
-        if (processp(process)) process_live_p = process_status(process) == "run"
-    end function process_live_p
+        is_process_live = .false.
+        if (is_process(process)) is_process_live = process_status(process) == "run"
+    end function is_process_live
 
     !> Return the process id of PROCESS.
     !> This is the pid of the external process which PROCESS uses or talks
@@ -561,7 +577,7 @@ contains
         type(status_type) :: st
         integer(int64) :: b
 
-        if (.not. buffer_live_p(procs(i)%buffer)) return
+        if (.not. is_buffer_live(procs(i)%buffer)) return
         call marker_buffer(procs(i)%mark, mb, st)
         if (mb%index == procs(i)%buffer%index .and. mb%generation == procs(i)%buffer%generation) return
         call resolve_buffer(procs(i)%buffer, b, st)
@@ -578,8 +594,8 @@ contains
         call resolve(process, i, status)
         if (.not. status%ok()) return
 
-        if (buffer%index /= 0 .and. .not. buffer_live_p(buffer)) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: bufferp")
+        if (buffer%index /= 0 .and. .not. is_buffer_live(buffer)) then
+            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected type(buffer_type)")
             return
         end if
 
@@ -710,9 +726,9 @@ contains
 
         proc = null_handle()
 
-        do k = 1, alist_count
-            if (procs(alist(k)%index)%name == name .and. len(procs(alist(k)%index)%name) == len(name)) then
-                proc = alist(k)
+        do k = 1, process_order_count
+            if (procs(process_order(k)%index)%name == name .and. len(procs(process_order(k)%index)%name) == len(name)) then
+                proc = process_order(k)
                 return
             end if
         end do
@@ -732,11 +748,11 @@ contains
         if (buffer%index == 0) return
 
         ! From the newest process, as FOR_EACH_PROCESS does.
-        do k = 1, alist_count
-            i = alist(k)%index
+        do k = 1, process_order_count
+            i = process_order(k)%index
 
             if (procs(i)%buffer%index == buffer%index .and. procs(i)%buffer%generation == buffer%generation) then
-                proc = alist(k)
+                proc = process_order(k)
                 return
             end if
         end do
@@ -747,10 +763,10 @@ contains
     function process_list() result(list)
         type(handle_type), allocatable :: list(:)
 
-        if (alist_count == 0) then
+        if (process_order_count == 0) then
             allocate (list(0))
         else
-            list = alist(1:alist_count)
+            list = process_order(1:process_order_count)
         end if
     end function process_list
 
@@ -817,7 +833,7 @@ contains
         process = null_handle()
 
         if (present(buffer)) then
-            if (buffer%index /= 0 .and. .not. buffer_live_p(buffer)) then
+            if (buffer%index /= 0 .and. .not. is_buffer_live(buffer)) then
                 call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
                 return
             end if
@@ -878,7 +894,7 @@ contains
                 return
             end if
         else
-            if (file_directory_p(command(1)%s)) then
+            if (is_file_directory(command(1)%s)) then
                 call set_error(status, FM_GENERIC_ERROR, "Specified program for new process is a directory")
                 call start_process_unwind()
                 return
@@ -1058,9 +1074,9 @@ contains
 
         i = 0
 
-        do k = 1, alist_count
-            if (procs(alist(k)%index)%worker == w .and. procs(alist(k)%index)%reading) then
-                i = alist(k)%index
+        do k = 1, process_order_count
+            if (procs(process_order(k)%index)%worker == w .and. procs(process_order(k)%index)%reading) then
+                i = process_order(k)%index
                 return
             end if
         end do
@@ -1080,8 +1096,9 @@ contains
         character(len=:), allocatable :: chars, text, used
         type(handle_type) :: old, proc
         type(status_type) :: st
-        logical :: odeactivate
+        logical :: odeactivate, outer
         integer(int64) :: n
+        integer(int64), allocatable :: saved(:)
 
         chars = procs(i)%carryover//bytes
         procs(i)%carryover = ""
@@ -1118,6 +1135,7 @@ contains
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
+        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
 
         if (associated(procs(i)%filter)) then
             call procs(i)%filter(proc, text, st)
@@ -1129,9 +1147,10 @@ contains
             call message("error in process filter: "//format_error(st))
         end if
 
+        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
         ! There's no good reason to let process filters change the current
         ! buffer.
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         ! Handling the process output should not deactivate the mark.
         deactivate_mark_variable = odeactivate
     end subroutine read_process_output
@@ -1182,7 +1201,7 @@ contains
 
         call resolve(proc, i, status)
         if (.not. status%ok()) return
-        if (.not. buffer_live_p(procs(i)%buffer)) return
+        if (.not. is_buffer_live(procs(i)%buffer)) return
         call set_buffer(procs(i)%buffer, status)
         if (.not. status%ok()) return
         b = cur
@@ -1278,11 +1297,13 @@ contains
         character(len=*), intent(in) :: reason
         type(handle_type) :: old, proc
         type(status_type) :: st
-        logical :: odeactivate
+        logical :: odeactivate, outer
+        integer(int64), allocatable :: saved(:)
 
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
+        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
 
         if (associated(procs(i)%sentinel)) then
             call procs(i)%sentinel(proc, reason, st)
@@ -1291,7 +1312,8 @@ contains
         end if
 
         if (.not. st%ok()) call message("error in process sentinel: "//format_error(st))
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         deactivate_mark_variable = odeactivate
     end subroutine exec_sentinel
 
@@ -1313,7 +1335,7 @@ contains
         if (procs(i)%state == ST_RUN .or. procs(i)%buffer%index == 0) return
         ! Avoid error if buffer is deleted (probably that's why the process
         ! is dead, too).
-        if (.not. buffer_live_p(procs(i)%buffer)) return
+        if (.not. is_buffer_live(procs(i)%buffer)) return
         old = current_buffer()
         call set_buffer(procs(i)%buffer, status)
         if (.not. status%ok()) return
@@ -1344,7 +1366,7 @@ contains
             call goto_char(opoint)
         end if
 
-        if (buffer_live_p(old)) then
+        if (is_buffer_live(old)) then
             call set_buffer(old, st)
         else
             call set_buffer_internal(0_int64)
@@ -1432,7 +1454,7 @@ contains
     end subroutine accept_process_output
 
     ! ------------------------------------------------------------------
-    ! Deleting and signalling
+    ! Deleting and signaling
     ! ------------------------------------------------------------------
 
     !> Delete PROCESS: kill it and forget about it immediately.
@@ -1675,8 +1697,8 @@ contains
         integer(int64) :: i
         integer :: k
 
-        do k = 1, alist_count
-            i = alist(k)%index
+        do k = 1, process_order_count
+            i = process_order(k)%index
 
             if (buffer%index == 0 .or. (procs(i)%buffer%index == buffer%index &
                                         .and. procs(i)%buffer%generation == buffer%generation)) then
@@ -1738,7 +1760,7 @@ contains
     !> Set coding systems of PROCESS to DECODING and ENCODING.
     !> DECODING will be used to decode subprocess output and ENCODING to
     !> encode subprocess input.  Port of process.c:Fset_process_coding_system
-    !> ("" for nil, which is no conversion).
+    !> ("" for none, which is no conversion).
     subroutine set_process_coding_system(process, decoding, encoding, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: decoding, encoding

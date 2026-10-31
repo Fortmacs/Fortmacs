@@ -45,7 +45,7 @@ program tester
     use test_css_mode_fm, only: collect_css_mode_fm
     use test_js_fm, only: collect_js_fm
     use test_sgml_mode_fm, only: collect_sgml_mode_fm
-    use test_lisp_cmds_fm, only: collect_lisp_cmds_fm
+    use test_expression_motion_fm, only: collect_expression_motion_fm
     use test_page_fm, only: collect_page_fm
     use test_simple_goto_fm, only: collect_simple_goto_fm
     use test_syntax_propertize_fm, only: collect_syntax_propertize_fm
@@ -97,6 +97,9 @@ program tester
     use test_view_fm, only: collect_view_fm
     use test_files_copy_fm, only: collect_files_copy_fm
     use test_casetab_fm, only: collect_casetab_fm
+    use test_chartab_fm, only: collect_chartab_fm
+    use test_category_fm, only: collect_category_fm
+    use test_bidi_fm, only: collect_bidi_fm
     use test_search_fm, only: collect_search_fm
     use test_isearch_fm, only: collect_isearch_fm
     use test_window_fm, only: collect_window_fm
@@ -195,6 +198,9 @@ program tester
                  new_testsuite("view_fm", collect_view_fm), &
                  new_testsuite("files_copy_fm", collect_files_copy_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &
+                 new_testsuite("chartab_fm", collect_chartab_fm), &
+                 new_testsuite("category_fm", collect_category_fm), &
+                 new_testsuite("bidi_fm", collect_bidi_fm), &
                  new_testsuite("search_fm", collect_search_fm), &
                  new_testsuite("isearch_fm", collect_isearch_fm), &
                  new_testsuite("window_fm", collect_window_fm), &
@@ -219,7 +225,7 @@ program tester
                  new_testsuite("css_mode_fm", collect_css_mode_fm), &
                  new_testsuite("js_fm", collect_js_fm), &
                  new_testsuite("sgml_mode_fm", collect_sgml_mode_fm), &
-                 new_testsuite("lisp_cmds_fm", collect_lisp_cmds_fm), &
+                 new_testsuite("expression_motion_fm", collect_expression_motion_fm), &
                  new_testsuite("page_fm", collect_page_fm), &
                  new_testsuite("simple_goto_fm", collect_simple_goto_fm), &
                  new_testsuite("syntax_propertize_fm", collect_syntax_propertize_fm), &

@@ -32,9 +32,8 @@ module auth_source_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, make_string, list
-    use lread_fm, only: sym
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, erase_buffer
+    use lisp_fm, only: list, value_type
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, erase_buffer
     use editfns_fm, only: buffer_size
     use textprop_fm, only: put_text_property, remove_list_of_text_properties
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
@@ -45,7 +44,7 @@ module auth_source_fm
     use commands_fm, only: commands
     use minibuf_fm, only: minibuffer_prompt_end, minibuffer_setup_function, read_string, &
                           enable_recursive_minibuffers, minibuffer_local_map, read_hide_char
-    use window_fm, only: windows, window_valid_p
+    use window_fm, only: windows, is_window_valid
     use frame_fm, only: selected_frame
     use xdisp_fm, only: message
     implicit none(type, external)
@@ -93,13 +92,13 @@ contains
 
         do i = 0, buffer_size() - beg
             if (password_hidden) then
-                call put_text_property(i + beg, i + beg + 1, sym("display"), make_string(buf(1:nbytes)), st)
+                call put_text_property(i + beg, i + beg + 1, value_type(name="display"), value_type(text=buf(1:nbytes)), st)
             else
-                call remove_list_of_text_properties(i + beg, i + beg + 1, list(sym("display")), changed, st)
+                call remove_list_of_text_properties(i + beg, i + beg + 1, list(value_type(name="display")), changed, st)
             end if
 
-            call put_text_property(i + beg, i + beg + 1, sym("help_echo"), &
-                                   make_string("C-u: Clear password"//achar(10)//"TAB: Toggle password visibility"), st)
+            call put_text_property(i + beg, i + beg + 1, value_type(name="help_echo"), &
+                                   value_type(text="C-u: Clear password"//achar(10)//"TAB: Toggle password visibility"), st)
         end do
     end subroutine read_passwd_hide_password
 
@@ -118,14 +117,14 @@ contains
         forced = .false.
         if (present(force)) forced = force
 
-        if (.not. window_valid_p(selected_frame%minibuffer_window)) then
+        if (.not. is_window_valid(selected_frame%minibuffer_window)) then
             call set_error(status, FM_GENERIC_ERROR, "No active minibuffer")
             return
         end if
 
         mbuf = windows(selected_frame%minibuffer_window%index)%buffer
 
-        if (.not. buffer_live_p(mbuf)) then
+        if (.not. is_buffer_live(mbuf)) then
             call set_error(status, FM_GENERIC_ERROR, "No active minibuffer")
             return
         end if
@@ -273,7 +272,7 @@ contains
         enable_recursive_minibuffers = saved_recursive
         read_hide_char = saved_hide
 
-        if (buffer_live_p(minibuf)) then
+        if (is_buffer_live(minibuf)) then
             old = current_buffer()
             call set_buffer(minibuf, st)
             call minor_modes%read_passwd_mode%disable(st)

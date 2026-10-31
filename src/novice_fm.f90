@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Disabled commands: a command whose symbol has a non-nil `disabled'
+!> Disabled commands: a command whose `disabled' attribute is .true.
 !> property asks before it runs (`disabled_command_function'), as
 !> simple.el:command-execute arranges.  `enable_command' and
 !> `disable_command' change the property and record the choice in the
@@ -32,25 +32,25 @@ module novice_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands, builtin_command
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, xfixnum, symbols, xsymbol
-    use lread_fm, only: sym, user_init_file
+    use lisp_fm, only: value_type, xfixnum, symbols, xsymbol, vtag, V_NULL, V_INTEGER, V_NAME
+    use lread_fm, only: user_init_file
     use handle_fm, only: handle_type
     use buffer_fm, only: current_buffer, set_buffer
     use editfns_fm, only: point, point_min, point_max, goto_char, delete_region, line_beginning_position, &
                           buffer_substring
     use insdel_fm, only: insert
     use search_fm, only: search_forward, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
-    use fileio_fm, only: file_exists_p
+    use fileio_fm, only: file_exists
     use files_fm, only: find_file_noselect, save_buffer
     use config_fm, only: init_file_name
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use data_fm, only: symbol_name
     use keymap_fm, only: key_description
     use keyboard_fm, only: this_command_keys, disabled_command_hook
-    use callint_fm, only: call_interactively, commandp, find_command, command_type
+    use callint_fm, only: call_interactively, is_command, find_command, command_type
     use character_fm, only: CHAR_META
     use help_fm, only: substitute_command_keys, documentation_hook
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use minibuf_fm, only: completion_obarray_table
     use rmc_fm, only: rmc_choice_type, read_multiple_choice
     implicit none(type, external)
@@ -61,8 +61,8 @@ module novice_fm
     !> Function to call to handle disabled commands.
     !> If false, the feature is disabled, i.e., all commands work normally.
     !> Port of novice.el disabled-command-function (true is the default
-    !> function, false is nil).
-    logical, public :: disabled_command_function_p = .true.
+    !> function, .false. is none).
+    logical, public :: disabled_command_function_variable = .true.
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -79,7 +79,8 @@ contains
 
         handled = .false.
         status = status_type()
-        if (.not. disabled_command_function_p .or. .not. symbolp(cmd) .or. nilp(cmd)) return
+        if (.not. disabled_command_function_variable .or. (vtag(cmd) /= V_NAME .and. vtag(cmd) /= V_NULL) &
+            .or. .not. allocated(cmd%a)) return
         p => find_command(symbols(xsymbol(cmd))%name)
         if (.not. associated(p)) return
         ! A string `disabled' property disables it too.
@@ -107,11 +108,11 @@ contains
         by_name = .false.
 
         if (size(keys) >= 1) then
-            if (fixnump(keys(1))) by_name = xfixnum(keys(1)) == ior(CHAR_META, iachar("x"))
+            if (vtag(keys(1)) == V_INTEGER) by_name = xfixnum(keys(1)) == ior(CHAR_META, iachar("x"))
         end if
 
         if (size(keys) >= 2 .and. .not. by_name) then
-            if (fixnump(keys(1)) .and. fixnump(keys(2))) then
+            if (vtag(keys(1)) == V_INTEGER .and. vtag(keys(2)) == V_INTEGER) then
                 by_name = xfixnum(keys(1)) == 27 .and. xfixnum(keys(2)) == iachar("x")
             end if
         end if
@@ -169,13 +170,13 @@ contains
 
         select case (answer)
         case (4)
-            disabled_command_function_p = .false.
+            disabled_command_function_variable = .false.
         case (2)
             enable_also = .false.
 
             if (allocated(user_init_file)) then
                 if (len(user_init_file) > 0) then
-                    call y_or_n_p("Enable command for future editing sessions also? ", enable_also, status)
+                    call read_y_or_n("Enable command for future editing sessions also? ", enable_also, status)
                     if (.not. status%ok()) return
                 end if
             end if
@@ -254,7 +255,7 @@ contains
         integer :: i, j
         logical :: saved_fold, builtin
 
-        if (.not. commandp(sym(command))) then
+        if (.not. is_command(value_type(name=command))) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//command//format_message("'"))
             return
         end if
@@ -277,7 +278,7 @@ contains
             ! Started with -q, i.e. the file containing enabled/disabled
             ! commands hasn't been read.  Saving settings there would
             ! overwrite other settings.
-            if (file_exists_p(init_file_name())) then
+            if (file_exists(init_file_name())) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "Saving settings from ""fortmacs -q"" would overwrite existing customizations")
                 return
@@ -375,8 +376,8 @@ contains
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
 
-        call completing_read(prompt, completion_obarray_table(), name, status, commandp, &
-                             require_match=REQUIRE_MATCH_T)
+        call completing_read(prompt, completion_obarray_table(), name, status, is_command, &
+                             require_match=REQUIRE_MATCH_YES)
     end subroutine read_command
 
     recursive subroutine cmd_enable_command(status)

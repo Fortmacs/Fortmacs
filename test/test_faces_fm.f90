@@ -22,7 +22,7 @@ module test_faces_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use faces_fm, only: named_face_type, init_faces, set_frame_display, face_spec_recalc_all, face_count, face_at, &
                         FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK, &
-                        FACE_UNSPECIFIED, FACE_NIL, FACE_T, FACE_PLIST, FACE_LIST, &
+                        FACE_UNSPECIFIED, FACE_OFF, FACE_ON, FACE_PLIST, FACE_LIST, &
                         line_number, line_number_major_tick, fill_column_indicator, show_paren_match, &
                         tty_menu_selected_face, tty_menu_disabled_face, read_multiple_choice_face, tool_bar, &
                         glyphless_char, tab_line, menu, cursor, region, FACE_COLOR
@@ -132,16 +132,16 @@ contains
         call check(error, cursor%lface%background, "black")
         if (allocated(error)) return
         ! menu: the (type tty) alternative.
-        call check(error, menu%lface%inverse_video%state, FACE_T)
+        call check(error, menu%lface%inverse_video%state, FACE_ON)
         if (allocated(error)) return
         ! fill-column-indicator: everything but the inherited face reset.
         call check(error, fill_column_indicator%lface%weight, "normal")
         if (allocated(error)) return
-        call check(error, fill_column_indicator%lface%box%state, FACE_NIL)
+        call check(error, fill_column_indicator%lface%box%state, FACE_OFF)
         if (allocated(error)) return
-        call check(error, fill_column_indicator%lface%strike_through%state, FACE_NIL)
+        call check(error, fill_column_indicator%lface%strike_through%state, FACE_OFF)
         if (allocated(error)) return
-        call check(error, fill_column_indicator%lface%inverse_video%state, FACE_NIL)
+        call check(error, fill_column_indicator%lface%inverse_video%state, FACE_OFF)
     end subroutine test_color_light
 
     !> An 8-color terminal with a dark background.
@@ -157,7 +157,7 @@ contains
         call check(error, tty_menu_disabled_face%lface%foreground, "white")
         if (allocated(error)) return
         ! tab-line: (min-colors 88) fails, (class mono) too.
-        call check(error, tab_line%lface%inverse_video%state, FACE_T)
+        call check(error, tab_line%lface%inverse_video%state, FACE_ON)
         if (allocated(error)) return
         call check(error, allocated(tab_line%lface%background), .false.)
         if (allocated(error)) return
@@ -176,7 +176,7 @@ contains
         if (allocated(error)) return
         call check(error, trim(line_number_major_tick%lface%inherit%names(1)), "line_number")
         if (allocated(error)) return
-        call check(error, tty_menu_selected_face%lface%inverse_video%state, FACE_T)
+        call check(error, tty_menu_selected_face%lface%inverse_video%state, FACE_ON)
         if (allocated(error)) return
         call check(error, allocated(tty_menu_selected_face%lface%background), .false.)
         if (allocated(error)) return
@@ -216,7 +216,7 @@ contains
         call check(error, tool_bar%lface%foreground, "black")
         if (allocated(error)) return
         ! menu: (type x-toolkit) is not an X frame's type here, so t.
-        call check(error, menu%lface%inverse_video%state, FACE_T)
+        call check(error, menu%lface%inverse_video%state, FACE_ON)
         if (allocated(error)) return
         call set_frame_display(FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, 2, "x")
         call face_spec_recalc_all()
@@ -238,7 +238,7 @@ contains
                    "a face whose variable has another name")
         if (allocated(error)) return
         faces%link%underline = .true.
-        call check(error, faces%link%underline%state == FACE_T, "underline t")
+        call check(error, faces%link%underline%state == FACE_ON, "underline t")
         if (allocated(error)) return
         faces%error%underline = face_underline(color="red", style=FACE_STYLE_WAVE)
         call check(error, faces%error%underline%state == FACE_PLIST .and. faces%error%underline%color == "red" .and. &
@@ -281,7 +281,7 @@ contains
         call face_spec_recalc_all()
         call check(error, glyphless_char%lface%height%state, FACE_UNSPECIFIED)
         if (allocated(error)) return
-        call check(error, glyphless_char%lface%underline%state, FACE_T)
+        call check(error, glyphless_char%lface%underline%state, FACE_ON)
         if (allocated(error)) return
         call check(error, trim(glyphless_char%lface%inherit%names(1)), "escape_glyph")
     end subroutine test_relative_height

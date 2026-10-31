@@ -32,23 +32,24 @@
 !> sensibly, use a window that showed the buffer before, or else use
 !> some other window.
 !>
-!> Deferred: `display_buffer_alist', `display_buffer_base_action' and the
-!> action alist entries other than `inhibit_same_window', other frames
+!> Deferred: `display_buffer_table', `display_buffer_base_action' and the
+!> action table entries other than `inhibit_same_window', other frames
 !> and tabs (`pop_up_frames', `display_buffer_pop_up_frame'), side and
 !> atomic windows, `window_size_fixed', frame buffer predicates,
 !> `switch_to_prev_buffer_skip' and `switch_to_prev_buffer_skip_regexp'
-!> other than nil, `quit_restore_window_no_switch',
+!> other than unset, `quit_restore_window_no_switch',
 !> `kill_buffer_quit_windows', `quit_window_hook' and
 !> `quit_window_kill_buffer', `temp_buffer_resize_mode', the
-!> `window_height' and `window_width' entries, nil for the split
+!> `window_height' and `window_width' entries, no value for the split
 !> thresholds, and windows resized by more than their next or previous
 !> sibling can give.
 submodule(window_fm) window_display_fm
+    use handle_fm, only: has_handle
     use commands_fm, only: commands
     use error_fm, only: set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
-    use buffer_fm, only: cur, current_buffer, set_buffer, buffer_live_p, record_buffer, bury_buffer_internal, &
+    use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
                          frame_buffer_list, get_buffer, get_buffer_create, kill_buffer, &
-                         set_buffer_read_only, restore_buffer_modified_p, replace_buffer_in_windows_hook, &
+                         set_buffer_read_only, restore_buffer_modified, replace_buffer_in_windows_hook, &
                          buffer_handle
     use marker_fm, only: set_marker_restricted, copy_marker
     use frame_fm, only: selected_frame, ensure_frame_windows, selected_window
@@ -57,12 +58,10 @@ submodule(window_fm) window_display_fm
     use buffer_fm, only: inhibit_read_only
     use insdel_fm, only: inhibit_modification_hooks
     use data_fm, only: set
-    use lread_fm, only: sym
-    use lisp_fm, only: value_type, t_value
+    use lisp_fm, only: value_type
     use minibuf_fm, only: minibuf_level
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use sysdep_fm, only: emacs_clock_realtime
-    use lisp_fm, only: nilp
     implicit none(type, external)
 
 contains
@@ -72,20 +71,20 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether window `h' is the selected window.  Not a port.
-    logical function selected_p(h)
+    logical function is_selected(h)
         type(handle_type), intent(in) :: h
 
-        selected_p = same_handle(h, selected_window())
-    end function selected_p
+        is_selected = same_handle(h, selected_window())
+    end function is_selected
 
     !> WINDOW's point: its buffer's point for the selected window, else
-    !> its own.  Port of window.c:Fwindow_point.
+    !> its own.  Port of window.c:Fwindow_point and window.c:window_point.
     integer(int64) function point_of(h) result(pos)
         type(handle_type), intent(in) :: h
         integer(int64) :: bi
         type(status_type) :: status
 
-        if (selected_p(h)) then
+        if (is_selected(h)) then
             call resolve_buffer(windows(h%index)%buffer, bi, status)
 
             if (status%ok()) then
@@ -139,23 +138,23 @@ contains
 
     !> Whether `h' is combined with siblings above and below (or with
     !> HORIZONTAL, side by side).  Port of window.el:window-combined-p.
-    logical function window_combined_p(h, horizontal)
+    logical function is_window_combined(h, horizontal)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal
         type(handle_type) :: parent
 
-        window_combined_p = .false.
+        is_window_combined = .false.
         parent = windows(h%index)%parent
-        if (.not. window_valid_p(parent)) return
-        window_combined_p = windows(parent%index)%horizontal .eqv. horizontal
-    end function window_combined_p
+        if (.not. is_window_valid(parent)) return
+        is_window_combined = windows(parent%index)%horizontal .eqv. horizontal
+    end function is_window_combined
 
     !> The window's total height if it is combined vertically, else its
     !> width (what display-buffer-record-window stores).  Not a port.
     integer function combined_size(h)
         type(handle_type), intent(in) :: h
 
-        if (window_combined_p(h, .false.)) then
+        if (is_window_combined(h, .false.)) then
             combined_size = windows(h%index)%total_lines
         else
             combined_size = windows(h%index)%total_cols
@@ -164,11 +163,11 @@ contains
 
     !> Whether `h' is as wide as its frame.  Port of
     !> window.el:window-full-width-p.
-    logical function window_full_width_p(h)
+    logical function is_window_full_width(h)
         type(handle_type), intent(in) :: h
 
-        window_full_width_p = windows(h%index)%total_cols == windows(selected_frame%root_window%index)%total_cols
-    end function window_full_width_p
+        is_window_full_width = windows(h%index)%total_cols == windows(selected_frame%root_window%index)%total_cols
+    end function is_window_full_width
 
     !> Columns available for text: the total minus the vertical divider.
     !> Port of window.el:window-width (window-body-width).
@@ -200,7 +199,7 @@ contains
         associate (w => windows(h%index))
             samebuf = same_handle(buffer, w%buffer)
             w%buffer = buffer
-            if (selected_p(h)) buffers(bi)%last_selected_window = h
+            if (is_selected(h)) buffers(bi)%last_selected_window = h
             ! Update time stamps of buffer display.
             buffers(bi)%display_count = buffers(bi)%display_count + 1
             call emacs_clock_realtime(buffers(bi)%display_time_sec, buffers(bi)%display_time_nsec)
@@ -242,7 +241,7 @@ contains
         lsw = buffers(bi)%last_selected_window
         other_shows = .false.
 
-        if (window_live_p(lsw)) then
+        if (is_window_live(lsw)) then
             if (.not. same_handle(lsw, h)) other_shows = same_handle(windows(lsw%index)%buffer, windows(h%index)%buffer)
         end if
 
@@ -264,7 +263,7 @@ contains
         saved = current_buffer()
         call set_buffer(buffer_handle(bi), status)
         call goto_char(pos)
-        if (buffer_live_p(saved)) call set_buffer(saved, status)
+        if (is_buffer_live(saved)) call set_buffer(saved, status)
     end subroutine goto_in_buffer
 
     module subroutine set_window_buffer(h, buffer, status, keep_margins)
@@ -276,12 +275,12 @@ contains
 
         status = status_type()
 
-        if (.not. window_live_p(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
+        if (.not. is_window_live(h)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
             return
         end if
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "Attempt to display deleted buffer")
             return
         end if
@@ -482,12 +481,12 @@ contains
         type(handle_type), intent(in) :: h, buffer
         logical, intent(in) :: all
 
-        if (buffer_live_p(buffer)) call window_discard_buffer_from_window(buffer, h, all)
+        if (is_buffer_live(buffer)) call window_discard_buffer_from_window(buffer, h, all)
     end subroutine unrecord_window_buffer
 
     !> Set WINDOW's buffer to BUFFER.
-    !> Optional argument START non-nil means set WINDOW's start position
-    !> to START.  Optional argument POINT non-nil means set WINDOW's
+    !> Optional argument START present means set WINDOW's start position
+    !> to START.  Optional argument POINT present means set WINDOW's
     !> point to POINT.  If WINDOW is selected this also sets BUFFER's
     !> `point' to POINT.  If WINDOW is selected and the buffer it showed
     !> before was current this also makes BUFFER the current buffer.
@@ -499,7 +498,7 @@ contains
         logical :: selected, current
         type(handle_type) :: cb
 
-        selected = selected_p(h)
+        selected = is_selected(h)
         cb = current_buffer()
         current = same_handle(windows(h%index)%buffer, cb)
         call set_window_buffer(h, buffer, status)
@@ -518,11 +517,11 @@ contains
         type(handle_type) :: saved
         type(status_type) :: status
 
-        if (selected_p(h)) then
+        if (is_selected(h)) then
             saved = current_buffer()
             call set_buffer(windows(h%index)%buffer, status)
             call goto_char(pos)
-            if (buffer_live_p(saved)) call set_buffer(saved, status)
+            if (is_buffer_live(saved)) call set_buffer(saved, status)
         else
             call set_window_point(windows(h%index), pos, status)
         end if
@@ -543,23 +542,6 @@ contains
     ! Switching to previous and next buffers
     ! ------------------------------------------------------------------
 
-    !> Whether `b' is in the list `list'.  Not a port.
-    logical function member(list, b)
-        type(handle_type), allocatable, intent(in) :: list(:)
-        type(handle_type), intent(in) :: b
-        integer :: k
-
-        member = .false.
-        if (.not. allocated(list)) return
-
-        do k = 1, size(list)
-            if (same_handle(list(k), b)) then
-                member = .true.
-                return
-            end if
-        end do
-    end function member
-
     !> The index of BUFFER in the previous buffers of `h', or 0.
     !> Not a port.
     integer function prev_entry(h, buffer) result(k)
@@ -578,10 +560,10 @@ contains
     end function prev_entry
 
     !> In WINDOW switch to previous buffer.
-    !> Return the buffer switched to, nil if no suitable buffer could be
+    !> Return the buffer switched to, the null handle if no suitable buffer could be
     !> found.
     !>
-    !> Optional argument BURY-OR-KILL non-nil means the buffer currently
+    !> Optional argument BURY-OR-KILL not BK_NONE means the buffer currently
     !> shown in WINDOW is about to be buried or killed and consequently
     !> shall not be switched to in future invocations of this command.
     !>
@@ -589,7 +571,7 @@ contains
     !> move the buffer to the end of WINDOW's previous buffers list so a
     !> future invocation of `switch_to_prev_buffer' less likely switches
     !> to it.  Port of window.el:switch-to-prev-buffer
-    !> (`switch_to_prev_buffer_skip' nil).
+    !> (`switch_to_prev_buffer_skip' unset).
     module function switch_to_prev_buffer(window, bury_or_kill, status) result(new_buffer)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: bury_or_kill
@@ -617,7 +599,7 @@ contains
             ! Don't switch in minibuffer window.
             h = selected_frame%selected_window
 
-            if (.not. window_live_p(h)) then
+            if (.not. is_window_live(h)) then
                 call set_error(status, FM_GENERIC_ERROR, "Window .false. is a minibuffer window")
                 return
             end if
@@ -639,8 +621,8 @@ contains
                 entry = windows(h%index)%prev_buffers(k)
                 b = entry%buffer
                 if (same_handle(b, old_buffer)) cycle
-                if (.not. buffer_live_p(b)) cycle
-                if (bury_or_kill == BK_NONE .and. member(next_buffers, b)) cycle
+                if (.not. is_buffer_live(b)) cycle
+                if (bury_or_kill == BK_NONE .and. has_handle(next_buffers, b)) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status, marker_pos(entry%start), marker_pos(entry%point))
                 found = .true.
@@ -656,10 +638,10 @@ contains
 
             do k = 1, size(list)
                 b = list(k)
-                if (.not. buffer_live_p(b) .or. same_handle(b, old_buffer)) cycle
+                if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
                 ! Skip buffers whose names start with a space.
                 if (index(buffer_name_of(b), " ") == 1) cycle
-                if (bury_or_kill == BK_NONE .and. member(next_buffers, b)) cycle
+                if (bury_or_kill == BK_NONE .and. has_handle(next_buffers, b)) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status)
                 found = .true.
@@ -671,7 +653,7 @@ contains
             ! Scan reverted next buffers last.
             do k = size(next_buffers), 1, -1
                 b = next_buffers(k)
-                if (.not. buffer_live_p(b) .or. same_handle(b, old_buffer)) cycle
+                if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
                 e = prev_entry(h, b)
                 if (e == 0) cycle
                 entry = windows(h%index)%prev_buffers(e)
@@ -727,7 +709,7 @@ contains
         call move_alloc(grown, windows(h%index)%prev_buffers)
     end subroutine append_prev
 
-    !> (cons b (delq b list)) Not a port.
+    !> Move B to the front of LIST (removing it elsewhere).  Not a port.
     subroutine push_front(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
@@ -749,9 +731,9 @@ contains
     end subroutine push_front
 
     !> In WINDOW switch to next buffer.
-    !> Return the buffer switched to, nil if no suitable buffer could be
+    !> Return the buffer switched to, the null handle if no suitable buffer could be
     !> found.  Port of window.el:switch-to-next-buffer
-    !> (`switch_to_prev_buffer_skip' nil).
+    !> (`switch_to_prev_buffer_skip' unset).
     module function switch_to_next_buffer(window, status) result(new_buffer)
         type(handle_type), intent(in) :: window
         type(status_type), intent(out) :: status
@@ -777,7 +759,7 @@ contains
             ! Don't switch in minibuffer window.
             h = selected_frame%selected_window
 
-            if (.not. window_live_p(h)) then
+            if (.not. is_window_live(h)) then
                 call set_error(status, FM_GENERIC_ERROR, "Window .false. is a minibuffer window")
                 return
             end if
@@ -795,7 +777,7 @@ contains
         ! Scan WINDOW's next buffers first.
         do k = 1, size(next_buffers)
             b = next_buffers(k)
-            if (.not. buffer_live_p(b) .or. same_handle(b, old_buffer)) cycle
+            if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
             e = prev_entry(h, b)
             if (e == 0) cycle
             entry = windows(h%index)%prev_buffers(e)
@@ -812,7 +794,7 @@ contains
 
             do k = 1, size(list)
                 b = list(k)
-                if (.not. buffer_live_p(b) .or. same_handle(b, old_buffer)) cycle
+                if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
                 if (index(buffer_name_of(b), " ") == 1) cycle
                 if (prev_entry(h, b) > 0) cycle
                 new_buffer = b
@@ -828,7 +810,7 @@ contains
             do k = size(windows(h%index)%prev_buffers), 1, -1
                 entry = windows(h%index)%prev_buffers(k)
                 b = entry%buffer
-                if (.not. buffer_live_p(b) .or. same_handle(b, old_buffer)) cycle
+                if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status, marker_pos(entry%start), marker_pos(entry%point))
                 exit
@@ -852,14 +834,14 @@ contains
     !> Whether window `h' can be deleted: not its frame's only window or
     !> the minibuffer window (the frame, Fortmacs's only one, can't be
     !> deleted).  Port of window.el:window-deletable-p.
-    logical function window_deletable_p(h)
+    logical function is_window_deletable(h)
         type(handle_type), intent(in) :: h
 
-        window_deletable_p = .false.
+        is_window_deletable = .false.
         if (same_handle(h, selected_frame%root_window)) return
         if (windows(h%index)%mini) return
-        window_deletable_p = .true.
-    end function window_deletable_p
+        is_window_deletable = .true.
+    end function is_window_deletable
 
     !> Delete WINDOW if possible: with DEDICATED_ONLY, only if it is
     !> dedicated.  Return whether WINDOW got deleted.  Port of
@@ -871,7 +853,7 @@ contains
 
         deleted = .false.
         if (dedicated_only .and. windows(h%index)%dedicated == DEDICATED_NONE) return
-        if (.not. window_deletable_p(h)) return
+        if (.not. is_window_deletable(h)) return
         call delete_window(h, status)
         deleted = status%ok()
     end function window_delete
@@ -883,7 +865,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: status
 
-        if (.not. window_live_p(h)) return
+        if (.not. is_window_live(h)) return
 
         if (windows(h%index)%mini) then
             ! The minibuffer window, if the minibuffer is active.
@@ -899,10 +881,10 @@ contains
     !> `quit_restore_prev' parameters either (1) delete WINDOW and its
     !> frame, (2) delete WINDOW but leave its frame alone, (3) restore the
     !> buffer previously shown in WINDOW, or (4) make WINDOW display some
-    !> other buffer.  In case (3) set any of these parameters to nil if it
+    !> other buffer.  In case (3) set any of these parameters to none if it
     !> has been used to restore the previously shown buffer.
     !>
-    !> BURY-OR-KILL tells how to proceed with the buffer of WINDOW: nil
+    !> BURY-OR-KILL tells how to proceed with the buffer of WINDOW: BK_NONE
     !> means to not handle the buffer in a particular way; `append' moves it
     !> to the end of WINDOW's previous buffers; `bury' removes it from them
     !> and moves it to the end of the buffer list; `kill' kills it;
@@ -922,7 +904,7 @@ contains
 
         status = status_type()
         h = window
-        if (.not. window_live_p(h)) h = selected_window()
+        if (.not. is_window_live(h)) h = selected_window()
         buffer = windows(h%index)%buffer
         qr = windows(h%index)%quit_restore
         qrp = windows(h%index)%quit_restore_prev
@@ -933,7 +915,7 @@ contains
             do k = 1, size(windows(h%index)%prev_buffers)
                 b = windows(h%index)%prev_buffers(k)%buffer
 
-                if (.not. same_handle(b, buffer) .and. buffer_live_p(b)) then
+                if (.not. same_handle(b, buffer) .and. is_buffer_live(b)) then
                     prev_buffer = b
                     exit
                 end if
@@ -966,11 +948,11 @@ contains
             use_main = .false.
 
             if (qrp%kind /= QR_NONE .and. qrp%has_quad) then
-                if (buffer_live_p(qrp%quad_buffer) .and. same_handle(qrp%buffer, buffer)) use_prev = .true.
+                if (is_buffer_live(qrp%quad_buffer) .and. same_handle(qrp%buffer, buffer)) use_prev = .true.
             end if
 
             if (.not. use_prev .and. qr%kind /= QR_NONE .and. qr%has_quad) then
-                if (buffer_live_p(qr%quad_buffer) .and. same_handle(qr%buffer, buffer)) use_main = .true.
+                if (is_buffer_live(qr%quad_buffer) .and. same_handle(qr%buffer, buffer)) use_main = .true.
             end if
 
             if (use_prev .or. use_main) then
@@ -991,7 +973,7 @@ contains
                         ! Try to resize WINDOW to its old height but don't
                         ! signal an error.
                         delta = quad_owner%quad_size - combined_size(h)
-                        call window_resize(h, delta,.not. window_combined_p(h, .false.), status)
+                        call window_resize(h, delta,.not. is_window_combined(h, .false.), status)
                         status = status_type()
                     end if
                 end if
@@ -1031,7 +1013,7 @@ contains
 
                 ! If WINDOW is the selected window and the previously
                 ! selected window is still alive, try to select that window.
-                if (selected_p(h) .or. .not. any(bury_or_kill == [BK_KILLING, BK_BURYING])) then
+                if (is_selected(h) .or. .not. any(bury_or_kill == [BK_KILLING, BK_BURYING])) then
                     call quit_restore_select_window(select_after)
                 end if
             else
@@ -1051,7 +1033,7 @@ contains
         end if
 
         ! Deal with the buffer.
-        if (.not. buffer_live_p(buffer)) return
+        if (.not. is_buffer_live(buffer)) return
 
         if (bury_or_kill == BK_KILL) then
             call kill_buffer(buffer, status)
@@ -1098,7 +1080,7 @@ contains
     subroutine cmd_quit_window(status)
         type(status_type), intent(out) :: status
 
-        call quit_window(.not. nilp(current_prefix_arg), status)
+        call quit_window(allocated(current_prefix_arg%a), status)
     end subroutine cmd_quit_window
 
     !> Replace BUFFER_OR_NAME with some other buffer in all windows
@@ -1109,7 +1091,7 @@ contains
     !> previous and next buffers of all windows and remove any
     !> `quit_restore' or `quit_restore_prev' parameters mentioning it.
     !> Port of window.el:replace-buffer-in-windows
-    !> (`kill_buffer_quit_windows' nil).
+    !> (`kill_buffer_quit_windows' .false.).
     module subroutine replace_buffer_in_windows(buffer)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable :: list(:)
@@ -1117,11 +1099,11 @@ contains
         type(status_type) :: status
         integer :: k
 
-        if (.not. window_valid_p(selected_frame%root_window)) return
+        if (.not. is_window_valid(selected_frame%root_window)) return
         list = window_list_from()
 
         do k = 1, size(list)
-            if (.not. window_live_p(list(k))) cycle
+            if (.not. is_window_live(list(k))) cycle
 
             if (same_handle(windows(list(k)%index)%buffer, buffer)) then
                 if (.not. window_delete(list(k), .true.)) then
@@ -1135,11 +1117,11 @@ contains
                 end if
             end if
 
-            if (window_live_p(list(k))) call unrecord_window_buffer(list(k), buffer, .true.)
+            if (is_window_live(list(k))) call unrecord_window_buffer(list(k), buffer, .true.)
         end do
 
         ! The minibuffer window too.
-        if (window_live_p(selected_frame%minibuffer_window)) then
+        if (is_window_live(selected_frame%minibuffer_window)) then
             call unrecord_window_buffer(selected_frame%minibuffer_window, buffer, .true.)
         end if
     end subroutine replace_buffer_in_windows
@@ -1153,11 +1135,11 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. window_valid_p(selected_frame%root_window)) return
+        if (.not. is_window_valid(selected_frame%root_window)) return
         list = window_list_from()
 
         do k = 1, size(list)
-            if (.not. window_live_p(list(k))) cycle
+            if (.not. is_window_live(list(k))) cycle
 
             if (same_handle(windows(list(k)%index)%buffer, buffer)) then
                 if (kill) then
@@ -1168,11 +1150,11 @@ contains
             end if
 
             ! Unrecord BUFFER in this window.
-            if (window_live_p(list(k))) call unrecord_window_buffer(list(k), buffer, .true.)
+            if (is_window_live(list(k))) call unrecord_window_buffer(list(k), buffer, .true.)
         end do
 
         ! Deal with BUFFER-OR-NAME.
-        if (.not. buffer_live_p(buffer)) return
+        if (.not. is_buffer_live(buffer)) return
 
         if (kill) then
             call kill_buffer(buffer, status)
@@ -1240,7 +1222,7 @@ contains
     !> In selected window switch to ARGth previous buffer.
     !> Call `switch_to_prev_buffer' unless the selected window is the
     !> minibuffer window or is dedicated to its buffer.  Port of
-    !> window.el:previous-buffer (`switch_to_prev_buffer_skip' nil).
+    !> window.el:previous-buffer (`switch_to_prev_buffer_skip' unset).
     subroutine cmd_previous_buffer(status)
         type(status_type), intent(out) :: status
 
@@ -1372,18 +1354,18 @@ contains
     !> already (`reuse'), QR_WINDOW when it is new.  Unless it shows
     !> BUFFER already or is reused, WINDOW is dedicated as
     !> `display_buffer_mark_dedicated' says; a new window gets the height
-    !> ALIST's `window_height' function gives it.  Return WINDOW if BUFFER
+    !> TABLE's `window_height' function gives it.  Return WINDOW if BUFFER
     !> and WINDOW are live.  Port of window.el:window--display-buffer.
-    function window_display_buffer(buffer, h, type, status, alist) result(window)
+    function window_display_buffer(buffer, h, type, status, table) result(window)
         type(handle_type), intent(in) :: buffer, h
         integer, intent(in) :: type
         type(status_type), intent(out) :: status
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(handle_type) :: window
 
         status = status_type()
         window = null_handle()
-        if (.not. buffer_live_p(buffer) .or. .not. window_live_p(h)) return
+        if (.not. is_buffer_live(buffer) .or. .not. is_window_live(h)) return
         call display_buffer_record_window(type, h, buffer)
 
         if (.not. same_handle(buffer, windows(h%index)%buffer)) then
@@ -1403,39 +1385,39 @@ contains
             if (allocated(windows(h%index)%prev_buffers)) call clear_prev_buffers(h)
         end if
 
-        if (associated(alist%body_function)) call run_body_function(alist, h)
+        if (associated(table%body_function)) call run_body_function(table, h)
 
         ! A window that never showed another buffer but BUFFER ever since
         ! it was created on an existing frame: adjust its height if asked
         ! for.
         if (type == QR_WINDOW .or. (windows(h%index)%quit_restore%kind == QR_SAME .and. &
                                     windows(h%index)%quit_restore%what == QR_WINDOW)) then
-            if (associated(alist%window_height)) call alist%window_height(h)
+            if (associated(table%window_height)) call table%window_height(h)
         end if
 
         window = h
     end function window_display_buffer
 
-    !> Call the `body_function' of ALIST with window H, with
+    !> Call the `body_function' of TABLE with window H, with
     !> `inhibit_read_only' and `inhibit_modification_hooks' true.
     !> Not a port.
-    subroutine run_body_function(alist, h)
-        type(display_alist_type), intent(in) :: alist
+    subroutine run_body_function(table, h)
+        type(display_action_table_type), intent(in) :: table
         type(handle_type), intent(in) :: h
         type(value_type) :: saved
         type(status_type) :: st
         logical :: saved_hooks
 
         saved = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         saved_hooks = inhibit_modification_hooks%value
         inhibit_modification_hooks = .true.
-        call alist%body_function(h)
+        call table%body_function(h)
         inhibit_modification_hooks = saved_hooks
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine run_body_function
 
-    !> (set-window-prev-buffers h nil) Not a port.
+    !> Clear the previous buffers of window H (`set_window_prev_buffers' to none).  Not a port.
     subroutine clear_prev_buffers(h)
         type(handle_type), intent(in) :: h
         integer :: k
@@ -1451,9 +1433,9 @@ contains
     !> Display BUFFER in the selected window, unless INHIBIT_SAME_WINDOW,
     !> the selected window is a minibuffer window or it is dedicated.
     !> Port of window.el:display-buffer-same-window.
-    function display_buffer_same_window(buffer, alist, status) result(window)
+    function display_buffer_same_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
@@ -1461,19 +1443,19 @@ contains
         window = null_handle()
         sw = selected_window()
 
-        if (alist%inhibit_same_window .or. windows(sw%index)%mini .or. windows(sw%index)%dedicated /= DEDICATED_NONE) then
+        if (table%inhibit_same_window .or. windows(sw%index)%mini .or. windows(sw%index)%dedicated /= DEDICATED_NONE) then
             return
         end if
 
-        window = window_display_buffer(buffer, sw, QR_OTHER, status, alist)
+        window = window_display_buffer(buffer, sw, QR_OTHER, status, table)
     end function display_buffer_same_window
 
     !> Return a window that is already displaying BUFFER, preferably the
     !> selected one (unless INHIBIT_SAME_WINDOW).  Port of
     !> window.el:display-buffer-reuse-window.
-    function display_buffer_reuse_window(buffer, alist, status) result(window)
+    function display_buffer_reuse_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         type(handle_type), allocatable :: list(:)
@@ -1485,13 +1467,13 @@ contains
 
         ! Avoid calling 'get-buffer-window-list' if the selected window
         ! already shows BUFFER and can be used.
-        if (same_handle(windows(sw%index)%buffer, buffer) .and. .not. alist%inhibit_same_window) then
+        if (same_handle(windows(sw%index)%buffer, buffer) .and. .not. table%inhibit_same_window) then
             window = sw
         else
             list = window_list_from()
 
             do k = 1, size(list)
-                if (alist%inhibit_same_window .and. same_handle(list(k), sw)) cycle
+                if (table%inhibit_same_window .and. same_handle(list(k), sw)) cycle
 
                 if (same_handle(windows(list(k)%index)%buffer, buffer)) then
                     window = list(k)
@@ -1500,25 +1482,25 @@ contains
             end do
         end if
 
-        if (window_live_p(window)) window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+        if (is_window_live(window)) window = window_display_buffer(buffer, window, QR_OTHER, status, table)
     end function display_buffer_reuse_window
 
     !> Display BUFFER by popping up a new window: split the largest or
     !> the least recently used window.  Port of
     !> window.el:display-buffer-pop-up-window.
-    function display_buffer_pop_up_window(buffer, alist, status) result(window)
+    function display_buffer_pop_up_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
         status = status_type()
         ! Attempt to split largest or least recently used window.
         window = try_to_split_window(get_largest_window(.true., .false.))
-        if (.not. window_live_p(window)) window = try_to_split_window(get_lru_window(.true., .false.))
+        if (.not. is_window_live(window)) window = try_to_split_window(get_lru_window(.true., .false.))
 
-        if (window_live_p(window)) then
-            window = window_display_buffer(buffer, window, QR_WINDOW, status, alist)
+        if (is_window_live(window)) then
+            window = window_display_buffer(buffer, window, QR_WINDOW, status, table)
         else
             window = null_handle()
         end if
@@ -1529,9 +1511,9 @@ contains
     !> INHIBIT_SAME_WINDOW).  A dedicated window is not usable.  Port of
     !> window.el:display-buffer-in-previous-window (no `previous_window'
     !> entry).
-    function display_buffer_in_previous_window(buffer, alist, status) result(window)
+    function display_buffer_in_previous_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, best, second_best, sw
         type(handle_type), allocatable :: list(:)
@@ -1549,17 +1531,17 @@ contains
             if (windows(list(k)%index)%dedicated /= DEDICATED_NONE) cycle
 
             if (same_handle(list(k), sw)) then
-                if (.not. alist%inhibit_same_window) second_best = list(k)
+                if (.not. table%inhibit_same_window) second_best = list(k)
             else
                 best = list(k)
                 exit
             end if
         end do
 
-        if (window_live_p(best)) then
-            window = window_display_buffer(buffer, best, QR_OTHER, status, alist)
-        else if (window_live_p(second_best)) then
-            window = window_display_buffer(buffer, second_best, QR_OTHER, status, alist)
+        if (is_window_live(best)) then
+            window = window_display_buffer(buffer, best, QR_OTHER, status, table)
+        else if (is_window_live(second_best)) then
+            window = window_display_buffer(buffer, second_best, QR_OTHER, status, table)
         end if
     end function display_buffer_in_previous_window
 
@@ -1596,7 +1578,7 @@ contains
             if (inhibit_same_window .and. same_handle(list(k), sw)) cycle
             time = windows(list(k)%index)%use_time
 
-            if (same_handle(list(k), sw) .or. .not. window_full_width_p(list(k))) then
+            if (same_handle(list(k), sw) .or. .not. is_window_full_width(list(k))) then
                 if (second_best_time < 0 .or. time < second_best_time) then
                     second_best_time = time
                     second_best = list(k)
@@ -1618,10 +1600,10 @@ contains
 
     !> Display BUFFER in an existing window: the least recently used one,
     !> or one already showing BUFFER, or the largest one.  Port of
-    !> window.el:display-buffer-use-some-window (`some_window' nil).
-    function display_buffer_use_some_window(buffer, alist, status) result(window)
+    !> window.el:display-buffer-use-some-window (`some_window' unset).
+    function display_buffer_use_some_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         integer :: delta
@@ -1629,16 +1611,16 @@ contains
         status = status_type()
         sw = selected_window()
         ! Reuse an existing window.
-        window = display_buffer_lru_window(alist%inhibit_same_window)
+        window = display_buffer_lru_window(table%inhibit_same_window)
 
-        if (.not. window_live_p(window)) then
+        if (.not. is_window_live(window)) then
             window = get_buffer_window(buffer)
-            if (alist%inhibit_same_window .and. same_handle(window, sw)) window = null_handle()
+            if (table%inhibit_same_window .and. same_handle(window, sw)) window = null_handle()
         end if
 
-        if (.not. window_live_p(window)) window = get_largest_window(.false., alist%inhibit_same_window)
+        if (.not. is_window_live(window)) window = get_largest_window(.false., table%inhibit_same_window)
 
-        if (.not. window_live_p(window)) then
+        if (.not. is_window_live(window)) then
             window = null_handle()
             return
         end if
@@ -1653,8 +1635,8 @@ contains
             end if
         end associate
 
-        window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
-        if (window_live_p(window)) call window_even_window_sizes(window)
+        window = window_display_buffer(buffer, window, QR_OTHER, status, table)
+        if (is_window_live(window)) call window_even_window_sizes(window)
     end function display_buffer_use_some_window
 
     !> Try displaying BUFFER in a window at the bottom of the selected
@@ -1662,9 +1644,9 @@ contains
     !> already, splits a window at the bottom of the frame or the frame's
     !> root window, or reuses some window at the bottom of the selected
     !> frame.  Port of window.el:display-buffer-at-bottom.
-    function display_buffer_at_bottom(buffer, alist, status) result(window)
+    function display_buffer_at_bottom(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, bottom_window
         type(handle_type), allocatable :: list(:)
@@ -1697,7 +1679,7 @@ contains
         end do
 
         if (bottom_window_shows_buffer) then
-            window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, alist)
+            window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, table)
             if (window%index /= 0 .or. .not. status%ok()) return
         end if
 
@@ -1705,16 +1687,16 @@ contains
         call split_window(selected_frame%root_window, 0, .false., .false., window, status)
 
         if (status%ok()) then
-            window = window_display_buffer(buffer, window, QR_WINDOW, status, alist)
+            window = window_display_buffer(buffer, window, QR_WINDOW, status, table)
             if (window%index /= 0 .or. .not. status%ok()) return
         else
             status = status_type()
             window = null_handle()
         end if
 
-        if (window_live_p(bottom_window)) then
+        if (is_window_live(bottom_window)) then
             if (windows(bottom_window%index)%dedicated == DEDICATED_NONE) then
-                window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, alist)
+                window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, table)
             end if
         end if
     end function display_buffer_at_bottom
@@ -1727,18 +1709,18 @@ contains
     !> below the selected one, use that window.  Port of
     !> window.el:display-buffer-below-selected (no `window_min_height'
     !> entry).
-    function display_buffer_below_selected(buffer, alist, status) result(window)
+    function display_buffer_below_selected(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
         status = status_type()
         window = window_in_direction_below()
 
-        if (window_live_p(window)) then
+        if (is_window_live(window)) then
             if (same_handle(buffer, windows(window%index)%buffer)) then
-                window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+                window = window_display_buffer(buffer, window, QR_OTHER, status, table)
                 if (window%index /= 0 .or. .not. status%ok()) return
             end if
         end if
@@ -1748,7 +1730,7 @@ contains
         sw = selected_window()
         window = null_handle()
 
-        if (window_splittable_p(sw, .false., threshold_zero=.true.)) then
+        if (is_window_splittable(sw, .false., threshold_zero=.true.)) then
             call split_window_and_copy(sw, .false., window, status)
 
             if (.not. status%ok()) then
@@ -1757,16 +1739,16 @@ contains
             end if
         end if
 
-        if (window_live_p(window)) then
-            window = window_display_buffer(buffer, window, QR_WINDOW, status, alist)
+        if (is_window_live(window)) then
+            window = window_display_buffer(buffer, window, QR_WINDOW, status, table)
             if (window%index /= 0 .or. .not. status%ok()) return
         end if
 
         window = window_in_direction_below()
 
-        if (window_live_p(window)) then
+        if (is_window_live(window)) then
             if (windows(window%index)%dedicated == DEDICATED_NONE) then
-                window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+                window = window_display_buffer(buffer, window, QR_OTHER, status, table)
                 return
             end if
         end if
@@ -1790,7 +1772,7 @@ contains
             w = selected_window()
         end if
 
-        if (.not. window_live_p(w)) return
+        if (.not. is_window_live(w)) return
         first = windows(w%index)%top_line
         last = first + windows(w%index)%total_lines
         ! The column of `posn_at_point' of WINDOW's point.
@@ -1857,22 +1839,22 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: norecord
-        type(display_alist_type) :: alist
+        type(display_action_table_type) :: table
         logical :: saved
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer-or-name t norecord))
         saved = pop_up_windows
         pop_up_windows = .true.
-        alist%inhibit_same_window = .true.
-        call pop_to_buffer(buffer, status, alist=alist, norecord=norecord)
+        table%inhibit_same_window = .true.
+        call pop_to_buffer(buffer, status, table=table, norecord=norecord)
         pop_up_windows = saved
     end subroutine switch_to_buffer_other_window
 
-    !> Try action function ACTION for BUFFER with ALIST.  Not a port.
-    function display_buffer_action(action, buffer, alist, status) result(window)
+    !> Try action function ACTION for BUFFER with TABLE.  Not a port.
+    function display_buffer_action(action, buffer, table, status) result(window)
         integer, intent(in) :: action
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_action_table_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
@@ -1881,25 +1863,25 @@ contains
 
         select case (action)
         case (DISPLAY_ACTION_SAME_WINDOW)
-            window = display_buffer_same_window(buffer, alist, status)
+            window = display_buffer_same_window(buffer, table, status)
         case (DISPLAY_ACTION_MAYBE_SAME_WINDOW)
             ! `same_window_p' is false for any buffer with the default
             ! `same_window_buffer_names' and `same_window_regexps'.
             continue
         case (DISPLAY_ACTION_REUSE_WINDOW)
-            window = display_buffer_reuse_window(buffer, alist, status)
+            window = display_buffer_reuse_window(buffer, table, status)
         case (DISPLAY_ACTION_POP_UP_WINDOW)
-            window = display_buffer_pop_up_window(buffer, alist, status)
+            window = display_buffer_pop_up_window(buffer, table, status)
         case (DISPLAY_ACTION_MAYBE_POP_UP_WINDOW)
-            if (pop_up_windows) window = display_buffer_pop_up_window(buffer, alist, status)
+            if (pop_up_windows) window = display_buffer_pop_up_window(buffer, table, status)
         case (DISPLAY_ACTION_IN_PREVIOUS_WINDOW)
-            window = display_buffer_in_previous_window(buffer, alist, status)
+            window = display_buffer_in_previous_window(buffer, table, status)
         case (DISPLAY_ACTION_USE_SOME_WINDOW)
-            window = display_buffer_use_some_window(buffer, alist, status)
+            window = display_buffer_use_some_window(buffer, table, status)
         case (DISPLAY_ACTION_AT_BOTTOM)
-            window = display_buffer_at_bottom(buffer, alist, status)
+            window = display_buffer_at_bottom(buffer, table, status)
         case (DISPLAY_ACTION_BELOW_SELECTED)
-            window = display_buffer_below_selected(buffer, alist, status)
+            window = display_buffer_below_selected(buffer, table, status)
         case default
             continue
         end select
@@ -1907,37 +1889,37 @@ contains
 
     !> Display BUFFER in some window and return that window, or the null
     !> handle if no window could be found.  The action functions ACTIONS
-    !> are tried in turn with ALIST, then those of
+    !> are tried in turn with TABLE, then those of
     !> `display_buffer_fallback_action':
     !> `display_buffer__maybe_same_window', `display_buffer_reuse_window',
     !> `display_buffer__maybe_pop_up_window',
     !> `display_buffer_in_previous_window' and
     !> `display_buffer_use_some_window', after those of
     !> `display_buffer_overriding_action'.  Port of window.el:display-buffer
-    !> (one frame; `display_buffer_alist' and `display_buffer_base_action'
+    !> (one frame; `display_buffer_table' and `display_buffer_base_action'
     !> are deferred: they are empty).
-    module subroutine display_buffer(buffer, window, status, actions, alist)
+    module subroutine display_buffer(buffer, window, status, actions, table)
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: alist
+        type(display_action_table_type), intent(in), optional :: table
         integer, parameter :: fallback(5) = [DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, &
                                              DISPLAY_ACTION_MAYBE_POP_UP_WINDOW, DISPLAY_ACTION_IN_PREVIOUS_WINDOW, &
                                              DISPLAY_ACTION_USE_SOME_WINDOW]
-        type(display_alist_type) :: al
+        type(display_action_table_type) :: al
         integer :: k
 
         status = status_type()
         window = null_handle()
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid buffer")
             return
         end if
 
         call ensure_frame_windows()
-        if (present(alist)) al = alist
+        if (present(table)) al = table
 
         ! `display_buffer_overriding_action' comes first.
         if (display_buffer_overriding_action%has_inhibit_same_window) then
@@ -1965,22 +1947,22 @@ contains
     end subroutine display_buffer
 
     !> Display buffer BUFFER and select its window.  This uses
-    !> `display_buffer' with ACTIONS and ALIST and then selects the window;
+    !> `display_buffer' with ACTIONS and TABLE and then selects the window;
     !> unless NORECORD, BUFFER becomes the most recently selected buffer.
     !> If no window shows it, BUFFER becomes current.  Port of
     !> window.el:pop-to-buffer (one frame).
-    module subroutine pop_to_buffer(buffer, status, actions, alist, norecord)
+    module subroutine pop_to_buffer(buffer, status, actions, table, norecord)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: alist
+        type(display_action_table_type), intent(in), optional :: table
         logical, intent(in), optional :: norecord
         type(handle_type) :: window
 
-        call display_buffer(buffer, window, status, actions, alist)
+        call display_buffer(buffer, window, status, actions, table)
         if (.not. status%ok()) return
 
-        if (.not. window_live_p(window)) then
+        if (.not. is_window_live(window)) then
             call set_buffer(buffer, status)
             return
         end if
@@ -2008,9 +1990,9 @@ contains
         integer :: total_height, min_height, max_h, max_delta, height
         integer(int64) :: moved, opoint
 
-        if (.not. window_live_p(window)) return
+        if (.not. is_window_live(window)) return
         ! Only a window in a vertical combination is fitted.
-        if (.not. window_combined_p(window, .false.)) return
+        if (.not. is_window_combined(window, .false.)) return
         total_height = windows(window%index)%total_lines
         ! Can't get smaller than `window_min_height'.
         min_height = max(window_min_height, window_min_size(window, .false.))
@@ -2019,7 +2001,7 @@ contains
         max_delta = 0
         sub = windows(windows(window%index)%parent%index)%child
 
-        do while (window_valid_p(sub))
+        do while (is_window_valid(sub))
             if (.not. same_handle(sub, window)) then
                 max_delta = max_delta + max(windows(sub%index)%total_lines - window_min_size(sub, .false.), 0)
             end if
@@ -2063,11 +2045,11 @@ contains
             w = selected_window()
         end if
 
-        if (.not. window_live_p(w)) return
+        if (.not. is_window_live(w)) return
         ! Make sure that WINDOW is vertically combined and `point-min' is
         ! visible (for whatever reason that's needed).  The remaining issues
         ! should be taken care of by `fit-window-to-buffer'.
-        if (.not. window_combined_p(w, .false.)) return
+        if (.not. is_window_combined(w, .false.)) return
         call resolve_buffer(windows(w%index)%buffer, b, status)
         if (.not. status%ok()) return
         if (window_start(windows(w%index)) > buffers(b)%begv) return
@@ -2077,29 +2059,29 @@ contains
     !> Show temporary buffer BUFFER in a window: unmodified, read-only and
     !> at its beginning.  Return the window showing BUFFER.  Port of
     !> window.el:temp-buffer-window-show (no `temp_buffer_resize_mode').
-    module subroutine temp_buffer_window_show(buffer, window, status, actions, alist)
+    module subroutine temp_buffer_window_show(buffer, window, status, actions, table)
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: alist
+        type(display_action_table_type), intent(in), optional :: table
         type(handle_type) :: saved
 
         window = null_handle()
         saved = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call set_buffer_read_only(buffer, .true., status)
         call goto_char(buffers(cur)%begv)
-        call display_buffer(buffer, window, status, actions, alist)
-        if (buffer_live_p(saved)) call set_buffer(saved, status)
-        if (.not. window_live_p(window)) return
+        call display_buffer(buffer, window, status, actions, table)
+        if (is_buffer_live(saved)) call set_buffer(saved, status)
+        if (.not. is_window_live(window)) return
         minibuffer_scroll_window = window
         windows(window%index)%hscroll = 0
     end subroutine temp_buffer_window_show
 
-    !> Return a window currently displaying BUFFER_OR_NAME, or nil if none:
+    !> Return a window currently displaying BUFFER_OR_NAME, or the null handle if none:
     !> the selected window if it does, else the first in the cyclic order
     !> from it.  Port of window.c:Fget_buffer_window.
     module function get_buffer_window(buffer) result(window)
@@ -2146,7 +2128,7 @@ contains
             if (not_selected .and. same_handle(list(k), sw)) cycle
             time = windows(list(k)%index)%use_time
 
-            if (same_handle(list(k), sw) .or. .not. window_full_width_p(list(k))) then
+            if (same_handle(list(k), sw) .or. .not. is_window_full_width(list(k))) then
                 if (second_best_time < 0 .or. time < second_best_time) then
                     second_best_time = time
                     second_best = list(k)
@@ -2223,17 +2205,17 @@ contains
     !> `split_width_threshold' columns wide and twice `window_min_width'
     !> (or 2).  THRESHOLD_ZERO stands for `split_height_threshold' bound
     !> to 0.  Port of window.el:window-splittable-p.
-    logical function window_splittable_p(h, horizontal, threshold_zero)
+    logical function is_window_splittable(h, horizontal, threshold_zero)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal
         logical, intent(in), optional :: threshold_zero
         integer :: threshold
 
-        window_splittable_p = .false.
-        if (.not. window_live_p(h)) return
+        is_window_splittable = .false.
+        if (.not. is_window_live(h)) return
 
         if (horizontal) then
-            window_splittable_p = body_cols(h) >= max(split_width_threshold, 2*max(window_min_width, 2))
+            is_window_splittable = body_cols(h) >= max(split_width_threshold, 2*max(window_min_width, 2))
         else
             threshold = split_height_threshold
 
@@ -2242,9 +2224,9 @@ contains
             end if
 
             ! The window has a mode line.
-            window_splittable_p = windows(h%index)%total_lines >= max(threshold, 2*max(window_min_height, 2))
+            is_window_splittable = windows(h%index)%total_lines >= max(threshold, 2*max(window_min_height, 2))
         end if
-    end function window_splittable_p
+    end function is_window_splittable
 
     !> Split WINDOW below (or with HORIZONTAL to the right) and return the
     !> new window, which gets WINDOW's `quit_restore' parameter.  Port of
@@ -2283,15 +2265,15 @@ contains
 
     !> Whether the frame is wider than it is tall (characters being about
     !> twice as tall as wide).  Port of window.el:window--frame-landscape-p.
-    logical function frame_landscape_p()
+    logical function is_frame_landscape()
         associate (r => windows(selected_frame%root_window%index), m => windows(selected_frame%minibuffer_window%index))
-            frame_landscape_p = r%total_cols > 2*(r%total_lines + m%total_lines)
+            is_frame_landscape = r%total_cols > 2*(r%total_lines + m%total_lines)
         end associate
-    end function frame_landscape_p
+    end function is_frame_landscape
 
     !> Split WINDOW in a way suitable for `display_buffer'.  Try the
     !> directions in the order `split_window_preferred_direction' says,
-    !> each if `window_splittable_p' allows it; if both fail and WINDOW is
+    !> each if `is_window_splittable' allows it; if both fail and WINDOW is
     !> the only window on its frame (or all others are dedicated), split
     !> it vertically disregarding `split_height_threshold'.  Return the new
     !> window or the null handle.  Port of window.el:split-window-sensibly.
@@ -2303,7 +2285,7 @@ contains
         integer :: k
 
         horizontal_first = split_window_preferred_direction == SPLIT_HORIZONTAL .or. &
-                           (split_window_preferred_direction == SPLIT_LONGEST .and. frame_landscape_p())
+                           (split_window_preferred_direction == SPLIT_LONGEST .and. is_frame_landscape())
 
         if (horizontal_first) then
             new = try_split(h, .true.)
@@ -2326,7 +2308,7 @@ contains
         end if
 
         if (others .or. windows(h%index)%mini) return
-        if (window_splittable_p(h, .false., threshold_zero=.true.)) new = do_split(h, .false.)
+        if (is_window_splittable(h, .false., threshold_zero=.true.)) new = do_split(h, .false.)
 
     contains
 
@@ -2336,7 +2318,7 @@ contains
             type(handle_type) :: n
 
             n = null_handle()
-            if (window_splittable_p(w, horizontal)) n = do_split(w, horizontal)
+            if (is_window_splittable(w, horizontal)) n = do_split(w, horizontal)
         end function try_split
 
         function do_split(w, horizontal) result(n)
@@ -2358,15 +2340,15 @@ contains
         type(handle_type) :: new
 
         new = null_handle()
-        if (.not. window_live_p(h)) return
+        if (.not. is_window_live(h)) return
         new = split_window_sensibly(h)
-        if (.not. window_live_p(new)) new = null_handle()
+        if (.not. is_window_live(new)) new = null_handle()
     end function try_to_split_window
 
     !> Even sizes of WINDOW and selected window, if these windows are the
     !> only children of their parent and the selected window is larger
     !> than WINDOW.  Port of window.el:window--even-window-sizes
-    !> (`even_window_sizes' t).
+    !> (`even_window_sizes' .true.).
     subroutine window_even_window_sizes(h)
         type(handle_type), intent(in) :: h
         type(handle_type) :: sw, parent
@@ -2375,13 +2357,13 @@ contains
         if (.not. even_window_sizes) return
         sw = selected_window()
         parent = windows(h%index)%parent
-        if (.not. window_valid_p(parent)) return
+        if (.not. is_window_valid(parent)) return
         if (child_count(parent) /= 2) return
         if (.not. same_handle(windows(sw%index)%parent, parent)) return
 
-        if (window_combined_p(h, .true.) .and. windows(sw%index)%total_cols > windows(h%index)%total_cols) then
+        if (is_window_combined(h, .true.) .and. windows(sw%index)%total_cols > windows(h%index)%total_cols) then
             call window_resize(sw, (windows(h%index)%total_cols - windows(sw%index)%total_cols)/2, .true., status)
-        else if (window_combined_p(h, .false.) .and. windows(sw%index)%total_lines > windows(h%index)%total_lines) then
+        else if (is_window_combined(h, .false.) .and. windows(sw%index)%total_lines > windows(h%index)%total_lines) then
             call window_resize(sw, (windows(h%index)%total_lines - windows(sw%index)%total_lines)/2, .false., status)
         end if
     end subroutine window_even_window_sizes
@@ -2394,7 +2376,7 @@ contains
         child_count = 0
         c = windows(h%index)%child
 
-        do while (window_valid_p(c))
+        do while (is_window_valid(c))
             child_count = child_count + 1
             c = windows(c%index)%next
         end do
@@ -2404,7 +2386,7 @@ contains
     !> taking the space from (or giving it to) its next sibling, else its
     !> previous one; each window keeps at least `window_min_height' lines
     !> (or `window_min_width' columns).  Port of window.el:window-resize
-    !> for a window with such a sibling (`window_combination_resize' nil).
+    !> for a window with such a sibling (`window_combination_resize' .false.).
     module subroutine window_resize(window, delta, horizontal, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: delta
@@ -2415,7 +2397,7 @@ contains
         status = status_type()
         if (delta == 0) return
 
-        if (.not. window_valid_p(windows(window%index)%parent)) then
+        if (.not. is_window_valid(windows(window%index)%parent)) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot resize the root window of a frame")
             return
         end if
@@ -2424,10 +2406,10 @@ contains
         ! it is in (window--resize-this-window of its parent).
         h = window
 
-        do while (.not. window_combined_p(h, horizontal))
+        do while (.not. is_window_combined(h, horizontal))
             h = windows(h%index)%parent
 
-            if (.not. window_valid_p(windows(h%index)%parent)) then
+            if (.not. is_window_valid(windows(h%index)%parent)) then
                 call set_error(status, FM_GENERIC_ERROR, "Cannot resize window "//window_description(window))
                 return
             end if
@@ -2436,7 +2418,7 @@ contains
         ! The sibling on the right (below), else on the left (above), gives
         ! or takes DELTA.
         sib = windows(h%index)%next
-        if (.not. window_valid_p(sib)) sib = windows(h%index)%prev
+        if (.not. is_window_valid(sib)) sib = windows(h%index)%prev
 
         if (size_of(sib) - delta < window_min_size(sib, horizontal) .or. &
             size_of(h) + delta < window_min_size(h, horizontal)) then

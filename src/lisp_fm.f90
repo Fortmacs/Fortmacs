@@ -52,8 +52,8 @@
 !>
 !> gfortran leaks a function result with allocatable components when it
 !> appears inside an array constructor, so build lists with `list(...)'
-!> or from variables: write `list(sym("a"), sym("b"))', never
-!> `make_list([sym("a"), sym("b")])'.
+!> or from variables: write `list(value_type(name="a"), value_type(name="b"))',
+!> never `make_list([value_type(name="a"), value_type(name="b")])'.
 !>
 !> Symbols are stored here (struct Lisp_Symbol); interning is lread_fm,
 !> values and properties are data_fm and fns_fm.  Symbols are never
@@ -76,7 +76,7 @@ module lisp_fm
     end interface
 
     !> Values of a command property that is unset (nil), t, or `no'.
-    integer, parameter, public :: PROPERTY_UNSET = 0, PROPERTY_TRUE = 1, PROPERTY_NO = 2
+    integer, parameter, public :: REPEAT_CHECK_KEY_DEFAULT = 0, REPEAT_CHECK_KEY_YES = 1, REPEAT_CHECK_KEY_NO = 2
 
     !> A named function: what upstream keeps in a symbol's function cell,
     !> its interactive spec (`interactive': a command) and its `disabled'
@@ -94,7 +94,7 @@ module lisp_fm
         procedure(command_proc), pointer, nopass :: run => null()
         !> Whether it is a command (has an interactive spec), so M-x and
         !> keys can run it.
-        logical :: interactive = .true.
+        logical :: is_command = .true.
         !> True means running it interactively asks for confirmation
         !> first (novice.el; the `disabled' property).
         logical :: disabled = .false.
@@ -115,9 +115,9 @@ module lisp_fm
         logical :: repeat_continue_all = .false.
         type(handle_type), allocatable :: repeat_continue(:)
         !> Whether Repeat mode checks that the last key is in the repeat
-        !> map (the `repeat-check-key' property): PROPERTY_UNSET to use
-        !> `repeat_check_key', PROPERTY_TRUE, or PROPERTY_NO.
-        integer :: repeat_check_key = PROPERTY_UNSET
+        !> map (the `repeat-check-key' property): REPEAT_CHECK_KEY_DEFAULT to use
+        !> `repeat_check_key', REPEAT_CHECK_KEY_YES, or REPEAT_CHECK_KEY_NO.
+        integer :: repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
         !> The idle time after which the repeating sequence ends (the
         !> `repeat-exit-timeout' property; negative to use
         !> `repeat_exit_timeout'), or no timeout (`repeat_exit_timeout_no',
@@ -149,8 +149,8 @@ module lisp_fm
     public :: command_proc, defined_command, defined_command_name_of
 
     !> Value tags.
-    integer(int32), parameter, public :: V_NIL = 0, V_INT = 1, V_SYMBOL = 2, &
-                                         V_STRING = 3, V_LIST = 4, &
+    integer(int32), parameter, public :: V_NULL = 0, V_INTEGER = 1, V_NAME = 2, &
+                                         V_STRING = 3, V_ARRAY = 4, &
                                          V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7, &
                                          V_SYNTAX_TABLE = 8, V_WINDOW = 9
 
@@ -159,8 +159,8 @@ module lisp_fm
 
     !> One node of a value's tree.
     type, public :: atom_type
-        integer(int32) :: tag = V_NIL
-        !> V_INT: the integer; V_SYMBOL: the symbol id; V_LIST: element count;
+        integer(int32) :: tag = V_NULL
+        !> V_INTEGER: the integer; V_NAME: the symbol id; V_ARRAY: element count;
         !> V_STRING: the number of text property intervals.
         integer(int64) :: i = 0
         !> Atoms in this subtree, itself included (1 for scalars).
@@ -202,10 +202,30 @@ module lisp_fm
     !> The number of symbols in `symbols'.
     integer(int64), public :: nsymbols = 0
 
-    public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &
+    !> The constructors of a value: `value_type()' is the null value,
+    !> `value_type(.true.)' the name t (`value_type(.false.)' the null
+    !> value), `value_type(42_int64)' an integer, `value_type(name="x")' a
+    !> name (added to the name table) and `value_type(text="abc")' a string.
+    !> Port of lisp.h:make_fixnum, lisp.h:Qt, alloc.c:build_string and
+    !> lread.c:intern.
+    interface value_type
+        module procedure value_of_logical, value_of_integer
+
+        !> A name value for `name' (added to the name table), or a string
+        !> value holding `text' (already in the internal encoding); with
+        !> neither, the null value (value_type() calls it, and the name table
+        !> makes null values while it adds a name, so it is recursive).
+        !> Port of lread.c:intern and alloc.c:build_string.
+        recursive module function value_of_string(name, text) result(v)
+            implicit none(type, external)
+            character(len=*), intent(in), optional :: name, text
+            type(value_type) :: v
+        end function value_of_string
+    end interface value_type
+
+    public :: make_symbol_ref, &
               make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_window_ref, make_list, list, cons
-    public :: vtag, nilp, fixnump, symbolp, stringp, consp, listp, bufferp, &
-              markerp, keymap_ref_p, syntax_table_ref_p, windowp
+    public :: vtag
     public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
               list_elements, list_tail, string_intervals, set_string_intervals
 
@@ -224,42 +244,25 @@ contains
         v%a(1) = atom
     end function scalar
 
-    !> The empty list / false.  Port of lisp.h:Qnil.
-    pure function nil() result(v)
+    !> The name t for .true., the null value for .false.  Port of
+    !> lisp.h:Qt.
+    pure function value_of_logical(flag) result(v)
+        logical, intent(in) :: flag
         type(value_type) :: v
 
-        if (allocated(v%a)) deallocate (v%a)
-    end function nil
+        if (flag) v = make_symbol_ref(SYM_T)
+    end function value_of_logical
 
-    !> The symbol t.  Port of lisp.h:Qt.
-    pure function t_value() result(v)
-        type(value_type) :: v
-
-        v = make_symbol_ref(SYM_T)
-    end function t_value
-
-    !> Port of lisp.h:make_fixnum.
-    pure function make_fixnum(n) result(v)
+    !> The integer `n'.  Port of lisp.h:make_fixnum.
+    pure function value_of_integer(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
         type(atom_type) :: atom
 
-        atom%tag = V_INT
+        atom%tag = V_INTEGER
         atom%i = n
         v = scalar(atom)
-    end function make_fixnum
-
-    !> A string value holding `text' (already in the internal encoding).
-    !> Port of alloc.c:build_string.
-    pure function make_string(text) result(v)
-        character(len=*), intent(in) :: text
-        type(value_type) :: v
-        type(atom_type) :: atom
-
-        atom%tag = V_STRING
-        atom%s = text
-        v = scalar(atom)
-    end function make_string
+    end function value_of_integer
 
     !> The symbol with id `id'; id SYM_NIL gives nil.
     !> Port of lisp.h:make_lisp_symbol.
@@ -269,7 +272,7 @@ contains
         type(atom_type) :: atom
 
         if (id == SYM_NIL) return
-        atom%tag = V_SYMBOL
+        atom%tag = V_NAME
         atom%i = id
         v = scalar(atom)
     end function make_symbol_ref
@@ -331,7 +334,7 @@ contains
     end function make_window_ref
 
     !> The atoms of `v' as an element of a list (nil becomes an explicit
-    !> V_NIL atom).  Not a port.
+    !> V_NULL atom).  Not a port.
     pure subroutine element_atoms(v, atoms)
         type(value_type), intent(in) :: v
         type(atom_type), allocatable, intent(out) :: atoms(:)
@@ -353,7 +356,7 @@ contains
 
         if (size(elements) == 0) return
         allocate (atoms(1))
-        atoms(1)%tag = V_LIST
+        atoms(1)%tag = V_ARRAY
         atoms(1)%i = size(elements)
 
         do k = 1, size(elements)
@@ -428,12 +431,12 @@ contains
         call element_atoms(elt, head)
 
         select case (vtag(list))
-        case (V_NIL)
+        case (V_NULL)
             allocate (v%a(1))
-            v%a(1)%tag = V_LIST
+            v%a(1)%tag = V_ARRAY
             v%a(1)%i = 1
             v%a = [v%a, head]
-        case (V_LIST)
+        case (V_ARRAY)
             v%a = [list%a(1:1), head, list%a(2:)]
             v%a(1)%i = v%a(1)%i + 1
         case default
@@ -448,98 +451,20 @@ contains
     ! Predicates and accessors (lisp.h)
     ! ------------------------------------------------------------------
 
-    !> Tag of `v' (V_NIL for nil).  Not a port.
+    !> Tag of `v' (V_NULL for nil).  Not a port.
     elemental integer(int32) function vtag(v)
         type(value_type), intent(in) :: v
 
-        vtag = V_NIL
+        vtag = V_NULL
         if (allocated(v%a)) vtag = v%a(1)%tag
     end function vtag
-
-    !> Port of lisp.h:NILP.
-    elemental logical function nilp(v)
-        type(value_type), intent(in) :: v
-
-        nilp = vtag(v) == V_NIL
-    end function nilp
-
-    !> Port of lisp.h:FIXNUMP.
-    elemental logical function fixnump(v)
-        type(value_type), intent(in) :: v
-
-        fixnump = vtag(v) == V_INT
-    end function fixnump
-
-    !> Port of lisp.h:SYMBOLP (nil is a symbol).
-    elemental logical function symbolp(v)
-        type(value_type), intent(in) :: v
-
-        symbolp = vtag(v) == V_SYMBOL .or. vtag(v) == V_NIL
-    end function symbolp
-
-    !> Port of lisp.h:STRINGP.
-    elemental logical function stringp(v)
-        type(value_type), intent(in) :: v
-
-        stringp = vtag(v) == V_STRING
-    end function stringp
-
-    !> A non-empty list.  Port of lisp.h:CONSP.
-    elemental logical function consp(v)
-        type(value_type), intent(in) :: v
-
-        consp = vtag(v) == V_LIST
-    end function consp
-
-    !> nil or a list.  Port of data.c:Flistp.
-    elemental logical function listp(v)
-        type(value_type), intent(in) :: v
-
-        listp = vtag(v) == V_LIST .or. vtag(v) == V_NIL
-    end function listp
-
-    !> Port of lisp.h:BUFFERP.
-    elemental logical function bufferp(v)
-        type(value_type), intent(in) :: v
-
-        bufferp = vtag(v) == V_BUFFER
-    end function bufferp
-
-    !> Port of lisp.h:MARKERP.
-    elemental logical function markerp(v)
-        type(value_type), intent(in) :: v
-
-        markerp = vtag(v) == V_MARKER
-    end function markerp
-
-    !> True for a single keymap (not a list of keymaps); see keymap_fm.
-    !> Not a port.
-    elemental logical function keymap_ref_p(v)
-        type(value_type), intent(in) :: v
-
-        keymap_ref_p = vtag(v) == V_KEYMAP
-    end function keymap_ref_p
-
-    !> Whether `v' refers to a syntax table.  Not a port.
-    elemental logical function syntax_table_ref_p(v)
-        type(value_type), intent(in) :: v
-
-        syntax_table_ref_p = vtag(v) == V_SYNTAX_TABLE
-    end function syntax_table_ref_p
-
-    !> Port of lisp.h:WINDOWP.
-    elemental logical function windowp(v)
-        type(value_type), intent(in) :: v
-
-        windowp = vtag(v) == V_WINDOW
-    end function windowp
 
     !> The integer in `v', unchecked.  Port of lisp.h:XFIXNUM.
     elemental integer(int64) function xfixnum(v)
         type(value_type), intent(in) :: v
 
         xfixnum = 0
-        if (vtag(v) == V_INT) xfixnum = v%a(1)%i
+        if (vtag(v) == V_INTEGER) xfixnum = v%a(1)%i
     end function xfixnum
 
     !> The symbol id of `v' (SYM_NIL for nil), unchecked.
@@ -548,7 +473,7 @@ contains
         type(value_type), intent(in) :: v
 
         xsymbol = SYM_NIL
-        if (vtag(v) == V_SYMBOL) xsymbol = v%a(1)%i
+        if (vtag(v) == V_NAME) xsymbol = v%a(1)%i
     end function xsymbol
 
     !> The text of string `v' ("" if not a string).  Port of lisp.h:SSDATA.
@@ -577,7 +502,7 @@ contains
         type(value_type), intent(in) :: v
 
         list_length = 0
-        if (vtag(v) == V_LIST) list_length = v%a(1)%i
+        if (vtag(v) == V_ARRAY) list_length = v%a(1)%i
     end function list_length
 
     !> Atom index where element `k' (1-based) of list `v' starts.
@@ -603,7 +528,7 @@ contains
 
         if (k >= 1 .and. k <= list_length(v)) then
             p = elt_start(v, k)
-            if (v%a(p)%tag /= V_NIL) e%a = v%a(p:p + v%a(p)%span - 1)
+            if (v%a(p)%tag /= V_NULL) e%a = v%a(p:p + v%a(p)%span - 1)
         end if
     end function list_elt
 
@@ -617,7 +542,7 @@ contains
         p = 2
 
         do k = 1, size(elems, kind=int64)
-            if (v%a(p)%tag /= V_NIL) elems(k)%a = v%a(p:p + v%a(p)%span - 1)
+            if (v%a(p)%tag /= V_NULL) elems(k)%a = v%a(p:p + v%a(p)%span - 1)
             p = p + v%a(p)%span
         end do
     end subroutine list_elements
@@ -693,8 +618,8 @@ contains
         atoms(1)%i = 0
 
         do k = 1, size(starts)
-            if (ends(k) <= starts(k) .or. nilp(plists(k))) cycle
-            head = list(make_fixnum(starts(k)), make_fixnum(ends(k)))
+            if (ends(k) <= starts(k) .or. .not. allocated(plists(k)%a)) cycle
+            head = list(value_type(starts(k)), value_type(ends(k)))
             child = head
             child%a = [head%a, plists(k)%a(2:)]
             child%a(1)%i = 2 + plists(k)%a(1)%i

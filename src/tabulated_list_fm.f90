@@ -45,24 +45,22 @@ module tabulated_list_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_fixnum, make_list, nilp, stringp, fixnump, xstring, xfixnum, &
-                       t_value, string_intervals
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, buffer_serial_live, erase_buffer, restore_buffer_modified_p
+    use buffer_fm, only: buffers, cur, buffer_serial_live, erase_buffer, restore_buffer_modified
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, point_min, point_max, pos_bol, pos_eol, delete_region, eobp
+    use editfns_fm, only: point, goto_char, point_min, point_max, pos_bol, pos_eol, delete_region, is_eob
     use cmds_fm, only: forward_line, beginning_of_line, forward_char
     use indent_fm, only: current_column, move_to_column
     use textprop_fm, only: get_text_property, put_text_property, add_text_properties, next_single_property_change, &
                            previous_single_property_change, propertize
     use files_fm, only: revert_buffer_function
     use fill_fm, only: string_width
-    use frame_fm, only: selected_frame, frame_window_p
-    use derived_fm, only: derived_mode_p
+    use frame_fm, only: selected_frame
+    use derived_fm, only: is_derived_mode
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use mule_util_fm, only: truncate_string_to_width, truncate_string_to_width_propertized
     use faces_fm, only: named_face_type, face_attrs, display_when
@@ -106,7 +104,7 @@ module tabulated_list_fm
     end type tabulated_list_desc_type
 
     !> An entry: its ID, which keeps the cursor on the "same" entry when
-    !> rearranging the list (empty for nil), and one descriptor per column.
+    !> rearranging the list (empty for none), and one descriptor per column.
     !> Port of an element (ID [DESC1 ... DESCN]) of tabulated-list.el
     !> tabulated-list-entries.
     type, public :: tabulated_list_entry_type
@@ -196,7 +194,7 @@ module tabulated_list_fm
         procedure(tabulated_list_entries_proc), pointer, nopass :: entries_function => null()
         !> tabulated-list-padding.
         integer :: padding = 0
-        !> tabulated-list-sort-key: (NAME . FLIP), nil when SORT_NAME is
+        !> tabulated-list-sort-key: NAME and FLIP, none when SORT_NAME is
         !> unallocated.
         character(len=:), allocatable :: sort_name
         logical :: sort_flip = .false.
@@ -273,7 +271,7 @@ contains
 
     !> Set the current buffer's `tabulated_list_format' to COLUMNS, the
     !> format of the current Tabulated List mode buffer.  Port of
-    !> tabulated-list.el tabulated-list-format (setq-local).
+    !> tabulated-list.el tabulated-list-format (set_local).
     subroutine set_tabulated_list_format(columns)
         type(tabulated_list_column_type), intent(in) :: columns(:)
         integer :: k, j
@@ -287,7 +285,7 @@ contains
         end do
     end subroutine set_tabulated_list_format
 
-    !> The current buffer's `tabulated_list_format' (empty for nil).
+    !> The current buffer's `tabulated_list_format' (empty when unset).
     !> Not a port.
     function tabulated_list_format() result(columns)
         type(tabulated_list_column_type), allocatable :: columns(:)
@@ -310,7 +308,7 @@ contains
 
     !> Set the current buffer's `tabulated_list_entries' to ENTRIES, the
     !> entries displayed in the current Tabulated List buffer.  Port of
-    !> tabulated-list.el tabulated-list-entries (a list; setq-local).
+    !> tabulated-list.el tabulated-list-entries (an array; set_local).
     subroutine set_tabulated_list_entries(entries)
         type(tabulated_list_entry_type), intent(in) :: entries(:)
         integer :: k
@@ -364,7 +362,7 @@ contains
     !> of characters preceding each Tabulated List mode entry.  By default,
     !> lines are padded with spaces, but you can use the function
     !> `tabulated_list_put_tag' to change this.  Port of tabulated-list.el
-    !> tabulated-list-padding (setq-local).
+    !> tabulated-list-padding (set_local).
     subroutine set_tabulated_list_padding(n)
         integer, intent(in) :: n
         integer :: k
@@ -386,7 +384,7 @@ contains
     !> FLIP): NAME is one of the column names in `tabulated_list_format'
     !> (the corresponding SORT entry then specifies how to sort); FLIP
     !> true means to invert the resulting sort.  Port of tabulated-list.el
-    !> tabulated-list-sort-key (setq-local).
+    !> tabulated-list-sort-key (set_local).
     subroutine set_tabulated_list_sort_key(name, flip)
         character(len=*), intent(in) :: name
         logical, intent(in), optional :: flip
@@ -398,7 +396,7 @@ contains
         if (present(flip)) locals(k)%sort_flip = flip
     end subroutine set_tabulated_list_sort_key
 
-    !> Make the current buffer's `tabulated_list_sort_key' nil: no
+    !> Make the current buffer's `tabulated_list_sort_key' empty: no
     !> additional sorting is performed.  Not a port.
     subroutine clear_tabulated_list_sort_key()
         integer :: k
@@ -410,7 +408,7 @@ contains
     end subroutine clear_tabulated_list_sort_key
 
     !> The current buffer's `tabulated_list_sort_key': its NAME (empty for
-    !> nil) and FLIP.  Not a port.
+    !> none) and FLIP.  Not a port.
     subroutine tabulated_list_sort_key(name, flip)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: flip
@@ -438,7 +436,7 @@ contains
 
     !> Make FN the current buffer's `tabulated_list_printer': the function
     !> for inserting a Tabulated List entry at point.  Port of
-    !> tabulated-list.el tabulated-list-printer (setq-local).
+    !> tabulated-list.el tabulated-list-printer (set_local).
     subroutine set_tabulated_list_printer(fn)
         procedure(tabulated_list_printer_proc) :: fn
         integer :: k
@@ -452,7 +450,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Return the entry ID of the Tabulated List entry at POS ("" for
-    !> nil).  POS, if absent, defaults to point.  Port of
+    !> none).  POS, if absent, defaults to point.  Port of
     !> tabulated-list.el:tabulated-list-get-id.
     function tabulated_list_get_id(pos) result(id)
         integer(int64), intent(in), optional :: pos
@@ -465,8 +463,8 @@ contains
         p = point()
         if (present(pos)) p = pos
         if (p < point_min() .or. p >= point_max()) return
-        call get_text_property(p, sym("tabulated_list_id"), v, st)
-        if (st%ok() .and. stringp(v)) id = xstring(v)
+        call get_text_property(p, value_type(name="tabulated_list_id"), v, st)
+        if (st%ok() .and. vtag(v) == V_STRING) id = xstring(v)
     end function tabulated_list_get_id
 
     !> Return in ENTRY the Tabulated List entry at POS; FOUND false if
@@ -498,8 +496,8 @@ contains
         p = point()
         if (present(pos)) p = pos
         if (p < point_min() .or. p >= point_max()) return
-        call get_text_property(p, sym("tabulated_list_entry"), v, st)
-        if (.not. st%ok() .or. .not. fixnump(v)) return
+        call get_text_property(p, value_type(name="tabulated_list_entry"), v, st)
+        if (.not. st%ok() .or. vtag(v) /= V_INTEGER) return
         i = local_index(.false.)
         if (i == 0) return
         if (.not. allocated(locals(i)%entries)) return
@@ -571,7 +569,7 @@ contains
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
-        if (.not. nilp(plist)) call add_text_properties(beg, point(), plist, changed, status)
+        if (allocated(plist%a)) call add_text_properties(beg, point(), plist, changed, status)
     end subroutine insert_inheriting
 
     !> Clear all tags from the padding area in the current buffer.  Port of
@@ -731,7 +729,7 @@ contains
     function asc_indicator() result(s)
         character(len=:), allocatable :: s
 
-        if (frame_window_p(selected_frame)) then
+        if (associated(selected_frame%rif)) then
             s = tabulated_list_gui_sort_indicator_asc
         else
             s = tabulated_list_tty_sort_indicator_asc
@@ -742,7 +740,7 @@ contains
     function desc_indicator() result(s)
         character(len=:), allocatable :: s
 
-        if (frame_window_p(selected_frame)) then
+        if (associated(selected_frame%rif)) then
             s = tabulated_list_gui_sort_indicator_desc
         else
             s = tabulated_list_tty_sort_indicator_desc
@@ -764,7 +762,7 @@ contains
     recursive subroutine tabulated_list_revert(status)
         type(status_type), intent(out) :: status
 
-        if (.not. derived_mode_p("tabulated_list_mode")) then
+        if (.not. is_derived_mode("tabulated_list_mode")) then
             call set_error(status, FM_GENERIC_ERROR, "The current buffer is not in Tabulated List mode")
             return
         end if
@@ -962,7 +960,7 @@ contains
         if (upd .and. status%ok()) call delete_region(point(), point_max(), status)
         buffers(cur)%read_only = ro
         if (.not. status%ok()) return
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
 
         ! If REMEMBER_POS was specified, move to the "old" location.
         if (saved_pt > 0) then
@@ -1005,7 +1003,7 @@ contains
             end if
 
             ! If the buffer is empty, simply print each elt.
-            if (.not. upd .or. eobp()) then
+            if (.not. upd .or. is_eob()) then
                 call print_with_printer(i)
             else
                 do
@@ -1058,8 +1056,8 @@ contains
             end if
 
             ! (The entry's index for `tabulated_list_get_entry'.)
-            if (status%ok()) call put_text_property(int(before, int64), point(), sym("tabulated_list_entry"), &
-                                                    make_fixnum(int(i, int64)), status)
+            if (status%ok()) call put_text_property(int(before, int64), point(), value_type(name="tabulated_list_entry"), &
+                                                    value_type(int(i, int64)), status)
         end subroutine print_with_printer
     end subroutine tabulated_list_print
 
@@ -1103,8 +1101,8 @@ contains
         if (status%ok()) call insert(achar(10), status)
 
         if (status%ok()) then
-            props(1) = sym("tabulated_list_id")
-            props(2) = make_string(entry%id)
+            props(1) = value_type(name="tabulated_list_id")
+            props(2) = value_type(text=entry%id)
             call add_text_properties(beg, point(), make_list(props), changed, status)
         end if
 
@@ -1164,7 +1162,7 @@ contains
         width = format(n)%width
         pad_right = format(n)%pad_right
         right_align = format(n)%right_align
-        label = make_string(col_desc%text)
+        label = value_type(text=col_desc%text)
         label_width = int(string_width(col_desc%text))
         opoint = point()
         not_last_col = n < size(format)
@@ -1195,8 +1193,8 @@ contains
         end if
 
         if (len(col_desc%face) > 0) then
-            props(1) = sym("face")
-            props(2) = sym(col_desc%face)
+            props(1) = value_type(name="face")
+            props(2) = value_type(name=col_desc%face)
             label = propertize(label, make_list(props))
         end if
 
@@ -1212,7 +1210,8 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call put_text_property(opoint, point(), sym("tabulated_list_column_name"), make_string(format(n)%name), status)
+        call put_text_property(opoint, point(), value_type(name="tabulated_list_column_name"), value_type(text=format(n)%name), &
+                               status)
 
     contains
 
@@ -1225,10 +1224,10 @@ contains
             beg = point()
             call insert(repeat(" ", max(0, count)), status)
             if (.not. status%ok() .or. count <= 0) return
-            spec(1) = sym("space")
-            spec(2) = sym(":align-to")
-            spec(3) = make_fixnum(int(column, int64))
-            align(1) = sym("display")
+            spec(1) = value_type(name="space")
+            spec(2) = value_type(name=":align-to")
+            spec(3) = value_type(int(column, int64))
+            align(1) = value_type(name="display")
             align(2) = make_list(spec)
             call put_text_property(beg, point(), align(1), align(2), status)
         end subroutine insert_spaces
@@ -1250,7 +1249,7 @@ contains
         call string_intervals(v, starts, ends, plists)
 
         do k = 1, size(starts)
-            if (nilp(plists(k))) cycle
+            if (.not. allocated(plists(k)%a)) cycle
             call add_text_properties(beg + starts(k), beg + ends(k), plists(k), changed, status)
             if (.not. status%ok()) return
         end do
@@ -1333,27 +1332,27 @@ contains
             return
         end if
 
-        call get_text_property(pos, sym("tabulated_list_id"), id, st)
-        call get_text_property(pos, sym("tabulated_list_entry"), entry_prop, st)
-        call get_text_property(pos, sym("tabulated_list_column_name"), v, st)
+        call get_text_property(pos, value_type(name="tabulated_list_id"), id, st)
+        call get_text_property(pos, value_type(name="tabulated_list_entry"), entry_prop, st)
+        call get_text_property(pos, value_type(name="tabulated_list_column_name"), v, st)
         found = .false.
-        if (stringp(v)) found = same(xstring(v), name)
+        if (vtag(v) == V_STRING) found = same(xstring(v), name)
 
         do while (.not. found)
-            call next_single_property_change(pos, sym("tabulated_list_column_name"), next, found, st, eol)
+            call next_single_property_change(pos, value_type(name="tabulated_list_column_name"), next, found, st, eol)
             if (.not. found) next = eol
             pos = next
             found = .false.
             if (pos >= eol) exit
-            call get_text_property(pos, sym("tabulated_list_column_name"), v, st)
-            if (stringp(v)) found = same(xstring(v), name)
+            call get_text_property(pos, value_type(name="tabulated_list_column_name"), v, st)
+            if (vtag(v) == V_STRING) found = same(xstring(v), name)
         end do
 
         status = status_type()
         if (pos >= eol) return
         ro = buffers(cur)%read_only
         buffers(cur)%read_only = .false.
-        call next_single_property_change(pos, sym("tabulated_list_column_name"), next, found, st, eol)
+        call next_single_property_change(pos, value_type(name="tabulated_list_column_name"), next, found, st, eol)
         if (.not. found) next = eol
         call delete_region(pos, next, status)
 
@@ -1383,8 +1382,8 @@ contains
             change = .false.
             if (present(change_entry_data)) change = change_entry_data
             if (change) locals(k)%entries(e)%cols(c) = desc
-            if (status%ok()) call put_text_property(pos, point(), sym("tabulated_list_id"), id, status)
-            if (status%ok()) call put_text_property(pos, point(), sym("tabulated_list_entry"), entry_prop, status)
+            if (status%ok()) call put_text_property(pos, point(), value_type(name="tabulated_list_id"), id, status)
+            if (status%ok()) call put_text_property(pos, point(), value_type(name="tabulated_list_entry"), entry_prop, status)
             call goto_char(opoint)
         end if
 
@@ -1445,8 +1444,8 @@ contains
         if (present(n)) then
             name = format(n + 1)%name
         else
-            call get_text_property(point(), sym("tabulated_list_column_name"), v, st)
-            if (stringp(v)) name = xstring(v)
+            call get_text_property(point(), value_type(name="tabulated_list_column_name"), v, st)
+            if (vtag(v) == V_STRING) name = xstring(v)
         end if
 
         c = 0
@@ -1468,7 +1467,7 @@ contains
     recursive subroutine cmd_tabulated_list_sort(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call tabulated_list_sort(status)
         else
             call tabulated_list_sort(status, int(prefix_numeric_value(current_prefix_arg)))
@@ -1502,7 +1501,7 @@ contains
         integer :: k, i
 
         status = status_type()
-        if (len(name) == 0 .or. .not. derived_mode_p("tabulated_list_mode")) return
+        if (len(name) == 0 .or. .not. is_derived_mode("tabulated_list_mode")) return
         k = local_index(.true.)
 
         if (.not. locals(k)%original_order) then
@@ -1607,7 +1606,7 @@ contains
         if (present(arg)) times = arg
 
         do i = 1, times
-            call next_single_property_change(point(), sym("tabulated_list_column_name"), next, found, st)
+            call next_single_property_change(point(), value_type(name="tabulated_list_column_name"), next, found, st)
             if (.not. found) next = point_max()
             if (next <= pos_eol()) call goto_char(next)
         end do
@@ -1634,7 +1633,7 @@ contains
         if (present(arg)) times = arg
 
         do i = 1, times
-            call previous_single_property_change(point(), sym("tabulated_list_column_name"), prev, found, st)
+            call previous_single_property_change(point(), value_type(name="tabulated_list_column_name"), prev, found, st)
             if (.not. found) prev = 1
             if (.not. (prev < pos_bol())) call goto_char(prev)
         end do

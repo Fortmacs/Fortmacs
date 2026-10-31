@@ -23,7 +23,8 @@
 !> The source text of a hunk, finding it in its file, and applying,
 !> testing, reverting and visiting hunks; and diff_mode_fm's helpers.
 submodule(diff_mode_fm) diff_mode_apply_fm
-    use buffer_fm, only: get_buffer_create, kill_buffer, generate_new_buffer_name, buffer_live_p
+    use lisp_fm, only: value_type
+    use buffer_fm, only: get_buffer_create, kill_buffer, generate_new_buffer_name, is_buffer_live
     use editfns_fm, only: buffer_string
     use search_fm, only: search_forward, search_backward, regexp_quote
     use fns_fm, only: schars
@@ -58,15 +59,15 @@ contains
     module procedure bind_inhibit_read_only
     type(status_type) :: st
 
-    call symbol_value(sym("inhibit_read_only"), saved, st)
-    if (.not. st%ok()) saved = nil()
-    call set(sym("inhibit_read_only"), t_value(), st)
+    call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+    if (.not. st%ok()) saved = value_type()
+    call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end procedure bind_inhibit_read_only
 
     module procedure restore_inhibit_read_only
     type(status_type) :: st
 
-    call set(sym("inhibit_read_only"), saved, st)
+    call set(value_type(name="inhibit_read_only"), saved, st)
     end procedure restore_inhibit_read_only
 
     module procedure at
@@ -137,7 +138,7 @@ contains
     !> must have LINES lines.  Port of
     !> diff-mode.el:diff-sanity-check-context-hunk-half.
     recursive subroutine diff_sanity_check_context_hunk_half(lines, status)
-        use subr_fm, only: y_or_n_p
+        use subr_fm, only: read_y_or_n
         integer(int64), intent(in) :: lines
         type(status_type), intent(out) :: status
         integer(int64) :: count, shortage
@@ -163,7 +164,7 @@ contains
                 yes = .false.
 
                 if (c1 == 10) then
-                    call y_or_n_p("Try to auto-fix whitespace loss damage? ", yes, status)
+                    call read_y_or_n("Try to auto-fix whitespace loss damage? ", yes, status)
                     if (.not. status%ok()) return
                 end if
 
@@ -180,7 +181,7 @@ contains
                 call set_error(status, FM_GENERIC_ERROR, "End of hunk ambiguously marked")
                 return
             else
-                call y_or_n_p("Try to auto-fix whitespace loss and word-wrap damage? ", yes, status)
+                call read_y_or_n("Try to auto-fix whitespace loss and word-wrap damage? ", yes, status)
                 if (.not. status%ok()) return
 
                 if (.not. yes) then
@@ -205,7 +206,7 @@ contains
     end subroutine diff_sanity_check_context_hunk_half
 
     module procedure diff_sanity_check_hunk
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     integer(int64) :: saved, before, after, shortage
     integer(int32) :: c
     logical :: yes, more
@@ -286,9 +287,9 @@ contains
                         end if
                     else
                         if (c == 10 .or. c < 0) then
-                            call y_or_n_p("Try to auto-fix whitespace loss? ", yes, status)
+                            call read_y_or_n("Try to auto-fix whitespace loss? ", yes, status)
                         else
-                            call y_or_n_p("Try to auto-fix word-wrap damage? ", yes, status)
+                            call read_y_or_n("Try to auto-fix word-wrap damage? ", yes, status)
                         end if
 
                         if (status%ok() .and. .not. yes) call set_error(status, FM_GENERIC_ERROR, "Abort!")
@@ -407,7 +408,7 @@ contains
     last_char = -1
     call goto_char(point_min())
 
-    do while (.not. eobp())
+    do while (.not. is_eob())
         curr_char = char_at_point()
 
         if (curr_char == merge(iachar("-"), iachar("+"), destp) .or. curr_char == iachar("\")) then
@@ -416,7 +417,7 @@ contains
 
             if (curr_char == iachar("\") .and. last_char /= merge(iachar("-"), iachar("+"), destp)) then
                 shortage = forward_line(1_int64)
-                kill = eobp() .or. (last_char == iachar("-") .and. char_at_point() == iachar("+"))
+                kill = is_eob() .or. (last_char == iachar("-") .and. char_at_point() == iachar("+"))
                 call goto_char(x)
             end if
 
@@ -782,14 +783,14 @@ contains
     end subroutine diff_hunk_status_msg
 
     module procedure diff_apply_hunk
-    use files_fm, only: backup_file_name_p, delete_file
-    use fns_fm, only: yes_or_no_p
-    use subr_fm, only: y_or_n_p
-    use window_fm, only: display_buffer, display_alist_type, set_window_point, windows, pop_to_buffer
+    use files_fm, only: is_backup_file_name, delete_file
+    use fns_fm, only: read_yes_or_no
+    use subr_fm, only: read_y_or_n
+    use window_fm, only: display_buffer, display_action_table_type, set_window_point, windows, pop_to_buffer
     use frame_fm, only: selected_frame
     type(diff_name_type), allocatable :: names(:)
     type(diff_source_location_type) :: loc
-    type(display_alist_type) :: alist
+    type(display_action_table_type) :: table
     type(handle_type) :: obuf, window, saved_window
     type(status_type) :: st
     integer(int64) :: x
@@ -829,11 +830,11 @@ contains
 
     if (allocated(buffers(cur)%filename)) then
         k = entry_index()
-        ask_backup = backup_file_name_p(buffers(cur)%filename) .and. .not. diff_buffers(k)%apply_to_backup
+        ask_backup = is_backup_file_name(buffers(cur)%filename) .and. .not. diff_buffers(k)%apply_to_backup
 
         if (ask_backup) then
-            call yes_or_no_p("Really apply this hunk to "//file_name_nondirectory(buffers(cur)%filename)//"? ", &
-                             yes, status)
+            call read_yes_or_no("Really apply this hunk to "//file_name_nondirectory(buffers(cur)%filename)//"? ", &
+                                yes, status)
 
             if (.not. status%ok()) then
                 call set_buffer(obuf, st)
@@ -865,9 +866,9 @@ contains
         call goto_char(loc%beg + loc%src%offset)
 
         if (rev) then
-            call y_or_n_p("Hunk hasn't been applied yet; apply it now? ", yes, status)
+            call read_y_or_n("Hunk hasn't been applied yet; apply it now? ", yes, status)
         else
-            call y_or_n_p("Hunk has already been applied; undo it? ", yes, status)
+            call read_y_or_n("Hunk has already been applied; undo it? ", yes, status)
         end if
 
         call set_buffer(obuf, st)
@@ -881,8 +882,8 @@ contains
 
     if (deletion .and. .not. loc%switched) then
         call set_buffer(loc%buf, st)
-        call y_or_n_p("Delete file "//char(226)//char(128)//char(152)//buffers(cur)%filename// &
-                      char(226)//char(128)//char(153)//"?", yes, status)
+        call read_y_or_n("Delete file "//char(226)//char(128)//char(152)//buffers(cur)%filename// &
+                         char(226)//char(128)//char(153)//"?", yes, status)
 
         if (status%ok() .and. yes) then
             call delete_file(buffers(cur)%filename, status)
@@ -899,8 +900,8 @@ contains
     if (status%ok()) call insert(loc%dst%text, status)
     call set_buffer(obuf, st)
     if (.not. status%ok()) return
-    alist%inhibit_same_window = .true.
-    call display_buffer(loc%buf, window, st, alist=alist)
+    table%inhibit_same_window = .true.
+    call display_buffer(loc%buf, window, st, table=table)
     if (window%index /= 0) call set_window_point(windows(window%index), loc%beg + loc%dst%offset, st)
     call diff_hunk_status_msg(.true., loc%line_offset, loc%switched .neqv. rev, .false.)
     if (diff_advance_after_apply_hunk) call diff_hunk_next(st)
@@ -1034,7 +1035,7 @@ contains
         if (count /= 1) s = s//"s"
     end function plural
 
-    !> (push (cons pos dst) (alist-get buf buffer-edits)).
+    !> Add the edit L (a position and its destination) to the edits of its buffer.  Not a port.
     subroutine add_edit(l)
         type(diff_source_location_type), intent(in) :: l
         type(edit_type), allocatable :: grown(:)
@@ -1047,7 +1048,7 @@ contains
         end do
 
         if (i > size(edits)) then
-            ! Newest buffer first, as `push' onto the alist.
+            ! Newest buffer first, as `push' onto the table.
             m = size(edits)
             allocate (grown(m + 1))
             grown(2:m + 1) = edits

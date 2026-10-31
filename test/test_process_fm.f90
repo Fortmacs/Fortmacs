@@ -33,10 +33,10 @@ module test_process_fm
     use keyboard_fm, only: sit_for
     use sys_worker_fm, only: on_main_thread, wait_for_worker_messages
     use process_fm, only: process_arg_type, make_process, start_process, delete_process, free_process, &
-                          process_status, process_exit_status, process_live_p, process_name, process_tty_name, &
+                          process_status, process_exit_status, is_process_live, process_name, process_tty_name, &
                           set_process_sentinel, set_process_filter, accept_process_output, kill_process, &
                           process_send_string, process_send_eof, get_buffer_process, get_process, process_list, &
-                          process_shutdown, processp, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY
+                          process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY
     implicit none(type, external)
     private
 
@@ -100,7 +100,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. processp(process)) return
+        if (.not. is_process(process)) return
         if (.not. on_main_thread()) filter_off_main = .true.
         filtered = filtered//string
     end subroutine record_filter
@@ -217,7 +217,7 @@ contains
         samepath = path
         call start_process("", null_handle(), path, proc, st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, process_live_p(proc), "live")
+        if (.not. allocated(error)) call check(error, is_process_live(proc), "live")
         if (.not. allocated(error)) call check(error, path, samepath)
         call free_process(proc, st)
         call process_shutdown()
@@ -360,7 +360,7 @@ contains
                    "Process printer finished"//new_line("a"))
         if (.not. allocated(error)) call check(error, process_status(proc), "exit")
         ! An exited process is deleted (delete-exited-processes).
-        if (.not. allocated(error)) call check(error,.not. processp(get_process("printer")), "removed")
+        if (.not. allocated(error)) call check(error,.not. is_process(get_process("printer")), "removed")
         call free_process(proc, st)
         call kill_buffer(buf, st)
     end subroutine test_default_filter
@@ -426,7 +426,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, sentinel_calls == 1, "sentinel run")
         if (.not. allocated(error)) call check(error, last_event, "killed"//new_line("a"))
-        if (.not. allocated(error)) call check(error,.not. processp(get_process("doomed")), "forgotten")
+        if (.not. allocated(error)) call check(error,.not. is_process(get_process("doomed")), "forgotten")
         if (.not. allocated(error)) call check(error, size(process_list()) == 0, "no processes")
         if (.not. allocated(error)) call check(error, process_status(proc), "signal")
         call free_process(proc, st)

@@ -80,7 +80,7 @@ module sysdep_fm
               emacs_full_write, emacs_write, input_available
     public :: install_window_change_handler, window_change_pending
     public :: install_interrupt_handler, interrupt_pending
-    public :: open_pty, close_fd, tabs_safe_p, emacs_isatty
+    public :: open_pty, close_fd, is_tabs_safe, emacs_isatty
     public :: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
               sys_unlink, sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_setenv, &
               sys_unsetenv, emacs_get_current_dir_name, &
@@ -323,14 +323,14 @@ contains
 
     !> Whether the terminal on `fd' passes tabs through (does not expand
     !> them to spaces).  Port of sysdep.c:tabs_safe_p.
-    logical function tabs_safe_p(fd)
+    logical function is_tabs_safe(fd)
         integer(int32), intent(in) :: fd
         type(emacs_tty_type) :: settings
         type(status_type) :: status
 
         call emacs_get_tty(fd, settings, status)
-        tabs_safe_p = status%ok() .and. iand(settings%main%c_oflag, TABDLY) /= TAB3
-    end function tabs_safe_p
+        is_tabs_safe = status%ok() .and. iand(settings%main%c_oflag, TABDLY) /= TAB3
+    end function is_tabs_safe
 
     !> Width and height of the terminal on `fd'.
     !> Port of sysdep.c:get_tty_size.

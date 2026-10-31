@@ -28,7 +28,7 @@ module test_indent_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum
+    use lisp_fm, only: value_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point
@@ -43,13 +43,11 @@ module test_indent_fm
     use keymap_fm, only: key_parse
     use simple_fm, only: line_move, goal_column, line_move_visual
     use keyboard_fm, only: unread_command_events, discard_input, command_loop, last_command
-    use lisp_fm, only: nil
     use bindings_fm, only: init_bindings
     use keyboard_fm, only: last_message
     use data_fm, only: kill_local_variable
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
-    use simple_fm, only: region_active_p
+    use simple_fm, only: is_region_active
     use indent_fm, only: indent_line_function, indent_for_tab_command, indent_region_line_by_line
     implicit none(type, external)
     private
@@ -114,7 +112,7 @@ contains
         call insert(text, st)
         call goto_char(1_int64)
         ! A fresh goal column: the last command wasn't a line move.
-        last_command = nil()
+        last_command = value_type()
         selected_frame%minibuffer_selected = .false.
         sw => frame_selected_window_ref()
         sw%total_cols = cols
@@ -228,15 +226,15 @@ contains
         call discard_input()
         call enter("first line"//nl//"ab"//nl//"third line", 80, h)
         call goto_char(7_int64)
-        keys(1) = make_fixnum(14_int64)
-        keys(2) = make_fixnum(14_int64)
+        keys(1) = value_type(14_int64)
+        keys(2) = value_type(14_int64)
         call unread_command_events(keys)
         call command_loop(st)
         call check(error, point() == 21, "column 6 on the third line")
         if (allocated(error)) return
         ! C-p twice: back to column 6.
-        keys(1) = make_fixnum(16_int64)
-        keys(2) = make_fixnum(16_int64)
+        keys(1) = value_type(16_int64)
+        keys(2) = value_type(16_int64)
         call unread_command_events(keys)
         call command_loop(st)
         call check(error, point() == 7)
@@ -461,14 +459,14 @@ contains
         call key_parse("<right>", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, buffer_string() == "  a"//LF//"  b" .and. region_active_p() .and. &
+        call check(error, buffer_string() == "  a"//LF//"  b" .and. is_region_active() .and. &
                    last_message == "Type TAB, <left>, <right>, S-<left>, S-<right> to indent region interactively", &
                    buffer_string()//"|"//last_message)
         if (allocated(error)) return
         call key_parse("C-e", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error,.not. region_active_p() .and. last_message == "", "exit: "//last_message)
+        call check(error,.not. is_region_active() .and. last_message == "", "exit: "//last_message)
         if (allocated(error)) return
         ! The second <right> removed the undo boundary after the first:
         ! one undo takes back both.
@@ -501,8 +499,8 @@ contains
         indent_tabs_mode = .false.
         call goto_char(7_int64)
         call indent_line_function%set_local(cannot_indent)
-        call indent_for_tab_command(nil(), st)
-        call kill_local_variable(sym("indent_line_function"), st)
+        call indent_for_tab_command(value_type(), st)
+        call kill_local_variable(value_type(name="indent_line_function"), st)
         call check(error, buffer_string(), "    a"//LF//"    b")
         indent_tabs_mode = .true.
         call leave(h)
@@ -541,8 +539,7 @@ contains
     !> Emacs does.
     subroutine test_column_display_props(error)
         use textprop_fm, only: put_text_property
-        use lread_fm, only: sym
-        use lisp_fm, only: t_value, make_string, list
+        use lisp_fm, only: list, value_type
         use subr_fm, only: add_to_invisibility_spec
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -552,7 +549,7 @@ contains
         call get_buffer_create("*column-props*", h, st)
         call set_buffer(h, st)
         call insert("abcdef", st)
-        call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
+        call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(.true.), st)
         call goto_char(6_int64)
         call check(error, current_column() == 2, "invisible")
         if (allocated(error)) return
@@ -561,20 +558,21 @@ contains
         call check(error, point() == 6 .and. reached == 2, "move-to-column")
         if (allocated(error)) return
         call add_to_invisibility_spec("foo", ellipsis=.true.)
-        call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
+        call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(name="foo"), st)
         call goto_char(6_int64)
         call check(error, current_column() == 5, "ellipsis")
         if (allocated(error)) return
         call erase_buffer(st)
         call insert("abcdef", st)
-        call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="display"), value_type(text="XY"), st)
         call goto_char(6_int64)
         call check(error, current_column() == 5, "display string")
         if (allocated(error)) return
         call erase_buffer(st)
         call insert("ab"//achar(9)//"cd", st)
-        call put_text_property(3_int64, 4_int64, sym("display"), list(sym("space"), sym(":align-to"), &
-                                                                      make_fixnum(10_int64)), st)
+        call put_text_property(3_int64, 4_int64, value_type(name="display"), list(value_type(name="space"), &
+                                                                                  value_type(name=":align-to"), &
+                                                                                  value_type(10_int64)), st)
         call goto_char(5_int64)
         call check(error, current_column() == 11, "space")
         call kill_buffer(h, st)
@@ -583,8 +581,7 @@ contains
     !> C-n moves by visible lines: a line made invisible is skipped.
     subroutine test_vertical_motion_invisible(error)
         use textprop_fm, only: put_text_property
-        use lread_fm, only: sym
-        use lisp_fm, only: t_value
+        use lisp_fm, only: value_type
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -595,7 +592,7 @@ contains
         call show_alone()
         call insert("one"//achar(10)//"two"//achar(10)//"three", st)
         ! "two\n" is invisible.
-        call put_text_property(5_int64, 9_int64, sym("invisible"), t_value(), st)
+        call put_text_property(5_int64, 9_int64, value_type(name="invisible"), value_type(.true.), st)
         call goto_char(2_int64)
         call vertical_motion(1_int64, moved, 1)
         call check(error, moved == 1 .and. point() == 10, "to three")
@@ -610,8 +607,7 @@ contains
     !> its text from 1 to TO.
     function move_to_column_invis(text, starts, ends, column, to) result(got)
         use textprop_fm, only: put_text_property
-        use lread_fm, only: sym
-        use lisp_fm, only: t_value
+        use lisp_fm, only: value_type
         use editfns_fm, only: buffer_substring
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: starts(:), ends(:), column, to
@@ -627,7 +623,7 @@ contains
         call insert(text, st)
 
         do k = 1, size(starts)
-            call put_text_property(starts(k), ends(k), sym("invisible"), t_value(), st)
+            call put_text_property(starts(k), ends(k), value_type(name="invisible"), value_type(.true.), st)
         end do
 
         call goto_char(1_int64)

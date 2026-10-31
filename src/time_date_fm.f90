@@ -32,8 +32,8 @@ module time_date_fm
               SECONDS_TO_STRING_EXPANDED
 
     !> Values of READABLE for `seconds_to_string': a float in one unit
-    !> (nil), readable units (t), or two readable units if appropriate
-    !> (`expanded').
+    !> (SECONDS_TO_STRING_PLAIN), readable units (SECONDS_TO_STRING_READABLE), or two readable units if appropriate
+    !> (SECONDS_TO_STRING_EXPANDED).
     integer, parameter :: SECONDS_TO_STRING_PLAIN = 0, SECONDS_TO_STRING_READABLE = 1, &
                           SECONDS_TO_STRING_EXPANDED = 2
 
