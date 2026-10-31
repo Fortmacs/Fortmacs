@@ -28,6 +28,17 @@ module sample
         logical :: interactive = .false.
     end type other_type
 
+    !> A procedure pointer and a binding named with run, and their
+    !> execute forms; a noun with run in it is no verb.
+    type :: hook_type
+        procedure(hook_proc), pointer, nopass :: run => null()
+        procedure(hook_proc), pointer, nopass :: execute_at_exit => null()
+        integer :: runs = 0
+    contains
+        procedure :: run_safe => hook_execute_safe
+        procedure :: execute => hook_execute
+    end type hook_type
+
 contains
 
     !> A thin wrapper: `.not. allocated(v%a)'.
@@ -119,4 +130,29 @@ contains
 
         keep_group = n + 1
     end function keep_group
+
+    !> Procedures that run something with run or call, and with execute.
+    subroutine run_with_timer(n)
+        integer, intent(in) :: n
+
+        print *, n
+    end subroutine run_with_timer
+
+    subroutine call_indent_line_function(n)
+        integer, intent(in) :: n
+
+        print *, n
+    end subroutine call_indent_line_function
+
+    subroutine execute_with_timer(n)
+        integer, intent(in) :: n
+
+        print *, n
+    end subroutine execute_with_timer
+
+    integer function excluded_run(n)
+        integer, intent(in) :: n
+
+        excluded_run = n
+    end function excluded_run
 end module sample

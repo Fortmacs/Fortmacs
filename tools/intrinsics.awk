@@ -51,6 +51,12 @@
 #                procedure) ending in `_vector'.  Use a plural.
 #   interactive  a component `interactive' of command_type (it is
 #                `is_command').
+#   verb         a procedure, procedure pointer or type-bound procedure
+#                named `run', `run_*' or `call_*': execute_ is the only
+#                verb for running something (`execute_with_timer',
+#                `commands%yank%execute'), and a procedure pointer is
+#                called directly, with no call_* wrapper (PORTING.md,
+#                "One word per meaning").
 #
 # Logical user options named *_p upstream keep their names: they are
 # variables, which the predicate rule does not look at.
@@ -111,6 +117,21 @@ function start_proc(name, args, res, line, n, i, a) {
     if (tolower(name) in lisp) finding(line, "lisp-helper", name, "")
     check_predicate(line, name)
     if (tolower(name) ~ /_vector$/) finding(line, "vector", name, "")
+    check_verb(line, name)
+}
+
+# Whether NAME runs something with another verb than execute (reported
+# as SHOWN, or NAME).
+function check_verb(line, name, shown) {
+    if (shown == "") shown = name
+    if (tolower(name) ~ /^(run|run_[a-z0-9_]+|call_[a-z0-9_]+)$/) finding(line, "verb", shown, "")
+}
+
+# Checks the names a procedure declaration statement L (a procedure
+# pointer, dummy procedure or binding) declares.
+function check_procedure_decl(line, l, names, n, i) {
+    n = decl_names(l, names)
+    for (i = 1; i <= n; i++) check_verb(line, names[i], (intype != "" ? intype "%" : "") names[i])
 }
 
 # Whether NAME reads as a Lisp predicate (region_active_p, charsetp).
@@ -274,6 +295,7 @@ l ~ /^type([ \t]*,[^:]*)?[ \t]*::[ \t]*[a-z_][a-z0-9_]*[ \t]*$/ || l ~ /^type[ \
 }
 l ~ /^end[ \t]*type/ { intype = ""; next }
 l ~ /::/ && l !~ /^(use|procedure[ \t]*\(|generic)/ { check_decl(startline, l) }
+l ~ /^procedure([ \t]*\(|[ \t]*,|[ \t]*::)/ && l ~ /::/ { check_procedure_decl(startline, l) }
 
 l ~ /^(abstract[ \t]+)?interface([ \t]|$)/ { ininterface++; next }
 l ~ /^end[ \t]*interface/ { ininterface--; next }
