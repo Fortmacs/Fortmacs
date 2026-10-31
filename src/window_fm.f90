@@ -93,7 +93,7 @@ module window_fm
         logical :: has_quad = .false.
         type(handle_type) :: quad_buffer, quad_point
         integer(int64) :: quad_start = 0
-        !> The window's height or width then; -1 for none (nil).
+        !> The window's height or width then; -1 for none.
         integer :: quad_size = -1
         type(handle_type) :: selected, buffer
     end type quit_restore_type
@@ -101,8 +101,8 @@ module window_fm
     !> Kinds of `quit_restore' parameter.
     integer, parameter, public :: QR_NONE = 0, QR_WINDOW = 1, QR_FRAME = 2, QR_SAME = 3, QR_OTHER = 4
 
-    !> Dedication of a window to its buffer: nil, weak (non-nil), strong
-    !> (t).
+    !> Dedication of a window to its buffer: none, weak or strong
+    !> (DEDICATED_NONE, DEDICATED_WEAK and DEDICATED_STRONG).
     integer, parameter, public :: DEDICATED_NONE = 0, DEDICATED_WEAK = 1, DEDICATED_STRONG = 2
 
     !> What `quit_restore_window' and `switch_to_prev_buffer' do with the
@@ -176,13 +176,13 @@ module window_fm
     !> If not DEDICATED_NONE, `display_buffer' marks the windows it creates as
     !> dedicated.  The actual value of this variable will be copied
     !> to the `window_dedicated_p' flag.  Port of window.el
-    !> display-buffer-mark-dedicated (DEDICATED_NONE, DEDICATED_WEAK for a
-    !> non-nil value other than t, DEDICATED_STRONG for t).
+    !> display-buffer-mark-dedicated (DEDICATED_NONE, DEDICATED_WEAK or
+    !> DEDICATED_STRONG).
     integer, public :: display_buffer_mark_dedicated = DEDICATED_NONE
 
     !> Which windows `next_window' and its relatives consider besides the
     !> ordinary ones (their MINIBUF argument): the minibuffer window if the
-    !> minibuffer is active (nil), always (t), or never (any other value).
+    !> minibuffer is active (MINIBUF_ACTIVE), always (MINIBUF_ALWAYS), or never (MINIBUF_NEVER).
     integer, parameter, public :: MINIBUF_ACTIVE = 0, MINIBUF_ALWAYS = 1, MINIBUF_NEVER = 2
 
     !> The parts of a window `coordinates_in_window_p' tells (window.h
@@ -463,7 +463,7 @@ module window_fm
 
         !> Whether position POS is shown, at least partially, in WINDOW:
         !> within the window's body lines from its start.  Port of
-        !> window.c:Fpos_visible_in_window_p with PARTIALLY non-nil (line
+        !> window.c:Fpos_visible_in_window_p with PARTIALLY .true. (line
         !> based, no vscroll).
         module logical function pos_visible_in_window_p(pos, window) result(visible)
             implicit none(type, external)
@@ -475,7 +475,7 @@ module window_fm
         !> neighboring window on the selected frame.  Port of
         !> window.c:Fother_window_for_scrolling (`minibuffer_scroll_window',
         !> `other_window_scroll_buffer' and `other_window_scroll_default'
-        !> are deferred: they are nil).
+        !> are deferred: they are unset).
         module subroutine other_window_for_scrolling(window, status)
             implicit none(type, external)
             type(handle_type), intent(out) :: window
@@ -571,7 +571,7 @@ module window_fm
         !> WINDOW if it is live, else of the selected window.  WINDOW may
         !> be internal (the root window, say): its windows share what is
         !> left.  Port of window.el:split-window (no SIDE above or left,
-        !> `window_combination_resize' nil, no REFER).
+        !> `window_combination_resize' .false., no REFER).
         module subroutine split_window(window, size, have_size, horizontal, new, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
@@ -648,7 +648,7 @@ module window_fm
 
         !> Make WINDOW display BUFFER_OR_NAME.
         !> WINDOW must be a live window.  Optional third argument
-        !> KEEP-MARGINS non-nil means that WINDOW's current display margins,
+        !> KEEP-MARGINS .true. means that WINDOW's current display margins,
         !> fringe widths, and scroll bar settings are preserved.  This
         !> function throws an error when WINDOW is strongly dedicated to its
         !> buffer and does not already display BUFFER_OR_NAME.  Port of
@@ -801,7 +801,7 @@ module window_fm
         !> covers point's column, else the nearest one below.  The
         !> minibuffer window counts while it is active.  The null handle if
         !> there is none.  Port of window.el:window-in-direction (DIRECTION
-        !> `below'; IGNORE, SIGN and WRAP nil).
+        !> `below'; IGNORE, SIGN and WRAP .false.).
         module function window_in_direction_below(window) result(best)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
@@ -959,8 +959,8 @@ module window_fm
         !> `current_window_configuration'.  The minibuffer window keeps its
         !> buffer.  Port of window.c:Fset_window_configuration (and
         !> window.c:restore_window_configuration) with
-        !> DONT-SET-FRAME and DONT-SET-MINIWINDOW non-nil
-        !> (`window_restore_killed_buffer_windows' nil).
+        !> DONT-SET-FRAME and DONT-SET-MINIWINDOW .true.
+        !> (`window_restore_killed_buffer_windows' .false.).
         module subroutine set_window_configuration(config)
             implicit none(type, external)
             type(window_configuration_type), intent(in) :: config
@@ -990,7 +990,7 @@ module window_fm
 
         ! What windows are, in submodule window_info_fm.
 
-        !> Return t if OBJECT is a window and nil otherwise.  Port of
+        !> Return .true. if OBJECT is a window and .false. otherwise.  Port of
         !> window.c:Fwindowp (a handle `make_window' gave, deleted since or
         !> not).
         module function windowp(object) result(p)
@@ -1000,8 +1000,8 @@ module window_fm
         end function windowp
 
         !> Return the buffer displayed in window WINDOW.
-        !> If WINDOW is omitted or nil, it defaults to the selected window.
-        !> Return nil for an internal window or a deleted window.  Port of
+        !> If WINDOW is absent, it defaults to the selected window.
+        !> Return the null handle for an internal window or a deleted window.  Port of
         !> window.c:Fwindow_buffer (with window.c:decode_any_window).
         module function window_buffer(window, status) result(b)
             implicit none(type, external)
@@ -1012,7 +1012,7 @@ module window_fm
 
         !> Return the parent window of window WINDOW.
         !> WINDOW must be a valid window and defaults to the selected one.
-        !> Return nil for a window with no parent (e.g. a root window).
+        !> Return the null handle for a window with no parent (e.g. a root window).
         !> Port of window.c:Fwindow_parent.
         module function window_parent(window, status) result(p)
             implicit none(type, external)
@@ -1023,8 +1023,8 @@ module window_fm
 
         !> Return the topmost child window of window WINDOW.
         !> WINDOW must be a valid window and defaults to the selected one.
-        !> Return nil if WINDOW is a live window (live windows have no children).
-        !> Return nil if WINDOW is an internal window whose children form a
+        !> Return the null handle if WINDOW is a live window (live windows have no children).
+        !> Return the null handle if WINDOW is an internal window whose children form a
         !> horizontal combination.  Port of window.c:Fwindow_top_child.
         module function window_top_child(window, status) result(c)
             implicit none(type, external)
@@ -1035,8 +1035,8 @@ module window_fm
 
         !> Return the leftmost child window of window WINDOW.
         !> WINDOW must be a valid window and defaults to the selected one.
-        !> Return nil if WINDOW is a live window (live windows have no children).
-        !> Return nil if WINDOW is an internal window whose children form a
+        !> Return the null handle if WINDOW is a live window (live windows have no children).
+        !> Return the null handle if WINDOW is an internal window whose children form a
         !> vertical combination.  Port of window.c:Fwindow_left_child.
         module function window_left_child(window, status) result(c)
             implicit none(type, external)
@@ -1047,7 +1047,7 @@ module window_fm
 
         !> Return the next sibling window of window WINDOW.
         !> WINDOW must be a valid window and defaults to the selected one.
-        !> Return nil if WINDOW has no next sibling.  Port of
+        !> Return the null handle if WINDOW has no next sibling.  Port of
         !> window.c:Fwindow_next_sibling.
         module function window_next_sibling(window, status) result(s)
             implicit none(type, external)
@@ -1058,7 +1058,7 @@ module window_fm
 
         !> Return the previous sibling window of window WINDOW.
         !> WINDOW must be a valid window and defaults to the selected one.
-        !> Return nil if WINDOW has no previous sibling.  Port of
+        !> Return the null handle if WINDOW has no previous sibling.  Port of
         !> window.c:Fwindow_prev_sibling.
         module function window_prev_sibling(window, status) result(s)
             implicit none(type, external)
@@ -1094,7 +1094,7 @@ module window_fm
         end function frame_selected_window
 
         !> Return the minibuffer window for frame FRAME.
-        !> If FRAME is omitted or nil, it defaults to the selected frame.
+        !> If FRAME is absent, it defaults to the selected frame.
         !> Port of window.c:Fminibuffer_window (one frame).
         module function minibuffer_window() result(m)
             implicit none(type, external)
@@ -1112,7 +1112,7 @@ module window_fm
         end function window_minibuffer_p
 
         !> Return window selected just before minibuffer window was selected.
-        !> Return nil if the selected window is not a minibuffer window.
+        !> Return the null handle if the selected window is not a minibuffer window.
         !> Port of window.c:Fminibuffer_selected_window.
         module function minibuffer_selected_window() result(s)
             implicit none(type, external)
@@ -1399,7 +1399,7 @@ module window_fm
         !> in REL_X and REL_Y.  If they are in the mode line of WINDOW, return
         !> ON_MODE_LINE; in the header line, ON_HEADER_LINE; on the border
         !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Emacs's
-        !> `vertical-line'); elsewhere, ON_NOTHING (nil).  Port of
+        !> `vertical-line'); elsewhere, ON_NOTHING.  Port of
         !> window.c:Fcoordinates_in_window_p (a terminal frame).
         module function coordinates_in_window_p(x, y, window, rel_x, rel_y, status) result(part)
             implicit none(type, external)
@@ -1556,7 +1556,7 @@ contains
         e = prev_buffer_type()
     end subroutine free_prev_buffer
 
-    !> Clear a `quit_restore' parameter (set it to nil), freeing its
+    !> Clear a `quit_restore' parameter (set it to none), freeing its
     !> marker.  Not a port.
     subroutine free_quit_restore(q)
         type(quit_restore_type), intent(inout) :: q

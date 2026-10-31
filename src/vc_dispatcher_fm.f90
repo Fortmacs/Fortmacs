@@ -77,7 +77,7 @@ module vc_dispatcher_fm
     public :: VC_OKSTATUS_NIL, VC_OKSTATUS_T, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NIL, VC_NOQUERY_T, VC_NOQUERY_UNLESS_MODIFIED
 
-    !> Values of `vc_command_messages' (nil, t, `log').
+    !> Values of `vc_command_messages' (VC_COMMAND_MESSAGES_NIL, VC_COMMAND_MESSAGES_T, VC_COMMAND_MESSAGES_LOG).
     integer, parameter, public :: VC_COMMAND_MESSAGES_NIL = 0, VC_COMMAND_MESSAGES_T = 1, VC_COMMAND_MESSAGES_LOG = 2
 
     !> If true, display and log messages about running back-end commands.
@@ -96,20 +96,20 @@ module vc_dispatcher_fm
     !> vc-dispatcher.el vc-display-failed-async-commands.
     logical, public :: vc_display_failed_async_commands = .false.
 
-    !> Where a sentinel wants point to go afterwards (0 for nil).  Port
+    !> Where a sentinel wants point to go afterwards (0 for none).  Port
     !> of vc-dispatcher.el vc-sentinel-movepoint.
     integer(int64), public :: vc_sentinel_movepoint = 0
 
     !> `vc_do_command' OKSTATUS values besides a maximum exit status:
-    !> nil (an error only if the command is killed by a signal), t
-    !> (never an error) and `async' (don't wait for the process).
+    !> VC_OKSTATUS_NIL (an error only if the command is killed by a signal), VC_OKSTATUS_T
+    !> (never an error) and VC_OKSTATUS_ASYNC (don't wait for the process).
     integer, parameter :: VC_OKSTATUS_NIL = -1, VC_OKSTATUS_T = -2, VC_OKSTATUS_ASYNC = -3
 
-    !> `vc_do_command' destinations besides a buffer: nil (discard the
-    !> output) and t (the current buffer).
+    !> `vc_do_command' destinations besides a buffer: VC_DEST_DISCARD (discard the
+    !> output) and VC_DEST_CURRENT (the current buffer).
     integer, parameter :: VC_DEST_DISCARD = 0, VC_DEST_CURRENT = 1
 
-    !> `vc_resynch_buffer' NOQUERY values: nil, t and `unless-modified'.
+    !> `vc_resynch_buffer' NOQUERY values: VC_NOQUERY_NIL, VC_NOQUERY_T and VC_NOQUERY_UNLESS_MODIFIED.
     integer, parameter :: VC_NOQUERY_NIL = 0, VC_NOQUERY_T = 1, VC_NOQUERY_UNLESS_MODIFIED = 2
 
     !> Code run after a command's process is done (the closure CODE of
@@ -319,7 +319,7 @@ contains
     end function parent_index
 
     !> The current buffer's `vc_parent_buffer': in a log entry or output
-    !> buffer, the buffer for which it was made (a null handle for nil).
+    !> buffer, the buffer for which it was made (a null handle for none).
     !> Not a port.
     function vc_parent_buffer() result(h)
         type(handle_type) :: h
@@ -449,7 +449,7 @@ contains
         log_locals(k)%fileset = files
     end subroutine set_vc_log_fileset
 
-    !> The current buffer's `vc_patch_string' (unallocated for nil).
+    !> The current buffer's `vc_patch_string' (unallocated for none).
     !> Not a port.
     subroutine vc_patch_string(patch)
         character(len=:), allocatable, intent(out) :: patch
@@ -460,7 +460,7 @@ contains
         if (allocated(log_locals(k)%patch_string)) patch = log_locals(k)%patch_string
     end subroutine vc_patch_string
 
-    !> Set the current buffer's `vc_patch_string' to PATCH (nil if absent).
+    !> Set the current buffer's `vc_patch_string' to PATCH (unallocated if absent).
     !> Not a port.
     subroutine set_vc_patch_string(patch)
         character(len=*), intent(in), optional :: patch
@@ -482,7 +482,7 @@ contains
         log_locals(k)%operation = operation
     end subroutine set_vc_log_operation
 
-    !> Set the current buffer's `vc_log_after_operation_hook' to HOOK (nil
+    !> Set the current buffer's `vc_log_after_operation_hook' to HOOK (empty
     !> if absent).  Not a port.
     subroutine set_vc_log_after_operation_hook(hook)
         type(hook_type), intent(in), target, optional :: hook
@@ -613,7 +613,7 @@ contains
     !> If PROC is absent and the current buffer has no process, just run
     !> ACTION.  Otherwise, add ACTION to the process's sentinel.  Port of
     !> vc-dispatcher.el:vc-exec-after (vc-run-delayed and
-    !> vc-run-delayed-success are this with OKSTATUS nil or given).
+    !> vc-run-delayed-success are this with OKSTATUS absent or given).
     recursive subroutine vc_exec_after(action, status, proc)
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
@@ -842,7 +842,7 @@ contains
     !>
     !> FILES are the working files (none to execute commands that don't
     !> expect a file name or set of files).  FLAGS are inserted into the
-    !> command line before the filename (an unallocated one is nil and
+    !> command line before the filename (an unallocated one
     !> passes nothing).  ENVIRONMENT are "NAME=VALUE" entries put first in
     !> the process's environment (as `process_environment').  Port of
     !> vc-dispatcher.el:vc-do-command.
@@ -1013,7 +1013,7 @@ contains
 
     contains
 
-        !> The flags as `vc_delistify' smashes them, a nil one as "".
+        !> The flags as `vc_delistify' smashes them, an unallocated one as "".
         function flag_list(list) result(s)
             type(vc_string_type), intent(in) :: list(:)
             character(len=:), allocatable :: s

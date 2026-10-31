@@ -129,7 +129,7 @@ contains
     end function event_char
 
     !> Return the position after the char we just inserted.
-    !> Returns 0 (upstream's nil) when we can't find this char.  Port of
+    !> Returns 0 when we can't find this char.  Port of
     !> electric.el:electric--after-char-pos.
     integer(int64) function electric_after_char_pos() result(pos)
         integer(int64) :: opoint, moved

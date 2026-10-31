@@ -272,7 +272,7 @@ module simple_fm
               turn_on_auto_fill, turn_off_auto_fill
 
     !> Regexp to match lines that should not be auto-filled.  Port of
-    !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
+    !> simple.el auto-fill-inhibit-regexp (unallocated when unset).
     type(string_setting), public :: auto_fill_inhibit_regexp = string_setting(name="auto_fill_inhibit_regexp")
 
     !> True means to do as if `auto_fill_mode' was disabled.  Port of
@@ -446,7 +446,7 @@ module simple_fm
         !>
         !> If the mark lies outside the selected window, display an
         !> informative message containing a sample of the copied text.  The
-        !> optional argument MESSAGE_LEN, if non-nil, specifies the length
+        !> optional argument MESSAGE_LEN, if present, specifies the length
         !> of this sample text; it defaults to 40.  Port of
         !> simple.el:indicate-copied-region (a quit during the blink does
         !> not deactivate the mark; the mark counts as not visible when the
@@ -1015,9 +1015,9 @@ module simple_fm
     !> output, DONT_ERASE_END_LAST_OUT sets point at the end of the last
     !> output, and DONT_ERASE_SAVE_POINT restores the buffer position as it
     !> was before the shell command.  Port of simple.el shell-command-dont-erase-buffer
-    !> (DONT_ERASE_NIL is nil, DONT_ERASE_ERASE `erase',
-    !> DONT_ERASE_BEG_LAST_OUT `beg-last-out', DONT_ERASE_END_LAST_OUT
-    !> `end-last-out', DONT_ERASE_SAVE_POINT `save-point').
+    !> (DONT_ERASE_NIL, DONT_ERASE_ERASE,
+    !> DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT
+    !> and DONT_ERASE_SAVE_POINT).
     type(integer_setting), public :: shell_command_dont_erase_buffer = &
                                      integer_setting(name="shell_command_dont_erase_buffer", value=DONT_ERASE_NIL)
 
@@ -1057,7 +1057,7 @@ module simple_fm
     !> output.  If negative, use the shell default number (usually 80
     !> columns).  If a natural number, tell the shell to use that number
     !> of columns for command output.  Port of simple.el
-    !> async-shell-command-width (a negative value for nil).
+    !> async-shell-command-width (a negative value for none).
     type(integer_setting), public :: async_shell_command_width = &
                                      integer_setting(name="async_shell_command_width", value=-1)
 
@@ -1305,7 +1305,7 @@ module simple_fm
     !> If not negative, maximum distance to search backwards for matching
     !> open-paren.  If negative, search stops at the beginning of the
     !> accessible portion of the buffer.  Port of simple.el
-    !> blink-matching-paren-distance (negative for nil).
+    !> blink-matching-paren-distance (negative for none).
     integer(int64), public :: blink_matching_paren_distance = 100*1024
 
     !> Time in seconds to delay after showing a matching paren.  Port of
@@ -1372,8 +1372,8 @@ module simple_fm
     !> kill-ring-yank-pointer.
     integer(int64), public :: kill_ring_yank_pointer = 1
 
-    !> The METHODs of `region_extract_function': nil, `delete' (anything
-    !> else upstream), `delete-only' and `bounds'.
+    !> The METHODs of `region_extract_function': REGION_EXTRACT_COPY, REGION_EXTRACT_DELETE (anything
+    !> else upstream), REGION_EXTRACT_DELETE_ONLY and REGION_EXTRACT_BOUNDS.
     integer, parameter, public :: REGION_EXTRACT_COPY = 0, REGION_EXTRACT_DELETE = 1, &
                                   REGION_EXTRACT_DELETE_ONLY = 2, REGION_EXTRACT_BOUNDS = 3
 
@@ -1462,7 +1462,7 @@ module simple_fm
     !> Optional second argument REPLACE true means that STRING will replace
     !> the front of the kill ring, rather than being added to the list.
     !>
-    !> When the yank handler has a non-nil PARAM element, the original
+    !> When the yank handler has a PARAM element, the original
     !> STRING argument is not used by `insert_for_yank'.  However, since
     !> code may access and use elements from the kill ring directly, the
     !> STRING argument should still be a "useful" string for such uses.
@@ -1561,7 +1561,7 @@ contains
     end function check_local_index
 
     !> Give the current buffer its own `blink_matching_check_function'
-    !> FN (setq-local); absent is nil.  Not a port.
+    !> FN (setq-local); absent clears it.  Not a port.
     subroutine set_local_blink_matching_check_function(fn)
         procedure(blink_matching_check_proc), optional :: fn
         type(check_entry_type), allocatable :: grown(:)
@@ -1600,7 +1600,7 @@ contains
     end subroutine set_local_blink_matching_check_function
 
     !> The value of `blink_matching_check_function' in the current buffer
-    !> (null for nil).  Not a port.
+    !> (null when unset).  Not a port.
     function current_blink_matching_check_function() result(fn)
         procedure(blink_matching_check_proc), pointer :: fn
         integer :: i
@@ -3056,7 +3056,7 @@ contains
         end if
     end subroutine execute_extended_command
 
-    !> Whether the echo area shows nothing (current-message is nil).
+    !> Whether the echo area shows nothing (`current_message' is empty).
     !> Not a port.
     logical function echo_area_empty()
         echo_area_empty = .true.
@@ -3544,8 +3544,8 @@ contains
 
     !> Return true if the region is active and it is appropriate to act on it:
     !> Transient Mark mode is enabled, the mark is active and the region is
-    !> not empty.  Port of simple.el:use-region-p (use-empty-active-region
-    !> nil).
+    !> not empty.  Port of simple.el:use-region-p (`use_empty_active_region'
+    !> .false.).
     logical function use_region_p()
         integer(int64) :: m
 
@@ -3735,8 +3735,8 @@ contains
     !> mark from position popped off the local mark ring.
     !>
     !> With C-u C-u as prefix argument, unconditionally set mark where point
-    !> is.  Port of simple.el:set-mark-command (set-mark-command-repeat-pop
-    !> nil, no global mark ring).
+    !> is.  Port of simple.el:set-mark-command (`set_mark_command_repeat_pop'
+    !> .false., no global mark ring).
     subroutine set_mark_command(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -4006,8 +4006,8 @@ contains
     !> you can use the killing commands to copy text from a read-only buffer.
     !>
     !> With REGION true, kill the region instead of BEG to END (the
-    !> command always does).  Port of simple.el:kill-region (kill-region-dwim
-    !> nil); READ_ONLY_OK stands for a binding of kill-read-only-ok.
+    !> command always does).  Port of simple.el:kill-region (`kill_region_dwim'
+    !> unset); READ_ONLY_OK stands for `kill_read_only_ok', saved and restored around the call.
     subroutine kill_region(beg, end, status, region, read_only_ok)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
@@ -5610,7 +5610,7 @@ contains
     !> The position after the end of the text `w' (showing the current
     !> buffer) displays from its start: the start of the first line below
     !> its last screen line.  Port of window.c:Fwindow_end with UPDATE
-    !> non-nil (line-based, as on a text terminal).
+    !> .true. (line-based, as on a text terminal).
     integer(int64) function window_end_updated(w) result(pos)
         type(window_type), intent(in) :: w
         integer(int64) :: opoint, moved

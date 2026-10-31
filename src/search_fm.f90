@@ -35,7 +35,7 @@
 !> the matching.
 !>
 !> Positions in strings are 1-based character indices, as Fortran's
-!> `index' (Emacs counts from 0), so that 0 can stand for nil.
+!> `index' (Emacs counts from 0), so that 0 can stand for none.
 !>
 !> A search while a process filter or sentinel runs saves the match data
 !> first (`running_asynch_code', `save_search_regs'), which the process
@@ -77,9 +77,9 @@ module search_fm
     !> buffer.c case-fold-search (buffer-local when set).
     type(logical_setting), public :: case_fold_search = logical_setting(name="case_fold_search", value=.true.)
 
-    !> Values of NOERROR for `search_forward' and `search_backward': nil
-    !> (signal `search_failed'), t (return nil), and anything else (move to
-    !> the limit of the search, return nil).
+    !> Values of NOERROR for `search_forward' and `search_backward':
+    !> SEARCH_SIGNAL (a `search_failed' error condition occurs), SEARCH_NOERROR (return 0), and SEARCH_MOVE (move to
+    !> the limit of the search, return 0).
     integer, parameter, public :: SEARCH_SIGNAL = 0, SEARCH_NOERROR = 1, SEARCH_MOVE = 2
 
     !> If allocated, the regexp that replaces spaces in a regexp being

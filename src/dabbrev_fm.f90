@@ -24,10 +24,10 @@
 !> earlier and expand them with M-/ (`dabbrev_expand'), which searches
 !> backward, then forward in the current buffer, then in other buffers.
 !>
-!> Settings whose upstream values are nil, t or a symbol are integers
-!> with the named constants DABBREV_OFF (nil), DABBREV_ON (t),
-!> DABBREV_LIKE_CASE_FOLD_SEARCH (`case-fold-search'),
-!> DABBREV_LIKE_CASE_REPLACE (`case-replace') and DABBREV_ASK (another
+!> Settings whose upstream values are .false., .true. or a name are integers
+!> with the named constants DABBREV_OFF, DABBREV_ON,
+!> DABBREV_LIKE_CASE_FOLD_SEARCH (like `case_fold_search'),
+!> DABBREV_LIKE_CASE_REPLACE (like `case_replace') and DABBREV_ASK (another
 !> value of `dabbrev_check_other_buffers').
 !>
 !> `dabbrev_completion' (C-M-/) completes through
@@ -76,8 +76,8 @@ module dabbrev_fm
     public :: dabbrev_expand, dabbrev_reset_global_variables, dabbrev_same_major_mode_p, dabbrev_select_buffers, &
               dabbrev_friend_buffer_proc, dabbrev_select_buffers_proc, syms_of_dabbrev
 
-    !> Values of the dabbrev settings that upstream are nil, t or a
-    !> symbol: off (nil), on (t), like `case_fold_search', like
+    !> Values of the dabbrev settings that upstream are .false., .true. or a
+    !> name: off, on, like `case_fold_search', like
     !> `case_replace', and ask (another value).
     integer, parameter, public :: DABBREV_OFF = 0, DABBREV_ON = 1, DABBREV_LIKE_CASE_FOLD_SEARCH = 2, &
                                   DABBREV_LIKE_CASE_REPLACE = 3, DABBREV_ASK = 4
@@ -420,7 +420,7 @@ contains
         location_pos = pos
     end subroutine set_location
 
-    !> Make the location of the last expansion nil.  Not a port.
+    !> Clear the location of the last expansion.  Not a port.
     subroutine clear_location()
         type(status_type) :: st
 
@@ -532,7 +532,7 @@ contains
     !> direction of search to backward if set true.
     !>
     !> See also `dabbrev_abbrev_char_regexp'.  Port of
-    !> dabbrev.el:dabbrev-expand (ARG absent is nil, else its numeric
+    !> dabbrev.el:dabbrev-expand (ARG absent for no prefix, else its numeric
     !> value).
     recursive subroutine dabbrev_expand(status, arg)
         type(status_type), intent(out) :: status
@@ -1625,7 +1625,7 @@ contains
     !>
     !> If the prefix argument is 16 (which comes from \[universal_argument] \[universal_argument]),
     !> then it searches *all* buffers.  Port of dabbrev.el:dabbrev-completion
-    !> (ARG absent is nil, else its numeric value).
+    !> (ARG absent for no prefix, else its numeric value).
     recursive subroutine dabbrev_completion(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -1664,7 +1664,7 @@ contains
 
         ! Don't reset the vars if we're in the "same" completion,
         ! especially since they may have been set to different values,
-        ! e.g. if the user passes a non-nil ARG to `dabbrev_completion'.
+        ! e.g. if the user passes a prefix ARG to `dabbrev_completion'.
         same = .false.
 
         if (last_abbrev_location%index /= 0) then

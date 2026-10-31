@@ -56,8 +56,8 @@ module faces_fm
     public :: set_frame_display, faces_equal, face_weight_numeric, face_slant_numeric
     public :: init_faces
 
-    !> States of a face attribute: unspecified, nil, t (true), a color,
-    !> a property list, a list (of face names), a value (number).
+    !> States of a face attribute: unspecified, .false., .true., a color,
+    !> typed attributes, an array (of face names), a value (number).
     integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_NIL = 1, FACE_T = 2, FACE_COLOR = 3, &
                                   FACE_PLIST = 4, FACE_LIST = 5, FACE_VALUE = 6
 
@@ -74,7 +74,7 @@ module faces_fm
     !> Background modes of a frame (the `background_mode' frame parameter).
     integer, parameter, public :: FACE_BACKGROUND_LIGHT = 1, FACE_BACKGROUND_DARK = 2
 
-    !> An attribute that is unspecified, nil or t (`:inverse_video',
+    !> An attribute that is unspecified, .false. or .true. (`:inverse_video',
     !> `:extend').  Assign a logical to set it.
     type :: face_flag_type
         integer :: state = FACE_UNSPECIFIED
@@ -85,10 +85,10 @@ module faces_fm
         procedure :: unspecify => flag_unspecify
     end type face_flag_type
 
-    !> `:underline', `:overline' or `:strike_through': unspecified, nil, t,
+    !> `:underline', `:overline' or `:strike_through': unspecified, .false., .true.,
     !> a color, or (for underlines) a color and a style.  Assign a
-    !> logical (nil or t) or a color name, or for an underline a property
-    !> list made by `face_underline'.  `color' empty with `style' set
+    !> logical, a color name, or for an underline the value of
+    !> `face_underline(color=..., style=..., position=...)'.  `color' empty with `style' set
     !> means the foreground color (`:color foreground-color').
     type :: face_line_type
         integer :: state = FACE_UNSPECIFIED
@@ -102,8 +102,8 @@ module faces_fm
         procedure :: unspecify => line_unspecify
     end type face_line_type
 
-    !> `:box': unspecified, nil, or a box (a terminal draws none).  Assign
-    !> a logical, a color name, or a property list made by `face_box'.
+    !> `:box': unspecified, .false., or a box (a terminal draws none).  Assign
+    !> a logical, a color name, or the value of `face_box(...)'.
     type :: face_box_type
         integer :: state = FACE_UNSPECIFIED
         integer :: line_width = 1, line_height = 1
@@ -128,7 +128,7 @@ module faces_fm
         procedure :: unspecify => height_unspecify
     end type face_height_type
 
-    !> `:inherit': unspecified, nil, or the faces inherited from (their
+    !> `:inherit': unspecified, none, or the faces inherited from (their
     !> names, the first taking precedence).  Assign a name or an array of
     !> names.
     type :: face_inherit_type

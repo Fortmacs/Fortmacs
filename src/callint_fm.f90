@@ -247,7 +247,7 @@ contains
         call p%run(status)
     end subroutine funcall
 
-    !> The numeric value of raw prefix argument `raw': nil gives 1, `-'
+    !> The numeric value of raw prefix argument `raw': no prefix gives 1, `-'
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.
     integer(int64) function prefix_numeric_value(raw) result(n)
         type(value_type), intent(in) :: raw

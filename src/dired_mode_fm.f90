@@ -174,7 +174,7 @@ module dired_mode_fm
     !> dired-listing-switches.
     character(len=:), allocatable, public :: dired_listing_switches
 
-    !> Values of `dired_use_ls_dired' (upstream nil, t and `unspecified').
+    !> Values of `dired_use_ls_dired'.
     integer, parameter, public :: DIRED_USE_LS_DIRED_NIL = 0, DIRED_USE_LS_DIRED_T = 1, &
                                   DIRED_USE_LS_DIRED_UNSPECIFIED = 2
 
@@ -213,7 +213,7 @@ module dired_mode_fm
     !> dired.el dired-trivial-filenames.
     character(len=:), allocatable, public :: dired_trivial_filenames
 
-    !> Values of `dired_free_space' (upstream nil, `separate' and `first').
+    !> Values of `dired_free_space'.
     integer, parameter, public :: DIRED_FREE_SPACE_NIL = 0, DIRED_FREE_SPACE_SEPARATE = 1, &
                                   DIRED_FREE_SPACE_FIRST = 2
 
@@ -227,7 +227,7 @@ module dired_mode_fm
     !> `display' property, which redisplay does not show yet).
     integer, public :: dired_free_space = DIRED_FREE_SPACE_FIRST
 
-    !> Values of `dired_mark_region' (upstream nil, `file' and `line').
+    !> Values of `dired_mark_region'.
     integer, parameter, public :: DIRED_MARK_REGION_NIL = 0, DIRED_MARK_REGION_FILE = 1, DIRED_MARK_REGION_LINE = 2
 
     !> Defines what commands that mark files do with the active region.
@@ -252,8 +252,7 @@ module dired_mode_fm
     !> Port of dired.el dired-mark-region.
     integer, public :: dired_mark_region = DIRED_MARK_REGION_FILE
 
-    !> Values of `dired_movement_style' (upstream nil, `cycle', `bounded',
-    !> `cycle-files' and `bounded-files').
+    !> Values of `dired_movement_style'.
     integer, parameter, public :: DIRED_MOVEMENT_STYLE_NIL = 0, DIRED_MOVEMENT_STYLE_CYCLE = 1, &
                                   DIRED_MOVEMENT_STYLE_BOUNDED = 2, DIRED_MOVEMENT_STYLE_CYCLE_FILES = 3, &
                                   DIRED_MOVEMENT_STYLE_BOUNDED_FILES = 4
@@ -288,8 +287,7 @@ module dired_mode_fm
     !> connection.  Port of dired.el dired-check-symlinks.
     logical, public :: dired_check_symlinks = .true.
 
-    !> Values of `dired_recursive_deletes' (upstream nil, `always', `top'
-    !> and t).
+    !> Values of `dired_recursive_deletes'.
     integer, parameter, public :: DIRED_RECURSIVE_NEVER = 0, DIRED_RECURSIVE_ALWAYS = 1, DIRED_RECURSIVE_TOP = 2, &
                                   DIRED_RECURSIVE_ASK = 3
 
@@ -327,7 +325,7 @@ module dired_mode_fm
     type(dired_no_confirm_type), public :: dired_no_confirm
 
     !> Values of `dired_switches_in_mode_line' other than a number of
-    !> characters (upstream nil and `as-is').
+    !> characters.
     integer, parameter, public :: DIRED_SWITCHES_SORT_ORDER = -1, DIRED_SWITCHES_AS_IS = -2
 
     !> How to indicate `dired_actual_switches' in mode-line.
@@ -442,9 +440,7 @@ module dired_mode_fm
     !> dired.el dired-recursive-copies.
     integer, public :: dired_recursive_copies = DIRED_RECURSIVE_TOP
 
-    !> Values of `dired_dwim_target' (upstream nil, t or
-    !> dired-dwim-target-next, dired-dwim-target-next-visible and
-    !> dired-dwim-target-recent).
+    !> Values of `dired_dwim_target'.
     integer, parameter, public :: DIRED_DWIM_TARGET_NIL = 0, DIRED_DWIM_TARGET_NEXT = 1, &
                                   DIRED_DWIM_TARGET_NEXT_VISIBLE = 2, DIRED_DWIM_TARGET_RECENT = 3
 
@@ -463,8 +459,7 @@ module dired_mode_fm
     !> deferred).
     integer, public :: dired_dwim_target = DIRED_DWIM_TARGET_NIL
 
-    !> Values of `dired_create_destination_dirs' (upstream nil, `always'
-    !> and `ask').
+    !> Values of `dired_create_destination_dirs'.
     integer, parameter, public :: DIRED_CREATE_DESTINATION_DIRS_NIL = 0, DIRED_CREATE_DESTINATION_DIRS_ALWAYS = 1, &
                                   DIRED_CREATE_DESTINATION_DIRS_ASK = 2
 
@@ -526,7 +521,7 @@ module dired_mode_fm
     character(len=:), allocatable, public :: dired_compress_directory_default_suffix
 
     !> A rule of `dired_compress_file_suffixes': (REGEXP NEW-SUFFIX
-    !> PROGRAM), PROGRAM empty for nil.
+    !> PROGRAM), PROGRAM empty for none.
     type, public :: dired_compress_suffix_type
         character(len=:), allocatable :: regexp, new_suffix, program
     end type dired_compress_suffix_type
@@ -592,7 +587,7 @@ module dired_mode_fm
         end subroutine dired_file_creator_proc
 
         !> A NAME-CONSTRUCTOR of `dired_create_files': the new file name TO
-        !> for FROM, or SKIP true to skip it (upstream nil).  Not a port.
+        !> for FROM, or SKIP .true. to skip it.  Not a port.
         recursive subroutine dired_name_constructor_proc(from, to, skip, status)
             import :: status_type
             implicit none(type, external)
@@ -746,8 +741,7 @@ module dired_mode_fm
                                    "\`\(\(\`\| +\)\(--[^ ]+\|-[^- t"//dired_ls_sorting_switches// &
                                    "]+\|""[^""]*""\)\)* *$"
 
-    !> Values of the LOCALP argument of `dired_get_filename' (upstream nil,
-    !> t, `no-dir' and `verbatim').
+    !> Values of the LOCALP argument of `dired_get_filename'.
     integer, parameter, public :: DIRED_LOCALP_NIL = 0, DIRED_LOCALP_T = 1, DIRED_LOCALP_NO_DIR = 2, &
                                   DIRED_LOCALP_VERBATIM = 3
 
@@ -1169,7 +1163,7 @@ module dired_mode_fm
         !> FN_LIST is the list of files to copy (full absolute file names).
         !>
         !> NAME_CONSTRUCTOR is given the name of an old file and returns
-        !> either the corresponding new file name or nil (SKIP) to skip.
+        !> either the corresponding new file name or SKIP .true. to skip.
         !>
         !> Mark each newly-created file's Dired entry with the character
         !> MARKER_CHAR, or with the file's own mark if MARKER_CHAR is
@@ -2433,7 +2427,7 @@ contains
         call search_forward(base, found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
-            ! The call chain of `dired_remove_entry' requires a non-nil
+            ! The call chain of `dired_remove_entry' requires an allocated
             ! `dired_subdir_table', so we set it.
             k = local_index(.true.)
             had_table = allocated(locals(k)%subdir_table)
@@ -3417,7 +3411,7 @@ contains
 
     !> Like `dired' but return the Dired buffer as value, do not select it.
     !> Port of dired.el:dired-noselect (DIR-OR-LIST a string;
-    !> `find_file_visit_truename' nil).
+    !> `find_file_visit_truename' .false.).
     recursive subroutine dired_noselect(dir_or_list, buffer, status, switches)
         character(len=*), intent(in) :: dir_or_list
         type(handle_type), intent(out) :: buffer
@@ -4473,7 +4467,7 @@ contains
 
     !> Find FILE (with `find_file_run_dired' bound to true).  Port of
     !> dired.el:dired--find-possibly-alternative-file with dired--find-file
-    !> (`dired_kill_when_opening_new_dired_buffer' nil).
+    !> (`dired_kill_when_opening_new_dired_buffer' .false.).
     recursive subroutine dired_find_possibly_alternative_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
@@ -4650,7 +4644,7 @@ contains
     !> does.  FOUND tells whether marked lines were found (or, for an
     !> integer or other ARG, true); BODY_RUNS counts the calls.  UPWARD
     !> means the calls went upwards (a negative integer ARG).  Port of
-    !> dired.el:dired-map-over-marks (SHOW-PROGRESS nil).
+    !> dired.el:dired-map-over-marks (SHOW-PROGRESS .false.).
     recursive subroutine dired_map_over_marks(body, arg_kind, arg_n, status, found, upward)
         interface
             recursive subroutine body(status)
@@ -4682,7 +4676,7 @@ contains
             upward = arg_n < 0
             found = .true.
         else if (arg_kind == DIRED_ARG_OTHER) then
-            ! non-nil, non-integer, non-marked ARG means use current file:
+            ! a non-numeric prefix ARG, not marked, means use current file:
             call body(status)
             found = .true.
         else
@@ -4758,7 +4752,7 @@ contains
         call move_alloc(grown, map_markers)
     end subroutine collect_filename_and_marker
 
-    !> Append FILE (FOUND false for nil) to the `map_files' results.
+    !> Append FILE (FOUND .false. for none) to the `map_files' results.
     !> Not a port.
     subroutine push_result(file, found)
         character(len=*), intent(in) :: file

@@ -446,7 +446,7 @@ contains
     end subroutine cmd_default_indent_new_line
 
     !> auto-fill-mode's :variable setter: set `auto_fill_function'
-    !> (buffer-locally) to `normal_auto_fill_function' or nil.
+    !> (buffer-locally) to `normal_auto_fill_function' or null.
     !> Port of simple.el:auto-fill-mode, in part (its :variable setter).
     subroutine auto_fill_body(enable, status)
         logical, intent(in) :: enable

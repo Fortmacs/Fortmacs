@@ -32,7 +32,7 @@
 !> depends on window_fm, so they live in a submodule.
 !>
 !> Deferred: window parameters, side and atomic windows, dedicated
-!> windows, `window_combination_resize', `split_window_keep_point' nil,
+!> windows, `window_combination_resize', `split_window_keep_point' .false.,
 !> `delete_window_choose_selected' other than `mru', other frames, the
 !> window commands while the minibuffer is selected, buffer menus
 !> (C-x C-b), `switch_to_buffer_preserve_window_point',
@@ -563,7 +563,7 @@ contains
             end if
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
-            ! non-nil one meaning `inhibit_same_window'.
+            ! one that is .true. meaning `inhibit_same_window'.
             call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else if (windows(sw%index)%dedicated == DEDICATED_STRONG) then
@@ -573,7 +573,7 @@ contains
             end if
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
-            ! non-nil one meaning `inhibit_same_window'.
+            ! one that is .true. meaning `inhibit_same_window'.
             call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else

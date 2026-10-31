@@ -84,7 +84,7 @@ module abbrev_fm
 
     abstract interface
         !> An abbrev's hook, called after its expansion is inserted;
-        !> VALUE is its value (true for non-nil), which matters for an
+        !> VALUE is its value (.true. or .false.), which matters for an
         !> abbrev whose `no_self_insert' is true.  Not a port.
         subroutine abbrev_hook_proc(value, status)
             import :: status_type
@@ -106,7 +106,7 @@ module abbrev_fm
     type, public :: abbrev_type
         !> The abbrev, as defined (usually lower case).
         character(len=:), allocatable :: name
-        !> What it expands into; unallocated when it is not defined (nil).
+        !> What it expands into; unallocated when it is not defined.
         character(len=:), allocatable :: expansion
         !> Called after the expansion is inserted (the symbol's function);
         !> null for none.
@@ -171,7 +171,7 @@ module abbrev_fm
     end type abbrev_table_type
 
     !> An abbrev as expansion functions return it (upstream's abbrev
-    !> symbol): its table and name.  No table is nil.
+    !> symbol): its table and name.  No table is the null handle.
     type, public :: abbrev_ref_type
         type(abbrev_table_type), pointer :: table => null()
         character(len=:), allocatable :: name

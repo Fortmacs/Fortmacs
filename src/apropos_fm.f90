@@ -117,7 +117,7 @@ module apropos_fm
                                                                                                                  "region selection"]
 
     !> An entry of the apropos accumulator: SYMBOL SCORE FN-DOC VAR-DOC
-    !> (the docs unallocated for nil).
+    !> (the docs unallocated when there are none).
     type :: apropos_item_type
         character(len=:), allocatable :: name
         integer(int64) :: score = 0

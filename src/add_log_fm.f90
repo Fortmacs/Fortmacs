@@ -88,7 +88,7 @@ module add_log_fm
     end interface
 
     !> Name of a change log file for \[add_change_log_entry].  Port of
-    !> add-log.el change-log-default-name (unallocated for nil; becomes
+    !> add-log.el change-log-default-name (unallocated when unset; becomes
     !> buffer-local when `find_change_log' sets it).
     type(string_setting), public :: change_log_default_name = string_setting(name="change_log_default_name")
 

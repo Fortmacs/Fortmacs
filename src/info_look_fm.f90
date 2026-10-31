@@ -597,8 +597,8 @@ contains
     ! Looking up
     ! ------------------------------------------------------------------
 
-    !> The current buffer's help mode (unallocated for nil): help is
-    !> provided according to the buffer's major mode if it is nil.  Port of
+    !> The current buffer's help mode (unallocated when unset): help is
+    !> provided according to the buffer's major mode if it is unallocated.  Port of
     !> info-look.el info-lookup-mode (buffer-local).
     function info_lookup_mode() result(mode)
         character(len=:), allocatable :: mode

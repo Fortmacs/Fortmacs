@@ -150,8 +150,8 @@ module syntax_fm
     !> One more than the largest syntax class (syntax.h Smax).
     integer, parameter, public :: SMAX = 16
 
-    !> COMMENTSTOP of `parse_partial_expression': nil, non-nil (stop after the
-    !> start of a comment) and the symbol `syntax-table' (stop after the
+    !> COMMENTSTOP of `parse_partial_expression': COMMENTSTOP_NIL, COMMENTSTOP_COMMENT (stop after the
+    !> start of a comment) and COMMENTSTOP_SYNTAX_TABLE (stop after the
     !> start or end of a comment or a string).
     integer, parameter, public :: COMMENTSTOP_NIL = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
 
@@ -159,30 +159,30 @@ module syntax_fm
     !> returns.  Its components are the list's elements:
     !>  0. `depth': depth in parens.
     !>  1. `innermost_start': character address of start of innermost
-    !>     containing group; 0 if none (nil).
+    !>     containing group; 0 if none.
     !>  2. `last_expression_start': character address of start of last complete
-    !>     expression terminated; 0 if none (nil).
-    !>  3. `instring': -1 (nil) if not inside a string; else the character
-    !>     that will terminate the string, or ST_STRING_STYLE (t) if the
+    !>     expression terminated; 0 if none.
+    !>  3. `instring': -1 if not inside a string; else the character
+    !>     that will terminate the string, or ST_STRING_STYLE if the
     !>     string should be terminated by a generic string delimiter.
-    !>  4. `incomment': 0 (nil) outside a comment, -1 (t) inside a
+    !>  4. `incomment': 0 outside a comment, -1 inside a
     !>     non-nestable comment, else the current comment nesting.
     !>  5. `quoted': true if following a quote character.
     !>  6. `mindepth': the minimum paren-depth encountered during this scan.
-    !>  7. `comment_style': style of comment, if any: 0 (nil, style a), 1
-    !>     (b), 2 (c), 3 (b and c) or ST_COMMENT_STYLE (the symbol
-    !>     `syntax-table': a generic comment fence).
+    !>  7. `comment_style': style of comment, if any: 0 (style a), 1
+    !>     (b), 2 (c), 3 (b and c) or ST_COMMENT_STYLE (a generic
+    !>     comment fence).
     !>  8. `comstr_start': character address of start of comment or string;
-    !>     0 (nil) if not in one.
+    !>     0 if not in one.
     !>  9. `open_parens': positions of currently open parens, outermost
     !>     first.
     !> 10. `prev_syntax': when the last position scanned holds the first
     !>     character of a (potential) two character construct, the syntax
-    !>     of that position (class and flags), otherwise -1 (nil).  That
+    !>     of that position (class and flags), otherwise -1.  That
     !>     construct can be a two character comment delimiter or an
     !>     Escaped or Char-quoted character.
-    !> The default value is the state at the start of a subprogram (an OLDSTATE
-    !> of nil).
+    !> The default value is the state at the start of a subprogram (an absent
+    !> OLDSTATE).
     type :: parse_state_type
         integer(int64) :: depth = 0
         integer(int64) :: innermost_start = 0
@@ -215,8 +215,8 @@ module syntax_fm
     !> on syntax can tell they are stale (search.c:clear_regexp_cache).
     integer(int64), public, protected :: syntax_modiff = 0
 
-    !> A raw syntax descriptor, (CODE . MATCHING-CHAR) upstream.  `code'
-    !> -1 is nil: inherit from the parent table.  `match' -1 is nil.
+    !> A raw syntax descriptor, CODE and MATCHING-CHAR.  `code'
+    !> -1 is none: inherit from the parent table.  `match' -1 is none.
     type :: syntax_descriptor_type
         integer(int32) :: code = -1
         integer(int32) :: match = -1
@@ -678,7 +678,7 @@ contains
         same = a%code == b%code .and. a%match == b%match
     end function same
 
-    !> The entry of character `c' in table slot `t' itself (nil, code -1,
+    !> The entry of character `c' in table slot `t' itself (code -1
     !> if it has none).  Not a port.
     function own_entry(t, c) result(d)
         integer(int64), intent(in) :: t
@@ -922,7 +922,7 @@ contains
 
     !> Insert a description of the internal syntax description SYNTAX at point.
     !> Port of syntax.c:Finternal_describe_syntax_value, returning the
-    !> text it inserts (a descriptor with `code' -1, nil, is "default").
+    !> text it inserts (a descriptor with `code' -1 is "default").
     function internal_describe_syntax_value(syntax) result(text)
         type(syntax_descriptor_type), intent(in) :: syntax
         character(len=:), allocatable :: text
@@ -1036,8 +1036,8 @@ contains
         s = tmp(1:n)
     end function char_utf8
 
-    !> Return the matching parenthesis of CHARACTER, or nil if none.
-    !> (-1 is nil.)  Port of syntax.c:Fmatching_paren (with
+    !> Return the matching parenthesis of CHARACTER, or -1 if none.
+    !> Port of syntax.c:Fmatching_paren (with
     !> syntax.c:SYNTAX_MATCH, the descriptor's `match').
     integer function matching_paren(c)
         integer, intent(in) :: c
@@ -1051,7 +1051,7 @@ contains
     !> Convert a syntax descriptor STRING into a raw syntax descriptor.
     !> STRING should be a string of the form allowed as argument of
     !> `modify_syntax_entry'.  The return value is a raw syntax descriptor:
-    !> (CODE . MATCHING-CHAR); "@" (inherit) gives nil, code -1.  Port of
+    !> CODE and MATCHING-CHAR; "@" (inherit) gives code -1.  Port of
     !> syntax.c:Fstring_to_syntax.
     subroutine string_to_syntax(string, d, status)
         character(len=*), intent(in) :: string
@@ -1182,8 +1182,8 @@ contains
 
     !> Whether there is a word boundary between the word-constituent
     !> characters `c1' and `c2'.  Port of category.c:word_boundary_p, with
-    !> characters.el's `word_combining_categories' ((nil . ^) (^ . nil)
-    !> (C . H) (C . K)) and `word_separating_categories' ((H . K)).
+    !> characters.el's `word_combining_categories' (blank and ^, ^ and blank,
+    !> C and H, C and K) and `word_separating_categories' (H and K).
     logical function word_boundary_p(c1, c2)
         integer, intent(in) :: c1, c2
 
@@ -1196,8 +1196,8 @@ contains
 
     contains
 
-        !> Whether (CAT1 . CAT2) matches: c1 has CAT1 but not CAT2, and c2
-        !> has CAT2 but not CAT1; a blank category is nil, which matches.
+        !> Whether the pair CAT1, CAT2 matches: c1 has CAT1 but not CAT2, and c2
+        !> has CAT2 but not CAT1; a blank category matches.
         logical function between(a, b, cat1, cat2)
             integer, intent(in) :: a, b
             character, intent(in) :: cat1, cat2

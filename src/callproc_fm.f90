@@ -30,7 +30,7 @@
 !>
 !> Standard error can go to a file of its own (DESTINATION's
 !> (REAL-DESTINATION ERROR-FILE) form, as `error_file').  Not ported yet:
-!> DESTINATION 0 (not waiting), `(:file FILE)', an ERROR-FILE of nil
+!> DESTINATION 0 (not waiting), `(:file FILE)', an absent ERROR-FILE
 !> (discarding standard error), DISPLAY,
 !> quitting (killing the process on C-g), coding systems (output is
 !> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
@@ -96,7 +96,7 @@ contains
     !> output.)
     !> If DESTINATION is a buffer or the name of a buffer, or t (which
     !> stands for the current buffer), it means insert output in that buffer
-    !> before point.  If DESTINATION is nil (or absent), it means discard
+    !> before point.  If DESTINATION is absent, it means discard
     !> output.
     !>
     !> ARGS, a list of strings, are passed as command arguments to PROGRAM.
@@ -404,7 +404,7 @@ contains
     !> Delete the text if DELETE is true.
     !>
     !> Insert output in DESTINATION before point; t means current buffer;
-    !> nil (or absent) means discard it.  DESTINATION can be a string which
+    !> absent means discard it.  DESTINATION can be a string which
     !> is the name of a buffer.
     !> ARGS, a list of strings, are passed to PROGRAM at startup as
     !> command-line arguments.

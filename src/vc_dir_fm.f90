@@ -247,7 +247,7 @@ contains
         if (k > 0) locals(k) = local_type()
     end subroutine kill_vc_dir_locals
 
-    !> The current buffer's `vc_ewoc' (HAS false for nil).  Not a port.
+    !> The current buffer's `vc_ewoc' (HAS .false. for none).  Not a port.
     subroutine vc_dir_ewoc(ewoc, has)
         type(ewoc_type), intent(out) :: ewoc
         logical, intent(out) :: has
@@ -271,7 +271,7 @@ contains
     end function ew
 
     !> The current buffer's `vc_dir_backend': the backend used by the
-    !> current *vc-dir* buffer (0 for nil).  Not a port.
+    !> current *vc-dir* buffer (0 for none).  Not a port.
     integer function vc_dir_backend()
         integer :: k
 
@@ -2291,7 +2291,7 @@ contains
     !> Hide items that are in STATE from display.
     !> See `vc_state' for valid values of STATE.
     !>
-    !> If STATE is absent (nil), hide both `up-to-date' and `ignored' items.
+    !> If STATE is absent, hide both `up-to-date' and `ignored' items.
     !>
     !> Interactively, if `current_prefix_arg' is true, set STATE to
     !> state of item at point, if any.  Port of vc-dir.el:vc-dir-hide-state.

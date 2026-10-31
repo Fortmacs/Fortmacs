@@ -217,7 +217,7 @@ contains
 
     !> A new empty file for error output: "scor" with a unique suffix in
     !> `temporary_file_directory'.  Port of the make-temp-file call of
-    !> simple.el:shell-command (small-temporary-file-directory is nil).
+    !> simple.el:shell-command (`small_temporary_file_directory' unset).
     subroutine make_error_file(file, status)
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status

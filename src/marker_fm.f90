@@ -377,7 +377,7 @@ contains
     end subroutine marker_buffer
 
     !> Character position of `m'; an error if it points nowhere.
-    !> Port of marker.c:marker_position and marker.c:Fmarker_position (which returns nil
+    !> Port of marker.c:marker_position and marker.c:Fmarker_position (which returns no position
     !> where this fails).
     subroutine marker_position(m, pos, status)
         type(handle_type), intent(in) :: m

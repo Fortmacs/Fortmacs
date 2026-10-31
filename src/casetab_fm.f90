@@ -205,7 +205,7 @@ contains
     ! Case tables
     ! ------------------------------------------------------------------
 
-    !> Whether H is the null handle (nil in an extra slot).  Not a port.
+    !> Whether H is the null handle (no table in an extra slot).  Not a port.
     pure logical function null_p(h)
         type(handle_type), intent(in) :: h
 

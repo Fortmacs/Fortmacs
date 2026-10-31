@@ -113,7 +113,7 @@ contains
     end function function_symbol_p
 
     !> Whether event `ev' has no modifiers but shift: its
-    !> `event_modifiers' are nil or (shift).  Not a port.
+    !> `event_modifiers' are none or only shift.  Not a port.
     logical function unmodified_event_p(ev)
         type(value_type), intent(in) :: ev
         type(value_type) :: head

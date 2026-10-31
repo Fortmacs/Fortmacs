@@ -33,7 +33,7 @@
 !>
 !> The buffer-local variables `info_current_file', `info_current_node'
 !> and `info_current_subfile' are read with the functions of those names
-!> (unallocated for nil); the variables `info_history' and
+!> (unallocated when unset); the variables `info_history' and
 !> `info_history_forward' (the stacks of nodes visited) are
 !> `info_history_variable' and `info_history_forward_variable', as the
 !> commands have their names.
@@ -618,7 +618,7 @@ module info_fm
     !> might want to use something like "[ \t\r\n]+" instead.  Don't add
     !> any capturing groups into this value; that can change the numbering
     !> of existing capture groups in unexpected ways.  (Unallocated for
-    !> nil.)  Port of info.el Info-search-whitespace-regexp.
+    !> none.)  Port of info.el Info-search-whitespace-regexp.
     character(len=:), allocatable, public :: info_search_whitespace_regexp
 
     !> If true, isearch in Info searches through multiple nodes.
@@ -828,7 +828,7 @@ contains
     end subroutine kill_info_locals
 
     !> The current buffer's `info_current_file': the Info file that Info
-    !> is now looking at (unallocated for nil).  This is the name that was
+    !> is now looking at (unallocated for none).  This is the name that was
     !> specified in Info, not the actual file name.  It doesn't contain
     !> directory names or file name extensions added by Info.  Port of
     !> info.el Info-current-file.
@@ -859,7 +859,7 @@ contains
     end function info_current_subfile
 
     !> The current buffer's `info_current_node': the name of the node that
-    !> Info is now looking at (unallocated for nil).  Port of info.el
+    !> Info is now looking at (unallocated for none).  Port of info.el
     !> Info-current-node.
     function info_current_node() result(node)
         character(len=:), allocatable :: node
@@ -968,7 +968,7 @@ contains
         end if
     end subroutine set_current_subfile
 
-    ! Whether Info-current-file is non-nil.  Not a port.
+    ! Whether Info-current-file is set.  Not a port.
     logical function has_current_file()
         integer :: k
 
@@ -977,7 +977,7 @@ contains
         if (k > 0) has_current_file = allocated(locals(k)%current_file)
     end function has_current_file
 
-    ! Whether Info-current-node is non-nil.  Not a port.
+    ! Whether Info-current-node is set.  Not a port.
     logical function has_current_node()
         integer :: k
 
@@ -2249,7 +2249,7 @@ contains
     !> STRICT_CASE is true).
     !>
     !> If NOERROR, inhibit error messages when we can't find the node.
-    !> FILENAME absent stands for nil, the current Info file.  Port of
+    !> FILENAME absent stands for the current Info file.  Port of
     !> info.el:Info-find-node.
     recursive subroutine info_find_node(filename, nodename, status, no_going_back, strict_case, noerror)
         character(len=*), intent(in), optional :: filename
@@ -2919,7 +2919,7 @@ contains
         end subroutine find_node_body
     end subroutine info_find_node_2
 
-    ! Whether marker M points somewhere ((marker-position M) non-nil).
+    ! Whether marker M points somewhere (M has a position).
     ! Not a port.
     logical function marker_points(m)
         type(handle_type), intent(in) :: m
@@ -4427,7 +4427,7 @@ contains
     ! ALLOWEDCHARS, if present, goes within [...] to make a regexp saying
     ! which chars may appear in the node name.
     ! Submatch 1 is the complete node name.
-    ! Submatch 2 if non-nil is the parenthesized file name part of the
+    ! Submatch 2, if it matched, is the parenthesized file name part of the
     ! node name.
     ! Submatch 3 is the local part of the node name.
     ! End of submatch 0, 1, and 3 are the same, so you can safely concat.

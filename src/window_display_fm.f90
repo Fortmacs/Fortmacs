@@ -37,10 +37,10 @@
 !> and tabs (`pop_up_frames', `display_buffer_pop_up_frame'), side and
 !> atomic windows, `window_size_fixed', frame buffer predicates,
 !> `switch_to_prev_buffer_skip' and `switch_to_prev_buffer_skip_regexp'
-!> other than nil, `quit_restore_window_no_switch',
+!> other than unset, `quit_restore_window_no_switch',
 !> `kill_buffer_quit_windows', `quit_window_hook' and
 !> `quit_window_kill_buffer', `temp_buffer_resize_mode', the
-!> `window_height' and `window_width' entries, nil for the split
+!> `window_height' and `window_width' entries, no value for the split
 !> thresholds, and windows resized by more than their next or previous
 !> sibling can give.
 submodule(window_fm) window_display_fm
@@ -486,8 +486,8 @@ contains
     end subroutine unrecord_window_buffer
 
     !> Set WINDOW's buffer to BUFFER.
-    !> Optional argument START non-nil means set WINDOW's start position
-    !> to START.  Optional argument POINT non-nil means set WINDOW's
+    !> Optional argument START present means set WINDOW's start position
+    !> to START.  Optional argument POINT present means set WINDOW's
     !> point to POINT.  If WINDOW is selected this also sets BUFFER's
     !> `point' to POINT.  If WINDOW is selected and the buffer it showed
     !> before was current this also makes BUFFER the current buffer.
@@ -578,10 +578,10 @@ contains
     end function prev_entry
 
     !> In WINDOW switch to previous buffer.
-    !> Return the buffer switched to, nil if no suitable buffer could be
+    !> Return the buffer switched to, the null handle if no suitable buffer could be
     !> found.
     !>
-    !> Optional argument BURY-OR-KILL non-nil means the buffer currently
+    !> Optional argument BURY-OR-KILL not BK_NONE means the buffer currently
     !> shown in WINDOW is about to be buried or killed and consequently
     !> shall not be switched to in future invocations of this command.
     !>
@@ -589,7 +589,7 @@ contains
     !> move the buffer to the end of WINDOW's previous buffers list so a
     !> future invocation of `switch_to_prev_buffer' less likely switches
     !> to it.  Port of window.el:switch-to-prev-buffer
-    !> (`switch_to_prev_buffer_skip' nil).
+    !> (`switch_to_prev_buffer_skip' unset).
     module function switch_to_prev_buffer(window, bury_or_kill, status) result(new_buffer)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: bury_or_kill
@@ -749,9 +749,9 @@ contains
     end subroutine push_front
 
     !> In WINDOW switch to next buffer.
-    !> Return the buffer switched to, nil if no suitable buffer could be
+    !> Return the buffer switched to, the null handle if no suitable buffer could be
     !> found.  Port of window.el:switch-to-next-buffer
-    !> (`switch_to_prev_buffer_skip' nil).
+    !> (`switch_to_prev_buffer_skip' unset).
     module function switch_to_next_buffer(window, status) result(new_buffer)
         type(handle_type), intent(in) :: window
         type(status_type), intent(out) :: status
@@ -899,10 +899,10 @@ contains
     !> `quit_restore_prev' parameters either (1) delete WINDOW and its
     !> frame, (2) delete WINDOW but leave its frame alone, (3) restore the
     !> buffer previously shown in WINDOW, or (4) make WINDOW display some
-    !> other buffer.  In case (3) set any of these parameters to nil if it
+    !> other buffer.  In case (3) set any of these parameters to none if it
     !> has been used to restore the previously shown buffer.
     !>
-    !> BURY-OR-KILL tells how to proceed with the buffer of WINDOW: nil
+    !> BURY-OR-KILL tells how to proceed with the buffer of WINDOW: BK_NONE
     !> means to not handle the buffer in a particular way; `append' moves it
     !> to the end of WINDOW's previous buffers; `bury' removes it from them
     !> and moves it to the end of the buffer list; `kill' kills it;
@@ -1109,7 +1109,7 @@ contains
     !> previous and next buffers of all windows and remove any
     !> `quit_restore' or `quit_restore_prev' parameters mentioning it.
     !> Port of window.el:replace-buffer-in-windows
-    !> (`kill_buffer_quit_windows' nil).
+    !> (`kill_buffer_quit_windows' .false.).
     module subroutine replace_buffer_in_windows(buffer)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable :: list(:)
@@ -1240,7 +1240,7 @@ contains
     !> In selected window switch to ARGth previous buffer.
     !> Call `switch_to_prev_buffer' unless the selected window is the
     !> minibuffer window or is dedicated to its buffer.  Port of
-    !> window.el:previous-buffer (`switch_to_prev_buffer_skip' nil).
+    !> window.el:previous-buffer (`switch_to_prev_buffer_skip' unset).
     subroutine cmd_previous_buffer(status)
         type(status_type), intent(out) :: status
 
@@ -1435,7 +1435,7 @@ contains
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine run_body_function
 
-    !> (set-window-prev-buffers h nil) Not a port.
+    !> Clear the previous buffers of window H (`set_window_prev_buffers' to none).  Not a port.
     subroutine clear_prev_buffers(h)
         type(handle_type), intent(in) :: h
         integer :: k
@@ -1618,7 +1618,7 @@ contains
 
     !> Display BUFFER in an existing window: the least recently used one,
     !> or one already showing BUFFER, or the largest one.  Port of
-    !> window.el:display-buffer-use-some-window (`some_window' nil).
+    !> window.el:display-buffer-use-some-window (`some_window' unset).
     function display_buffer_use_some_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
         type(display_action_table_type), intent(in) :: table
@@ -2099,7 +2099,7 @@ contains
         windows(window%index)%hscroll = 0
     end subroutine temp_buffer_window_show
 
-    !> Return a window currently displaying BUFFER_OR_NAME, or nil if none:
+    !> Return a window currently displaying BUFFER_OR_NAME, or the null handle if none:
     !> the selected window if it does, else the first in the cyclic order
     !> from it.  Port of window.c:Fget_buffer_window.
     module function get_buffer_window(buffer) result(window)
@@ -2404,7 +2404,7 @@ contains
     !> taking the space from (or giving it to) its next sibling, else its
     !> previous one; each window keeps at least `window_min_height' lines
     !> (or `window_min_width' columns).  Port of window.el:window-resize
-    !> for a window with such a sibling (`window_combination_resize' nil).
+    !> for a window with such a sibling (`window_combination_resize' .false.).
     module subroutine window_resize(window, delta, horizontal, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: delta

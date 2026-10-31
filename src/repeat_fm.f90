@@ -300,7 +300,7 @@ contains
     end function prefix_numeric_value_of
 
     !> Like `message'.  Port of repeat.el:repeat-message (with
-    !> `repeat-message-function' nil).
+    !> `repeat_message_function' unset).
     recursive subroutine repeat_message(text)
         character(len=*), intent(in) :: text
 

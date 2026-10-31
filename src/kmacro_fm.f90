@@ -91,15 +91,15 @@ module kmacro_fm
               kmacro_end_or_call_macro_repeat, kmacro_end_and_call_macro, kmacro_view_macro, &
               kmacro_view_macro_repeat, kmacro_redisplay, kmacro_keyboard_quit, kmacro_call, kmacro, syms_of_kmacro
 
-    !> Values of `kmacro_call_repeat_key' other than a character: nil
-    !> (disabled) and t (the last key).
+    !> Values of `kmacro_call_repeat_key' other than a character:
+    !> KMACRO_CALL_REPEAT_DISABLED and KMACRO_CALL_REPEAT_LAST_KEY (the last key).
     integer, parameter, public :: KMACRO_CALL_REPEAT_DISABLED = -1, KMACRO_CALL_REPEAT_LAST_KEY = -2
 
     !> Values of `kmacro_reg_add_counter''s and `kmacro_quit_counter''s
     !> PRED: =, < and >.
     integer, parameter, public :: KMACRO_PRED_EQUAL = 0, KMACRO_PRED_LESS = 1, KMACRO_PRED_GREATER = 2
 
-    !> Values of `kmacro_call_macro''s NO_REPEAT: nil, t and `repeating'.
+    !> Values of `kmacro_call_macro''s NO_REPEAT: KMACRO_NO_REPEAT_NIL, KMACRO_NO_REPEAT_T and KMACRO_NO_REPEAT_REPEATING.
     integer, parameter, public :: KMACRO_NO_REPEAT_NIL = 0, KMACRO_NO_REPEAT_T = 1, KMACRO_NO_REPEAT_REPEATING = 2
 
     !> Keyboard macro: its KEYS, COUNTER and FORMAT (upstream's `kmacro'
@@ -569,7 +569,7 @@ contains
     end subroutine call_ring_element
 
     !> Return pseudo head element in macro ring (`found' false if
-    !> `last_kbd_macro' is nil).  Port of kmacro.el:kmacro-ring-head.
+    !> `last_kbd_macro' is unallocated).  Port of kmacro.el:kmacro-ring-head.
     subroutine kmacro_ring_head(head, found)
         type(kmacro_type), intent(out) :: head
         logical, intent(out) :: found
@@ -696,7 +696,7 @@ contains
         if (.not. kmacro_ring_empty_p()) call kmacro_pop_ring1(raw)
     end subroutine kmacro_pop_ring
 
-    !> Tell user and return true if `last_kbd_macro' is nil or `kmacro_ring' is empty.
+    !> Tell user and return true if `last_kbd_macro' is unallocated or `kmacro_ring' is empty.
     !> Check only `last_kbd_macro' if optional arg NONE is true.  Port of
     !> kmacro.el:kmacro-ring-empty-p.
     logical function kmacro_ring_empty_p(none)
@@ -764,7 +764,7 @@ contains
         end if
     end subroutine kmacro_display
 
-    !> `kmacro_display' of `last_kbd_macro' (nil if not allocated).
+    !> `kmacro_display' of `last_kbd_macro' (nothing if not allocated).
     !> Not a port.
     recursive subroutine display_last(status, trunc, descr, empty)
         type(status_type), intent(out) :: status
@@ -793,8 +793,8 @@ contains
         if (value_eq(cmd, sym("kmacro_view_macro_repeat"))) repeat_property = REPEAT_RING
     end function repeat_property
 
-    !> Call command CMD with a nil argument and `kmacro_repeat_no_prefix'
-    !> false ((funcall cmd nil) in a let).  Not a port.
+    !> Call command CMD with no prefix argument and `kmacro_repeat_no_prefix'
+    !> .false., both saved and restored around the call.  Not a port.
     recursive subroutine call_without_prefix(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status

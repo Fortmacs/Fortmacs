@@ -35,7 +35,7 @@
 !> asynchronous checkins, amending with \[vc_git_log_edit_toggle_amend]
 !> and the published-history checks it needs), `vc_git_find_file_hook'
 !> (Smerge mode for conflicts) and `vc_git_resolve_conflicts', the
-!> difftool path of `vc_git_diff' (`vc_git_diff_switches' nil), the
+!> difftool path of `vc_git_diff' (`vc_git_diff_switches' VC_SWITCHES_NIL), the
 !> coding systems of Git's output (UTF-8 is used), remote directories
 !> and the other `vc_git_' options of those features.
 module vc_git_fm
@@ -82,7 +82,7 @@ module vc_git_fm
               vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
 
     !> String or list of strings specifying switches for Git diff under VC.
-    !> If nil, use the value of `vc_diff_switches'.  If t, use no switches.
+    !> If VC_SWITCHES_NIL, use the value of `vc_diff_switches'.  If VC_SWITCHES_T, use no switches.
     !> Port of vc-git.el vc-git-diff-switches.
     type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_T)
 
@@ -181,7 +181,7 @@ module vc_git_fm
     !> many commit summaries will need to exceed this length.
     !>
     !> See also `vc_git_log_edit_summary_max_len'.  Port of vc-git.el
-    !> vc-git-log-edit-summary-target-len (negative for nil).
+    !> vc-git-log-edit-summary-target-len (negative for none).
     integer, public :: vc_git_log_edit_summary_target_len = -1
 
     !> Maximum length for Git commit summary lines.
@@ -243,7 +243,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push
 
-    !> Append nil to LIST (a flag passing nothing).  Not a port.
+    !> Append an unallocated entry to LIST (a flag passing nothing).  Not a port.
     subroutine push_nil(list)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         type(vc_string_type), allocatable :: grown(:)
@@ -1013,7 +1013,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Get a difference report using Git between two revisions of FILES.
-    !> Port of vc-git.el:vc-git-diff (`vc_git_diff_switches' not nil; the
+    !> Port of vc-git.el:vc-git-diff (`vc_git_diff_switches' not VC_SWITCHES_NIL; the
     !> difftool path is deferred).
     recursive subroutine vc_git_diff(files, buffer, async, status, rev1, rev2)
         type(vc_string_type), intent(in) :: files(:)
@@ -2109,10 +2109,10 @@ contains
         ! First stage is always update-index.
         !   After that, if no commits yet, ls-files-added.
         !   Otherwise (there are commits), diff-index then ls-files-missing.
-        !     After ls-files-missing, if FILES non-nil, ls-files-up-to-date.
+        !     After ls-files-missing, if FILES is not empty, ls-files-up-to-date.
         !     After ls-files-missing, if FILES     nil, ls-files-conflict.
         ! Then always ls-files-unknown.
-        ! Finally, if FILES non-nil, ls-files-ignored.
+        ! Finally, if FILES is not empty, ls-files-ignored.
         call goto_char(point_min())
 
         select case (dir_states(k)%stage)

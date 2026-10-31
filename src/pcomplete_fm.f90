@@ -99,7 +99,7 @@ module pcomplete_fm
         end subroutine pcomplete_function_proc
 
         !> The FORM of `pcomplete_here': the completion TABLE for the
-        !> final argument (FOUND false for nil).
+        !> final argument (FOUND .false. for none).
         recursive subroutine pcomplete_form_proc(table, found)
             import :: completion_table_type
             implicit none(type, external)
@@ -139,8 +139,8 @@ module pcomplete_fm
 
     !> Values of PARING for `pcomplete_here': the argument is pared
     !> against previous arguments normalized with `file_truename' or the
-    !> PARING_FUNCTION (nil upstream); it does not participate in paring
-    !> (t); all previous arguments seen are cleared (0).
+    !> PARING_FUNCTION (PCOMPLETE_PARING_DEFAULT); it does not participate in paring
+    !> (PCOMPLETE_PARING_NONE); all previous arguments seen are cleared (PCOMPLETE_PARING_CLEAR).
     integer, parameter, public :: PCOMPLETE_PARING_DEFAULT = 0, PCOMPLETE_PARING_NONE = 1, PCOMPLETE_PARING_CLEAR = 2
 
     !> Values of WHICH for `pcomplete_arg' and `pcomplete_begin': an
@@ -152,11 +152,11 @@ module pcomplete_fm
     integer, parameter :: THROWN_NONE = 0, THROWN_COMPLETIONS = 1, THROWN_PCOMPLETED = 2
 
     !> A regexp of filenames to be disregarded during file completion
-    !> (unallocated for nil).  Port of pcomplete.el pcomplete-file-ignore.
+    !> (unallocated when unset).  Port of pcomplete.el pcomplete-file-ignore.
     type(string_setting), target, public :: pcomplete_file_ignore = string_setting(name="pcomplete_file_ignore")
 
     !> A regexp of names to be disregarded during directory completion
-    !> (unallocated for nil).  Port of pcomplete.el pcomplete-dir-ignore.
+    !> (unallocated when unset).  Port of pcomplete.el pcomplete-dir-ignore.
     type(string_setting), target, public :: pcomplete_dir_ignore = string_setting(name="pcomplete_dir_ignore")
 
     !> Whether to ignore remote file names.  Port of pcomplete.el

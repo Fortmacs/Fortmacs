@@ -250,7 +250,7 @@ contains
         end do
     end function textget
 
-    !> True if `sym' is in list `set', or `set' is a non-nil non-list.
+    !> True if `sym' is in list `set', or `set' is a value that is not empty and not a list.
     !> Port of textprop.c:TMEM.
     logical function tmem(sym, set)
         type(value_type), intent(in) :: sym, set

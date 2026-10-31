@@ -156,7 +156,7 @@ module sh_script_fm
     integer, parameter, public :: SH_PLUS = -1000001, SH_MINUS = -1000002, SH_PLUS_PLUS = -1000003, &
                                   SH_MINUS_MINUS = -1000004, SH_STAR = -1000005, SH_SLASH = -1000006
 
-    !> Values of `sh_indent_after_continuation': nil, t and `always'.
+    !> Values of `sh_indent_after_continuation': SH_CONTINUATION_NIL, SH_CONTINUATION_T and SH_CONTINUATION_ALWAYS.
     integer, parameter, public :: SH_CONTINUATION_NIL = 0, SH_CONTINUATION_T = 1, SH_CONTINUATION_ALWAYS = 2
 
     !> A string of a list.
@@ -213,19 +213,19 @@ module sh_script_fm
     end type sh_keywords_feature_type
 
     !> One shell's entry of a feature table of strings: `value'
-    !> unallocated is nil.
+    !> unallocated for none.
     type, public :: sh_string_entry_type
         character(len=:), allocatable :: shell
         character(len=:), allocatable :: value
     end type sh_string_entry_type
 
-    !> A feature table whose values are strings or nil.
+    !> A feature table whose values are strings or none.
     type, public :: sh_string_feature_type
         type(sh_string_entry_type), allocatable :: entries(:)
     contains
-        !> Set SHELL's entry to VALUE (absent for nil).
+        !> Set SHELL's entry to VALUE (absent for none).
         procedure :: add => string_feature_add
-        !> The value for the current shell (unallocated for nil).
+        !> The value for the current shell (unallocated for none).
         procedure :: get => string_feature_get
     end type sh_string_feature_type
 
@@ -235,8 +235,8 @@ module sh_script_fm
         character(len=:), allocatable :: syntax
     end type sh_syntax_change_type
 
-    !> One shell's entry of `sh_mode_syntax_table_input': nil (no
-    !> `changes'), or (TABLE CHAR SYNTAX ...): a copy of `table' with
+    !> One shell's entry of `sh_mode_syntax_table_input': none (no
+    !> `changes'), or TABLE with CHAR SYNTAX pairs: a copy of `table' with
     !> `changes'.
     type, public :: sh_syntax_entry_type
         character(len=:), allocatable :: shell
@@ -1762,7 +1762,7 @@ contains
         if (state%incomment /= 0) call put_syntax(eol - 1, eol, ">")
         ! If the sh-escaped-line-re part of sh-here-doc-open-re has matched
         ! several lines, make sure we refontify them together.
-        ! Furthermore, if (nth 5 ppss) is non-nil (i.e. the \n is
+        ! Furthermore, if (nth 5 ppss) is set (i.e. the \n is
         ! escaped), it means the right \n is actually further down.
         ! Don't bother fixing it now, but place a multiline property so
         ! that when jit-lock-context-* refontifies the rest of the
@@ -2252,7 +2252,7 @@ contains
         if (allocated(tok)) is = tok == s .and. len(tok) == len(s)
     end function is
 
-    ! Non-nil if we're at a keyword position.
+    ! True if we're at a keyword position.
     ! A keyword position is one where if we're looking at something that looks
     ! like a keyword, then it is a keyword.  Port of
     ! sh-script.el:sh-smie--keyword-p.
@@ -2269,7 +2269,7 @@ contains
         end if
     end function sh_smie_keyword_p
 
-    ! Return non-nil if a newline should be treated as a semi-colon.
+    ! Return .true. if a newline should be treated as a semi-colon.
     ! Here we assume that a newline should be treated as a semi-colon unless it
     ! comes right after a special keyword.
     ! This function does not pay attention to line-continuations.
@@ -2305,7 +2305,7 @@ contains
         call goto_char(here)
     end function sh_smie_newline_semi_p
 
-    ! When looking at TOK (either "in" or "do"), non-nil if TOK is a keyword.
+    ! When looking at TOK (either "in" or "do"), .true. if TOK is a keyword.
     ! Does not preserve point.  Port of sh-script.el:sh-smie--sh-keyword-in/do-p.
     recursive logical function sh_smie_sh_keyword_in_do_p(tok) result(keyword)
         character(len=*), intent(in) :: tok
@@ -2354,7 +2354,7 @@ contains
         keyword = res == KEYWORD_RES
     end function sh_smie_sh_keyword_in_do_p
 
-    ! Non-nil if TOK (at which we're looking) really is a keyword.  Port of
+    ! True if TOK (at which we're looking) really is a keyword.  Port of
     ! sh-script.el:sh-smie--sh-keyword-p.
     recursive logical function sh_smie_sh_keyword_p(tok) result(p)
         character(len=*), intent(in) :: tok
@@ -2886,7 +2886,7 @@ contains
         if (is(tok, "if") .or. is(tok, "for") .or. is(tok, "switch") .or. is(tok, "while")) call move_alloc(tok, construct)
     end subroutine sh_smie_rc_after_special_arg_p
 
-    ! Return non-nil if a newline should be treated as a semi-colon.
+    ! Return .true. if a newline should be treated as a semi-colon.
     ! Point should be before the newline.  Port of
     ! sh-script.el:sh-smie--rc-newline-semi-p.
     recursive logical function sh_smie_rc_newline_semi_p() result(semi)
@@ -4301,7 +4301,7 @@ contains
     end subroutine sh_delete_backslash
 
     !> Find the name of function or variable at point.
-    !> For use in `add_log_current_subprogram_function' (unallocated for nil).
+    !> For use in `add_log_current_subprogram_function' (unallocated for none).
     !> Port of sh-script.el:sh-current-defun-name.
     function sh_current_subprogram_name() result(name)
         character(len=:), allocatable :: name

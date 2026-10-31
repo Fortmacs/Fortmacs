@@ -144,10 +144,10 @@ module vc_fm
 
     !> A string or list of strings specifying switches for diff under VC.
     !> When running diff under a given BACKEND, VC uses the first
-    !> non-nil value of `vc_BACKEND_diff_switches', `vc_diff_switches',
-    !> and `diff_switches', in that order.  Since nil means to check the
+    !> value that is not VC_SWITCHES_NIL of `vc_BACKEND_diff_switches', `vc_diff_switches',
+    !> and `diff_switches', in that order.  Since VC_SWITCHES_NIL means to check the
     !> next variable in the sequence, either of the first two may use
-    !> the value t to mean no switches at all.  `vc_diff_switches'
+    !> the value VC_SWITCHES_T to mean no switches at all.  `vc_diff_switches'
     !> should contain switches that are specific to version control, but
     !> not specific to any particular backend.  Port of vc.el
     !> vc-diff-switches.
@@ -155,10 +155,10 @@ module vc_fm
 
     !> A string or list of strings specifying switches for annotate under VC.
     !> When running annotate under a given BACKEND, VC uses the first
-    !> non-nil value of `vc_BACKEND_annotate_switches' and
-    !> `vc_annotate_switches', in that order.  Since nil means to check
+    !> value that is not VC_SWITCHES_NIL of `vc_BACKEND_annotate_switches' and
+    !> `vc_annotate_switches', in that order.  Since VC_SWITCHES_NIL means to check
     !> the next variable in the sequence, setting the first to the value
-    !> t means no switches at all.  `vc_annotate_switches' should
+    !> VC_SWITCHES_T means no switches at all.  `vc_annotate_switches' should
     !> contain switches that are specific to version control, but not
     !> specific to any particular backend.
     !>
@@ -197,7 +197,7 @@ module vc_fm
     !> See `run_hooks'.  Port of vc.el vc-before-checkin-hook.
     type(hook_type), target, public :: vc_before_checkin_hook = hook_type(name="vc_before_checkin_hook")
 
-    !> Values of `vc_revert_show_diff' (nil, t, `kill').
+    !> Values of `vc_revert_show_diff' (VC_REVERT_SHOW_DIFF_NIL, VC_REVERT_SHOW_DIFF_T, VC_REVERT_SHOW_DIFF_KILL).
     integer, parameter, public :: VC_REVERT_SHOW_DIFF_NIL = 0, VC_REVERT_SHOW_DIFF_T = 1, VC_REVERT_SHOW_DIFF_KILL = 2
 
     !> If true, `vc_revert' shows a `vc_diff' buffer before querying.
@@ -559,7 +559,7 @@ contains
     end subroutine kill_vc_locals
 
     !> Set the current buffer's `vc_buffer_overriding_fileset' to FS, or
-    !> clear it (nil) when FS is absent: as binding it does upstream.
+    !> clear it when FS is absent: upstream binds it, here it is saved and restored.
     !> Not a port.
     subroutine set_vc_buffer_overriding_fileset(fs)
         type(vc_fileset_type), intent(in), optional :: fs
@@ -639,7 +639,7 @@ contains
         if (window%index /= 0) call shrink_window_if_larger_than_buffer(window)
     end subroutine vc_shrink_buffer_window
 
-    !> The current buffer's `vc_buffer_revision' ("" for nil): the VCS
+    !> The current buffer's `vc_buffer_revision' ("" for none): the VCS
     !> revision to which this buffer's contents corresponds.  Port of vc.el
     !> vc-buffer-revision.
     function vc_buffer_revision() result(rev)
@@ -1644,7 +1644,7 @@ contains
         ! RCS 5.7 gripes about whitespace-only comments too.
         comment = comment_in
         if (verify(comment, " "//achar(9)//achar(10)) == 0) comment = "*** empty log message ***"
-        ! Must not pass non-nil NOT-ESSENTIAL because we will shortly
+        ! Must not pass NOT-ESSENTIAL .true. because we will shortly
         ! call (in `vc-finish-logentry') `vc-resynch-buffer' with its
         ! NOQUERY parameter t (unless `vc-async-checkin').
         fs%backend = b
@@ -2410,7 +2410,7 @@ contains
 
     !> Read the revisions to compare for `vc_version_diff' from the
     !> minibuffer: REV1 (default: the previous revision of a single file)
-    !> and REV2 (default: the current source), each "" for nil.  Port of
+    !> and REV2 (default: the current source), each "" for none.  Port of
     !> vc.el:vc-diff-build-argument-list-internal.
     recursive subroutine vc_diff_build_argument_list_internal(fs, rev1, rev2, status)
         type(vc_fileset_type), intent(in) :: fs
@@ -2474,7 +2474,7 @@ contains
         call diff_revs(vc_allow_async_diff, fs, rev1, rev2, opt(interactive), changes, status)
     end subroutine vc_version_diff
 
-    !> `vc_diff_internal' with REV1 and REV2 ("" for nil).  Not a port.
+    !> `vc_diff_internal' with REV1 and REV2 ("" for none).  Not a port.
     recursive subroutine diff_revs(async, fs, rev1, rev2, verbose, changes, status, buffer)
         logical, intent(in) :: async, verbose
         type(vc_fileset_type), intent(in) :: fs

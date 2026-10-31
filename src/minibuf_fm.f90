@@ -118,7 +118,7 @@ module minibuf_fm
     !>
     !> This variable also overrides the default character that
     !> `read_passwd' uses to hide passwords.  Port of minibuf.c
-    !> read-hide-char (-1 for nil).
+    !> read-hide-char (-1 for none).
     integer(int32), public :: read_hide_char = -1
 
     !> Normal hook run just after entry to minibuffer.  Port of minibuf.c
@@ -137,15 +137,15 @@ module minibuf_fm
     !> See Info node `(elisp)Basic Completion', for a description of these
     !> functions.
     !>
-    !> Do not set this variable to a non-nil value globally, as that is not
+    !> Do not set this variable to a value globally, as that is not
     !> safe and will probably cause errors in completion commands.  This
-    !> variable should be only let-bound to non-nil values around calls to
+    !> variable should only be set, then restored, around calls to
     !> basic completion functions like `try_completion' and `all_completions'.
-    !> Port of minibuf.c completion-regexp-list (unallocated for nil).
+    !> Port of minibuf.c completion-regexp-list (unallocated when unset).
     character(len=:), allocatable, public :: completion_regexp_list(:)
 
     !> minibuf.c:minibuf_prompt, the prompt of the active minibuffer
-    !> (unallocated for nil).
+    !> (unallocated for none).
     character(len=:), allocatable :: minibuf_prompt
 
     !> Vminibuffer_history_variable: the history list's symbol name.
@@ -158,13 +158,13 @@ module minibuf_fm
     end type minibuffer_string_type
 
     !> minibuffer-default: the default values, for M-n ("future
-    !> history"); unallocated (or empty) for nil.
+    !> history"); unallocated (or empty) for none.
     type(minibuffer_string_type), allocatable, public :: minibuffer_default(:)
     !> simple.el minibuffer-temporary-goal-position: where M-n and M-p
     !> leave point (0 for the end), kept while they repeat.
     integer(int64), public :: minibuffer_temporary_goal_position = 0
     !> simple.el minibuffer-text-before-history: the input before moving
-    !> into the history; unallocated for nil.
+    !> into the history; unallocated for none.
     character(len=:), allocatable, public :: minibuffer_text_before_history
 
     !> A string in an array.
@@ -708,9 +708,9 @@ contains
 
     !> Like `assoc' but specifically for strings (and symbols).
     !>
-    !> This returns the first element of LIST whose car matches the string or
-    !> symbol KEY, or nil if no match exists.  When performing the
-    !> comparison, symbols are first converted to strings, and unibyte
+    !> This returns the first element of LIST whose first element matches the string or
+    !> name KEY, or empty if no match exists.  When performing the
+    !> comparison, names are first converted to strings, and unibyte
     !> strings to multibyte.  If the optional arg CASE_FOLD is true, both
     !> KEY and the elements of LIST are upcased for comparison.
     !>
@@ -892,8 +892,8 @@ contains
     !> symbols.  Symbols are converted to strings before testing, by using
     !> `symbol_name'.
     !>
-    !> If no possible completions match, the function returns nil; if
-    !> there's just one exact match, it returns t; otherwise it returns
+    !> If no possible completions match, the function returns no completion (TRY_NONE); if
+    !> there's just one exact match, it returns TRY_EXACT; otherwise it returns
     !> the longest initial substring common to all possible completions
     !> that begin with STRING.
     !>
@@ -914,7 +914,7 @@ contains
     !> string or an entry (whose first element is a string) of COLLECTION,
     !> or a symbol from the obarray.
     !>
-    !> If `completion_ignore_case' is non-nil, possible completions are
+    !> If `completion_ignore_case' is .true., possible completions are
     !> matched while ignoring letter-case, but no guarantee is made about
     !> the letter-case of the return value, except that it comes either
     !> from the user's input or from one of the possible completions.
@@ -1104,7 +1104,7 @@ contains
         result = make_list(matches(1:n))
     end subroutine all_completions
 
-    !> Return non-nil if STRING is a valid completion.
+    !> Return .true. if STRING is a valid completion.
     !> For instance, if COLLECTION is a list of strings, STRING is a valid
     !> completion if it appears in the list and PREDICATE is satisfied.
     !>
@@ -1445,7 +1445,7 @@ contains
     !> If TABLE is a function, it will be called directly to perform
     !> completion, no matter what ACTION is.
     !>
-    !> If ACTION is COMPLETE_BOUNDARIES, return nil (the default
+    !> If ACTION is COMPLETE_BOUNDARIES, return nothing (the default
     !> boundaries) for other tables.  If ACTION is COMPLETE_TRY, this
     !> works like `try_completion'; if it is COMPLETE_ALL, like
     !> `all_completions'; and COMPLETE_TEST makes it work like

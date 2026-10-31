@@ -2884,8 +2884,8 @@ contains
         end select
     end function ibuffer_format_column
 
-    !> The face of the name of BUF, marked with MARK (upstream a symbol;
-    !> "" for nil).  Port of ibuffer.el:ibuffer-buffer-name-face.
+    !> The face of the name of BUF, marked with MARK (a mark character;
+    !> "" for none).  Port of ibuffer.el:ibuffer-buffer-name-face.
     recursive function ibuffer_buffer_name_face(buf, mark) result(face)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -3508,7 +3508,7 @@ contains
         cell%mouse_face = "highlight"
     end function column_mode
 
-    !> (format-mode-line mode-name nil nil BUFFER).  Not a port.
+    !> `format_mode_line' of `mode_name' in BUFFER.  Not a port.
     function mode_name_of(buffer) result(name)
         type(handle_type), intent(in) :: buffer
         character(len=:), allocatable :: name

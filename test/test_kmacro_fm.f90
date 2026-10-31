@@ -552,7 +552,7 @@ contains
         call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
                    "no macro")
         if (allocated(error)) return
-        ! Now try it while not recording, but first record a non-nil macro.
+        ! Now try it while not recording, but first record a macro.
         call define_macro(chars("macro"))
         call kmacro_end_and_call_macro(nil(), st)
         call check(error, text(), "macro")

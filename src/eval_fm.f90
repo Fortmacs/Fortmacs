@@ -158,7 +158,7 @@ module eval_fm
         end subroutine capf_function
 
         !> A function of an `until_success_hook_type' hook such as
-        !> `write_file_functions': DONE true (upstream's non-nil value)
+        !> `write_file_functions': DONE .true. (stop at the first function that succeeds)
         !> stops the hook.
         recursive subroutine until_success_function(done, status)
             import :: status_type
@@ -987,8 +987,8 @@ contains
         hook_local_p = local_index(self) > 0
     end function hook_local_p
 
-    !> Whether the hook's value in the current buffer is empty (upstream:
-    !> nil): no functions, and for a buffer's own value no `t' either.
+    !> Whether the hook's value in the current buffer is empty: no functions,
+    !> and for a buffer's own value no `t' (run the default functions) either.
     !> Not a port.
     logical function hook_empty(self)
         class(hook_base_type), intent(in) :: self
@@ -1006,7 +1006,7 @@ contains
     end function hook_empty
 
     !> Make the hook's value in the current buffer empty, as setting the
-    !> variable to nil does upstream: the buffer's own value if it has
+    !> variable to an empty value does upstream: the buffer's own value if it has
     !> one (which then runs nothing, not even the default functions),
     !> else the default value.  Depths are kept.  Not a port.
     subroutine hook_clear(self)

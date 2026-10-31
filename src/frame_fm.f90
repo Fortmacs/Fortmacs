@@ -30,7 +30,7 @@
 !> FRAME_LINE_HEIGHT are 1 on a terminal frame, the default font's width
 !> and height on a window-system frame (one with a redisplay interface,
 !> `rif', and a font driver).  Windows are sized in columns and lines
-!> (frame-resize-pixelwise and window-resize-pixelwise nil), so their
+!> (`frame_resize_pixelwise' and `window_resize_pixelwise' .false.), so their
 !> pixel edges are those times the frame's column width and line height.
 !> Window-system frames exist only in the tests (a fake device) until the
 !> GUI is ported.

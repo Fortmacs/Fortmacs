@@ -678,7 +678,7 @@ contains
     end subroutine timer_resume_idle
 
     !> Return the current length of Emacs idleness in seconds in SECS,
-    !> with IDLE_P false (upstream's nil) when Emacs is not idle.  Port of
+    !> with IDLE_P .false. when Emacs is not idle.  Port of
     !> keyboard.c:Fcurrent_idle_time.
     subroutine current_idle_time(idle_p, secs)
         logical, intent(out) :: idle_p

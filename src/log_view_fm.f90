@@ -92,7 +92,7 @@ module log_view_fm
 
     abstract interface
         !> `log_view_expanded_log_entry_function': return in TEXT the detailed
-        !> description of the Log View entry REVISION (FOUND false for nil).
+        !> description of the Log View entry REVISION (FOUND .false. for none).
         !> Not a port.
         recursive subroutine log_view_entry_proc(revision, text, found)
             implicit none(type, external)
@@ -262,7 +262,7 @@ contains
     end function log_view_per_file_logs
 
     !> The current buffer's `log_view_vc_fileset': the VC fileset
-    !> corresponding to the current log (HAS false for nil).  Not a port.
+    !> corresponding to the current log (HAS .false. for none).  Not a port.
     subroutine log_view_vc_fileset(fileset, has)
         type(vc_string_type), allocatable, intent(out) :: fileset(:)
         logical, intent(out) :: has
@@ -280,7 +280,7 @@ contains
     end subroutine log_view_vc_fileset
 
     !> The current buffer's `log_view_vc_backend': the VC backend that
-    !> created the current log (0 for nil).  Not a port.
+    !> created the current log (0 for none).  Not a port.
     integer function log_view_vc_backend() result(b)
         integer :: k
 
@@ -618,7 +618,7 @@ contains
     end function log_view_inside_comment_p
 
     !> Return the revision tag (a string) of the Log View entry at POS.
-    !> if POS is omitted, it defaults to point (HAS false for nil).
+    !> if POS is omitted, it defaults to point (HAS .false. for none).
     !> Port of log-view.el:log-view-current-tag.
     recursive subroutine log_view_current_tag(tag, has, pos)
         character(len=:), allocatable, intent(out) :: tag

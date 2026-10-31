@@ -21,7 +21,7 @@
 
 !> Editing primitives on the current buffer.
 !>
-!> Lisp functions that return nil for "no such position" take a `found'
+!> Upstream functions that return no position for "no such position" take a `found'
 !> (or similar) logical here.  Text comes back as byte strings in the
 !> buffer's representation.
 !>
@@ -231,8 +231,8 @@ contains
         m = buffers(cur)%mark
     end subroutine mark_marker
 
-    !> The position of the current buffer's mark, or 0 if it has none (nil
-    !> upstream): `(marker-position (mark-marker))'.  Not a port.
+    !> The position of the current buffer's mark, or 0 if it has none:
+    !> the position of `mark_marker'.  Not a port.
     integer(int64) function mark_position() result(pos)
         integer(int64) :: i
         type(status_type) :: st
@@ -1028,7 +1028,7 @@ contains
         v = sym("field")
     end function qfield
 
-    !> `prop' of the current buffer's character at `pos' (nil outside the
+    !> `prop' of the current buffer's character at `pos' (empty outside the
     !> accessible text); get_char_property without overlays.  Not a port.
     function char_property(pos, prop) result(v)
         integer(int64), intent(in) :: pos
@@ -1089,7 +1089,7 @@ contains
             if (.not. value_eq(field, after_field)) at_field_end = .true.
             if (.not. value_eq(field, before_field)) at_field_start = .true.
 
-            ! A nil field between non-nil ones is a field not meant for
+            ! A field without a value between ones with a value is a field not meant for
             ! editing (like a prompt), not a zero-length field.
             if (nilp(field) .and. at_field_start .and. at_field_end) then
                 at_field_end = .false.

@@ -629,7 +629,7 @@ contains
         call diff(bak, ori, status, switches)
     end subroutine diff_backup
 
-    !> Return the latest existing backup of file FN, or nil (FOUND false).
+    !> Return the latest existing backup of file FN, or FOUND .false. if there is none.
     !> Port of diff.el:diff-latest-backup-file (no file name handlers).
     subroutine diff_latest_backup_file(fn, backup, found)
         character(len=*), intent(in) :: fn

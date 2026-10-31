@@ -47,7 +47,7 @@ contains
     !> `string' with $FOO and ${FOO} replaced by environment variables and
     !> $$ by $.  References to unset variables are left unchanged with
     !> `keep_undefined', else replaced by "".  Port of
-    !> env.el:substitute-env-vars (WHEN-UNDEFINED nil or t).
+    !> env.el:substitute-env-vars (WHEN-UNDEFINED absent or .true.).
     function substitute_env_vars(string, keep_undefined) result(out)
         character(len=*), intent(in) :: string
         logical, intent(in) :: keep_undefined

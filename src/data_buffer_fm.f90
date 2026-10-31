@@ -303,7 +303,7 @@ contains
     end subroutine keep_exact
 
     !> Set integer setting S to V.  With INTEGERP (a DEFVAR_PER_BUFFER with
-    !> predicate `integerp'), a non-nil V must be an integer; otherwise any
+    !> predicate `integerp'), a V that is not empty must be an integer; otherwise any
     !> value is kept.  Not a port.
     subroutine set_integer(s, v, integerp, status)
         type(integer_setting), intent(inout) :: s
@@ -323,7 +323,7 @@ contains
     end subroutine set_integer
 
     !> Set logical setting S to V (any value; the Fortran value is whether
-    !> it is non-nil).  Not a port.
+    !> it is not empty).  Not a port.
     subroutine set_logical(s, v)
         type(logical_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -625,7 +625,7 @@ contains
     end subroutine set_indent_line
 
     !> The value of a require-final-newline setting N: nil, t, `visit',
-    !> `visit_save' or (for any other non-nil value) `ask'.  Not a port.
+    !> `visit_save' or (for any other value) `ask'.  Not a port.
     function final_newline_value(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v

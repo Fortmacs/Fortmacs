@@ -256,7 +256,7 @@ contains
         goal_column = -1
         call check(error, st%ok() .and. point() == line(9) + 3)
         if (allocated(error)) return
-        ! truncate-partial-width-windows is non-nil: the goal is a column
+        ! truncate-partial-width-windows is set: the goal is a column
         ! as move-to-column counts it (column 3 is in the middle of the
         ! wide character, so point goes after it), not a screen x.
         call set_window_start(win(), line(1), st)

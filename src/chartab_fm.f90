@@ -26,7 +26,7 @@
 !> purpose) and a few extra slots.  A char-table is a registry object
 !> referenced by handle (the parent is a handle too); its values are
 !> integers (characters, category set numbers, ...), with `NO_VALUE' for
-!> the nil of upstream: an element holding it takes the default value,
+!> no value: an element holding it takes the default value,
 !> or else the parent's.
 !>
 !> As upstream, the table is a trie of four levels of 64, 16, 32 and 128
@@ -56,7 +56,7 @@ module chartab_fm
               set_char_table_range, char_table_ref, char_table_set, char_table_set_range, char_table_ref_and_range, &
               map_char_table, optimize_char_table, copy_char_table, check_char_table, char_table_map_proc
 
-    !> The value of an element that holds nothing (nil upstream): looking
+    !> The value of an element that holds nothing: looking
     !> it up gives the default value, or else the parent's value.
     integer(int64), parameter, public :: NO_VALUE = -huge(1_int64)
 

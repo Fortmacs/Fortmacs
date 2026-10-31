@@ -1275,7 +1275,7 @@ contains
         call move_alloc(grown, crutches)
     end subroutine set_crutch
 
-    !> Remove OWNER's crutch from CRUTCHES (setting it to nil).  Not a port.
+    !> Remove OWNER's crutch from CRUTCHES (clearing it).  Not a port.
     subroutine clear_crutch(crutches, owner)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner

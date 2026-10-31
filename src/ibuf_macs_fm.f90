@@ -60,13 +60,13 @@ module ibuf_macs_fm
     integer, parameter, public :: IBUFFER_ALIGN_LEFT = 0, IBUFFER_ALIGN_CENTER = 1, IBUFFER_ALIGN_RIGHT = 2
 
     !> What an operation's body returns for a buffer: it chose not to
-    !> affect the buffer (nil), it did (t), or the buffer's line should be
-    !> removed from the list (`kill').
+    !> affect the buffer (IBUFFER_OP_NIL), it did (IBUFFER_OP_T), or the buffer's line should be
+    !> removed from the list (IBUFFER_OP_KILL).
     integer, parameter, public :: IBUFFER_OP_NIL = 0, IBUFFER_OP_T = 1, IBUFFER_OP_KILL = 2
 
-    !> The MODIFIER_P of an operation: it never modifies buffers (nil), it
-    !> always does (t), or compare the buffers' modification flags
-    !> (:maybe).
+    !> The MODIFIER_P of an operation: it never modifies buffers (IBUFFER_MODIFIER_NIL), it
+    !> always does (IBUFFER_MODIFIER_T), or compare the buffers' modification flags
+    !> (IBUFFER_MODIFIER_MAYBE).
     integer, parameter, public :: IBUFFER_MODIFIER_NIL = 0, IBUFFER_MODIFIER_T = 1, IBUFFER_MODIFIER_MAYBE = 2
 
     !> The longest name of a column, a sorting method or a mode, and of a

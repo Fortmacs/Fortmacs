@@ -21,7 +21,7 @@
 
 !> Text properties of the current buffer.
 !>
-!> Functions that return nil upstream take a `found' logical.  Changing
+!> Functions that return no value upstream take a `found' logical.  Changing
 !> properties counts as a modification (buffer modified, read-only text
 !> checked, change hooks run) as upstream.  `get_char_property' and the
 !> char-property-change functions look at overlays too.  Strings keep
@@ -180,8 +180,8 @@ contains
         end associate
     end subroutine ensure_intervals
 
-    !> nil stays nil; an even-length list is kept; an odd-length list is an
-    !> error; anything else X becomes (X nil).  Port of textprop.c:validate_plist.
+    !> No properties stay none; an even-length array of name and value pairs is kept; an odd-length one is an
+    !> error; anything else X becomes X with an empty value.  Port of textprop.c:validate_plist.
     subroutine validate_plist(props, plist, status)
         type(value_type), intent(in) :: props
         type(value_type), intent(out) :: plist
@@ -804,7 +804,7 @@ contains
     end subroutine give_limit
 
     !> Next position after `position' where any property changes, or
-    !> `limit' if none before it; `found' false means nil (no change and no
+    !> `limit' if none before it; `found' .false. means none (no change and no
     !> limit).  Port of textprop.c:Fnext_property_change (LIMIT t pending).
     subroutine next_property_change(position, result, found, status, limit)
         integer(int64), intent(in) :: position
@@ -948,7 +948,7 @@ contains
     end subroutine previous_change
 
     !> First position in `start'..`end' whose `prop' is eq to `value';
-    !> `found' false means nil.  Port of textprop.c:Ftext_property_any.
+    !> `found' .false. means none.  Port of textprop.c:Ftext_property_any.
     subroutine text_property_any(start, end, prop, value, result, found, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: prop, value
@@ -1074,8 +1074,8 @@ contains
 
     !> How PROPVAL, a value of the `invisible' property, makes text
     !> invisible in the current buffer: 0 not at all, 1 hidden, 2 hidden
-    !> and replaced by an ellipsis (`buffer_invisibility_spec' t: any
-    !> non-nil value hides text).  Port of xdisp.c:invisible_prop with
+    !> and replaced by an ellipsis (`buffer_invisibility_spec' .true.: any
+    !> value hides text).  Port of xdisp.c:invisible_prop with
     !> TEXT_PROP_MEANS_INVISIBLE.
     integer function text_prop_means_invisible(propval) result(invis)
         type(value_type), intent(in) :: propval
@@ -1218,8 +1218,8 @@ contains
 
     !> Like `get_char_property', but with extra info on where the value
     !> came from: OVERLAY is the overlay it came from, the null handle if
-    !> it is a text property (or nil).  Port of textprop.c:Fget_char_property_and_overlay
-    !> (OBJECT the current buffer; its (VALUE . OVERLAY) as VAL and OVERLAY) and
+    !> it is a text property (or none).  Port of textprop.c:Fget_char_property_and_overlay
+    !> (OBJECT the current buffer; its VALUE and OVERLAY as VAL and OVERLAY) and
     !> textprop.c:get_char_property_and_overlay for the current buffer.
     subroutine get_char_property_and_overlay(position, prop, val, overlay)
         integer(int64), intent(in) :: position
@@ -1616,7 +1616,7 @@ contains
     ! Properties of strings
     ! ------------------------------------------------------------------
 
-    !> Property list of the character at POSITION (0-based) of STRING; nil
+    !> Text properties of the character at POSITION (0-based) of STRING; none
     !> at its end or where it has none.  Port of textprop.c:Ftext_properties_at
     !> with a string OBJECT.
     function string_text_properties_at(position, string) result(plist)

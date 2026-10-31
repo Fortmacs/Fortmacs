@@ -56,7 +56,7 @@ module executable_fm
     !> Values of `executable_query'.
     integer, parameter, public :: EXECUTABLE_QUERY_NIL = 0, EXECUTABLE_QUERY_FUNCTION = 1, EXECUTABLE_QUERY_T = 2
 
-    !> The value of `executable_chmod' that is nil.
+    !> The value of `executable_chmod' that means not to change the modes.
     integer, parameter, public :: EXECUTABLE_CHMOD_NIL = -huge(0)
 
     !> True means offer to add a magic number to a file.

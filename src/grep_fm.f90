@@ -126,12 +126,12 @@ module grep_fm
 
     !> The values of the tri-state options (`grep_use_null_device',
     !> `grep_use_null_filename_separator', `grep_highlight_matches'):
-    !> false (nil), true (t), not yet probed (`auto-detect'), and for
-    !> `grep_highlight_matches' `--color=always' (`always') and
-    !> `--color=auto' (`auto').
+    !> .false. (GREP_NIL), .true. (GREP_T), not yet probed (GREP_AUTO_DETECT), and for
+    !> `grep_highlight_matches' `--color=always' (GREP_ALWAYS) and
+    !> `--color=auto' (GREP_AUTO).
     integer, parameter, public :: GREP_NIL = 0, GREP_T = 1, GREP_AUTO_DETECT = 2, GREP_ALWAYS = 3, GREP_AUTO = 4
 
-    !> The values of `grep_find_use_xargs': not yet probed (nil), `find
+    !> The values of `grep_find_use_xargs': not yet probed (GREP_FIND_USE_XARGS_NIL), `find
     !> -exec {} ;' (`exec'), `find -exec {} +' (`exec-plus'), `find
     !> -print0 | xargs -0' (`gnu'), `find -print0 | sort -z | xargs -0'
     !> (`gnu-sort'), and `find -print | xargs' (any other value).
@@ -139,8 +139,8 @@ module grep_fm
                                   GREP_FIND_USE_XARGS_EXEC_PLUS = 2, GREP_FIND_USE_XARGS_GNU = 3, &
                                   GREP_FIND_USE_XARGS_GNU_SORT = 4, GREP_FIND_USE_XARGS_OTHER = 5
 
-    !> The values of `grep_save_buffers': don't save (nil), save all
-    !> buffers (t), ask before saving (`ask').  A function given as
+    !> The values of `grep_save_buffers': don't save (GREP_SAVE_BUFFERS_NIL), save all
+    !> buffers (GREP_SAVE_BUFFERS_T), ask before saving (GREP_SAVE_BUFFERS_ASK).  A function given as
     !> `grep_save_buffers_function' takes precedence.
     integer, parameter, public :: GREP_SAVE_BUFFERS_NIL = 0, GREP_SAVE_BUFFERS_T = 1, GREP_SAVE_BUFFERS_ASK = 2
 
@@ -849,7 +849,7 @@ contains
         call move_alloc(k, grep_mode_font_lock_keywords)
     end subroutine init_grep_mode_font_lock_keywords
 
-    !> S, or "" for nil.  Not a port.
+    !> S, or "" when unallocated.  Not a port.
     function setting_value(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: v
@@ -858,8 +858,8 @@ contains
         if (allocated(s)) v = s
     end function setting_value
 
-    !> (if (eq (char-after (match-beginning 1)) ?\0) `(face nil display
-    !> ,(match-string 2))): a NUL separator of a context line is shown as
+    !> The text properties of a context line whose separator (match 1) is NUL:
+    !> no `face', and a `display' of match 2, so the separator is shown as
     !> the separator after the line number.  Not a port.
     subroutine context_separator_properties(start, end, status)
         integer(int64), intent(in) :: start, end
@@ -874,8 +874,8 @@ contains
         if (status%ok()) call put_text_property(start, end, sym("display"), make_string(match_string(2)), status)
     end subroutine context_separator_properties
 
-    !> (if grep-find-abbreviate grep-find-abbreviate-properties '(face nil
-    !> abbreviated-command t)).  Not a port.
+    !> The text properties of an abbreviated command: when `grep_find_abbreviate'
+    !> is .true., `grep_find_abbreviate_properties', else no `face' and `abbreviated-command' .true..  Not a port.
     subroutine abbreviate_properties(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -1848,7 +1848,7 @@ contains
 
     contains
 
-        !> The next region from FROM where PROP is not nil, of one value
+        !> The next region from FROM where PROP has a value, of one value
         !> (text-property-search-forward).
         subroutine next_region(prop, from, b, e2, ok)
             character(len=*), intent(in) :: prop
@@ -2528,7 +2528,7 @@ contains
         end if
     end subroutine restore_directory
 
-    !> S, or "" for nil.  Not a port.
+    !> S, or "" when unallocated.  Not a port.
     function setting(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: v

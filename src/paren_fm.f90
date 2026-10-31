@@ -69,9 +69,9 @@ module paren_fm
     integer, parameter, public :: SHOW_PAREN_PARENTHESIS = 0, SHOW_PAREN_EXPRESSION = 1, SHOW_PAREN_MIXED = 2
 
     !> Values of `show_paren_not_in_comments_or_strings': never highlight
-    !> parens inside comments and strings (`all'), don't highlight
-    !> mismatched parens there (`on-mismatch'), always highlight parens
-    !> (nil).
+    !> parens inside comments and strings (SHOW_PAREN_COMMENTS_STRINGS_ALL), don't highlight
+    !> mismatched parens there (SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH), always highlight parens
+    !> (SHOW_PAREN_COMMENTS_STRINGS_ALWAYS).
     integer, parameter, public :: SHOW_PAREN_COMMENTS_STRINGS_ALWAYS = 0, SHOW_PAREN_COMMENTS_STRINGS_ALL = 1, &
                                   SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH = 2
 
@@ -133,7 +133,7 @@ module paren_fm
 
     !> What `show_paren_data_function' finds: the opener/closer "near"
     !> point from HERE_BEG to HERE_END, its match from THERE_BEG to
-    !> THERE_END (0 for none, upstream's nil) and whether they mismatch.
+    !> THERE_END (0 for none) and whether they mismatch.
     type, public :: show_paren_data_type
         integer(int64) :: here_beg = 0, here_end = 0, there_beg = 0, there_end = 0
         logical :: mismatch = .false.
@@ -141,7 +141,7 @@ module paren_fm
 
     abstract interface
         !> A `show_paren_data_function': FOUND is false if there's no
-        !> opener/closer near point (upstream's nil), else DATA describes it.
+        !> opener/closer near point, else DATA describes it.
         !> Not a port.
         subroutine show_paren_data_proc(found, data)
             import :: show_paren_data_type
@@ -211,7 +211,7 @@ contains
     end function data_local_index
 
     !> Give the current buffer its own `show_paren_data_function'
-    !> FN (setq-local); absent is nil.  Not a port.
+    !> FN (setq-local); absent clears it.  Not a port.
     subroutine set_local_show_paren_data_function(fn)
         procedure(show_paren_data_proc), optional :: fn
         type(data_entry_type), allocatable :: grown(:)
@@ -250,7 +250,7 @@ contains
     end subroutine set_local_show_paren_data_function
 
     !> The value of `show_paren_data_function' in the current buffer
-    !> (null for nil).  Not a port.
+    !> (null when unset).  Not a port.
     function current_show_paren_data_function() result(fn)
         procedure(show_paren_data_proc), pointer :: fn
         integer :: i
@@ -400,7 +400,7 @@ contains
     end function syntax_class_after
 
     !> The matching character of the syntax of the character after POS
-    !> (the cdr of syntax-after), or -1 for nil.  Not a port.
+    !> (the matching character of `syntax_after'), or -1 for none.  Not a port.
     integer function syntax_match_after(pos) result(m)
         integer(int64), intent(in) :: pos
         integer :: c
@@ -421,7 +421,7 @@ contains
     !> and if so, give DIR 1 for an open paren, -1 for a close paren, and
     !> OUTSIDE the buffer position of the outside of the paren.  If the
     !> character isn't a paren, or it is an escaped paren, DIR is 0
-    !> (upstream's nil).  Port of paren.el:show-paren--categorize-paren.
+    !> Port of paren.el:show-paren--categorize-paren.
     subroutine show_paren_categorize_paren(pos, dir, outside)
         integer(int64), intent(in) :: pos
         integer, intent(out) :: dir
@@ -641,7 +641,7 @@ contains
     end function in_string_or_comment
 
     !> The overlays, made (empty and deleted) on first use, with
-    !> front-advance as upstream's (make-overlay (point) (point) nil t).
+    !> front-advance, as upstream's `make-overlay' at point with FRONT-ADVANCE.
     !> Not a port.
     subroutine ensure_overlays()
         type(status_type) :: st
@@ -665,7 +665,7 @@ contains
     end subroutine show_paren_function_timer
 
     !> The last position of point for which `show_paren_function' was
-    !> called (show-paren--last-pos, buffer-local), or 0 for nil.
+    !> called (show-paren--last-pos, buffer-local), or 0 for none.
     !> Not a port.
     integer(int64) function last_pos()
         type(value_type) :: v

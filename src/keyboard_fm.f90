@@ -267,8 +267,8 @@ module keyboard_fm
 
     !> keyboard.c:recent_keys, a ring of the last `lossage_limit' input
     !> events not from keyboard macros, and of the commands run, as
-    !> upstream's pseudo-events (nil . COMMAND): `recent_is_command' marks
-    !> those, whose command (nil for an undefined key) is in
+    !> upstream's pseudo-events (no event, then COMMAND): `recent_is_command' marks
+    !> those, whose command (empty for an undefined key) is in
     !> `recent_events'.  The next entry goes at `recent_keys_index'
     !> (1-based); `total_keys' entries are filled.
     type(value_type), allocatable :: recent_events(:)
@@ -366,19 +366,18 @@ module keyboard_fm
     logical :: macro_active = .false., macro_string = .false., macro_forced_end = .false.
     !> macros.c:executing_kbd_macro_index, the index of the next event.
     integer(int64), public, protected :: executing_kbd_macro_index = 0
-    !> macros.c:executing_kbd_macro (non-nil): the most recently started
+    !> macros.c:executing_kbd_macro (set): the most recently started
     !> macro, for the "After N kbd macro iterations" error context.
     logical :: macro_started = .false.
     !> macros.c:executing_kbd_macro_iterations.
     integer(int64), public, protected :: executing_kbd_macro_iterations = 0
-    !> Values of `defining_kbd_macro': nil, t and `append'.
+    !> Values of `defining_kbd_macro': DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_T and DEFINING_KBD_MACRO_APPEND.
     integer, parameter, public :: DEFINING_KBD_MACRO_NIL = 0, DEFINING_KBD_MACRO_T = 1, DEFINING_KBD_MACRO_APPEND = 2
 
     !> Not `DEFINING_KBD_MACRO_NIL' while a keyboard macro is being defined.
     !> Don't set this!
     !> The value is `DEFINING_KBD_MACRO_APPEND' while appending to the
-    !> definition of an existing macro.  Port of macros.c defining-kbd-macro
-    !> (DEFINING_KBD_MACRO_NIL for nil, DEFINING_KBD_MACRO_T for t).
+    !> definition of an existing macro.  Port of macros.c defining-kbd-macro.
     integer, public :: defining_kbd_macro = DEFINING_KBD_MACRO_NIL
 
     !> Last kbd macro defined, as an array of events; not allocated if none
@@ -438,8 +437,8 @@ module keyboard_fm
     integer(int64), public, protected :: num_nonmacro_input_events = 0
 
     !> The keyboard's echo state (struct kboard's echo_string, echo_prompt
-    !> and immediate_echo): the text being echoed (unallocated for nil),
-    !> the prompt it begins with (unallocated for nil), and whether
+    !> and immediate_echo): the text being echoed (unallocated for none),
+    !> the prompt it begins with (unallocated for none), and whether
     !> keystrokes are echoed as they come.
     character(len=:), allocatable :: echo_string, echo_prompt
     logical :: immediate_echo = .false.
@@ -463,8 +462,8 @@ module keyboard_fm
     integer(int32), public :: dribble_fd = -1
 
     !> Character to recognize as meaning Help.
-    !> When it is read, do `(eval help-form)', and display result if it's a string.
-    !> If the value of `help_form' is nil, this char can be read normally.
+    !> When it is read, call `help_form', and display the result if it's a string.
+    !> If the value of `help_form' is null, this char can be read normally.
     !> Port of keyboard.c help-char (a character).
     integer(int64), public :: help_char = 8
     !> List of input events to recognize as meaning Help.
@@ -478,7 +477,7 @@ module keyboard_fm
     logical, public :: echo_keystrokes_help = .true.
     !> simple.el's prefix-command--needs-update and prefix-command--last-echo:
     !> whether a prefix command changed the prefix state, and the last
-    !> description of it (unallocated for nil).
+    !> description of it (unallocated for none).
     logical :: prefix_command_needs_update = .false.
     character(len=:), allocatable :: prefix_command_last_echo
     !> A throw to `top_level' is unwinding the recursive edits.
@@ -526,7 +525,7 @@ module keyboard_fm
     !> If MACRO is a string or vector, then the events in it are executed
     !> exactly as if they had been input by the user.
     !>
-    !> COUNT is a repeat count, or nil for once, or 0 for infinite loop.
+    !> COUNT is a repeat count, or absent for once, or 0 for infinite loop.
     !>
     !> Optional third arg LOOPFUNC may be a function that is called prior to
     !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
@@ -578,8 +577,8 @@ module keyboard_fm
         !>
         !> Optional second arg LOOPFUNC may be a function that is called prior to
         !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
-        !> false.  Port of macros.c:Fend_kbd_macro (REPEAT is nil or a
-        !> fixnum).
+        !> false.  Port of macros.c:Fend_kbd_macro (REPEAT is absent or an
+        !> integer).
         recursive module subroutine end_kbd_macro(repeat, status, loopfunc)
             implicit none(type, external)
             type(value_type), intent(in) :: repeat
@@ -644,7 +643,7 @@ module keyboard_fm
 contains
 
     !> Whether a keyboard macro is being defined (`defining_kbd_macro' is
-    !> not nil).  Not a port.
+    !> not DEFINING_KBD_MACRO_NIL).  Not a port.
     logical function defining_kbd_macro_p()
         defining_kbd_macro_p = defining_kbd_macro /= DEFINING_KBD_MACRO_NIL
     end function defining_kbd_macro_p
@@ -653,7 +652,7 @@ contains
     ! Input
     ! ------------------------------------------------------------------
 
-    !> Port of keyboard.c:Fset_input_meta_mode (META: 0 nil, 1 t, 2
+    !> Port of keyboard.c:Fset_input_meta_mode (META: 0 off, 1 on, 2
     !> encoded).
     subroutine set_input_meta_mode(mode)
         integer, intent(in) :: mode
@@ -661,8 +660,8 @@ contains
         meta_key = mode
     end subroutine set_input_meta_mode
 
-    !> The META element of `current_input_mode': 0 (nil: the 8th bit is
-    !> stripped), 1 (t: it is Meta) or 2 (encoded: bytes go on to keyboard
+    !> The META element of `current_input_mode': 0 (off: the 8th bit is
+    !> stripped), 1 (on: it is Meta) or 2 (encoded: bytes go on to keyboard
     !> decoding).  Port of the META part of keyboard.c:Fcurrent_input_mode.
     integer function current_input_meta_mode()
         current_input_meta_mode = meta_key
@@ -892,7 +891,7 @@ contains
     end subroutine discard_input
 
     !> Whether `unread_command_events' holds events (the variable is
-    !> non-nil).  Not a port.
+    !> not empty).  Not a port.
     logical function unread_command_events_p()
         unread_command_events_p = nunread > 0
     end function unread_command_events_p
@@ -1244,7 +1243,7 @@ contains
         if (keymap_live_p(km)) v = make_keymap_ref(km)
     end function map_value
 
-    !> Whether BINDING is undefined: nil, `undefined', or a command
+    !> Whether BINDING is undefined: empty, `undefined', or a command
     !> remapped to `undefined'.  Port of keyboard.c:test_undefined.
     logical function test_undefined(binding)
         type(value_type), intent(in) :: binding
@@ -1366,7 +1365,7 @@ contains
     !> Read a key sequence: events until the active keymaps give a
     !> non-prefix binding (or none), with terminal escape sequences and
     !> other translations applied.  `keys' is the sequence and `binding'
-    !> its binding (nil if undefined).  `eof' is set when input ended;
+    !> its binding (empty if undefined).  `eof' is set when input ended;
     !> `keys' then holds what was read.  PROMPT begins the echo of the
     !> keys; with DONT_DOWNCASE_LAST, an upper-case last event that was
     !> looked up in lower case is returned as it was typed.  The events
@@ -2496,11 +2495,11 @@ contains
         exit_requested = .false.
     end subroutine command_loop
 
-    !> Run a command loop until a command throws to `exit': return when
-    !> it throws nil, signal quit when it throws t.  End of input, or a
+    !> Run a command loop until a command returns to `exit' with a status: return
+    !> for a plain exit, and a `quit' error condition occurs for an abort.  End of input, or a
     !> request to leave Emacs, also ends it with a quit; the end of the
     !> keyboard macro being executed ends it as an exit.  Its command loop
-    !> handles errors (internal_catch (Qexit, command_loop_2, Qerror)).
+    !> checks the status of each command (keyboard.c's internal_catch of Qexit).
     !> Minibuffers call it directly; `recursive_edit' counts the level.
     !> Port of keyboard.c:recursive_edit_1 with keyboard.c:command_loop.
     recursive subroutine recursive_edit_1(status)
@@ -2554,7 +2553,7 @@ contains
         end if
     end subroutine recursive_edit_1
 
-    !> (throw 'exit nil), or with `abort' (throw 'exit t): end the
+    !> Return to `exit' with a status (an abort with `abort', else a plain exit): end the
     !> innermost recursive edit once the current command returns.  With
     !> `abort', `levels' (default 1) is the number of nested recursive
     !> edits to quit (as minibuffer.el:minibuffer-quit-recursive-edit).
@@ -2901,7 +2900,7 @@ contains
     end function append_keystrokes_help
 
     !> The description of the current prefix state, if a prefix command
-    !> has updated it (`have' is false for nil): what the functions of
+    !> has updated it (`have' is .false. for none): what the functions of
     !> prefix-command-echo-keystrokes-functions return, here
     !> `universal_argument_description'.  Port of
     !> simple.el:internal-echo-keystrokes-prefix.
@@ -3503,7 +3502,7 @@ contains
 
     !> The `ascii_character' property of function-key symbol EVENT: the
     !> character a keypad or other key with a character equivalent stands
-    !> for, or -1 (nil).  The properties bindings.el and simple.el's
+    !> for, or -1 for none.  The properties bindings.el and simple.el's
     !> keypad support give.  Not a port.
     integer(int64) function ascii_character(event) result(c)
         type(value_type), intent(in) :: event
@@ -3616,19 +3615,19 @@ contains
     end subroutine top_level
 
     !> Invoke the editor command loop recursively.
-    !> To get out of the recursive edit, a command can throw to `exit' --
-    !> for instance (throw \='exit nil).
+    !> To get out of the recursive edit, a command can return to `exit' with a status --
+    !> for instance with `exit_recursive_edit'.
     !>
-    !> The following values (last argument to `throw') can be used when
-    !> throwing to \='exit:
+    !> The following statuses can be used when
+    !> returning to `exit':
     !>
-    !> - t causes `recursive_edit' to quit, so that control returns to the
+    !> - An abort causes `recursive_edit' to quit, so that control returns to the
     !> command loop one level up.
     !>
-    !> - A string causes `recursive_edit' to signal an error, printing that
+    !> - A message makes an error condition occur in `recursive_edit', printing that
     !> string as the error message.
     !>
-    !> - False causes `recursive_edit' to return normally to the
+    !> - A plain exit causes `recursive_edit' to return normally to the
     !> function that called it.
     !>
     !> This function is called by the editor initialization to begin editing.

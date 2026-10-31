@@ -63,7 +63,7 @@
 !> and `compilation_search_extra_path' (only the directory of the message
 !> and, with `compilation_search_all_directories', the directories
 !> entered before it are searched), `compilation_fake_loc',
-!> `compilation_debug'; the parts (face nil compilation_message nil ...)
+!> `compilation_debug'; the text properties (no `face', no `compilation_message', ...)
 !> of the font-lock keywords of the "Compilation finished" and
 !> "Compilation exited" lines, and removing the font-lock keywords when
 !> the minor modes are turned off (`font_lock_remove_keywords'); visiting
@@ -234,7 +234,7 @@ module compile_fm
     !> A rule for matching messages: an element of
     !> `compilation_error_regexp_table' (see
     !> `compilation_error_regexp_names').  Subexpression numbers are 0 for
-    !> none (nil); WARNING and INFO, if either is not 0, make the type
+    !> none; WARNING and INFO, if either is not 0, make the type
     !> depend on which of them matched ((WARNING . INFO)), otherwise TYPE
     !> is the type (2 error, 1 warning, 0 info).
     type, public :: compilation_rule_type
@@ -255,14 +255,14 @@ module compile_fm
     end type compilation_rule_type
 
     !> The value of `compilation_directory_matcher': REGEXP (unallocated
-    !> for nil) and the subexpressions DIR(i), with LEAVE(i) (0 for nil).
+    !> for none) and the subexpressions DIR(i), with LEAVE(i) (0 for none).
     type, public :: compilation_directory_matcher_type
         character(len=:), allocatable :: regexp
         integer, allocatable :: dir(:), leave(:)
     end type compilation_directory_matcher_type
 
     !> An element of `compilation_transform_file_match_table': REGEXP and
-    !> REPLACEMENT (unallocated for nil).
+    !> REPLACEMENT (unallocated for none).
     type, public :: compilation_transform_type
         character(len=:), allocatable :: regexp, replacement
     end type compilation_transform_type
@@ -335,8 +335,8 @@ module compile_fm
     !>
     !> COMPILATION_SCROLL_FIRST_ERROR stops scrolling at the first error,
     !> and leaves point on its location in the *compilation* buffer.  Port of
-    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NIL is nil,
-    !> COMPILATION_SCROLL_T t, COMPILATION_SCROLL_FIRST_ERROR `first-error').
+    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NIL,
+    !> COMPILATION_SCROLL_T and COMPILATION_SCROLL_FIRST_ERROR).
     type(integer_setting), public :: compilation_scroll_output = &
                                      integer_setting(name="compilation_scroll_output", value=COMPILATION_SCROLL_NIL)
 
@@ -472,7 +472,7 @@ module compile_fm
     type(compilation_directory_matcher_type), public :: compilation_directory_matcher
 
     !> Table of regexp/replacements to alter file names in compiler
-    !> messages.  If the replacement is unallocated (nil), the matching
+    !> messages.  If the replacement is unallocated, the matching
     !> message will not be considered an error or warning.  If not, it
     !> should be a replacement string for the matched regexp.
     !>
@@ -3132,7 +3132,7 @@ contains
                 limit = point_max()
             else
                 ! Don't move "back" to message at or before point.  Pass an
-                ! explicit (point-min) to make sure pt is non-nil.
+                ! explicit (point-min) to make sure pt has a value.
                 call previous_single_property_change(pt, sym("compilation_message"), res, found, st, point_min())
                 pt = res
                 limit = point_min()
@@ -4329,7 +4329,7 @@ contains
         end subroutine restore_dir
     end subroutine recompile
 
-    !> The current buffer's `compilation_directory' ("" for nil).  Not a port.
+    !> The current buffer's `compilation_directory' ("" for none).  Not a port.
     function compilation_directory_value() result(dir)
         character(len=:), allocatable :: dir
         integer :: k

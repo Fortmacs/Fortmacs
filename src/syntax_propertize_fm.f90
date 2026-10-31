@@ -76,7 +76,7 @@ module syntax_propertize_fm
     integer(int64), parameter :: MOST_POSITIVE_FIXNUM = 2_int64**61 - 1
 
     !> A value of the `syntax_table' property: a raw syntax descriptor,
-    !> or the syntax table `table' (when `is_table'); `apply' false is nil.
+    !> or the syntax table `table' (when `is_table'); `apply' .false. is none.
     type, public :: syntax_property_type
         logical :: apply = .false.
         type(syntax_descriptor_type) :: descriptor
@@ -95,7 +95,7 @@ module syntax_propertize_fm
         end subroutine syntax_propertize_proc
 
         !> The SYNTAX of a highlight given as code: the value to apply as
-        !> `syntax_table' property, in PROPERTY (none for nil).  It may move
+        !> `syntax_table' property, in PROPERTY (none when unset).  It may move
         !> point.  Not a port.
         subroutine syntax_value_proc(property, status)
             import :: syntax_property_type, status_type
@@ -176,14 +176,14 @@ module syntax_propertize_fm
     end type function_entry_type
 
     !> The type of `syntax_propertize_function': a default `value'
-    !> (assign with `=>'; null is nil) and buffers' own (`set_local').
+    !> (assign with `=>'; null when unset) and buffers' own (`set_local').
     type, public :: syntax_propertize_function_type
         procedure(syntax_propertize_proc), pointer, nopass :: value => null()
         type(function_entry_type), allocatable :: entries(:)
     contains
         !> Make FN the current buffer's function (setq-local).
         procedure :: set_local => function_set_local
-        !> The current buffer's function (null for nil).
+        !> The current buffer's function (null when unset).
         procedure :: get => function_get
         !> Make the current buffer use the default again.
         procedure :: kill_local => function_kill_local
@@ -214,14 +214,14 @@ module syntax_propertize_fm
     end type ppss_data_type
 
     !> The type of `syntax_ppss_table': buffers' own syntax tables
-    !> (`set_local'; no table is nil).
+    !> (`set_local'; no table when unset).
     type, public :: syntax_ppss_table_type
     contains
         !> Make H the current buffer's table (setq-local).
         procedure, nopass :: set_local => ppss_table_set_local
         !> Whether the current buffer has a table, and which (FOUND).
         procedure, nopass :: get => ppss_table_get
-        !> Make the current buffer's value nil again.
+        !> Make the current buffer's value unset again.
         procedure, nopass :: kill_local => ppss_table_kill_local
     end type syntax_ppss_table_type
 
@@ -290,7 +290,7 @@ module syntax_propertize_fm
 
     !> Function to move back outside of any comment/string/paren.
     !> This function should move the cursor back to some syntactically safe
-    !> point (where the PPSS is equivalent to nil).  Port of syntax.el
+    !> point (where the PPSS is equivalent to the empty state).  Port of syntax.el
     !> syntax-begin-function (obsolete since 25.1).
     procedure(syntax_begin_proc), pointer, public :: syntax_begin_function => null()
 

@@ -28,7 +28,7 @@
 !> Values: `f90_smart_end' is F90_SMART_END_BLINK, _NO_BLINK or _NIL;
 !> `f90_auto_keyword_case' F90_KEYWORD_CASE_NIL, _DOWNCASE_WORD,
 !> _UPCASE_WORD or _CAPITALIZE_WORD; `f90_directive_comment_re' a string
-!> (unallocated for nil).  Functions upstream returns as (KIND NAME)
+!> (unallocated when unset).  Functions upstream returns as (KIND NAME)
 !> give an `f90_block_type'.
 !>
 !> Deferred: the F90 menu, Imenu (`f90_imenu_generic_expression',
@@ -97,7 +97,7 @@ module f90_fm
               f90_join_lines, f90_fill_region, f90_fill_paragraph, f90_match_end, f90_insert_end, f90_change_keywords, &
               f90_typedef_matcher, f90_typedec_matcher, f90_font_lock_n
 
-    !> `f90_smart_end' values: `blink', `no-blink' and nil.
+    !> `f90_smart_end' values: F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK and F90_SMART_END_NIL.
     integer, parameter, public :: F90_SMART_END_NIL = 0, F90_SMART_END_BLINK = 1, F90_SMART_END_NO_BLINK = 2
 
     !> `f90_auto_keyword_case' values (and the CHANGE_WORD argument of
@@ -109,7 +109,7 @@ module f90_fm
     integer, parameter, public :: CONT_SINGLE = 0, CONT_BEGIN = 1, CONT_END = 2, CONT_MIDDLE = 3
 
     !> What upstream's f90-looking-at-* functions return: (KIND NAME), or
-    !> nil (FOUND false).  NAME unallocated is nil.
+    !> nothing (FOUND .false.).  NAME unallocated means none.
     type :: f90_block_type
         logical :: found = .false.
         character(len=:), allocatable :: kind, name
@@ -153,8 +153,8 @@ module f90_fm
     !> For example, change the END that closes an IF block to END IF.
     !> If the block has a label, add it as well (unless `f90_smart_end_names'
     !> says not to).  Allowed values are F90_SMART_END_BLINK,
-    !> F90_SMART_END_NO_BLINK, and F90_SMART_END_NIL.  If nil,
-    !> nothing is done.  The other two settings have the same effect, but `blink'
+    !> F90_SMART_END_NO_BLINK, and F90_SMART_END_NIL.  If F90_SMART_END_NIL,
+    !> nothing is done.  The other two settings have the same effect, but F90_SMART_END_BLINK
     !> additionally blinks the cursor to the start of the block.  Port of
     !> f90.el f90-smart-end.
     type(integer_setting), target, public :: f90_smart_end = integer_setting(name="f90_smart_end", &
@@ -290,7 +290,7 @@ module f90_fm
     !> Abbrev table for F90 mode.  Port of f90.el f90-mode-abbrev-table.
     type(abbrev_table_type), target, public :: f90_mode_abbrev_table
 
-    !> Temporary position used to speed up region operations (0 for nil).
+    !> Temporary position used to speed up region operations (0 for none).
     !> Port of f90.el f90-cache-position.
     integer(int64), public :: f90_cache_position = 0
 
@@ -1027,7 +1027,7 @@ contains
         search_re = st%ok() .and. found > 0
     end function search_re
 
-    !> (re-search-backward RE nil 'move): true when found.  Not a port.
+    !> `re_search_backward' of RE, moving to the limit on failure: .true. when found.  Not a port.
     logical function search_re_backward_move(re)
         character(len=*), intent(in) :: re
         integer(int64) :: found
@@ -1175,7 +1175,7 @@ contains
 
     !> If point lies within a comment, return the string starting the comment.
     !> For example, "!" or "!!", followed by the appropriate amount of
-    !> whitespace, if any.  FOUND false is nil.  Port of
+    !> whitespace, if any.  FOUND .false. means none.  Port of
     !> f90.el:f90-get-present-comment-type.
     subroutine f90_get_present_comment_type(s, found, status)
         character(len=:), allocatable, intent(out) :: s
@@ -1207,7 +1207,7 @@ contains
         call goto_char(opoint)
     end subroutine f90_get_present_comment_type
 
-    !> Compare strings A and B neglecting case and allowing for nil value
+    !> Compare strings A and B neglecting case and allowing for no value
     !> (unallocated).  Port of f90.el:f90-equal-symbols.
     logical function f90_equal_symbols(a, b) result(equal)
         character(len=:), allocatable, intent(in) :: a, b
@@ -1220,7 +1220,7 @@ contains
     end function f90_equal_symbols
 
     !> Return ("do" NAME) if a do statement starts after point.
-    !> NAME is nil if the statement has no label.  Port of
+    !> NAME is unallocated if the statement has no label.  Port of
     !> f90.el:f90-looking-at-do.
     function f90_looking_at_do() result(b)
         type(f90_block_type) :: b
@@ -1229,7 +1229,7 @@ contains
     end function f90_looking_at_do
 
     !> Return ("select" NAME) if a select statement starts after point.
-    !> NAME is nil if the statement has no label.  Port of
+    !> NAME is unallocated if the statement has no label.  Port of
     !> f90.el:f90-looking-at-select-case.
     function f90_looking_at_select_case() result(b)
         type(f90_block_type) :: b
@@ -1239,7 +1239,7 @@ contains
     end function f90_looking_at_select_case
 
     !> Return ("if" NAME) if an if () then statement starts after point.
-    !> NAME is nil if the statement has no label.  Port of
+    !> NAME is unallocated if the statement has no label.  Port of
     !> f90.el:f90-looking-at-if-then.
     recursive subroutine f90_looking_at_if_then(b, status)
         type(f90_block_type), intent(out) :: b
@@ -1329,7 +1329,7 @@ contains
     end function f90_looking_at_end_critical
 
     !> Return (KIND NAME) if a where or forall block starts after point.
-    !> NAME is nil if the statement has no label.  Port of
+    !> NAME is unallocated if the statement has no label.  Port of
     !> f90.el:f90-looking-at-where-or-forall.
     recursive subroutine f90_looking_at_where_or_forall(b, status)
         type(f90_block_type), intent(out) :: b
@@ -1357,8 +1357,8 @@ contains
         call goto_char(opoint)
     end subroutine f90_looking_at_where_or_forall
 
-    !> Return (KIND NAME) if a type/enum/interface/block-data starts after point.
-    !> NAME is non-nil only for type and certain interfaces.  Port of
+    !> Return KIND and NAME if a type/enum/interface/block-data starts after point.
+    !> NAME is set only for type and certain interfaces.  Port of
     !> f90.el:f90-looking-at-type-like.
     function f90_looking_at_type_like() result(b)
         type(f90_block_type) :: b
@@ -1914,7 +1914,7 @@ contains
     end subroutine cmd_f90_next_statement
 
     !> Move point to the beginning of the current subprogram.
-    !> Return (TYPE NAME), or nil if not found.  INTERACTIVE says it was
+    !> Return TYPE and NAME, or nothing (FOUND .false.) if not found.  INTERACTIVE says it was
     !> called interactively.  Port of f90.el:f90-beginning-of-subprogram.
     function f90_beginning_of_subprogram(interactive) result(matching_beg)
         logical, intent(in), optional :: interactive
@@ -2007,7 +2007,7 @@ contains
     end subroutine f90_subprogram_end
 
     !> Move point to the end of the current subprogram.
-    !> Return (TYPE NAME), or nil if not found.  Port of
+    !> Return TYPE and NAME, or nothing (FOUND .false.) if not found.  Port of
     !> f90.el:f90-end-of-subprogram.
     function f90_end_of_subprogram(interactive) result(matching_end)
         logical, intent(in), optional :: interactive
@@ -2088,7 +2088,7 @@ contains
         call f90_looking_at_where_or_forall(b, status)
     end subroutine block_start
 
-    !> A string for messages: S, or "nil".  Not a port.
+    !> A string for messages: S, or "nil" (upstream's message text).  Not a port.
     function or_nil(s) result(r)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: r
@@ -3181,9 +3181,9 @@ contains
 
     !> Match end-struct with beg-struct and complete end-block if possible.
     !> BEG_BLOCK is the type of block as indicated at the start (e.g., do).
-    !> BEG_NAME is the block start name (may be nil).
-    !> END_BLOCK is the type of block as indicated at the end (may be nil).
-    !> END_NAME is the block end name (may be nil).
+    !> BEG_NAME is the block start name (may be unallocated).
+    !> END_BLOCK is the type of block as indicated at the end (may be unallocated).
+    !> END_NAME is the block end name (may be unallocated).
     !> If the block type matches `f90_end_block_optional_name', do not add
     !> an end name if `f90_smart_end_names' is false, but always update an
     !> incorrect end name if there already was one.

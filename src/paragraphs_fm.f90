@@ -181,8 +181,8 @@ contains
         if (.not. status%ok()) looking_at_p = .false.
     end function looking_at_p
 
-    !> (re-search-backward REGEXP BOUND NOERROR) for NOERROR t or other
-    !> than nil and t (`mode').  Not a port.
+    !> `re_search_backward' of REGEXP with BOUND, for NOERROR (`mode')
+    !> SEARCH_NOERROR or SEARCH_MOVE: .true. when found.  Not a port.
     logical function re_search_back(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -194,8 +194,8 @@ contains
         found = status%ok() .and. pos > 0
     end function re_search_back
 
-    !> (re-search-forward REGEXP BOUND NOERROR) for NOERROR t or other than
-    !> nil and t (`mode').  Not a port.
+    !> `re_search_forward' of REGEXP with BOUND, for NOERROR (`mode')
+    !> SEARCH_NOERROR or SEARCH_MOVE: .true. when found.  Not a port.
     logical function re_search_fwd(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode

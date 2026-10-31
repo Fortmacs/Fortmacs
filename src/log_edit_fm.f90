@@ -259,7 +259,7 @@ module log_edit_fm
     !> where REGEXP should match the expression referring to a bug number
     !> in the text, and REPLACEMENT is an expression to pass to `replace_match'
     !> to build the Fixes: header.  Port of log-edit.el
-    !> log-edit-rewrite-fixes (unallocated for nil).
+    !> log-edit-rewrite-fixes (unallocated for none).
     character(len=:), allocatable, public :: log_edit_rewrite_fixes_regexp, log_edit_rewrite_fixes_replacement
 
     !> The name of the buffer listing the files to be committed.  Port of
@@ -405,7 +405,7 @@ contains
     end subroutine kill_log_edit_locals
 
     !> The current buffer's `log_edit_vc_backend' (a VC backend index, 0
-    !> for nil): the VC fileset backend corresponding to the current log.
+    !> for none): the VC fileset backend corresponding to the current log.
     !> Not a port.
     integer function log_edit_vc_backend() result(b)
         integer :: k
@@ -426,7 +426,7 @@ contains
     end subroutine set_log_edit_callback
 
     !> Set the current buffer's `log_edit_vc_backend' (setq-local): B is
-    !> a VC backend index, 0 for nil.  Not a port.
+    !> a VC backend index, 0 for none.  Not a port.
     subroutine set_log_edit_vc_backend(b)
         integer, intent(in) :: b
         integer :: k

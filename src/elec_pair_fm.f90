@@ -90,8 +90,8 @@ module elec_pair_fm
     !> of the event (`SYNTAX_STR' for a string pair), its PAIR (a
     !> character, or PAIR_STRING for a string pair), whether
     !> `electric_pair_pairs' or `electric_pair_text_pairs' were used
-    !> (UNCONDITIONAL), and STRING_OR_COMMENT_START (0 for nil) or, for a
-    !> string pair, SPACE.  FOUND false is nil.
+    !> (UNCONDITIONAL), and STRING_OR_COMMENT_START (0 for none) or, for a
+    !> string pair, SPACE.  FOUND .false. for none.
     type, public :: electric_pair_info_type
         logical :: found = .false.
         integer :: syntax = 0
@@ -273,8 +273,8 @@ module elec_pair_fm
         end subroutine command_proc_local
     end interface
 
-    !> A list description (MATCHED-P . PAIR) of `electric_pair_balance_info':
-    !> SET false is not yet known; PAIR -1 is nil.
+    !> A description (MATCHED-P and PAIR) of `electric_pair_balance_info':
+    !> SET .false. is not yet known; PAIR -1 is none.
     type :: balance_type
         logical :: set = .false.
         logical :: matched = .false.
@@ -350,7 +350,7 @@ contains
         psi_num = prefix_numeric_value(hook_current_prefix_arg)
     end function psi_num
 
-    !> The character after POS (default point), or -1 for nil.  Not a port.
+    !> The character after POS (default point), or -1 for none.  Not a port.
     integer function after(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -361,7 +361,7 @@ contains
         if (found) after = int(c)
     end function after
 
-    !> The character before POS (default point), or -1 for nil.  Not a port.
+    !> The character before POS (default point), or -1 for none.  Not a port.
     integer function before(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -381,7 +381,7 @@ contains
         if (c >= 0) syntax_char = char_syntax(c)
     end function syntax_char
 
-    !> (matching-paren C): -1 for nil.  Not a port.
+    !> (matching-paren C): -1 for none.  Not a port.
     integer function matching(c)
         integer, intent(in) :: c
 

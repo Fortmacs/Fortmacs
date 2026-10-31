@@ -256,7 +256,7 @@ module autorevert_fm
         logical :: set = .false.
         integer(int64) :: serial = 0
         !> auto-revert-notify-watch-descriptor (permanent): `has_desc'
-        !> for non-nil.
+        !> when it has one.
         logical :: has_desc = .false.
         type(watch_descriptor_type) :: desc
         !> auto-revert-notify-modified-p: the file has been modified on
@@ -698,7 +698,7 @@ contains
         call minor_modes%auto_revert_mode%set_state(.false.)
     end subroutine auto_revert_tail_mode_body
 
-    !> (add-hook 'before-save-hook (lambda () (auto-revert-tail-mode 0)) nil t)
+    !> Add to the current buffer's `before_save_hook' a procedure that turns `auto_revert_tail_mode' off.
     !> Not a port.
     subroutine before_save_tail_off_hook_add()
         use files_fm, only: before_save_hook

@@ -150,7 +150,7 @@ contains
     !> Put mark at end of page, point at beginning.
     !> A numeric arg specifies to move forward or backward by that many pages,
     !> thus marking a page other than the one point was originally in.
-    !> Port of page.el:mark-page (ARG 0 for nil).
+    !> Port of page.el:mark-page (ARG 0 for no prefix).
     recursive subroutine mark_page(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -170,7 +170,7 @@ contains
     !> Make text outside current page invisible.
     !> A numeric arg specifies to move forward or backward by that many pages,
     !> thus showing a page other than the one point was originally in.
-    !> Port of page.el:narrow-to-page (ARG 0 for nil).
+    !> Port of page.el:narrow-to-page (ARG 0 for no prefix).
     recursive subroutine narrow_to_page(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status

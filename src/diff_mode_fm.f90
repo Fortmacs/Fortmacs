@@ -216,7 +216,7 @@ module diff_mode_fm
     !> A Diff buffer's own variables, by buffer serial number:
     !> diff-buffer-type, diff-default-directory, diff-remembered-defdir and
     !> diff-remembered-files-alist, diff-apply-hunk-to-backup-file,
-    !> diff-narrowed-to (0 nil, 1 hunk, 2 file).
+    !> diff-narrowed-to (0 none, 1 hunk, 2 file).
     type :: diff_locals_type
         integer(int64) :: serial = 0
         integer :: kind = DIFF_BUFFER_PLAIN
@@ -225,7 +225,7 @@ module diff_mode_fm
         logical :: apply_to_backup = .false.
         integer :: narrowed_to = 0
         !> `diff_vc_backend' (the name of the VC backend that produced
-        !> the diff, unallocated for nil) and `diff_vc_revisions'.
+        !> the diff, unallocated for none) and `diff_vc_revisions'.
         character(len=:), allocatable :: vc_backend, vc_rev1, vc_rev2
     end type diff_locals_type
 
@@ -238,7 +238,7 @@ module diff_mode_fm
     end type diff_text_type
 
     !> What `diff_find_source_location' finds: the source buffer, the
-    !> line offset of the text in it (`found' false for nil), the bounds
+    !> line offset of the text in it (`found' .false. for none), the bounds
     !> of the text, the variant found (SRC) and the other (DST), and
     !> whether they were switched (the patch is already applied).
     type, public :: diff_source_location_type
@@ -325,7 +325,7 @@ module diff_mode_fm
 
         !> Return the literal source text from HUNK as (TEXT . OFFSET).
         !> If DESTP is false, TEXT is the source, otherwise the destination
-        !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for nil),
+        !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for none),
         !> and OFFSET is the corresponding char-offset in TEXT.  Port of
         !> diff-mode.el:diff-hunk-text.  (In diff_mode_apply_fm.)
         module subroutine diff_hunk_text(hunk, destp, char_offset, res, status)
@@ -1430,7 +1430,7 @@ contains
     ! File names
     ! ------------------------------------------------------------------
 
-    !> FILE without its first directory (nil, unallocated, if it has
+    !> FILE without its first directory (unallocated if it has
     !> none).  Port of diff-mode.el:diff-filename-drop-dir.
     subroutine diff_filename_drop_dir(file, rest)
         character(len=*), intent(in) :: file
@@ -1442,7 +1442,7 @@ contains
     end subroutine diff_filename_drop_dir
 
     !> Merge the diff between ANCESTOR and FROM into TO.
-    !> Returns the merged string if successful (MERGED true) or nil
+    !> Returns the merged string if successful (MERGED .true.) or MERGED .false.
     !> otherwise.  The strings are assumed not to contain any "\n" (i.e.
     !> end of line).  If ANCESTOR = FROM, returns TO.  If ANCESTOR = TO,
     !> returns FROM.  The heuristic is simplistic and only really works for
@@ -1580,7 +1580,7 @@ contains
 
     !> Return the file corresponding to the current patch (FOUND false
     !> for none).  OLD true means that we want the old file.  NOPROMPT
-    !> true means to prefer returning nil than to prompt the user.
+    !> true means to prefer returning no file name than to prompt the user.
     !> Port of diff-mode.el:diff-find-file-name (no cvs-pcl-cvs).
     recursive subroutine diff_find_file_name(file, found, status, old, noprompt)
         use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_T
@@ -1784,7 +1784,7 @@ contains
     end subroutine diff_setup_buffer_type
 
     !> Set the current buffer's `diff_vc_backend' to BACKEND (the VC
-    !> backend name; absent for nil) and `diff_vc_revisions' to (REV1
+    !> backend name; absent for none) and `diff_vc_revisions' to (REV1
     !> REV2).  Port of the setq-local of diff-mode.el diff-vc-backend and
     !> diff-vc-revisions.
     subroutine set_diff_vc_backend(backend, rev1, rev2)
@@ -1800,7 +1800,7 @@ contains
         if (present(rev2)) diff_buffers(k)%vc_rev2 = rev2
     end subroutine set_diff_vc_backend
 
-    !> The current buffer's `diff_vc_backend' ("" for nil).  Not a port.
+    !> The current buffer's `diff_vc_backend' ("" for none).  Not a port.
     function diff_vc_backend() result(name)
         character(len=:), allocatable :: name
         integer :: k
@@ -1810,7 +1810,7 @@ contains
         if (allocated(diff_buffers(k)%vc_backend)) name = diff_buffers(k)%vc_backend
     end function diff_vc_backend
 
-    !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN (nil),
+    !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN,
     !> DIFF_BUFFER_GIT or DIFF_BUFFER_HG.  Port of the buffer-local
     !> diff-mode.el:diff-buffer-type.
     integer function diff_buffer_type() result(kind)

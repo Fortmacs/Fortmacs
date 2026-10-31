@@ -108,7 +108,7 @@ module indent_fm
     !> For example, [1, 2, 5] is equivalent to [1, 2, 5, 8, 11, ...].  If the array has
     !> fewer than 2 elements, `tab_width' is used as the "last step".
     !> An unallocated or empty value means a tab stop every `tab_width' columns.  Port of
-    !> indent.el tab-stop-list (unallocated or empty is nil).
+    !> indent.el tab-stop-list (unallocated or empty for none).
     integer(int64), allocatable, public :: tab_stop_list(:)
 
     !> A setting whose value is an indent-line function; null is the
@@ -410,7 +410,7 @@ module indent_fm
         end subroutine indent_relative_first_indent_point
 
         !> Return the next tab stop after COLUMN.
-        !> If PREV is non-nil, return the previous one instead.  Port of
+        !> If PREV is .true., return the previous one instead.  Port of
         !> indent.el:indent-next-tab-stop.
         module integer(int64) function indent_next_tab_stop(column, prev)
             implicit none(type, external)
@@ -616,7 +616,7 @@ contains
     !> If the text at POS is invisible (not shown as an ellipsis), the
     !> position to skip to, else POS; NEXT_BOUNDARY gets the next position
     !> where the invisibility might change.  Port of indent.c:skip_invisible
-    !> for columns (WINDOW nil).
+    !> for columns (WINDOW absent).
     integer(int64) function skip_invisible(pos, next_boundary, to) result(newpos)
         integer(int64), intent(in) :: pos, to
         integer(int64), intent(out) :: next_boundary
@@ -737,15 +737,15 @@ contains
     !> If specified column is within a character, point goes after that character.
     !> If it's past end of line, point goes to end of line.
     !>
-    !> Optional argument FORCE non-nil means if COLUMN is in the
+    !> Optional argument FORCE .true. means if COLUMN is in the
     !> middle of a tab character, either change it to spaces (when
-    !> `indent_tabs_mode' is nil), or insert enough spaces before it to reach
-    !> COLUMN (otherwise).  In addition, if FORCE is t, and the line is too short
+    !> `indent_tabs_mode' is .false.), or insert enough spaces before it to reach
+    !> COLUMN (otherwise).  In addition, if FORCE is .true., and the line is too short
     !> to reach COLUMN, add spaces/tabs to get there.
     !>
     !> The return value is the current column (`reached').  Port of
-    !> indent.c:Fmove_to_column.  FORCE true is a FORCE of t; COERCE true
-    !> (without FORCE) is a FORCE that is neither nil nor t, such as the
+    !> indent.c:Fmove_to_column.  FORCE .true. is upstream's FORCE t; COERCE true
+    !> (without FORCE) is upstream's other FORCE values, such as the
     !> `coerce' rect.el passes: a tab is split, but a short line is not
     !> padded.
     recursive subroutine move_to_column(column, reached, force, status, coerce)

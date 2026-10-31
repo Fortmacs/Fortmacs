@@ -1022,7 +1022,7 @@ contains
     ! Groups and expressions
     ! ------------------------------------------------------------------
 
-    !> Port of syntax.c:scan_lists (0 is nil).
+    !> Port of syntax.c:scan_lists (0 for none).
     recursive integer(int64) function scan_groups_1(from0, count_in, depth_in, expression_flag, status) result(pos)
         integer(int64), intent(in) :: from0, count_in, depth_in
         logical, intent(in) :: expression_flag
@@ -1843,7 +1843,7 @@ contains
     end subroutine scan_expressions_forward
 
     !> Convert a parse state to the internal form used in
-    !> scan_expressions_forward; an absent EXTERNAL is nil.  Port of
+    !> scan_expressions_forward; an absent EXTERNAL is the empty state.  Port of
     !> syntax.c:internalize_parse_state.
     recursive subroutine internalize_parse_state(state, external)
         type(lisp_parse_state), intent(out) :: state
@@ -1878,8 +1878,8 @@ contains
         state%incomment = external%incomment
         state%quoted = external%quoted
 
-        ! If the eighth element of the list is nil, we are in comment
-        ! style a.  If it is non-nil, we are in comment style b.
+        ! If the eighth element of the list is not set, we are in comment
+        ! style a.  If it is set, we are in comment style b.
         if (external%comment_style < 0 .or. external%comment_style > ST_COMMENT_STYLE) then
             state%comstyle = ST_COMMENT_STYLE
         else

@@ -145,7 +145,7 @@ module register_fm
     !> When collecting text with \[append_to_register] (or \[prepend_to_register]),
     !> contents of this register is added to the beginning (or end, respectively)
     !> of the marked text.  Port of register.el register-separator (-1
-    !> for nil).
+    !> for none).
     integer(int64), public :: register_separator = -1
 
     !> Set contents of Emacs register named REGISTER to VALUE (text, a
@@ -285,7 +285,7 @@ contains
     end subroutine set_register_number
 
     !> `set_register' with a rectangle (an empty one empties the register,
-    !> as nil).  Port of register.el:set-register (a rectangle).
+    !> as no value does).  Port of register.el:set-register (a rectangle).
     subroutine set_register_rectangle(register, value)
         integer(int64), intent(in) :: register
         type(rectangle_line_type), intent(in) :: value(:)
@@ -856,7 +856,7 @@ contains
     !> With a prefix-argument, prompt for FILE_NAME using `read_file_name',
     !> With no prefix-argument, use the currently visited file or directory
     !> for FILE_NAME.  Port of register.el:file-to-register (the command
-    !> does nothing when there is no FILE_NAME, as for nil).
+    !> does nothing when there is no FILE_NAME).
     subroutine file_to_register(file_name, register)
         character(len=*), intent(in) :: file_name
         integer(int64), intent(in) :: register
@@ -1325,7 +1325,7 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    !> Whether the prefix argument is given (a "P" argument that is not nil).
+    !> Whether the prefix argument is given (a raw prefix argument that is not empty).
     !> Not a port.
     logical function prefix_given()
         prefix_given = .not. nilp(current_prefix_arg)

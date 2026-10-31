@@ -36,8 +36,8 @@ module minibuf_table_fm
               completion_requote_proc, completion_exit_function_proc, capf_perform_proc
 
     !> Actions passed to a completion function (programmed completion): as
-    !> `try_completion' (nil), `all_completions' (t), `test_completion'
-    !> (lambda), and `(boundaries . SUFFIX)'.
+    !> `try_completion' (COMPLETE_TRY), `all_completions' (COMPLETE_ALL), `test_completion'
+    !> (COMPLETE_TEST), and the boundaries of SUFFIX (COMPLETE_BOUNDARIES).
     integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
                                   COMPLETE_BOUNDARIES = 3
 
@@ -63,10 +63,10 @@ module minibuf_table_fm
         end function completion_predicate
 
         !> A function completion table.  ACTION says what to compute for
-        !> STRING: COMPLETE_TRY (the `try_completion' value: nil, t or a
-        !> string), COMPLETE_ALL (a list of strings), COMPLETE_TEST (t or
-        !> nil) or COMPLETE_BOUNDARIES (a list (START END) for STRING and
-        !> SUFFIX, or nil for the default).  Not a port.
+        !> STRING: COMPLETE_TRY (the `try_completion' value: none, exact or a
+        !> string), COMPLETE_ALL (an array of strings), COMPLETE_TEST (.true. or
+        !> .false.) or COMPLETE_BOUNDARIES (START and END for STRING and
+        !> SUFFIX, or nothing for the default).  Not a port.
         recursive subroutine completion_function(string, action, result, status, pred, suffix)
             import :: value_type, status_type, completion_predicate
             implicit none(type, external)

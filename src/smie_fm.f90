@@ -40,8 +40,8 @@
 !> upstream iterates over, so the levels come out the same.
 !>
 !> A mode's lexer functions return the token in an allocatable string
-!> (unallocated is nil), its `smie_rules_function' its answer as a
-!> `smie_rule_result_type'.  Positions are 0 for nil.
+!> (unallocated for none), its `smie_rules_function' its answer as a
+!> `smie_rule_result_type'.  Positions are 0 for none.
 !>
 !> Deferred: smie-config (`smie_config', `smie_config_local',
 !> `smie_config_show_indent', `smie_config_set_indent',
@@ -119,15 +119,15 @@ module smie_fm
     integer, parameter, public :: SMIE_AFTER = 1, SMIE_BEFORE = 2, SMIE_ELEM = 3, SMIE_LIST_INTRO = 4, &
                                   SMIE_CLOSE_ALL = 5
     !> Kinds of a precedence level: a number, a list (the token does not
-    !> bind on that side), nil and t.
+    !> bind on that side), SMIE_LEVEL_NIL and SMIE_LEVEL_T.
     integer, parameter, public :: SMIE_LEVEL_NIL = 0, SMIE_LEVEL_NUMBER = 1, SMIE_LEVEL_LIST = 2, SMIE_LEVEL_T = 3
-    !> Kinds of a `smie_rules_function' answer: nil, an OFFSET, (column .
-    !> COLUMN), a token (for empty_line_token) and t (for SMIE_LIST_INTRO
+    !> Kinds of a `smie_rules_function' answer: none (SMIE_NIL), an OFFSET, a column
+    !> COLUMN, a token (for empty_line_token) and .true. (SMIE_RULE_T, for SMIE_LIST_INTRO
     !> and SMIE_CLOSE_ALL).
     integer, parameter, public :: SMIE_NIL = 0, SMIE_RULE_OFFSET = 1, SMIE_RULE_COLUMN = 2, SMIE_RULE_TOKEN = 3, &
                                   SMIE_RULE_T = 4
-    !> Kinds of an indentation (an indentation function's value): nil, a
-    !> column, `noindent'.
+    !> Kinds of an indentation (an indentation function's value): none (SMIE_INDENT_NIL), a
+    !> column (SMIE_INDENT_COLUMN), no indentation (SMIE_INDENT_NOINDENT).
     integer, parameter, public :: SMIE_INDENT_NIL = 0, SMIE_INDENT_COLUMN = 1, SMIE_INDENT_NOINDENT = 2
 
     !> A string of a list.
@@ -210,8 +210,8 @@ module smie_fm
         type(smie_string_type), allocatable :: openers(:), closers(:)
     end type smie_grammar_type
 
-    !> What `smie_next_expression' returns: nil (`null'), or (LEVEL POS TOKEN)
-    !> (`token' unallocated is nil, `pos' 0 too).
+    !> What `smie_next_expression' returns: nothing (`null'), or LEVEL, POS and TOKEN
+    !> (`token' unallocated for none, `pos' 0 too).
     type, public :: smie_expression_type
         logical :: null = .true.
         type(smie_level_type) :: level
@@ -219,7 +219,7 @@ module smie_fm
         character(len=:), allocatable :: token
     end type smie_expression_type
 
-    !> A token and its levels: (TOKEN LEFT RIGHT), or nil (`null').
+    !> A token and its levels: TOKEN, LEFT and RIGHT, or nothing (`null').
     type, public :: smie_toklevels_type
         logical :: null = .true.
         character(len=:), allocatable :: token
@@ -234,7 +234,7 @@ module smie_fm
         character(len=:), allocatable :: token
     end type smie_rule_result_type
 
-    !> An indentation: nil, a column or `noindent'.
+    !> An indentation: none, a column or no indentation (SMIE_INDENT_NOINDENT).
     type, public :: smie_indent_type
         integer :: kind = SMIE_INDENT_NIL
         integer :: column = 0
@@ -243,7 +243,7 @@ module smie_fm
     abstract interface
         !> A token function (`smie_forward_token_function',
         !> `smie_backward_token_function'): move over the next token and
-        !> return it (unallocated for nil).  Not a port.
+        !> return it (unallocated for none).  Not a port.
         subroutine smie_token_proc(token, status)
             import :: status_type
             implicit none(type, external)
@@ -269,7 +269,7 @@ module smie_fm
         end function smie_hanging_eolp_proc
 
         !> A function of `smie_indent_functions': the column point should
-        !> be indented to, or nil, or `noindent'.  It shouldn't move point.
+        !> be indented to, or none, or no indentation (SMIE_INDENT_NOINDENT).  It shouldn't move point.
         !> Not a port.
         subroutine smie_indent_proc(indent, status)
             import :: smie_indent_type, status_type
@@ -336,20 +336,20 @@ module smie_fm
 
     !> List of token parsing info.
     !> This list is normally built by `smie_prec2_to_grammar'.
-    !> Each element is of the form (TOKEN LEFT-LEVEL RIGHT-LEVEL).
+    !> Each element holds a TOKEN, a LEFT-LEVEL and a RIGHT-LEVEL.
     !> Parsing is done using an operator precedence parser.
-    !> LEFT-LEVEL and RIGHT-LEVEL can be either numbers or a list, where a list
+    !> LEFT-LEVEL and RIGHT-LEVEL can be either numbers or SMIE_LEVEL_LIST, where SMIE_LEVEL_LIST
     !> means that this operator does not bind on the corresponding side,
-    !> e.g. a LEFT-LEVEL of nil means this is a token that behaves somewhat like
-    !> an open-paren, whereas a RIGHT-LEVEL of nil would correspond to something
+    !> e.g. a LEFT-LEVEL of SMIE_LEVEL_NIL means this is a token that behaves somewhat like
+    !> an open-paren, whereas a RIGHT-LEVEL of SMIE_LEVEL_NIL would correspond to something
     !> like a close-paren.  Port of smie.el smie-grammar (the default value,
     !> 'unset; `smie_setup' gives a buffer its own).
     type(smie_grammar_type), target, public :: smie_grammar
 
     !> Function to scan forward for the next token.
     !> Called with no argument should return a token and move to its end.
-    !> If no token is found, return nil or the empty string.
-    !> It can return nil when bumping into a parenthesis, which lets SMIE
+    !> If no token is found, return an unallocated or empty string.
+    !> It can return an unallocated string when bumping into a parenthesis, which lets SMIE
     !> use syntax-tables to handle them in efficient C code.  Port of
     !> smie.el smie-forward-token-function (the default value).
     procedure(smie_token_proc), pointer, public :: smie_forward_token_function => null()
@@ -397,13 +397,13 @@ module smie_fm
     !>   Otherwise, it will be aligned with its own opener.
     !>
     !> When ARG is a token, the function is called with point just before that token.
-    !> A return value of nil always means to fallback on the default behavior, so the
-    !> function should return nil for arguments it does not expect.
+    !> A return value of SMIE_NIL always means to fallback on the default behavior, so the
+    !> function should return SMIE_NIL for arguments it does not expect.
     !>
     !> OFFSET can be:
-    !> nil                          use the default indentation rule.
-    !> (column . COLUMN)            indent to column COLUMN.
-    !> NUMBER                       offset by NUMBER, relative to a base token
+    !> SMIE_NIL                     use the default indentation rule.
+    !> SMIE_RULE_COLUMN, COLUMN     indent to column COLUMN.
+    !> SMIE_RULE_OFFSET, NUMBER     offset by NUMBER, relative to a base token
     !>                              which is the current token for SMIE_AFTER and
     !>                              its parent for SMIE_BEFORE.
     !>
@@ -418,7 +418,7 @@ module smie_fm
 
     !> Functions to compute the indentation.
     !> Each function is called with no argument, shouldn't move point, and should
-    !> return either nil if it has no opinion, or an integer representing the column
+    !> return either SMIE_INDENT_NIL if it has no opinion, or an integer representing the column
     !> to which that point should be aligned, if we were to reindent it.
     !> Port of smie.el smie-indent-functions.
     type(smie_indent_functions_type), public :: smie_indent_functions
@@ -1942,14 +1942,14 @@ contains
     !> first token we see is an operator, skip over its left-hand-side argument.
     !> HALFEXPRESSION can also be a token (TOKEN), in which case it means to parse as if
     !> we had just successfully passed this token.
-    !> Possible return values:
-    !>   (FORW-LEVEL POS TOKEN): we couldn't skip TOKEN because its back-level
+    !> Possible results in RES:
+    !>   LEVEL a number, POS and TOKEN: we couldn't skip TOKEN because its back-level
     !>     is too high.  FORW-LEVEL is the forw-level of TOKEN,
     !>     POS is its start position in the buffer.
-    !>   (t POS TOKEN): same thing when we bump on the wrong side of a paren.
-    !>     Instead of t, the LEVEL can also be some other non-nil non-number value.
-    !>   (nil POS TOKEN): we skipped over a paren-like pair.
-    !>   nil: we skipped over an identifier, matched parentheses, ...
+    !>   LEVEL SMIE_LEVEL_T, POS and TOKEN: same thing when we bump on the wrong side of a paren.
+    !>     Instead of SMIE_LEVEL_T, the LEVEL can also be SMIE_LEVEL_LIST.
+    !>   LEVEL SMIE_LEVEL_NIL, POS and TOKEN: we skipped over a paren-like pair.
+    !>   `null' .true.: we skipped over an identifier, matched parentheses, ...
     !> Port of smie.el:smie-next-sexp.
     recursive subroutine smie_next_expression(forward, res, status, halfexpression, token)
         logical, intent(in) :: forward
@@ -2210,14 +2210,14 @@ contains
     !> first token we see is an operator, skip over its left-hand-side argument.
     !> HALFEXPRESSION can also be a token (TOKEN), in which case we should skip the text
     !> assuming it is the left-hand-side argument of that token.
-    !> Possible return values:
+    !> Possible results in RES:
     !>   (LEFT-LEVEL POS TOKEN): we couldn't skip TOKEN because its right-level
     !>     is too high.  LEFT-LEVEL is the left-level of TOKEN,
     !>     POS is its start position in the buffer.
-    !>   (t POS TOKEN): same thing but for an open-paren or the beginning of buffer.
-    !>     Instead of t, the LEVEL can also be some other non-nil non-number value.
-    !>   (nil POS TOKEN): we skipped over a paren-like pair.
-    !>   nil: we skipped over an identifier, matched parentheses, ...
+    !>   LEVEL SMIE_LEVEL_T, POS and TOKEN: same thing but for an open-paren or the beginning of buffer.
+    !>     Instead of SMIE_LEVEL_T, the LEVEL can also be SMIE_LEVEL_LIST.
+    !>   LEVEL SMIE_LEVEL_NIL, POS and TOKEN: we skipped over a paren-like pair.
+    !>   `null' .true.: we skipped over an identifier, matched parentheses, ...
     !> Port of smie.el:smie-backward-sexp.
     recursive subroutine smie_backward_expression(res, status, halfexpression, token)
         type(smie_expression_type), intent(out) :: res
@@ -2233,14 +2233,14 @@ contains
     !> first token we see is an operator, skip over its right-hand-side argument.
     !> HALFEXPRESSION can also be a token (TOKEN), in which case we should skip the text
     !> assuming it is the right-hand-side argument of that token.
-    !> Possible return values:
+    !> Possible results in RES:
     !>   (RIGHT-LEVEL POS TOKEN): we couldn't skip TOKEN because its left-level
     !>     is too high.  RIGHT-LEVEL is the right-level of TOKEN,
     !>     POS is its end position in the buffer.
-    !>   (t POS TOKEN): same thing but for a close-paren or the end of buffer.
-    !>     Instead of t, the LEVEL can also be some other non-nil non-number value.
-    !>   (nil POS TOKEN): we skipped over a paren-like pair.
-    !>   nil: we skipped over an identifier, matched parentheses, ...
+    !>   LEVEL SMIE_LEVEL_T, POS and TOKEN: same thing but for a close-paren or the end of buffer.
+    !>     Instead of SMIE_LEVEL_T, the LEVEL can also be SMIE_LEVEL_LIST.
+    !>   LEVEL SMIE_LEVEL_NIL, POS and TOKEN: we skipped over a paren-like pair.
+    !>   `null' .true.: we skipped over an identifier, matched parentheses, ...
     !> Port of smie.el:smie-forward-sexp.
     recursive subroutine smie_forward_expression(res, status, halfexpression, token)
         type(smie_expression_type), intent(out) :: res
@@ -3830,7 +3830,7 @@ contains
 
     !> Indent point based on the token that follows it immediately.
     !> If TOKEN is present, assume that that is the token that follows point.
-    !> Returns either a column number or nil if it considers that indentation
+    !> Returns either a column number or SMIE_INDENT_NIL if it considers that indentation
     !> should not be computed on the basis of the following token.  Port of
     !> smie.el:smie-indent-keyword.
     recursive subroutine smie_indent_keyword(indent, status, token)

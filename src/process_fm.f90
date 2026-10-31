@@ -1760,7 +1760,7 @@ contains
     !> Set coding systems of PROCESS to DECODING and ENCODING.
     !> DECODING will be used to decode subprocess output and ENCODING to
     !> encode subprocess input.  Port of process.c:Fset_process_coding_system
-    !> ("" for nil, which is no conversion).
+    !> ("" for none, which is no conversion).
     subroutine set_process_coding_system(process, decoding, encoding, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: decoding, encoding

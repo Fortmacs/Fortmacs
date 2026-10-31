@@ -34,7 +34,7 @@
 !> A coding system is named by a string, its upstream symbol's name
 !> (`"utf-8"', `"iso-latin-1-dos"'), because the names are data that
 !> files and the user give (`-*- coding: utf-8 -*-').  The empty string
-!> stands for nil.  Each base coding system without an end-of-line type
+!> stands for none.  Each base coding system without an end-of-line type
 !> has the three subsidiaries NAME-unix, NAME-dos and NAME-mac, as
 !> upstream makes them.
 !>
@@ -100,8 +100,8 @@ module coding_fm
     !> first three, or EOL_UNDECIDED for a coding system that has
     !> subsidiaries (upstream's vector).
     integer, parameter, public :: EOL_UNIX = 0, EOL_DOS = 1, EOL_MAC = 2, EOL_UNDECIDED = -1
-    !> BOM handling of UTF coding systems (the `:bom' attribute: nil, t
-    !> or a cons of the two coding systems to choose from).
+    !> BOM handling of UTF coding systems (the `:bom' attribute: BOM_NONE, BOM_WITH
+    !> or BOM_DETECT, which chooses between two coding systems).
     integer, parameter, public :: BOM_NONE = 0, BOM_WITH = 1, BOM_DETECT = 2
 
     ! The charsets a coding system can encode (its `:charset-list').
@@ -175,7 +175,7 @@ module coding_fm
 
     !> An entry of `file_coding_system_table': a regexp matching file
     !> names, and the coding systems for decoding and for encoding ("" for
-    !> nil).
+    !> none).
     type, public :: file_coding_type
         character(len=:), allocatable :: pattern, decoding, encoding
     end type file_coding_type
@@ -197,7 +197,7 @@ module coding_fm
     !> If not, an appropriate element is used from one of the coding system tables.
     !> There are three such tables: `file_coding_system_table',
     !> `process_coding_system_table', and `network_coding_system_table'.
-    !> Port of coding.c coding-system-for-read (unallocated is nil).
+    !> Port of coding.c coding-system-for-read (unallocated when unset).
     type(string_setting), public :: coding_system_for_read = string_setting(name="coding_system_for_read")
 
     !> Specify the coding system for write operations.
@@ -211,7 +211,7 @@ module coding_fm
     !> `process_coding_system_table', and `network_coding_system_table'.
     !> For output to files, if the above procedure does not specify a coding system,
     !> the value of `buffer_file_coding_system' is used.  Port of coding.c
-    !> coding-system-for-write (unallocated is nil).
+    !> coding-system-for-write (unallocated when unset).
     type(string_setting), public :: coding_system_for_write = string_setting(name="coding_system_for_write")
 
     !> Coding system used in the latest file or process I/O.  Port of
@@ -314,7 +314,7 @@ module coding_fm
     !> and other functions that use `write_region'.
     !> It does not apply to sending output to subprocesses, however.
     !>
-    !> If this is nil, the buffer is saved without any code conversion
+    !> If this is unallocated, the buffer is saved without any code conversion
     !> unless some coding system is specified in `file_coding_system_table'
     !> for the buffer file.
     !>
@@ -589,10 +589,10 @@ contains
         if (id > 0 .and. id <= ncodings) name = codings(id)%name
     end function coding_system_name
 
-    !> Return t if OBJECT is nil or a coding-system.
+    !> Return .true. if OBJECT is "" or a coding-system.
     !> See the documentation of `define_coding_system' for information
     !> about coding-system objects.  Port of coding.c:Fcoding_system_p
-    !> ("" is nil).
+    !> ("" for none).
     logical function coding_system_p(object)
         character(len=*), intent(in) :: object
 
@@ -602,7 +602,7 @@ contains
 
     !> Check validity of CODING-SYSTEM.
     !> If valid, return CODING-SYSTEM, else signal a `coding_system_error' error.
-    !> It is valid if it is nil or a symbol defined as a coding system by the
+    !> It is valid if it is "" or a name defined as a coding system by the
     !> function `define_coding_system'.  Port of
     !> coding.c:Fcheck_coding_system.
     subroutine check_coding_system(coding_system, status)
@@ -624,7 +624,7 @@ contains
     !> coding system whose eol-type is N.  Port of
     !> coding.c:Fcoding_system_eol_type (EOL_UNDECIDED for a vector, whose
     !> elements `coding_system_subsidiaries' gives; EOL_UNDECIDED also for
-    !> nil and a name that is not a coding system).
+    !> "" and a name that is not a coding system).
     integer function coding_system_eol_type(coding_system) result(eol)
         character(len=*), intent(in) :: coding_system
         integer :: id
@@ -654,7 +654,7 @@ contains
 
     !> Return the base of CODING-SYSTEM.
     !> Any alias or subsidiary coding system is not a base coding system.
-    !> Port of coding.c:Fcoding_system_base ("" for nil).
+    !> Port of coding.c:Fcoding_system_base ("" for none).
     function coding_system_base(coding_system) result(base)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: base
@@ -695,7 +695,7 @@ contains
 
     !> Return the mnemonic character of CODING-SYSTEM.
     !> The mnemonic character of a coding system is used in mode line to
-    !> indicate the coding system.  If CODING-SYSTEM is nil, return ?=.
+    !> indicate the coding system.  If CODING-SYSTEM is "", return ?=.
     !> Port of mule.el:coding-system-mnemonic.
     integer function coding_system_mnemonic(coding_system) result(c)
         character(len=*), intent(in) :: coding_system
@@ -999,9 +999,9 @@ contains
     !> Return a coding system which differs from CODING-SYSTEM in EOL conversion.
     !> The returned coding system converts end-of-line by EOL-TYPE
     !> but text as the same way as CODING-SYSTEM.
-    !> EOL-TYPE should be `unix', `dos', `mac', or nil (EOL_UNIX, EOL_DOS,
+    !> EOL-TYPE should be `unix', `dos', `mac', or undecided (EOL_UNIX, EOL_DOS,
     !> EOL_MAC or EOL_UNDECIDED here).
-    !> If EOL-TYPE is nil, the returned coding system detects
+    !> If EOL-TYPE is EOL_UNDECIDED, the returned coding system detects
     !> how end-of-line is formatted automatically while decoding.
     !>
     !> EOL-TYPE can be specified by an integer 0, 1, or 2.
@@ -1036,7 +1036,7 @@ contains
     !> Return a coding system which differs from CODING-SYSTEM in text conversion.
     !> The returned coding system converts text by CODING
     !> but end-of-line as the same way as CODING-SYSTEM.
-    !> If CODING is nil, the returned coding system detects
+    !> If CODING is "", the returned coding system detects
     !> how text is formatted automatically while decoding.  Port of
     !> mule.el:coding-system-change-text-conversion.
     function coding_system_change_text_conversion(coding_system, coding) result(cs)
@@ -1073,8 +1073,8 @@ contains
 
     !> If CODING_SYSTEM doesn't specify end-of-line format, return the
     !> subsidiary that has the end-of-line format of PARENT (if it is
-    !> not nil and specifies one) or the system's (unix).  Port of
-    !> coding.c:coding_inherit_eol_type ("" is nil, meaning raw-text).
+    !> not "" and specifies one) or the system's (unix).  Port of
+    !> coding.c:coding_inherit_eol_type ("" means raw-text).
     function coding_inherit_eol_type(coding_system, parent) result(cs)
         character(len=*), intent(in) :: coding_system, parent
         character(len=:), allocatable :: cs
@@ -2623,7 +2623,7 @@ contains
     !> by CODING_SYSTEMS.
     !>
     !> If all coding systems in CODING-SYSTEM-LIST can encode the region, the
-    !> function returns nil (an empty RESULT).
+    !> function returns an empty RESULT.
     !>
     !> If some of the coding systems cannot encode the whole region, value is
     !> a table, each element of which has the form (CODING-SYSTEM POS1 POS2 ...),
@@ -2762,7 +2762,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Decode STRING (bytes, unless MULTIBYTE) by CODING-SYSTEM into RESULT.
-    !> If CODING-SYSTEM is nil, it returns STRING itself.  The value is a
+    !> If CODING-SYSTEM is "", it returns STRING itself.  The value is a
     !> multibyte string.  This function sets `last_coding_system_used' to
     !> the precise coding system used to decode STRING, which may be
     !> different from CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided').
@@ -2790,7 +2790,7 @@ contains
     end subroutine decode_coding_string
 
     !> Encode STRING (multibyte, unless MULTIBYTE is false) to CODING-SYSTEM
-    !> into RESULT, the bytes.  If CODING-SYSTEM is nil, it returns STRING
+    !> into RESULT, the bytes.  If CODING-SYSTEM is "", it returns STRING
     !> itself.  This function sets `last_coding_system_used' to the precise
     !> coding system used to encode STRING, which may be different from
     !> CODING-SYSTEM.  Port of coding.c:Fencode_coding_string (no NOCOPY or
@@ -2977,7 +2977,7 @@ contains
     end subroutine set_terminal_coding_system_internal
 
     !> Return coding system specified for terminal output on the
-    !> terminal ("" for nil).  Port of coding.c:Fterminal_coding_system.
+    !> terminal ("" for none).  Port of coding.c:Fterminal_coding_system.
     function terminal_coding_system() result(name)
         character(len=:), allocatable :: name
 

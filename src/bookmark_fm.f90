@@ -265,8 +265,8 @@ module bookmark_fm
     !> bookmark-watch-bookmark-file.
     integer, public :: bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_T
 
-    !> Values of `bookmark_version_control': t, nil, `never' and
-    !> `nospecial'.
+    !> Values of `bookmark_version_control': BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL,
+    !> BOOKMARK_VERSION_CONTROL_NEVER and BOOKMARK_VERSION_CONTROL_NOSPECIAL.
     integer, parameter, public :: BOOKMARK_VERSION_CONTROL_T = 1, BOOKMARK_VERSION_CONTROL_NIL = 0, &
                                   BOOKMARK_VERSION_CONTROL_NEVER = 2, BOOKMARK_VERSION_CONTROL_NOSPECIAL = 3
 
@@ -276,7 +276,7 @@ module bookmark_fm
     !> for the variable `version_control'; the value _NOSPECIAL (the
     !> default) means just use the value of `version_control'.  Port of
     !> bookmark.el bookmark-version-control (numbered backups are not
-    !> ported: saving makes a single backup, as with version-control nil).
+    !> ported: saving makes a single backup, as with `version_control' .false.).
     integer, public :: bookmark_version_control = BOOKMARK_VERSION_CONTROL_NOSPECIAL
 
     !> True means bookmark functions ignore case in completion.  Port of
@@ -464,8 +464,8 @@ module bookmark_fm
     !> The idle timer of `bookmark_bmenu_search' and its minibuffer.
     type(handle_type) :: search_timer, search_minibuffer
 
-    !> Values of OVERWRITE_OR_PUSH for `bookmark_set_internal' (nil,
-    !> `overwrite' and `push').
+    !> Values of OVERWRITE_OR_PUSH for `bookmark_set_internal' (BOOKMARK_SET_ERROR,
+    !> BOOKMARK_SET_OVERWRITE and BOOKMARK_SET_PUSH).
     integer, parameter, public :: BOOKMARK_SET_ERROR = 0, BOOKMARK_SET_OVERWRITE = 1, BOOKMARK_SET_PUSH = 2
 
     !> The buffer-local variables: `bookmark_current_bookmark' (name of
@@ -553,7 +553,7 @@ contains
         if (allocated(locals(k)%current_bookmark)) name = locals(k)%current_bookmark
     end function bookmark_current_bookmark
 
-    !> Set the current buffer's `bookmark_current_bookmark' to NAME (nil if
+    !> Set the current buffer's `bookmark_current_bookmark' to NAME ("" if
     !> NAME is absent).  Not a port.
     subroutine set_bookmark_current_bookmark(name)
         character(len=*), intent(in), optional :: name
@@ -569,7 +569,7 @@ contains
         end if
     end subroutine set_bookmark_current_bookmark
 
-    ! Whether the current buffer's `bookmark_current_bookmark' is non-nil.
+    ! Whether the current buffer's `bookmark_current_bookmark' is allocated.
     ! Not a port.
     logical function have_current_bookmark()
         integer :: k

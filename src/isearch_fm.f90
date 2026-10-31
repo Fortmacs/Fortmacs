@@ -90,11 +90,11 @@ module isearch_fm
               isearch_push_state_proc, isearch_filter_proc, isearch_message_proc, isearch_message_display, &
               set_isearch_barrier, set_isearch_opoint
 
-    !> Values of `isearch_case_fold_search': nil, t, and `yes' (set by
+    !> Values of `isearch_case_fold_search': CASE_FOLD_NIL, CASE_FOLD_T, and CASE_FOLD_YES (set by
     !> M-c: fold even when the string has upper-case letters).
     integer, parameter, public :: CASE_FOLD_NIL = 0, CASE_FOLD_T = 1, CASE_FOLD_YES = 2
 
-    !> Values of `search_upper_case': nil, t and `not_yanks'.
+    !> Values of `search_upper_case': UPPER_CASE_NIL, UPPER_CASE_T and UPPER_CASE_NOT_YANKS.
     integer, parameter, public :: UPPER_CASE_NIL = 0, UPPER_CASE_T = 1, UPPER_CASE_NOT_YANKS = 2
 
     !> If not UPPER_CASE_NIL, upper case chars disable case fold searching.
@@ -169,7 +169,7 @@ module isearch_fm
     !> The search string and the message shown for it (isearch.el's
     !> isearch-string and isearch-message), in UTF-8.
     character(len=:), allocatable, public, protected :: isearch_string, isearch_message
-    !> Why the search string fails (isearch-error; unallocated for nil).
+    !> Why the search string fails (isearch-error; unallocated for none).
     character(len=:), allocatable, public, protected :: isearch_error
     !> Searching forward (isearch-forward), and whether the search succeeds
     !> (isearch-success).
@@ -180,13 +180,13 @@ module isearch_fm
     logical, public, protected :: isearch_regexp = .false.
     !> The other end of the match, where the search started and the
     !> barrier (isearch-other-end, isearch-opoint, isearch-barrier; 0 for
-    !> nil).
+    !> none).
     integer(int64), public, protected :: isearch_other_end = 0, isearch_opoint = 0, isearch_barrier = 0
     !> Whether the search ignores case (isearch-case-fold-search; a CASE_FOLD_
     !> value).
     integer, public, protected :: isearch_case_fold_search = CASE_FOLD_T
     integer :: isearch_last_case_fold_search = CASE_FOLD_T
-    !> isearch-adjusted: nil, t (shows "pending"), or a toggle.
+    !> isearch-adjusted: ADJUSTED_NIL, ADJUSTED_T (shows "pending"), or ADJUSTED_TOGGLE.
     integer, parameter :: ADJUSTED_NIL = 0, ADJUSTED_T = 1, ADJUSTED_TOGGLE = 2
     integer :: isearch_adjusted = ADJUSTED_NIL
     logical :: isearch_yank_flag = .false.
@@ -196,13 +196,13 @@ module isearch_fm
     integer(int64) :: isearch_yank_prev_point = 0
 
     !> isearch.el search-ring-yank-pointer and
-    !> regexp-search-ring-yank-pointer: 0-based, -1 for nil.
+    !> regexp-search-ring-yank-pointer: 0-based, -1 for none.
     integer :: search_ring_yank_pointer = -1, regexp_search_ring_yank_pointer = -1
 
     abstract interface
         !> A search function, as `isearch_search_fun_function' returns:
         !> search for the first occurrence of STRING from point, BOUND (0
-        !> for nil) and NOERROR as for `re_search_forward'.  POS is where
+        !> for none) and NOERROR as for `re_search_forward'.  POS is where
         !> the search left point, 0 if it found nothing.  Not a port.
         recursive subroutine isearch_search_proc(string, bound, noerror, pos, status)
             import :: int64, status_type
@@ -301,7 +301,7 @@ module isearch_fm
     type, public :: isearch_search_fun_function_type
         character(len=32) :: name = "isearch_search_fun_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => search_fun_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => search_fun_set_local
@@ -319,11 +319,11 @@ module isearch_fm
     type, public :: isearch_wrap_function_type
         character(len=32) :: name = "isearch_wrap_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => wrap_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => wrap_set_local
-        !> The current buffer's value (null for nil).
+        !> The current buffer's value (null when unset).
         procedure, nopass :: get => wrap_get
     end type isearch_wrap_function_type
 
@@ -333,11 +333,11 @@ module isearch_fm
     type, public :: isearch_push_state_function_type
         character(len=32) :: name = "isearch_push_state_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => push_state_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => push_state_set_local
-        !> The current buffer's value (null for nil).
+        !> The current buffer's value (null when unset).
         procedure, nopass :: get => push_state_get
     end type isearch_push_state_function_type
 
@@ -354,7 +354,7 @@ module isearch_fm
     type, public :: isearch_filter_predicate_type
         character(len=32) :: name = "isearch_filter_predicate"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => filter_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => filter_set_local
@@ -368,18 +368,18 @@ module isearch_fm
     type, public :: isearch_message_function_type
         character(len=32) :: name = "isearch_message_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => message_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => message_set_local
-        !> The current buffer's value (null for nil).
+        !> The current buffer's value (null when unset).
         procedure, nopass :: get => message_get
     end type isearch_message_function_type
 
     !> See the type.  Port of isearch.el isearch-message-function.
     type(isearch_message_function_type), public :: isearch_message_function
 
-    !> A string added to the Isearch prompt (unallocated for nil), as
+    !> A string added to the Isearch prompt (unallocated for none), as
     !> "history " when searching a comint's input history.  Port of
     !> isearch.el isearch-message-prefix-add.
     character(len=:), allocatable, public :: isearch_message_prefix_add
@@ -552,7 +552,7 @@ contains
     !> compute a regexp that matches those exact words separated by
     !> arbitrary punctuation.  If the string begins or ends in whitespace,
     !> the beginning or the end of the string matches arbitrary whitespace.
-    !> Otherwise if LAX is non-nil, the beginning or the end of the string
+    !> Otherwise if LAX is .true., the beginning or the end of the string
     !> need not match a word boundary.
     !>
     !> Used in `word_search_forward', `word_search_backward',
@@ -640,7 +640,7 @@ contains
     end subroutine search_ring
 
     !> Add STRING to the beginning of the search ring.
-    !> REGEXP if non-nil says use the regexp search ring.  Port of
+    !> REGEXP if .true. says use the regexp search ring.  Port of
     !> isearch.el:isearch-update-ring (no text properties on STRING).
     subroutine isearch_update_ring(string, regexp)
         character(len=*), intent(in) :: string
@@ -685,7 +685,7 @@ contains
         end if
     end subroutine isearch_ring_adjust1
 
-    !> Port of isearch.el:isearch-ring-adjust (search-ring-update nil:
+    !> Port of isearch.el:isearch-ring-adjust (`search_ring_update' .false.:
     !> edit the string in the minibuffer).
     subroutine isearch_ring_adjust(advance, status)
         logical, intent(in) :: advance
@@ -868,7 +868,7 @@ contains
     !> Start Isearch minor mode.
     !> It is called by the function `isearch_forward' and other related
     !> functions.  The arg FORWARD means searching in the forward
-    !> direction.  The non-nil arg REGEXP does an incremental regular
+    !> direction.  The arg REGEXP .true. does an incremental regular
     !> expression search.  Port of isearch.el:isearch-mode (no OP-FUN,
     !> RECURSIVE-EDIT or REGEXP-FUNCTION).
     recursive subroutine isearch_mode(forward, regexp)
@@ -939,7 +939,7 @@ contains
     !> For a failing search, NOPUSH is t.
     !> For going to the minibuffer to edit the search string,
     !> NOPUSH is t and EDIT is t.
-    !> If NOPUSH is non-nil, we don't push the string on the search ring.
+    !> If NOPUSH is .true., we don't push the string on the search ring.
     !> Port of isearch.el:isearch-done (no intangible text).
     recursive subroutine isearch_done(nopush, edit)
         logical, intent(in), optional :: nopush, edit
@@ -1112,8 +1112,8 @@ contains
         m = m//isearch_message_suffix(c_q_hack)
     end function isearch_message_string
 
-    !> Return position of first mismatch in search string, or -1 (nil) if
-    !> none.  Port of isearch.el:isearch-fail-pos (MSG nil).
+    !> Return position of first mismatch in search string, or -1 if
+    !> none.  Port of isearch.el:isearch-fail-pos (MSG absent).
     integer(int64) function isearch_fail_pos() result(pos)
         integer :: k
 
@@ -1318,7 +1318,7 @@ contains
     !> Search for the first occurrence of STRING.  If found, move point
     !> to the end of the occurrence, update the match data, and return
     !> true.  An error of the search is in `status'.  Port of
-    !> isearch.el:isearch-search-string (BOUND nil, NOERROR t; no
+    !> isearch.el:isearch-search-string (BOUND absent, NOERROR .true.; no
     !> translation-table-for-input).
     recursive logical function isearch_search_string(string, status) result(found)
         character(len=*), intent(in) :: string
@@ -1565,7 +1565,7 @@ contains
 
     !> Utility for isearch-repeat-forward and isearch-repeat-backward.
     !> Port of isearch.el:isearch-repeat (isearch-wrap-pause t,
-    !> isearch-repeat-on-direction-change nil).
+    !> `isearch_repeat_on_direction_change' .false.).
     recursive subroutine isearch_repeat(forward, count)
         logical, intent(in) :: forward
         integer(int64), intent(in), optional :: count
@@ -1875,12 +1875,12 @@ contains
     !> `isearch_barrier' as needed.
     !>
     !> Do nothing if a backslash is escaping the liberalizing character.
-    !> If WANT-BACKSLASH is non-nil, invert this behavior (for \} and \|).
+    !> If WANT-BACKSLASH is .true., invert this behavior (for \} and \|).
     !>
     !> Do nothing if regexp has recently been invalid unless optional
-    !> ALLOW-INVALID non-nil.
+    !> ALLOW-INVALID .true..
     !>
-    !> If optional TO-BARRIER non-nil, ignore previous matches and go
+    !> If optional TO-BARRIER .true., ignore previous matches and go
     !> exactly to the barrier.  Port of isearch.el:isearch-fallback.
     subroutine isearch_fallback(want_backslash, allow_invalid, to_barrier)
         logical, intent(in) :: want_backslash

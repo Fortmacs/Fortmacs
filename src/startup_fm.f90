@@ -34,7 +34,7 @@ module startup_fm
     public :: init_user_mail_address, user_mail_address_value
 
     !> The name of this machine, for use in constructing email addresses.
-    !> If this is unallocated (nil), Emacs uses `system_name'.  Port of
+    !> If this is unallocated, Emacs uses `system_name'.  Port of
     !> startup.el mail-host-address.
     character(len=:), allocatable, public :: mail_host_address
 

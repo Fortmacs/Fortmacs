@@ -25,7 +25,7 @@
 
 !> Part of window_fm: the window.c functions that tell about windows.  A
 !> window argument that is absent means the selected window; a result
-!> of nil is the null handle.  There is one frame, so the ALL-FRAMES
+!> of none is the null handle.  There is one frame, so the ALL-FRAMES
 !> arguments of upstream make no difference and are left out, and sizes
 !> are in the canonical lines and columns of a terminal frame.  These
 !> need the frame (frame_fm), so they live in a submodule.

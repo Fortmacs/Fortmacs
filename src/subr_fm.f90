@@ -285,7 +285,7 @@ module subr_fm
         !>
         !> DEFAULTS, in place of DEFAULT, is an array of defaults: the first
         !> is the default, all are offered by M-n; with NO_DEFAULT, the list
-        !> starts with a nil default (there is none, the others are offered
+        !> starts with an empty default (there is none, the others are offered
         !> by M-n).  Port of subr.el:read-number (the answer is read as
         !> upstream's reader reads an integer; floats are not ported).  (In
         !> subr_read_fm.)
@@ -765,8 +765,8 @@ contains
     !> property on symbol HISTORY-VAR, if set, or the value of the `history_length'
     !> variable.  The possible values of maximum length have the same meaning as
     !> the values of `history_length'.
-    !> Remove duplicates of NEWELT if `history_delete_duplicates' is non-nil.
-    !> If optional fourth arg KEEP-ALL is non-nil, add NEWELT to history even
+    !> Remove duplicates of NEWELT if `history_delete_duplicates' is .true..
+    !> If optional fourth arg KEEP-ALL is .true., add NEWELT to history even
     !> if it is empty or duplicates the most recent entry in the history.
     !> Port of subr.el:add-to-history (NEWELT a string; `added' says
     !> whether the list changed; a void HISTORY-VAR is a void-variable

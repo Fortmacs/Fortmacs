@@ -24,7 +24,7 @@
 !>
 !> File names are strings of bytes, as they are on Linux; Fortmacs does no
 !> file-name encoding (`file_name_coding_system' is effectively utf-8).
-!> Where upstream returns nil for "no directory", the functions here
+!> Where upstream returns no value for "no directory", the functions here
 !> return "" (a directory name is never empty).  There are no file name
 !> handlers (TRAMP and friends).
 !>
@@ -137,7 +137,7 @@ module fileio_fm
     !> specified in the heading lines with the format:
     !>         -*- ... coding: CODING-SYSTEM; ... -*-
     !> or local variable spec of the tailing lines with `coding:' tag.
-    !> Port of fileio.c set-auto-coding-function (null is nil; mule_fm
+    !> Port of fileio.c set-auto-coding-function (null when unset; mule_fm
     !> points it at `set_auto_coding').
     procedure(set_auto_coding_proc), pointer, public :: set_auto_coding_function => null()
 
@@ -154,7 +154,7 @@ module fileio_fm
     !> the coding system is being selected.
     !>
     !> The default value is `select_safe_coding_system' (which see).  Port
-    !> of coding.c select-safe-coding-system-function (null is nil;
+    !> of coding.c select-safe-coding-system-function (null when unset;
     !> mule_cmds_fm points it there).
     procedure(select_safe_coding_system_proc), pointer, public :: select_safe_coding_system_function => null()
 

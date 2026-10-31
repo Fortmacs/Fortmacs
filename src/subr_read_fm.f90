@@ -574,7 +574,7 @@ contains
         call sit_for(2000)
     end subroutine y_or_n_p_insert_other
 
-    !> Ignore ARGUMENTS, do nothing, and return nil.
+    !> Ignore ARGUMENTS and do nothing.
     !> This function accepts any number of arguments in ARGUMENTS.
     !> Also see `always'.  Port of subr.el:ignore (no arguments).
     recursive subroutine ignore(status)
@@ -618,7 +618,7 @@ contains
     end subroutine cmd_top_level
 
     !> Return or set the maximum number of keystrokes to save.
-    !> If called with a non-nil ARG, set the limit to ARG and return it.
+    !> If called with a prefix ARG, set the limit to ARG and return it.
     !> Otherwise, return the current limit.
     !>
     !> The saved keystrokes are shown by `view_lossage'.  Port of

@@ -3212,7 +3212,7 @@ contains
 
     !> Replace first match of REGEXP in STRING with NEWTEXT (NEW; FOUND
     !> false if it does not match).  Port of
-    !> dired.el:dired-string-replace-match (LITERAL and GLOBAL nil).
+    !> dired.el:dired-string-replace-match (LITERAL and GLOBAL .false.).
     recursive subroutine dired_string_replace_match(regexp, string, newtext, new, found, status)
         character(len=*), intent(in) :: regexp, string, newtext
         character(len=:), allocatable, intent(out) :: new
@@ -4031,7 +4031,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push_string
 
-    !> (re-search-forward REGEXP nil t) as a truth value.  Not a port.
+    !> `re_search_forward' of REGEXP (NOERROR .true.) as a logical.  Not a port.
     logical function aux_re_search_forward(regexp) result(found)
         character(len=*), intent(in) :: regexp
         integer(int64) :: pos

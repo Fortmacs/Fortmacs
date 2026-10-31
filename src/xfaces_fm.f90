@@ -130,7 +130,7 @@ contains
     !> didn't say): light for xterm, rxvt, dtterm and eterm (whose
     !> default background is white), else dark.  Port of
     !> frame.el:frame-set-background-mode (the terminal part,
-    !> frame-background-mode nil; the background color xterm.el queries is
+    !> `frame_background_mode' unset; the background color xterm.el queries is
     !> deferred).
     integer function frame_background_mode(term_type, bg_color) result(mode)
         character(len=*), intent(in) :: term_type, bg_color
@@ -218,7 +218,7 @@ contains
     !> face that are not specified get their terminal values: family and
     !> foundry "default", width normal, height 1, weight and slant normal,
     !> no underline, overline, strike-through, box or inverse video,
-    !> `extend' nil, and the colors "unspecified-fg" and "unspecified-bg".
+    !> `extend' .false., and the colors "unspecified-fg" and "unspecified-bg".
     !> They are set on the `default' face itself.  Port of the terminal
     !> part of xfaces.c:realize_default_face.
     subroutine realize_default_face(f)
@@ -730,7 +730,7 @@ contains
         if (filter) then
             ! Don't merge this face if `extend' is nil, or not mentioned,
             ! or if it's unspecified and the face doesn't inherit from a
-            ! face whose `extend' is non-nil.
+            ! face whose `extend' is .true..
             seen = .false.
             k = 1
 
@@ -1077,7 +1077,7 @@ contains
     !> The id of the face for a character of a string whose `face'
     !> property is PROP, shown where the face is BASE_FACE_ID on frame F:
     !> the base face with PROP merged in (the base face itself if PROP is
-    !> nil).  Port of xfaces.c:face_at_string_position (the string's
+    !> empty).  Port of xfaces.c:face_at_string_position (the string's
     !> property already looked up; no mouse faces).
     integer(int32) function face_at_string_position(f, prop, base_face_id) result(id)
         type(frame_type), intent(inout) :: f
@@ -1104,7 +1104,7 @@ contains
     !> `face' properties of the overlays at POS in order of increasing
     !> priority, among them the `region' face if POS is in
     !> [REGION_START, REGION_END) (the region overlay redisplay makes for
-    !> an active region, of priority (nil . 100)).  With EXTEND_ONLY, only
+    !> an active region, of priority 100).  With EXTEND_ONLY, only
     !> faces that set `extend' are merged (for filling the rest of a
     !> line).  Overlays whose `window' property is not WINDOW (when given)
     !> are left out.  Port of xfaces.c:face_at_buffer_position (no mouse

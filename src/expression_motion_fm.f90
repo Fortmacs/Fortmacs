@@ -95,16 +95,16 @@ module expression_motion_fm
     end type forward_expression_entry_type
 
     !> The type of `forward_expression_function': the default `value' (assign
-    !> with `=>'; null is nil) and buffers' own values (`set_local',
-    !> where null is nil too).
+    !> with `=>'; null when unset) and buffers' own values (`set_local',
+    !> where null means unset too).
     type, public :: forward_expression_function_type
         procedure(forward_expression_proc), pointer, nopass :: value => null()
         type(forward_expression_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer its own value FN (setq-local); absent is
-        !> nil.
+        !> Give the current buffer its own value FN (setq-local); absent
+        !> clears it.
         procedure :: set_local => forward_expression_set_local
-        !> The value in the current buffer (null for nil).
+        !> The value in the current buffer (null when unset).
         procedure :: get => forward_expression_get
         !> Whether the current buffer has its own value.
         procedure :: local_p => forward_expression_local_p
@@ -137,16 +137,16 @@ module expression_motion_fm
     end type beginning_of_subprogram_entry_type
 
     !> The type of `beginning_of_subprogram_function': the default `value'
-    !> (assign with `=>'; null is nil) and buffers' own values
+    !> (assign with `=>'; null when unset) and buffers' own values
     !> (`set_local').
     type, public :: beginning_of_subprogram_function_type
         procedure(beginning_of_subprogram_proc), pointer, nopass :: value => null()
         type(beginning_of_subprogram_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value FN (setq-local); absent is
-        !> nil.
+        !> clears it.
         procedure :: set_local => bod_set_local
-        !> The value in the current buffer (null for nil).
+        !> The value in the current buffer (null when unset).
         procedure :: get => bod_get
         !> Make the current buffer use the default again.
         procedure :: kill_local => bod_kill_local
@@ -1532,7 +1532,7 @@ contains
     !> character is inserted ARG times.
     !>
     !> This command assumes point is not in a string or comment.
-    !> Port of lisp.el:insert-pair (ARG absent for nil).
+    !> Port of lisp.el:insert-pair (ARG absent for no prefix).
     recursive subroutine insert_pair(status, arg, open, close)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -1659,7 +1659,7 @@ contains
     !> If region is active, insert enclosing characters at region boundaries.
     !>
     !> This command assumes point is not in a string or comment.
-    !> Port of lisp.el:insert-parentheses (ARG absent for nil).
+    !> Port of lisp.el:insert-parentheses (ARG absent for no prefix).
     recursive subroutine insert_parentheses(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg

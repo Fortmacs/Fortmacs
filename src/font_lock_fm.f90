@@ -187,7 +187,7 @@ module font_lock_fm
         logical :: keywords_only = .false.
         !> `font_lock_keywords_case_fold_search'.
         logical :: keywords_case_fold_search = .false.
-        !> `font_lock_syntax_table' (the null handle for nil) and
+        !> `font_lock_syntax_table' (the null handle for none) and
         !> `font_lock__syntax_table_affects_ppss'.
         type(handle_type) :: syntax_table
         logical :: syntax_table_affects_ppss = .false.
@@ -336,7 +336,7 @@ contains
         procedure(font_lock_face_proc), optional :: face_function
         !> Text properties to set to true along with the face.
         character(len=*), intent(in), optional :: true_properties(:)
-        !> Text properties to set to false (nil) along with the face.
+        !> Text properties to set to .false. along with the face.
         character(len=*), intent(in), optional :: nil_properties(:)
         !> The `display' property to give along with the face.
         character(len=*), intent(in), optional :: display
@@ -827,7 +827,7 @@ contains
     end subroutine font_lock_set_defaults
 
     !> Make `font_lock_set_defaults' set the defaults up again in the
-    !> current buffer: (setq font-lock-set-defaults nil).  Not a port.
+    !> current buffer (clears `font_lock_set_defaults').  Not a port.
     subroutine font_lock_forget_defaults()
         integer :: k
 

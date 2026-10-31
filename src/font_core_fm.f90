@@ -68,7 +68,7 @@ module font_core_fm
               font_lock_form_proc, font_lock_function_proc, major_mode_of_current, font_lock_properties_proc
 
     !> Overrides of a highlight (OVERRIDE in `font_lock_keywords'): keep
-    !> an existing face (nil), override it (t), keep it and add only where
+    !> an existing face (FONT_LOCK_OVERRIDE_NIL), override it (FONT_LOCK_OVERRIDE_T), keep it and add only where
     !> there is none (`keep'), merge before it (`prepend') or after it
     !> (`append').
     integer, parameter, public :: FONT_LOCK_OVERRIDE_NIL = 0, FONT_LOCK_OVERRIDE_T = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
@@ -135,7 +135,7 @@ module font_core_fm
     !> The face may come with text properties to give the text as well
     !> (a FACENAME of the form (face FACE PROP VAL ...)): the names in
     !> `true_properties' are set to true, those in `nil_properties' to
-    !> false (nil), `display' is the `display' property, and
+    !> .false., `display' is the `display' property, and
     !> `properties_function' gives the ones that depend on the match.
     type, public :: font_lock_match_highlight_type
         integer :: subexp = 0
@@ -278,7 +278,7 @@ module font_core_fm
         !> KEYWORDS_ONLY, CASE_FOLD and SYNTAX_MODIFICATIONS.
         procedure :: set_local => defaults_set_local
         !> Whether the current buffer has defaults (font-lock-defaults is
-        !> non-nil).
+        !> set).
         procedure :: present_p => defaults_present_p
         !> The current buffer's defaults (call only when present_p).
         procedure :: get => defaults_get

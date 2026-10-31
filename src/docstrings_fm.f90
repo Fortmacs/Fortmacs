@@ -2981,7 +2981,7 @@ contains
             entry%file = "buffer_ops_fm.f90"
             entry%interactive = .true.
             entry%doc = "Start keeping undo information for buffer BUFFER."//LF// &
-                        "No argument or nil as argument means do this for the current buffer."
+                        "An absent argument means do this for the current buffer."
         case ("buffer_menu")
             entry%file = "buff_menu_fm.f90"
             entry%interactive = .true.
@@ -3310,7 +3310,7 @@ contains
             entry%fortran = "call check_coding_system(coding_system, status)"
             entry%doc = "Check validity of CODING-SYSTEM."//LF// &
                         "If valid, return CODING-SYSTEM, else signal a `coding_system_error' error."//LF// &
-                        "It is valid if it is nil or a symbol defined as a coding system by the"//LF// &
+                        "It is valid if it is """" or a name defined as a coding system by the"//LF// &
                         "function `define_coding_system'."
         case ("check_parens")
             entry%file = "expression_motion_fm.f90"
@@ -3349,9 +3349,9 @@ contains
             entry%doc = "Return a coding system which differs from CODING-SYSTEM in EOL conversion."//LF// &
                         "The returned coding system converts end-of-line by EOL-TYPE"//LF// &
                         "but text as the same way as CODING-SYSTEM."//LF// &
-                        "EOL-TYPE should be `unix', `dos', `mac', or nil (EOL_UNIX, EOL_DOS,"//LF// &
+                        "EOL-TYPE should be `unix', `dos', `mac', or undecided (EOL_UNIX, EOL_DOS,"//LF// &
                         "EOL_MAC or EOL_UNDECIDED here)."//LF// &
-                        "If EOL-TYPE is nil, the returned coding system detects"//LF// &
+                        "If EOL-TYPE is EOL_UNDECIDED, the returned coding system detects"//LF// &
                         "how end-of-line is formatted automatically while decoding."//LF// &
                         ""//LF// &
                         "EOL-TYPE can be specified by an integer 0, 1, or 2."//LF// &
@@ -3362,7 +3362,7 @@ contains
             entry%doc = "Return a coding system which differs from CODING-SYSTEM in text conversion."//LF// &
                         "The returned coding system converts text by CODING"//LF// &
                         "but end-of-line as the same way as CODING-SYSTEM."//LF// &
-                        "If CODING is nil, the returned coding system detects"//LF// &
+                        "If CODING is """", the returned coding system detects"//LF// &
                         "how text is formatted automatically while decoding."
         case ("coding_system_eol_type")
             entry%file = "coding_fm.f90"
@@ -3379,7 +3379,7 @@ contains
         case ("coding_system_p")
             entry%file = "coding_fm.f90"
             entry%fortran = "coding_system_p(object)"
-            entry%doc = "Return t if OBJECT is nil or a coding-system."//LF// &
+            entry%doc = "Return .true. if OBJECT is """" or a coding-system."//LF// &
                         "See the documentation of `define_coding_system' for information"//LF// &
                         "about coding-system objects."
         case ("coding_system_priority_list")
@@ -3532,7 +3532,7 @@ contains
                         "(using the value of INDEX specified with the first command)."//LF// &
                         "Values of INDEX < 0 count from the end, so INDEX = -1 is the last"//LF// &
                         "argument.  This command is like ""M-."" in Bash and zsh.  HAS_INDEX"//LF// &
-                        "false is INDEX nil."
+                        ".false. means no INDEX."
         case ("comint_interrupt_subjob")
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
@@ -4459,7 +4459,7 @@ contains
             entry%file = "coding_fm.f90"
             entry%fortran = "call decode_coding_string(string, coding_system, result, status, multibyte)"
             entry%doc = "Decode STRING (bytes, unless MULTIBYTE) by CODING-SYSTEM into RESULT."//LF// &
-                        "If CODING-SYSTEM is nil, it returns STRING itself.  The value is a"//LF// &
+                        "If CODING-SYSTEM is """", it returns STRING itself.  The value is a"//LF// &
                         "multibyte string.  This function sets `last_coding_system_used' to"//LF// &
                         "the precise coding system used to decode STRING, which may be"//LF// &
                         "different from CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided')."
@@ -5677,7 +5677,7 @@ contains
             entry%file = "coding_fm.f90"
             entry%fortran = "call encode_coding_string(string, coding_system, result, status, multibyte)"
             entry%doc = "Encode STRING (multibyte, unless MULTIBYTE is false) to CODING-SYSTEM"//LF// &
-                        "into RESULT, the bytes.  If CODING-SYSTEM is nil, it returns STRING"//LF// &
+                        "into RESULT, the bytes.  If CODING-SYSTEM is """", it returns STRING"//LF// &
                         "itself.  This function sets `last_coding_system_used' to the precise"//LF// &
                         "coding system used to encode STRING, which may be different from"//LF// &
                         "CODING-SYSTEM."
@@ -7734,7 +7734,7 @@ contains
         case ("ignore")
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Ignore ARGUMENTS, do nothing, and return nil."//LF// &
+            entry%doc = "Ignore ARGUMENTS and do nothing."//LF// &
                         "This function accepts any number of arguments in ARGUMENTS."//LF// &
                         "Also see `always'."
         case ("increment_register")
@@ -8728,7 +8728,7 @@ contains
                         "Optional second argument REPLACE true means that STRING will replace"//LF// &
                         "the front of the kill ring, rather than being added to the list."//LF// &
                         ""//LF// &
-                        "When the yank handler has a non-nil PARAM element, the original"//LF// &
+                        "When the yank handler has a PARAM element, the original"//LF// &
                         "STRING argument is not used by `insert_for_yank'.  However, since"//LF// &
                         "code may access and use elements from the kill ring directly, the"//LF// &
                         "STRING argument should still be a ""useful"" string for such uses."
@@ -9395,7 +9395,7 @@ contains
             entry%fortran = "lossage_size(arg, status)"
             entry%interactive = .true.
             entry%doc = "Return or set the maximum number of keystrokes to save."//LF// &
-                        "If called with a non-nil ARG, set the limit to ARG and return it."//LF// &
+                        "If called with a prefix ARG, set the limit to ARG and return it."//LF// &
                         "Otherwise, return the current limit."//LF// &
                         ""//LF// &
                         "The saved keystrokes are shown by `view_lossage'."
@@ -11043,7 +11043,7 @@ contains
                         ""//LF// &
                         "DEFAULTS, in place of DEFAULT, is an array of defaults: the first"//LF// &
                         "is the default, all are offered by M-n; with NO_DEFAULT, the list"//LF// &
-                        "starts with a nil default (there is none, the others are offered"//LF// &
+                        "starts with an empty default (there is none, the others are offered"//LF// &
                         "by M-n)."
         case ("read_only_mode")
             entry%file = "simple_fm.f90"
@@ -12037,7 +12037,7 @@ contains
                         "\[list_coding_systems].  The default is determined by the selected"//LF// &
                         "language environment or by the previous use of this command."//LF// &
                         ""//LF// &
-                        "If CODING_SYSTEM is nil or the coding-type of CODING_SYSTEM is"//LF// &
+                        "If CODING_SYSTEM is """" or the coding-type of CODING_SYSTEM is"//LF// &
                         "`raw-text', the decoding of keyboard input is disabled."//LF// &
                         ""//LF// &
                         "The setting has no effect on graphical terminals."
@@ -14217,7 +14217,7 @@ contains
             entry%value = repr(ansi_color_basic_faces_vector)
             entry%doc = "Faces used for SGR control sequences determining a face."//LF// &
                         "This vector holds the faces used for SGR control sequence"//LF// &
-                        "parameters 0 to 7 ("""" is nil)."//LF// &
+                        "parameters 0 to 7 ("""" for none)."//LF// &
                         ""//LF// &
                         "Parameter  Description"//LF// &
                         "  0        default"//LF// &
@@ -15168,7 +15168,7 @@ contains
                         "and other functions that use `write_region'."//LF// &
                         "It does not apply to sending output to subprocesses, however."//LF// &
                         ""//LF// &
-                        "If this is nil, the buffer is saved without any code conversion"//LF// &
+                        "If this is unallocated, the buffer is saved without any code conversion"//LF// &
                         "unless some coding system is specified in `file_coding_system_table'"//LF// &
                         "for the buffer file."//LF// &
                         ""//LF// &
@@ -16132,7 +16132,7 @@ contains
             entry%user_option = .true.
             entry%original = "-1"
             entry%value = repr(comment_fill_column%value)
-            entry%doc = "Column to use for `comment_indent'.  If negative (nil), use"//LF// &
+            entry%doc = "Column to use for `comment_indent'.  If negative, use"//LF// &
                         "`fill_column' instead."
         case ("comment_indent_function")
             entry%file = "newcomment_fm.f90"
@@ -16141,8 +16141,8 @@ contains
                         "This function is called with no args with point at the beginning"//LF// &
                         "of the comment's starting delimiter and should return either the"//LF// &
                         "desired column indentation, a range of acceptable"//LF// &
-                        "indentation (MIN . MAX), or nil."//LF// &
-                        "If nil is returned, indentation is delegated to"//LF// &
+                        "indentation (MIN and MAX), or none."//LF// &
+                        "If none is returned, indentation is delegated to"//LF// &
                         "`indent_according_to_mode'."
         case ("comment_inline_offset")
             entry%file = "newcomment_fm.f90"
@@ -16235,7 +16235,7 @@ contains
             end if
 
             entry%doc = "Regexp to match the start of a comment plus everything up to its body."//LF// &
-                        "If there are any \(...\) pairs and `comment_use_syntax' is nil,"//LF// &
+                        "If there are any \(...\) pairs and `comment_use_syntax' is COMMENT_USE_SYNTAX_NIL,"//LF// &
                         "the comment delimiter text is held to begin at the place matched"//LF// &
                         "by the close of the first pair."
         case ("comment_style")
@@ -16294,7 +16294,7 @@ contains
                 entry%value = repr(comment_use_syntax%value)
             end select
 
-            entry%doc = "Non-nil if syntax-tables can be used instead of regexps."//LF// &
+            entry%doc = "True if syntax-tables can be used instead of regexps."//LF// &
                         "Can also be `undecided' which means that a somewhat expensive test will"//LF// &
                         "be used to try to determine whether syntax-tables should be trusted"//LF// &
                         "to understand comments or not in the given buffer."//LF// &
@@ -16706,7 +16706,7 @@ contains
             entry%fortran = "compilation_transform_file_match_table"
             entry%user_option = .true.
             entry%doc = "Table of regexp/replacements to alter file names in compiler"//LF// &
-                        "messages.  If the replacement is unallocated (nil), the matching"//LF// &
+                        "messages.  If the replacement is unallocated, the matching"//LF// &
                         "message will not be considered an error or warning.  If not, it"//LF// &
                         "should be a replacement string for the matched regexp."//LF// &
                         ""//LF// &
@@ -16868,9 +16868,9 @@ contains
                         "See Info node `(elisp)Basic Completion', for a description of these"//LF// &
                         "functions."//LF// &
                         ""//LF// &
-                        "Do not set this variable to a non-nil value globally, as that is not"//LF// &
+                        "Do not set this variable to a value globally, as that is not"//LF// &
                         "safe and will probably cause errors in completion commands.  This"//LF// &
-                        "variable should be only let-bound to non-nil values around calls to"//LF// &
+                        "variable should only be set, then restored, around calls to"//LF// &
                         "basic completion functions like `try_completion' and `all_completions'."
         case ("completion_show_inline_help")
             entry%file = "minibuffer_fm.f90"
@@ -17523,7 +17523,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "Default value of the keyboard coding system ("""" for nil).  This is"//LF// &
+            entry%doc = "Default value of the keyboard coding system ("""" for none).  This is"//LF// &
                         "normally set according to the selected language environment.  See"//LF// &
                         "also the command `set_keyboard_coding_system'."
         case ("default_process_coding_system")
@@ -17543,7 +17543,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "Default value for the terminal coding system ("""" for nil).  This is"//LF// &
+            entry%doc = "Default value for the terminal coding system ("""" for none).  This is"//LF// &
                         "normally set according to the selected language environment.  See"//LF// &
                         "also the command `set_terminal_coding_system'."
         case ("define_ibuffer_column")
@@ -19055,7 +19055,7 @@ contains
             entry%fortran = "f90_cache_position"
             entry%original = "0"
             entry%value = repr(f90_cache_position)
-            entry%doc = "Temporary position used to speed up region operations (0 for nil)."
+            entry%doc = "Temporary position used to speed up region operations (0 for none)."
         case ("f90_comment_region")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_comment_region"
@@ -19309,8 +19309,8 @@ contains
                         "For example, change the END that closes an IF block to END IF."//LF// &
                         "If the block has a label, add it as well (unless `f90_smart_end_names'"//LF// &
                         "says not to).  Allowed values are F90_SMART_END_BLINK,"//LF// &
-                        "F90_SMART_END_NO_BLINK, and F90_SMART_END_NIL.  If nil,"//LF// &
-                        "nothing is done.  The other two settings have the same effect, but `blink'"//LF// &
+                        "F90_SMART_END_NO_BLINK, and F90_SMART_END_NIL.  If F90_SMART_END_NIL,"//LF// &
+                        "nothing is done.  The other two settings have the same effect, but F90_SMART_END_BLINK"//LF// &
                         "additionally blinks the cursor to the start of the block."
         case ("f90_smart_end_names")
             entry%file = "f90_fm.f90"
@@ -20163,8 +20163,8 @@ contains
             entry%original = "8"
             entry%value = repr(help_char)
             entry%doc = "Character to recognize as meaning Help."//LF// &
-                        "When it is read, do `(eval help-form)', and display result if it's a string."//LF// &
-                        "If the value of `help_form' is nil, this char can be read normally."
+                        "When it is read, call `help_form', and display the result if it's a string."//LF// &
+                        "If the value of `help_form' is null, this char can be read normally."
         case ("help_event_list")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "help_event_list"
@@ -21028,7 +21028,7 @@ contains
                         "might want to use something like ""[ \t\r\n]+"" instead.  Don't add"//LF// &
                         "any capturing groups into this value; that can change the numbering"//LF// &
                         "of existing capture groups in unexpected ways.  (Unallocated for"//LF// &
-                        "nil.)"
+                        "none.)"
         case ("info_selection_hook")
             entry%file = "info_fm.f90"
             entry%fortran = "info_selection_hook"
@@ -21286,7 +21286,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "A string added to the Isearch prompt (unallocated for nil), as"//LF// &
+            entry%doc = "A string added to the Isearch prompt (unallocated for none), as"//LF// &
                         """history "" when searching a comint's input history."
         case ("isearch_mode_end_hook")
             entry%file = "isearch_fm.f90"
@@ -21955,7 +21955,7 @@ contains
             end if
 
             entry%doc = "The name of this machine, for use in constructing email addresses."//LF// &
-                        "If this is unallocated (nil), Emacs uses `system_name'."
+                        "If this is unallocated, Emacs uses `system_name'."
         case ("make_backup_files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
@@ -22657,7 +22657,7 @@ contains
             end if
 
             entry%doc = "A regexp of names to be disregarded during directory completion"//LF// &
-                        "(unallocated for nil)."
+                        "(unallocated when unset)."
         case ("pcomplete_expand_before_complete")
             entry%file = "pcomplete_fm.f90"
             entry%fortran = "pcomplete_expand_before_complete"
@@ -22683,7 +22683,7 @@ contains
             end if
 
             entry%doc = "A regexp of filenames to be disregarded during file completion"//LF// &
-                        "(unallocated for nil)."
+                        "(unallocated when unset)."
         case ("pcomplete_hosts_file")
             entry%file = "pcomplete_fm.f90"
             entry%fortran = "pcomplete_hosts_file"
@@ -25018,12 +25018,12 @@ contains
             entry%fortran = "smie_grammar"
             entry%doc = "List of token parsing info."//LF// &
                         "This list is normally built by `smie_prec2_to_grammar'."//LF// &
-                        "Each element is of the form (TOKEN LEFT-LEVEL RIGHT-LEVEL)."//LF// &
+                        "Each element holds a TOKEN, a LEFT-LEVEL and a RIGHT-LEVEL."//LF// &
                         "Parsing is done using an operator precedence parser."//LF// &
-                        "LEFT-LEVEL and RIGHT-LEVEL can be either numbers or a list, where a list"//LF// &
+                        "LEFT-LEVEL and RIGHT-LEVEL can be either numbers or SMIE_LEVEL_LIST, where SMIE_LEVEL_LIST"//LF// &
                         "means that this operator does not bind on the corresponding side,"//LF// &
-                        "e.g. a LEFT-LEVEL of nil means this is a token that behaves somewhat like"//LF// &
-                        "an open-paren, whereas a RIGHT-LEVEL of nil would correspond to something"//LF// &
+                        "e.g. a LEFT-LEVEL of SMIE_LEVEL_NIL means this is a token that behaves somewhat like"//LF// &
+                        "an open-paren, whereas a RIGHT-LEVEL of SMIE_LEVEL_NIL would correspond to something"//LF// &
                         "like a close-paren."
         case ("smie_indent_basic")
             entry%file = "smie_fm.f90"
@@ -25037,7 +25037,7 @@ contains
             entry%fortran = "smie_indent_functions"
             entry%doc = "Functions to compute the indentation."//LF// &
                         "Each function is called with no argument, shouldn't move point, and should"//LF// &
-                        "return either nil if it has no opinion, or an integer representing the column"//LF// &
+                        "return either SMIE_INDENT_NIL if it has no opinion, or an integer representing the column"//LF// &
                         "to which that point should be aligned, if we were to reindent it."
         case ("smie_rule_separator_outdent")
             entry%file = "smie_fm.f90"
@@ -25504,10 +25504,10 @@ contains
             entry%user_option = .true.
             entry%doc = "A string or list of strings specifying switches for annotate under VC."//LF// &
                         "When running annotate under a given BACKEND, VC uses the first"//LF// &
-                        "non-nil value of `vc_BACKEND_annotate_switches' and"//LF// &
-                        "`vc_annotate_switches', in that order.  Since nil means to check"//LF// &
+                        "value that is not VC_SWITCHES_NIL of `vc_BACKEND_annotate_switches' and"//LF// &
+                        "`vc_annotate_switches', in that order.  Since VC_SWITCHES_NIL means to check"//LF// &
                         "the next variable in the sequence, setting the first to the value"//LF// &
-                        "t means no switches at all.  `vc_annotate_switches' should"//LF// &
+                        "VC_SWITCHES_T means no switches at all.  `vc_annotate_switches' should"//LF// &
                         "contain switches that are specific to version control, but not"//LF// &
                         "specific to any particular backend."//LF// &
                         ""//LF// &
@@ -25607,10 +25607,10 @@ contains
             entry%user_option = .true.
             entry%doc = "A string or list of strings specifying switches for diff under VC."//LF// &
                         "When running diff under a given BACKEND, VC uses the first"//LF// &
-                        "non-nil value of `vc_BACKEND_diff_switches', `vc_diff_switches',"//LF// &
-                        "and `diff_switches', in that order.  Since nil means to check the"//LF// &
+                        "value that is not VC_SWITCHES_NIL of `vc_BACKEND_diff_switches', `vc_diff_switches',"//LF// &
+                        "and `diff_switches', in that order.  Since VC_SWITCHES_NIL means to check the"//LF// &
                         "next variable in the sequence, either of the first two may use"//LF// &
-                        "the value t to mean no switches at all.  `vc_diff_switches'"//LF// &
+                        "the value VC_SWITCHES_T to mean no switches at all.  `vc_diff_switches'"//LF// &
                         "should contain switches that are specific to version control, but"//LF// &
                         "not specific to any particular backend."
         case ("vc_dir_allow_mass_mark_changes")
@@ -25782,7 +25782,8 @@ contains
             entry%fortran = "vc_git_diff_switches"
             entry%user_option = .true.
             entry%doc = "String or list of strings specifying switches for Git diff under VC."//LF// &
-                        "If nil, use the value of `vc_diff_switches'.  If t, use no switches."
+                        "If VC_SWITCHES_NIL, use the value of `vc_diff_switches'.  If VC_SWITCHES_T, use no switche"// &
+                        "s."
         case ("vc_git_log_edit_mode_map")
             entry%file = "vc_git_fm.f90"
             entry%fortran = "vc_git_log_edit_mode_map"
@@ -26012,7 +26013,7 @@ contains
             entry%fortran = "vc_sentinel_movepoint"
             entry%original = "0"
             entry%value = repr(vc_sentinel_movepoint)
-            entry%doc = "Where a sentinel wants point to go afterwards (0 for nil)."
+            entry%doc = "Where a sentinel wants point to go afterwards (0 for none)."
         case ("vc_state_base")
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_state_base"

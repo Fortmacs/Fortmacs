@@ -540,7 +540,7 @@ contains
         end function special
     end function file_modes_number_to_symbolic
 
-    !> `rename_file''s directory copy: (copy-directory FILE NEWNAME t nil).
+    !> `rename_file''s directory copy: `copy_directory' of FILE to NEWNAME, keeping the time (KEEP-TIME .true., PARENTS .false.).
     !> Not a port.
     recursive subroutine copy_directory_for_rename(directory, newname, status)
         character(len=*), intent(in) :: directory, newname
@@ -558,7 +558,7 @@ contains
         call delete_directory(file, status, .true.)
     end subroutine delete_directory_for_rename
 
-    !> `rename_file''s deletion of a file: (delete-file FILE nil).
+    !> `rename_file''s deletion of a file: `delete_file' of FILE (TRASH .false.).
     !> Not a port.
     recursive subroutine delete_file_for_rename(file, status)
         character(len=*), intent(in) :: file

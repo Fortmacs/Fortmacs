@@ -43,11 +43,10 @@ module map_ynp_fm
     public :: read_answer, read_answer_type
 
     !> What a prompter says about an object: skip it, ask about it (with
-    !> the prompt it returns), or act on it without asking (upstream: nil,
-    !> a string, or another non-nil value).
+    !> the prompt it returns), or act on it without asking (YNP_SKIP, YNP_ASK and YNP_ACT).
     integer, parameter :: YNP_SKIP = 0, YNP_ASK = 1, YNP_ACT = 2
 
-    !> Values of `read_answer_short' (upstream nil, t and `auto').
+    !> Values of `read_answer_short'.
     integer, parameter, public :: READ_ANSWER_SHORT_NIL = 0, READ_ANSWER_SHORT_T = 1, READ_ANSWER_SHORT_AUTO = 2
 
     !> Whether the `read_answer' function accepts single-character answers.

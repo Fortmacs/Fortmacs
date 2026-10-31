@@ -128,7 +128,7 @@ module view_fm
         logical :: set = .false.
         !> view-old-buffer-read-only
         logical :: old_read_only = .false.
-        !> view-page-size and view-half-page-size (has_...: non-nil)
+        !> view-page-size and view-half-page-size (has_...: set)
         logical :: has_page_size = .false., has_half_page_size = .false.
         integer(int64) :: page_size = 0, half_page_size = 0
         !> view-last-regexp: none, a string, or (if last_no) a list of it
@@ -764,7 +764,7 @@ contains
 
     !> The windows of the selected frame showing BUFFER, the selected
     !> window first, then in cyclic order.  Port of
-    !> window.el:get-buffer-window-list (MINIBUF and ALL-FRAMES nil).
+    !> window.el:get-buffer-window-list (MINIBUF and ALL-FRAMES absent).
     function buffer_window_list(buffer) result(list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable :: list(:)
@@ -932,8 +932,8 @@ contains
         call recenter(list(make_fixnum(1_int64)), .false., st)
     end subroutine view_recenter
 
-    !> If LINES (HAS_LINES false for nil) is nil, 0, or larger than
-    !> `view_window_size', return nil (HAS false).  Otherwise, return
+    !> If LINES (HAS_LINES .false. for none) is absent, 0, or larger than
+    !> `view_window_size', return none (HAS .false.).  Otherwise, return
     !> LINES.  Port of view.el:view-page-size-default.
     subroutine view_page_size_default(has_lines, lines, has, n)
         logical, intent(in) :: has_lines
@@ -984,7 +984,7 @@ contains
         locals(k)%half_page_size = n
     end subroutine view_set_half_page_size_default
 
-    !> The prefix argument as "P" gives it: HAS false for nil, else its
+    !> The prefix argument raw: HAS .false. for none, else its
     !> numeric value.  Not a port.
     subroutine raw_prefix(has, n)
         logical, intent(out) :: has
@@ -1058,7 +1058,7 @@ contains
     !> This function does the job for all the scrolling commands.
     !> Scroll forward LINES lines.  If BACKWARD is true, scroll backwards.
     !> If LINES is negative scroll in the other direction.
-    !> If LINES is 0 or nil, scroll DEFAULT lines (if DEFAULT is nil, scroll
+    !> If LINES is 0 or absent, scroll DEFAULT lines (if DEFAULT is absent, scroll
     !> by one page).  If MAXDEFAULT is true, scroll no more than a window.
     !> Port of view.el:view-scroll-lines.
     recursive subroutine view_scroll_lines(has_lines_in, lines_in, backward_in, has_default, default, maxdefault, &

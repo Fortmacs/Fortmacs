@@ -61,7 +61,7 @@ module dispnew_fm
 
     !> The state `frame_or_buffer_changed_p' compares with: the buffers
     !> (by serial number, in the order of the buffer list) and their
-    !> read-only and modified flags; VALID false for none yet (nil).
+    !> read-only and modified flags; VALID .false. for none yet.
     type, public :: frame_buffer_state_type
         logical :: valid = .false.
         integer(int64), allocatable :: serials(:)

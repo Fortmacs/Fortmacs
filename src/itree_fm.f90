@@ -470,8 +470,8 @@ contains
         end do
     end subroutine delete_all_overlays
 
-    !> Return the position at which OVERLAY starts (0 if it is deleted,
-    !> upstream's nil).  Port of buffer.c:Foverlay_start (with
+    !> Return the position at which OVERLAY starts (0 if it is deleted).
+    !> Port of buffer.c:Foverlay_start (with
     !> itree.c:itree_node_begin: no offsets to add up).
     integer(int64) function overlay_start(overlay)
         type(handle_type), intent(in) :: overlay
@@ -481,8 +481,8 @@ contains
         if (buffer_live_p(overlays(overlay%index)%buffer)) overlay_start = overlays(overlay%index)%begin
     end function overlay_start
 
-    !> Return the position at which OVERLAY ends (0 if it is deleted,
-    !> upstream's nil).  Port of buffer.c:Foverlay_end (with
+    !> Return the position at which OVERLAY ends (0 if it is deleted).
+    !> Port of buffer.c:Foverlay_end (with
     !> itree.c:itree_node_end).
     integer(int64) function overlay_end(overlay)
         type(handle_type), intent(in) :: overlay
