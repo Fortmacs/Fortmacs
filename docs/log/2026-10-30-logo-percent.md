@@ -1,0 +1,1 @@
+2026-10-30 — Logo: a red % after "ortmacs" (`logo-percent`): docs/logo/social.svg and social.png end the wordmark with the percent sign in the logo's red (#AB5043), without the film shadow; the content is re-centred in the frame. The icon (icon.svg, icon.png) gains the same %, centred vertically on the F, with the pair scaled to 72%.
