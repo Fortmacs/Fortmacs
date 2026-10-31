@@ -792,6 +792,29 @@ module commands_fm
         type(command_type) :: log_view_unmark_all_entries
         type(command_type) :: log_view_unmark_entry
         type(command_type) :: lossage_size
+        type(command_type) :: makefile_automake_mode
+        type(command_type) :: makefile_backslash_region
+        type(command_type) :: makefile_bsdmake_mode
+        type(command_type) :: makefile_create_up_to_date_overview
+        type(command_type) :: makefile_electric_colon
+        type(command_type) :: makefile_electric_dot
+        type(command_type) :: makefile_electric_equal
+        type(command_type) :: makefile_gmake_mode
+        type(command_type) :: makefile_imake_mode
+        type(command_type) :: makefile_insert_gmake_function
+        type(command_type) :: makefile_insert_macro
+        type(command_type) :: makefile_insert_macro_ref
+        type(command_type) :: makefile_insert_special_target
+        type(command_type) :: makefile_insert_target
+        type(command_type) :: makefile_insert_target_ref
+        type(command_type) :: makefile_makepp_mode
+        type(command_type) :: makefile_mode
+        type(command_type) :: makefile_next_dependency
+        type(command_type) :: makefile_pickup_everything
+        type(command_type) :: makefile_pickup_filenames_as_targets
+        type(command_type) :: makefile_pickup_macros
+        type(command_type) :: makefile_pickup_targets
+        type(command_type) :: makefile_previous_dependency
         type(command_type) :: map_query_replace_regexp
         type(command_type) :: mark_end_of_sentence
         type(command_type) :: mark_paragraph
@@ -1097,7 +1120,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1058) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1081) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1857,6 +1880,29 @@ module commands_fm
                                                                   "log_view_unmark_all_entries", &
                                                                   "log_view_unmark_entry", &
                                                                   "lossage_size", &
+                                                                  "makefile_automake_mode", &
+                                                                  "makefile_backslash_region", &
+                                                                  "makefile_bsdmake_mode", &
+                                                                  "makefile_create_up_to_date_overview", &
+                                                                  "makefile_electric_colon", &
+                                                                  "makefile_electric_dot", &
+                                                                  "makefile_electric_equal", &
+                                                                  "makefile_gmake_mode", &
+                                                                  "makefile_imake_mode", &
+                                                                  "makefile_insert_gmake_function", &
+                                                                  "makefile_insert_macro", &
+                                                                  "makefile_insert_macro_ref", &
+                                                                  "makefile_insert_special_target", &
+                                                                  "makefile_insert_target", &
+                                                                  "makefile_insert_target_ref", &
+                                                                  "makefile_makepp_mode", &
+                                                                  "makefile_mode", &
+                                                                  "makefile_next_dependency", &
+                                                                  "makefile_pickup_everything", &
+                                                                  "makefile_pickup_filenames_as_targets", &
+                                                                  "makefile_pickup_macros", &
+                                                                  "makefile_pickup_targets", &
+                                                                  "makefile_previous_dependency", &
                                                                   "map_query_replace_regexp", &
                                                                   "mark_end_of_sentence", &
                                                                   "mark_paragraph", &
@@ -3686,6 +3732,52 @@ contains
             p => commands%log_view_unmark_entry
         case ("lossage_size")
             p => commands%lossage_size
+        case ("makefile_automake_mode")
+            p => commands%makefile_automake_mode
+        case ("makefile_backslash_region")
+            p => commands%makefile_backslash_region
+        case ("makefile_bsdmake_mode")
+            p => commands%makefile_bsdmake_mode
+        case ("makefile_create_up_to_date_overview")
+            p => commands%makefile_create_up_to_date_overview
+        case ("makefile_electric_colon")
+            p => commands%makefile_electric_colon
+        case ("makefile_electric_dot")
+            p => commands%makefile_electric_dot
+        case ("makefile_electric_equal")
+            p => commands%makefile_electric_equal
+        case ("makefile_gmake_mode")
+            p => commands%makefile_gmake_mode
+        case ("makefile_imake_mode")
+            p => commands%makefile_imake_mode
+        case ("makefile_insert_gmake_function")
+            p => commands%makefile_insert_gmake_function
+        case ("makefile_insert_macro")
+            p => commands%makefile_insert_macro
+        case ("makefile_insert_macro_ref")
+            p => commands%makefile_insert_macro_ref
+        case ("makefile_insert_special_target")
+            p => commands%makefile_insert_special_target
+        case ("makefile_insert_target")
+            p => commands%makefile_insert_target
+        case ("makefile_insert_target_ref")
+            p => commands%makefile_insert_target_ref
+        case ("makefile_makepp_mode")
+            p => commands%makefile_makepp_mode
+        case ("makefile_mode")
+            p => commands%makefile_mode
+        case ("makefile_next_dependency")
+            p => commands%makefile_next_dependency
+        case ("makefile_pickup_everything")
+            p => commands%makefile_pickup_everything
+        case ("makefile_pickup_filenames_as_targets")
+            p => commands%makefile_pickup_filenames_as_targets
+        case ("makefile_pickup_macros")
+            p => commands%makefile_pickup_macros
+        case ("makefile_pickup_targets")
+            p => commands%makefile_pickup_targets
+        case ("makefile_previous_dependency")
+            p => commands%makefile_previous_dependency
         case ("map_query_replace_regexp")
             p => commands%map_query_replace_regexp
         case ("mark_end_of_sentence")
