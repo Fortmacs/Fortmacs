@@ -51,7 +51,7 @@
 module eval_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
-    use lisp_fm, only: value_type, nil, nilp, command_proc, symbolp, symbols, xsymbol
+    use lisp_fm, only: value_type, command_proc, symbolp, symbols, xsymbol
     use handle_fm, only: handle_type
     use callint_fm, only: funcall, current_prefix_arg
     use buffer_fm, only: buffers, cur
@@ -463,7 +463,7 @@ contains
         type(value_type) :: saved
 
         saved = current_prefix_arg
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call funcall(fn, status)
         current_prefix_arg = saved
     end subroutine funcall_noargs
@@ -952,7 +952,7 @@ contains
             saved = current_prefix_arg
             saved_outer = hook_current_prefix_arg
             hook_current_prefix_arg = saved
-            current_prefix_arg = nil()
+            current_prefix_arg = value_type()
             call e%fn(status)
             current_prefix_arg = saved
             hook_current_prefix_arg = saved_outer
@@ -1720,7 +1720,7 @@ contains
 
         p => null()
 
-        if (.not. symbolp(fn) .or. nilp(fn)) then
+        if (.not. symbolp(fn) .or. .not. allocated(fn%a)) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid function")
             return
         end if

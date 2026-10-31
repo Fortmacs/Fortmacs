@@ -56,7 +56,7 @@ module help_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, keymap_ref_p, xhandle, list_elements, make_keymap_ref
+    use lisp_fm, only: value_type, symbolp, fixnump, keymap_ref_p, xhandle, list_elements, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name
     use keymap_fm, only: make_sparse_keymap, is_keymap_live, free_keymap, keymap_set, define_key, key_parse, &
@@ -79,7 +79,7 @@ module help_fm
                          is_pos_visible_in_window, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
                          minibuffer_scroll_window
     use derived_fm, only: is_derived_mode
-    use lisp_fm, only: t_value, make_fixnum, make_list, stringp, xstring, vtag, V_LIST, list_elt, xfixnum
+    use lisp_fm, only: t_value, make_fixnum, make_list, stringp, xstring, vtag, V_ARRAY, list_elt, xfixnum
     use keymap_fm, only: accessible_keymaps, map_keymap_items, current_minor_maps, key_list_type, current_local_map, &
                          set_keymap_parent, single_key_description
     use keyboard_fm, only: recent_keys, lossage_size, bitch_at_user, key_translation_map, local_function_key_map, &
@@ -246,7 +246,7 @@ contains
             call where_is_internal(sym(name), keys, firstonly=.true.)
         end if
 
-        if (nilp(keys)) then
+        if (.not. allocated(keys%a)) then
             s = "M-x "//name
         else
             call list_elements(keys, events)
@@ -689,7 +689,7 @@ contains
             call lookup_key(maps(k), keys, val, status, accept_default=.true.)
             if (.not. status%ok()) cycle
             ! A number: the first events of KEY were found but not all.
-            if (nilp(val) .or. fixnump(val)) cycle
+            if (.not. allocated(val%a) .or. fixnump(val)) cycle
             map = xhandle(maps(k))
             found = .true.
             exit
@@ -760,7 +760,7 @@ contains
     logical function is_binding_undefined(defn)
         type(value_type), intent(in) :: defn
 
-        is_binding_undefined = nilp(defn) .or. fixnump(defn)
+        is_binding_undefined = .not. allocated(defn%a) .or. fixnump(defn)
         if (.not. is_binding_undefined .and. symbolp(defn)) is_binding_undefined = value_eq(defn, sym("undefined"))
     end function is_binding_undefined
 
@@ -844,7 +844,7 @@ contains
 
         call where_is_internal(sym(name), all)
 
-        if (nilp(all)) then
+        if (.not. allocated(all%a)) then
             call message(name//" is not on any key")
             return
         end if
@@ -934,7 +934,7 @@ contains
             if (k > 1) s = s//" "
 
             if (is_command(k)) then
-                if (nilp(keys(k))) then
+                if (.not. allocated(keys(k)%a)) then
                     s = s//";; null()"//LF
                 else if (symbolp(keys(k))) then
                     call symbol_name(keys(k), name, st)
@@ -1219,7 +1219,7 @@ contains
         if (st%ok() .and. fixnump(v)) tabw = int(xfixnum(v))
         if (tabw <= 0 .or. tabw > 1000) tabw = 8
         call default_value(sym("indent_tabs_mode"), v, st)
-        if (st%ok()) tabs = .not. nilp(v)
+        if (st%ok()) tabs = allocated(v%a)
     end subroutine default_settings
 
     ! ------------------------------------------------------------------
@@ -1375,11 +1375,11 @@ contains
 
             if (event_is(ch, 22_int64) .or. event_is(ch, 32_int64) .or. event_named(ch, "next") .or. &
                 event_named(ch, "end")) then
-                call scroll_up(nil(), st)
+                call scroll_up(value_type(), st)
             else if (event_is(ch, 127_int64) .or. event_is(ch, M_V) .or. event_is(ch, S_SPC) .or. &
                      event_named(ch, "deletechar") .or. event_named(ch, "backspace") .or. &
                      event_named(ch, "prior") .or. event_named(ch, "home")) then
-                call scroll_down(nil(), st)
+                call scroll_down(value_type(), st)
             else if (event_named(ch, "down")) then
                 call scroll_up(make_fixnum(1_int64), st)
             else if (event_named(ch, "up")) then
@@ -1412,9 +1412,9 @@ contains
 
         if (status%ok()) then
             call lookup_key(make_keymap_ref(local_map), keys, defn, st)
-            if (fixnump(defn)) defn = nil()
+            if (fixnump(defn)) defn = value_type()
 
-            if (.not. nilp(defn)) then
+            if (allocated(defn%a)) then
                 call set_window_configuration(config)
                 have_config = .false.
 
@@ -1630,7 +1630,7 @@ contains
                         continue
                     else if (keymap_ref_p(tem)) then
                         call append_shadow(sub_shadows, tem)
-                    else if (.not. nilp(tem)) then
+                    else if (allocated(tem%a)) then
                         ! Describe this map iff the prefix is bound to a
                         ! keymap, since otherwise it completely shadows it.
                         describe = .false.
@@ -1719,7 +1719,7 @@ contains
         nr = 0
 
         do i = 1, size(events)
-            if (vtag(events(i)) == V_LIST) then
+            if (vtag(events(i)) == V_ARRAY) then
                 a = xfixnum(list_elt(events(i), 1_int64))
                 b = xfixnum(list_elt(events(i), 2_int64))
 
@@ -1756,7 +1756,7 @@ contains
             shadowed(i) = .false.
             if (.not. (symbolp(ev(i)) .or. fixnump(ev(i)))) cycle
             ! Don't show undefined commands or suppressed commands.
-            if (nilp(def(i))) cycle
+            if (.not. allocated(def(i)%a)) cycle
             if (partial .and. is_suppressed(def(i))) cycle
 
             ! Don't show a command that isn't really visible because a
@@ -1767,7 +1767,7 @@ contains
                 call shadow_lookup(shadow, one, tem)
                 deallocate (one)
 
-                if (.not. nilp(tem)) then
+                if (allocated(tem%a)) then
                     ! If both bindings are keymaps, this key is a prefix
                     ! key, so don't say it is shadowed.
                     if (.not. (keymap_ref_p(def(i)) .and. keymap_ref_p(tem))) then
@@ -1818,7 +1818,7 @@ contains
                     if (value_eq(prefix(1), sym("remap")) .and. .not. value_eq(def(i), sym("self_insert_command"))) then
                         call where_is_internal(def(i), all_keys)
 
-                        if (.not. nilp(all_keys)) then
+                        if (allocated(all_keys%a)) then
                             call list_elements(all_keys, seqs)
                             call list_elements(seqs(1), remapped)
                             key = remapped(size(remapped):size(remapped))
@@ -1884,8 +1884,8 @@ contains
         type(status_type) :: st
 
         call lookup_key(make_list(shadow), key, val, st, accept_default=.true.)
-        if (.not. st%ok()) val = nil()
-        if (fixnump(val)) val = nil()
+        if (.not. st%ok()) val = value_type()
+        if (fixnump(val)) val = value_type()
     end subroutine shadow_lookup
 
     !> Whether `def' has a `suppress_keymap' property: `undefined'
@@ -1908,7 +1908,7 @@ contains
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        if (stringp(definition) .or. vtag(definition) == V_LIST) then
+        if (stringp(definition) .or. vtag(definition) == V_ARRAY) then
             if (translation) then
                 if (stringp(definition)) then
                     s = xstring(definition)
@@ -2113,18 +2113,18 @@ contains
 
         do k = 1, m
             definition = rd(k)
-            if (nilp(definition)) cycle
+            if (.not. allocated(definition%a)) cycle
             ! Don't mention suppressed commands.
             if (partial .and. is_suppressed(definition)) cycle
             kludge(1) = make_fixnum(rf(k))
             ! If this binding is shadowed by some other map, ignore it.
             this_shadowed = .false.
-            shadowed_by = nil()
+            shadowed_by = value_type()
 
             if (size(shadow) > 0) then
                 call shadow_lookup(shadow, kludge, shadowed_by)
 
-                if (.not. nilp(shadowed_by) .and. .not. value_eq(shadowed_by, definition)) then
+                if (allocated(shadowed_by%a) .and. .not. value_eq(shadowed_by, definition)) then
                     if (.not. mention_shadow) cycle
                     this_shadowed = .true.
                 end if

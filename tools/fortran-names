@@ -659,3 +659,10 @@ name	log_view_end_of_defun	log_view_end_of_entry
 name	log_view_end_of_subprogram	log_view_end_of_entry
 name	css_current_defun_name	css_current_rule_name
 name	css_current_subprogram_name	css_current_rule_name
+
+# C2: the value tags take Fortran words (the null value, integers, names,
+# arrays).
+name	V_NIL	V_NULL
+name	V_INT	V_INTEGER
+name	V_SYMBOL	V_NAME
+name	V_LIST	V_ARRAY

@@ -29,7 +29,7 @@ module test_bindings_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use editfns_fm, only: point, buffer_string, goto_char
-    use lisp_fm, only: value_type, nil, xstring, list_elt
+    use lisp_fm, only: value_type, xstring, list_elt
     use simple_fm, only: kill_ring
     use lread_fm, only: sym
     use data_fm, only: value_eq
@@ -73,7 +73,7 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call get_buffer_create(name, buf, st)
         call set_buffer(buf, st)
@@ -122,7 +122,7 @@ contains
         call check(error, value_eq(binding_of("DEL"), sym("delete_backward_char")), "DEL")
         if (allocated(error)) return
         ! A modified character is not covered by the self-insert range.
-        call check(error, value_eq(binding_of("C-é"), nil()), "C-é")
+        call check(error, value_eq(binding_of("C-é"), value_type()), "C-é")
     end subroutine test_global_map
 
     subroutine test_typing(error)
@@ -321,7 +321,7 @@ contains
         call init_bindings()
 
         do k = 1, size(keys)
-            call check(error, value_eq(binding_of(trim(keys(k))), nil()), trim(keys(k))//" is bound")
+            call check(error, value_eq(binding_of(trim(keys(k))), value_type()), trim(keys(k))//" is bound")
             if (allocated(error)) return
         end do
 

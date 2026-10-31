@@ -49,9 +49,10 @@
 !> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, make_list, list_elements, consp
+    use lisp_fm, only: value_type, fixnump, xfixnum, make_list, list_elements, consp
     use eval_fm, only: call_overlay_change_function
     use lread_fm, only: sym
     use data_fm, only: value_eq
@@ -375,7 +376,7 @@ contains
         ! Delete the overlay if it is empty after clipping and has the
         ! evaporate property.
         if (n_beg == n_end) then
-            if (.not. nilp(overlay_get(overlay, "evaporate"))) call drop_overlay(i)
+            if (vtag(overlay_get(overlay, "evaporate")) /= V_NULL) call drop_overlay(i)
         end if
     end subroutine move_overlay
 
@@ -582,7 +583,7 @@ contains
 
         if (.not. found) then
             ! It wasn't in the list, so add it to the front.
-            changed = .not. nilp(value)
+            changed = allocated(value%a)
             n = size(elems)
             allocate (grown(n + 2))
             grown(1) = key
@@ -596,7 +597,7 @@ contains
         if (is_buffer_live(overlays(i)%buffer)) then
             if (changed) call modify_overlay(overlays(i)%buffer%index, overlays(i)%begin, overlays(i)%end)
 
-            if (prop == "evaporate" .and. .not. nilp(value) .and. overlays(i)%begin == overlays(i)%end) then
+            if (prop == "evaporate" .and. allocated(value%a) .and. overlays(i)%begin == overlays(i)%end) then
                 call delete_overlay(overlay)
             end if
         end if
@@ -968,7 +969,7 @@ contains
             if (.not. table%is_live(table%handle_of(i))) cycle
             if (.not. in_buffer(i, cur)) cycle
             if (overlays(i)%begin /= pos .or. overlays(i)%end /= pos) cycle
-            if (nilp(overlay_get(table%handle_of(i), "evaporate"))) cycle
+            if (vtag(overlay_get(table%handle_of(i), "evaporate")) == V_NULL) cycle
             n = n + 1
             hit_list(n) = table%handle_of(i)
         end do
@@ -1071,7 +1072,7 @@ contains
                 if (.not. (node%begin < end .and. node%end > start .and. node%begin < node%end)) cycle
                 if (idx(k) == overlay%index) cycle
 
-                if (.not. nilp(overlay_get(overlay, "mouse_face"))) then
+                if (vtag(overlay_get(overlay, "mouse_face")) /= V_NULL) then
                     mouse_face_overlay_overlaps = .true.
                     return
                 end if
@@ -1095,7 +1096,7 @@ contains
         do k = 1, size(idx)
             if (.not. intersects(overlays(idx(k))%begin, overlays(idx(k))%end, zv, zv)) cycle
 
-            if (.not. nilp(overlay_get(table%handle_of(idx(k)), "display_line_numbers_disable"))) then
+            if (vtag(overlay_get(table%handle_of(idx(k)), "display_line_numbers_disable")) /= V_NULL) then
                 disable_line_numbers_overlay_at_eob = .true.
                 return
             end if
@@ -1193,19 +1194,19 @@ contains
 
                 if (insertion .and. (start == obegin .or. end == obegin)) then
                     prop = overlay_get(ov, "insert_in_front_hooks")
-                    if (.not. nilp(prop)) call add_overlay_mod_hooklist(prop, ov)
+                    if (allocated(prop%a)) call add_overlay_mod_hooklist(prop, ov)
                 end if
 
                 if (insertion .and. (start == oend .or. end == oend)) then
                     prop = overlay_get(ov, "insert_behind_hooks")
-                    if (.not. nilp(prop)) call add_overlay_mod_hooklist(prop, ov)
+                    if (allocated(prop%a)) call add_overlay_mod_hooklist(prop, ov)
                 end if
 
                 ! Test for intersecting intervals.  This does the right
                 ! thing for both insertion and deletion.
                 if (end > obegin .and. start < oend) then
                     prop = overlay_get(ov, "modification_hooks")
-                    if (.not. nilp(prop)) call add_overlay_mod_hooklist(prop, ov)
+                    if (allocated(prop%a)) call add_overlay_mod_hooklist(prop, ov)
                 end if
             end do
         end if

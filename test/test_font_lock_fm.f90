@@ -26,7 +26,7 @@ module test_font_lock_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, symbolp, symbols, xsymbol, consp, list_elements
+    use lisp_fm, only: value_type, symbolp, symbols, xsymbol, consp, list_elements
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, resolve_buffer
     use insdel_fm, only: insert
@@ -93,7 +93,7 @@ contains
             v = elts(1)
         end if
 
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function face_at
 
@@ -232,12 +232,12 @@ contains
         call minor_modes%font_lock_mode%enable(st)
         call jit_lock_fontify_now(st)
         call get_text_property(6_int64, sym("fontified"), v, st)
-        call check(error,.not. nilp(v), "fontified")
+        call check(error, allocated(v%a), "fontified")
         if (allocated(error)) return
         call goto_char(6_int64)
         call insert("foo", st)
         call get_text_property(6_int64, sym("fontified"), v, st)
-        call check(error, nilp(v), "refontify the change")
+        call check(error,.not. allocated(v%a), "refontify the change")
         if (allocated(error)) return
         call jit_lock_fontify_now(st)
         call check(error, face_at(6_int64) == "font_lock_keyword_face", "fontified again")

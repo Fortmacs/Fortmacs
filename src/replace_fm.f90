@@ -61,7 +61,7 @@ module replace_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, make_string, make_list, stringp, xstring, nilp, list_elements, &
+    use lisp_fm, only: value_type, make_string, make_list, stringp, xstring, list_elements, &
                        list_length, list_elt
     use lread_fm, only: sym
     use fns_fm, only: schars
@@ -798,9 +798,9 @@ contains
         have_separator = allocated(query_replace_from_to_separator)
         ! The minibuffer history: the default pairs, then the FROM history.
         call symbol_value(sym("minibuffer_history"), saved_history, st)
-        if (.not. st%ok()) saved_history = nil()
+        if (.not. st%ok()) saved_history = value_type()
         call symbol_value(sym(query_replace_from_history_variable), from_history, st)
-        if (.not. st%ok()) from_history = nil()
+        if (.not. st%ok()) from_history = value_type()
         call list_elements(from_history, older)
         n = 0
         if (have_separator .and. allocated(query_replace_defaults)) n = size(query_replace_defaults)
@@ -942,7 +942,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        delimited = .not. nilp(current_prefix_arg) .and. .not. value_eq(current_prefix_arg, sym("-"))
+        delimited = allocated(current_prefix_arg%a) .and. .not. value_eq(current_prefix_arg, sym("-"))
         backward = value_eq(current_prefix_arg, sym("-"))
         call query_replace_read_from(prompt, regexp_flag, from, to, have_to, counted, status)
         if (.not. status%ok()) return
@@ -1336,7 +1336,7 @@ contains
 
             ! Optionally ignore matches that have a read-only property.
             if (query_replace_skip_read_only) then
-                call text_property_not_all(real_data(1), real_data(2), sym("read_only"), nil(), ro_pos, &
+                call text_property_not_all(real_data(1), real_data(2), sym("read_only"), value_type(), ro_pos, &
                                            ro_found, st)
 
                 if (ro_found) then
@@ -1557,7 +1557,7 @@ contains
                     done = .true.
                     update_stack = .not. last_was_act_and_show
                 case (ANSWER_RECENTER)
-                    call recenter_top_bottom(nil(), st)
+                    call recenter_top_bottom(value_type(), st)
                 case (ANSWER_EDIT)
                     opoint = point()
                     call make_marker(opos)
@@ -1626,9 +1626,9 @@ contains
                 case (ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN)
                     ! (is_command def t): (call-interactively def).
                     if (def == ANSWER_SCROLL_UP) then
-                        call scroll_up(nil(), status)
+                        call scroll_up(value_type(), status)
                     else
-                        call scroll_down(nil(), status)
+                        call scroll_down(value_type(), status)
                     end if
 
                     if (.not. status%ok()) exit main
@@ -2107,7 +2107,7 @@ contains
 
         prompt = base
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             if (value_eq(current_prefix_arg, sym("-"))) then
                 prompt = prompt//" backward"
             else
@@ -2185,13 +2185,13 @@ contains
             call region_beginning(b, st)
             call region_end(e, st)
 
-            if (nilp(current_prefix_arg)) then
+            if (.not. allocated(current_prefix_arg%a)) then
                 call map_query_replace_regexp(from, to, status, start=b, end=e)
             else
                 call map_query_replace_regexp(from, to, status, n=prefix_numeric_value(current_prefix_arg), &
                                               start=b, end=e)
             end if
-        else if (nilp(current_prefix_arg)) then
+        else if (.not. allocated(current_prefix_arg%a)) then
             call map_query_replace_regexp(from, to, status)
         else
             call map_query_replace_regexp(from, to, status, n=prefix_numeric_value(current_prefix_arg))
@@ -2227,7 +2227,7 @@ contains
         query_replace_to_history_variable = "query_replace_history"
         ! Default history list for `query_replace' commands.
         call symbol_value(sym("query_replace_history"), history, st)
-        if (.not. st%ok()) call set(sym("query_replace_history"), nil(), st)
+        if (.not. st%ok()) call set(sym("query_replace_history"), value_type(), st)
         commands%query_replace%run => cmd_query_replace
         commands%query_replace_regexp%run => cmd_query_replace_regexp
         commands%map_query_replace_regexp%run => cmd_map_query_replace_regexp
@@ -3010,7 +3010,7 @@ contains
             if (found) then
                 call get_text_property(r, sym("occur_match"), v, st)
 
-                if (.not. nilp(v)) then
+                if (allocated(v%a)) then
                     r1 = r
                     call search(r1, r, found)
                 end if
@@ -3148,7 +3148,7 @@ contains
         call get_text_property(line_beg, sym("occur_prefix"), prefix_beg, st)
         call get_text_property(end, sym("occur_prefix"), prefix_end, st)
 
-        if (nilp(prefix_beg) .or. .not. nilp(prefix_end) .or. .not. is_buffer_live(buf)) then
+        if (.not. allocated(prefix_beg%a) .or. allocated(prefix_end%a) .or. .not. is_buffer_live(buf)) then
             call goto_char(opoint)
             return
         end if
@@ -3318,7 +3318,7 @@ contains
                 call read_regexp(format_prompt("Regexp to collect", default), collect, status, defaults, &
                                  OCCUR_COLLECT_HISTORY)
             end if
-        else if (.not. nilp(current_prefix_arg)) then
+        else if (allocated(current_prefix_arg%a)) then
             ! Otherwise normal occur takes numerical prefix argument.
             has_nlines = .true.
             nlines = prefix_numeric_value(current_prefix_arg)
@@ -3603,7 +3603,7 @@ contains
 
         call history_head("regexp_history", default, found)
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call read_regexp("List lines in buffers whose names match regexp: ", bufregexp, status)
         else
             call read_regexp("List lines in buffers whose filenames match regexp: ", bufregexp, status)
@@ -3615,10 +3615,10 @@ contains
         if (.not. status%ok()) return
 
         if (has_collect) then
-            call multi_occur_in_matching_buffers(bufregexp, regexp, status,.not. nilp(current_prefix_arg), &
+            call multi_occur_in_matching_buffers(bufregexp, regexp, status, allocated(current_prefix_arg%a), &
                                                  collect=collect)
         else
-            call multi_occur_in_matching_buffers(bufregexp, regexp, status,.not. nilp(current_prefix_arg))
+            call multi_occur_in_matching_buffers(bufregexp, regexp, status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_multi_occur_in_matching_buffers
 
@@ -3682,7 +3682,7 @@ contains
     recursive subroutine cmd_occur_rename_buffer(status)
         type(status_type), intent(out) :: status
 
-        call occur_rename_buffer(status,.not. nilp(current_prefix_arg), .true.)
+        call occur_rename_buffer(status, allocated(current_prefix_arg%a), .true.)
     end subroutine cmd_occur_rename_buffer
 
     !> The description of REGEXP in Occur's headers: its control

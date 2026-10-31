@@ -20,11 +20,11 @@
 
 module test_rect_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, condition_matches, FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
     use lread_fm, only: sym
     use data_fm, only: set
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only
@@ -470,9 +470,9 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
-        call set(sym("string_rectangle_history"), nil(), st)
+        call set(sym("string_rectangle_history"), value_type(), st)
         ! C-SPC at b, to q: C-x r k, then C-x r y at the start.
         call kbd_store_bytes(achar(6)//achar(0)//achar(14)//achar(14)//achar(6)//achar(6)//achar(6)//cxr//"k")
         call command_loop(st)
@@ -540,7 +540,7 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call goto_char(2_int64)
         call kbd_store_bytes(achar(24)//" ")
@@ -580,7 +580,7 @@ contains
 
         call fresh(h, "abcd"//nl//"ab"//nl//"abcd")
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call kbd_store_bytes(achar(24)//" "//achar(6)//achar(6)//achar(6)//achar(14))
         call command_loop(st)
@@ -611,7 +611,7 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call goto_char(4_int64)
         call kbd_store_bytes(achar(24)//" "//achar(14)//achar(14)//achar(2)//achar(2))

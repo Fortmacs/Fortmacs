@@ -54,7 +54,7 @@ module grep_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_string, make_list, list, nil, t_value, nilp, consp, stringp, xstring, fixnump, &
+    use lisp_fm, only: value_type, make_string, make_list, list, t_value, consp, stringp, xstring, fixnump, &
                        xfixnum, list_elements, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: symbol_value, add_local_variables_killer
@@ -884,7 +884,7 @@ contains
         status = status_type()
         call char_after(c, found, start)
         if (.not. found .or. c /= 0) return
-        call put_text_property(start, end, sym("face"), nil(), status)
+        call put_text_property(start, end, sym("face"), value_type(), status)
         if (status%ok()) call put_text_property(start, end, sym("display"), make_string(match_string(2)), status)
     end subroutine context_separator_properties
 
@@ -898,7 +898,7 @@ contains
         if (grep_find_abbreviate) then
             call add_text_properties(start, end, grep_find_abbreviate_properties(), changed, status)
         else
-            call add_text_properties(start, end, list(sym("face"), nil(), sym("abbreviated_command"), t_value()), &
+            call add_text_properties(start, end, list(sym("face"), value_type(), sym("abbreviated_command"), t_value()), &
                                      changed, status)
         end if
     end subroutine abbreviate_properties
@@ -911,7 +911,7 @@ contains
         type(value_type) :: parts(10)
 
         parts(1) = sym("face")
-        parts(2) = nil()
+        parts(2) = value_type()
         parts(3) = sym("display")
         ! (char-displayable-p ?…): the terminal's coding system is UTF-8.
         parts(4) = make_string("[…]")
@@ -1143,7 +1143,7 @@ contains
                 call replace_match(text, st, fixedcase=.true., literal=.true.)
                 mb = match_beginning(0, st)
                 me = point()
-                call put_text_property(mb, me, sym("face"), nil(), st)
+                call put_text_property(mb, me, sym("face"), value_type(), st)
                 call put_text_property(mb, me, sym("font_lock_face"), sym(grep_match_face), st)
                 k = local_entry()
                 locals(k)%num_matches_found = locals(k)%num_matches_found + 1
@@ -1206,7 +1206,7 @@ contains
             if (.not. status%ok()) exit
             if (found == 0) exit
             call get_text_property(point(), sym("compilation_annotation"), annotation, st)
-            if (.not. nilp(annotation)) cycle
+            if (allocated(annotation%a)) cycle
             heading = match_string(1, matched=matched)
             start = match_beginning(2, st)
             end = match_end(2, st)
@@ -1298,7 +1298,7 @@ contains
             argv(i) = make_string(args(i)%s)
         end do
 
-        dest = nil()
+        dest = value_type()
         if (insert) dest = t_value()
         call call_process(program, res, st, destination=dest, args=make_list(argv))
         ok = .false.
@@ -1778,7 +1778,7 @@ contains
         if (.not. status%ok()) return
         default = grep_default_command()
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call read_shell_command("Run grep (like this): ", command, status, initial=default, history="grep_history")
         else
             initial = ""
@@ -1871,7 +1871,7 @@ contains
             logical, intent(out) :: ok
             type(status_type) :: s
 
-            call text_property_not_all(from, point_max(), sym(prop), nil(), b, ok, s)
+            call text_property_not_all(from, point_max(), sym(prop), value_type(), b, ok, s)
             if (.not. ok) return
             call next_single_property_change(b, sym(prop), e2, ok, s)
             if (.not. ok) e2 = point_max()
@@ -2321,14 +2321,14 @@ contains
         case default
             ! (seq-some (lambda (table) (complete-with-action action table
             ! string pred)) tables).
-            result = nil()
+            result = value_type()
 
             if (action == COMPLETE_TEST) then
                 if (test_completion(string, list_table, pred)) result = t_value()
             end if
 
             if (.not. status%ok()) return
-            if (nilp(result)) call completion_file_name_table(string, action, result, status, pred, suffix)
+            if (.not. allocated(result%a)) call completion_file_name_table(string, action, result, status, pred, suffix)
         end select
 
     contains
@@ -2344,7 +2344,7 @@ contains
             type(value_type), intent(in) :: v
             type(value_type), allocatable :: grown(:)
 
-            if (nilp(v)) return
+            if (.not. allocated(v%a)) return
             allocate (grown(size(all) + 1))
             grown(:size(all)) = all
 
@@ -2838,7 +2838,7 @@ contains
         if (found .and. end > 0) then
             call get_text_property(beg, sym("display"), display, st)
 
-            if (.not. nilp(display)) then
+            if (allocated(display%a)) then
                 call remove_list_of_text_properties(beg, end, list(sym("display"), sym("help_echo"), sym("mouse_face"), &
                                                                    sym("help_echo"), sym("keymap")), changed, st)
             else

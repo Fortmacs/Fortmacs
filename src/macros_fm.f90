@@ -29,6 +29,7 @@
 !> string macros other than as `execute_kbd_macro' arguments (a string
 !> `last_kbd_macro').
 submodule(keyboard_fm) macros_fm
+    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: make_list
@@ -106,7 +107,7 @@ contains
         return
     end if
 
-    if (nilp(repeat)) then
+    if (.not. allocated(repeat%a)) then
         n = 1
     else if (fixnump(repeat)) then
         n = xfixnum(repeat)
@@ -166,7 +167,7 @@ contains
     if (allocated(last_kbd_macro)) then
         real_this_command = make_list(last_kbd_macro)
     else
-        real_this_command = nil()
+        real_this_command = value_type()
     end if
 
     if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
@@ -191,7 +192,7 @@ contains
 
     status = status_type()
 
-    if (.not. (stringp(macro) .or. vtag(macro) == V_LIST)) then
+    if (.not. (stringp(macro) .or. vtag(macro) == V_ARRAY)) then
         call set_error(status, FM_GENERIC_ERROR, "Keyboard macros must be strings or vectors")
         return
     end if
@@ -210,7 +211,7 @@ contains
         integer(int64) :: pos, n
         integer(int32) :: ch, length
 
-        if (vtag(macro) == V_LIST) then
+        if (vtag(macro) == V_ARRAY) then
             call list_elements(macro, evs)
             return
         end if
@@ -252,7 +253,7 @@ contains
         repeat = 1
         success_count = 0
         executing_kbd_macro_iterations = 0
-        if (.not. nilp(count)) repeat = prefix_numeric_value(count)
+        if (allocated(count%a)) repeat = prefix_numeric_value(count)
         ! record_unwind_protect (pop_kbd_macro, ...)
         saved_active = macro_active
         saved_string = macro_string
@@ -269,7 +270,7 @@ contains
             macro_forced_end = .false.
             macro_started = .true.
             executing_kbd_macro_index = 0
-            prefix_arg = nil()
+            prefix_arg = value_type()
 
             if (present(loopfunc)) then
                 if (.not. loopfunc()) exit
@@ -320,7 +321,7 @@ contains
     recursive subroutine cmd_start_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call start_kbd_macro(.not. nilp(current_prefix_arg), .false., status)
+        call start_kbd_macro(allocated(current_prefix_arg%a), .false., status)
     end subroutine cmd_start_kbd_macro
 
     !> Finish defining a keyboard macro.

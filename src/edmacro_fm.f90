@@ -30,8 +30,8 @@
 module edmacro_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, symbolp, stringp, xfixnum, xsymbol, xstring, symbols, vtag, &
-                       V_LIST, list_elements, make_fixnum, make_keymap_ref, make_symbol_ref
+    use lisp_fm, only: value_type, fixnump, symbolp, stringp, xfixnum, xsymbol, xstring, symbols, vtag, &
+                       V_ARRAY, list_elements, make_fixnum, make_keymap_ref, make_symbol_ref
     use lread_fm, only: sym, intern_soft
     use data_fm, only: value_eq
     use character_fm, only: CHAR_ALT, CHAR_CTL, CHAR_HYPER, CHAR_META, CHAR_SUPER, CHAR_SHIFT, &
@@ -175,14 +175,14 @@ contains
             end do
 
             key = rest(pos:pos + bind_len - 1)
-            bind = nil()
+            bind = value_type()
             found = .false.
             use_fkey = .false.
 
             do k = 1, size(maps)
                 call lookup_key(maps(k), key, b, st)
 
-                if (.not. nilp(b) .and. .not. fixnump(b)) then
+                if (allocated(b%a) .and. .not. fixnump(b)) then
                     bind = b
                     found = .true.
                     exit
@@ -197,13 +197,13 @@ contains
                     tkey = rest(pos:pos + tlen - 1)
                     call lookup_key(make_keymap_ref(local_function_key_map), tkey, fk, st)
 
-                    if (.not. nilp(fk) .and. .not. fixnump(fk) .and. .not. is_keymap(fk)) then
+                    if (allocated(fk%a) .and. .not. fixnump(fk) .and. .not. is_keymap(fk)) then
                         call translation_events(fk, fkey)
 
                         do k = 1, size(maps)
                             call lookup_key(maps(k), fkey, b, st)
 
-                            if (.not. nilp(b) .and. .not. fixnump(b)) then
+                            if (allocated(b%a) .and. .not. fixnump(b)) then
                                 bind_len = tlen
                                 key = tkey
                                 bind = b
@@ -235,8 +235,8 @@ contains
 
             text = i
             bind_name = ""
-            if (symbolp(bind) .and. .not. nilp(bind)) bind_name = symbols(xsymbol(bind))%name
-            if (stringp(bind)) bind = nil()
+            if (symbolp(bind) .and. allocated(bind%a)) bind_name = symbols(xsymbol(bind))%name
+            if (stringp(bind)) bind = value_type()
             done = .false.
             ch = int_event(first)
 
@@ -371,7 +371,7 @@ contains
 
         all = current_active_maps()
 
-        if (vtag(all) == V_LIST) then
+        if (vtag(all) == V_ARRAY) then
             call list_elements(all, maps)
         else
             allocate (maps(1))
@@ -388,7 +388,7 @@ contains
         integer(int64) :: pos, n
         integer(int32) :: c, length
 
-        if (vtag(v) == V_LIST) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, evs)
             return
         end if

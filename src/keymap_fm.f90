@@ -53,10 +53,10 @@ module keymap_fm
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, V_INT, V_SYMBOL, V_STRING, V_LIST, &
-                       V_KEYMAP, SYM_T, symbols, nil, make_fixnum, &
+    use lisp_fm, only: value_type, V_INTEGER, V_NAME, V_STRING, V_ARRAY, &
+                       V_KEYMAP, SYM_T, symbols, make_fixnum, &
                        make_symbol_ref, make_keymap_ref, make_list, list, vtag, &
-                       nilp, fixnump, symbolp, xfixnum, xsymbol, xstring, &
+                       fixnump, symbolp, xfixnum, xsymbol, xstring, &
                        xhandle, list_length, list_elements, list_tail, keymap_ref_p, list_elt, stringp
     use lread_fm, only: intern
     use data_fm, only: value_eq, symbol_value
@@ -288,7 +288,7 @@ contains
         type(handle_type), intent(in) :: km
         type(value_type) :: v
 
-        v = nil()
+        v = value_type()
         if (table%is_live(km)) v = keymaps(km%index)%prompt
     end function keymap_own_prompt
 
@@ -301,10 +301,10 @@ contains
         type(handle_type), intent(in) :: km
         type(value_type) :: v
 
-        v = nil()
+        v = value_type()
         if (.not. table%is_live(km)) return
         v = keymaps(km%index)%prompt
-        if (.not. nilp(v)) return
+        if (allocated(v%a)) return
         if (table%is_live(keymaps(km%index)%parent)) v = keymap_prompt(keymaps(km%index)%parent)
     end function keymap_prompt
 
@@ -435,7 +435,7 @@ contains
         select case (vtag(v))
         case (V_KEYMAP)
             yes = table%is_live(xhandle(v))
-        case (V_LIST)
+        case (V_ARRAY)
             call list_elements(v, elems)
 
             do k = 1, size(elems, kind=int64)
@@ -491,7 +491,7 @@ contains
         if (k > 0) all(1:k) = inherited
 
         do j = n, 1, -1
-            if (nilp(keymaps(km%index)%bindings(order(j)))) cycle
+            if (.not. allocated(keymaps(km%index)%bindings(order(j))%a)) cycle
             k = k + 1
             all(k) = keymaps(km%index)%events(order(j))
         end do
@@ -693,9 +693,9 @@ contains
         type(value_type) :: e
 
         select case (vtag(c))
-        case (V_INT)
+        case (V_INTEGER)
             e = make_fixnum(iand(xfixnum(c), ior(M_META, M_META - 1)))
-        case (V_SYMBOL)
+        case (V_NAME)
             e = reorder_modifiers(c)
         case default
             e = c
@@ -719,16 +719,16 @@ contains
         stop = .false.
         val = val_in
         ! A t binding is like an explicit nil.
-        if (is_t(val)) val = nil()
+        if (is_t(val)) val = value_type()
 
         if (.not. is_keymap(val)) then
-            if (.not. st%found .or. nilp(st%retval)) then
+            if (.not. st%found .or. .not. allocated(st%retval%a)) then
                 st%retval = val
                 st%found = .true.
             end if
 
-            if (.not. nilp(val)) stop = .true.
-        else if (.not. st%found .or. nilp(st%retval)) then
+            if (allocated(val%a)) stop = .true.
+        else if (.not. st%found .or. .not. allocated(st%retval%a)) then
             st%retval = val
             st%found = .true.
         else
@@ -776,12 +776,12 @@ contains
         if (noinherit) return
 
         if (st%found) then
-            if (nilp(st%retval)) return
+            if (.not. allocated(st%retval%a)) return
             ! A prefix keymap was found: compose it with the parent's.
             call access_1(tail, idx, st%t_ok, .false., entry, found)
 
             if (found .and. is_keymap(entry)) then
-                if (vtag(entry) == V_LIST) then
+                if (vtag(entry) == V_ARRAY) then
                     call list_elements(entry, members)
                 else
                     allocate (members(1))
@@ -834,7 +834,7 @@ contains
                     ! Only a default binding can apply.
                     idx = make_symbol_ref(SYM_T)
                 else
-                    found = f .and. nilp(meta_binding)
+                    found = f .and. .not. allocated(meta_binding%a)
                     return
                 end if
             end if
@@ -869,7 +869,7 @@ contains
                                 if (c < keymaps(i)%range_from(j) .or. &
                                     c > keymaps(i)%range_to(j)) cycle
                                 ! nil in the char-table: no binding here.
-                                if (nilp(keymaps(i)%range_bindings(j))) exit
+                                if (.not. allocated(keymaps(i)%range_bindings(j)%a)) exit
                                 call take_binding(st, keymaps(i)%range_bindings(j), stop)
                                 if (stop) exit scan
                                 exit
@@ -884,7 +884,7 @@ contains
                     i = keymaps(i)%parent%index
                 end do scan
             end if
-        case (V_LIST)
+        case (V_ARRAY)
             call list_elements(m, elems)
 
             do k = 1, size(elems, kind=int64)
@@ -910,7 +910,7 @@ contains
             found = .true.
         else if (st%t_found) then
             val = st%t_binding
-            if (is_t(val)) val = nil()
+            if (is_t(val)) val = value_type()
             found = .true.
         end if
     end subroutine access_1
@@ -946,7 +946,7 @@ contains
         t_ok = .false.
         if (present(accept_default)) t_ok = accept_default
 
-        if (.not. (nilp(map) .or. is_keymap(map))) then
+        if (.not. (.not. allocated(map%a) .or. is_keymap(map))) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_keymap")
             return
         end if
@@ -1041,7 +1041,7 @@ contains
         if (remove .and. keymaps(i)%full .and. is_char_table_event(idx)) then
             do j = keymaps(i)%nranges, 1, -1
                 if (xfixnum(idx) < keymaps(i)%range_from(j) .or. xfixnum(idx) > keymaps(i)%range_to(j)) cycle
-                call add_range(i, xfixnum(idx), xfixnum(idx), nil())
+                call add_range(i, xfixnum(idx), xfixnum(idx), value_type())
                 exit
             end do
         end if
@@ -1052,8 +1052,8 @@ contains
             if (remove) then
                 keymaps(i)%events(j:n - 1) = keymaps(i)%events(j + 1:n)
                 keymaps(i)%bindings(j:n - 1) = keymaps(i)%bindings(j + 1:n)
-                keymaps(i)%events(n) = nil()
-                keymaps(i)%bindings(n) = nil()
+                keymaps(i)%events(n) = value_type()
+                keymaps(i)%bindings(n) = value_type()
                 keymaps(i)%n = n - 1
             else
                 keymaps(i)%bindings(j) = def
@@ -1103,15 +1103,15 @@ contains
         end do
 
         do j = n + 1, keymaps(i)%n
-            keymaps(i)%events(j) = nil()
-            keymaps(i)%bindings(j) = nil()
+            keymaps(i)%events(j) = value_type()
+            keymaps(i)%bindings(j) = value_type()
         end do
 
         keymaps(i)%n = n
 
         ! nil has a special meaning for char-tables, so we use something
         ! else to record an explicitly unbound entry.
-        if (nilp(def)) then
+        if (.not. allocated(def%a)) then
             call add_range(i, from, to, make_symbol_ref(SYM_T))
         else
             call add_range(i, from, to, def)
@@ -1255,7 +1255,7 @@ contains
 
             cmd = access_keymap(make_keymap_ref(target), c, .false., .true.)
 
-            if (nilp(cmd)) then
+            if (.not. allocated(cmd%a)) then
                 ! keymap.c:define_as_prefix
                 call make_sparse_keymap(prefix)
                 keymaps(prefix%index)%owner = target
@@ -1536,7 +1536,7 @@ contains
             if (.not. same_handle(maps(i), map)) cycle
             call symbol_value(make_symbol_ref(vars(i)), v, st)
             if (.not. st%ok()) cycle
-            if (nilp(v)) cycle
+            if (.not. allocated(v%a)) cycle
             variable = symbols(vars(i))%name
             return
         end do
@@ -1562,7 +1562,7 @@ contains
             if (.not. table%is_live(all(i))) cycle
             call symbol_value(make_symbol_ref(vars(i)), v, st)
             if (.not. st%ok()) cycle
-            if (nilp(v)) cycle
+            if (.not. allocated(v%a)) cycle
             n = n + 1
             modes(n) = symbols(vars(i))%name
             maps(n) = all(i)
@@ -1761,7 +1761,7 @@ contains
         type(handle_type) :: local
         integer(int64) :: pos, old_begv, old_zv, old_begv_byte, old_zv_byte
 
-        map = nil()
+        map = value_type()
         if (cur == 0) return
         pos = max(buffers(cur)%begv, min(position, buffers(cur)%zv))
         ! Ignore narrowing, so that a local map continues to be valid even
@@ -1779,7 +1779,7 @@ contains
         ! First check if the CHAR has any property.
         prop = get_char_property(pos, ptype)
         ! If not, look at the POS's properties.
-        if (nilp(prop)) prop = get_pos_property(pos, ptype)
+        if (.not. allocated(prop%a)) prop = get_pos_property(pos, ptype)
         buffers(cur)%begv = old_begv
         buffers(cur)%zv = old_zv
         buffers(cur)%begv_byte = old_begv_byte
@@ -1856,7 +1856,7 @@ contains
             type(value_type), allocatable :: parts(:)
             integer :: j
 
-            if (nilp(map)) return
+            if (.not. allocated(map%a)) return
 
             if (keymap_ref_p(map)) then
                 n = n + 1
@@ -1886,15 +1886,15 @@ contains
 
         maps = current_active_maps()
         call lookup_key(maps, key, val, status, accept_default)
-        if (fixnump(val)) val = nil()
+        if (fixnump(val)) val = value_type()
         remap = .true.
         if (present(no_remap)) remap = .not. no_remap
 
         ! If the result of the ordinary keymap lookup is an interactive
         ! command, look for a key binding (ie. remapping) for that command.
-        if (remap .and. symbolp(val) .and. .not. nilp(val)) then
+        if (remap .and. symbolp(val) .and. allocated(val%a)) then
             call command_remapping(val, remapped)
-            if (.not. nilp(remapped)) val = remapped
+            if (allocated(remapped%a)) val = remapped
         end if
     end subroutine key_binding
 
@@ -1912,7 +1912,7 @@ contains
         type(value_type) :: key(2)
         type(status_type) :: st
 
-        remapped = nil()
+        remapped = value_type()
         if (.not. symbolp(command)) return
         key(1) = make_symbol_ref(intern("remap"))
         key(2) = command
@@ -1923,7 +1923,7 @@ contains
             call key_binding(key, remapped, st, no_remap=.true.)
         end if
 
-        if (.not. st%ok() .or. fixnump(remapped)) remapped = nil()
+        if (.not. st%ok() .or. fixnump(remapped)) remapped = value_type()
     end subroutine command_remapping
 
     ! ------------------------------------------------------------------
@@ -2037,9 +2037,9 @@ contains
         if (present(no_angles)) bare = no_angles
 
         select case (vtag(key))
-        case (V_INT)
+        case (V_INTEGER)
             s = push_key_description(xfixnum(key))
-        case (V_SYMBOL)
+        case (V_NAME)
             name = symbols(xsymbol(key))%name
 
             if (bare) then
@@ -2060,7 +2060,7 @@ contains
             s = name(1:i - 1)//"<"//name(i:)//">"
         case (V_STRING)
             s = xstring(key)
-        case (V_LIST)
+        case (V_ARRAY)
             call list_elements(key, parts)
 
             if (size(parts) == 2) then
@@ -2684,7 +2684,7 @@ contains
 
         first = .false.
         if (present(firstonly)) first = firstonly
-        keys = nil()
+        keys = value_type()
 
         if (present(keymap)) then
             allocate (maps(2))
@@ -2702,7 +2702,7 @@ contains
             call list_elements(active, maps)
         end if
 
-        if (first .and. symbolp(definition) .and. .not. nilp(definition)) then
+        if (first .and. symbolp(definition) .and. allocated(definition%a)) then
             ! We have an advertised binding.
             call advertised_key(symbols(xsymbol(definition))%name, seq)
 
@@ -2756,7 +2756,7 @@ contains
                     return
                 end if
 
-                if (nilp(keys)) keys = make_list(found(k)%keys)
+                if (.not. allocated(keys%a)) keys = make_list(found(k)%keys)
             else
                 ! (Not [elems, make_list(...)]: that leaks in gfortran.)
                 one = make_list(found(k)%keys)
@@ -2908,7 +2908,7 @@ contains
                 cycle
             end if
 
-            if (vtag(binding) /= V_SYMBOL) cycle
+            if (vtag(binding) /= V_NAME) cycle
             name = trim(symbols(xsymbol(binding))%name)
 
             if (present(exit)) then
@@ -3029,7 +3029,7 @@ contains
             end if
 
             if (.not. have) cycle
-            if (nilp(val)) cycle
+            if (.not. allocated(val%a)) cycle
             b = bounds(i + 1) - 1
 
             if (nr > 0) then
@@ -3061,7 +3061,7 @@ contains
         heads = keys
 
         do k = 1, size(keys)
-            if (vtag(keys(k)) == V_LIST) heads(k) = list_elt(keys(k), 1_int64)
+            if (vtag(keys(k)) == V_ARRAY) heads(k) = list_elt(keys(k), 1_int64)
         end do
     end function event_heads
 
@@ -3300,7 +3300,7 @@ contains
             if (.not. table%is_live(maps(i))) cycle
             call lookup_key(make_keymap_ref(maps(i)), key, binding, status, accept_default)
             if (.not. status%ok()) return
-            if (nilp(binding) .or. fixnump(binding)) cycle
+            if (.not. allocated(binding%a) .or. fixnump(binding)) cycle
 
             if (is_keymap(binding)) then
                 j = j + 1

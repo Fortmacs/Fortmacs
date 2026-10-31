@@ -32,7 +32,7 @@
 submodule(vc_fm) vc_log_fm
     use log_view_fm, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
     use vc_dispatcher_fm, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
-    use lisp_fm, only: t_value, nilp
+    use lisp_fm, only: t_value
     use callint_fm, only: current_prefix_arg
     use fileio_fm, only: is_file_directory
     implicit none(type, external)
@@ -310,7 +310,7 @@ contains
     character(len=:), allocatable :: rev
     integer(int64) :: lim
 
-    if (.not. nilp(current_prefix_arg)) then
+    if (allocated(current_prefix_arg%a)) then
         call read_from_minibuffer("Leave point at revision (default last revision): ", rev, status)
         if (.not. status%ok()) return
         call read_limit(lim, status)
@@ -338,7 +338,7 @@ contains
         else
             call vc_print_root_log(status, xfixnum(current_prefix_arg))
         end if
-    else if (.not. nilp(current_prefix_arg)) then
+    else if (allocated(current_prefix_arg%a)) then
         call read_limit(lim, status)
         if (.not. status%ok()) return
         call vc_print_root_log(status, max(lim, 0_int64))

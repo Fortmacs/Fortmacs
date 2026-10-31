@@ -23,6 +23,7 @@
 !> `fundamental_mode' and `special_mode': a submodule because they use
 !> derived_fm.
 submodule(simple_fm) simple_modes_fm
+    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use data_fm, only: kill_all_local_variables
     use subr_fm, only: run_mode_hooks
@@ -121,7 +122,7 @@ contains
                                                  messages_buffer_mode_hook, parent=major_modes%special_mode)
     messages_buffer_mode_map = major_modes%messages_buffer_mode%map
     ! :parent special-mode-map "g" nil: nothing to revert.
-    call keymap_set(messages_buffer_mode_map, "g", nil(), st)
+    call keymap_set(messages_buffer_mode_map, "g", value_type(), st)
     commands%messages_buffer_mode%run => messages_buffer_mode
     messages_buffer_mode_function => messages_buffer_mode
     message_log_hook => message_log_echo

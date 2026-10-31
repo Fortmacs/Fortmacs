@@ -43,7 +43,7 @@ module apropos_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, symbols, nsymbols, list_elements, make_string, xstring, stringp
+    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, make_string, xstring, stringp
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, is_buffer_live, get_buffer_create, &
                          kill_buffer, generate_new_buffer_name
@@ -487,7 +487,7 @@ contains
         type = ""
         name = ""
         call get_text_property(pos, sym(P_BUTTON), v, st)
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         type = symbols_name(v)
         call get_text_property(pos, sym(P_NAME), v, st)
         if (stringp(v)) name = xstring(v)
@@ -558,7 +558,7 @@ contains
         type(apropos_word_type), allocatable :: words(:)
         logical :: do_all
 
-        do_all = .not. nilp(current_prefix_arg)
+        do_all = allocated(current_prefix_arg%a)
 
         if (do_all) then
             call apropos_read_pattern("command or function", pattern, words, status)
@@ -602,7 +602,7 @@ contains
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call apropos_read_pattern("variable", pattern, words, status)
             if (.not. status%ok()) return
             call apropos_command(pattern, words, .true., VAR_ANY, status)
@@ -622,7 +622,7 @@ contains
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call apropos_read_pattern("user option", pattern, words, status)
             if (.not. status%ok()) return
             call apropos_command(pattern, words, .false., VAR_USER_OPTION, status)

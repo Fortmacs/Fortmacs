@@ -568,6 +568,7 @@ no rename is added without that.  The confirmed renames:
 | a predicate (`*-p`, `*p`) | `is_*` or `has_*`, a logical function | `is_region_active`, `is_derived_mode`, `is_process_live`, `is_bob`, `has_overlay_strings`; a verb phrase where it reads so: `file_exists`, `string_matches` (logical, no longer the match position); `set_buffer_modified`, `restore_buffer_modified`; a predicate that only wrapped an intrinsic or a tag test is gone (`frame_window_p` is `associated(f%rif)`) |
 | y-or-n-p, yes-or-no-p (prompts) | `read_y_or_n`, `read_yes_or_no` | `read_y_or_n_map`, `read_y_or_n_use_read_key`, `map_read_y_or_n`, `read_yes_or_no_history` |
 | `*_NIL`, `*_T` named constants | the meaning: `_NO`/`_YES` for plain off/on, `_ALWAYS` for always, else the meaning itself | `COMPILATION_SCROLL_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_ALWAYS`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names, "A1") |
+| nil, NILP (the null value) | `value_type()`; `.not. allocated(v%a)` | the intrinsic itself, no helper; a function result is tested as `vtag(f(x)) == V_NULL`; the value tags are `V_NULL`, `V_INTEGER`, `V_NAME`, `V_STRING`, `V_ARRAY` (were `V_NIL`, `V_INT`, `V_SYMBOL`, `V_STRING`, `V_LIST`) |
 | symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGEXP_OPT_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
@@ -655,14 +656,11 @@ named with it.
   the status".
 - Completion help says "COLLECTION is an array of strings, a table of
   (string, value) entries, or a completion function".
-- C2a/d: `nil()` becomes `value_type()`, and `nilp(v)` becomes
-  `.not. allocated(v%a)`, the intrinsic itself with no helper; the
-  `V_NIL` tag follows.
 - C2b: a value's type is tested with the language construct on the flat
   tagged `value_type`, as json-fortran does: `select case (v%a(1)%tag)`
   or `if (v%a(1)%tag == V_INTEGER)`; components are read directly
-  (`v%a(1)%i`, `v%a(1)%s`); the tags become `V_NULL`, `V_INTEGER`,
-  `V_NAME`, `V_STRING` and `V_ARRAY` (`V_BUFFER` and the like stay); no
+  (`v%a(1)%i`, `v%a(1)%s`) (the tags `V_NULL`, `V_INTEGER`, `V_NAME`,
+  `V_STRING` and `V_ARRAY` are applied); no
   `is_integer`, `xfixnum` or `integer_of` helpers.  Why not `select type`:
   see the design decision "Values stay a flat array of tagged nodes".
 - C2c: flat lists become plain Fortran arrays used with the intrinsics

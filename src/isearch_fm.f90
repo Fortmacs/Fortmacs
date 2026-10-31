@@ -43,8 +43,8 @@ module isearch_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_INVALID_REGEXP, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, error_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, make_fixnum, fixnump, xfixnum, stringp, xstring, make_keymap_ref, &
-                       list_length, list_elt, list_elements, make_list, nilp
+    use lisp_fm, only: value_type, make_fixnum, fixnump, xfixnum, stringp, xstring, make_keymap_ref, &
+                       list_length, list_elt, list_elements, make_list
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
@@ -635,7 +635,7 @@ contains
         type(status_type) :: status
 
         call symbol_value(sym(ring_name(isearch_regexp)), ring, status)
-        if (.not. status%ok()) ring = nil()
+        if (.not. status%ok()) ring = value_type()
         call list_elements(ring, elems)
     end subroutine search_ring
 
@@ -819,7 +819,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true.,.not. nilp(current_prefix_arg))
+        call isearch_mode(.true., allocated(current_prefix_arg%a))
     end subroutine isearch_forward_command
 
     !> Do incremental search backward.
@@ -830,7 +830,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false.,.not. nilp(current_prefix_arg))
+        call isearch_mode(.false., allocated(current_prefix_arg%a))
     end subroutine isearch_backward_command
 
     !> Do incremental search forward for regular expression.
@@ -850,7 +850,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true., nilp(current_prefix_arg))
+        call isearch_mode(.true.,.not. allocated(current_prefix_arg%a))
     end subroutine isearch_forward_regexp_command
 
     !> Do incremental search backward for regular expression.
@@ -862,7 +862,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false., nilp(current_prefix_arg))
+        call isearch_mode(.false.,.not. allocated(current_prefix_arg%a))
     end subroutine isearch_backward_regexp_command
 
     !> Start Isearch minor mode.
@@ -1665,7 +1665,7 @@ contains
         type(value_type), intent(in) :: arg
         integer(int64) :: count
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             call isearch_repeat(.true.)
             return
         end if
@@ -1691,7 +1691,7 @@ contains
         type(value_type), intent(in) :: arg
         integer(int64) :: count
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             call isearch_repeat(.false.)
             return
         end if

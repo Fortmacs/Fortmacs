@@ -24,7 +24,7 @@ module test_term_xterm_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nilp, fixnump, xfixnum
+    use lisp_fm, only: value_type, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_description
@@ -131,6 +131,6 @@ contains
         call read_key_sequence(keys, binding, eof, st)
         call check(error, value_eq(binding, sym("digit_argument")), "M-5")
         if (allocated(error)) return
-        call check(error,.not. eof .and. .not. nilp(binding), "bound")
+        call check(error,.not. eof .and. allocated(binding%a), "bound")
     end subroutine test_bound_keys
 end module test_term_xterm_fm

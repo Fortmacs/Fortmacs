@@ -44,7 +44,7 @@ module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR
-    use lisp_fm, only: value_type, nilp, make_string, make_list, list_elements, V_LIST, vtag, list_elt, fixnump, &
+    use lisp_fm, only: value_type, make_string, make_list, list_elements, V_ARRAY, vtag, list_elt, fixnump, &
                        xfixnum, symbolp
     use handle_fm, only: handle_type
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
@@ -122,7 +122,7 @@ contains
 
         head = ev
         ! A list (a character interval here): its car.
-        if (vtag(ev) == V_LIST) head = list_elt(ev, 1_int64)
+        if (vtag(ev) == V_ARRAY) head = list_elt(ev, 1_int64)
         is_unmodified_event = .false.
 
         if (fixnump(head)) then
@@ -182,7 +182,7 @@ contains
             call list_elements(keys(1), events)
 
             if (size(events) > 0) then
-                if (vtag(events(1)) == V_LIST) then
+                if (vtag(events(1)) == V_ARRAY) then
                     s = "It is bound to many ordinary text characters."//LF
                     return
                 end if

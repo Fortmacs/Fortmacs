@@ -25,10 +25,10 @@
 !> kills its buffer.
 module test_simple_electric_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, goto_char, buffer_string
@@ -70,7 +70,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call get_buffer_create("*blink-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)

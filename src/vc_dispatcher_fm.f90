@@ -40,7 +40,7 @@ module vc_dispatcher_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_list, make_buffer_ref, fixnump, xfixnum, &
+    use lisp_fm, only: value_type, t_value, make_string, make_list, make_buffer_ref, fixnump, xfixnum, &
                        stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, kill_all_local_variables

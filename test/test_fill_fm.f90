@@ -33,7 +33,6 @@ module test_fill_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, fill_column, auto_fill_function
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, delete_region, pos_bol, pos_eol

@@ -28,9 +28,10 @@
 !> submodule.  Scrolling is line based, as upstream on text terminals,
 !> with `scroll_margin' 0 and `scroll_preserve_screen_position' nil.
 submodule(window_fm) window_scroll_fm
+    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
-    use lisp_fm, only: nil, nilp, consp, make_fixnum
+    use lisp_fm, only: consp, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, buffer_list
@@ -190,7 +191,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             call window_scroll(w, direction, .true., status)
         else if (value_eq(arg, sym("-"))) then
             call window_scroll(w, -direction, .true., status)
@@ -235,7 +236,7 @@ contains
         center_p = .false.
         iarg = 0
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             ! recenter-redisplay is `tty': erase and redraw the frame.
             if (redisplay) selected_frame%garbaged = .true.
             center_p = .true.
@@ -293,7 +294,7 @@ contains
             call goto_char(start)
         end if
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             iarg = lines/2
         else
             iarg = prefix_numeric_value(arg)
@@ -332,7 +333,7 @@ contains
         if (.not. scroll_error_top_bottom) then
             call scroll_up(arg, status)
         else if (value_eq(arg, sym("-"))) then
-            call scroll_down_command(nil(), status)
+            call scroll_down_command(value_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
             call scroll_down_command(make_fixnum(-prefix_numeric_value(arg)), status)
         else if (is_eob()) then
@@ -344,7 +345,7 @@ contains
             if (status%code == FM_END_OF_BUFFER) then
                 status = status_type()
 
-                if (nilp(arg)) then
+                if (.not. allocated(arg%a)) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! bottom of the buffer.
                     call goto_char(point_max())
@@ -367,7 +368,7 @@ contains
         if (.not. scroll_error_top_bottom) then
             call scroll_down(arg, status)
         else if (value_eq(arg, sym("-"))) then
-            call scroll_up_command(nil(), status)
+            call scroll_up_command(value_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
             call scroll_up_command(make_fixnum(-prefix_numeric_value(arg)), status)
         else if (is_bob()) then
@@ -379,7 +380,7 @@ contains
             if (status%code == FM_BEGINNING_OF_BUFFER) then
                 status = status_type()
 
-                if (nilp(arg)) then
+                if (.not. allocated(arg%a)) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! top of the buffer.
                     call goto_char(point_min())
@@ -410,7 +411,7 @@ contains
         type(status_type), intent(out) :: status
 
         ! Always respect ARG.
-        if (.not. nilp(arg)) then
+        if (allocated(arg%a)) then
             call recenter(arg, .true., status)
             return
         end if
@@ -420,7 +421,7 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call recenter(nil(), .true., status)
+            call recenter(value_type(), .true., status)
         case (RECENTER_TOP)
             call recenter(make_fixnum(0_int64), .true., status)
         case default
@@ -434,7 +435,7 @@ contains
         integer(int64) :: line
 
         ! Always respect ARG.
-        if (.not. nilp(arg)) then
+        if (allocated(arg%a)) then
             call move_to_window_line(arg, line, status)
             return
         end if
@@ -443,7 +444,7 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call move_to_window_line(nil(), line, status)
+            call move_to_window_line(value_type(), line, status)
         case (RECENTER_TOP)
             call move_to_window_line(make_fixnum(0_int64), line, status)
         case default

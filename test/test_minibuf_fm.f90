@@ -32,10 +32,10 @@ module test_minibuf_fm
     use minibuf_fm, only: completion_regexp_list, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
                           minibuffer_setup_function, is_minibuffer, assoc_string
     use keyboard_fm, only: inhibit_interaction
-    use lisp_fm, only: list, vtag, V_LIST
+    use lisp_fm, only: list, vtag, V_ARRAY
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, nil, list_length, list_elt, xstring, make_string, make_list, &
-                       list, list_elements, stringp, nilp, t_value
+    use lisp_fm, only: value_type, make_fixnum, list_length, list_elt, xstring, make_string, make_list, &
+                       list, list_elements, stringp, t_value
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
     use lread_fm, only: sym
@@ -309,7 +309,7 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        call set(sym("test-history"), nil(), st)
+        call set(sym("test-history"), value_type(), st)
         call type_text("one"//achar(13))
         call read_from_minibuffer("? ", answer, st, history="test-history")
         call type_text("two"//achar(13))
@@ -383,7 +383,7 @@ contains
         integer :: i, saved
         character(len=8) :: num
 
-        call set(sym("h-test"), nil(), st)
+        call set(sym("h-test"), value_type(), st)
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "b")
@@ -403,7 +403,7 @@ contains
         call check(error, list_length(h) == 3 .and. xstring(list_elt(h, 1_int64)) == "5")
         if (allocated(error)) return
         ! history-delete-duplicates
-        call set(sym("h-test"), nil(), st)
+        call set(sym("h-test"), value_type(), st)
         history_delete_duplicates = .true.
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "b")
@@ -624,7 +624,7 @@ contains
 
         call fresh_scratch()
         buffers(cur)%directory = "/x/y/"
-        call set(sym("file_name_history"), nil(), st)
+        call set(sym("file_name_history"), value_type(), st)
         call type_keys("RET")
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
         call symbol_value(sym("file_name_history"), h, st)
@@ -745,7 +745,7 @@ contains
         call check(error, list_length(result) == 1, "asked for")
         if (allocated(error)) return
         call internal_complete_buffer(" internal-test", COMPLETE_TEST, result, st)
-        call check(error,.not. nilp(result), "test-completion")
+        call check(error, allocated(result%a), "test-completion")
         call kill_buffer(buf, st)
     end subroutine test_internal_complete_buffer
 
@@ -778,7 +778,7 @@ contains
         if (allocated(error)) return
         call check(error, minibuf_level == 0, "left the minibuffer")
         call discard_input()
-        call define_key(minibuffer_local_map, key, nil(), st)
+        call define_key(minibuffer_local_map, key, value_type(), st)
     end subroutine test_minibuffer_other_window
 
     subroutine test_find_file_command(error)
@@ -890,7 +890,7 @@ contains
         type(value_type), intent(in) :: elt
 
         ignore = .false.
-        if (nilp(elt)) ignore = .false.
+        if (.not. allocated(elt%a)) ignore = .false.
     end function ignore
 
     logical function is_string(v, s)
@@ -930,13 +930,13 @@ contains
             call check(error, value_eq(r, t_value()), "abc is exact")
             if (allocated(error)) return
             call try_completion("abcd", abba, r, st, memq_of_collection)
-            call check(error, nilp(r), "abcd")
+            call check(error,.not. allocated(r%a), "abcd")
             if (allocated(error)) return
             call try_completion("a", abcdef, r, st, ignore)
-            call check(error, nilp(r), "ignore")
+            call check(error,.not. allocated(r%a), "ignore")
             if (allocated(error)) return
             call try_completion("abc", abba, r, st, ignore)
-            call check(error, nilp(r), "ignore abc")
+            call check(error,.not. allocated(r%a), "ignore abc")
         else
             call try_completion("a", abba, r, st)
             call check(error, is_string(r, "ab"), "a in +abba")
@@ -945,7 +945,7 @@ contains
             call check(error, value_eq(r, t_value()), "abc is exact")
             if (allocated(error)) return
             call try_completion("abcd", abba, r, st)
-            call check(error, nilp(r), "abcd")
+            call check(error,.not. allocated(r%a), "abcd")
         end if
     end subroutine check_try
 
@@ -988,12 +988,12 @@ contains
         call check(error, value_equal(r, list(make_string("abc"))), "abc")
         if (allocated(error)) return
         call all_completions("abcd", abba, r, st)
-        call check(error, nilp(r), "abcd")
+        call check(error,.not. allocated(r%a), "abcd")
         if (allocated(error)) return
 
         if (pred) then
             call all_completions("a", abba, r, st, ignore)
-            call check(error, nilp(r), "ignore")
+            call check(error,.not. allocated(r%a), "ignore")
         end if
     end subroutine check_all
 
@@ -1497,7 +1497,7 @@ contains
             call check(error, value_eq(r, t_value()), "abc is exact")
             if (allocated(error)) return
             call try_completion("abcd", abba, r, st)
-            call check(error, nilp(r), "abcd")
+            call check(error,.not. allocated(r%a), "abcd")
         case ("all")
             call all_completions("a", abcdef, r, st)
             call check(error, list_length(r) == 1, "a in abcdef")
@@ -1506,7 +1506,7 @@ contains
             call check(error, list_length(r) == 2, "a in +abba")
             if (allocated(error)) return
             call all_completions("abcd", abba, r, st)
-            call check(error, nilp(r), "abcd")
+            call check(error,.not. allocated(r%a), "abcd")
         case default
             call check(error, test_completion("abc", abcdef) .and. test_completion("abba", abba), "valid")
             if (allocated(error)) return
@@ -1523,7 +1523,7 @@ contains
         select case (fn)
         case ("try")
             call try_completion("a", abcdef, r, st)
-            call check(error, nilp(r), "a in abcdef")
+            call check(error,.not. allocated(r%a), "a in abcdef")
 
             if (allocated(error)) then
                 deallocate (completion_regexp_list)
@@ -1531,10 +1531,10 @@ contains
             end if
 
             call try_completion("abc", abba, r, st)
-            call check(error, nilp(r), "abc")
+            call check(error,.not. allocated(r%a), "abc")
         case ("all")
             call all_completions("a", abba, r, st)
-            call check(error, nilp(r), "a in +abba")
+            call check(error,.not. allocated(r%a), "a in +abba")
         case default
             call check(error,.not. test_completion("abc", abcdef) .and. .not. test_completion("def", abba), &
                        "nothing matches X")
@@ -1660,10 +1660,10 @@ contains
         call check(error, is_string(r, "one"), "single string")
         if (allocated(error)) return
         r = assoc_string("two", l)
-        call check(error, nilp(r), "case matters")
+        call check(error,.not. allocated(r%a), "case matters")
         if (allocated(error)) return
         r = assoc_string("two", l, case_fold=.true.)
-        call check(error, vtag(r) == V_LIST, "case folded")
+        call check(error, vtag(r) == V_ARRAY, "case folded")
     end subroutine test_assoc_string
 
     !> read-variable completes over the user options; RET with empty

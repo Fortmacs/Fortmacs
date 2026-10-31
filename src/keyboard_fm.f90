@@ -53,12 +53,13 @@
 !> quit) and `minibuffer_error_function'.
 module keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: V_NULL
     use error_fm, only: status_type, set_error, format_error, error_name, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR, &
                         FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
     use data_fm, only: value_eq
-    use lisp_fm, only: value_type, V_LIST, nil, make_fixnum, &
-                       make_keymap_ref, vtag, nilp, fixnump, symbolp, &
+    use lisp_fm, only: value_type, V_ARRAY, make_fixnum, &
+                       make_keymap_ref, vtag, fixnump, symbolp, &
                        stringp, xfixnum, xsymbol, xstring, list_elements, list_elt, make_list, symbols, &
                        command_proc
     use lread_fm, only: intern, sym
@@ -1007,7 +1008,7 @@ contains
         else
             ! If it's a structured event, take the event header.
             head = c
-            if (vtag(c) == V_LIST) head = list_elt(c, 1_int64)
+            if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
             if (symbolp(head)) call emacs_write(dribble_fd, "<"//symbols(xsymbol(head))%name//">", st)
         end if
 
@@ -1110,7 +1111,7 @@ contains
             if (nunread > 0) then
                 ev = unread(1)
                 unread(1:nunread - 1) = unread(2:nunread)
-                unread(nunread) = nil()
+                unread(nunread) = value_type()
                 nunread = nunread - 1
                 have = .true.
                 reread = .true.
@@ -1149,7 +1150,7 @@ contains
 
             if (tail >= head) then
                 ev = events(head)
-                events(head) = nil()
+                events(head) = value_type()
                 head = head + 1
 
                 if (head > tail) then
@@ -1250,7 +1251,7 @@ contains
         type(value_type), intent(in) :: binding
         type(value_type) :: remapped
 
-        test_undefined = nilp(binding)
+        test_undefined = .not. allocated(binding%a)
 
         if (.not. test_undefined .and. symbolp(binding)) then
             test_undefined = xsymbol(binding) == intern("undefined")
@@ -1271,7 +1272,7 @@ contains
         integer(int64) :: pos, n
         integer(int32) :: ch, length
 
-        if (vtag(next) == V_LIST) then
+        if (vtag(next) == V_ARRAY) then
             call list_elements(next, seq)
             return
         end if
@@ -1315,7 +1316,7 @@ contains
         fk%end = fk%end + 1
         if (is_keymap(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
 
-        if (doit .and. (stringp(next) .or. (vtag(next) == V_LIST .and. &
+        if (doit .and. (stringp(next) .or. (vtag(next) == V_ARRAY .and. &
                                             .not. is_keymap(next)))) then
             call sequence_events(next, seq)
             n = size(seq)
@@ -1434,7 +1435,7 @@ contains
             if (t < mock_input) call echo_truncate(echo_start)
 
             keyloop: do
-                if (nilp(current_binding)) then
+                if (.not. allocated(current_binding%a)) then
                     if (keytran%start >= t) exit replay
                 else if (.not. is_keymap(current_binding)) then
                     exit replay
@@ -1494,7 +1495,7 @@ contains
                 ! keyboard.c:follow_key
                 new_binding = access_keymap(current_binding, key, .true., .false.)
 
-                if (.not. nilp(new_binding)) then
+                if (allocated(new_binding%a)) then
                     first_unbound = max(t + 1, first_unbound)
                 else
                     first_unbound = min(t, first_unbound)
@@ -1559,7 +1560,7 @@ contains
                 ! If KEY is not defined in any of the keymaps, and cannot be
                 ! part of a function key or translation, and is an upper case
                 ! letter, use the corresponding lower-case letter instead.
-                if (nilp(current_binding) .and. keytran%start >= t .and. fixnump(key) .and. &
+                if (.not. allocated(current_binding%a) .and. keytran%start >= t .and. fixnump(key) .and. &
                     translate_upper_case_key_bindings) then
                     k = xfixnum(key)
                     c = iand(k, not(M_MASK))
@@ -1589,7 +1590,7 @@ contains
                 ! part of a function key or translation, and is a shifted
                 ! function key, use the corresponding unshifted function key
                 ! instead.
-                if (nilp(current_binding) .and. keytran%start >= t .and. translate_upper_case_key_bindings) then
+                if (.not. allocated(current_binding%a) .and. keytran%start >= t .and. translate_upper_case_key_bindings) then
                     bits = 0
                     if (symbolp(key)) call parse_modifiers(key, bits, base)
                     if (fixnump(key)) bits = iand(xfixnum(key), M_MASK)
@@ -1626,7 +1627,7 @@ contains
 
         ! Don't downcase the last character if the caller says don't.
         ! Don't downcase it if the result is undefined, either.
-        if ((keep_case .or. nilp(current_binding)) .and. t > 0 .and. &
+        if ((keep_case .or. .not. allocated(current_binding%a)) .and. t > 0 .and. &
             t - 1 == original_uppercase_position) then
             keybuf(t) = original_uppercase
             shift_translated = .false.
@@ -1634,7 +1635,7 @@ contains
 
         if (shift_translated) this_command_keys_shift_translated = .true.
         binding = current_binding
-        if (is_keymap(binding)) binding = nil()
+        if (is_keymap(binding)) binding = value_type()
 
         ! Occasionally we fabricate events, perhaps by expanding something
         ! according to function-key-map.  In this case, return the entire
@@ -1762,7 +1763,7 @@ contains
         if (transient_keep) then
             call lookup_key(map_value(overriding_terminal_local_map), keys, mc, st)
 
-            if (st%ok() .and. .not. nilp(mc) .and. value_eq(this_command, mc)) then
+            if (st%ok() .and. allocated(mc%a) .and. value_eq(this_command, mc)) then
                 ! Repeat the message for the next command.
                 if (allocated(transient_message)) last_message = transient_message
                 return
@@ -2066,8 +2067,8 @@ contains
             macro_active = .false.
             macro_started = .false.
             if (allocated(macro_events)) deallocate (macro_events)
-            prefix_arg = nil()
-            last_prefix_arg = nil()
+            prefix_arg = value_type()
+            last_prefix_arg = value_type()
             return
         end if
 
@@ -2085,8 +2086,8 @@ contains
         macro_active = .false.
         macro_started = .false.
         if (allocated(macro_events)) deallocate (macro_events)
-        prefix_arg = nil()
-        last_prefix_arg = nil()
+        prefix_arg = value_type()
+        last_prefix_arg = value_type()
         ! command-error-default-function
         call discard_input()
         call bitch_at_user(st)
@@ -2113,8 +2114,8 @@ contains
         done = .false.
         ! Make sure the current window's buffer is selected.
         call select_window_buffer()
-        this_command = nil()
-        real_this_command = nil()
+        this_command = value_type()
+        real_this_command = value_type()
         this_command_keys_shift_translated = .false.
         ! Read next key sequence.
         raw_keybuf_count = 0
@@ -2133,12 +2134,12 @@ contains
         ! minibuffer--delete-message-overlay runs from pre-command-hook.
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
         ! Input ended in the middle of a key sequence: it is unbound.
-        if (eof) cmd = nil()
+        if (eof) cmd = value_type()
 
         ! Remap command through active keymaps (read_key_sequence_remapped).
-        if (symbolp(cmd) .and. .not. nilp(cmd)) then
+        if (symbolp(cmd) .and. allocated(cmd%a)) then
             call command_remapping(cmd, remapped)
-            if (.not. nilp(remapped)) cmd = remapped
+            if (allocated(remapped%a)) cmd = remapped
         end if
 
         last_command_event = keys(size(keys))
@@ -2180,17 +2181,17 @@ contains
 
         deactivate_mark_variable = .false.
 
-        if (nilp(cmd)) then
+        if (.not. allocated(cmd%a)) then
             ! nil means key is undefined.
             call funcall(sym("undefined"), status)
         else
             ! simple.el:command-execute
             current_prefix_arg = prefix_arg
-            prefix_arg = nil()
+            prefix_arg = value_type()
 
             if (associated(wrapper)) then
                 call wrapper(cmd, status)
-            else if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
+            else if (stringp(cmd) .or. vtag(cmd) == V_ARRAY) then
                 call execute_kbd_macro(cmd, current_prefix_arg, status)
             else
                 handled = .false.
@@ -2212,7 +2213,7 @@ contains
             call safe_run_hooks_maybe_narrowed(post_command_hook)
             last_command = this_command
             real_last_command = real_this_command
-            if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
+            if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
             done = eof
             return
         end if
@@ -2221,7 +2222,7 @@ contains
         call safe_run_hooks_maybe_narrowed(post_command_hook)
         last_command = this_command
         real_last_command = real_this_command
-        if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
+        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
         call set_command_key_count(0)
         this_single_command_key_start = 0
         call internal_echo_keystrokes_prefix(prefix, have_prefix)
@@ -2257,7 +2258,7 @@ contains
         end if
 
         ! Install chars successfully executed in kbd macro.
-        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. nilp(prefix_arg)) call finalize_kbd_macro_chars()
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(prefix_arg%a)) call finalize_kbd_macro_chars()
         done = eof
     end subroutine command_loop_step
 
@@ -2291,7 +2292,7 @@ contains
         type(value_type), allocatable :: elts(:)
 
         replaces = stringp(prop)
-        if (replaces .or. vtag(prop) /= V_LIST) return
+        if (replaces .or. vtag(prop) /= V_ARRAY) return
         call list_elements(prop, elts)
         if (size(elts) > 0) replaces = value_eq(elts(1), sym("space"))
     end function is_display_prop_intangible
@@ -2322,7 +2323,7 @@ contains
             if (check_display .and. pt() > begv .and. pt() < zv) then
                 call get_char_property_and_overlay(pt(), sym("display"), val, overlay)
                 ok = .false.
-                if (.not. nilp(val)) ok = is_display_prop_intangible(val)
+                if (allocated(val%a)) ok = is_display_prop_intangible(val)
 
                 if (ok) then
                     if (overlay%index == 0) then
@@ -2360,7 +2361,7 @@ contains
                 ! any.
                 do while (end < zv)
                     call get_char_property_and_overlay(end, sym("invisible"), val, overlay)
-                    if (nilp(val)) exit
+                    if (.not. allocated(val%a)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
                     ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
@@ -2369,7 +2370,7 @@ contains
 
                 do while (beg > begv)
                     call get_char_property_and_overlay(beg - 1, sym("invisible"), val, overlay)
-                    if (nilp(val)) exit
+                    if (.not. allocated(val%a)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
                     ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
@@ -2413,7 +2414,7 @@ contains
                 ! there's a replacing display property on the same text.
                 call get_char_property_and_overlay(beg, sym("display"), val, overlay)
                 shown = .false.
-                if (.not. nilp(val)) shown = is_display_prop_intangible(val)
+                if (allocated(val%a)) shown = is_display_prop_intangible(val)
                 ! If the "invisible" text is shown, undo any point
                 ! adjustments due to invisible property, as cursor
                 ! positioning by the display engine will do a better job.
@@ -2463,8 +2464,8 @@ contains
 
             has_overlay_strings = .false.
             if (ov%index == 0) return
-            has_overlay_strings = .not. nilp(overlay_get(ov, "after_string")) .or. &
-                                  .not. nilp(overlay_get(ov, "before_string"))
+            has_overlay_strings = vtag(overlay_get(ov, "after_string")) /= V_NULL .or. &
+                                  vtag(overlay_get(ov, "before_string")) /= V_NULL
         end function has_overlay_strings
     end subroutine adjust_point_for_property
 
@@ -2632,7 +2633,7 @@ contains
         if (.not. empty) new_string = " "
         ! If someone has passed us a composite event, use its head symbol.
         head = c
-        if (vtag(c) == V_LIST) head = list_elt(c, 1_int64)
+        if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
 
         if (fixnump(head)) then
             new_string = new_string//push_key_description(xfixnum(head))
@@ -2862,7 +2863,7 @@ contains
 
             do k = 1, size(maps)
                 call lookup_key(maps(k), keys, b, st, accept_default=.true.)
-                if (.not. st%ok() .or. nilp(b)) cycle
+                if (.not. st%ok() .or. .not. allocated(b%a)) cycle
                 n = n + 1
                 bindings(n) = b
             end do
@@ -2890,7 +2891,7 @@ contains
             do j = 1, size(bindings)
                 if (.not. is_keymap(bindings(j))) cycle
                 call lookup_key(bindings(j), key, def, st)
-                if (st%ok() .and. .not. nilp(def)) bound = .true.
+                if (st%ok() .and. allocated(def%a)) bound = .true.
             end do
 
             if (.not. bound) then
@@ -2936,13 +2937,13 @@ contains
         character(len=24) :: buf
         integer(int64) :: n
 
-        have = .not. nilp(prefix_arg)
+        have = allocated(prefix_arg%a)
         if (.not. have) return
         s = "C-u"
 
         if (value_eq(prefix_arg, sym("-"))) then
             s = s//" -"
-        else if (vtag(prefix_arg) == V_LIST) then
+        else if (vtag(prefix_arg) == V_ARRAY) then
             head = list_elt(prefix_arg, 1_int64)
 
             if (fixnump(head)) then
@@ -3455,7 +3456,7 @@ contains
         integer :: k
 
         modifiers = 0
-        base = nil()
+        base = value_type()
 
         do k = 1, size(event_desc)
             this = 0
@@ -3464,7 +3465,7 @@ contains
 
             if (this /= 0) then
                 modifiers = ior(modifiers, this)
-            else if (.not. nilp(base)) then
+            else if (allocated(base%a)) then
                 call set_error(status, FM_GENERIC_ERROR, "Two bases given in one event")
                 return
             else
@@ -3473,7 +3474,7 @@ contains
         end do
 
         ! Let the symbol A refer to the character A.
-        if (symbolp(base) .and. .not. nilp(base)) then
+        if (symbolp(base) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name
             if (len(name) == 1) base = make_fixnum(int(iachar(name), int64))
         end if
@@ -3493,7 +3494,7 @@ contains
             else
                 ev = make_fixnum(ior(modifiers, c))
             end if
-        else if (symbolp(base) .and. .not. nilp(base)) then
+        else if (symbolp(base) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name
             ev = apply_modifiers(modifiers, name)
         else
@@ -3724,8 +3725,8 @@ contains
     !> and `last_command' set.  Port of keyboard.c:command_loop_1 (its
     !> start).
     recursive subroutine command_loop_1_start()
-        prefix_arg = nil()
-        last_prefix_arg = nil()
+        prefix_arg = value_type()
+        last_prefix_arg = value_type()
         deactivate_mark_variable = .false.
         call cancel_echoing()
         call set_command_key_count(0)
@@ -3736,6 +3737,6 @@ contains
         ! Do this after running Vpost_command_hook, for consistency.
         last_command = this_command
         real_last_command = real_this_command
-        if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
+        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
     end subroutine command_loop_1_start
 end module keyboard_fm

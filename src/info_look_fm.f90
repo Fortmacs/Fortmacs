@@ -34,7 +34,7 @@ module info_look_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nilp, xsymbol, symbolp, symbols, value_type, make_string, make_list
+    use lisp_fm, only: xsymbol, symbolp, symbols, value_type, make_string, make_list
     use casefiddle_fm, only: downcase_string
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live
@@ -720,7 +720,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("symbol",.not. nilp(current_prefix_arg), value, mode, status)
+        call interactive_arguments("symbol", allocated(current_prefix_arg%a), value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_name(value, status, mode)
     end subroutine cmd_info_lookup_name
@@ -729,7 +729,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("file",.not. nilp(current_prefix_arg), value, mode, status)
+        call interactive_arguments("file", allocated(current_prefix_arg%a), value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_file(value, status, mode)
     end subroutine cmd_info_lookup_file
@@ -1630,7 +1630,7 @@ contains
         type(status_type) :: st
 
         call get_text_property(point(), sym("custom_data"), v, st)
-        found = symbolp(v) .and. .not. nilp(v)
+        found = symbolp(v) .and. allocated(v%a)
         if (found) item = trim(symbols(xsymbol(v))%name)
     end subroutine parse_custom
 

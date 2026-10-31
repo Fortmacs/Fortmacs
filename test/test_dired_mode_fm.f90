@@ -663,11 +663,11 @@ contains
             block
                 use data_fm, only: set
                 use lread_fm, only: sym
-                use lisp_fm, only: t_value, nil
+                use lisp_fm, only: t_value
                 call set(sym("inhibit_read_only"), t_value(), st)
                 call delete_region(point(), line_end_position(), st)
                 call insert(new_header, st)
-                call set(sym("inhibit_read_only"), nil(), st)
+                call set(sym("inhibit_read_only"), value_type(), st)
             end block
 
             len2 = header_len()

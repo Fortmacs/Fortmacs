@@ -28,7 +28,7 @@ module test_simple_fm
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
                         FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, list_elt, list_length, xstring, make_fixnum, list, list_elements
+    use lisp_fm, only: value_type, list_elt, list_length, xstring, make_fixnum, list, list_elements
     use lread_fm, only: sym
     use data_fm, only: set, value_eq
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
@@ -127,7 +127,7 @@ contains
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
         call deactivate_mark(.true.)
-        call set(sym("kill_ring"), nil(), st)
+        call set(sym("kill_ring"), value_type(), st)
         call show_alone()
     end subroutine fresh
 
@@ -408,7 +408,7 @@ contains
         call kill_new("second")
         call insert("<>", st)
         call goto_char(2_int64)
-        call yank(nil(), st)
+        call yank(value_type(), st)
         call check(error, buffer_string() == "<second>" .and. point() == 8 .and. mark_position() == 2, "yank")
         if (allocated(error)) return
         call check(error,.not. is_region_active(), "the mark is not activated")
@@ -501,7 +501,7 @@ contains
 
         call fresh(h)
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         ! hello world, C-a, C-SPC (NUL), C-f x5, C-w, C-e, C-y
         call kbd_store_bytes("hello world"//achar(1)//achar(0)//repeat(achar(6), 5)//achar(23)//achar(5)// &
@@ -819,21 +819,21 @@ contains
         ! cycle-spacing: one space, no space, the original spacing.
         call set_text_point_mark("a  "//point_tag//" b")
         this_command = sym("cycle_spacing")
-        last_command = nil()
-        call cycle_spacing(nil(), st)
+        last_command = value_type()
+        call cycle_spacing(value_type(), st)
         call check(error, get_text_point_mark(), "a "//point_tag//"b")
         if (allocated(error)) return
         last_command = this_command
-        call cycle_spacing(nil(), st)
+        call cycle_spacing(value_type(), st)
         call check(error, get_text_point_mark(), "a"//point_tag//"b")
         if (allocated(error)) return
-        call cycle_spacing(nil(), st)
+        call cycle_spacing(value_type(), st)
         call check(error, get_text_point_mark(), "a  "//point_tag//" b")
         if (allocated(error)) return
-        call cycle_spacing(nil(), st)
+        call cycle_spacing(value_type(), st)
         call check(error, get_text_point_mark(), "a "//point_tag//"b")
-        last_command = nil()
-        this_command = nil()
+        last_command = value_type()
+        this_command = value_type()
         call kill_buffer(h, st)
     end subroutine test_whitespace
 
@@ -1063,7 +1063,7 @@ contains
         call fresh(h)
         call insert("hello world", st)
         call goto_char(1_int64)
-        last_command = nil()
+        last_command = value_type()
         call delete_char(5_int64, st, .true.)
         call check(error, buffer_string() == " world" .and. latest_kill() == "hello", "killed")
         if (allocated(error)) return
@@ -1072,12 +1072,12 @@ contains
         if (allocated(error)) return
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         ! C-u 2 C-d
         call kbd_store_bytes(achar(21)//"2"//achar(4))
         call command_loop(st)
         call check(error, buffer_string() == "rld" .and. latest_kill() == "wo", "C-u 2 C-d")
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call kill_buffer(h, st)
     end subroutine test_delete_char_killflag
 
@@ -1093,7 +1093,7 @@ contains
         call fresh(h)
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         ! C-q 1 0 1 RET: octal 101 is A, RET is discarded.
         call kbd_store_bytes(achar(17)//"101"//achar(13))
         call command_loop(st)
@@ -1129,7 +1129,7 @@ contains
         call kbd_store_bytes("b")
         call command_loop(st)
         call check(error, buffer_string(), "b")
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call kill_buffer(h, st)
     end subroutine test_quoted_insert
 
@@ -1143,12 +1143,12 @@ contains
         call fresh(h)
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call list_elements(list(make_fixnum(21_int64), sym("kp-1"), sym("kp-2"), make_fixnum(97_int64)), events)
         call unread_command_events(events)
         call command_loop(st)
         call check(error, buffer_string(), repeat("a", 12))
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call kill_buffer(h, st)
     end subroutine test_keypad_digit
 
@@ -1183,7 +1183,7 @@ contains
         call fresh(h)
         call kill_new("one")
         call kill_new("two")
-        call yank(nil(), st)
+        call yank(value_type(), st)
         last_command = sym("yank")
         call set_buffer_read_only(h, .true., st)
         call yank_pop(1_int64, st)
@@ -1216,8 +1216,8 @@ contains
         call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
         w => frame_selected_window_ref()
         call set_window_buffer(selected_frame%selected_window, h, st)
-        this_command = nil()
-        last_command = nil()
+        this_command = value_type()
+        last_command = value_type()
     end subroutine enter_window
 
     subroutine leave_window(h)
@@ -1237,12 +1237,12 @@ contains
         type(handle_type) :: h
 
         call enter_window(h)
-        call end_of_buffer(nil())
+        call end_of_buffer(value_type())
         ! Point (the empty last line, 31) on body line 8 of 10.
         call check(error, point() == point_max() .and. window_start(frame_selected_window_ref()) == 7*24 - 6, &
                    "recentered")
         if (allocated(error)) return
-        call end_of_buffer(nil())
+        call end_of_buffer(value_type())
         call check(error, window_start(frame_selected_window_ref()) == 7*24 - 6, "visible: unchanged")
         call leave_window(h)
     end subroutine test_end_of_buffer
@@ -1291,7 +1291,7 @@ contains
         call fresh(h)
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call special_mode(st)
         call key_parse("x", key, st)
         call key_binding(key, binding, st)

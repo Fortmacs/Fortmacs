@@ -48,7 +48,7 @@ module font_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list, make_string
+    use lisp_fm, only: value_type, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list, make_string
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified
@@ -668,7 +668,7 @@ contains
         if (beg > point_min()) then
             call get_text_property(beg - 1, sym("font_lock_multiline"), v, status)
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 call previous_single_property_change(beg, sym("font_lock_multiline"), pos, found, status)
                 beg = point_min()
                 if (found) beg = pos
@@ -678,8 +678,8 @@ contains
         if (end < point_max()) then
             call get_text_property(end, sym("font_lock_multiline"), v, status)
 
-            if (.not. nilp(v)) then
-                call text_property_any(end, point_max(), sym("font_lock_multiline"), nil(), pos, found, status)
+            if (allocated(v%a)) then
+                call text_property_any(end, point_max(), sym("font_lock_multiline"), value_type(), pos, found, status)
                 end = point_max()
                 if (found) end = pos
             else
@@ -1101,7 +1101,7 @@ contains
 
         pt = point()
 
-        if (nilp(current_prefix_arg) .and. font_lock_mode_enabled()) then
+        if (.not. allocated(current_prefix_arg%a) .and. font_lock_mode_enabled()) then
             call font_lock_fontify_region(point_min(), point_max(), status)
         else
             call font_lock_unfontify_region(point_min(), point_max(), status)
@@ -1205,7 +1205,7 @@ contains
         if (beg > point_min()) then
             call get_text_property(beg - 1, sym("font_lock_multiline"), v, st)
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 changed = .true.
                 call previous_change(beg, sym("font_lock_multiline"), pos, found)
                 beg = point_min()
@@ -1217,8 +1217,8 @@ contains
         before_end = max(point_min(), end - 1)
         call get_text_property(before_end, sym("font_lock_multiline"), v, st)
 
-        if (.not. nilp(v)) then
-            call text_property_any(before_end, point_max(), sym("font_lock_multiline"), nil(), pos, found, st)
+        if (allocated(v%a)) then
+            call text_property_any(before_end, point_max(), sym("font_lock_multiline"), value_type(), pos, found, st)
             new_end = point_max()
             if (found) new_end = pos
 
@@ -1386,7 +1386,7 @@ contains
             ! Canonicalize old forms of face property.
             if (consp(prev) .and. keyword_head(prev)) prev = list(prev)
 
-            if (nilp(prev)) then
+            if (.not. allocated(prev%a)) then
                 allocate (prev_items(0))
             else if (consp(prev)) then
                 call list_elements(prev, prev_items)
@@ -1459,14 +1459,14 @@ contains
         integer(int64) :: start, next
         logical :: found, found_next
 
-        call text_property_any(start_in, end, prop, nil(), start, found, status)
+        call text_property_any(start_in, end, prop, value_type(), start, found, status)
 
         do while (found .and. status%ok())
             call next_single_property_change(start, prop, next, found_next, status, end)
             if (.not. found_next) next = end
             call put_text_property(start, next, prop, value, status)
             if (.not. status%ok()) return
-            call text_property_any(next, end, prop, nil(), start, found, status)
+            call text_property_any(next, end, prop, value_type(), start, found, status)
         end do
     end subroutine font_lock_fillin_text_property
 
@@ -1487,7 +1487,7 @@ contains
         logical :: found, changed, member, atom
         integer :: i, n
 
-        call text_property_not_all(start_in, end, prop, nil(), start, found, status)
+        call text_property_not_all(start_in, end, prop, value_type(), start, found, status)
 
         do while (found .and. status%ok())
             call next_single_property_change(start, prop, next, found, status, end)
@@ -1528,7 +1528,7 @@ contains
             end if
 
             if (.not. status%ok()) return
-            call text_property_not_all(next, end, prop, nil(), start, found, status)
+            call text_property_not_all(next, end, prop, value_type(), start, found, status)
         end do
 
     contains
@@ -1603,7 +1603,7 @@ contains
 
         if (allocated(highlight%nil_properties)) then
             do k = 1, size(highlight%nil_properties)
-                call put_text_property(start, end, sym(trim(highlight%nil_properties(k))), nil(), status)
+                call put_text_property(start, end, sym(trim(highlight%nil_properties(k))), value_type(), status)
                 if (.not. status%ok()) return
             end do
         end if
@@ -1619,10 +1619,10 @@ contains
         end if
 
         face = highlight_face(highlight)
-        val = nil()
+        val = value_type()
         if (len(face) > 0) val = sym(face)
 
-        if (nilp(val) .and. highlight%override /= FONT_LOCK_OVERRIDE_YES) then
+        if (.not. allocated(val%a) .and. highlight%override /= FONT_LOCK_OVERRIDE_YES) then
             ! If `val' is nil, don't do anything.
             return
         end if
@@ -1630,7 +1630,7 @@ contains
         select case (highlight%override)
         case (FONT_LOCK_OVERRIDE_NO)
             ! Cannot override existing fontification.
-            call text_property_not_all(start, end, sym("face"), nil(), pos, found, status)
+            call text_property_not_all(start, end, sym("face"), value_type(), pos, found, status)
             if (.not. found .and. status%ok()) call put_text_property(start, end, sym("face"), val, status)
         case (FONT_LOCK_OVERRIDE_YES)
             ! Override existing fontification.
@@ -2007,7 +2007,7 @@ contains
         end if
 
         lines = 16
-        if (.not. nilp(current_prefix_arg)) lines = prefix_numeric_value(current_prefix_arg)
+        if (allocated(current_prefix_arg%a)) lines = prefix_numeric_value(current_prefix_arg)
         pt = point()
         saved_match = match_data()
         shortage = forward_line(-lines)

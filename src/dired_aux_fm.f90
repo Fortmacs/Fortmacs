@@ -52,6 +52,7 @@
 !> not the condition's data list), file name handlers.  Loading and
 !> byte-compiling Lisp files (`L', `B') are not applicable.
 submodule(dired_mode_fm) dired_aux_fm
+    use lisp_fm, only: value_type
     use lisp_fm, only: make_list, xfixnum
     use error_fm, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
     use sysdep_fm, only: emacs_localtime, S_IFMT, S_IFDIR, S_IFLNK
@@ -788,7 +789,7 @@ contains
         if (present(collection)) then
             pop_collection = collection
         else
-            pop_collection = nil()
+            pop_collection = value_type()
         end if
 
         if (op_symbol == "touch") then
@@ -1130,7 +1131,7 @@ contains
         else if (op_symbol == "chgrp") then
             call system_groups(collection)
         else
-            collection = nil()
+            collection = value_type()
         end if
 
         if (have_default) then
@@ -1493,7 +1494,7 @@ contains
     recursive subroutine cmd_dired_do_kill_lines(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call dired_do_kill_lines(DIRED_ARG_NONE, 0_int64, status)
         else
             call dired_do_kill_lines(DIRED_ARG_INTEGER, prefix_numeric_value(current_prefix_arg), status)
@@ -3328,7 +3329,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: abs
 
-        whole_name = prefix_numeric_value(current_prefix_arg) == 0 .and. .not. nilp(current_prefix_arg)
+        whole_name = prefix_numeric_value(current_prefix_arg) == 0 .and. allocated(current_prefix_arg%a)
 
         if (whole_name) then
             arg_kind = DIRED_ARG_NONE
@@ -3686,7 +3687,7 @@ contains
             return
         end if
 
-        call dired_show_file_type(file,.not. nilp(current_prefix_arg), status)
+        call dired_show_file_type(file, allocated(current_prefix_arg%a), status)
     end subroutine cmd_dired_show_file_type
 
     !> Compare file at point with FILE using `diff'.
@@ -3792,7 +3793,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        have_default = .not. nilp(current_prefix_arg)
+        have_default = allocated(current_prefix_arg%a)
 
         if (have_default) then
             call read_string("Options for diff: ", sw, status, initial=diff_switches)
@@ -3831,7 +3832,7 @@ contains
         character(len=:), allocatable :: sw, file
         logical :: given, found
 
-        given = .not. nilp(current_prefix_arg)
+        given = allocated(current_prefix_arg%a)
 
         if (given) then
             call read_string("Options for diff: ", sw, status, initial=diff_switches)
@@ -4159,7 +4160,7 @@ contains
 
         arg_n = 0
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             arg_kind = DIRED_ARG_NONE
         else if (consp(current_prefix_arg)) then
             arg_kind = DIRED_ARG_OTHER

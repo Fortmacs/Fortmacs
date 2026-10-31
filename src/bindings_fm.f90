@@ -30,7 +30,7 @@ module bindings_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, make_keymap_ref, list, nilp
+    use lisp_fm, only: value_type, make_fixnum, make_keymap_ref, list
     use lread_fm, only: sym
     use character_fm, only: MAX_CHAR, CHAR_CTL, CHAR_META
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, &
@@ -167,7 +167,7 @@ contains
     subroutine cmd_complete_name(status)
         type(status_type), intent(out) :: status
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call set_error(status, FM_GENERIC_ERROR, "info_complete_name is not ported yet")
             return
         end if

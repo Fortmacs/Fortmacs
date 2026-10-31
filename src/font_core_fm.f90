@@ -43,7 +43,7 @@
 module font_core_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, list_elements, make_list
+    use lisp_fm, only: value_type, t_value, list, consp, list_elements, make_list
     use lread_fm, only: sym
     use data_fm, only: symbol_value, setq_local, set, set_default, boundp, add_local_variables_killer, value_eq
     use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, is_buffer_modified, &
@@ -392,7 +392,7 @@ contains
         if (.not. associated(font_lock_function)) font_lock_function => font_lock_default_function
         ! textprop.c's char-property-alias-alist (nil by default).
         call boundp(sym("char_property_alias_table"), bound, st)
-        if (.not. bound) call set_default(sym("char_property_alias_table"), nil(), st)
+        if (.not. bound) call set_default(sym("char_property_alias_table"), value_type(), st)
         call add_local_variables_killer(kill_font_core_locals)
         ! (add-hook 'font-lock-mode-hook #'font-lock-mode-set-explicitly)
         call font_lock_mode_hook%add(font_lock_mode_set_explicitly)

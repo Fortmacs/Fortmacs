@@ -31,7 +31,7 @@
 module lread_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use lisp_fm, only: symbols, nsymbols, symbol_type, value_type, &
-                       make_symbol_ref, nil, SYM_NIL, SYM_T
+                       make_symbol_ref, SYM_NIL, SYM_T
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use character_fm, only: string_char_and_length, char_string, char_hexdigit, byte8_to_char, is_char_byte8, &
                             is_char_surrogate, MAX_MULTIBYTE_LENGTH, CHAR_SHIFT, CHAR_CTL, CHAR_META, &
@@ -97,7 +97,7 @@ contains
         id = add_symbol("nil")
         symbols(id)%constant = .true.
         symbols(id)%bound = .true.
-        symbols(id)%val = nil()
+        symbols(id)%val = value_type()
         id = add_symbol("t")
         symbols(id)%constant = .true.
         symbols(id)%bound = .true.

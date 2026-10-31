@@ -24,11 +24,11 @@
 !> are bounded by a wall-clock limit, not fixed delays.
 module test_comint_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
     use buffer_fm, only: buffers, cur, set_buffer, kill_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, goto_char, buffer_string
@@ -190,7 +190,7 @@ contains
         call set_buffer(h, st)
         call show_alone()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call kbd_store_bytes("one"//achar(13))
         call command_loop(st)
         call wait_for("one"//new_line("a")//"one"//new_line("a"))

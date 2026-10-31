@@ -58,7 +58,7 @@ module dired_mode_fm
     use error_fm, only: status_type, set_error, format_error, format_message, condition_matches, error_name, &
                         FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, make_fixnum, make_string, list, list_elements, fixnump, &
+    use lisp_fm, only: value_type, t_value, make_fixnum, make_string, list, list_elements, fixnump, &
                        xfixnum, consp, xstring, command_proc
     use lread_fm, only: sym, read_string_literal
     use data_fm, only: set, add_local_variables_killer, value_eq, kill_all_local_variables
@@ -2845,7 +2845,7 @@ contains
         call get_text_property(point(), sym("dired_filename"), v, status)
         if (.not. status%ok()) return
 
-        if (.not. nilp(v)) then
+        if (allocated(v%a)) then
             call next_single_property_change(point(), sym("dired_filename"), change, found, status)
             ! No property change can happen on or before the last file name
             ! in the Dired listing when there is at least one prior file
@@ -3309,7 +3309,7 @@ contains
         logical, intent(out) :: have_switches
         type(status_type), intent(out) :: status
 
-        have_switches = .not. nilp(current_prefix_arg)
+        have_switches = allocated(current_prefix_arg%a)
         switches = ""
 
         if (have_switches) then
@@ -4379,7 +4379,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: pos, arg
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             arg = prefix_n()
         else if (len(dired_get_subdir()) > 0) then
             ! if on subdir start already, don't stay there!
@@ -4435,7 +4435,7 @@ contains
     recursive subroutine cmd_dired_up_directory(status)
         type(status_type), intent(out) :: status
 
-        call dired_up_directory(status,.not. nilp(current_prefix_arg))
+        call dired_up_directory(status, allocated(current_prefix_arg%a))
     end subroutine cmd_dired_up_directory
 
     ! ------------------------------------------------------------------
@@ -4566,7 +4566,7 @@ contains
 
         arg_n = 0
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             arg_kind = DIRED_ARG_NONE
         else if (consp(current_prefix_arg)) then
             arg_kind = DIRED_ARG_OTHER
@@ -4937,7 +4937,7 @@ contains
 
             if (point() > point_min()) then
                 call get_text_property(point() - 1, sym("dired_filename"), v, st)
-                whole = .not. nilp(v)
+                whole = allocated(v%a)
             end if
         end if
 
@@ -5386,7 +5386,7 @@ contains
         character(len=:), allocatable :: regexp, verb
         logical :: unmark
 
-        unmark = .not. nilp(current_prefix_arg)
+        unmark = allocated(current_prefix_arg%a)
         verb = "Mark"
         if (unmark) verb = "Unmark"
         call read_dired_regexp(verb//" files (regexp): ", regexp, status, .true.)
@@ -5477,7 +5477,7 @@ contains
         character(len=:), allocatable :: regexp, verb
         logical :: unmark
 
-        unmark = .not. nilp(current_prefix_arg)
+        unmark = allocated(current_prefix_arg%a)
         verb = "Mark"
         if (unmark) verb = "Unmark"
         call read_dired_regexp(verb//" files containing (regexp): ", regexp, status, .false.)
@@ -5543,7 +5543,7 @@ contains
 
         saved = dired_marker_char
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             dired_marker_char = marker
         else
             dired_marker_char = " "
@@ -5838,7 +5838,7 @@ contains
             return
         end if
 
-        call dired_unmark_all_files(achar(mark), status,.not. nilp(current_prefix_arg))
+        call dired_unmark_all_files(achar(mark), status, allocated(current_prefix_arg%a))
     end subroutine cmd_dired_unmark_all_files
 
     !> Remove all marks from all files in the Dired buffer.  Port of
@@ -6413,7 +6413,7 @@ contains
 
         beg = point()
         call completion_insert_strings(strings)
-        call remove_text_properties(beg, point(), list(sym("mouse_face"), nil(), sym("help_echo"), nil()), changed, st)
+       call remove_text_properties(beg, point(), list(sym("mouse_face"), value_type(), sym("help_echo"), value_type()), changed, st)
     end subroutine insert_marked_files
 
     !> Set up temporary buffer BUFFER_NAME: no local variables, writable,
@@ -6641,7 +6641,7 @@ contains
         if (len(subdir) > 0) then
             allocate (files(1))
             files(1)%s = subdir
-        else if (nilp(current_prefix_arg)) then
+        else if (.not. allocated(current_prefix_arg%a)) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_NO_DIR)
         else if (consp(current_prefix_arg)) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE)
@@ -6748,7 +6748,7 @@ contains
             return
         end if
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call read_string("ls switches (must contain -l): ", switches, status, initial=dired_actual_switches_of())
             if (.not. status%ok()) return
             call dired_sort_other(switches, status)
@@ -6963,7 +6963,7 @@ contains
         call end_of_line()
         limit = 0
         call get_text_property(point() - 1, sym("mouse_face"), v, st)
-        if (nilp(v)) limit = dired_move_to_filename(st)
+        if (.not. allocated(v%a)) limit = dired_move_to_filename(st)
     end subroutine pre_ignored_f
 
     !> The truename of the file at point, if it can be found (TRUENAME

@@ -56,7 +56,7 @@ module expression_motion_fm
     use simple_fm, only: kill_region, set_mark, push_mark, is_use_region, blink_matching_delay
     use data_fm, only: value_eq, add_local_variables_killer, string_setting, logical_setting, function_setting, &
                        forward_setting
-    use lisp_fm, only: nilp, value_type, fixnump, xfixnum
+    use lisp_fm, only: value_type, fixnump, xfixnum
     use lread_fm, only: sym
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command, last_command_event, sit_for
@@ -1865,7 +1865,7 @@ contains
     subroutine cmd_insert_pair(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call insert_pair(status)
         else
             call insert_pair(status, prefix_numeric_value(current_prefix_arg))
@@ -1875,7 +1875,7 @@ contains
     subroutine cmd_insert_parentheses(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call insert_parentheses(status)
         else
             call insert_parentheses(status, prefix_numeric_value(current_prefix_arg))
@@ -1951,7 +1951,7 @@ contains
     subroutine cmd_mark_expression(status)
         type(status_type), intent(out) :: status
 
-        call mark_expression(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
+        call mark_expression(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), .true., status)
     end subroutine cmd_mark_expression
 
     !> Register the commands.  Not a port.

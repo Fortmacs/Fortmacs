@@ -24,7 +24,7 @@ module test_keyboard_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, format_error, FM_USER_ERROR, FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: fixnump, list, make_fixnum, make_string, nil, nilp, value_type, xfixnum
+    use lisp_fm, only: fixnump, list, make_fixnum, make_string, value_type, xfixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: define_key, free_keymap, key_description, key_parse, make_keymap, &
@@ -382,7 +382,7 @@ contains
     subroutine test_prefix_numeric_value(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, prefix_numeric_value(nil()), 1_int64)
+        call check(error, prefix_numeric_value(value_type()), 1_int64)
         if (allocated(error)) return
         call check(error, prefix_numeric_value(sym("-")), -1_int64)
         if (allocated(error)) return
@@ -418,7 +418,7 @@ contains
         ! Input ending in the middle of a prefix.
         call kbd_store_bytes(char(24))
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, eof .and. size(keys) == 1 .and. nilp(binding), "eof")
+        call check(error, eof .and. size(keys) == 1 .and. .not. allocated(binding%a), "eof")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
         call check(error, eof .and. size(keys) == 0, "empty eof")
@@ -437,7 +437,7 @@ contains
         call fresh_global(global)
         call kbd_store_bytes(char(3)//"z")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, size(keys) == 1 .and. nilp(binding), "C-c")
+        call check(error, size(keys) == 1 .and. .not. allocated(binding%a), "C-c")
         if (allocated(error)) return
         call check(error, next_char(), 122_int64)
         call free(global)
@@ -516,7 +516,7 @@ contains
                    .and. this_command_keys_shift_translated, "A -> a")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, nilp(binding) .and. xfixnum(keys(1)) == 66, "B stays")
+        call check(error,.not. allocated(binding%a) .and. xfixnum(keys(1)) == 66, "B stays")
         if (allocated(error)) return
         key(1) = sym("S-f2")
         call unread_command_events(key)

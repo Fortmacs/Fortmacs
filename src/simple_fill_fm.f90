@@ -413,7 +413,7 @@ contains
         n = current_column()
     else if (fixnump(arg)) then
         n = xfixnum(arg)
-    else if (nilp(arg)) then
+    else if (.not. allocated(arg%a)) then
         ! We used to use current-column silently, but C-x f is too easily
         ! typed as a typo for C-x C-f, so we turned it into an error and
         ! now an interactive prompt.

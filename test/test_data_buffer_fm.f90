@@ -29,7 +29,7 @@ module test_data_buffer_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, FM_VOID_FUNCTION
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, t_value, xfixnum, xstring, &
+    use lisp_fm, only: value_type, make_fixnum, make_string, t_value, xfixnum, xstring, &
                        list_length, list_elt
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column, &
@@ -318,7 +318,7 @@ contains
         if (allocated(error)) return
         call kill_all_local_variables(.true.)
         call check(error,.not. is_local_variable(sym("binding-test-permanent")), "permanent killed too")
-        call put(sym("binding-test-permanent"), sym("permanent_local"), nil(), st)
+        call put(sym("binding-test-permanent"), sym("permanent_local"), value_type(), st)
         call teardown(a, b)
     end subroutine test_kill_all
 
@@ -376,11 +376,11 @@ contains
         call symbol_value(sym("case_fold_search"), v, st)
         call check(error, value_eq(v, t_value()) .eqv. saved, "Fortran assignment wins")
         if (allocated(error)) return
-        call set_default(sym("fill_column"), nil(), st)
+        call set_default(sym("fill_column"), value_type(), st)
         call check(error, st%ok(), "fill-column may be nil")
         if (allocated(error)) return
         call symbol_value(sym("fill_column"), v, st)
-        call check(error, nilp(v), "nil kept")
+        call check(error,.not. allocated(v%a), "nil kept")
         if (allocated(error)) return
         call set_default(sym("fill_column"), make_string("x"), st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "integerp")

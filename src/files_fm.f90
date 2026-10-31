@@ -37,7 +37,7 @@ module files_fm
     use error_fm, only: format_message, status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, nilp
+    use lisp_fm, only: value_type, make_fixnum
     use minibuf_table_fm, only: completion_predicate
     use data_fm, only: integer_setting, logical_setting
     use lread_fm, only: sym
@@ -2186,7 +2186,7 @@ contains
     recursive subroutine cmd_revert_buffer(status)
         type(status_type), intent(out) :: status
 
-        call revert_buffer(status, ignore_auto=nilp(current_prefix_arg))
+        call revert_buffer(status, ignore_auto=.not. allocated(current_prefix_arg%a))
     end subroutine cmd_revert_buffer
 
     ! ------------------------------------------------------------------
@@ -2356,7 +2356,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call write_file(filename, nilp(current_prefix_arg), status)
+        call write_file(filename,.not. allocated(current_prefix_arg%a), status)
     end subroutine cmd_write_file
 
     ! ------------------------------------------------------------------
@@ -2414,7 +2414,7 @@ contains
     subroutine cmd_save_some_buffers(status)
         type(status_type), intent(out) :: status
 
-        call save_some_buffers(.not. nilp(current_prefix_arg), .true., status)
+        call save_some_buffers(allocated(current_prefix_arg%a), .true., status)
     end subroutine cmd_save_some_buffers
 
     !> Offer to save each buffer, then kill Emacs.
@@ -2424,7 +2424,7 @@ contains
     subroutine cmd_save_buffers_kill_terminal(status)
         type(status_type), intent(out) :: status
 
-        call save_buffers_kill_emacs(.not. nilp(current_prefix_arg), status)
+        call save_buffers_kill_emacs(allocated(current_prefix_arg%a), status)
     end subroutine cmd_save_buffers_kill_terminal
 
     !> Run `kill_buffer_hook' in the buffer H being killed (current).

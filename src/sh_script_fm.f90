@@ -54,7 +54,7 @@ module sh_script_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, stringp, xstring, make_string, list, list_elements, t_value, make_list, nil, &
+    use lisp_fm, only: value_type, stringp, xstring, make_string, list, list_elements, t_value, make_list, &
                        list_length, list_elt
     use lread_fm, only: sym
     use data_fm, only: integer_setting, string_setting, forward_setting, add_local_variables_killer, value_eq
@@ -3540,7 +3540,7 @@ contains
         call completing_read(format_prompt("Shell", sh_shell_file%value), table, shell, status, &
                              default=sh_shell_file%value)
         if (.not. status%ok()) return
-        call sh_set_shell(shell, status, executable_query == EXECUTABLE_QUERY_FUNCTION, nilp(current_prefix_arg))
+        call sh_set_shell(shell, status, executable_query == EXECUTABLE_QUERY_FUNCTION,.not. allocated(current_prefix_arg%a))
     end subroutine cmd_sh_set_shell
 
     !> Convert a shell name SHELL to the one we should handle it as.
@@ -3765,7 +3765,7 @@ contains
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call sh_execute_region(b, e, status)
         else
             call sh_execute_region(b, e, status, prefix_numeric_value(current_prefix_arg))
@@ -4252,7 +4252,7 @@ contains
         if (.not. status%ok()) return
         ! (save-excursion ...)
         call copy_marker_at(point(), mark, .false., status)
-        call sh_backslash_region(b, e,.not. nilp(current_prefix_arg), status)
+        call sh_backslash_region(b, e, allocated(current_prefix_arg%a), status)
         call goto_char(mpos(mark))
         call free_marker(mark, st)
     end subroutine cmd_sh_backslash_region
@@ -4606,7 +4606,7 @@ contains
         status = status_type()
 
         if (action == COMPLETE_BOUNDARIES) then
-            result = nil()
+            result = value_type()
             return
         end if
 
@@ -4737,7 +4737,7 @@ contains
 
         call read_from_minibuffer("Name for this style? ", name, status)
         if (.not. status%ok()) return
-        call sh_name_style(name, status, nilp(current_prefix_arg))
+        call sh_name_style(name, status,.not. allocated(current_prefix_arg%a))
     end subroutine cmd_sh_name_style
 
     !> Set shell indentation values for this buffer from those in style NAME.

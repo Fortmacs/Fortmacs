@@ -25,7 +25,7 @@ module test_register_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, value_type
+    use lisp_fm, only: value_type
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only, &
                          current_buffer, get_buffer, is_buffer_live
@@ -105,7 +105,7 @@ contains
 
         register_separator = -1
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
     end subroutine fresh
 

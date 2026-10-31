@@ -33,7 +33,7 @@ submodule(indent_fm) indent_cmds_fm
     use commands_fm, only: commands
     use error_fm, only: set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, nilp, fixnump, xfixnum, make_keymap_ref
+    use lisp_fm, only: fixnump, xfixnum, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq, default_value, add_local_variables_killer
     use lisp_fm, only: value_type, symbolp, xsymbol, symbols, t_value
@@ -894,7 +894,7 @@ contains
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call set_transient_map(indent_rigidly_map, .true., rigidly_exit, "Type %k to indent region interactively")
         else
             call indent_rigidly(b, e, prefix_numeric_value(current_prefix_arg), status)
@@ -975,7 +975,7 @@ contains
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call indent_region(b, e, status)
         else
             call indent_region(b, e, status, prefix_numeric_value(current_prefix_arg))
@@ -985,7 +985,7 @@ contains
     subroutine cmd_indent_relative(status)
         type(status_type), intent(out) :: status
 
-        call indent_relative(status, first_only=.not. nilp(current_prefix_arg))
+        call indent_relative(status, first_only=allocated(current_prefix_arg%a))
     end subroutine cmd_indent_relative
 
     subroutine cmd_indent_relative_first_indent_point(status)
@@ -1026,7 +1026,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: col, column
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call read_number("Indent to column: ", column, status)
             if (.not. status%ok()) return
         else

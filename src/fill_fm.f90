@@ -34,7 +34,7 @@ module fill_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, symbolp, make_string, stringp, xstring
+    use lisp_fm, only: value_type, fixnump, xfixnum, symbolp, make_string, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name, logical_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
@@ -1607,7 +1607,7 @@ contains
         call get_text_property(pos, sym("justification"), v, st)
         j = default_justification
 
-        if (symbolp(v) .and. .not. nilp(v)) then
+        if (symbolp(v) .and. allocated(v%a)) then
             call symbol_name(v, name, st)
 
             select case (name)
@@ -1907,7 +1907,7 @@ contains
     ! Not a port.
     integer function prefix_justify() result(how)
         how = JUSTIFY_CURRENT
-        if (.not. nilp(current_prefix_arg)) how = JUSTIFY_FULL
+        if (allocated(current_prefix_arg%a)) how = JUSTIFY_FULL
     end function prefix_justify
 
     recursive subroutine cmd_fill_paragraph(status)
@@ -1965,7 +1965,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
-        if (nilp(current_prefix_arg) .and. is_use_region()) then
+        if (.not. allocated(current_prefix_arg%a) .and. is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
             call unfill_paragraph(0_int64, status, b, e)
@@ -1978,7 +1978,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_fill_prefix(.not. nilp(current_prefix_arg))
+        call set_fill_prefix(allocated(current_prefix_arg%a))
     end subroutine cmd_set_fill_prefix
 
     subroutine cmd_justify_current_line(status)

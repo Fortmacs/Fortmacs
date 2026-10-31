@@ -310,7 +310,7 @@ contains
                 text = text//indent_to(current_column(text), 30, 1)
                 call where_is_internal(sym(items(i)%name), all)
 
-                if (nilp(all)) then
+                if (.not. allocated(all%a)) then
                     text = text//"M-x ... RET"
                 else
                     call list_elements(all, seqs)

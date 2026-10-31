@@ -57,7 +57,7 @@ contains
         status = status_type()
         line = 1
 
-        if (.not. nilp(current_prefix_arg) .and. .not. consp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a) .and. .not. consp(current_prefix_arg)) then
             line = prefix_numeric_value(current_prefix_arg)
             return
         end if
@@ -203,7 +203,7 @@ contains
 
         status = status_type()
 
-        if (.not. nilp(current_prefix_arg) .and. .not. consp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a) .and. .not. consp(current_prefix_arg)) then
             n = prefix_numeric_value(current_prefix_arg)
             return
         end if
@@ -263,7 +263,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: column, reached
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call read_number("Move to column: ", column, status)
             if (.not. status%ok()) return
         else
@@ -379,7 +379,7 @@ contains
         status = status_type()
         totals = ""
 
-        if (.not. nilp(current_prefix_arg) .and. (is_use_region() .or. is_buffer_narrowed())) then
+        if (allocated(current_prefix_arg%a) .and. (is_use_region() .or. is_buffer_narrowed())) then
             begv = buffers(cur)%begv
             zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
             call widen()
@@ -412,7 +412,7 @@ contains
 
         status = status_type()
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call message(count_words_buffer_format())
             return
         end if

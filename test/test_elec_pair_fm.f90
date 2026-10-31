@@ -33,10 +33,11 @@
 !> electric-quote and electric-layout cases wait for those modes.
 module test_elec_pair_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check, test_failed
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, make_fixnum
+    use lisp_fm, only: make_fixnum
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, transient_mark_mode
     use insdel_fm, only: insert
@@ -168,7 +169,7 @@ contains
         call bindings(.true.)
         if (present(prefix)) current_prefix_arg = make_fixnum(prefix)
         call call_interactively(sym("self_insert_command"), st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call bindings(.false.)
         call minor_modes%electric_pair_mode%disable(st)
         if (saved_indent) call minor_modes%electric_indent_mode%enable(st)
@@ -637,7 +638,7 @@ contains
         last_command_event = make_fixnum(int(iachar("a"), int64))
         call call_interactively(sym("self_insert_command"), st)
         call undo_boundary()
-        call undo(nil(), st)
+        call undo(value_type(), st)
         last_command_event = make_fixnum(int(iachar("("), int64))
         call call_interactively(sym("self_insert_command"), st)
         call check(error, buffer_string(), "(())")

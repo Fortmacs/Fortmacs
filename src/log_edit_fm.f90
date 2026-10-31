@@ -1502,7 +1502,7 @@ contains
     !> can thus take some time.  Port of
     !> log-edit.el:log-edit-insert-cvs-rcstemplate.
     recursive subroutine log_edit_insert_cvs_rcstemplate(status, interactive)
-        use lisp_fm, only: make_string, make_list, nil
+        use lisp_fm, only: make_string, make_list
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         character(len=:), allocatable :: root
@@ -2463,10 +2463,9 @@ contains
     end subroutine cmd_log_edit_done
 
     recursive subroutine cmd_log_edit_insert_changelog(status)
-        use lisp_fm, only: nilp
         type(status_type), intent(out) :: status
 
-        call log_edit_insert_changelog(status,.not. nilp(current_prefix_arg))
+        call log_edit_insert_changelog(status, allocated(current_prefix_arg%a))
     end subroutine cmd_log_edit_insert_changelog
 
     recursive subroutine cmd_log_edit_show_diff(status)

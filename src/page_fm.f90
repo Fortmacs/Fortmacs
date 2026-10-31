@@ -36,7 +36,6 @@ module page_fm
     use xdisp_fm, only: message
     use paragraphs_fm, only: page_delimiter, init_paragraph_variables
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use lisp_fm, only: nilp
     use commands_fm, only: commands
     implicit none(type, external)
     private
@@ -323,7 +322,7 @@ contains
         integer(int64) :: n
 
         n = 0
-        if (.not. nilp(current_prefix_arg)) n = prefix_numeric_value(current_prefix_arg)
+        if (allocated(current_prefix_arg%a)) n = prefix_numeric_value(current_prefix_arg)
         call mark_page(n, status)
     end subroutine cmd_mark_page
 
@@ -332,7 +331,7 @@ contains
         integer(int64) :: n
 
         n = 0
-        if (.not. nilp(current_prefix_arg)) n = prefix_numeric_value(current_prefix_arg)
+        if (allocated(current_prefix_arg%a)) n = prefix_numeric_value(current_prefix_arg)
         call narrow_to_page(n, status)
     end subroutine cmd_narrow_to_page
 

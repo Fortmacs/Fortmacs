@@ -36,7 +36,7 @@ module cmds_fm
     use insdel_fm, only: del_range
     use editfns_fm, only: line_beginning_position, line_end_position, goto_char, &
                           insert_char_n
-    use lisp_fm, only: value_type, fixnump, xfixnum, nilp
+    use lisp_fm, only: value_type, fixnump, xfixnum
     use character_fm, only: MAX_CHAR
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command_event, this_command, last_command
@@ -462,7 +462,7 @@ contains
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
 
-        call delete_char(arg_p(), status,.not. nilp(current_prefix_arg))
+        call delete_char(arg_p(), status, allocated(current_prefix_arg%a))
     end subroutine cmd_delete_char
 
     !> Insert the character you type.

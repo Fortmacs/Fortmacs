@@ -29,10 +29,11 @@
 !> creates its buffers and kills them before returning.
 module test_itree_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: list, make_fixnum, t_value, nil
+    use lisp_fm, only: list, make_fixnum, t_value
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer, is_buffer_live
@@ -265,12 +266,12 @@ contains
         ! A higher priority overlay wins over a lower one.
         call make_overlay(b, 4_int64, 6_int64, st)
         call overlay_put(b, "face", list(sym(":inverse_video"), sym("t")), st)
-        call overlay_put(a, "face", list(sym(":inverse_video"), nil()), st)
+        call overlay_put(a, "face", list(sym(":inverse_video"), value_type()), st)
         call overlay_put(a, "priority", make_fixnum(10_int64), st)
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64)
         call check(error,.not. f%faces(id)%tty_reverse_p, "priority 10 over 0")
         if (allocated(error)) return
-        call overlay_put(a, "priority", nil(), st)
+        call overlay_put(a, "priority", value_type(), st)
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64)
         call check(error, f%faces(id)%tty_reverse_p, "equal priority: the one not covering the other")
         if (allocated(error)) return

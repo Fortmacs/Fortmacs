@@ -25,7 +25,7 @@ module test_recentf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
-    use lisp_fm, only: value_type, nil, list_length, list_elt, xstring
+    use lisp_fm, only: value_type, list_length, list_elt, xstring
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use files_fm, only: make_temp_file, delete_file
@@ -161,7 +161,7 @@ contains
         call recentf_save_list()
         deallocate (recentf_list)
         allocate (recentf_list(0))
-        call set(sym("file_name_history"), nil(), st)
+        call set(sym("file_name_history"), value_type(), st)
         call recentf_load_list(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return

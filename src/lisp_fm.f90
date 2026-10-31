@@ -149,8 +149,8 @@ module lisp_fm
     public :: command_proc, defined_command, defined_command_name_of
 
     !> Value tags.
-    integer(int32), parameter, public :: V_NIL = 0, V_INT = 1, V_SYMBOL = 2, &
-                                         V_STRING = 3, V_LIST = 4, &
+    integer(int32), parameter, public :: V_NULL = 0, V_INTEGER = 1, V_NAME = 2, &
+                                         V_STRING = 3, V_ARRAY = 4, &
                                          V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7, &
                                          V_SYNTAX_TABLE = 8, V_WINDOW = 9
 
@@ -159,8 +159,8 @@ module lisp_fm
 
     !> One node of a value's tree.
     type, public :: atom_type
-        integer(int32) :: tag = V_NIL
-        !> V_INT: the integer; V_SYMBOL: the symbol id; V_LIST: element count;
+        integer(int32) :: tag = V_NULL
+        !> V_INTEGER: the integer; V_NAME: the symbol id; V_ARRAY: element count;
         !> V_STRING: the number of text property intervals.
         integer(int64) :: i = 0
         !> Atoms in this subtree, itself included (1 for scalars).
@@ -202,9 +202,9 @@ module lisp_fm
     !> The number of symbols in `symbols'.
     integer(int64), public :: nsymbols = 0
 
-    public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &
+    public :: t_value, make_fixnum, make_string, make_symbol_ref, &
               make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_window_ref, make_list, list, cons
-    public :: vtag, nilp, fixnump, symbolp, stringp, consp, listp, bufferp, &
+    public :: vtag, fixnump, symbolp, stringp, consp, listp, bufferp, &
               markerp, keymap_ref_p, syntax_table_ref_p, windowp
     public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
               list_elements, list_tail, string_intervals, set_string_intervals
@@ -224,13 +224,6 @@ contains
         v%a(1) = atom
     end function scalar
 
-    !> The empty list / false.  Port of lisp.h:Qnil.
-    pure function nil() result(v)
-        type(value_type) :: v
-
-        if (allocated(v%a)) deallocate (v%a)
-    end function nil
-
     !> The symbol t.  Port of lisp.h:Qt.
     pure function t_value() result(v)
         type(value_type) :: v
@@ -244,7 +237,7 @@ contains
         type(value_type) :: v
         type(atom_type) :: atom
 
-        atom%tag = V_INT
+        atom%tag = V_INTEGER
         atom%i = n
         v = scalar(atom)
     end function make_fixnum
@@ -269,7 +262,7 @@ contains
         type(atom_type) :: atom
 
         if (id == SYM_NIL) return
-        atom%tag = V_SYMBOL
+        atom%tag = V_NAME
         atom%i = id
         v = scalar(atom)
     end function make_symbol_ref
@@ -331,7 +324,7 @@ contains
     end function make_window_ref
 
     !> The atoms of `v' as an element of a list (nil becomes an explicit
-    !> V_NIL atom).  Not a port.
+    !> V_NULL atom).  Not a port.
     pure subroutine element_atoms(v, atoms)
         type(value_type), intent(in) :: v
         type(atom_type), allocatable, intent(out) :: atoms(:)
@@ -353,7 +346,7 @@ contains
 
         if (size(elements) == 0) return
         allocate (atoms(1))
-        atoms(1)%tag = V_LIST
+        atoms(1)%tag = V_ARRAY
         atoms(1)%i = size(elements)
 
         do k = 1, size(elements)
@@ -428,12 +421,12 @@ contains
         call element_atoms(elt, head)
 
         select case (vtag(list))
-        case (V_NIL)
+        case (V_NULL)
             allocate (v%a(1))
-            v%a(1)%tag = V_LIST
+            v%a(1)%tag = V_ARRAY
             v%a(1)%i = 1
             v%a = [v%a, head]
-        case (V_LIST)
+        case (V_ARRAY)
             v%a = [list%a(1:1), head, list%a(2:)]
             v%a(1)%i = v%a(1)%i + 1
         case default
@@ -448,33 +441,26 @@ contains
     ! Predicates and accessors (lisp.h)
     ! ------------------------------------------------------------------
 
-    !> Tag of `v' (V_NIL for nil).  Not a port.
+    !> Tag of `v' (V_NULL for nil).  Not a port.
     elemental integer(int32) function vtag(v)
         type(value_type), intent(in) :: v
 
-        vtag = V_NIL
+        vtag = V_NULL
         if (allocated(v%a)) vtag = v%a(1)%tag
     end function vtag
-
-    !> Port of lisp.h:NILP.
-    elemental logical function nilp(v)
-        type(value_type), intent(in) :: v
-
-        nilp = vtag(v) == V_NIL
-    end function nilp
 
     !> Port of lisp.h:FIXNUMP.
     elemental logical function fixnump(v)
         type(value_type), intent(in) :: v
 
-        fixnump = vtag(v) == V_INT
+        fixnump = vtag(v) == V_INTEGER
     end function fixnump
 
     !> Port of lisp.h:SYMBOLP (nil is a symbol).
     elemental logical function symbolp(v)
         type(value_type), intent(in) :: v
 
-        symbolp = vtag(v) == V_SYMBOL .or. vtag(v) == V_NIL
+        symbolp = vtag(v) == V_NAME .or. vtag(v) == V_NULL
     end function symbolp
 
     !> Port of lisp.h:STRINGP.
@@ -488,14 +474,14 @@ contains
     elemental logical function consp(v)
         type(value_type), intent(in) :: v
 
-        consp = vtag(v) == V_LIST
+        consp = vtag(v) == V_ARRAY
     end function consp
 
     !> nil or a list.  Port of data.c:Flistp.
     elemental logical function listp(v)
         type(value_type), intent(in) :: v
 
-        listp = vtag(v) == V_LIST .or. vtag(v) == V_NIL
+        listp = vtag(v) == V_ARRAY .or. vtag(v) == V_NULL
     end function listp
 
     !> Port of lisp.h:BUFFERP.
@@ -539,7 +525,7 @@ contains
         type(value_type), intent(in) :: v
 
         xfixnum = 0
-        if (vtag(v) == V_INT) xfixnum = v%a(1)%i
+        if (vtag(v) == V_INTEGER) xfixnum = v%a(1)%i
     end function xfixnum
 
     !> The symbol id of `v' (SYM_NIL for nil), unchecked.
@@ -548,7 +534,7 @@ contains
         type(value_type), intent(in) :: v
 
         xsymbol = SYM_NIL
-        if (vtag(v) == V_SYMBOL) xsymbol = v%a(1)%i
+        if (vtag(v) == V_NAME) xsymbol = v%a(1)%i
     end function xsymbol
 
     !> The text of string `v' ("" if not a string).  Port of lisp.h:SSDATA.
@@ -577,7 +563,7 @@ contains
         type(value_type), intent(in) :: v
 
         list_length = 0
-        if (vtag(v) == V_LIST) list_length = v%a(1)%i
+        if (vtag(v) == V_ARRAY) list_length = v%a(1)%i
     end function list_length
 
     !> Atom index where element `k' (1-based) of list `v' starts.
@@ -603,7 +589,7 @@ contains
 
         if (k >= 1 .and. k <= list_length(v)) then
             p = elt_start(v, k)
-            if (v%a(p)%tag /= V_NIL) e%a = v%a(p:p + v%a(p)%span - 1)
+            if (v%a(p)%tag /= V_NULL) e%a = v%a(p:p + v%a(p)%span - 1)
         end if
     end function list_elt
 
@@ -617,7 +603,7 @@ contains
         p = 2
 
         do k = 1, size(elems, kind=int64)
-            if (v%a(p)%tag /= V_NIL) elems(k)%a = v%a(p:p + v%a(p)%span - 1)
+            if (v%a(p)%tag /= V_NULL) elems(k)%a = v%a(p:p + v%a(p)%span - 1)
             p = p + v%a(p)%span
         end do
     end subroutine list_elements
@@ -693,7 +679,7 @@ contains
         atoms(1)%i = 0
 
         do k = 1, size(starts)
-            if (ends(k) <= starts(k) .or. nilp(plists(k))) cycle
+            if (ends(k) <= starts(k) .or. .not. allocated(plists(k)%a)) cycle
             head = list(make_fixnum(starts(k)), make_fixnum(ends(k)))
             child = head
             child%a = [head%a, plists(k)%a(2:)]

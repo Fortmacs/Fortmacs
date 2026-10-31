@@ -47,7 +47,7 @@ submodule(window_fm) window_cmds_fm
     use marker_fm, only: marker_position
     use frame_fm, only: selected_frame, ensure_frame_windows
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use lisp_fm, only: nilp, make_string, list
+    use lisp_fm, only: make_string, list
     use minibuf_fm, only: completion_list_table
     use minibuffer_fm, only: read_buffer, completing_read, REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     use files_fm, only: save_buffer
@@ -251,7 +251,7 @@ contains
 
         if (in_minibuffer(status)) return
         call split_window(selected_frame%selected_window, int(prefix_numeric_value(current_prefix_arg)), &
-                          .not. nilp(current_prefix_arg), .false., new, status)
+                          allocated(current_prefix_arg%a), .false., new, status)
     end subroutine cmd_split_window_below
 
     !> Split WINDOW_TO_SPLIT into two side-by-side windows.
@@ -272,7 +272,7 @@ contains
 
         if (in_minibuffer(status)) return
         call split_window(selected_frame%selected_window, int(prefix_numeric_value(current_prefix_arg)), &
-                          .not. nilp(current_prefix_arg), .true., new, status)
+                          allocated(current_prefix_arg%a), .true., new, status)
     end subroutine cmd_split_window_right
 
     !> Run `unshow_buffer' for the live windows of the tree under `h',

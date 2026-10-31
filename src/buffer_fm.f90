@@ -40,10 +40,11 @@
 !> file visiting and locking, and hooks.
 module buffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, nilp, make_symbol_ref
+    use lisp_fm, only: value_type, make_symbol_ref
     use lread_fm, only: intern
     use data_fm, only: symbol_value, integer_setting, logical_setting, function_setting
     use intervals_fm, only: intervals_type, find_interval, textget
@@ -1091,7 +1092,7 @@ contains
 
         if (cur == 0) return
         if (.not. buffers(cur)%read_only) return
-        if (.not. nilp(inhibit_read_only())) return
+        if (vtag(inhibit_read_only()) /= V_NULL) return
         pos = buffers(cur)%pt
         if (present(position)) pos = position
 
@@ -1100,7 +1101,7 @@ contains
             if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
                 k = find_interval(iv, pos)
                 props = iv%runs(k)%plist
-                if (.not. nilp(textget(props, make_symbol_ref(intern("inhibit_read_only"))))) return
+                if (vtag(textget(props, make_symbol_ref(intern("inhibit_read_only")))) /= V_NULL) return
             end if
         end associate
 

@@ -39,9 +39,9 @@ module minibuf_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use eval_fm, only: hook_type
-    use lisp_fm, only: value_type, nil, t_value, list, nilp, make_string, make_list, list_elements, make_fixnum, &
+    use lisp_fm, only: value_type, t_value, list, make_string, make_list, list_elements, make_fixnum, &
                        list_length, list_elt, fixnump, xfixnum, make_symbol_ref, stringp, xstring, symbolp, &
-                       xsymbol, symbols, nsymbols, V_LIST, vtag
+                       xsymbol, symbols, nsymbols, V_ARRAY, vtag
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use search_fm, only: string_match, match_end, regexp_quote
@@ -342,7 +342,7 @@ contains
 
         if (pos == buffers(cur)%zv) then
             call get_text_property(buffers(cur)%begv, sym("field"), field, status)
-            if (nilp(field)) pos = buffers(cur)%begv
+            if (.not. allocated(field%a)) pos = buffers(cur)%begv
         end if
     end function minibuffer_prompt_end
 
@@ -461,7 +461,7 @@ contains
         ! history).
         if (histvar /= "t") then
             call symbol_value(sym(histvar), histval, st)
-            if (.not. st%ok()) call set(sym(histvar), nil(), st)
+            if (.not. st%ok()) call set(sym(histvar), value_type(), st)
         end if
 
         old_selected = selected_frame%minibuffer_selected
@@ -505,7 +505,7 @@ contains
                                      changed, st)
         end if
 
-        call set(sym("inhibit_read_only"), nil(), st)
+        call set(sym("inhibit_read_only"), value_type(), st)
 
         if (present(initial)) then
             call insert(initial, st)
@@ -729,15 +729,15 @@ contains
         logical :: fold
         integer :: k
 
-        elt = nil()
+        elt = value_type()
         fold = .false.
         if (present(case_fold)) fold = case_fold
-        if (vtag(list_value) /= V_LIST) return
+        if (vtag(list_value) /= V_ARRAY) return
         call list_elements(list_value, elts)
 
         do k = 1, size(elts)
             thiscar = elts(k)
-            if (vtag(elts(k)) == V_LIST) thiscar = list_elt(elts(k), 1_int64)
+            if (vtag(elts(k)) == V_ARRAY) thiscar = list_elt(elts(k), 1_int64)
 
             if (symbolp(thiscar)) then
                 s = symbols(xsymbol(thiscar))%name
@@ -854,9 +854,9 @@ contains
             ! A table element: its car is the completion.
             eltstring = elts(k)
 
-            if (vtag(elts(k)) == V_LIST) then
+            if (vtag(elts(k)) == V_ARRAY) then
                 call list_elements(elts(k), parts)
-                eltstring = nil()
+                eltstring = value_type()
                 if (size(parts) > 0) eltstring = parts(1)
             end if
 
@@ -934,7 +934,7 @@ contains
         logical :: have_best
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (collection%kind == TABLE_FUNCTION) then
             call collection%fn(string, COMPLETE_TRY, result, status, predicate)
@@ -1128,11 +1128,11 @@ contains
         select case (collection%kind)
         case (TABLE_FUNCTION)
             call collection%fn(string, COMPLETE_TEST, result, status, predicate)
-            valid = status%ok() .and. .not. nilp(result)
+            valid = status%ok() .and. allocated(result%a)
             return
         case (TABLE_QUOTING)
             call quoting_table_call(collection, string, COMPLETE_TEST, result, status, predicate)
-            valid = status%ok() .and. .not. nilp(result)
+            valid = status%ok() .and. allocated(result%a)
             return
         case (TABLE_OBARRAY)
             id = intern_soft(string)
@@ -1207,7 +1207,7 @@ contains
         integer(int64) :: bstart, bend, qlboundary, qrboundary, q, qpoint
 
         status = status_type()
-        result = nil()
+        result = value_type()
         inner%kind = TABLE_FUNCTION
         inner%fn => table%fn
         call table%unquote(string, ustring)
@@ -1387,7 +1387,7 @@ contains
         character(len=:), allocatable :: prefix, qfullprefix, qprefix, qp, completion, new, qnew, rest, qrest
         integer(int64) :: qfullpos, qboundary, k, n
 
-        result = nil()
+        result = value_type()
         n = list_length(completions)
         if (n == 0) return
         call list_elements(completions, elems)
@@ -1460,7 +1460,7 @@ contains
         character(len=*), intent(in), optional :: suffix
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (table%kind == TABLE_FUNCTION) then
             call table%fn(string, action, result, status, predicate, suffix)
@@ -1504,9 +1504,9 @@ contains
         logical :: has_str
 
         status = status_type()
-        result = nil()
+        result = value_type()
         has_str = is_prefix(s1, string, completion_ignore_case%value)
-        res = nil()
+        res = value_type()
 
         if (has_str) then
             str = s2//substring(string, schars(s1))
@@ -1523,13 +1523,13 @@ contains
                               list_elt(res, 2_int64))
             else
                 result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
-                              nil())
+                              value_type())
             end if
 
             return
         end if
 
-        if (nilp(res)) return
+        if (.not. allocated(res%a)) return
 
         if (stringp(res)) then
             if (is_prefix(s2, xstring(res), completion_ignore_case%value)) then
@@ -1587,7 +1587,7 @@ contains
         procedure(completion_predicate), pointer :: saved1, saved2
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (.not. strict .and. action == COMPLETE_TEST) then
             ! Ignore pred1 since it doesn't really have to apply anyway.
@@ -1615,7 +1615,7 @@ contains
 
         ! If completion failed and we're not applying pred1 strictly, try
         ! again without pred1.
-        if (nilp(result) .and. .not. strict .and. present(pred1)) then
+        if (.not. allocated(result%a) .and. .not. strict .and. present(pred1)) then
             call complete_with_action(action, table, string, result, status, predicate, suffix)
         end if
     end subroutine completion_table_with_predicate

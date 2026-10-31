@@ -45,7 +45,7 @@ module saveplace_fm
     use handle_fm, only: handle_type
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, make_variable_buffer_local
-    use lisp_fm, only: value_type, nilp, t_value, nil
+    use lisp_fm, only: value_type, t_value
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
@@ -475,7 +475,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym("save_place_mode"), v, st)
-        on = st%ok() .and. .not. nilp(v)
+        on = st%ok() .and. allocated(v%a)
     end function save_place_mode_on
 
     !> Port of saveplace.el:save-place--setup-hooks (nothing is removed
@@ -537,7 +537,7 @@ contains
         if (enable) then
             call set(sym("save_place_mode"), t_value(), st)
         else
-            call set(sym("save_place_mode"), nil(), st)
+            call set(sym("save_place_mode"), value_type(), st)
         end if
 
         if (.not. (allocated(buffers(cur)%filename) .or. len(dired_directory()) > 0)) then

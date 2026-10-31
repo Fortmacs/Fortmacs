@@ -49,7 +49,7 @@
 !> more than one screen line is shown in its buffer); the default
 !> `major_mode' other than Fundamental mode in `set_buffer_major_mode'.
 submodule(simple_fm) simple_shell_fm
-    use lisp_fm, only: nilp, stringp, xstring, xfixnum, make_buffer_ref
+    use lisp_fm, only: stringp, xstring, xfixnum, make_buffer_ref
     use data_fm, only: integer_setting, logical_setting
     use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, current_buffer, is_buffer_live, erase_buffer, &
                          generate_new_buffer_name, rename_buffer
@@ -1110,7 +1110,7 @@ contains
         character(len=:), allocatable :: command
         logical :: prefix
 
-        prefix = .not. nilp(current_prefix_arg)
+        prefix = allocated(current_prefix_arg%a)
 
         if (allocated(buffers(cur)%filename)) then
             call read_shell_command(shell_prompt("Shell command"), command, status, &
@@ -1142,7 +1142,7 @@ contains
         integer(int64) :: beg, end, m
         logical :: prefix
 
-        prefix = .not. nilp(current_prefix_arg)
+        prefix = allocated(current_prefix_arg%a)
         call mark(m, status)
         if (.not. status%ok()) return
 

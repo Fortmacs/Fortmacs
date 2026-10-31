@@ -37,7 +37,7 @@ module electric_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum
+    use lisp_fm, only: value_type, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: logical_setting, default_value, set_default, kill_local_variable, buffer_local_value, &
                        add_local_variables_killer
@@ -357,7 +357,7 @@ contains
         saved = minor_modes%electric_indent_mode%state%value
         minor_modes%electric_indent_mode%state%value = .false.
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call newline(status, interactive=.true.)
         else
             call newline(status, prefix_numeric_value(current_prefix_arg), interactive=.true.)
@@ -383,7 +383,7 @@ contains
 
         if (minor_modes%electric_indent_mode%state%value) then
             saved = current_prefix_arg
-            current_prefix_arg = nil()
+            current_prefix_arg = value_type()
             call electric_indent_just_newline(status)
             current_prefix_arg = saved
         else
@@ -435,7 +435,7 @@ contains
                 if (.not. st%ok()) cycle
                 call buffer_local_value(sym("electric_indent_mode"), b, v, st)
 
-                if (st%ok() .and. .not. nilp(v)) then
+                if (st%ok() .and. allocated(v%a)) then
                     found = .true.
                     exit
                 end if
@@ -474,14 +474,14 @@ contains
         call minor_modes%electric_indent_mode%state%set_local(val)
         call default_value(sym("electric_indent_mode"), default, st)
 
-        if (minor_modes%electric_indent_mode%state%value .eqv. .not. nilp(default)) then
+        if (minor_modes%electric_indent_mode%state%value .eqv. allocated(default%a)) then
             call kill_local_variable(sym("electric_indent_mode"), st)
-        else if (nilp(default)) then
+        else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             ! Setup the hooks.
             call minor_modes%electric_indent_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("electric_indent_mode"), nil(), st)
+            call set_default(sym("electric_indent_mode"), value_type(), st)
         end if
     end subroutine electric_indent_local_mode_body
 end module electric_fm

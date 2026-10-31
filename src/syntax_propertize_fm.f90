@@ -41,7 +41,7 @@ module syntax_propertize_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, buffer_serial_live
-    use lisp_fm, only: value_type, nil, nilp, list, symbolp, make_syntax_table_ref
+    use lisp_fm, only: value_type, list, symbolp, make_syntax_table_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq, add_local_variables_killer
     use eval_fm, only: region_hook_type, region_entry_type
@@ -557,7 +557,7 @@ contains
             call get_text_property(beg - 1, sym("syntax_multiline"), val, status)
             if (.not. status%ok()) return
 
-            if (.not. nilp(val)) then
+            if (allocated(val%a)) then
                 call previous_single_property_change(beg, sym("syntax_multiline"), pos, found, status)
                 if (.not. status%ok()) return
                 new_beg = point_min()
@@ -568,8 +568,8 @@ contains
         call get_text_property(end, sym("syntax_multiline"), val, status)
         if (.not. status%ok()) return
 
-        if (.not. nilp(val)) then
-            call text_property_any(end, point_max(), sym("syntax_multiline"), nil(), pos, found, status)
+        if (allocated(val%a)) then
+            call text_property_any(end, point_max(), sym("syntax_multiline"), value_type(), pos, found, status)
             if (.not. status%ok()) return
             new_end = point_max()
             if (found) new_end = pos
@@ -994,7 +994,7 @@ contains
             ! Move the limit before calling the function, so it's
             ! done in case of errors.
             call syntax_propertize__done%set_local(end)
-            call remove_text_properties(start, end, list(sym("syntax_table"), nil(), sym("syntax_multiline"), nil()), &
+           call remove_text_properties(start, end, list(sym("syntax_table"), value_type(), sym("syntax_multiline"), value_type()), &
                                         changed, status)
             if (.not. status%ok()) exit body
             ! Bind `syntax_propertize__done' to avoid recursion!

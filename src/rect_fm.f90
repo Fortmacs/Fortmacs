@@ -49,13 +49,14 @@
 !> `rectangle_number_lines' FORMAT (an error).
 module rect_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: vtag, V_NULL
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, condition_matches, FM_GENERIC_ERROR, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT, FM_END_OF_BUFFER, &
                         FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, list_length, list_elt, stringp, xstring, make_string, make_list, list, &
-                       list_elements, t_value, nil, make_fixnum, make_window_ref
+    use lisp_fm, only: value_type, list_length, list_elt, stringp, xstring, make_string, make_list, list, &
+                       list_elements, t_value, make_fixnum, make_window_ref
     use data_fm, only: value_eq
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
@@ -2089,8 +2090,8 @@ contains
                 call move_overlay(ol, left, right, st)
                 call goto_char(left)
                 call overlay_put(ol, "before_string", space_to(leftcol), st)
-            else if (.not. nilp(overlay_get(ol, "before_string"))) then
-                call overlay_put(ol, "before_string", nil(), st)
+            else if (vtag(overlay_get(ol, "before_string")) /= V_NULL) then
+                call overlay_put(ol, "before_string", value_type(), st)
             end if
 
             if (mright < rightcol) then
@@ -2107,7 +2108,7 @@ contains
                 call move_overlay(ol, left, right, st)
 
                 if (rightcol == leftcol) then
-                    call overlay_put(ol, "after_string", nil(), st)
+                    call overlay_put(ol, "after_string", value_type(), st)
                 else
                     call goto_char(right)
                     str = space_to(rightcol)
@@ -2116,8 +2117,8 @@ contains
                     if (left == right) call place_cursor(leftcol, left, str, window)
                     call overlay_put(ol, "after_string", str, st)
                 end if
-            else if (.not. nilp(overlay_get(ol, "after_string"))) then
-                call overlay_put(ol, "after_string", nil(), st)
+            else if (vtag(overlay_get(ol, "after_string")) /= V_NULL) then
+                call overlay_put(ol, "after_string", value_type(), st)
             end if
 
             nrol = [nrol, ol]
@@ -2215,7 +2216,7 @@ contains
     !> The value of the prefix argument as the FILL of a "P" spec.
     !> Not a port.
     logical function prefix_fill()
-        prefix_fill = .not. nilp(current_prefix_arg)
+        prefix_fill = allocated(current_prefix_arg%a)
     end function prefix_fill
 
     recursive subroutine cmd_delete_rectangle(status)
@@ -2395,7 +2396,7 @@ contains
         if (status%ok()) call region_end(end, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call rectangle_number_lines(start, end, 1_int64, status)
             return
         end if
@@ -2409,7 +2410,7 @@ contains
     recursive subroutine cmd_rectangle_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_exchange_point_and_mark(.not. nilp(current_prefix_arg), status)
+        call rectangle_exchange_point_and_mark(allocated(current_prefix_arg%a), status)
     end subroutine cmd_rectangle_exchange_point_and_mark
 
     recursive subroutine cmd_rectangle_right_char(status)

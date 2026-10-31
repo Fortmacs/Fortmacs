@@ -90,7 +90,7 @@ module compile_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nilp, consp, t_value, make_string, list, nil, make_fixnum, fixnump, xfixnum
+    use lisp_fm, only: value_type, consp, t_value, make_string, list, make_fixnum, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
                        add_local_variables_killer, forward_setting
@@ -2188,7 +2188,7 @@ contains
 
                         if (len(face) == 0) then
                             call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), &
-                                                   sym("font_lock_face"), nil(), st)
+                                                   sym("font_lock_face"), value_type(), st)
                         else
                             call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), &
                                                    sym("font_lock_face"), sym(face), st)
@@ -2314,7 +2314,7 @@ contains
         status = status_type()
         has_props = .false.
         msg = 0
-        call text_property_not_all(md_pos(md, 0, .false.), point(), sym("compilation_message"), nil(), pos, found, st)
+        call text_property_not_all(md_pos(md, 0, .false.), point(), sym("compilation_message"), value_type(), pos, found, st)
         if (found) return
         k = current_entry()
         has_file = .false.
@@ -2675,7 +2675,7 @@ contains
             call next_single_property_change(start, sym("compilation_message"), next, found, st, end)
             if (.not. found) next = end
             call get_text_property(start, sym("compilation_message"), v, st)
-            if (st%ok() .and. .not. nilp(v)) call remove_list_of_text_properties(start, next, props, changed, st)
+            if (st%ok() .and. allocated(v%a)) call remove_list_of_text_properties(start, next, props, changed, st)
             if (next >= end) exit
             start = next
         end do
@@ -2836,7 +2836,7 @@ contains
 
             do while (.not. is_bob())
                 call get_text_property(point() - 1, sym("compilation_multiline"), v, st)
-                if (nilp(v)) exit
+                if (.not. allocated(v%a)) exit
                 moved = forward_line(-1_int64)
             end do
 
@@ -2864,7 +2864,7 @@ contains
         do
             call get_text_property(pos, sym("compilation_annotation"), v, st)
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 call next_single_property_change(pos, sym("compilation_annotation"), next, found, st)
                 if (.not. found) next = point_max()
                 pos = next
@@ -3382,7 +3382,7 @@ contains
 
         status = status_type()
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             level = prefix_numeric_value(current_prefix_arg)
         else
             level = compilation_skip_threshold%value + 1
@@ -4235,7 +4235,7 @@ contains
 
         command = compile_command_value()
 
-        if (compilation_read_command%value .or. .not. nilp(current_prefix_arg)) then
+        if (compilation_read_command%value .or. allocated(current_prefix_arg%a)) then
             initial = command
             call compilation_read_command_from_user(initial, command, status)
             if (.not. status%ok()) return
@@ -4353,7 +4353,7 @@ contains
     recursive subroutine cmd_recompile(status)
         type(status_type), intent(out) :: status
 
-        call recompile(status,.not. nilp(current_prefix_arg))
+        call recompile(status, allocated(current_prefix_arg%a))
     end subroutine cmd_recompile
 
     !> Insert TEXT at point, adding the `compilation_annotation' text

@@ -41,7 +41,7 @@ module ansi_color_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, make_string, list, xstring, stringp, make_list
+    use lisp_fm, only: value_type, t_value, make_string, list, xstring, stringp, make_list
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, add_local_variables_killer, set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer
@@ -685,7 +685,7 @@ contains
             esc_end = match_end(0, st) - 1
             ! Colorize the old block from start to end using old face.
             face = face_vec_face(face_vec)
-            if (.not. nilp(face)) call string_put_text_property(start, end, sym("font_lock_face"), face, text, st)
+            if (allocated(face%a)) call string_put_text_property(start, end, sym("font_lock_face"), face, text, st)
             res = propertized_concat(res, propertized_substring(text, start, end))
             start = esc_end
             ! If this is a color escape sequence,
@@ -700,7 +700,7 @@ contains
 
         ! if the rest of the string should have a face, put it there
         face = face_vec_face(face_vec)
-        if (.not. nilp(face)) call string_put_text_property(start, nchars, sym("font_lock_face"), face, text, st)
+        if (allocated(face%a)) call string_put_text_property(start, nchars, sym("font_lock_face"), face, text, st)
         ! save context, add the remainder of the string to the result
         k = ensure_string_context()
         contexts(k)%string_face_vec = face_vec
@@ -777,14 +777,14 @@ contains
                 if (len_trim(ansi_color_basic_faces(i)) > 0) then
                     faces(n) = sym(trim(ansi_color_basic_faces(i)))
                 else
-                    faces(n) = nil()
+                    faces(n) = value_type()
                 end if
             end if
         end do
 
         ! Avoid some long-lived conses in the common case.
         if (n == 0) then
-            face = nil()
+            face = value_type()
         else if (n == 1) then
             face = faces(1)
         else
@@ -815,7 +815,7 @@ contains
                 name = trim(ansi_color_normal_colors(modulo(code, 8_int64)))
             end if
 
-            v = nil()
+            v = value_type()
             f => face_named(name)
             if (.not. associated(f)) return
 
@@ -1048,7 +1048,7 @@ contains
             ! positions that overlap regions previously colored; these
             ! `codes' should not be applied to that overlap, so we need to
             ! know where they should really start.
-            if (nilp(faces)) then
+            if (.not. allocated(faces%a)) then
                 call detach_marker(start_marker, st)
             else
                 call set_marker(start_marker, mpos(end_marker), st)
@@ -1071,7 +1071,7 @@ contains
         type(handle_type) :: ov
         type(status_type) :: st
 
-        if (nilp(face)) return
+        if (.not. allocated(face%a)) return
         call ansi_color_make_extent(beg, end, ov)
         call overlay_put(ov, "face", face, st)
     end subroutine ansi_color_apply_overlay_face
@@ -1084,7 +1084,7 @@ contains
         type(value_type), intent(in) :: face
         type(status_type) :: st
 
-        if (nilp(face)) return
+        if (.not. allocated(face%a)) return
         call put_text_property(beg, end, sym("font_lock_face"), face, st)
     end subroutine ansi_color_apply_text_property_face
 

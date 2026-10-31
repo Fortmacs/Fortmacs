@@ -41,7 +41,7 @@ module view_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, list
+    use lisp_fm, only: value_type, make_fixnum, make_string, list
     use lread_fm, only: sym
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type, change_major_mode_hook
@@ -687,7 +687,7 @@ contains
 
             ! Avoid spamming the echo area if `view_mode' is entered
             ! non-interactively, e.g., in a temporary buffer (bug#44629).
-            if (.not. view_inhibit_help_message .and. .not. nilp(this_command)) then
+            if (.not. view_inhibit_help_message .and. allocated(this_command%a)) then
                 call message(substitute_command_keys("View mode: type \[help_command] for help, "// &
                                                      "\[describe_mode] for commands, \[view_quit] to quit."))
             end if
@@ -990,7 +990,7 @@ contains
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
 
-        has = .not. nilp(current_prefix_arg)
+        has = allocated(current_prefix_arg%a)
         n = prefix_numeric_value(current_prefix_arg)
     end subroutine raw_prefix
 
@@ -1089,7 +1089,7 @@ contains
         if (has_lines) then
             arg = make_fixnum(lines)
         else
-            arg = nil()
+            arg = value_type()
         end if
 
         if (backward) then

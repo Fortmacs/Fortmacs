@@ -24,8 +24,9 @@
 !> by the module.
 submodule(map_ynp_fm) map_ynp_ask_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use error_fm, only: set_error, FM_QUIT
-    use lisp_fm, only: nil, nilp, symbolp, make_fixnum, make_keymap_ref, fixnump, xfixnum
+    use lisp_fm, only: symbolp, make_fixnum, make_keymap_ref, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_description, make_sparse_keymap, set_keymap_parent, define_key, define_key_range, &
@@ -152,7 +153,7 @@ contains
                 end if
 
                 answer = -1
-                def = nil()
+                def = value_type()
 
                 if (allocated(chars)) then
                     answer = query_replace_answer(chars(1))
@@ -202,7 +203,7 @@ contains
                                           "or . (period) to "//action//" the current "//object//" and exit.", st)
                     again = .true.
                 case default
-                    if (symbolp(def) .and. .not. nilp(def) .and. is_command(def)) then
+                    if (symbolp(def) .and. allocated(def%a) .and. is_command(def)) then
                         call call_interactively(def, status)
                         if (.not. status%ok()) exit objects_loop
                     else
@@ -257,7 +258,7 @@ contains
         do c = 0, 127
             key1(1) = make_fixnum(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
-            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+            if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
             if (value_eq(b, sym("self_insert_command"))) then
                 call define_key(ynp_remap, key1, sym("map_read_y_or_n__help"), st)

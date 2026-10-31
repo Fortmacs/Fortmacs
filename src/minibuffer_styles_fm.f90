@@ -38,6 +38,7 @@
 !> `minibuffer_complete_word' from being one, the unquote/requote
 !> machinery of completion--nth-completion, and `completion-lazy-hilit'.
 submodule(minibuffer_fm) minibuffer_styles_fm
+    use lisp_fm, only: value_type
     use search_fm, only: string_match, match_beginning, match_end, case_fold_search
     use casetab_fm, only: downcase_char => downcase
     implicit none(type, external)
@@ -207,7 +208,7 @@ contains
         if (stringp(v)) then
             res%kind = TRY_STRING
             res%string = xstring(v)
-        else if (nilp(v)) then
+        else if (.not. allocated(v%a)) then
             res%kind = TRY_NONE
         else
             res%kind = TRY_EXACT
@@ -351,7 +352,7 @@ contains
 
     call styles_for(table, styles)
     completion_flex_sorting = .false.
-    all = nil()
+    all = value_type()
     base_size = 0
 
     do k = 1, size(styles)
@@ -895,7 +896,7 @@ contains
         if (filter) call filename_try_filter(all)
         if (size(all) > 0 .or. bstart <= 0) return
         call try_completion(prefix, table, tryv, status, pred)
-        if (.not. nilp(tryv)) return
+        if (allocated(tryv%a)) return
         ! The prefix has no completions at all, so we should try and fix
         ! that first.
         sub = substring(prefix, 0_int64, -1_int64)
@@ -1107,7 +1108,7 @@ contains
                 do k = 1, size(comps)
                     if (schars(prefix) /= schars(comps(k)%s)) unique = .false.
                 end do
-            else if (nilp(t)) then
+            else if (.not. allocated(t%a)) then
                 prefix = segs(i)%fixed
             else
                 prefix = segs(i)%fixed
@@ -1583,7 +1584,7 @@ contains
         character(len=:), allocatable :: pat2, prefix, suffix
         integer :: k
 
-        all = nil()
+        all = value_type()
         base_size = 0
         if (completion_flex_nospace .and. index(string, " ") > 0) return
         call flex_all_1(string, table, point, boxes, costs, pat2, prefix, suffix, pred)
@@ -1655,7 +1656,7 @@ contains
         procedure(completion_predicate), optional :: pred
         character(len=:), allocatable :: newstr
 
-        all = nil()
+        all = value_type()
         base_size = 0
         newstr = initials_expand(string, table, pred)
         if (len(newstr) > 0) call pcm_all_completions(newstr, table, schars(newstr), all, base_size, pred)

@@ -37,8 +37,8 @@ module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT
-    use lisp_fm, only: fixnump, list, list_elt, list_tail, listp, nil, stringp, symbolp, symbols, &
-                       v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, v_symbol, v_syntax_table, v_window, value_type, &
+    use lisp_fm, only: fixnump, list, list_elt, list_tail, listp, stringp, symbolp, symbols, &
+                       v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, V_NAME, v_syntax_table, v_window, value_type, &
                        vtag, xsymbol
     use lread_fm, only: ensure_obarray, sym
     use lisp_fm, only: command_proc
@@ -482,7 +482,7 @@ contains
 
         self%has_exact = .false.
         self%void = .false.
-        self%exact = nil()
+        self%exact = value_type()
     end subroutine settled
 
     ! Not a port.
@@ -650,9 +650,9 @@ contains
         if (vtag(a) /= vtag(b)) return
 
         select case (vtag(a))
-        case (V_NIL)
+        case (V_NULL)
             value_eq = .true.
-        case (V_INT, V_SYMBOL)
+        case (V_INTEGER, V_NAME)
             value_eq = a%a(1)%i == b%a(1)%i
         case (V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE, V_WINDOW)
             value_eq = a%a(1)%h%index == b%a(1)%h%index .and. &
@@ -669,10 +669,10 @@ contains
         type(status_type), intent(out) :: status
 
         select case (vtag(list))
-        case (V_LIST)
+        case (V_ARRAY)
             v = list_elt(list, 1_int64)
-        case (V_NIL)
-            v = nil()
+        case (V_NULL)
+            v = value_type()
         case default
             call wrong_type(status, "listp")
         end select
@@ -686,10 +686,10 @@ contains
         type(status_type), intent(out) :: status
 
         select case (vtag(list))
-        case (V_LIST)
+        case (V_ARRAY)
             v = list_tail(list, 1_int64)
-        case (V_NIL)
-            v = nil()
+        case (V_NULL)
+            v = value_type()
         case default
             call wrong_type(status, "listp")
         end select
@@ -700,7 +700,7 @@ contains
         type(value_type), intent(in) :: list
         type(value_type) :: v
 
-        if (vtag(list) == V_LIST) v = list_elt(list, 1_int64)
+        if (vtag(list) == V_ARRAY) v = list_elt(list, 1_int64)
     end function car_safe
 
     !> Like `cdr', but nil for a non-list.  Port of data.c:Fcdr_safe.
@@ -708,7 +708,7 @@ contains
         type(value_type), intent(in) :: list
         type(value_type) :: v
 
-        if (vtag(list) == V_LIST) v = list_tail(list, 1_int64)
+        if (vtag(list) == V_ARRAY) v = list_tail(list, 1_int64)
     end function cdr_safe
 
     ! ------------------------------------------------------------------
@@ -732,7 +732,7 @@ contains
         type(value_type), intent(in) :: v
 
         keywordp = .false.
-        if (vtag(v) /= V_SYMBOL) return
+        if (vtag(v) /= V_NAME) return
         call ensure_obarray()
 
         associate (name => symbols(xsymbol(v))%name)
@@ -848,7 +848,7 @@ contains
 
         call forwarded_makunbound(id, status, found)
         if (found) return
-        symbols(id)%val = nil()
+        symbols(id)%val = value_type()
         symbols(id)%bound = .false.
     end subroutine makunbound
 end module data_fm

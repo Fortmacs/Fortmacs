@@ -49,7 +49,7 @@ module diff_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum
+    use lisp_fm, only: value_type, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: logical_setting, forward_setting, add_local_variables_killer
     use eval_fm, only: hook_type
@@ -2170,7 +2170,7 @@ contains
     recursive subroutine cmd_diff_restrict_view(status)
         type(status_type), intent(out) :: status
 
-        call diff_restrict_view(status,.not. nilp(current_prefix_arg))
+        call diff_restrict_view(status, allocated(current_prefix_arg%a))
     end subroutine cmd_diff_restrict_view
 
     recursive subroutine cmd_diff_split_hunk(status)
@@ -2189,7 +2189,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
 
-        if (.not. nilp(current_prefix_arg) .or. is_use_region()) then
+        if (allocated(current_prefix_arg%a) .or. is_use_region()) then
             call region_beginning(beg, status)
             if (status%ok()) call region_end(end, status)
             if (status%ok()) call diff_fixup_modifs(beg, end, status)
@@ -2201,7 +2201,7 @@ contains
     recursive subroutine cmd_diff_goto_source(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call diff_goto_source(status)
         else
             call diff_goto_source(status, .true., p_arg())
@@ -2216,16 +2216,16 @@ contains
         call region_args(have, beg, end)
 
         if (have) then
-            call diff_apply_hunk(status,.not. nilp(current_prefix_arg), beg, end)
+            call diff_apply_hunk(status, allocated(current_prefix_arg%a), beg, end)
         else
-            call diff_apply_hunk(status,.not. nilp(current_prefix_arg))
+            call diff_apply_hunk(status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_diff_apply_hunk
 
     recursive subroutine cmd_diff_test_hunk(status)
         type(status_type), intent(out) :: status
 
-        call diff_test_hunk(status,.not. nilp(current_prefix_arg))
+        call diff_test_hunk(status, allocated(current_prefix_arg%a))
     end subroutine cmd_diff_test_hunk
 
     recursive subroutine cmd_diff_revert_and_kill_hunk(status)
@@ -2251,9 +2251,9 @@ contains
         call region_args(have, beg, end)
 
         if (have) then
-            call diff_apply_buffer(failures, status, beg, end,.not. nilp(current_prefix_arg))
+            call diff_apply_buffer(failures, status, beg, end, allocated(current_prefix_arg%a))
         else
-            call diff_apply_buffer(failures, status, reverse=.not. nilp(current_prefix_arg))
+            call diff_apply_buffer(failures, status, reverse=allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_diff_apply_buffer
 

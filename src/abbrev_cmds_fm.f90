@@ -26,7 +26,6 @@ submodule(abbrev_fm) abbrev_cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32
     use commands_fm, only: commands
     use error_fm, only: set_error, format_message, FM_GENERIC_ERROR
-    use lisp_fm, only: nilp
     use data_fm, only: add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, erase_buffer, kill_buffer, &
                          restore_buffer_modified, generate_new_buffer_name
@@ -1341,7 +1340,7 @@ contains
     have_exp = .false.
     n = prefix_numeric_value(arg)
 
-    if ((nilp(arg) .and. is_use_region()) .or. n == 0) then
+    if ((.not. allocated(arg%a) .and. is_use_region()) .or. n == 0) then
         call region_beginning(b, status)
         if (status%ok()) call region_end(e, status)
         if (status%ok()) call buffer_substring(b, e, exp, status)
@@ -1617,7 +1616,7 @@ contains
     recursive subroutine cmd_list_abbrevs(status)
         type(status_type), intent(out) :: status
 
-        call list_abbrevs(status, local=.not. nilp(current_prefix_arg))
+        call list_abbrevs(status, local=allocated(current_prefix_arg%a))
     end subroutine cmd_list_abbrevs
 
     recursive subroutine cmd_edit_abbrevs(status)
@@ -1664,7 +1663,7 @@ contains
     recursive subroutine cmd_abbrev_prefix_mark(status)
         type(status_type), intent(out) :: status
 
-        call abbrev_prefix_mark(status, arg=.not. nilp(current_prefix_arg))
+        call abbrev_prefix_mark(status, arg=allocated(current_prefix_arg%a))
     end subroutine cmd_abbrev_prefix_mark
 
     recursive subroutine cmd_expand_region_abbrevs(status)
@@ -1672,7 +1671,7 @@ contains
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
-        if (status%ok()) call expand_region_abbrevs(b, e, status, noquery=.not. nilp(current_prefix_arg))
+        if (status%ok()) call expand_region_abbrevs(b, e, status, noquery=allocated(current_prefix_arg%a))
     end subroutine cmd_expand_region_abbrevs
 
     recursive subroutine cmd_define_global_abbrev(status)

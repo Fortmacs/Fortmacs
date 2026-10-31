@@ -32,7 +32,7 @@ module callint_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: value_type, V_LIST, V_STRING, nsymbols, vtag, nilp, &
+    use lisp_fm, only: value_type, V_ARRAY, V_STRING, nsymbols, vtag, &
                        fixnump, symbolp, consp, xfixnum, xsymbol, symbols, &
                        list_elt
     use lread_fm, only: intern, sym
@@ -99,7 +99,7 @@ contains
         type(command_type), pointer :: p
 
         p => null()
-        if (.not. symbolp(v) .or. nilp(v)) return
+        if (.not. symbolp(v) .or. .not. allocated(v%a)) return
         p => find_command(symbols(xsymbol(v))%name)
     end function symbol_command
 
@@ -165,7 +165,7 @@ contains
         select case (vtag(v))
         case (V_STRING)
             is_command = .true.
-        case (V_LIST)
+        case (V_ARRAY)
             is_command = .true.
         case default
             is_command = is_command_defined(v)
@@ -254,7 +254,7 @@ contains
         type(value_type) :: head
 
         n = 1
-        if (nilp(raw)) return
+        if (.not. allocated(raw%a)) return
 
         if (value_eq(raw, sym("-"))) then
             n = -1

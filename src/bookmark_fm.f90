@@ -66,7 +66,7 @@ module bookmark_fm
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, nilp, t_value
+    use lisp_fm, only: value_type, make_string, make_list, t_value
     use lread_fm, only: sym
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type
@@ -1556,7 +1556,7 @@ contains
     recursive subroutine cmd_bookmark_set(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_set(status, no_overwrite=.not. nilp(current_prefix_arg))
+        call bookmark_set(status, no_overwrite=allocated(current_prefix_arg%a))
     end subroutine cmd_bookmark_set
 
     !> Set a bookmark named NAME at the current location.
@@ -1607,7 +1607,7 @@ contains
     recursive subroutine cmd_bookmark_set_no_overwrite(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_set_no_overwrite(status, push_bookmark=.not. nilp(current_prefix_arg))
+        call bookmark_set_no_overwrite(status, push_bookmark=allocated(current_prefix_arg%a))
     end subroutine cmd_bookmark_set_no_overwrite
 
     !> Kill from point to end of line.
@@ -2462,7 +2462,7 @@ contains
     recursive subroutine cmd_bookmark_delete_all(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_delete_all(status, no_confirm=.not. nilp(current_prefix_arg))
+        call bookmark_delete_all(status, no_confirm=allocated(current_prefix_arg%a))
     end subroutine cmd_bookmark_delete_all
 
     !> Return true if it is time to save bookmarks to disk, false
@@ -2563,8 +2563,8 @@ contains
 
         c_u_c_u = .false.
         arg = current_prefix_arg
-        if (.not. nilp(arg)) c_u_c_u = prefix_is_16(arg)
-        call bookmark_save(status, parg=.not. nilp(arg), make_default=c_u_c_u)
+        if (allocated(arg%a)) c_u_c_u = prefix_is_16(arg)
+        call bookmark_save(status, parg=allocated(arg%a), make_default=c_u_c_u)
     end subroutine cmd_bookmark_save
 
     ! Whether prefix argument ARG is (16), as C-u C-u makes it.  Not a port.
@@ -2831,7 +2831,7 @@ contains
             default = abbreviate_file_name(expand(bookmark_default_file))
         end if
 
-        prefix = .not. nilp(current_prefix_arg)
+        prefix = allocated(current_prefix_arg%a)
         call read_file_name("Load bookmarks from: ("//default//") ", file, status, dir=file_name_directory(default), &
                             default_filename=default, mustmatch=REQUIRE_MATCH_CONFIRM)
         if (.not. status%ok()) return
@@ -3608,7 +3608,7 @@ contains
     recursive subroutine cmd_bookmark_bmenu_unmark(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_bmenu_unmark(status,.not. nilp(current_prefix_arg))
+        call bookmark_bmenu_unmark(status, allocated(current_prefix_arg%a))
     end subroutine cmd_bookmark_bmenu_unmark
 
     !> Move up and cancel all requested operations on bookmark on line

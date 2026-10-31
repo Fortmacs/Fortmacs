@@ -40,7 +40,7 @@ module vc_dir_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, nil, nilp
+    use lisp_fm, only: value_type, t_value
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
@@ -443,7 +443,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
+        if (.not. st%ok()) saved = value_type()
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine bind_inhibit_read_only
 
@@ -2642,7 +2642,7 @@ contains
         if (.not. status%ok()) return
         b = 0
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call read_backend(name, status)
             if (.not. status%ok()) return
             b = vc_backend_named(name)
@@ -2703,14 +2703,14 @@ contains
     recursive subroutine cmd_vc_dir_mark_all_files(status)
         type(status_type), intent(out) :: status
 
-        call vc_dir_mark_all_files(.not. nilp(current_prefix_arg), status)
+        call vc_dir_mark_all_files(allocated(current_prefix_arg%a), status)
     end subroutine cmd_vc_dir_mark_all_files
 
     recursive subroutine cmd_vc_dir_unmark_all_files(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call vc_dir_unmark_all_files(.not. nilp(current_prefix_arg))
+        call vc_dir_unmark_all_files(allocated(current_prefix_arg%a))
     end subroutine cmd_vc_dir_unmark_all_files
 
     recursive subroutine cmd_vc_dir_mark_by_regexp(status)
@@ -2719,13 +2719,13 @@ contains
         character(len=:), allocatable :: regexp
 
         call read_string("Mark files matching: ", regexp, status)
-        if (status%ok()) call vc_dir_mark_by_regexp(regexp,.not. nilp(current_prefix_arg))
+        if (status%ok()) call vc_dir_mark_by_regexp(regexp, allocated(current_prefix_arg%a))
     end subroutine cmd_vc_dir_mark_by_regexp
 
     recursive subroutine cmd_vc_dir_ignore(status)
         type(status_type), intent(out) :: status
 
-        call vc_dir_ignore(.not. nilp(current_prefix_arg), status)
+        call vc_dir_ignore(allocated(current_prefix_arg%a), status)
     end subroutine cmd_vc_dir_ignore
 
     recursive subroutine cmd_vc_dir_hide_up_to_date(status)
@@ -2734,7 +2734,7 @@ contains
 
         status = status_type()
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             ! Command is prefixed.  Infer STATE from point.
             node = ewoc_locate(ew())
 

@@ -207,7 +207,6 @@ contains
     !> crm.el:crm-complete-and-exit (NO_EXIT is the prefix argument).
     recursive subroutine crm_complete_and_exit(status)
         use callint_fm, only: current_prefix_arg
-        use lisp_fm, only: nilp
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end, m, endpos
         type(handle_type) :: endm
@@ -215,7 +214,7 @@ contains
         logical :: more
 
         status = status_type()
-        doexit = nilp(current_prefix_arg)
+        doexit = .not. allocated(current_prefix_arg%a)
         call goto_char(minibuffer_prompt_end())
 
         do

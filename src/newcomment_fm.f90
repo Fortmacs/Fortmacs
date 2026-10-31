@@ -54,7 +54,7 @@ module newcomment_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, consp, fixnump, xfixnum
+    use lisp_fm, only: value_type, consp, fixnump, xfixnum
     use data_fm, only: value_eq, add_local_variables_killer
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, function_setting, forward_setting
@@ -1732,7 +1732,7 @@ contains
     recursive subroutine cmd_comment_set_column(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call comment_set_column(status)
         else if (value_eq(current_prefix_arg, sym("-"))) then
             call comment_set_column(status, minus=.true.)
@@ -1786,7 +1786,7 @@ contains
     recursive subroutine cmd_comment_kill(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call comment_kill(status)
         else
             call comment_kill(status, prefix_numeric_value(current_prefix_arg))
@@ -2007,7 +2007,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(comment_region_proc) :: region_fn
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call region_fn(beg, end, status)
         else if (consp(current_prefix_arg)) then
             call region_fn(beg, end, status, prefix_numeric_value(current_prefix_arg), .true.)
@@ -2907,7 +2907,7 @@ contains
         if (.not. blank) then
             ! FIXME: If there's no comment to kill on this line and ARG is
             ! specified, calling comment-kill is not very clever.
-            if (.not. nilp(current_prefix_arg)) then
+            if (allocated(current_prefix_arg%a)) then
                 if (fixnump(current_prefix_arg)) then
                     call comment_kill(status, xfixnum(current_prefix_arg))
                 else
@@ -2960,7 +2960,7 @@ contains
     !> Otherwise obey `comment_add'.  Port of newcomment.el:comment-add
     !> (ARG is the current prefix argument).
     integer(int64) function comment_add_count() result(n)
-        if (nilp(current_prefix_arg) .and. smatch("[ "//TAB//"]*\'", cstart()) == 1) then
+        if (.not. allocated(current_prefix_arg%a) .and. smatch("[ "//TAB//"]*\'", cstart()) == 1) then
             n = comment_add%value
         else
             n = prefix_numeric_value(current_prefix_arg) - 1

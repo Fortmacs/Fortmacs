@@ -34,7 +34,7 @@ module indent_fm
     use category_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nilp, consp, stringp, xstring, fixnump, xfixnum, list_elements
+    use lisp_fm, only: value_type, consp, stringp, xstring, fixnump, xfixnum, list_elements
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
@@ -667,7 +667,7 @@ contains
         width = -1
         endpos = pos
         call get_char_property_and_overlay(pos, sym("display"), val, overlay)
-        if (nilp(val)) return
+        if (.not. allocated(val%a)) return
 
         if (consp(val)) then
             call list_elements(val, elts)

@@ -35,6 +35,7 @@
 !> `compare_buffer_substrings' (they need case tables, intervals or undo).
 module editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
     use handle_fm, only: handle_type
@@ -50,7 +51,7 @@ module editfns_fm
     use insdel_fm, only: insert, del_range, del_range_1, modify_text, signal_after_change
     use undo_fm, only: record_delete, record_insert
     use search_fm, only: scan_newline_from_point, find_before_next_newline, find_newline
-    use lisp_fm, only: value_type, nilp, nil
+    use lisp_fm, only: value_type
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use textprop_fm, only: get_text_property, text_property_stickiness, &
@@ -1055,7 +1056,7 @@ contains
         else if (stickiness < 0 .and. position > buffers(cur)%begv) then
             v = char_property(position - 1, prop)
         else
-            v = nil()
+            v = value_type()
         end if
     end function get_pos_property
 
@@ -1091,7 +1092,7 @@ contains
 
             ! A nil field between non-nil ones is a field not meant for
             ! editing (like a prompt), not a zero-length field.
-            if (nilp(field) .and. at_field_start .and. at_field_end) then
+            if (.not. allocated(field%a) .and. at_field_start .and. at_field_end) then
                 at_field_end = .false.
                 at_field_start = .false.
             end if
@@ -1180,13 +1181,13 @@ contains
         pos = new_pos
         if (inhibit_field_text_motion .or. new_pos == old_pos) return
 
-        if (nilp(char_property(new_pos, qfield())) .and. nilp(char_property(old_pos, qfield()))) then
+        if (vtag(char_property(new_pos, qfield())) == V_NULL .and. vtag(char_property(old_pos, qfield())) == V_NULL) then
             ! hazard-ok(short-circuit): char_property() takes any position.
             if (.not. (new_pos > buffers(cur)%begv .and. &
-                       .not. nilp(char_property(new_pos - 1, qfield())))) then
+                       vtag(char_property(new_pos - 1, qfield())) /= V_NULL)) then
                 ! hazard-ok(short-circuit): char_property() takes any position.
                 if (.not. (old_pos > buffers(cur)%begv .and. &
-                           .not. nilp(char_property(old_pos - 1, qfield())))) return
+                           vtag(char_property(old_pos - 1, qfield())) /= V_NULL)) return
             end if
         end if
 

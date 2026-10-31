@@ -25,7 +25,7 @@
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use lisp_fm, only: value_type, fixnump, xfixnum, nil, nilp, listp, make_string, cons, list_length, list_elt, &
+    use lisp_fm, only: value_type, fixnump, xfixnum, listp, make_string, cons, list_length, list_elt, &
                        make_keymap_ref, symbolp, xsymbol, symbols, &
                        list_elements, make_list, stringp, xstring, t_value
     use lread_fm, only: sym
@@ -795,7 +795,7 @@ contains
 
             if (fixnump(prop)) then
                 limit = int(xfixnum(prop))
-            else if (.not. nilp(prop)) then
+            else if (allocated(prop%a)) then
                 ! A non-integer MAXELT: no truncation.
                 limited = .false.
             end if
@@ -861,7 +861,7 @@ contains
         call message(key_description(this_command_keys)//" is undefined")
         ! If this is a down-mouse event, don't reset prefix-arg; pass it to
         ! the command run by the up event.
-        prefix_arg = nil()
+        prefix_arg = value_type()
     end subroutine undefined
 
     !> (defvar NAME nil): give the variable NAME the value nil unless it
@@ -872,7 +872,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym(name), v, st)
-        if (.not. st%ok()) call set(sym(name), nil(), st)
+        if (.not. st%ok()) call set(sym(name), value_type(), st)
     end subroutine defvar_nil
 
     !> Give KEY a global binding as COMMAND.

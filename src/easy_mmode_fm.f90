@@ -32,7 +32,7 @@ module easy_mmode_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, t_value, make_keymap_ref, symbols
+    use lisp_fm, only: value_type, t_value, make_keymap_ref, symbols
     use lread_fm, only: sym, intern
     use data_fm, only: set, set_default, symbol_value, make_variable_buffer_local, buffer_local_value, logical_setting, &
                        default_value
@@ -608,7 +608,7 @@ contains
             on = self%state%value
         else if (b > 0) then
             call buffer_local_value(sym(state_name(self)), b, v, st)
-            on = st%ok() .and. .not. nilp(v)
+            on = st%ok() .and. allocated(v%a)
         end if
     end function minor_mode_enabled_in
 
@@ -622,11 +622,11 @@ contains
             on = self%getter()
         else if (len_trim(self%variable) > 0) then
             call symbol_value(sym(trim(self%variable)), v, st)
-            on = st%ok() .and. .not. nilp(v)
+            on = st%ok() .and. allocated(v%a)
         else if (self%global .and. self%state%local_p()) then
             ! A global mode's state is its default value.
             call default_value(sym(trim(self%name)), v, st)
-            on = st%ok() .and. .not. nilp(v)
+            on = st%ok() .and. allocated(v%a)
         else
             on = self%state%value
         end if
@@ -759,7 +759,7 @@ contains
         if (b) then
             v = t_value()
         else
-            v = nil()
+            v = value_type()
         end if
     end function bool
 
@@ -808,7 +808,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: enable
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             enable = .not. self%enabled()
         else
             enable = prefix_numeric_value(current_prefix_arg) >= 1

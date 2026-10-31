@@ -44,9 +44,10 @@
 !> and directory-local variables.
 module log_view_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, nil, nilp, make_string, stringp, xstring
+    use lisp_fm, only: value_type, t_value, make_string, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use eval_fm, only: hook_type
@@ -647,7 +648,7 @@ contains
         call log_view_current_entry(beg, tag, found)
 
         if (found) then
-            if (.not. nilp(get_char_property(beg, sym("log_view_self")))) then
+            if (vtag(get_char_property(beg, sym("log_view_self"))) /= V_NULL) then
                 call log_view_unmark_entry(1_int64, status)
             else
                 call log_view_mark_entry(1_int64, status)
@@ -784,10 +785,10 @@ contains
             opoint = point()
             call goto_char(beg)
 
-            if (nilp(get_char_property(beg, sym("log_view_self")))) then
+            if (vtag(get_char_property(beg, sym("log_view_self"))) == V_NULL) then
                 call get_text_property(beg, sym("log_view_entry_expanded"), expanded, st)
 
-                if (.not. nilp(expanded)) then
+                if (allocated(expanded%a)) then
                     call next_single_property_change(beg, sym("log_view_comment"), end, found, st)
                     if (.not. found) end = point_max()
                 else
@@ -837,7 +838,7 @@ contains
 
         if (found) then
             call get_char_property_and_overlay(beg, sym("log_view_self"), v, ov)
-            if (.not. nilp(v) .and. ov%index /= 0) call delete_overlay(ov)
+            if (allocated(v%a) .and. ov%index /= 0) call delete_overlay(ov)
         end if
 
         call log_view_msg_next(status, 1_int64)
@@ -872,7 +873,7 @@ contains
             pos = next
             call get_char_property_and_overlay(pos, sym("log_view_self"), v, ov)
 
-            if (.not. nilp(v) .and. ov%index /= 0) then
+            if (allocated(v%a) .and. ov%index /= 0) then
                 tag = overlay_get(ov, "log_view_marked")
                 ! (push ...): the last found comes first.
                 n = size(marked)
@@ -913,7 +914,7 @@ contains
         call bind_inhibit_read_only(saved)
         call get_text_property(beg, sym("log_view_entry_expanded"), expanded, status)
 
-        if (.not. nilp(expanded)) then
+        if (allocated(expanded%a)) then
             ! If the entry is expanded, collapse it.
             call next_single_property_change(beg, sym("log_view_comment"), pos, found, status)
             has = found
@@ -925,7 +926,7 @@ contains
                 call next_single_property_change(pos, sym("log_view_comment"), last, found, status)
                 if (.not. found) last = point_max()
                 call delete_region(pos, last, status)
-                if (status%ok()) call put_text_property(beg, beg + 1, sym("log_view_entry_expanded"), nil(), status)
+                if (status%ok()) call put_text_property(beg, beg + 1, sym("log_view_entry_expanded"), value_type(), status)
                 if (opoint < pos) call goto_char(opoint)
             end if
         else
@@ -985,7 +986,7 @@ contains
 
         if (found) then
             call get_text_property(beg, sym("log_view_entry_expanded"), expanded, st)
-            if (nilp(expanded)) call log_view_toggle_entry_display(status)
+            if (.not. allocated(expanded%a)) call log_view_toggle_entry_display(status)
             if (.not. status%ok()) return
         end if
 
@@ -1331,7 +1332,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
+        if (.not. st%ok()) saved = value_type()
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine bind_inhibit_read_only
 

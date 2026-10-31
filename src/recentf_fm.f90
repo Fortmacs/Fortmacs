@@ -49,7 +49,7 @@ module recentf_fm
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, nilp
+    use lisp_fm, only: value_type, make_string, make_list
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use eval_fm, only: hook_type
@@ -740,7 +740,7 @@ contains
 
         if (.not. recentf_initialize_file_name_history) return
         call symbol_value(sym("file_name_history"), history, st)
-        if (.not. nilp(history)) return
+        if (allocated(history%a)) return
         allocate (names(size(recentf_list)))
 
         do k = 1, size(recentf_list)

@@ -35,7 +35,7 @@ module paren_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, fixnump, xfixnum
+    use lisp_fm, only: value_type, make_fixnum, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: is_local_variable, kill_local_variable, default_value, set_default, make_local_variable, &
                        symbol_value, set, add_local_variables_killer
@@ -354,16 +354,16 @@ contains
         call minor_modes%show_paren_mode%state%set_local(val)
         call default_value(sym("show_paren_mode"), default, st)
 
-        if (minor_modes%show_paren_mode%state%value .eqv. .not. nilp(default)) then
+        if (minor_modes%show_paren_mode%state%value .eqv. allocated(default%a)) then
             if (.not. minor_modes%show_paren_mode%state%value) then
                 call show_paren_delete_overlays()
                 call kill_local_variable(sym("show_paren_mode"), st)
             end if
-        else if (nilp(default)) then
+        else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             call minor_modes%show_paren_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("show_paren_mode"), nil(), st)
+            call set_default(sym("show_paren_mode"), value_type(), st)
         else
             ! Locally disabled only.
             call show_paren_delete_overlays()

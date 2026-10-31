@@ -29,7 +29,7 @@
 module dired_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: value_type, make_string, make_list, nil, t_value
+    use lisp_fm, only: value_type, make_string, make_list, t_value
     use fileio_fm, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
                          is_file_directory, file_attributes, file_stat_type
     use minibuf_fm, only: completion_ignore_case, completion_predicate
@@ -87,7 +87,7 @@ contains
         integer :: n, k, j, key
         logical :: absolute, sorted
 
-        files = nil()
+        files = value_type()
 
         if (present(count)) then
             if (count < 0) then
@@ -245,7 +245,7 @@ contains
         integer :: k, matchcount, nall
         logical :: directoryp, canexclude, includeall, have_best
 
-        result = nil()
+        result = value_type()
         call expand_file_name(dirname, dir, status)
         if (.not. status%ok()) return
         dir = file_name_as_directory(dir)

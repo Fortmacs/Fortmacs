@@ -27,12 +27,12 @@
 !> from their forms).
 module test_python_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
-    use lisp_fm, only: nil
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                           line_end_position
     use simple_fm, only: back_to_indentation, line_number_at_pos
@@ -3872,7 +3872,7 @@ contains
         call python_info_current_definition(name)
         call check(error,.not. (allocated(name)), "(not (python-info-current-defun))")
         if (allocated(error)) return
-        call indent_for_tab_command(nil(), st)
+        call indent_for_tab_command(value_type(), st)
         call python_info_current_definition(name)
         call check(error, name_is(name, "foo"), "(string= 'foo' (python-info-current-defun))")
         if (allocated(error)) return

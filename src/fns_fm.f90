@@ -24,13 +24,14 @@
 !> default is `eq' (data_fm:value_eq), as upstream.
 module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: V_NULL
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
     use print_fm, only: fortran_string
     use character_fm, only: multibyte_chars_in_text, string_char_and_length
     use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
-                       make_list, symbols, v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, &
-                       v_string, v_symbol, v_syntax_table, v_window, value_type, vtag, xsymbol
+                       make_list, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
+                       v_string, V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol
     use lread_fm, only: ensure_obarray
     use data_fm, only: value_eq, check_symbol
     use marker_fm, only: markers, resolve_marker
@@ -107,7 +108,7 @@ contains
         eq = .false.
         if (vtag(a) /= vtag(b)) return
 
-        if (vtag(a) == V_NIL) then
+        if (vtag(a) == V_NULL) then
             eq = .true.
             return
         end if
@@ -142,9 +143,9 @@ contains
         if (x%tag /= y%tag) return
 
         select case (x%tag)
-        case (V_NIL)
+        case (V_NULL)
             eq = .true.
-        case (V_INT, V_SYMBOL, V_LIST)
+        case (V_INTEGER, V_NAME, V_ARRAY)
             eq = x%i == y%i
         case (V_STRING)
             eq = len(x%s) == len(y%s)
@@ -180,9 +181,9 @@ contains
         n = 0
 
         select case (vtag(sequence))
-        case (V_NIL)
+        case (V_NULL)
             n = 0
-        case (V_LIST)
+        case (V_ARRAY)
             n = list_length(sequence)
         case (V_STRING)
             call multibyte_chars_in_text(sequence%a(1)%s, n, st)
@@ -200,8 +201,8 @@ contains
         type(status_type), intent(out) :: status
 
         select case (vtag(list))
-        case (V_NIL)
-        case (V_LIST)
+        case (V_NULL)
+        case (V_ARRAY)
             v = list_elt(list, max(n, 0_int64) + 1)
         case default
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
@@ -221,8 +222,8 @@ contains
         end if
 
         select case (vtag(list))
-        case (V_NIL)
-        case (V_LIST)
+        case (V_NULL)
+        case (V_ARRAY)
             v = list_tail(list, n)
         case default
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
@@ -276,7 +277,7 @@ contains
         select case (vtag(v))
         case (V_STRING)
             text = v%a(1)%s
-        case (V_SYMBOL, V_NIL)
+        case (V_NAME, V_NULL)
             call ensure_obarray()
             text = symbols(xsymbol(v))%name
         case default

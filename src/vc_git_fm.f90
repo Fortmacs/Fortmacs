@@ -42,7 +42,7 @@ module vc_git_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_list, fixnump, xfixnum
+    use lisp_fm, only: value_type, t_value, make_string, make_list, fixnump, xfixnum
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, kill_buffer, &
                          generate_new_buffer_name, erase_buffer, is_buffer_live
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, is_bol, is_bob, pos_eol, &

@@ -35,7 +35,7 @@ module test_diff_mode_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, consp, nilp, symbolp, xsymbol, symbols, list_elements
+    use lisp_fm, only: value_type, consp, symbolp, xsymbol, symbols, list_elements
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, current_buffer, &
                          get_buffer, get_file_buffer, is_buffer_live, restore_buffer_modified
@@ -332,7 +332,7 @@ contains
             v = elts(1)
         end if
 
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function face_at
 

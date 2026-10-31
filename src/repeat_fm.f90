@@ -36,8 +36,8 @@ module repeat_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, command_type, defined_command, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, V_INT, V_SYMBOL, &
-                       nil, nilp, vtag, symbols, xsymbol, xfixnum, make_fixnum, make_keymap_ref
+    use lisp_fm, only: value_type, command_type, defined_command, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, V_INTEGER, V_NAME, &
+                       vtag, symbols, xsymbol, xfixnum, make_fixnum, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use eval_fm, only: hook_type, hook_current_prefix_arg
@@ -180,7 +180,7 @@ contains
         character(len=:), allocatable :: name
 
         p => null()
-        if (vtag(v) /= V_SYMBOL .or. nilp(v)) return
+        if (vtag(v) /= V_NAME .or. .not. allocated(v%a)) return
         name = trim(symbols(xsymbol(v))%name)
         p => defined_command(name)
         if (.not. associated(p)) p => builtin_command(name)
@@ -192,7 +192,7 @@ contains
         character(len=:), allocatable :: name
 
         name = ""
-        if (vtag(v) == V_SYMBOL) name = trim(symbols(xsymbol(v))%name)
+        if (vtag(v) == V_NAME) name = trim(symbols(xsymbol(v))%name)
     end function name_of
 
     !> Repeat most recently executed command.
@@ -223,7 +223,7 @@ contains
         if (value_eq(last_repeatable_command, sym("repeat"))) last_repeatable_command = repeat_previous_repeated_command
         name = name_of(last_repeatable_command)
 
-        if (nilp(last_repeatable_command)) then
+        if (.not. allocated(last_repeatable_command%a)) then
             call set_error(status, FM_GENERIC_ERROR, "There is nothing to repeat")
             return
         else if (name == "mode_exit") then
@@ -240,11 +240,11 @@ contains
         this_command = last_repeatable_command
         repeat_previous_repeated_command = last_repeatable_command
         repeat_num_input_keys_at_repeat = num_input_keys
-        if (nilp(repeat_arg)) repeat_arg = last_prefix_arg
-        repeat_repeat_char = nil()
+        if (.not. allocated(repeat_arg%a)) repeat_arg = last_prefix_arg
+        repeat_repeat_char = value_type()
         if (repeat_on_final_keystroke) repeat_repeat_char = last_command_event
 
-        if (nilp(repeat_arg)) then
+        if (.not. allocated(repeat_arg%a)) then
             call repeat_message("Repeating command "//name)
         else
             current_prefix_arg = repeat_arg
@@ -257,14 +257,14 @@ contains
             if (found) then
                 last_command_event = make_fixnum(int(c, int64))
             else
-                last_command_event = nil()
+                last_command_event = value_type()
             end if
         end if
 
         call call_interactively(last_repeatable_command, status)
         if (.not. status%ok()) return
 
-        if (.not. nilp(repeat_repeat_char)) then
+        if (allocated(repeat_repeat_char%a)) then
             if (is_keymap_live(final_key_map)) call free_keymap(final_key_map, st)
             call make_sparse_keymap(final_key_map)
             key(1) = repeat_repeat_char
@@ -279,10 +279,10 @@ contains
         character(len=:), allocatable :: text
         character(len=24) :: buf
 
-        if (vtag(arg) == V_INT) then
+        if (vtag(arg) == V_INTEGER) then
             write (buf, "(i0)") xfixnum(arg)
             text = trim(buf)
-        else if (vtag(arg) == V_SYMBOL) then
+        else if (vtag(arg) == V_NAME) then
             text = name_of(arg)
         else
             ! (4), (16) ...: a list of one number.
@@ -454,7 +454,7 @@ contains
         character(len=:), allocatable :: base
         integer(int64) :: c, bits
 
-        if (vtag(ev) == V_INT) then
+        if (vtag(ev) == V_INTEGER) then
             c = iand(xfixnum(ev), int(not(CHAR_MODIFIER_MASK), int64))
 
             if (c < 32) then
@@ -464,7 +464,7 @@ contains
             end if
 
             basic = make_fixnum(c)
-        else if (vtag(ev) == V_SYMBOL) then
+        else if (vtag(ev) == V_NAME) then
             call parse_modifiers(ev, bits, base)
             basic = sym(base)
         else
@@ -499,11 +499,11 @@ contains
         if (ok) return
         keys(1) = key
         call lookup_key(make_keymap_ref(map), keys, binding, st)
-        ok = st%ok() .and. .not. nilp(binding) .and. vtag(binding) /= V_INT
+        ok = st%ok() .and. allocated(binding%a) .and. vtag(binding) /= V_INTEGER
         if (ok) return
         keys(1) = event_basic_type(key)
         call lookup_key(make_keymap_ref(map), keys, binding, st)
-        ok = st%ok() .and. .not. nilp(binding) .and. vtag(binding) /= V_INT
+        ok = st%ok() .and. allocated(binding%a) .and. vtag(binding) /= V_INTEGER
     end function is_repeat_check_key
 
     !> Decide whether MAP can be used for the next command.  Port of
@@ -532,7 +532,7 @@ contains
         if (.not. (minor_modes%repeat_mode%enabled() .and. repeat_keep_prefix)) return
         if (.not. is_keymap_live(repeat_in_progress)) return
         ! The command's `current_prefix_arg' (a hook function sees nil).
-        if (.not. nilp(prefix_arg) .or. nilp(hook_current_prefix_arg)) return
+        if (allocated(prefix_arg%a) .or. .not. allocated(hook_current_prefix_arg%a)) return
         map = repeat_get_map_sym()
 
         if (repeat_check_map(map)) then
@@ -651,7 +651,7 @@ contains
 
             do k = 1, size(events)
                 binding = access_keymap(make_keymap_ref(map), events(k), .false., .false.)
-                if (nilp(binding)) cycle
+                if (.not. allocated(binding%a)) cycle
                 key = [pre, events(k)]
 
                 if (is_keymap(binding)) then
@@ -665,11 +665,11 @@ contains
 
                 if (associated(p)) then
                     if (allocated(p%repeat_hint)) then
-                        if (size(key) == 1 .and. vtag(last) == V_INT) then
+                        if (size(key) == 1 .and. vtag(last) == V_INTEGER) then
                             choice%key = int(xfixnum(last))
                             choice%name = p%repeat_hint
                             part = rmc_add_key_description(choice)
-                        else if (vtag(event_basic_type(last)) == V_INT) then
+                        else if (vtag(event_basic_type(last)) == V_INTEGER) then
                             choice%key = int(xfixnum(event_basic_type(last)))
                             choice%name = p%repeat_hint
                             part = key_description(key)//" ("//rmc_add_key_description(choice)//")"

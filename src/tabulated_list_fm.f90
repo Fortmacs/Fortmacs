@@ -45,7 +45,7 @@ module tabulated_list_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_fixnum, make_list, nilp, stringp, fixnump, xstring, xfixnum, &
+    use lisp_fm, only: value_type, make_string, make_fixnum, make_list, stringp, fixnump, xstring, xfixnum, &
                        t_value, string_intervals
     use lread_fm, only: sym
     use data_fm, only: add_local_variables_killer
@@ -571,7 +571,7 @@ contains
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
-        if (.not. nilp(plist)) call add_text_properties(beg, point(), plist, changed, status)
+        if (allocated(plist%a)) call add_text_properties(beg, point(), plist, changed, status)
     end subroutine insert_inheriting
 
     !> Clear all tags from the padding area in the current buffer.  Port of
@@ -1250,7 +1250,7 @@ contains
         call string_intervals(v, starts, ends, plists)
 
         do k = 1, size(starts)
-            if (nilp(plists(k))) cycle
+            if (.not. allocated(plists(k)%a)) cycle
             call add_text_properties(beg + starts(k), beg + ends(k), plists(k), changed, status)
             if (.not. status%ok()) return
         end do
@@ -1468,7 +1468,7 @@ contains
     recursive subroutine cmd_tabulated_list_sort(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call tabulated_list_sort(status)
         else
             call tabulated_list_sort(status, int(prefix_numeric_value(current_prefix_arg)))

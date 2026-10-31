@@ -35,7 +35,7 @@ module diff_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, t_value, nilp, fixnump, xfixnum, make_string, list
+    use lisp_fm, only: value_type, t_value, fixnump, xfixnum, make_string, list
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live, &
@@ -128,7 +128,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        given = .not. nilp(current_prefix_arg)
+        given = allocated(current_prefix_arg%a)
         if (given) call read_string("Diff switches: ", switches, status, initial=diff_switches)
     end subroutine read_diff_switches
 

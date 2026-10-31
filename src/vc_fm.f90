@@ -47,7 +47,7 @@ module vc_fm
     use error_fm, only: status_type, set_error, format_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_VC_NOT_SUPPORTED, FM_FILE_ALREADY_EXISTS
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, make_string, make_list, nilp
+    use lisp_fm, only: value_type, make_string, make_list
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
@@ -1334,7 +1334,7 @@ contains
         end do
 
         call symbol_value(sym("completion_ignore_case"), saved, st)
-        call set(sym("completion_ignore_case"), nil(), st)
+        call set(sym("completion_ignore_case"), value_type(), st)
         call completing_read(prompt, completion_list_table(make_list(names)), answer, status, &
                              require_match=REQUIRE_MATCH_YES)
         call set(sym("completion_ignore_case"), saved, st)
@@ -3510,7 +3510,7 @@ contains
     recursive subroutine cmd_vc_next_action(status)
         type(status_type), intent(out) :: status
 
-        call vc_next_action(.not. nilp(current_prefix_arg), status)
+        call vc_next_action(allocated(current_prefix_arg%a), status)
     end subroutine cmd_vc_next_action
 
     recursive subroutine cmd_vc_register(status)
@@ -3541,13 +3541,13 @@ contains
             if (is_file_in_directory(file, rel_dir)) file = file_relative_name(file, rel_dir)
         end if
 
-        call vc_ignore(file, status, rel_dir,.not. nilp(current_prefix_arg))
+        call vc_ignore(file, status, rel_dir, allocated(current_prefix_arg%a))
     end subroutine cmd_vc_ignore
 
     recursive subroutine cmd_vc_diff(status)
         type(status_type), intent(out) :: status
 
-        call vc_diff(status,.not. nilp(current_prefix_arg), .true., interactive=.true.)
+        call vc_diff(status, allocated(current_prefix_arg%a), .true., interactive=.true.)
     end subroutine cmd_vc_diff
 
     recursive subroutine cmd_vc_version_diff(status)
@@ -3586,7 +3586,7 @@ contains
     recursive subroutine cmd_vc_root_diff(status)
         type(status_type), intent(out) :: status
 
-        call vc_root_diff(.not. nilp(current_prefix_arg), status, .true., .true.)
+        call vc_root_diff(allocated(current_prefix_arg%a), status, .true., .true.)
     end subroutine cmd_vc_root_diff
 
     recursive subroutine cmd_vc_revision_other_window(status)

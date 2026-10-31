@@ -32,7 +32,7 @@ module auth_source_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, make_string, list
+    use lisp_fm, only: make_string, list
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, erase_buffer
     use editfns_fm, only: buffer_size

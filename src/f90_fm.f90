@@ -42,7 +42,7 @@ module f90_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, consp, command_proc
+    use lisp_fm, only: value_type, consp, command_proc
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -2531,7 +2531,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_indent_line(status,.not. nilp(current_prefix_arg))
+        if (status%ok()) call f90_indent_line(status, allocated(current_prefix_arg%a))
     end subroutine cmd_f90_indent_line
 
     !> Re-indent current line, insert a newline and indent the newline.
@@ -2916,7 +2916,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_break_line(status,.not. nilp(current_prefix_arg))
+        if (status%ok()) call f90_break_line(status, allocated(current_prefix_arg%a))
     end subroutine cmd_f90_break_line
 
     !> From `fill_column', search backward for break-delimiter.  Port of
@@ -3022,7 +3022,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_join_lines(status,.not. nilp(current_prefix_arg))
+        if (status%ok()) call f90_join_lines(status, allocated(current_prefix_arg%a))
     end subroutine cmd_f90_join_lines
 
     !> Fill every line in region by forward parsing.  Join lines if possible.
@@ -3140,7 +3140,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call f90_fill_paragraph(status, done)
         else
             call f90_fill_paragraph(status, done, JUSTIFY_FULL)

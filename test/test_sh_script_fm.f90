@@ -27,7 +27,7 @@ module test_sh_script_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, consp, symbolp, symbols, xsymbol, list_elements
+    use lisp_fm, only: value_type, consp, symbolp, symbols, xsymbol, list_elements
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
@@ -130,7 +130,7 @@ contains
 
             call goto_char(point_min())
             shortage = forward_line(1_int64)
-            call indent_for_tab_command(nil(), st)
+            call indent_for_tab_command(value_type(), st)
             call check(error, buffer_string(), "relative-path/to/configure --prefix=$prefix\"//LF// &
                        TAB//TAB//TAB//"   --with-x")
         end block checks
@@ -284,7 +284,7 @@ contains
             v = elts(1)
         end if
 
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function face
 

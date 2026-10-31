@@ -35,8 +35,9 @@
 !> buffers.
 module jit_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use error_fm, only: status_type
-    use lisp_fm, only: nil, t_value
+    use lisp_fm, only: t_value
     use data_fm, only: add_local_variables_killer
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
@@ -236,7 +237,7 @@ contains
         if (present(beg)) b = beg
         e = point_max()
         if (present(end)) e = end
-        call put_text_property(b, e, sym("fontified"), nil(), status)
+        call put_text_property(b, e, sym("fontified"), value_type(), status)
         call narrow_to_region(begv, zv, status)
         call silent_modifications_end(silent)
     end subroutine jit_lock_refontify
@@ -362,7 +363,7 @@ contains
             end if
 
             ! Find the start of the next chunk, if any.
-            call text_property_any(start, end, sym("fontified"), nil(), pos, found, st)
+            call text_property_any(start, end, sym("fontified"), value_type(), pos, found, st)
             start = pos
         end do
 
@@ -401,7 +402,7 @@ contains
             begv = buffers(cur)%begv
             zv = buffers(cur)%zv
             call widen()
-            call put_text_property(jit_lock_start, jit_lock_end, sym("fontified"), nil(), status)
+            call put_text_property(jit_lock_start, jit_lock_end, sym("fontified"), value_type(), status)
             call narrow_to_region(begv, zv, status)
         end if
 

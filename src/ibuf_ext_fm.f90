@@ -645,7 +645,7 @@ contains
 
         status = status_type()
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call ibuffer_forward_filter_group()
         else
             call ibuffer_forward_filter_group(prefix_numeric_value(current_prefix_arg))
@@ -691,7 +691,7 @@ contains
 
         status = status_type()
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call ibuffer_backward_filter_group()
         else
             call ibuffer_backward_filter_group(prefix_numeric_value(current_prefix_arg))
@@ -1578,7 +1578,7 @@ contains
         integer :: k
 
         only_visible = ibuffer_jump_offer_only_visible_buffers
-        if (.not. nilp(current_prefix_arg)) only_visible = .not. only_visible
+        if (allocated(current_prefix_arg%a)) only_visible = .not. only_visible
 
         if (only_visible) then
             call ibuffer_current_state_list(states, status)
@@ -2084,7 +2084,7 @@ contains
         character(len=:), allocatable :: regexp
 
         call read_from_minibuffer("Mark by content (regexp): ", regexp, status)
-        if (status%ok()) call ibuffer_mark_by_content_regexp(regexp, status,.not. nilp(current_prefix_arg))
+        if (status%ok()) call ibuffer_mark_by_content_regexp(regexp, status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_mark_by_content_regexp
 
     !> Mark all buffers whose major mode equals MODE.  Port of
@@ -2888,7 +2888,7 @@ contains
     recursive subroutine cmd_ibuffer_or_filter(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_or_filter(status,.not. nilp(current_prefix_arg))
+        call ibuffer_or_filter(status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_or_filter
 
     module procedure ibuffer_and_filter
@@ -2902,7 +2902,7 @@ contains
     recursive subroutine cmd_ibuffer_and_filter(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_and_filter(status,.not. nilp(current_prefix_arg))
+        call ibuffer_and_filter(status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_and_filter
 
     ! ------------------------------------------------------------------
@@ -3268,7 +3268,7 @@ contains
 
         if (found) then
             call ibuffer_kill_filter_group(it, status)
-        else if (nilp(current_prefix_arg)) then
+        else if (.not. allocated(current_prefix_arg%a)) then
             call simple_kill_line(1_int64, .false., status)
         else
             call simple_kill_line(prefix_numeric_value(current_prefix_arg), .true., status)
@@ -3875,7 +3875,7 @@ contains
         ! a sequence.
         call where_is_internal(sym(command), keys, .true., ibuffer_mode_map)
 
-        if (.not. nilp(keys)) then
+        if (allocated(keys%a)) then
             call list_elements(keys, events)
 
             if (size(events) > 0) then

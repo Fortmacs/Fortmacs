@@ -65,9 +65,10 @@
 !> after C-u (an error says so); coding systems.
 module comint_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, &
+    use lisp_fm, only: value_type, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, &
                        command_proc
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, value_eq, &
@@ -1091,7 +1092,7 @@ contains
 
         symbol_is = .false.
         if (.not. symbolp(v)) return
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         symbol_is = symbols(xsymbol(v))%name == name
     end function symbol_is
 
@@ -2619,10 +2620,10 @@ contains
         if (start > point_min()) then
             call get_text_property(start - 1, sym("comint_must_overwrite"), v, st)
 
-            if (.not. nilp(v)) then
+            if (allocated(v%a)) then
                 call copy_marker_at(point(), delete_end, .false., st)
                 have_delete_end = .true.
-                call remove_text_properties(lbeg, start, list(sym("comint_must_overwrite"), nil()), changed, st)
+                call remove_text_properties(lbeg, start, list(sym("comint_must_overwrite"), value_type()), changed, st)
             end if
         end if
 
@@ -2774,8 +2775,8 @@ contains
 
                 if (point_min() /= prompt_start) then
                     call get_text_property(prompt_start - 1, sym("read_only"), v, st)
-                    if (nilp(v)) call put_text_property(prompt_start - 1, prompt_start, sym("read_only"), &
-                                                        sym("fence"), st)
+                    if (.not. allocated(v%a)) call put_text_property(prompt_start - 1, prompt_start, sym("read_only"), &
+                                                                     sym("fence"), st)
                 end if
 
                 call add_text_properties(prompt_start, point(), list(sym("read_only"), t_value(), sym("front_sticky"), &
@@ -3079,14 +3080,14 @@ contains
         integer(int64) :: bof, start, end
 
         status = status_type()
-        field_prop = nil()
+        field_prop = value_type()
 
         if (.not. comint_use_prompt_regexp%value) then
             bof = field_beginning(point(), .false.)
             field_prop = field_at(bof)
 
             ! Make sure we're in an input rather than output field.
-            if (nilp(field_prop)) then
+            if (.not. allocated(field_prop%a)) then
                 input = field_string(bof)
                 return
             end if
@@ -3264,7 +3265,7 @@ contains
     recursive subroutine cmd_comint_delete_output(status)
         type(status_type), intent(out) :: status
 
-        call comint_delete_output(status,.not. nilp(current_prefix_arg))
+        call comint_delete_output(status, allocated(current_prefix_arg%a))
     end subroutine cmd_comint_delete_output
 
     !> Write output from interpreter since last input to FILENAME.
@@ -3311,7 +3312,7 @@ contains
         character(len=:), allocatable :: file
         logical :: append
 
-        append = .not. nilp(current_prefix_arg)
+        append = allocated(current_prefix_arg%a)
 
         if (append) then
             call read_file_name("Append output to file: ", file, status)
@@ -3459,7 +3460,7 @@ contains
             call lookup_key(make_keymap_ref(current_global_map()), this_command_keys, cmd, status)
             if (.not. status%ok()) return
             call command_remapping(cmd, remap)
-            if (.not. nilp(remap)) cmd = remap
+            if (allocated(remap%a)) cmd = remap
             call call_interactively(cmd, status)
         end if
     end subroutine comint_delchar_or_maybe_eof
@@ -3527,7 +3528,7 @@ contains
                 end if
 
                 f = field_at(point())
-                if (nilp(f)) n = n - dir
+                if (.not. allocated(f%a)) n = n - dir
             end do
 
             pos = field_beginning(point(), .false.)
@@ -3610,7 +3611,7 @@ contains
 
                     ! Stop iterating.
                     n = 0
-                else if (nilp(field_at(pos))) then
+                else if (vtag(field_at(pos)) == V_NULL) then
                     if (n < 0) then
                         n = n + 1
                     else
@@ -3666,11 +3667,11 @@ contains
         call get_text_property(pt, sym("read_only"), ro, st)
         call silent_modifications_begin(silent)
         sticky = .false.
-        if (.not. nilp(ro)) sticky = front_sticky_read_only(lst)
+        if (allocated(ro%a)) sticky = front_sticky_read_only(lst)
         call get_text_property(pt - 1, sym("read_only"), prev_ro, st)
 
         if (sticky) then
-            if (nilp(prev_ro)) call put_text_property(pt - 1, pt, sym("read_only"), sym("fence"), st)
+            if (.not. allocated(prev_ro%a)) call put_text_property(pt - 1, pt, sym("read_only"), sym("fence"), st)
         else if (symbol_is(prev_ro, "fence")) then
             call remove_list_of_text_properties(pt - 1, pt, list(sym("read_only")), changed, st)
         end if
@@ -3685,7 +3686,7 @@ contains
         type(value_type), allocatable :: elts(:)
         integer :: i
 
-        if (nilp(lst)) then
+        if (.not. allocated(lst%a)) then
             yes = .false.
         else if (consp(lst)) then
             yes = .false.
@@ -3751,13 +3752,13 @@ contains
         call get_text_property(true_beg, sym("front_sticky"), lst, st)
         call get_text_property(true_beg, sym("read_only"), ro, st)
         beg_bad = .false.
-        if (.not. nilp(ro)) beg_bad = front_sticky_read_only(lst)
+        if (allocated(ro%a)) beg_bad = front_sticky_read_only(lst)
         call goto_char(true_end)
         end_is_bol = is_bol()
         call get_text_property(true_end, sym("front_sticky"), lst, st)
         call get_text_property(true_end, sym("read_only"), ro, st)
         end_bad = .false.
-        if (.not. nilp(ro)) end_bad = front_sticky_read_only(lst)
+        if (allocated(ro%a)) end_bad = front_sticky_read_only(lst)
         call goto_char(opoint)
 
         if ((.not. beg_is_bol .and. (beg_bad .or. end_bad)) .or. (.not. end_is_bol .and. end_bad)) then
@@ -4006,7 +4007,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call comint_bol(.not. nilp(current_prefix_arg))
+        call comint_bol(allocated(current_prefix_arg%a))
     end subroutine cmd_comint_bol
 
     !> Kill current line, ignoring read-only and field properties.
@@ -4297,7 +4298,7 @@ contains
             ! Use input fields.  User input that hasn't been entered yet,
             ! at the end of the buffer, has a nil `field' property.
             field = get_char_property(point(), sym("field"))
-            if (nilp(field)) applies = smatch("!\|^\^", field_string(point()))
+            if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string(point()))
         end if
 
         if (.not. applies) return
@@ -4580,7 +4581,7 @@ contains
         idx = index
         has = has_index
 
-        if (value_eq(last_command, this_command) .and. .not. nilp(this_command)) then
+        if (value_eq(last_command, this_command) .and. allocated(this_command%a)) then
             ! Delete last input inserted by this command.
             call delete_region(marker_pos(comint_buffers(k)%insert_previous_argument_last_start_pos), point(), st)
             idx = comint_buffers(k)%insert_previous_argument_last_index
@@ -4628,7 +4629,7 @@ contains
     recursive subroutine cmd_comint_insert_previous_argument(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call comint_insert_previous_argument(0, .false., status)
         else
             call comint_insert_previous_argument(int(prefix_numeric_value(current_prefix_arg)), .true., status)

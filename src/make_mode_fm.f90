@@ -46,7 +46,7 @@ module make_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, xstring, stringp, make_string, make_list, list, &
+    use lisp_fm, only: value_type, fixnump, xfixnum, xstring, stringp, make_string, make_list, list, &
                        list_length, list_elt
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer
@@ -1130,7 +1130,7 @@ contains
         integer :: k
 
         if (.not. allocated(names)) then
-            v = nil()
+            v = value_type()
             return
         end if
 
@@ -1749,7 +1749,7 @@ contains
     recursive subroutine cmd_makefile_pickup_everything(status)
         type(status_type), intent(out) :: status
 
-        call makefile_pickup_everything(.not. nilp(current_prefix_arg), status)
+        call makefile_pickup_everything(allocated(current_prefix_arg%a), status)
     end subroutine cmd_makefile_pickup_everything
 
     !> Scan the current directory for filenames to use as targets.
@@ -1982,7 +1982,7 @@ contains
         if (.not. status%ok()) return
         ! (save-excursion ...)
         call copy_marker_at(point(), mark, .false., status)
-        call makefile_backslash_region(b, e,.not. nilp(current_prefix_arg), status)
+        call makefile_backslash_region(b, e, allocated(current_prefix_arg%a), status)
         call goto_char(mpos(mark))
         call free_marker(mark, st)
     end subroutine cmd_makefile_backslash_region
@@ -2107,7 +2107,7 @@ contains
                 ! which back-to-indentation (called via fill-newline ->
                 ! fill-indent-to-left-margin -> indent-line-to) thinks are real code
                 ! (bug#13179).
-                call remove_text_properties(point_min(), point_max(), list(sym("syntax_table"), nil()), changed, st)
+                call remove_text_properties(point_min(), point_max(), list(sym("syntax_table"), value_type()), changed, st)
                 ! Adjust fill-column to allow space for the backslash.
                 call fill_one_less(status)
                 if (status%ok()) call makefile_backslash_region(point_min(), point_max(), .false., status)
@@ -2794,7 +2794,7 @@ contains
         has_face = .false.
         if (pos < point_min()) return
         call get_text_property(pos, sym("face"), face, st)
-        if (st%ok()) has_face = .not. nilp(face)
+        if (st%ok()) has_face = allocated(face%a)
     end function has_face
 
     ! The character after point, -1 if none.

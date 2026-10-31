@@ -41,8 +41,8 @@ module simple_fm
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
-                       nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc
+    use lisp_fm, only: value_type, make_fixnum, list, fixnump, consp, &
+                       xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc
     use lread_fm, only: sym
     use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting, &
                        add_local_variables_killer
@@ -1733,7 +1733,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call newline(status, interactive=.true.)
         else
             call newline(status, arg_p(), interactive=.true.)
@@ -1770,7 +1770,7 @@ contains
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_backward_char(n, status,.not. nilp(current_prefix_arg))
+            call delete_backward_char(n, status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_delete_backward_char
 
@@ -1802,7 +1802,7 @@ contains
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_char(n, status,.not. nilp(current_prefix_arg))
+            call delete_char(n, status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_delete_forward_char
 
@@ -1855,7 +1855,7 @@ contains
             end if
 
             ! Translate TAB key into control-I ASCII character, and so on.
-            translation = nil()
+            translation = value_type()
 
             if (is_keymap_live(local_function_key_map)) then
                 key(1) = ev
@@ -2003,7 +2003,7 @@ contains
         if (fixnump(arg)) then
             prefix_arg = make_fixnum(-xfixnum(arg))
         else if (value_eq(arg, sym("-"))) then
-            prefix_arg = nil()
+            prefix_arg = value_type()
         else
             prefix_arg = sym("-")
         end if
@@ -2643,11 +2643,11 @@ contains
         type(value_type) :: history
         type(status_type) :: status
 
-        history = nil()
+        history = value_type()
         if (.not. allocated(minibuffer_history_variable)) return
         if (len(minibuffer_history_variable) == 0) return
         call symbol_value(sym(minibuffer_history_variable), history, status)
-        if (.not. status%ok()) history = nil()
+        if (.not. status%ok()) history = value_type()
     end function history_value
 
     !> Insert into the minibuffer the element of minibuffer history specified by NABS.
@@ -3015,7 +3015,7 @@ contains
         end if
 
         id = intern_soft(name)
-        function = nil()
+        function = value_type()
         if (id /= 0) function = sym(name)
 
         if (id == 0 .or. .not. is_command(function)) then
@@ -3023,15 +3023,15 @@ contains
             return
         end if
 
-        binding = nil()
+        binding = value_type()
         if (suggest_key_bindings) call where_is_internal(function, binding, firstonly=.true.)
 
         ! If we're executing a command that's remapped, we can't actually
         ! execute that command with the keymapping we've found with
         ! `where_is_internal'.
-        if (.not. nilp(binding)) then
+        if (allocated(binding%a)) then
             call command_remapping(function, remapped)
-            if (.not. nilp(remapped)) binding = nil()
+            if (allocated(remapped%a)) binding = value_type()
         end if
 
         this_command = function
@@ -3041,13 +3041,13 @@ contains
         real_this_command = function
         ! command-execute
         current_prefix_arg = prefixarg
-        prefix_arg = nil()
+        prefix_arg = value_type()
         handled = .false.
         if (associated(disabled_command_hook)) call disabled_command_hook(function, handled, status)
         if (.not. handled) call call_interactively(function, status)
         if (.not. status%ok()) return
 
-        if (suggest_key_bindings .and. .not. nilp(binding)) then
+        if (suggest_key_bindings .and. allocated(binding%a)) then
             if (echo_area_empty()) then
                 call list_elements(binding, keys)
                 call message("You can run the command "//char(226)//char(128)//char(152)//name// &
@@ -3749,12 +3749,12 @@ contains
         end if
 
         if (.not. value_eq(this_command, sym("set_mark_command"))) then
-            if (.not. nilp(arg)) then
+            if (allocated(arg%a)) then
                 call pop_to_mark_command(status)
             else
                 call push_mark_command(.true.)
             end if
-        else if (.not. nilp(arg)) then
+        else if (allocated(arg%a)) then
             this_command = sym("pop_to_mark_command")
             call pop_to_mark_command(status)
         else if (value_eq(last_command, sym("set_mark_command"))) then
@@ -3818,7 +3818,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym("kill_ring"), ring, st)
-        if (.not. st%ok()) ring = nil()
+        if (.not. st%ok()) ring = value_type()
     end function kill_ring
 
     !> kill_new for STRING as text.  Not a port.
@@ -4112,7 +4112,7 @@ contains
                 if (invisible_p(point()) == 0) exit
                 call get_text_property(point(), sym("invisible"), prop, st)
 
-                if (.not. nilp(prop)) then
+                if (allocated(prop%a)) then
                     call next_single_property_change(point(), sym("invisible"), next, found, st)
                     if (.not. found) next = point_max()
                     call goto_char(next)
@@ -4149,7 +4149,7 @@ contains
                 if (invisible_p(point() - 1) == 0) exit
                 call get_text_property(point() - 1, sym("invisible"), prop, st)
 
-                if (.not. nilp(prop)) then
+                if (allocated(prop%a)) then
                     call previous_single_property_change(point(), sym("invisible"), next, found, st)
                     if (.not. found) next = point_min()
                     call goto_char(next)
@@ -4357,7 +4357,7 @@ contains
         this_command = t_value()
         call push_mark()
 
-        if (nilp(arg) .or. consp(arg)) then
+        if (.not. allocated(arg%a) .or. consp(arg)) then
             n = 0
         else if (value_eq(arg, sym("-"))) then
             n = -2
@@ -4495,14 +4495,14 @@ contains
         status = status_type()
         handler = string_get_text_property(0_int64, sym("yank_handler"), string)
         param = list_elt(handler, 2_int64)
-        if (nilp(param)) param = string
+        if (.not. allocated(param%a)) param = string
         ! (FIXME upstream: this throws away any yank-undo-function set by
         ! previous calls to insert-for-yank-1 within the loop of
         ! insert-for-yank.)
         yank_undo_function => null()
         fn = list_elt(handler, 1_int64)
 
-        if (symbolp(fn) .and. .not. nilp(fn)) then
+        if (symbolp(fn) .and. allocated(fn%a)) then
             do k = 1, n_yank_handler_functions()
                 if (yank_handler_functions(k)%name == symbols(xsymbol(fn))%name) then
                     call yank_handler_functions(k)%run(param, status)
@@ -4576,7 +4576,7 @@ contains
     subroutine cmd_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
 
-        call exchange_point_and_mark(.not. nilp(current_prefix_arg), status)
+        call exchange_point_and_mark(allocated(current_prefix_arg%a), status)
     end subroutine cmd_exchange_point_and_mark
 
     subroutine cmd_mark_whole_buffer(status)
@@ -4657,7 +4657,7 @@ contains
     subroutine cmd_kill_line(status)
         type(status_type), intent(out) :: status
 
-        call kill_line(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), status)
+        call kill_line(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), status)
     end subroutine cmd_kill_line
 
     subroutine cmd_kill_whole_line(status)
@@ -4801,7 +4801,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call mark_word(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true.)
+        call mark_word(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), .true.)
     end subroutine cmd_mark_word
 
     ! ------------------------------------------------------------------
@@ -5111,7 +5111,7 @@ contains
 
         ! Initialize `cycle_spacing__context' if needed.
         if (.not. value_eq(last_command, this_command) .or. .not. cycle_spacing_active .or. &
-            (.not. nilp(n) .and. .not. value_equal(cycle_spacing_n, n))) then
+            (allocated(n%a) .and. .not. value_equal(cycle_spacing_n, n))) then
             orig_pos = point()
             moved = skip_chars_backward(" "//TAB//LF//CR, status)
             call goto_char(constrain_to_field(point(), orig_pos, .false., .false.))
@@ -5242,7 +5242,7 @@ contains
 
         if (is_eol() .and. .not. is_bob()) then
             call get_text_property(point() - 1, sym("read_only"), read_only, st)
-            if (nilp(read_only)) call goto_char(point() - 1)
+            if (.not. allocated(read_only%a)) call goto_char(point() - 1)
         end if
 
         call transpose_subr(move_chars, arg, status)
@@ -5463,14 +5463,14 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call delete_horizontal_space(.not. nilp(current_prefix_arg), status)
+        if (status%ok()) call delete_horizontal_space(allocated(current_prefix_arg%a), status)
     end subroutine cmd_delete_horizontal_space
 
     subroutine cmd_delete_all_space(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call delete_all_space(.not. nilp(current_prefix_arg), status)
+        if (status%ok()) call delete_all_space(allocated(current_prefix_arg%a), status)
     end subroutine cmd_delete_all_space
 
     subroutine cmd_just_one_space(status)
@@ -5511,9 +5511,9 @@ contains
         if (is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
-            call delete_indentation(.not. nilp(current_prefix_arg), status, b, e)
+            call delete_indentation(allocated(current_prefix_arg%a), status, b, e)
         else
-            call delete_indentation(.not. nilp(current_prefix_arg), status)
+            call delete_indentation(allocated(current_prefix_arg%a), status)
         end if
     end subroutine cmd_delete_indentation
 
@@ -5552,7 +5552,7 @@ contains
         if (.not. consp(arg) .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (.not. nilp(arg) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. .not. consp(arg)) then
             call goto_char(point_min() + 1 + (size*prefix_numeric_value(arg))/10)
         else
             call goto_char(point_min())
@@ -5560,7 +5560,7 @@ contains
 
         ! If we went to a place in the middle of the buffer, adjust it to
         ! the beginning of the following line.
-        if (.not. nilp(arg) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. .not. consp(arg)) then
             if (forward_line(1_int64) /= 0) continue
         end if
     end subroutine beginning_of_buffer
@@ -5584,7 +5584,7 @@ contains
         if (.not. consp(arg) .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (.not. nilp(arg) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. .not. consp(arg)) then
             call goto_char(point_max() - (size*prefix_numeric_value(arg))/10)
             ! If we went to a place in the middle of the buffer, adjust it
             ! to the beginning of a line.

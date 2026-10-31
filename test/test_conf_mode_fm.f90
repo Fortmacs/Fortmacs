@@ -26,7 +26,7 @@ module test_conf_mode_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, consp, symbolp, symbols, xsymbol, list_elements
+    use lisp_fm, only: value_type, consp, symbolp, symbols, xsymbol, list_elements
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
@@ -121,7 +121,7 @@ contains
             v = elts(1)
         end if
 
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function face
 

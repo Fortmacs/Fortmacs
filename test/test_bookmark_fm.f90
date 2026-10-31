@@ -29,7 +29,7 @@ module test_bookmark_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, list_length, list_elt, xstring
+    use lisp_fm, only: value_type, list_length, list_elt, xstring
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer_create, &
@@ -426,7 +426,7 @@ contains
         logical :: saved
 
         call init_bindings()
-        call set(sym("bookmark_history"), nil(), st)
+        call set(sym("bookmark_history"), value_type(), st)
         saved = history_delete_duplicates
         history_delete_duplicates = .true.
         call bookmark_maybe_historicize_string("foo")

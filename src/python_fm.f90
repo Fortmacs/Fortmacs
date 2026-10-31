@@ -52,7 +52,7 @@ module python_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, list, make_string, list_elements
+    use lisp_fm, only: value_type, fixnump, xfixnum, list, make_string, list_elements
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, value_eq, &
                        add_local_variables_killer
@@ -1094,7 +1094,7 @@ contains
                     end if
 
                     call goto_char(end)
-                    call put_text_property(beg, end, sym("face"), nil(), st)
+                    call put_text_property(beg, end, sym("face"), value_type(), st)
                 end if
             end do
 
@@ -4213,7 +4213,7 @@ contains
         ! Electric colon
         if (ev /= iachar(":")) return
         if (.not. any(electric_indent_chars_value() == iachar(":"))) return
-        if (.not. nilp(current_prefix_arg)) return
+        if (allocated(current_prefix_arg%a)) return
         ! Trigger electric colon only at end of line
         if (.not. is_eol()) return
         ! Avoid re-indenting on extra colon
@@ -4754,7 +4754,7 @@ contains
         call shift_args(start, end, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call python_indent_shift_left(start, end, status)
         else
             call python_indent_shift_left(start, end, status, prefix_numeric_value(current_prefix_arg))
@@ -4770,7 +4770,7 @@ contains
         call shift_args(start, end, status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call python_indent_shift_right(start, end, status)
         else
             call python_indent_shift_right(start, end, status, prefix_numeric_value(current_prefix_arg))
@@ -4958,7 +4958,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: done
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call python_fill_paragraph(status, done)
         else
             call python_fill_paragraph(status, done, JUSTIFY_FULL)

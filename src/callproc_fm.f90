@@ -41,8 +41,8 @@ module callproc_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, fixnump, xfixnum, &
-                       stringp, xstring, bufferp, xhandle, vtag, V_SYMBOL, SYM_T, xsymbol, &
+    use lisp_fm, only: value_type, make_fixnum, make_string, fixnump, xfixnum, &
+                       stringp, xstring, bufferp, xhandle, vtag, V_NAME, SYM_T, xsymbol, &
                        list_elements
     use data_fm, only: check_string, string_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, BEG, &
@@ -138,7 +138,7 @@ contains
         integer(int64) :: n, k
         type(status_type) :: rst
 
-        result = nil()
+        result = value_type()
         call get_current_directory(dir, status)
         if (.not. status%ok()) return
         input = "/dev/null"
@@ -160,18 +160,18 @@ contains
         discard = .true.
 
         if (present(destination)) then
-            if (nilp(destination)) then
+            if (.not. allocated(destination%a)) then
                 ! nil: discard the output.
                 discard = .true.
             else if (fixnump(destination)) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "call-process with DESTINATION 0 (not waiting) is not supported yet")
                 return
-            else if (vtag(destination) == V_SYMBOL) then
+            else if (vtag(destination) == V_NAME) then
                 if (xsymbol(destination) == SYM_T) then
                     discard = .false.
                     buffer = current_buffer()
-                else if (.not. nilp(destination)) then
+                else if (allocated(destination%a)) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call_process")
                     return
                 end if
@@ -430,7 +430,7 @@ contains
         logical :: whole, empty_input
         type(status_type) :: dst
 
-        result = nil()
+        result = value_type()
         whole = .not. (present(start) .and. present(end))
 
         if (whole) then

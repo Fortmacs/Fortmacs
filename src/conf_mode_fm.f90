@@ -44,7 +44,6 @@ module conf_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nilp
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -586,7 +585,7 @@ contains
     subroutine cmd_conf_align_assignments(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call conf_align_assignments(status)
         else
             call conf_align_assignments(status, prefix_numeric_value(current_prefix_arg))
@@ -628,7 +627,7 @@ contains
     subroutine cmd_conf_quote_normal(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call conf_quote_normal(status)
         else
             call conf_quote_normal(status, prefix_numeric_value(current_prefix_arg))

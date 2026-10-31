@@ -30,7 +30,7 @@
 module print_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, vtag, V_NIL, V_INT, V_SYMBOL, V_STRING, V_LIST, V_BUFFER, V_MARKER, &
+    use lisp_fm, only: value_type, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_BUFFER, V_MARKER, &
                        V_KEYMAP, xfixnum, xstring, xhandle, list_elements
     use data_fm, only: symbol_name
     use buffer_fm, only: buffer_name, buffers
@@ -58,18 +58,18 @@ contains
         integer :: k
 
         select case (vtag(object))
-        case (V_NIL)
+        case (V_NULL)
             s = "nil"
-        case (V_INT)
+        case (V_INTEGER)
             write (buf, "(i0)") xfixnum(object)
             s = trim(buf)
-        case (V_SYMBOL)
+        case (V_NAME)
             call symbol_name(object, s, status)
             if (.not. status%ok()) s = "#<symbol>"
         case (V_STRING)
             text = xstring(object)
             s = quoted_repr(text)
-        case (V_LIST)
+        case (V_ARRAY)
             call list_elements(object, elems)
             s = "("
 
@@ -114,9 +114,9 @@ contains
         integer :: k
 
         select case (vtag(object))
-        case (V_NIL)
+        case (V_NULL)
             s = ".false."
-        case (V_SYMBOL)
+        case (V_NAME)
             call symbol_name(object, s, status)
 
             if (.not. status%ok()) then
@@ -126,7 +126,7 @@ contains
             end if
         case (V_STRING)
             s = fortran_string(xstring(object))
-        case (V_LIST)
+        case (V_ARRAY)
             call list_elements(object, elems)
             s = "["
 
@@ -245,7 +245,7 @@ contains
         end do
 
         prompt = keymap_own_prompt(km)
-        if (vtag(prompt) /= V_NIL) s = s//" "//readable_repr(prompt)
+        if (vtag(prompt) /= V_NULL) s = s//" "//readable_repr(prompt)
         parent = keymap_parent(km)
 
         if (is_keymap_live(parent)) then
@@ -266,9 +266,9 @@ contains
         character(len=:), allocatable :: inner
 
         select case (vtag(cdr))
-        case (V_NIL)
+        case (V_NULL)
             s = "("//car//")"
-        case (V_LIST)
+        case (V_ARRAY)
             inner = readable_repr(cdr)
             s = "("//car//" "//inner(2:)
         case (V_KEYMAP)

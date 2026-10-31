@@ -47,7 +47,7 @@
 module xfaces_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, symbols, nilp, symbolp, stringp, consp, fixnump, xsymbol, xstring, &
+    use lisp_fm, only: value_type, symbols, symbolp, stringp, consp, fixnump, xsymbol, xstring, &
                        xfixnum, list_elements, windowp, xhandle
     use lread_fm, only: sym
     use dispextern_fm, only: face_type, FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FG_COLOR, &
@@ -646,7 +646,7 @@ contains
             return
         end if
 
-        if (nilp(face_ref)) return
+        if (.not. allocated(face_ref%a)) return
 
         if (consp(face_ref)) then
             call list_elements(face_ref, elts)
@@ -739,7 +739,7 @@ contains
 
                 if (keyword == ":extend") then
                     seen = .true.
-                    if (nilp(elts(k + 1))) return
+                    if (.not. allocated(elts(k + 1)%a)) return
                 else if (keyword == ":inherit") then
                     parent_face = elts(k + 1)
                 end if
@@ -748,7 +748,7 @@ contains
             end do
 
             if (.not. seen) then
-                if (nilp(parent_face)) return
+                if (.not. allocated(parent_face%a)) return
                 call merge_face_ref(parent_face, scratch, sub_ok, .false., depth + 1)
 
                 if (.not. sub_ok) then
@@ -828,7 +828,7 @@ contains
                 err = .false.
             end if
         case (":underline")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%underline = .false.
             else if (is_symbol(value, "t")) then
                 to%underline = .true.
@@ -840,7 +840,7 @@ contains
                 err = .true.
             end if
         case (":overline")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%overline = .false.
             else if (is_symbol(value, "t")) then
                 to%overline = .true.
@@ -850,7 +850,7 @@ contains
                 err = .true.
             end if
         case (":strike_through")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%strike_through = .false.
             else if (is_symbol(value, "t")) then
                 to%strike_through = .true.
@@ -860,7 +860,7 @@ contains
                 err = .true.
             end if
         case (":box")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%box = .false.
             else if (is_symbol(value, "t")) then
                 to%box = .true.
@@ -883,7 +883,7 @@ contains
                 err = .true.
             end if
         case (":inverse_video")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%inverse_video = .false.
             else if (is_symbol(value, "t")) then
                 to%inverse_video = .true.
@@ -916,7 +916,7 @@ contains
             call merge_face_ref(value, to, sub_ok, .false., depth + 1)
             err = .not. sub_ok
         case (":extend")
-            if (nilp(value)) then
+            if (.not. allocated(value%a)) then
                 to%extend = .false.
             else if (is_symbol(value, "t")) then
                 to%extend = .true.
@@ -965,7 +965,7 @@ contains
                     to%underline%style = 0
                 end select
             case (":position")
-                to%underline%position = .not. nilp(elts(k + 1))
+                to%underline%position = allocated(elts(k + 1)%a)
             case default
                 continue
             end select
@@ -1087,7 +1087,7 @@ contains
         logical :: ok
 
         id = base_face_id
-        if (nilp(prop)) return
+        if (.not. allocated(prop%a)) return
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
         if (base_face_id < 0 .or. base_face_id > ubound(f%faces, 1)) return
         ! Begin with attributes from the base face.
@@ -1163,7 +1163,7 @@ contains
         id = DEFAULT_FACE_ID
 
         ! Optimize common cases where we can use the default face.
-        if (.not. in_region .and. size(overlay_vec) == 0 .and. nilp(prop)) then
+        if (.not. in_region .and. size(overlay_vec) == 0 .and. .not. allocated(prop%a)) then
             if (saved /= 0) call set_buffer_internal(saved)
             return
         end if
@@ -1171,7 +1171,7 @@ contains
         ! Begin with attributes from the default face.
         attrs = f%faces(DEFAULT_FACE_ID)%lface
         ! Merge in attributes specified via text properties.
-        if (.not. nilp(prop)) call merge_face_ref(prop, attrs, ok, filter)
+        if (allocated(prop%a)) call merge_face_ref(prop, attrs, ok, filter)
         ! Now merge the overlay data.
         call sort_overlays(overlay_vec)
         region_merged = .not. in_region
@@ -1184,7 +1184,7 @@ contains
             end if
 
             prop = overlay_get(overlay_vec(i), "face")
-            if (.not. nilp(prop)) call merge_face_ref(prop, attrs, ok, filter)
+            if (allocated(prop%a)) call merge_face_ref(prop, attrs, ok, filter)
             oendpos = overlay_end(overlay_vec(i))
             if (oendpos < endpos) endpos = oendpos
         end do
@@ -1212,7 +1212,7 @@ contains
                 if (windowp(owner)) then
                     h = xhandle(owner)
                     if (h%index /= window%index .or. h%generation /= window%generation) cycle
-                else if (.not. nilp(owner)) then
+                else if (allocated(owner%a)) then
                     cycle
                 end if
 

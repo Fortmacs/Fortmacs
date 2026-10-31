@@ -116,7 +116,7 @@ module xdisp_fm
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
-    use lisp_fm, only: value_type, nilp, stringp, xstring, consp, list_elements, fixnump, xfixnum, windowp, xhandle, &
+    use lisp_fm, only: value_type, stringp, xstring, consp, list_elements, fixnump, xfixnum, windowp, xhandle, &
                        string_intervals
     use intervals_fm, only: textget
     use lread_fm, only: sym
@@ -960,7 +960,7 @@ contains
         applies = .not. windowp(window)
 
         if (applies) then
-            applies = nilp(window)
+            applies = .not. allocated(window%a)
             return
         end if
 
@@ -1837,7 +1837,7 @@ contains
             if (pos < buffers(bi)%text%z) then
                 call get_text_property(pos, sym("fontified"), prop, st)
 
-                if (nilp(prop)) then
+                if (.not. allocated(prop%a)) then
                     fontifying = .true.
                     call fontification_functions%run(pos, st, safe=.true.)
                     fontifying = .false.
@@ -3181,7 +3181,7 @@ contains
             else
                 call buffer_local_value(sym(lighters(i)%variable), bi, v, st)
                 if (.not. st%ok()) cycle
-                on = .not. nilp(v)
+                on = allocated(v%a)
             end if
 
             if (.not. on) cycle

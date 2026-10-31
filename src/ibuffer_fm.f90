@@ -48,7 +48,7 @@ module ibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT, format_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nilp, fixnump, xfixnum, make_fixnum, stringp, xstring, make_string, t_value, &
+    use lisp_fm, only: value_type, fixnump, xfixnum, make_fixnum, stringp, xstring, make_string, t_value, &
                        list, consp
     use lread_fm, only: sym
     use eval_fm, only: hook_type, change_major_mode_hook
@@ -1120,7 +1120,7 @@ contains
         has_prop = .false.
         if (pos < point_min() .or. pos >= point_max()) return
         call get_text_property(pos, sym(name), v, st)
-        has_prop = st%ok() .and. .not. nilp(v)
+        has_prop = st%ok() .and. allocated(v%a)
     end function has_prop
 
     !> The string text property NAME at POS ("" for none).  Not a port.
@@ -1373,7 +1373,7 @@ contains
 
         status = status_type()
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call ibuffer_backward_line()
         else
             call ibuffer_backward_line(prefix_numeric_value(current_prefix_arg))
@@ -1437,7 +1437,7 @@ contains
 
         status = status_type()
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call ibuffer_forward_line()
         else
             call ibuffer_forward_line(prefix_numeric_value(current_prefix_arg))
@@ -1465,7 +1465,7 @@ contains
     recursive subroutine cmd_ibuffer_visit_buffer(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_visit_buffer(status,.not. nilp(current_prefix_arg))
+        call ibuffer_visit_buffer(status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_visit_buffer
 
     !> Visit the buffer on this line in another window.  Port of
@@ -2108,7 +2108,7 @@ contains
         ! (integerp ARG): a numeric prefix argument, not C-u.
         if (fixnump(current_prefix_arg)) then
             call ibuffer_do_toggle_read_only(status, xfixnum(current_prefix_arg))
-        else if (.not. nilp(current_prefix_arg) .and. .not. consp(current_prefix_arg)) then
+        else if (allocated(current_prefix_arg%a) .and. .not. consp(current_prefix_arg)) then
             call ibuffer_do_toggle_read_only(status, prefix_numeric_value(current_prefix_arg))
         else
             call ibuffer_do_toggle_read_only(status)
@@ -4262,7 +4262,7 @@ contains
     recursive subroutine cmd_ibuffer_update(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_update(status,.not. nilp(current_prefix_arg))
+        call ibuffer_update(status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_update
 
     ! Not a port.
@@ -4538,7 +4538,7 @@ contains
     recursive subroutine cmd_ibuffer_list_buffers(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_list_buffers(status,.not. nilp(current_prefix_arg))
+        call ibuffer_list_buffers(status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_list_buffers
 
     !> Like `ibuffer', but displayed in another window by default.
@@ -4565,7 +4565,7 @@ contains
     recursive subroutine cmd_ibuffer_other_window(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_other_window(status,.not. nilp(current_prefix_arg))
+        call ibuffer_other_window(status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_other_window
 
     !> Begin using Ibuffer to edit a list of buffers.
@@ -4694,7 +4694,7 @@ contains
     recursive subroutine cmd_ibuffer(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer(status, other_window_p=.not. nilp(current_prefix_arg))
+        call ibuffer(status, other_window_p=allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer
 
     !> Call Ibuffer and set point at the line listing the current buffer.
@@ -4718,7 +4718,7 @@ contains
     recursive subroutine cmd_ibuffer_jump(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_jump(status,.not. nilp(current_prefix_arg))
+        call ibuffer_jump(status, allocated(current_prefix_arg%a))
     end subroutine cmd_ibuffer_jump
 
     !> Move point to the line of the buffer NAME in the current Ibuffer

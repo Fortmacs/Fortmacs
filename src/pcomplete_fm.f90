@@ -51,7 +51,7 @@
 module pcomplete_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, nil, nilp, make_string, make_list, list, list_elements, list_length, list_elt, &
+    use lisp_fm, only: value_type, make_string, make_list, list, list_elements, list_length, list_elt, &
                        stringp, xstring, fixnump, xfixnum, make_fixnum
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur

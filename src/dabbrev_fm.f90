@@ -39,7 +39,6 @@ module dabbrev_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: nilp
     use data_fm, only: value_eq, string_setting, forward_setting
     use buffer_fm, only: buffers, cur, BEG, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
                          get_buffer, get_buffer_create, generate_new_buffer_name, kill_buffer, &
@@ -63,7 +62,7 @@ module dabbrev_fm
     use window_fm, only: windows, window_leaves, get_mru_window, same_handle, window_type
     use derived_fm, only: provided_mode_derived_p
     use xdisp_fm, only: message
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_list, xstring
+    use lisp_fm, only: value_type, t_value, make_string, make_list, xstring
     use minibuf_table_fm, only: capf_data_type, completion_predicate, completion_table_type, completion_list_table, &
                                 completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_fm, only: try_completion, all_completions, test_completion
@@ -1714,7 +1713,7 @@ contains
         type(completion_table_type) :: table
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (.not. capf_list_set) then
             call save_excursion(ex)
@@ -1791,7 +1790,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call dabbrev_completion(status)
         else
             call dabbrev_completion(status, prefix_numeric_value(current_prefix_arg))
@@ -1805,7 +1804,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call dabbrev_expand(status)
         else
             call dabbrev_expand(status, prefix_numeric_value(current_prefix_arg))

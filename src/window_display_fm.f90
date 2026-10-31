@@ -62,7 +62,6 @@ submodule(window_fm) window_display_fm
     use minibuf_fm, only: minibuf_level
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use sysdep_fm, only: emacs_clock_realtime
-    use lisp_fm, only: nilp
     implicit none(type, external)
 
 contains
@@ -1098,7 +1097,7 @@ contains
     subroutine cmd_quit_window(status)
         type(status_type), intent(out) :: status
 
-        call quit_window(.not. nilp(current_prefix_arg), status)
+        call quit_window(allocated(current_prefix_arg%a), status)
     end subroutine cmd_quit_window
 
     !> Replace BUFFER_OR_NAME with some other buffer in all windows

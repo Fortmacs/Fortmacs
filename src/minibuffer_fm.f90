@@ -44,8 +44,8 @@ module minibuffer_fm
     use insdel_fm, only: del_range, insert
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, is_keymap_live, &
                          free_keymap
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_fixnum, list, list_elements, list_length, &
-                       list_elt, fixnump, xfixnum, stringp, xstring, nilp, make_list, symbolp
+    use lisp_fm, only: value_type, t_value, make_string, make_fixnum, list, list_elements, list_length, &
+                       list_elt, fixnump, xfixnum, stringp, xstring, make_list, symbolp
     use data_fm, only: value_eq, symbol_value, set
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
@@ -973,7 +973,7 @@ contains
             type(status_type) :: st
 
             call key_parse(keys, seq, st)
-            if (st%ok()) call define_key(map, seq, nil(), st)
+            if (st%ok()) call define_key(map, seq, value_type(), st)
         end subroutine bind_nil
     end subroutine syms_of_minibuffer
 
@@ -1177,7 +1177,7 @@ contains
                     call try_completion(string, minibuffer_completion_table, tried, st)
                 end if
 
-                if (symbolp(tried) .and. .not. nilp(tried)) then
+                if (symbolp(tried) .and. allocated(tried%a)) then
                     how = COMPLETION_FINISHED
                 else
                     how = COMPLETION_EXACT
@@ -1738,7 +1738,7 @@ contains
                     call try_completion(text, data%table, v, st)
                 end if
 
-                if (nilp(v)) then
+                if (.not. allocated(v%a)) then
                     data%found = .false.
                     cycle
                 end if
@@ -2443,7 +2443,7 @@ contains
         integer :: k, n, total
 
         status = status_type()
-        result = nil()
+        result = value_type()
         table = completion_list_table(buffer_names())
 
         select case (action)
@@ -2466,7 +2466,7 @@ contains
             if (n == 0) then
                 ! If all bufs are internal don't strip them out.
                 total = int(list_length(buffer_names()))
-                if (size(res) /= total) result = nil()
+                if (size(res) /= total) result = value_type()
                 return
             end if
 
@@ -2505,7 +2505,7 @@ contains
         procedure(completion_predicate), pointer :: saved_pred2
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         select case (action)
         case (COMPLETE_TEST)
@@ -2519,7 +2519,7 @@ contains
             rbts_pred2 => saved_pred2
             ! If completion failed and we're not applying pred1 strictly,
             ! try again without pred1.
-            if (nilp(result)) call internal_complete_buffer(string, action, result, status, pred)
+            if (.not. allocated(result%a)) call internal_complete_buffer(string, action, result, status, pred)
         case default
             if (present(suffix)) continue
         end select
@@ -2667,7 +2667,7 @@ contains
         logical :: had_dir
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         select case (action)
         case (COMPLETE_BOUNDARIES)
@@ -2678,7 +2678,7 @@ contains
                 result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), &
                               make_fixnum(schars(suffix(1:slash - 1))))
             else
-                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), nil())
+                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), value_type())
             end if
         case (COMPLETE_TEST)
             if (len(string) == 0) return
@@ -2700,11 +2700,11 @@ contains
 
             if (action == COMPLETE_TRY) then
                 call file_name_completion(name, realdir, result, st, pred)
-                if (.not. st%ok()) result = nil()
+                if (.not. st%ok()) result = value_type()
                 if (stringp(result)) result = make_string(specdir//xstring(result))
             else
                 call file_name_all_completions(name, realdir, result, st)
-                if (.not. st%ok()) result = nil()
+                if (.not. st%ok()) result = value_type()
 
                 ! Check the predicate, if necessary.
                 if (present(pred) .and. st%ok()) then
@@ -2812,7 +2812,7 @@ contains
         integer :: k
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (action == COMPLETE_BOUNDARIES) then
             if (present(suffix)) then
@@ -2824,7 +2824,7 @@ contains
             if (bend >= 0) then
                 result = list(make_fixnum(orig_start), make_fixnum(bend))
             else
-                result = list(make_fixnum(orig_start), nil())
+                result = list(make_fixnum(orig_start), value_type())
             end if
 
             return
@@ -2931,7 +2931,7 @@ contains
                 call all_completions(string, table, result, status)
             end if
         case default
-            result = nil()
+            result = value_type()
 
             if (present(pred)) then
                 if (test_completion(string, table, context_predicate)) result = t_value()

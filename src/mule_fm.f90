@@ -55,7 +55,7 @@ module mule_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_CODING_SYSTEM_ERROR, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, stringp, xstring, make_string, make_list, t_value
+    use lisp_fm, only: value_type, stringp, xstring, make_string, make_list, t_value
     use lread_fm, only: sym
     use character_fm, only: str_to_multibyte
     use data_fm, only: forward_setting, default_value, set_default
@@ -945,7 +945,7 @@ contains
         character(len=:), allocatable :: cs
         logical :: force
 
-        force = .not. nilp(current_prefix_arg)
+        force = allocated(current_prefix_arg%a)
         call read_buffer_file_coding_system(cs, status)
         if (.not. status%ok()) return
         call set_buffer_file_coding_system(cs, force, .false., .true., status)
@@ -1257,7 +1257,7 @@ contains
         character(len=:), allocatable :: cs
         logical :: force
 
-        force = .not. nilp(current_prefix_arg)
+        force = allocated(current_prefix_arg%a)
         call read_coding_system("Coding system for visited file (default nil): ", "", cs, status)
         if (.not. status%ok()) return
         call revert_buffer_with_coding_system(cs, force, status)

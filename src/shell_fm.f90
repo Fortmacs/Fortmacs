@@ -50,7 +50,7 @@ module shell_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nilp, consp, stringp, xstring
+    use lisp_fm, only: value_type, consp, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, kill_buffer, &
@@ -471,7 +471,7 @@ contains
             bof = field_beginning(point(), .false.)
             call get_text_property(bof, sym("field"), field_prop, status)
 
-            if (nilp(field_prop)) then
+            if (.not. allocated(field_prop%a)) then
                 input = field_string(bof)
                 return
             end if
@@ -519,7 +519,7 @@ contains
 
         symbol_is = .false.
         if (.not. symbolp(v)) return
-        if (nilp(v)) return
+        if (.not. allocated(v%a)) return
         symbol_is = symbols(xsymbol(v))%name == name
     end function symbol_is
 
@@ -1537,7 +1537,7 @@ contains
         type(value_type), intent(in) :: face
         type(status_type) :: st
 
-        if (nilp(face)) return
+        if (.not. allocated(face%a)) return
         call put_text_property(beg, end, sym("ansi_color_face"), face, st)
         call put_text_property(beg, end, sym("font_lock_face"), face, st)
     end subroutine shell_apply_ansi_color
@@ -1559,7 +1559,7 @@ contains
 
         do
             call get_text_property(pos, sym("ansi_color_face"), face, st)
-            if (.not. nilp(face)) call put_text_property(pos, end, sym("font_lock_face"), face, st)
+            if (allocated(face%a)) call put_text_property(pos, end, sym("font_lock_face"), face, st)
             pos = end
             call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
             if (.not. found) exit
@@ -1760,7 +1760,7 @@ contains
         type(handle_type) :: buf, proc
         character(len=:), allocatable :: name, default
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call shell(buf, status)
             return
         end if

@@ -58,7 +58,7 @@ module info_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: command_type, value_type, nil, t_value, nilp, make_string, make_list, list, make_fixnum, &
+    use lisp_fm, only: command_type, value_type, t_value, make_string, make_list, list, make_fixnum, &
                        stringp, consp, &
                        fixnump, xstring, xfixnum, list_length, list_elt, make_symbol_ref, symbols, xsymbol, symbolp, &
                        list_elements
@@ -1543,7 +1543,7 @@ contains
                 if (len_trim(info_suffix_list(tail)%args) > 0) then
                     args = list(make_string(trim(info_suffix_list(tail)%args)))
                 else
-                    args = nil()
+                    args = value_type()
                 end if
 
                 call call_process(trim(info_suffix_list(tail)%program), result, status, infile=fullname, &
@@ -2151,7 +2151,7 @@ contains
         status = status_type()
         has_file = .false.
         has_buffer = .false.
-        if (nilp(current_prefix_arg)) return
+        if (.not. allocated(current_prefix_arg%a)) return
 
         if (fixnump(current_prefix_arg)) then
             write (buf, "(i0)") xfixnum(current_prefix_arg)
@@ -2403,7 +2403,7 @@ contains
         character(len=:), allocatable :: node
         type(string_type), allocatable :: completions(:)
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             call build_node_completions(completions, status)
             if (.not. status%ok()) return
             call completing_read("Node name: ", completion_list_table(strings_value(completions)), node, status, &
@@ -3712,9 +3712,9 @@ contains
             start = mbeg(1)
             call get_text_property(start, sym("invisible"), prop, st)
 
-            if (nilp(prop)) then
+            if (.not. allocated(prop%a)) then
                 call get_text_property(start, sym("display"), prop, st)
-                if (nilp(prop)) call put_text_property(start, point(), sym("invisible"), t_value(), st)
+                if (.not. allocated(prop%a)) call put_text_property(start, point(), sym("invisible"), t_value(), st)
             end if
         end do
 
@@ -4055,10 +4055,10 @@ contains
         case (COMPLETE_ALL)
             call all_completions(string, table, result, status, pred)
         case (COMPLETE_TEST)
-            result = nil()
+            result = value_type()
             if (test_completion(string, table, pred)) result = t_value()
         case default
-            result = nil()
+            result = value_type()
         end select
     end subroutine complete_with_action
 
@@ -4129,7 +4129,7 @@ contains
         integer(int64) :: idx
 
         status = status_type()
-        result = nil()
+        result = value_type()
 
         if (action == COMPLETE_BOUNDARIES) then
             if (present(suffix)) continue
@@ -4192,7 +4192,7 @@ contains
     logical function is_t(v)
         type(value_type), intent(in) :: v
 
-        is_t = .not. nilp(v) .and. .not. stringp(v) .and. .not. consp(v)
+        is_t = allocated(v%a) .and. .not. stringp(v) .and. .not. consp(v)
     end function is_t
 
     ! Read an Info node name with completion, prompting with PROMPT.
@@ -4928,7 +4928,7 @@ contains
         logical :: fold, cached
 
         status = status_type()
-        result = nil()
+        result = value_type()
         if (present(suffix)) continue
         ! Note that `Info-complete-menu-buffer' could be current already,
         ! so we want to save point.
@@ -4943,7 +4943,7 @@ contains
         else
             select case (action)
             case (COMPLETE_BOUNDARIES)
-                result = nil()
+                result = value_type()
             case (COMPLETE_TEST)
                 if (refwd(LF//"\* +"//regexp_quote(string)//":")) result = t_value()
             case default
@@ -5686,7 +5686,7 @@ contains
                 if (.not. st%ok()) call info_next_preorder(status)
             end if
         else
-            call scroll_up(nil(), status)
+            call scroll_up(value_type(), status)
         end if
     end subroutine info_scroll_up
 
@@ -5724,7 +5724,7 @@ contains
         if (virtual_end .or. visible(point_min())) then
             call info_last_preorder(status)
         else
-            call scroll_down(nil(), status)
+            call scroll_down(value_type(), status)
         end if
     end subroutine info_scroll_down
 
@@ -5751,7 +5751,7 @@ contains
 
         if (plink < point_max()) then
             v = get_char_property(plink, sym(prop))
-            if (nilp(v)) plink = next_single_char_property_change(plink, sym(prop))
+            if (.not. allocated(v%a)) plink = next_single_char_property_change(plink, sym(prop))
         end if
 
         moved = .true.
@@ -5787,7 +5787,7 @@ contains
 
         if (plink > point_min()) then
             v = get_char_property(plink, sym(prop))
-            if (nilp(v)) plink = previous_single_char_property_change(plink, sym(prop))
+            if (.not. allocated(v%a)) plink = previous_single_char_property_change(plink, sym(prop))
         end if
 
         moved = .true.
@@ -6268,7 +6268,7 @@ contains
                 end if
 
                 if (.not. flag) exit
-                call scroll_up(nil(), status)
+                call scroll_up(value_type(), status)
                 if (.not. status%ok()) exit
             end do
 
@@ -6496,7 +6496,7 @@ contains
     recursive subroutine cmd_info_copy_current_node_name(status)
         type(status_type), intent(out) :: status
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call info_copy_current_node_name(status)
         else
             call info_copy_current_node_name(status, prefix_numeric_value(current_prefix_arg))
@@ -6591,8 +6591,8 @@ contains
         backward = found < beg_found
         a = min(beg_found, found)
         b = max(beg_found, found)
-        call text_property_not_all(a, b, sym("invisible"), nil(), r, f1, st)
-        call text_property_not_all(a, b, sym("display"), nil(), r, f2, st)
+        call text_property_not_all(a, b, sym("invisible"), value_type(), r, f1, st)
+        call text_property_not_all(a, b, sym("display"), value_type(), r, f2, st)
         invisible = f1 .or. f2
         ! Skip node header line
         opoint = point()
@@ -7432,7 +7432,7 @@ contains
         total = size(locals(k)%index_alternatives)
         call where_is_internal(sym("info_index_next"), keys, .true.)
         next_key = ""
-        if (.not. nilp(keys)) next_key = key_description(vector_elements(keys))
+        if (allocated(keys%a)) next_key = key_description(vector_elements(keys))
         wrapped = .false.
 
         if (info_warn_on_index_alternatives_wrap%value .and. total > 1) then
@@ -7916,7 +7916,7 @@ contains
 
         call read_string("Index apropos: ", string, status)
         if (.not. status%ok()) return
-        call info_apropos(string, status,.not. nilp(current_prefix_arg))
+        call info_apropos(string, status, allocated(current_prefix_arg%a))
     end subroutine cmd_info_apropos
 
     ! ------------------------------------------------------------------
@@ -8149,7 +8149,7 @@ contains
         call key_binding(key, command, status)
         if (.not. status%ok()) return
 
-        if (nilp(command)) then
+        if (.not. allocated(command%a)) then
             call message(key_description(key)//" is undefined")
         else if (symbolp(command)) then
             name = trim(symbols(xsymbol(command))%name)
@@ -8364,7 +8364,7 @@ contains
         character(len=:), allocatable :: manual
 
         call info_initialize()
-        call info_manual_names(.not. nilp(current_prefix_arg), names)
+        call info_manual_names(allocated(current_prefix_arg%a), names)
         call info_filter_manual_names(names, filtered)
         call completing_read("Manual name: ", completion_list_table(strings_value(filtered)), manual, status, &
                              require_match=REQUIRE_MATCH_YES)
@@ -9043,7 +9043,7 @@ contains
                         b1 = mbeg(2) - 1
                         e1 = mend(2)
                         call put_text_property(b1, e1, sym("invisible"), t_value(), st)
-                        call put_text_property(b1, e1, sym("front_sticky"), nil(), st)
+                        call put_text_property(b1, e1, sym("front_sticky"), value_type(), st)
                         call put_text_property(b1, e1, sym("rear_nonsticky"), t_value(), st)
                     end if
                 end if
@@ -9285,7 +9285,7 @@ contains
                         call put_text_property(m(1, 1), e1, sym("invisible"), t_value(), st)
                     end if
 
-                    call put_text_property(m(1, 1), e1, sym("front_sticky"), nil(), st)
+                    call put_text_property(m(1, 1), e1, sym("front_sticky"), value_type(), st)
                     call put_text_property(m(1, 1), e1, sym("rear_nonsticky"), t_value(), st)
                 end if
 
@@ -9336,7 +9336,7 @@ contains
             if (not_fontified_p) then
                 if (hide == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE) then
                     call put_text_property(m(3, 1), m(3, 2), sym("invisible"), t_value(), st)
-                    call put_text_property(m(3, 1), m(3, 2), sym("front_sticky"), nil(), st)
+                    call put_text_property(m(3, 1), m(3, 2), sym("front_sticky"), value_type(), st)
                     call put_text_property(m(3, 1), m(3, 2), sym("rear_nonsticky"), t_value(), st)
 
                     ! Unhide the file name of the external reference in parens
@@ -9561,7 +9561,7 @@ contains
         if (.not. locals(k)%header_from_property) return
         call get_text_property(point_min(), sym("header_line"), prop, st)
 
-        if (nilp(prop) .or. .not. allocated(locals(k)%header%segments)) then
+        if (.not. allocated(prop%a) .or. .not. allocated(locals(k)%header%segments)) then
             call buffers(cur)%header_line_format%clear()
         else
             buffers(cur)%header_line_format = locals(k)%header

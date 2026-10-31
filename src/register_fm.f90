@@ -55,7 +55,7 @@ module register_fm
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, make_fixnum, fixnump, xfixnum, symbolp, xsymbol, symbols, xstring
+    use lisp_fm, only: value_type, make_fixnum, fixnump, xfixnum, symbolp, xsymbol, symbols, xstring
     use lread_fm, only: sym
     use data_fm, only: value_eq, kill_all_local_variables
     use character_fm, only: MAX_CHAR, string_char_and_length
@@ -1328,7 +1328,7 @@ contains
     !> Whether the prefix argument is given (a "P" argument that is not nil).
     !> Not a port.
     logical function prefix_given()
-        prefix_given = .not. nilp(current_prefix_arg)
+        prefix_given = allocated(current_prefix_arg%a)
     end function prefix_given
 
     recursive subroutine cmd_point_to_register(status)

@@ -32,7 +32,7 @@ module ewoc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle, slot_table_type
-    use lisp_fm, only: value_type, t_value, nil
+    use lisp_fm, only: value_type, t_value
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live
@@ -332,7 +332,7 @@ contains
         r = ewocs(i)%nodes(node)%right
         end = mpos(ewocs(i), r)
         call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
+        if (.not. st%ok()) saved = value_type()
         call set(sym("inhibit_read_only"), t_value(), st)
         opoint = point()
         at_end = opoint == end
@@ -711,7 +711,7 @@ contains
         if (i == 0) return
         call enter_buffer(i, old)
         call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
+        if (.not. st%ok()) saved = value_type()
         call set(sym("inhibit_read_only"), t_value(), st)
         allocate (goodbye(ewocs(i)%n))
         n = 0
@@ -952,7 +952,7 @@ contains
         call enter_buffer(i, old)
         footer = ewocs(i)%footer
         call symbol_value(sym("inhibit_read_only"), saved, st)
-        if (.not. st%ok()) saved = nil()
+        if (.not. st%ok()) saved = value_type()
         call set(sym("inhibit_read_only"), t_value(), st)
         call delete_region(mpos(ewocs(i), node_nth(ewocs(i), 1)), mpos(ewocs(i), footer), st)
         call goto_char(mpos(ewocs(i), footer))

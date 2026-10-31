@@ -43,7 +43,6 @@ module test_indent_fm
     use keymap_fm, only: key_parse
     use simple_fm, only: line_move, goal_column, line_move_visual
     use keyboard_fm, only: unread_command_events, discard_input, command_loop, last_command
-    use lisp_fm, only: nil
     use bindings_fm, only: init_bindings
     use keyboard_fm, only: last_message
     use data_fm, only: kill_local_variable
@@ -114,7 +113,7 @@ contains
         call insert(text, st)
         call goto_char(1_int64)
         ! A fresh goal column: the last command wasn't a line move.
-        last_command = nil()
+        last_command = value_type()
         selected_frame%minibuffer_selected = .false.
         sw => frame_selected_window_ref()
         sw%total_cols = cols
@@ -501,7 +500,7 @@ contains
         indent_tabs_mode = .false.
         call goto_char(7_int64)
         call indent_line_function%set_local(cannot_indent)
-        call indent_for_tab_command(nil(), st)
+        call indent_for_tab_command(value_type(), st)
         call kill_local_variable(sym("indent_line_function"), st)
         call check(error, buffer_string(), "    a"//LF//"    b")
         indent_tabs_mode = .true.

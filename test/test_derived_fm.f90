@@ -27,7 +27,7 @@ module test_derived_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil
+    use lisp_fm, only: value_type
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column
     use data_fm, only: value_eq
@@ -369,7 +369,7 @@ contains
         call key_parse("C-c t", key, st)
         call key_binding(key, binding, st)
         call check(error, value_eq(binding, sym("forward_char")), "inherited binding")
-        call keymap_set(major_modes%text_mode%map, "C-c t", nil(), st)
+        call keymap_set(major_modes%text_mode%map, "C-c t", value_type(), st)
         call text_mode_hook%remove(hook_text)
         call child_mode_hook%remove(hook_child)
         call after_change_major_mode_hook%remove(hook_after)

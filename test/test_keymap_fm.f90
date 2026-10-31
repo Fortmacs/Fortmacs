@@ -22,12 +22,13 @@
 
 module test_keymap_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: V_NULL
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: format_message
     use error_fm, only: status_type, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: fixnump, list, make_fixnum, make_keymap_ref, make_string, nil, nilp, t_value, &
-                       v_list, value_type, vtag, xfixnum, xhandle, xstring, list_elements
+    use lisp_fm, only: fixnump, list, make_fixnum, make_keymap_ref, make_string, t_value, &
+                       V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
@@ -141,7 +142,7 @@ contains
         call make_sparse_keymap(prompted, make_string("Prompt"))
         call check(error, is_keymap_full(full) .and. .not. is_keymap_full(sparse), "full")
         if (allocated(error)) return
-        call check(error, nilp(keymap_prompt(full)), "no prompt")
+        call check(error, vtag(keymap_prompt(full)) == V_NULL, "no prompt")
         if (allocated(error)) return
         call check(error, xstring(keymap_prompt(prompted)), "Prompt")
         call free(full)
@@ -159,7 +160,7 @@ contains
         if (allocated(error)) return
         call check(error,.not. is_keymap(list(sym("foo"), sym("bar"))), "(foo bar)")
         if (allocated(error)) return
-        call check(error,.not. is_keymap(nil()), "nil")
+        call check(error,.not. is_keymap(value_type()), "nil")
         if (allocated(error)) return
         call check(error, is_keymap(list(ref(a), ref(b))), "composite")
         call free(a)
@@ -230,8 +231,8 @@ contains
         type(status_type) :: st
 
         call make_keymap(map)
-        call define_key(map, ch("a"), nil(), st)
-        call check(error, st%ok() .and. nilp(lookup(ref(map), ch("a"))))
+        call define_key(map, ch("a"), value_type(), st)
+        call check(error, st%ok() .and. vtag(lookup(ref(map), ch("a"))) == V_NULL)
         call free(map)
     end subroutine test_define_undefined
 
@@ -271,7 +272,7 @@ contains
         call define_key(map, ch("a"), sym("foo"), st)
         call check(error, value_eq(lookup(ref(map), ch("a")), sym("foo")), "a")
         if (allocated(error)) return
-        call check(error, nilp(lookup(ref(map), ch("b"))), "b")
+        call check(error, vtag(lookup(ref(map), ch("b"))) == V_NULL, "b")
         if (allocated(error)) return
         allocate (none(0))
         call check(error, value_eq(lookup(ref(map), none), ref(map)), "empty key")
@@ -296,7 +297,7 @@ contains
         if (allocated(error)) return
         call check(error, value_eq(lookup(maps, ch("b")), sym("bar")), "b")
         if (allocated(error)) return
-        call check(error, nilp(lookup(maps, ch("c"))), "c")
+        call check(error, vtag(lookup(maps, ch("c"))) == V_NULL, "c")
         call free(map1)
         call free(map2)
     end subroutine test_lookup_list
@@ -327,7 +328,7 @@ contains
         key(1) = t_value()
         call define_key(map, key, sym("self_insert_command"), st)
         call define_key(map, ch("a"), sym("foo"), st)
-        call check(error, nilp(lookup(ref(map), ch("b"))), "ignored")
+        call check(error, vtag(lookup(ref(map), ch("b"))) == V_NULL, "ignored")
         if (allocated(error)) return
         call lookup_key(ref(map), ch("b"), v, st, accept_default=.true.)
         call check(error, value_eq(v, sym("self_insert_command")), "default")
@@ -358,11 +359,11 @@ contains
 
             if (pass == 1) then
                 ! Set to nil: shadows the parent.
-                call define_key(child, ch("a"), nil(), st)
-                call check(error, nilp(lookup(ref(child), ch("a"))), "nil")
+                call define_key(child, ch("a"), value_type(), st)
+                call check(error, vtag(lookup(ref(child), ch("a"))) == V_NULL, "nil")
             else
                 ! Remove: the parent shows through.
-                call define_key(child, ch("a"), nil(), st, remove=.true.)
+                call define_key(child, ch("a"), value_type(), st, remove=.true.)
                 call check(error, value_eq(lookup(ref(child), ch("a")), sym("foo")), "foo")
             end if
 
@@ -382,15 +383,15 @@ contains
         call set_keymap_parent(map, parent, st)
         ! Removing an unset key should not add a key.
         call define_key(parent, kbd("u"), sym("undo"), st)
-        call define_key(map, kbd("u"), nil(), st, remove=.true.)
+        call define_key(map, kbd("u"), value_type(), st, remove=.true.)
         call check(error, value_eq(lookup(ref(map), kbd("u")), sym("undo")), "undo")
         if (allocated(error)) return
         ! Non-removed child bindings should shadow parent.
         call define_key(map, kbd("u"), sym("identity"), st)
-        call define_key(map, kbd("u"), nil(), st)
-        call check(error, nilp(lookup(ref(map), kbd("u"))), "shadowed")
+        call define_key(map, kbd("u"), value_type(), st)
+        call check(error, vtag(lookup(ref(map), kbd("u"))) == V_NULL, "shadowed")
         if (allocated(error)) return
-        call define_key(map, kbd("u"), nil(), st, remove=.true.)
+        call define_key(map, kbd("u"), value_type(), st, remove=.true.)
         call check(error, value_eq(lookup(ref(map), kbd("u")), sym("undo")), "from parent")
         call free(map)
         call free(parent)
@@ -414,11 +415,11 @@ contains
         call define_key_range(map, 97_int64, 122_int64, sym("self_insert_command"), st)
         call check(error, value_eq(lookup(ref(map), kbd("b")), sym("self_insert_command")), "range")
         if (allocated(error)) return
-        call define_key(map, kbd("b"), nil(), st, remove=.true.)
+        call define_key(map, kbd("b"), value_type(), st, remove=.true.)
         call check(error, value_eq(lookup(ref(map), kbd("b")), sym("undo")), "removed")
         if (allocated(error)) return
-        call define_key(map, kbd("c"), nil(), st)
-        call check(error, nilp(lookup(ref(map), kbd("c"))), "unbound")
+        call define_key(map, kbd("c"), value_type(), st)
+        call check(error, vtag(lookup(ref(map), kbd("c"))) == V_NULL, "unbound")
         if (allocated(error)) return
         call define_key(map, kbd("b"), sym("self_insert_command"), st)
         call use_local_map(map, st)
@@ -483,7 +484,7 @@ contains
         call define_key(parent, kbd("<f5>"), sym("undo"), st)
         call set_keymap_parent(map, parent, st)
         call define_key(map, kbd("a"), sym("undo"), st)
-        call define_key(map, kbd("C-x b"), nil(), st)
+        call define_key(map, kbd("C-x b"), value_type(), st)
         call check(error, readable_repr(ref(map)), "(keymap (24 keymap (98)) (97 . undo) keymap (f5 . undo) ""Menu"")")
         call free(map)
         call free(parent)
@@ -508,12 +509,12 @@ contains
         call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), sym("find_file")), "parent")
         if (allocated(error)) return
         v = lookup(ref(child), kbd("C-x"))
-        call check(error, vtag(v) == V_LIST .and. is_keymap(v), "composite")
+        call check(error, vtag(v) == V_ARRAY .and. is_keymap(v), "composite")
         if (allocated(error)) return
-        call define_key(child, kbd("C-x C-s"), nil(), st)
-        call check(error, nilp(lookup(ref(child), kbd("C-x C-s"))), "nil shadows")
+        call define_key(child, kbd("C-x C-s"), value_type(), st)
+        call check(error, vtag(lookup(ref(child), kbd("C-x C-s"))) == V_NULL, "nil shadows")
         if (allocated(error)) return
-        call check(error, nilp(lookup(ref(parent), kbd("C-x k"))), "parent unchanged")
+        call check(error, vtag(lookup(ref(parent), kbd("C-x k"))) == V_NULL, "parent unchanged")
         call free(child)
         call free(parent)
     end subroutine test_prefix_composition
@@ -711,7 +712,7 @@ contains
         call check(error, value_eq(v, sym("find_file")), "global")
         if (allocated(error)) return
         call key_binding(kbd("C-f C-f"), v, st)
-        call check(error, nilp(v), "too long is nil")
+        call check(error,.not. allocated(v%a), "too long is nil")
         if (allocated(error)) return
         call use_local_map(null_handle(), st)
         call key_binding(kbd("C-f"), v, st)
@@ -818,8 +819,8 @@ contains
         call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), sym("forward_char")), &
                    "keymap_global_set")
         if (allocated(error)) return
-        call keymap_global_set("C-c x", nil(), st)
-        call check(error, nilp(lookup(global, kbd("C-c x"))), "unbound with nil")
+        call keymap_global_set("C-c x", value_type(), st)
+        call check(error, vtag(lookup(global, kbd("C-c x"))) == V_NULL, "unbound with nil")
         if (allocated(error)) return
         call keymap_global_set("C-xx", "forward_char", st)
         call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
@@ -827,8 +828,8 @@ contains
         call global_set_key(kbd("C-c y"), "backward_char", st)
         call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), sym("backward_char")), &
                    "global_set_key")
-        call define_key(current_global_map(), kbd("C-c y"), nil(), st, remove=.true.)
-        call define_key(current_global_map(), kbd("C-c x"), nil(), st, remove=.true.)
+        call define_key(current_global_map(), kbd("C-c y"), value_type(), st, remove=.true.)
+        call define_key(current_global_map(), kbd("C-c x"), value_type(), st, remove=.true.)
     end subroutine test_keymap_global_set
 
     !> Ports keymap-tests.el's keymap-text-char-description.
@@ -916,7 +917,7 @@ contains
         call check(error, size(modes) == 1 .and. value_eq(bindings(1), sym("ignore")), "minor-mode-key-binding")
         if (allocated(error)) return
         call check(error, trim(modes(1)), "keymap_test_mode")
-        call set(sym("keymap_test_mode"), nil(), st)
+        call set(sym("keymap_test_mode"), value_type(), st)
         call free_keymap(km, st)
         call free_keymap(parent, st)
     end subroutine test_prompt_minor

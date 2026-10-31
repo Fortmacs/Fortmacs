@@ -29,7 +29,7 @@ module test_help_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, make_fixnum, make_string, make_list
+    use lisp_fm, only: value_type, t_value, make_fixnum, make_string, make_list
     use lread_fm, only: sym
     use print_fm, only: fortran_repr
     use callint_fm, only: current_prefix_arg
@@ -441,7 +441,7 @@ contains
         elems(1) = make_fixnum(4_int64)
         current_prefix_arg = make_list(elems)
         call describe_variable_text("current_prefix_arg", text, found)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error, index(text, "Its value is [4]"//LF) > 0, text)
         if (allocated(error)) return
         ! A hook has no printed form yet: the documentation follows the
@@ -497,7 +497,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: elems(3)
 
-        call check(error, fortran_repr(nil()) == ".false." .and. fortran_repr(t_value()) == ".true.")
+        call check(error, fortran_repr(value_type()) == ".false." .and. fortran_repr(t_value()) == ".true.")
         if (allocated(error)) return
         call check(error, fortran_repr(make_fixnum(-12_int64)) == "-12", fortran_repr(make_fixnum(-12_int64)))
         if (allocated(error)) return
@@ -507,7 +507,7 @@ contains
         if (allocated(error)) return
         elems(1) = make_fixnum(1_int64)
         elems(2) = make_string("a")
-        elems(3) = nil()
+        elems(3) = value_type()
         call check(error, fortran_repr(make_list(elems)) == '[1, "a", .false.]', fortran_repr(make_list(elems)))
     end subroutine test_fortran_repr
 
@@ -623,7 +623,7 @@ contains
         call command_loop(st)
         call check(error, index(help_text(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
                    help_text())
-        call keymap_set(text_mode_map, "C-c t", nil(), st)
+        call keymap_set(text_mode_map, "C-c t", value_type(), st)
         call fresh_scratch()
     end subroutine test_binding_locus
 
@@ -877,7 +877,7 @@ contains
         call keymap_set(text_mode_map, "C-f", "backward_char", st)
         call type_keys("C-h b")
         call command_loop(st)
-        call keymap_set(text_mode_map, "C-f", nil(), st)
+        call keymap_set(text_mode_map, "C-f", value_type(), st)
         text = help_text()
         k1 = index(text, FF//LF//LQ//"text_mode"//RQ//" Major Mode Bindings:"//LF//LF//"Key             Binding"//LF// &
                    sep())

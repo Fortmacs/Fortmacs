@@ -23,6 +23,7 @@
 !> The source text of a hunk, finding it in its file, and applying,
 !> testing, reverting and visiting hunks; and diff_mode_fm's helpers.
 submodule(diff_mode_fm) diff_mode_apply_fm
+    use lisp_fm, only: value_type
     use buffer_fm, only: get_buffer_create, kill_buffer, generate_new_buffer_name, is_buffer_live
     use editfns_fm, only: buffer_string
     use search_fm, only: search_forward, search_backward, regexp_quote
@@ -59,7 +60,7 @@ contains
     type(status_type) :: st
 
     call symbol_value(sym("inhibit_read_only"), saved, st)
-    if (.not. st%ok()) saved = nil()
+    if (.not. st%ok()) saved = value_type()
     call set(sym("inhibit_read_only"), t_value(), st)
     end procedure bind_inhibit_read_only
 

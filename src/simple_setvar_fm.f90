@@ -332,7 +332,7 @@ contains
     integer :: k, n
 
     ! current-prefix-arg, before the minibuffer's commands change it.
-    make_local = .not. nilp(current_prefix_arg)
+    make_local = allocated(current_prefix_arg%a)
     ! (read-variable "Set variable: "): the user options set_variable
     ! can set (custom-variable-p).
     allocate (names(size(user_option_names)))

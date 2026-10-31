@@ -30,7 +30,7 @@ module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, fixnump, xfixnum, make_fixnum
+    use lisp_fm, only: value_type, fixnump, xfixnum, make_fixnum
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
                          kill_buffer
     use insdel_fm, only: insert
@@ -40,7 +40,7 @@ module rmc_fm
                        ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_EDIT
     use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, is_window_live, &
                          recenter, scroll_up_command, scroll_down_command
-    use lisp_fm, only: make_keymap_ref, nilp, make_string, make_list, command_type
+    use lisp_fm, only: make_keymap_ref, make_string, make_list, command_type
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
@@ -247,11 +247,11 @@ contains
 
             select case (query_replace_answer(key))
             case (ANSWER_RECENTER)
-                call recenter(nil(), .false., st)
+                call recenter(value_type(), .false., st)
             case (ANSWER_SCROLL_UP)
-                call scroll_up_command(nil(), st)
+                call scroll_up_command(value_type(), st)
             case (ANSWER_SCROLL_DOWN)
-                call scroll_down_command(nil(), st)
+                call scroll_down_command(value_type(), st)
             case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
                 ! scroll-other-window and scroll-other-window-down are not
                 ! ported (Deferred).
@@ -309,7 +309,7 @@ contains
         do c = 0, 127
             key1(1) = make_fixnum(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
-            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+            if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
             if (value_eq(b, sym("self_insert_command"))) then
                 call define_key(map, key1, sym("rmc__wrong"), st)

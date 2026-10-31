@@ -33,7 +33,7 @@ module test_dabbrev_fm
     use test_support, only: show_alone
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil
+    use lisp_fm, only: value_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, restore_buffer_modified, &
                          get_buffer, is_buffer_live, buffer_list, buffers, resolve_buffer
     use insdel_fm, only: insert
@@ -109,8 +109,8 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
-        current_prefix_arg = nil()
+        prefix_arg = value_type()
+        current_prefix_arg = value_type()
         call dabbrev_reset_global_variables()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)

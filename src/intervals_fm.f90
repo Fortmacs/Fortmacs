@@ -33,7 +33,7 @@
 !> `next_property_change' with LIMIT t, as upstream.
 module intervals_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: consp, list_elements, list_length, make_symbol_ref, nilp, symbolp, symbols, make_list, nil, &
+    use lisp_fm, only: consp, list_elements, list_length, make_symbol_ref, symbolp, symbols, make_list, &
                        value_type, xsymbol, string_intervals, set_string_intervals
     use lread_fm, only: intern, ensure_obarray
     use data_fm, only: value_eq
@@ -228,7 +228,7 @@ contains
         end do
 
         val = fallback
-        if (.not. nilp(fallback)) return
+        if (allocated(fallback%a)) return
         ! Check for alternative properties.
         call ensure_obarray()
         id = intern("char_property_alias_table")
@@ -243,7 +243,7 @@ contains
 
             do j = 2, size(alias, kind=int64)
                 call plist_get_eq(plist, alias(j), val, found)
-                if (.not. nilp(val)) return
+                if (allocated(val%a)) return
             end do
 
             return
@@ -268,7 +268,7 @@ contains
                 end if
             end do
         else
-            tmem = .not. nilp(set)
+            tmem = allocated(set%a)
         end if
     end function tmem
 
@@ -313,7 +313,7 @@ contains
         if (iv%n == 0 .or. length == 0) return
 
         if (length > 0) then
-            plist = nil()
+            plist = value_type()
 
             if (present(inherit)) then
                 if (inherit) plist = insertion_plist(iv, start)
@@ -406,7 +406,7 @@ contains
         type(value_type), allocatable :: s(:), t(:), merged(:)
         integer(int64) :: k, n
 
-        if (nilp(source)) return
+        if (.not. allocated(source%a)) return
         call list_elements(source, s)
         call list_elements(target, t)
         allocate (merged(size(s) + size(t)))
@@ -462,7 +462,7 @@ contains
             rval = right(k + 1)
             ! Whether the property is explicitly defined on the left.
             call plist_get_eq(pleft, sym, lval, lpresent)
-            if (.not. lpresent) lval = nil()
+            if (.not. lpresent) lval = value_type()
             ! Even if lrear or rfront say nothing about the stickiness of
             ! SYM, text_property_default_nonsticky may give default
             ! stickiness to SYM.
@@ -471,9 +471,9 @@ contains
             use_right = tmem(sym, rfront)
 
             if (use_left .and. use_right) then
-                if (nilp(lval)) then
+                if (.not. allocated(lval%a)) then
                     use_left = .false.
-                else if (nilp(rval)) then
+                else if (.not. allocated(rval%a)) then
                     use_right = .false.
                 end if
             end if
@@ -525,7 +525,7 @@ contains
         if (n > 0) then
             props = make_list(out(1:n))
         else
-            props = nil()
+            props = value_type()
         end if
 
         cat = textget(props, qsym("category"))
@@ -535,7 +535,7 @@ contains
             ! t, we don't need to set up a detailed one.
             found = .false.
 
-            if (.not. nilp(cat) .and. symbolp(cat)) then
+            if (allocated(cat%a) .and. symbolp(cat)) then
                 call ensure_obarray()
                 call plist_get_eq(symbols(xsymbol(cat))%plist, qsym("front_sticky"), tem, found)
                 found = found .and. value_eq(tem, qsym("t"))
@@ -596,7 +596,7 @@ contains
         integer(int64) :: k, pos
         logical :: is_eob, problem
 
-        plist = nil()
+        plist = value_type()
         if (iv%n == 0) return
         pos = position
         is_eob = .false.
@@ -609,8 +609,8 @@ contains
         end if
 
         k = find_interval(iv, pos)
-        pleft = nil()
-        pright = nil()
+        pleft = value_type()
+        pright = value_type()
 
         ! If in middle of an interval which is not sticky either way, we
         ! must not just give its properties to the insertion.
@@ -618,10 +618,10 @@ contains
             rear = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
             front = textget(iv%runs(k)%plist, qsym("front_sticky"))
 
-            if (.not. consp(rear) .and. .not. nilp(rear)) then
+            if (.not. consp(rear) .and. allocated(rear%a)) then
                 ! All properties are nonsticky.  We split the interval.
                 problem = .true.
-            else if (.not. consp(front) .and. .not. nilp(front)) then
+            else if (.not. consp(front) .and. allocated(front%a)) then
                 ! All properties are sticky.  We don't split the interval.
                 problem = .false.
             else
@@ -766,7 +766,7 @@ contains
             if (iv%runs(k)%position >= start + length) exit
             a = max(start, iv%runs(k)%position)
             b = min(start + length, interval_end(iv, k))
-            if (b <= a .or. nilp(iv%runs(k)%plist)) cycle
+            if (b <= a .or. .not. allocated(iv%runs(k)%plist%a)) cycle
             n = n + 1
             starts(n) = a - start
             ends(n) = b - start
@@ -845,7 +845,7 @@ contains
             type(value_type) :: v
             integer :: i
 
-            v = nil()
+            v = value_type()
 
             do i = 1, size(st)
                 if (st(i) <= p .and. p < en(i)) then

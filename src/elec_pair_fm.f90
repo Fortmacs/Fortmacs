@@ -43,7 +43,7 @@ module elec_pair_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, FM_SCAN_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, make_fixnum
+    use lisp_fm, only: value_type, fixnump, xfixnum, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: default_value, set_default, kill_local_variable
     use commands_fm, only: commands
@@ -1163,7 +1163,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call electric_pair_delete_pair(prefix_numeric_value(current_prefix_arg), status, &
-                                       .not. nilp(current_prefix_arg))
+                                       allocated(current_prefix_arg%a))
     end subroutine cmd_electric_pair_delete_pair
 
     ! ------------------------------------------------------------------
@@ -1235,14 +1235,14 @@ contains
         call minor_modes%electric_pair_mode%state%set_local(val)
         call default_value(sym("electric_pair_mode"), default, st)
 
-        if (minor_modes%electric_pair_mode%state%value .eqv. .not. nilp(default)) then
+        if (minor_modes%electric_pair_mode%state%value .eqv. allocated(default%a)) then
             call kill_local_variable(sym("electric_pair_mode"), st)
-        else if (nilp(default)) then
+        else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             ! Setup the hooks.
             call minor_modes%electric_pair_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("electric_pair_mode"), nil(), st)
+            call set_default(sym("electric_pair_mode"), value_type(), st)
         end if
     end subroutine electric_pair_local_mode_body
 end module elec_pair_fm

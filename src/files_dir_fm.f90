@@ -26,7 +26,7 @@
 !> `revert_buffer': a submodule because they use callproc_fm and dired_fm,
 !> which use files_fm.
 submodule(files_fm) files_dir_fm
-    use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value, nil
+    use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value
     use lread_fm, only: read_string_literal
     use callproc_fm, only: call_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files
@@ -1156,7 +1156,7 @@ contains
     type(status_type) :: st
     integer :: k, n, i, j
 
-    names = nil()
+    names = value_type()
     ! `make-backup-file-name' will get us the right directory for
     ! ordinary or numeric backups.
     call expand_file_name(filename, expanded, st)

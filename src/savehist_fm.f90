@@ -40,8 +40,8 @@ module savehist_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_fixnum, make_list, list_elements, &
-                       vtag, nilp, xstring, xfixnum, xsymbol, symbols, V_NIL, V_INT, V_STRING, V_LIST, V_SYMBOL, SYM_T
+    use lisp_fm, only: value_type, t_value, make_string, make_fixnum, make_list, list_elements, &
+                       vtag, xstring, xfixnum, xsymbol, symbols, V_NULL, V_INTEGER, V_STRING, V_ARRAY, V_NAME, SYM_T
     use lread_fm, only: sym, intern_soft
     use data_fm, only: set, symbol_value, boundp
     use fns_fm, only: value_equal
@@ -589,7 +589,7 @@ contains
                 if (.not. bound .or. member(name, savehist_ignored_variables)) cycle
                 call symbol_value(sym(name), value, st)
                 ! Don't save empty histories.
-                if (nilp(value)) cycle
+                if (.not. allocated(value%a)) cycle
                 ! Print elements of VALUE one by one, carefully: those
                 ! that can't be written are left out.
                 item = namelist_item_type(name=name)
@@ -615,7 +615,7 @@ contains
                 if (.not. savehist_printable(value)) cycle
                 item = namelist_item_type(name=trim(var%name))
 
-                if (vtag(value) == V_LIST) then
+                if (vtag(value) == V_ARRAY) then
                     ! When we have a max-size, chop off the last elements.
                     call list_elements(value, elems)
                     m = size(elems)
@@ -698,11 +698,11 @@ contains
         select case (vtag(v))
         case (V_STRING)
             call item%add_string(xstring(v))
-        case (V_INT)
+        case (V_INTEGER)
             call item%add_integer(xfixnum(v))
-        case (V_NIL)
+        case (V_NULL)
             call item%add_logical(.false.)
-        case (V_SYMBOL)
+        case (V_NAME)
             ok = xsymbol(v) == SYM_T
             if (ok) call item%add_logical(.true.)
         case default
@@ -737,12 +737,12 @@ contains
         integer :: k
 
         select case (vtag(value))
-        case (V_LIST)
+        case (V_ARRAY)
             printable = .true.
             call list_elements(value, elems)
 
             do k = 1, size(elems)
-                if (vtag(elems(k)) == V_LIST) then
+                if (vtag(elems(k)) == V_ARRAY) then
                     printable = .false.
                     return
                 end if

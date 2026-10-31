@@ -29,7 +29,7 @@ module test_info_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string, nilp, stringp, xstring, symbolp, symbols, xsymbol, nil
+    use lisp_fm, only: value_type, list, make_string, stringp, xstring, symbolp, symbols, xsymbol
     use lread_fm, only: sym
     use textprop_fm, only: get_text_property, get_char_property
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
@@ -730,7 +730,7 @@ contains
 
         if (.not. allocated(error)) then
             call property_at(" (line 6)", "invisible", val, found)
-            call check(error, found .and. .not. nilp(val), "the line number hidden")
+            call check(error, found .and. allocated(val%a), "the line number hidden")
         end if
 
         call done(old, config)
@@ -907,7 +907,7 @@ contains
 
         ! C-s goes on through the other nodes.
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(nil())
+            call isearch_repeat_forward(value_type())
             call check(error, isearch_success, "found in another node")
         end if
 
@@ -920,7 +920,7 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(nil())
+            call isearch_repeat_forward(value_type())
             call check_node(error, "Section One", status_type())
         end if
 

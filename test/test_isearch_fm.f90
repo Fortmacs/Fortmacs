@@ -31,7 +31,7 @@ module test_isearch_fm
     use test_support, only: show_alone
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, list_length, list_elt, xstring
+    use lisp_fm, only: value_type, list_length, list_elt, xstring
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
@@ -84,13 +84,13 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call get_buffer_create("isearch-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
         last_message = ""
-        call set(sym("search_ring"), nil(), st)
+        call set(sym("search_ring"), value_type(), st)
         call show_alone()
     end subroutine enter
 
@@ -357,7 +357,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym("search_ring"), v, st)
-        if (.not. st%ok()) v = nil()
+        if (.not. st%ok()) v = value_type()
     end function ring
 
     function ring_first() result(s)

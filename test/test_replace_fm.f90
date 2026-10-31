@@ -34,7 +34,7 @@ module test_replace_fm
     use test_support, only: show_alone
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil
+    use lisp_fm, only: value_type
     use lread_fm, only: sym
     use data_fm, only: set
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, cur
@@ -118,16 +118,16 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call get_buffer_create("replace-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
         last_message = ""
         if (allocated(query_replace_defaults)) deallocate (query_replace_defaults)
-        call set(sym("query_replace_history"), nil(), st)
-        call set(sym("search_ring"), nil(), st)
-        call set(sym("regexp_search_ring"), nil(), st)
+        call set(sym("query_replace_history"), value_type(), st)
+        call set(sym("search_ring"), value_type(), st)
+        call set(sym("regexp_search_ring"), value_type(), st)
         call show_alone()
     end subroutine enter
 
@@ -468,7 +468,7 @@ contains
         type(value_type) :: v
 
         call enter("aa", h)
-        call set(sym("query_replace_history"), nil(), st)
+        call set(sym("query_replace_history"), value_type(), st)
         call type_keys("M-x map_query_replace_regexp RET a RET x SPC y RET !")
         call check(error, buffer_string() == "xy", buffer_string())
         if (allocated(error)) return

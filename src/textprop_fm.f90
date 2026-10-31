@@ -36,10 +36,11 @@
 !> for its table.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: consp, list, list_elements, list_length, make_list, make_symbol_ref, nilp, &
-                       stringp, value_type, xstring, nil, string_intervals, set_string_intervals, &
+    use lisp_fm, only: consp, list, list_elements, list_length, make_list, make_symbol_ref, &
+                       stringp, value_type, xstring, string_intervals, set_string_intervals, &
                        make_string, symbolp, symbols, xsymbol
     use character_fm, only: multibyte_chars_in_text
     use lread_fm, only: intern
@@ -188,7 +189,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: nil_v
 
-        if (nilp(props)) return
+        if (.not. allocated(props%a)) return
 
         if (consp(props)) then
             if (mod(list_length(props), 2_int64) /= 0) then
@@ -437,7 +438,7 @@ contains
 
         changed = .false.
         call validate_plist(properties, plist, status)
-        if (.not. status%ok() .or. nilp(plist)) return
+        if (.not. status%ok() .or. .not. allocated(plist%a)) return
         first_time = .true.
 
         do
@@ -554,7 +555,7 @@ contains
             call get_text_property(s, prop, prev, status)
             if (.not. status%ok()) return
 
-            if (nilp(prev)) then
+            if (.not. allocated(prev%a)) then
                 call put_text_property(s, next, prop, face, status)
             else if (consp(prev) .and. .not. keyword_list(prev)) then
                 ! The previous value is a list, so prepend (or append) the
@@ -625,7 +626,7 @@ contains
             call validate_range(start, end, s, e, nonempty, status)
             if (.not. status%ok() .or. .not. nonempty) return
             ! No properties wanted and none there: nothing to do.
-            if (buffers(cur)%text%intervals%n == 0 .and. nilp(plist)) return
+            if (buffers(cur)%text%intervals%n == 0 .and. .not. allocated(plist%a)) return
             call ensure_intervals()
             if (.not. first_time) exit
 
@@ -990,7 +991,7 @@ contains
 
         if (.not. nonempty .or. buffers(cur)%text%intervals%n == 0) then
             ! No intervals: every character has PROP nil.
-            if (nonempty .and. (nilp(value) .eqv. want_eq)) then
+            if (nonempty .and. (.not. allocated(value%a) .eqv. want_eq)) then
                 result = s
                 found = .true.
             end if
@@ -1040,7 +1041,7 @@ contains
 
             if (consp(rear_non_sticky)) then
                 if (memq_p(prop, rear_non_sticky)) is_rear_sticky = .false.
-            else if (.not. nilp(rear_non_sticky)) then
+            else if (allocated(rear_non_sticky%a)) then
                 is_rear_sticky = .false.
             end if
         end if
@@ -1067,7 +1068,7 @@ contains
                 stickiness = 1
             else
                 call get_text_property(pos - 1, prop, prev_value, status)
-                if (nilp(prev_value)) stickiness = 1
+                if (.not. allocated(prev_value%a)) stickiness = 1
             end if
         end if
     end function text_property_stickiness
@@ -1086,7 +1087,7 @@ contains
         if (cur == 0) return
 
         if (buffers(cur)%invisibility_spec_t) then
-            if (.not. nilp(propval)) invis = 1
+            if (allocated(propval%a)) invis = 1
             return
         end if
 
@@ -1142,7 +1143,7 @@ contains
         logical :: fa, ra
         integer :: k
 
-        val = nil()
+        val = value_type()
         if (cur == 0) return
         ! First check if there's an overlay at POS.
         best = null_handle()
@@ -1150,7 +1151,7 @@ contains
 
         do k = 1, size(vec)
             tem = overlay_get_prop(vec(k), prop)
-            if (nilp(tem)) cycle
+            if (.not. allocated(tem%a)) cycle
             b = overlay_start(vec(k))
             e = overlay_end(vec(k))
             call overlay_advance(vec(k), fa, ra)
@@ -1177,10 +1178,10 @@ contains
         case (:-1)
             if (position > buffers(cur)%begv) call get_text_property(position - 1, prop, val, status)
         case default
-            val = nil()
+            val = value_type()
         end select
 
-        if (.not. status%ok()) val = nil()
+        if (.not. status%ok()) val = value_type()
     end function get_pos_property
 
     !> The value VAL of text property PROP at POS and the range [BEG, END)
@@ -1231,7 +1232,7 @@ contains
         integer :: k
 
         overlay = null_handle()
-        val = nil()
+        val = value_type()
         if (cur == 0) return
         ! The overlays containing POSITION, highest priority first.
         call overlays_at(position, vec, sorted=.true.)
@@ -1239,14 +1240,14 @@ contains
         do k = 1, size(vec)
             val = overlay_get_prop(vec(k), prop)
 
-            if (.not. nilp(val)) then
+            if (allocated(val%a)) then
                 overlay = vec(k)
                 return
             end if
         end do
 
         call get_text_property(position, prop, val, status)
-        if (.not. status%ok()) val = nil()
+        if (.not. status%ok()) val = value_type()
     end subroutine get_char_property_and_overlay
 
     !> Return the position of next text property or overlay change.
@@ -1389,7 +1390,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (nilp(list)) return
+        if (.not. allocated(list%a)) return
         call list_elements(list, fns)
 
         do k = 1, size(fns)
@@ -1419,8 +1420,8 @@ contains
         logical :: buffer_read_only, implied, express, has_after, has_prev, found
 
         status = status_type()
-        interval_insert_behind_hooks = nil()
-        interval_insert_in_front_hooks = nil()
+        interval_insert_behind_hooks = value_type()
+        interval_insert_in_front_hooks = value_type()
         if (buffers(cur)%text%intervals%n == 0) return
         start = min(start_in, end_in)
         end = max(start_in, end_in)
@@ -1448,17 +1449,17 @@ contains
 
                 ! If inhibit_read_only is set and is not a list, we can skip
                 ! the read_only checks.
-                if (nilp(inhibit) .or. consp(inhibit)) then
+                if (.not. allocated(inhibit%a) .or. consp(inhibit)) then
                     if (.not. (has_after .and. has_prev .and. k == prev)) then
                         if (has_after) then
                             after = textget(iv%runs(k)%plist, qsym("read_only"))
 
-                            if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
+                            if (allocated(after%a) .and. .not. memq_p(after, inhibit)) then
                                 tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
                                 call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
 
                                 if (tmem(qsym("read_only"), tem) .or. &
-                                    (nilp(val) .and. tmem(qsym("category"), tem))) then
+                                    (.not. allocated(val%a) .and. tmem(qsym("category"), tem))) then
                                     call text_read_only(status, after)
                                     return
                                 end if
@@ -1468,12 +1469,12 @@ contains
                         if (has_prev) then
                             before = textget(iv%runs(prev)%plist, qsym("read_only"))
 
-                            if (.not. nilp(before) .and. .not. memq_p(before, inhibit)) then
+                            if (allocated(before%a) .and. .not. memq_p(before, inhibit)) then
                                 tem = textget(iv%runs(prev)%plist, qsym("rear_nonsticky"))
                                 call plist_get_eq(iv%runs(prev)%plist, qsym("read_only"), val, found)
 
                                 if (.not. tmem(qsym("read_only"), tem) .and. &
-                                    (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
+                                    (allocated(val%a) .or. .not. tmem(qsym("category"), tem))) then
                                     call text_read_only(status, before)
                                     return
                                 end if
@@ -1484,12 +1485,12 @@ contains
                         ! ends say the property does not stick.
                         after = textget(iv%runs(k)%plist, qsym("read_only"))
 
-                        if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
+                        if (allocated(after%a) .and. .not. memq_p(after, inhibit)) then
                             call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
                             tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
 
                             if (tmem(qsym("read_only"), tem) .or. &
-                                (nilp(val) .and. tmem(qsym("category"), tem))) then
+                                (.not. allocated(val%a) .and. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, after)
                                 return
                             end if
@@ -1497,7 +1498,7 @@ contains
                             tem = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
 
                             if (.not. tmem(qsym("read_only"), tem) .and. &
-                                (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
+                                (allocated(val%a) .or. .not. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, after)
                                 return
                             end if
@@ -1516,7 +1517,7 @@ contains
             nhooks = 0
 
             associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
-                buffer_read_only = b%read_only .and. nilp(inhibit)
+                buffer_read_only = b%read_only .and. .not. allocated(inhibit%a)
                 k = find_interval(iv, start)
                 ! Extent of last writable interval.
                 p = 0
@@ -1524,10 +1525,10 @@ contains
                 do
                     read_only = textget(iv%runs(k)%plist, qsym("read_only"))
                     ! INTERVAL_GENERALLY_WRITABLE_P / INTERVAL_EXPRESSLY_WRITABLE_P
-                    implied = nilp(read_only) .or. (.not. nilp(inhibit) .and. .not. consp(inhibit))
-                    express = .not. nilp(textget(iv%runs(k)%plist, qsym("inhibit_read_only")))
+                    implied = .not. allocated(read_only%a) .or. (allocated(inhibit%a) .and. .not. consp(inhibit))
+                    express = vtag(textget(iv%runs(k)%plist, qsym("inhibit_read_only"))) /= V_NULL
 
-                    if (.not. express .and. .not. nilp(read_only) .and. consp(inhibit)) then
+                    if (.not. express .and. allocated(read_only%a) .and. consp(inhibit)) then
                         express = memq_p(read_only, inhibit)
                     end if
 
@@ -1544,7 +1545,7 @@ contains
                     if (.not. inhibit_modification_hooks%value) then
                         mod_hooks = textget(iv%runs(k)%plist, qsym("modification_hooks"))
 
-                        if (.not. nilp(mod_hooks) .and. .not. value_eq(mod_hooks, prev_mod_hooks)) then
+                        if (allocated(mod_hooks%a) .and. .not. value_eq(mod_hooks, prev_mod_hooks)) then
                             if (nhooks == size(hooks)) then
                                 allocate (grown(2*nhooks))
 
@@ -1602,12 +1603,12 @@ contains
         behind = interval_insert_behind_hooks
         in_front = interval_insert_in_front_hooks
 
-        if (.not. nilp(behind)) then
+        if (allocated(behind%a)) then
             call call_mod_hooks(behind, start, end, status)
             if (.not. status%ok()) return
         end if
 
-        if (.not. nilp(in_front) .and. .not. value_eq(in_front, behind)) then
+        if (allocated(in_front%a) .and. .not. value_eq(in_front, behind)) then
             call call_mod_hooks(in_front, start, end, status)
         end if
     end subroutine report_interval_modification
@@ -1678,7 +1679,7 @@ contains
 
         call validate_plist(properties, plist, status)
         if (.not. status%ok()) return
-        if (s == e .or. nilp(plist)) return
+        if (s == e .or. .not. allocated(plist%a)) return
         call string_intervals(string, starts, ends, plists)
         ! Cut the string where an interval or the range starts or ends,
         ! and give each piece in the range the properties.
@@ -2007,11 +2008,11 @@ contains
 
                 if (present(prop)) then
                     call plist_get_eq(plist, prop, val, found)
-                    plist = nil()
+                    plist = value_type()
                     if (found) plist = list(prop, val)
                 end if
 
-                if (.not. nilp(plist)) then
+                if (allocated(plist%a)) then
                     allocate (grown(n + 1))
 
                     do j = 1, n
@@ -2178,7 +2179,7 @@ contains
         call get_char_property_and_overlay(test_pos, qsym("invisible"), invis_propval, invis_overlay)
 
         if (test_intang) then
-            if (nilp(get_char_property(test_pos, qsym("intangible")))) return
+            if (vtag(get_char_property(test_pos, qsym("intangible"))) == V_NULL) return
         end if
 
         if (text_prop_means_invisible(invis_propval) == 0) return
@@ -2284,7 +2285,7 @@ contains
                 ! with matching intangible property.
                 intangible_propval = get_char_property(pos, qsym("intangible"))
 
-                if (.not. nilp(intangible_propval)) then
+                if (allocated(intangible_propval%a)) then
                     do while (pos > buffers(cur)%begv)
                         if (.not. value_eq(get_char_property(pos - 1, qsym("intangible")), intangible_propval)) exit
                         pos = previous_char_property_change(pos)
@@ -2302,7 +2303,7 @@ contains
                 ! chars with matching intangible property.
                 intangible_propval = get_char_property(charpos - 1, qsym("intangible"))
 
-                if (.not. nilp(intangible_propval)) then
+                if (allocated(intangible_propval%a)) then
                     do while (pos < buffers(cur)%zv)
                         if (.not. value_eq(get_char_property(pos, qsym("intangible")), intangible_propval)) exit
                         pos = next_char_property_change(pos)
@@ -2383,7 +2384,7 @@ contains
 
             is_interval_visible = .false.
             if (k == 0) return
-            is_interval_visible = nilp(textget(buffers(cur)%text%intervals%runs(k)%plist, qsym("invisible")))
+            is_interval_visible = vtag(textget(buffers(cur)%text%intervals%runs(k)%plist, qsym("invisible"))) == V_NULL
         end function is_interval_visible
 
         !> intervals_equal on two intervals that may be null.
@@ -2403,7 +2404,7 @@ contains
             character(len=*), intent(in) :: name
             type(value_type) :: v
 
-            v = nil()
+            v = value_type()
             if (k == 0) return
             v = textget(buffers(cur)%text%intervals%runs(k)%plist, qsym(name))
         end function run_prop
@@ -2411,7 +2412,7 @@ contains
         recursive subroutine run_point_hook(fn, other)
             type(value_type), intent(in) :: fn, other
 
-            if (value_eq(fn, other) .or. nilp(fn)) return
+            if (value_eq(fn, other) .or. .not. allocated(fn%a)) return
             call call_property_function(fn, old_position, charpos, status)
         end subroutine run_point_hook
     end subroutine set_point_both
@@ -2438,7 +2439,7 @@ contains
 
             ! If following char is intangible, skip back over all chars
             ! with matching intangible property.
-            if (.not. nilp(intangible_propval)) then
+            if (allocated(intangible_propval%a)) then
                 do while (pos > buffers(cur)%begv)
                     if (.not. value_eq(get_char_property(pos - 1, qsym("intangible")), intangible_propval)) exit
                     pos = previous_char_property_change(pos)
@@ -2450,7 +2451,7 @@ contains
 
             ! If following char is intangible, skip forward over all chars
             ! with matching intangible property.
-            if (.not. nilp(intangible_propval)) then
+            if (allocated(intangible_propval%a)) then
                 do while (pos < buffers(cur)%zv)
                     if (.not. value_eq(get_char_property(pos, qsym("intangible")), intangible_propval)) exit
                     pos = next_char_property_change(pos)

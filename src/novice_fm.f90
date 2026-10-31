@@ -32,7 +32,7 @@ module novice_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands, builtin_command
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, xfixnum, symbols, xsymbol
+    use lisp_fm, only: value_type, symbolp, fixnump, xfixnum, symbols, xsymbol
     use lread_fm, only: sym, user_init_file
     use handle_fm, only: handle_type
     use buffer_fm, only: current_buffer, set_buffer
@@ -79,7 +79,7 @@ contains
 
         handled = .false.
         status = status_type()
-        if (.not. disabled_command_function_p .or. .not. symbolp(cmd) .or. nilp(cmd)) return
+        if (.not. disabled_command_function_p .or. .not. symbolp(cmd) .or. .not. allocated(cmd%a)) return
         p => find_command(symbols(xsymbol(cmd))%name)
         if (.not. associated(p)) return
         ! A string `disabled' property disables it too.

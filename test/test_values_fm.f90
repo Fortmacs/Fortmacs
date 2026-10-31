@@ -22,11 +22,12 @@
 
 module test_values_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: vtag, V_NULL
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, &
                         FM_SETTING_CONSTANT
     use lisp_fm, only: cons, consp, list, list_elt, list_length, listp, make_fixnum, make_list, &
-                       make_string, nil, nilp, sym_nil, sym_t, symbolp, t_value, value_type, xfixnum, &
+                       make_string, sym_nil, sym_t, symbolp, t_value, value_type, xfixnum, &
                        xstring
     use lread_fm, only: intern, intern_soft, sym
     use data_fm, only: boundp, car, car_safe, cdr, keywordp, makunbound, set, symbol_name, &
@@ -71,11 +72,11 @@ contains
         b%a(3)%s = "changed"
         call check(error, xstring(list_elt(a, 2_int64)), "x")
         if (allocated(error)) return
-        call check(error, nilp(make_list(no_values)), "empty list is not nil")
+        call check(error, vtag(make_list(no_values)) == V_NULL, "empty list is not nil")
         if (allocated(error)) return
-        call check(error, nilp(sym("nil")) .and. symbolp(nil()), "nil")
+        call check(error, vtag(sym("nil")) == V_NULL .and. symbolp(value_type()), "nil")
         if (allocated(error)) return
-        call check(error, consp(a) .and. listp(a) .and. listp(nil()) .and. .not. consp(nil()), "list predicates")
+        call check(error, consp(a) .and. listp(a) .and. listp(value_type()) .and. .not. consp(value_type()), "list predicates")
     end subroutine test_value_semantics
 
     subroutine test_intern(error)
@@ -151,12 +152,12 @@ contains
         call check(error, value_equal(v, list(sym("b"), sym("c"))), "cdr")
         if (allocated(error)) return
         call cdr(list(sym("a")), v, st)
-        call check(error, nilp(v), "cdr of one-element list")
+        call check(error,.not. allocated(v%a), "cdr of one-element list")
         if (allocated(error)) return
         call car(make_fixnum(1_int64), v, st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
         if (allocated(error)) return
-        call check(error, nilp(car_safe(make_fixnum(1_int64))), "car-safe")
+        call check(error, vtag(car_safe(make_fixnum(1_int64))) == V_NULL, "car-safe")
         if (allocated(error)) return
         call cons(sym("z"), l, v, ok)
         call check(error, ok .and. list_length(v) == 4, "cons")
@@ -168,14 +169,14 @@ contains
         call check(error, value_eq(v, sym("c")), "nth 2")
         if (allocated(error)) return
         call nth(9_int64, l, v, st)
-        call check(error, nilp(v), "nth past end")
+        call check(error,.not. allocated(v%a), "nth past end")
         if (allocated(error)) return
         call nthcdr(1_int64, l, v, st)
         call check(error, list_length(v), 2_int64)
         if (allocated(error)) return
         call check(error, list_length(memq(sym("b"), l)), 2_int64)
         if (allocated(error)) return
-        call check(error, nilp(memq(make_string("b"), list(make_string("b")))), "memq string")
+        call check(error, vtag(memq(make_string("b"), list(make_string("b")))) == V_NULL, "memq string")
         if (allocated(error)) return
         call check(error, list_length(member(make_string("b"), list(make_string("b")))), 1_int64)
     end subroutine test_lists
@@ -186,7 +187,7 @@ contains
         type(status_type) :: st
         integer(int64) :: n
 
-        call length(nil(), n, st)
+        call length(value_type(), n, st)
         call check(error, n, 0_int64)
         if (allocated(error)) return
         call length(list(make_fixnum(1_int64), make_fixnum(2_int64), make_fixnum(3_int64)), n, st)
@@ -239,7 +240,7 @@ contains
         call set(t_value(), sym("bob"), st)
         call check(error, st%code, FM_SETTING_CONSTANT)
         if (allocated(error)) return
-        call set(nil(), sym("bob"), st)
+        call set(value_type(), sym("bob"), st)
         call check(error, st%code, FM_SETTING_CONSTANT)
         if (allocated(error)) return
         call set(sym(":keyword"), sym("bob"), st)
@@ -256,8 +257,8 @@ contains
     subroutine test_plist_get_odd(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, nilp(plist_get(list(sym(":foo"), make_fixnum(1_int64), sym(":bar")), &
-                                         sym(":bar"))), "degenerate plist")
+        call check(error, vtag(plist_get(list(sym(":foo"), make_fixnum(1_int64), sym(":bar")), &
+                                         sym(":bar"))) == V_NULL, "degenerate plist")
     end subroutine test_plist_get_odd
 
     !> fns-tests.el: plist-put/odd-number-of-elements (bug#27726).
@@ -293,9 +294,9 @@ contains
                                                   make_string("b"), make_string("a"), make_string("c"))), &
                    "block 2 put")
         if (allocated(error)) return
-        call check(error, nilp(plist_get(plist, make_string("a"))), "block 2 get")
+        call check(error, vtag(plist_get(plist, make_string("a"))) == V_NULL, "block 2 get")
         if (allocated(error)) return
-        call check(error, nilp(plist_member(plist, make_string("a"))), "block 2 member")
+        call check(error, vtag(plist_member(plist, make_string("a"))) == V_NULL, "block 2 member")
         if (allocated(error)) return
         plist = list(make_string("1"), make_string("2"), make_string("a"), make_string("b"))
         call plist_put(plist, make_string("a"), make_string("c"), st, value_equal)
@@ -321,10 +322,10 @@ contains
         call check(error, value_equal(plist_member(plist, make_string(":c"), is_string_less), plist), &
                    "block 4 member")
         if (allocated(error)) return
-        call check(error, nilp(plist_get(plist, make_string(":a"), is_string_less)) .and. &
-                   nilp(plist_member(plist, make_string(":a"), is_string_less)) .and. &
-                   nilp(plist_get(plist, make_string(":c"), is_string_greater)) .and. &
-                   nilp(plist_member(plist, make_string(":c"), is_string_greater)), "block 4 misses")
+        call check(error, vtag(plist_get(plist, make_string(":a"), is_string_less)) == V_NULL .and. &
+                   vtag(plist_member(plist, make_string(":a"), is_string_less)) == V_NULL .and. &
+                   vtag(plist_get(plist, make_string(":c"), is_string_greater)) == V_NULL .and. &
+                   vtag(plist_member(plist, make_string(":c"), is_string_greater)) == V_NULL, "block 4 misses")
     end subroutine test_plist
 
     subroutine test_get_put(error)
@@ -337,9 +338,9 @@ contains
         call check(error, value_eq(v, t_value()), "get after put")
         if (allocated(error)) return
         call get(sym("tv-cmd"), sym("other"), v, st)
-        call check(error, nilp(v), "missing property")
+        call check(error,.not. allocated(v%a), "missing property")
         if (allocated(error)) return
-        call put(make_fixnum(1_int64), sym("p"), nil(), st)
+        call put(make_fixnum(1_int64), sym("p"), value_type(), st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
     end subroutine test_get_put
 end module test_values_fm

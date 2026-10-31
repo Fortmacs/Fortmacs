@@ -55,7 +55,7 @@ module kmacro_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, consp, fixnump, symbolp, xfixnum, make_fixnum, make_list, list_elt
+    use lisp_fm, only: value_type, consp, fixnump, symbolp, xfixnum, make_fixnum, make_list, list_elt
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, free_keymap
@@ -382,7 +382,7 @@ contains
         if (.not. status%ok()) return
 
         if (compare(pred, kmacro_counter, n)) then
-            current_prefix_arg = nil()
+            current_prefix_arg = value_type()
             call kmacro_add_counter(arg, status)
         end if
     end subroutine kmacro_reg_add_counter
@@ -481,7 +481,7 @@ contains
         status = status_type()
         call take_initial_counter_value()
         a = arg
-        if (nilp(current_prefix_arg)) a = 0
+        if (.not. allocated(current_prefix_arg%a)) a = 0
 
         if (compare(pred, kmacro_counter, a)) then
             if (associated(commands%keyboard_quit%run)) call commands%keyboard_quit%run(status)
@@ -805,7 +805,7 @@ contains
 
         saved_arg = current_prefix_arg
         saved_no_prefix = kmacro_repeat_no_prefix
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         kmacro_repeat_no_prefix = .false.
         call funcall(cmd, status)
         kmacro_repeat_no_prefix = saved_no_prefix
@@ -857,10 +857,10 @@ contains
             end select
 
             if (.not. status%ok()) return
-            last_input_event = nil()
+            last_input_event = value_type()
         end do
 
-        if (.not. nilp(last_input_event)) then
+        if (allocated(last_input_event%a)) then
             call clear_this_command_keys(keep_record=.true.)
             call unread_command_events([last_input_event])
         end if
@@ -1062,7 +1062,7 @@ contains
         if (.not. append) then
             if (allocated(last_kbd_macro)) call kmacro_push_ring()
 
-            if (.not. nilp(arg)) then
+            if (allocated(arg%a)) then
                 kmacro_counter = prefix_numeric_value(arg)
             else if (allocated(kmacro_initial_counter_value)) then
                 kmacro_counter = kmacro_initial_counter_value
@@ -1154,7 +1154,7 @@ contains
         if (present(repeat)) nr = repeat
         ending = .false.
         if (present(end_macro)) ending = end_macro
-        repeat_key = nil()
+        repeat_key = value_type()
 
         if (nr == KMACRO_REPEAT_REPEATING) then
             repeat_key = last_input_event
@@ -1176,7 +1176,7 @@ contains
             if (allocated(last_kbd_macro)) then
                 real_this_command = make_list(last_kbd_macro)
             else
-                real_this_command = nil()
+                real_this_command = value_type()
             end if
 
             if (is_defining_kbd_macro()) then
@@ -1197,7 +1197,7 @@ contains
         a = arg
         if (consp(a)) a = list_elt(a, 1_int64)
 
-        if (.not. (nilp(a) .or. fixnump(a))) then
+        if (.not. (.not. allocated(a%a) .or. fixnump(a))) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, -")
             return
         end if
@@ -1210,12 +1210,12 @@ contains
         case (KMACRO_CALL_REPEAT_LAST_KEY)
             continue
         case (KMACRO_CALL_REPEAT_DISABLED)
-            repeat_key = nil()
+            repeat_key = value_type()
         case default
             repeat_key = make_fixnum(int(kmacro_call_repeat_key, int64))
         end select
 
-        if (nilp(repeat_key)) return
+        if (.not. allocated(repeat_key%a)) return
 
         ! Issue a hint to the user, if the echo area isn't in use.
         if (.not. is_current_message()) then
@@ -1233,7 +1233,7 @@ contains
         if (kmacro_call_repeat_with_arg) then
             repeat_arg = a
         else
-            repeat_arg = nil()
+            repeat_arg = value_type()
         end if
 
         repeat_has_macro = .false.
@@ -1254,9 +1254,9 @@ contains
         if (repeat_has_macro) call move_alloc(m, repeat_macro)
         if (.not. is_keymap_live(repeat_map)) call make_sparse_keymap(repeat_map)
 
-        if (.not. nilp(repeat_key_bound)) then
+        if (allocated(repeat_key_bound%a)) then
             key(1) = repeat_key_bound
-            call define_key(repeat_map, key, nil(), st, remove=.true.)
+            call define_key(repeat_map, key, value_type(), st, remove=.true.)
         end if
 
         key(1) = repeat_key
@@ -1362,7 +1362,7 @@ contains
         status = status_type()
 
         if (is_defining_kbd_macro()) then
-            call kmacro_end_macro(nil(), status)
+            call kmacro_end_macro(value_type(), status)
             if (.not. status%ok()) return
         end if
 
@@ -1475,7 +1475,7 @@ contains
 
         status = status_type()
 
-        if (.not. nilp(current_prefix_arg)) then
+        if (allocated(current_prefix_arg%a)) then
             n = prefix_numeric_value(current_prefix_arg)
         else
             call read_number(prompt, n, status)

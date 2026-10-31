@@ -23,6 +23,7 @@
 !> `read_char_from_minibuffer', `read_char_choice'): a
 !> submodule because minibuf_fm uses subr_fm.
 submodule(subr_fm) subr_read_fm
+    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use minibuf_fm, only: minibuffer_string_type
     use character_fm, only: string_char_and_length
@@ -389,11 +390,11 @@ contains
             case (ANSWER_SKIP, ANSWER_ACT)
                 again = .false.
             case (ANSWER_RECENTER)
-                call recenter(nil(), .false., st)
+                call recenter(value_type(), .false., st)
             case (ANSWER_SCROLL_UP)
-                call scroll_up_command(nil(), st)
+                call scroll_up_command(value_type(), st)
             case (ANSWER_SCROLL_DOWN)
-                call scroll_down_command(nil(), st)
+                call scroll_down_command(value_type(), st)
             case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
                 ! scroll-other-window and scroll-other-window-down are not
                 ! ported (Deferred).
@@ -471,7 +472,7 @@ contains
             call key_parse(trim(QRM_KEYS(k)), seq, st)
             if (.not. st%ok()) cycle
             call lookup_key(make_keymap_ref(minibuffer_local_map), seq, b, st)
-            if (.not. nilp(b)) cycle
+            if (allocated(b%a)) cycle
             call define_key(read_y_or_n_map, seq, sym(remapped(trim(QRM_ANSWERS(k)))), st)
         end do
 
@@ -480,9 +481,9 @@ contains
             key1(1) = make_fixnum(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
 
-            if (nilp(b)) then
+            if (.not. allocated(b%a)) then
                 call lookup_key(make_keymap_ref(query_replace_map), key1, b, st)
-                if (.not. nilp(b)) cycle
+                if (allocated(b%a)) cycle
                 call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
             end if
 
