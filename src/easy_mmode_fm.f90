@@ -709,13 +709,13 @@ contains
 
         on = self%enabled()
         ! The on/off hooks are here for backward compatibility only.
-        if (associated(self%hook)) call self%hook%run(status)
+        if (associated(self%hook)) call self%hook%execute(status)
         if (.not. status%ok()) return
 
         if (on) then
-            call self%on_hook%run(status)
+            call self%on_hook%execute(status)
         else
-            call self%off_hook%run(status)
+            call self%off_hook%execute(status)
         end if
 
         if (.not. status%ok()) return

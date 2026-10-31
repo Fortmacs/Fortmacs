@@ -155,7 +155,7 @@ contains
     end subroutine setup_test_abbrev_table
 
     !> Type KEYS (kbd syntax) to the command loop.
-    subroutine run(keys)
+    subroutine execute_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
@@ -163,7 +163,7 @@ contains
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-    end subroutine run
+    end subroutine execute_keys
 
     !> Queue TEXT as typed characters (for the minibuffer).
     subroutine type_text(text)
@@ -592,14 +592,14 @@ contains
 
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
-        call run("teh SPC")
+        call execute_keys("teh SPC")
         call check(error, buffer_string(), "teh ")
         if (allocated(error)) return
         call erase_buffer(st)
-        call run("M-x abbrev_mode RET")
+        call execute_keys("M-x abbrev_mode RET")
         call check(error, abbrev_mode%value, "abbrev_mode on")
         if (allocated(error)) return
-        call run("teh SPC tehx SPC . SPC teh RET")
+        call execute_keys("teh SPC tehx SPC . SPC teh RET")
         call check(error, buffer_string(), "the tehx . the"//LF)
         if (allocated(error)) return
         call check(error, last_abbrev_text, "teh")
@@ -617,7 +617,7 @@ contains
         call global_abbrev_table%define("teh", "the")
         call global_abbrev_table%define("foo", "find outer otter")
         abbrev_mode = .true.
-        call run("Teh SPC TEH SPC tEh SPC FOO SPC Foo SPC")
+        call execute_keys("Teh SPC TEH SPC tEh SPC FOO SPC Foo SPC")
         call check(error, buffer_string(), "The THE The Find Outer Otter Find outer otter ")
         call kill_buffer(h, st)
     end subroutine test_case_handling
@@ -631,7 +631,7 @@ contains
         call global_abbrev_table%define("foo", "find outer otter")
         abbrev_mode = .true.
         abbrev_all_caps = .true.
-        call run("FOO SPC")
+        call execute_keys("FOO SPC")
         call check(error, buffer_string(), "FIND OUTER OTTER ")
         abbrev_all_caps = .false.
         call kill_buffer(h, st)
@@ -646,11 +646,11 @@ contains
 
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
-        call run("teh C-x ' SPC teh C-x a e")
+        call execute_keys("teh C-x ' SPC teh C-x a e")
         call check(error, buffer_string(), "the the")
         if (allocated(error)) return
         ! An abbrev that is not defined does nothing.
-        call run("SPC xyz C-x '")
+        call execute_keys("SPC xyz C-x '")
         call check(error, buffer_string(), "the the xyz")
         call kill_buffer(h, st)
     end subroutine test_expand_keys
@@ -663,10 +663,10 @@ contains
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         abbrev_mode = .true.
-        call run("teh SPC ok")
+        call execute_keys("teh SPC ok")
         call check(error, buffer_string(), "the ok")
         if (allocated(error)) return
-        call run("M-x unexpand_abbrev RET")
+        call execute_keys("M-x unexpand_abbrev RET")
         call check(error, buffer_string(), "teh ok")
         if (allocated(error)) return
         call check(error, point(), 7_int64)
@@ -686,12 +686,12 @@ contains
         call global_abbrev_table%define("teh", "the")
         call global_abbrev_table%define("ab", "about")
         abbrev_mode = .true.
-        call run("re M-' teh SPC")
+        call execute_keys("re M-' teh SPC")
         call check(error, buffer_string(), "rethe ")
         if (allocated(error)) return
         call erase_buffer(st)
         ! The prefix is itself an abbrev: it expands first.
-        call run("ab M-' teh SPC")
+        call execute_keys("ab M-' teh SPC")
         call check(error, buffer_string(), "aboutthe ")
         call kill_buffer(h, st)
     end subroutine test_prefix_mark
@@ -705,24 +705,24 @@ contains
 
         call fresh(h)
         call insert("the", st)
-        call run("C-x a g TH RET")
+        call execute_keys("C-x a g TH RET")
         call check(error, expansion_of("th"), "the")
         if (allocated(error)) return
         call check(error, abbrevs_changed, "abbrevs_changed")
         if (allocated(error)) return
         ! Two words.
         call insert(" quick fox", st)
-        call run("C-u 2 C-x a g qf RET")
+        call execute_keys("C-u 2 C-x a g qf RET")
         call check(error, expansion_of("qf", global_abbrev_table), "quick fox")
         if (allocated(error)) return
         ! Redefining asks.
-        call run("C-x a g qf RET n")
+        call execute_keys("C-x a g qf RET n")
         call check(error, expansion_of("qf", global_abbrev_table), "quick fox")
         if (allocated(error)) return
-        call run("C-x a g qf RET y")
+        call execute_keys("C-x a g qf RET y")
         call check(error, expansion_of("qf", global_abbrev_table), "fox")
         if (allocated(error)) return
-        call run("C-u - C-x a g qf RET")
+        call execute_keys("C-u - C-x a g qf RET")
         call check(error, expansion_of("qf", global_abbrev_table), "<none>")
         call discard_input()
         call kill_buffer(h, st)
@@ -737,14 +737,14 @@ contains
 
         call fresh(h)
         call insert("hello world", st)
-        call run("C-x a l hw RET")
+        call execute_keys("C-x a l hw RET")
         call check(error, expansion_of("hw", fundamental_mode_abbrev_table), "world")
         if (allocated(error)) return
         call check(error, expansion_of("hw", global_abbrev_table), "<none>")
         if (allocated(error)) return
         only_global_abbrevs = .true.
         call push_mark(1_int64, .true., .true.)
-        call run("C-x a l hello RET")
+        call execute_keys("C-x a l hello RET")
         call check(error, expansion_of("hello", global_abbrev_table), "hello world")
         only_global_abbrevs = .false.
         call kill_buffer(h, st)
@@ -759,7 +759,7 @@ contains
 
         call fresh(h)
         call insert("say foo.", st)
-        call run("C-x a i g bar RET")
+        call execute_keys("C-x a i g bar RET")
         call check(error, expansion_of("foo", global_abbrev_table), "bar")
         if (allocated(error)) return
         call check(error, buffer_string(), "say bar.")
@@ -816,21 +816,21 @@ contains
         abbrev_mode = .true.
         ! An abbrev that is case-fixed only expands as defined.
         call global_abbrev_table%define("fb", "fooBar", case_fixed=.true.)
-        call run("Fb SPC fb SPC")
+        call execute_keys("Fb SPC fb SPC")
         call check(error, buffer_string(), "Fb fooBar ")
         if (allocated(error)) return
         ! A table that is case-fixed.
         call erase_buffer(st)
         global_abbrev_table%case_fixed = .true.
         call global_abbrev_table%define("teh", "the")
-        call run("Teh SPC")
+        call execute_keys("Teh SPC")
         call check(error, buffer_string(), "Teh ")
         global_abbrev_table%case_fixed = .false.
         if (allocated(error)) return
         ! A table whose enable function says no.
         call erase_buffer(st)
         global_abbrev_table%enable_function => never
-        call run("teh SPC")
+        call execute_keys("teh SPC")
         global_abbrev_table%enable_function => null()
         call check(error, buffer_string(), "teh ")
         if (allocated(error)) return
@@ -838,7 +838,7 @@ contains
         call erase_buffer(st)
         global_abbrev_table%regexp = "\(\#[a-z]+\)"
         call global_abbrev_table%define("#inc", "#include")
-        call run("x#inc SPC")
+        call execute_keys("x#inc SPC")
         deallocate (global_abbrev_table%regexp)
         call check(error, buffer_string(), "x#include ")
         if (allocated(error)) return
@@ -879,12 +879,12 @@ contains
         abbrev_mode = .true.
         hook_calls = 0
         call global_abbrev_table%define("hk", "hooked", hook=count_hook)
-        call run("hk SPC")
+        call execute_keys("hk SPC")
         call check(error, buffer_string() == "hooked " .and. hook_calls == 1, buffer_string())
         if (allocated(error)) return
         call erase_buffer(st)
         call global_abbrev_table%define("ns", "nospace", hook=count_hook, no_self_insert=.true.)
-        call run("ns SPC")
+        call execute_keys("ns SPC")
         call check(error, buffer_string() == "nospace" .and. hook_calls == 2, buffer_string())
         if (allocated(error)) return
         ! A no_self_insert hook returning false: no expansion took place.
@@ -914,7 +914,7 @@ contains
         if (allocated(error)) return
         call text_mode_abbrev_table%define("txt", "text only")
         abbrev_mode = .true.
-        call run("txt SPC")
+        call execute_keys("txt SPC")
         call check(error, buffer_string(), "text only ")
         if (allocated(error)) return
         call fundamental_mode(st)
@@ -922,7 +922,7 @@ contains
         call check(error, associated(table, fundamental_mode_abbrev_table), "fundamental_mode_abbrev_table")
         if (allocated(error)) return
         call erase_buffer(st)
-        call run("txt SPC")
+        call execute_keys("txt SPC")
         call check(error, buffer_string(), "txt ")
         if (allocated(error)) return
         ! Help mode's table inherits Special mode's.
@@ -972,15 +972,15 @@ contains
         call fresh(h)
         call check(error, mode_line_modes(h%index), "Fundamental")
         if (allocated(error)) return
-        call run("M-x abbrev_mode RET M-x auto_fill_mode RET")
+        call execute_keys("M-x abbrev_mode RET M-x auto_fill_mode RET")
         ! (Abbrev comes first when abbrev_mode is defined first, as at startup.)
         call check(error, index(mode_line_modes(h%index), " Abbrev") > 0 .and. &
                    index(mode_line_modes(h%index), " Fill") > 0, mode_line_modes(h%index))
         if (allocated(error)) return
         call check(error, last_message, "Auto-Fill mode enabled in current buffer")
-        call run("M-x abbrev_mode RET")
+        call execute_keys("M-x abbrev_mode RET")
         call check(error, last_message, "Abbrev mode disabled in current buffer")
-        call run("M-x auto_fill_mode RET")
+        call execute_keys("M-x auto_fill_mode RET")
         call kill_buffer(h, st)
     end subroutine test_lighter
 
@@ -994,7 +994,7 @@ contains
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         abbrev_mode = .true.
-        call run("teh C-o")
+        call execute_keys("teh C-o")
         call check(error, buffer_string(), "teh"//LF)
         if (allocated(error)) return
         call check(error, abbrev_mode%value, "abbrev_mode restored")

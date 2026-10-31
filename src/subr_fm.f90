@@ -74,7 +74,7 @@ module subr_fm
     end type progress_reporter_type
     public :: after_hook_proc, add_delayed_after_hook, silent_modifications_type, silent_modifications_begin, &
               silent_modifications_end
-    public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
+    public :: execute_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
               kill_delayed_mode_hooks
 
     !> Normal hook run in major mode functions, before the mode hooks.
@@ -294,14 +294,14 @@ module subr_fm
         !> Major mode functions should use this instead of `run_hooks' when
         !> running their FOO_mode_hook.  Port of subr.el:run-mode-hooks
         !> (no file-local variables yet).  (In subr_hooks_fm.)
-        recursive module subroutine run_mode_hooks(status, hook)
+        recursive module subroutine execute_mode_hooks(status, hook)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             type(hook_type), intent(in), target, optional :: hook
-        end subroutine run_mode_hooks
+        end subroutine execute_mode_hooks
 
         !> Start `delay_mode_hooks': until the matching
-        !> delay_mode_hooks_end, `run_mode_hooks' only records its hooks
+        !> delay_mode_hooks_end, `execute_mode_hooks' only records its hooks
         !> (in the current buffer).  SAVED keeps the outer value.  Port of
         !> subr.el:delay-mode-hooks.  (In subr_hooks_fm.)
         module subroutine delay_mode_hooks_begin(saved)
@@ -331,7 +331,7 @@ module subr_fm
 
         !> Arrange for FN to run after the delayed mode hooks: add it to
         !> the current buffer's `delayed_after_hook_functions', which
-        !> `run_mode_hooks' runs after `after_change_major_mode_hook'.
+        !> `execute_mode_hooks' runs after `after_change_major_mode_hook'.
         !> (Upstream's minor modes push their :after-hook there while mode
         !> hooks are delayed.)  (In subr_hooks_fm.) Not a port.
         module subroutine add_delayed_after_hook(fn)

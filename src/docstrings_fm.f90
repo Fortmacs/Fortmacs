@@ -323,11 +323,11 @@ module docstrings_fm
                            last_repeatable_command, minibuffer_message_timeout, num_input_keys, &
                            num_nonmacro_input_events, post_command_hook, pre_command_hook, &
                            translate_upper_case_key_bindings
-    use kmacro_fm, only: kmacro_call_repeat_key, KMACRO_CALL_REPEAT_DISABLED, &
-                         KMACRO_CALL_REPEAT_LAST_KEY, kmacro_call_repeat_with_arg, kmacro_counter, &
-                         kmacro_counter_format, kmacro_counter_format_start, kmacro_counter_value_start, &
-                         kmacro_default_counter_format, kmacro_execute_before_append, kmacro_initial_counter_value, &
-                         kmacro_keymap, kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
+    use kmacro_fm, only: kmacro_counter, kmacro_counter_format, kmacro_counter_format_start, &
+                         kmacro_counter_value_start, kmacro_default_counter_format, kmacro_execute_before_append, &
+                         kmacro_execute_repeat_key, KMACRO_EXECUTE_REPEAT_DISABLED, KMACRO_EXECUTE_REPEAT_LAST_KEY, &
+                         kmacro_execute_repeat_with_arg, kmacro_initial_counter_value, kmacro_keymap, &
+                         kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
     use log_edit_fm, only: log_edit_changelog_full_paragraphs, log_edit_comment_ring, &
                            log_edit_common_indent, log_edit_confirm, LOG_EDIT_CONFIRM_NO, LOG_EDIT_CONFIRM_ALWAYS, &
                            LOG_EDIT_CONFIRM_CHANGED, log_edit_done_hook, log_edit_font_lock_gnu_style, log_edit_hook, &
@@ -631,20 +631,20 @@ module docstrings_fm
                                                                    "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
-                                                           "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", &
-                                                  "call_last_kbd_macro", "cancel_timer", "canonically_space_region", "capitalize", &
-                                           "capitalize_region", "capitalize_word", "category_docstring", "category_set_mnemonics", &
-                                                    "category_table", "char_category_set", "char_syntax", "char_table_extra_slot", &
-                                             "char_table_parent", "char_table_range", "char_table_subtype", "check_coding_system", &
-                                               "check_parens", "clear_rectangle", "clear_this_command_keys", "coding_system_base", &
-                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
-                                                    "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
-                                            "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
-                                                                "comint_bol", "comint_bol_or_process_mark", "comint_clear_buffer", &
-                                                  "comint_complete_input_ring", "comint_continue_subjob", "comint_copy_old_input", &
-                                                                    "comint_delchar_or_maybe_eof", "comint_delete_output", &
-                                                   "comint_dynamic_complete_filename", "comint_dynamic_list_filename_completions", &
-                                                   "comint_exec", "comint_forward_matching_input", "comint_get_next_from_history", &
+                                           "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "cancel_timer", &
+                                                 "canonically_space_region", "capitalize", "capitalize_region", "capitalize_word", &
+                                            "category_docstring", "category_set_mnemonics", "category_table", "char_category_set", &
+                                                  "char_syntax", "char_table_extra_slot", "char_table_parent", "char_table_range", &
+                                                   "char_table_subtype", "check_coding_system", "check_parens", "clear_rectangle", &
+                                           "clear_this_command_keys", "coding_system_base", "coding_system_change_eol_conversion", &
+                                                                 "coding_system_change_text_conversion", "coding_system_eol_type", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
+                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
+                                                "comint_bol_or_process_mark", "comint_clear_buffer", "comint_complete_input_ring", &
+                                                 "comint_continue_subjob", "comint_copy_old_input", "comint_delchar_or_maybe_eof", &
+                                                                    "comint_delete_output", "comint_dynamic_complete_filename", &
+                                                      "comint_dynamic_list_filename_completions", "comint_exec", "comint_execute", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
                                                                     "comint_goto_process_mark", "comint_history_isearch_backward", &
                                                       "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
                                                              "comint_interrupt_subjob", "comint_kill_input", "comint_kill_region", &
@@ -654,8 +654,8 @@ module docstrings_fm
                                                                     "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                             "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_filename", &
-                                                       "comint_replace_by_expanded_history", "comint_restore_input", "comint_run", &
-                                            "comint_send_eof", "comint_send_input", "comint_send_invisible", "comint_send_string", &
+                                                  "comint_replace_by_expanded_history", "comint_restore_input", "comint_send_eof", &
+                                                               "comint_send_input", "comint_send_invisible", "comint_send_string", &
                                                     "comint_set_process_mark", "comint_show_maximum_output", "comint_show_output", &
                                                             "comint_stop_subjob", "comint_strip_ctrl_m", "comint_truncate_buffer", &
                                                            "comint_write_output", "comment_box", "comment_dwim", "comment_indent", &
@@ -727,9 +727,11 @@ module docstrings_fm
                                                  "encode_coding_region", "encode_coding_string", "end_kbd_macro", "end_of_buffer", &
                                            "end_of_line", "end_of_subprogram", "event_convert_list", "event_name_parse_modifiers", &
                                                     "exchange_point_and_mark", "executable_make_buffer_file_executable_if_script", &
-                                                    "executable_self_display", "executable_set_magic", "execute_extended_command", &
-                                               "exit_minibuffer", "exit_recursive_edit", "expand_abbrev", "expand_region_abbrevs", &
-                                           "extract_rectangle", "extract_rectangle_bounds", "f90_abbrev_help", "f90_abbrev_start", &
+                                                             "executable_self_display", "executable_set_magic", "execute_at_time", &
+                                                       "execute_extended_command", "execute_last_kbd_macro", "execute_mode_hooks", &
+                                                               "execute_with_idle_timer", "execute_with_timer", "exit_minibuffer", &
+                                             "exit_recursive_edit", "expand_abbrev", "expand_region_abbrevs", "extract_rectangle", &
+                                                                "extract_rectangle_bounds", "f90_abbrev_help", "f90_abbrev_start", &
                                                         "f90_beginning_of_block", "f90_beginning_of_subprogram", "f90_break_line", &
                                               "f90_calculate_indent", "f90_capitalize_keywords", "f90_capitalize_region_keywords", &
                                                                 "f90_comment_region", "f90_do_auto_fill", "f90_downcase_keywords", &
@@ -855,12 +857,13 @@ module docstrings_fm
                                                    "kill_expression", "kill_grep", "kill_line", "kill_matching_lines", "kill_new", &
                                               "kill_paragraph", "kill_process", "kill_rectangle", "kill_region", "kill_ring_save", &
                                                             "kill_sentence", "kill_whole_line", "kill_word", "kmacro_add_counter", &
-                                                          "kmacro_call_macro", "kmacro_call_macro_repeat", "kmacro_call_ring_2nd", &
-                                            "kmacro_call_ring_2nd_repeat", "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", &
-                                                       "kmacro_delete_ring_head", "kmacro_end_and_call_macro", "kmacro_end_macro", &
-                                           "kmacro_end_or_call_macro", "kmacro_end_or_call_macro_repeat", "kmacro_insert_counter", &
-                                           "kmacro_quit_counter_equal", "kmacro_quit_counter_greater", "kmacro_quit_counter_less", &
-                                             "kmacro_redisplay", "kmacro_reg_add_counter_equal", "kmacro_reg_add_counter_greater", &
+                                                "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", "kmacro_delete_ring_head", &
+                                                "kmacro_end_and_execute_macro", "kmacro_end_macro", "kmacro_end_or_execute_macro", &
+                                                                    "kmacro_end_or_execute_macro_repeat", "kmacro_execute_macro", &
+                                                                    "kmacro_execute_macro_repeat", "kmacro_execute_ring_2nd", &
+                                           "kmacro_execute_ring_2nd_repeat", "kmacro_insert_counter", "kmacro_quit_counter_equal", &
+                                                    "kmacro_quit_counter_greater", "kmacro_quit_counter_less", "kmacro_redisplay", &
+                                                                 "kmacro_reg_add_counter_equal", "kmacro_reg_add_counter_greater", &
                                               "kmacro_reg_add_counter_less", "kmacro_reg_load_counter", "kmacro_reg_save_counter", &
                                                                   "kmacro_set_counter", "kmacro_set_format", "kmacro_start_macro", &
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
@@ -950,8 +953,7 @@ module docstrings_fm
                                                   "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
                                                    "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
                                           "replace_regexp", "replace_string", "revert_buffer", "revert_buffer_with_coding_system", &
-                                                        "rgrep", "right_char", "right_word", "rotate_yank_pointer", "run_at_time", &
-                                               "run_mode_hooks", "run_with_idle_timer", "run_with_timer", "rzgrep", "save_buffer", &
+                                              "rgrep", "right_char", "right_word", "rotate_yank_pointer", "rzgrep", "save_buffer", &
                                                                "save_buffers_kill_terminal", "save_place_forget_unreadable_files", &
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
                                          "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
@@ -1276,10 +1278,10 @@ module docstrings_fm
                                                       "js_mode_syntax_table", "js_paren_indent_offset", "js_square_indent_offset", &
                                                 "js_switch_indent_offset", "kbd_macro_termination_hook", "keyboard_coding_system", &
                                                       "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
-                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
-                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
+                                                "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", "kmacro_counter", &
                                              "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
+                                                                    "kmacro_execute_repeat_key", "kmacro_execute_repeat_with_arg", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
                                                        "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
@@ -1812,8 +1814,8 @@ module docstrings_fm
                                                                       "kill_read_only_ok", &
                                                                       "kill_ring_max", &
                                                                       "kill_whole_line", &
-                                                                      "kmacro_call_repeat_key", &
-                                                                      "kmacro_call_repeat_with_arg", &
+                                                                      "kmacro_execute_repeat_key", &
+                                                                      "kmacro_execute_repeat_with_arg", &
                                                                       "kmacro_execute_before_append", &
                                                                       "kmacro_repeat_no_prefix", &
                                                                       "kmacro_ring_max", &
@@ -3369,13 +3371,6 @@ contains
                         "current buffer.  Also, if BUFFER_OR_NAME is omitted,"//LF// &
                         "remove the current buffer from the selected window if it is"//LF// &
                         "displayed there."
-        case ("call_last_kbd_macro")
-            entry%file = "macros_fm.f90"
-            entry%command = .true.
-            entry%doc = "Call the last keyboard macro that you defined with \[start_kbd_macro]."//LF// &
-                        ""//LF// &
-                        "A prefix argument serves as a repeat count.  Zero means repeat until"//LF// &
-                        "error."
         case ("cancel_timer")
             entry%file = "timer_fm.f90"
             entry%fortran = "call cancel_timer(timer)"
@@ -3713,6 +3708,17 @@ contains
                         "present, are ""NAME=VALUE"" entries put after Comint's own in the"//LF// &
                         "process's environment (as binding `process_environment' around the"//LF// &
                         "call)."
+        case ("comint_execute")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "call comint_execute(program, status, switches)"
+            entry%declarations = "character(len=*), intent(in) :: program"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+            entry%command = .true.
+            entry%doc = "The command: read PROGRAM and run it.  The interactive form of"//LF// &
+                        "comint.el:comint-run."//LF// &
+                        ""//LF// &
+                        "Run PROGRAM in a Comint buffer and switch to that buffer."
         case ("comint_forward_matching_input")
             entry%file = "comint_fm.f90"
             entry%command = .true.
@@ -3892,17 +3898,6 @@ contains
             entry%file = "comint_fm.f90"
             entry%command = .true.
             entry%doc = "Restore unfinished input."
-        case ("comint_run")
-            entry%file = "comint_fm.f90"
-            entry%fortran = "call comint_run(program, status, switches)"
-            entry%declarations = "character(len=*), intent(in) :: program"//LF// &
-                                 "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
-            entry%command = .true.
-            entry%doc = "The command: read PROGRAM and run it.  The interactive form of"//LF// &
-                        "comint.el:comint-run."//LF// &
-                        ""//LF// &
-                        "Run PROGRAM in a Comint buffer and switch to that buffer."
         case ("comint_send_eof")
             entry%file = "comint_fm.f90"
             entry%command = .true.
@@ -4075,7 +4070,7 @@ contains
                         "\[compile_goto_error].  To kill the compilation, type"//LF// &
                         "\[kill_compilation]."//LF// &
                         ""//LF// &
-                        "Runs `compilation_mode_hook' with `run_mode_hooks' (which see)."
+                        "Runs `compilation_mode_hook' with `execute_mode_hooks' (which see)."
         case ("compilation_next_error")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_next_error(n, status, different_file, pt)"
@@ -6174,7 +6169,7 @@ contains
             entry%command = .true.
             entry%doc = "Finish defining a keyboard macro."//LF// &
                         "The definition was started by \[start_kbd_macro]."//LF// &
-                        "The macro is now available for use via \[call_last_kbd_macro]."//LF// &
+                        "The macro is now available for use via \[execute_last_kbd_macro]."//LF// &
                         ""//LF// &
                         "With numeric arg, repeat macro now that many times,"//LF// &
                         "counting the definition just completed as the first repetition."//LF// &
@@ -6271,6 +6266,23 @@ contains
                         "`executable_insert', `executable_query' and `executable_chmod' control"//LF// &
                         "when and how magic numbers are inserted or replaced and scripts made"//LF// &
                         "executable.  The interpreter's file name is returned in RESULT."
+        case ("execute_at_time")
+            entry%file = "timer_fm.f90"
+            entry%fortran = "call execute_at_time(timer, time, function, status, repeat)"
+            entry%declarations = "type(handle_type), intent(out) :: timer"//LF// &
+                                 "real(real64), intent(in) :: time"//LF// &
+                                 "procedure(command_proc) :: function"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "real(real64), intent(in), optional :: repeat"
+            entry%doc = "Perform an action at time TIME."//LF// &
+                        "Repeat the action every REPEAT seconds, if REPEAT is present."//LF// &
+                        "REPEAT may be a non-negative integer or floating point number."//LF// &
+                        "TIME is a number of seconds from now (0 meaning now)."//LF// &
+                        ""//LF// &
+                        "The action is to call FUNCTION."//LF// &
+                        ""//LF// &
+                        "This function returns a timer object which you can use in"//LF// &
+                        "`cancel_timer'."
         case ("execute_extended_command")
             entry%file = "simple_fm.f90"
             entry%command = .true.
@@ -6279,6 +6291,66 @@ contains
                         "prefix argument to `execute_extended_command'."//LF// &
                         ""//LF// &
                         "This command provides completion when reading the command name."
+        case ("execute_last_kbd_macro")
+            entry%file = "macros_fm.f90"
+            entry%command = .true.
+            entry%doc = "Call the last keyboard macro that you defined with \[start_kbd_macro]."//LF// &
+                        ""//LF// &
+                        "A prefix argument serves as a repeat count.  Zero means repeat until"//LF// &
+                        "error."
+        case ("execute_mode_hooks")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "call execute_mode_hooks(status, hook)"
+            entry%declarations = "type(status_type), intent(out) :: status"//LF// &
+                                 "type(hook_type), intent(in), target, optional :: hook"
+            entry%doc = "Run mode hooks `delayed_mode_hooks' and HOOK, or delay HOOK."//LF// &
+                        ""//LF// &
+                        "If the variable `delay_mode_hooks' is true, does not do anything,"//LF// &
+                        "just adds HOOK to `delayed_mode_hooks'."//LF// &
+                        "Otherwise, runs hooks in the sequence: `change_major_mode_after_body_hook',"//LF// &
+                        "`delayed_mode_hooks' (in reverse order), HOOK, then"//LF// &
+                        "runs the hook `after_change_major_mode_hook'."//LF// &
+                        ""//LF// &
+                        "Major mode functions should use this instead of `run_hooks' when"//LF// &
+                        "running their FOO_mode_hook."
+        case ("execute_with_idle_timer")
+            entry%file = "timer_fm.f90"
+            entry%fortran = "call execute_with_idle_timer(timer, secs, repeat, function, status)"
+            entry%declarations = "type(handle_type), intent(out) :: timer"//LF// &
+                                 "real(real64), intent(in) :: secs"//LF// &
+                                 "logical, intent(in) :: repeat"//LF// &
+                                 "procedure(command_proc) :: function"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%doc = "Perform an action the next time Emacs is idle for SECS seconds."//LF// &
+                        "The action is to call FUNCTION."//LF// &
+                        "SECS may be an integer, a floating point number, or the internal"//LF// &
+                        "time format returned by, e.g., `current_idle_time'."//LF// &
+                        "If Emacs is currently idle, and has been idle for N seconds (N < SECS),"//LF// &
+                        "then it will call FUNCTION in SECS - N seconds from now.  Using"//LF// &
+                        "SECS <= N is not recommended if this function is invoked from an idle"//LF// &
+                        "timer, because FUNCTION will then be called immediately."//LF// &
+                        ""//LF// &
+                        "If REPEAT is true, do the action each time Emacs has been idle for"//LF// &
+                        "exactly SECS seconds (that is, only once for each time Emacs becomes idle)."//LF// &
+                        ""//LF// &
+                        "This function returns a timer object which you can use in"//LF// &
+                        "`cancel_timer'."
+        case ("execute_with_timer")
+            entry%file = "timer_fm.f90"
+            entry%fortran = "call execute_with_timer(timer, secs, function, status, repeat)"
+            entry%declarations = "type(handle_type), intent(out) :: timer"//LF// &
+                                 "real(real64), intent(in) :: secs"//LF// &
+                                 "procedure(command_proc) :: function"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "real(real64), intent(in), optional :: repeat"
+            entry%doc = "Perform an action after a delay of SECS seconds."//LF// &
+                        "Repeat the action every REPEAT seconds, if REPEAT is present."//LF// &
+                        "SECS and REPEAT may be integers or floating point numbers."//LF// &
+                        "REPEAT, if present, must be a non-negative number."//LF// &
+                        "The action is to call FUNCTION."//LF// &
+                        ""//LF// &
+                        "This function returns a timer object which you can use in"//LF// &
+                        "`cancel_timer'."
         case ("exit_minibuffer")
             entry%file = "minibuffer_fm.f90"
             entry%command = .true.
@@ -9822,35 +9894,6 @@ contains
                         ""//LF// &
                         "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
-        case ("kmacro_call_macro")
-            entry%file = "kmacro_fm.f90"
-            entry%command = .true.
-            entry%doc = "Call the keyboard MACRO that you defined with \[kmacro_start_macro]."//LF// &
-                        "A prefix argument serves as a repeat count.  Zero means repeat until error."//LF// &
-                        "MACRO defaults to `last_kbd_macro'."//LF// &
-                        ""//LF// &
-                        "When you call the macro, you can call the macro again by repeating"//LF// &
-                        "just the last key in the key sequence that you used to call this"//LF// &
-                        "command.  See `kmacro_call_repeat_key' and `kmacro_call_repeat_with_arg'"//LF// &
-                        "for details on how to adjust or disable this behavior."
-        case ("kmacro_call_macro_repeat")
-            entry%file = "kmacro_fm.f90"
-            entry%command = .true.
-            entry%doc = "Call the keyboard macro again, with the argument and macro of the"//LF// &
-                        "call it repeats (the command of the repeat key after"//LF// &
-                        "\[kmacro_end_and_call_macro]).  Upstream an anonymous command made"//LF// &
-                        "by kmacro.el:kmacro-call-macro."
-        case ("kmacro_call_ring_2nd")
-            entry%file = "kmacro_fm.f90"
-            entry%command = .true.
-            entry%doc = "Execute second keyboard macro in macro ring."//LF// &
-                        "With numeric argument ARG, execute the macro that many times."
-        case ("kmacro_call_ring_2nd_repeat")
-            entry%file = "kmacro_fm.f90"
-            entry%command = .true.
-            entry%doc = "Execute second keyboard macro in macro ring."//LF// &
-                        "This is like `kmacro_call_ring_2nd', but allows repeating macro commands"//LF// &
-                        "without repeating the prefix."
         case ("kmacro_cycle_ring_next")
             entry%file = "kmacro_fm.f90"
             entry%command = .true.
@@ -9868,7 +9911,7 @@ contains
             entry%command = .true.
             entry%doc = "Delete current macro from keyboard macro ring."//LF// &
                         "The ARG parameter is unused."
-        case ("kmacro_end_and_call_macro")
+        case ("kmacro_end_and_execute_macro")
             entry%file = "kmacro_fm.f90"
             entry%command = .true.
             entry%doc = "Call last keyboard macro, ending it first if currently being defined."//LF// &
@@ -9882,21 +9925,50 @@ contains
             entry%command = .true.
             entry%doc = "Finish defining a keyboard macro."//LF// &
                         "The definition was started by \[kmacro_start_macro]."//LF// &
-                        "The macro is now available for use via \[kmacro_call_macro]."//LF// &
+                        "The macro is now available for use via \[kmacro_execute_macro]."//LF// &
                         ""//LF// &
                         "With numeric ARG, repeat the macro that many times,"//LF// &
                         "counting the definition just completed as the first repetition."//LF// &
                         "An argument of zero means repeat until error."
-        case ("kmacro_end_or_call_macro")
+        case ("kmacro_end_or_execute_macro")
             entry%file = "kmacro_fm.f90"
             entry%command = .true.
             entry%doc = "End kbd macro if currently being defined; else call last kbd macro."//LF// &
                         "With numeric prefix ARG, repeat macro that many times."//LF// &
                         "With \[universal_argument], call second macro in macro ring."
-        case ("kmacro_end_or_call_macro_repeat")
+        case ("kmacro_end_or_execute_macro_repeat")
             entry%file = "kmacro_fm.f90"
             entry%command = .true.
-            entry%doc = "As `kmacro_end_or_call_macro' but allow repeat without repeating prefix."
+            entry%doc = "As `kmacro_end_or_execute_macro' but allow repeat without repeating prefix."
+        case ("kmacro_execute_macro")
+            entry%file = "kmacro_fm.f90"
+            entry%command = .true.
+            entry%doc = "Call the keyboard MACRO that you defined with \[kmacro_start_macro]."//LF// &
+                        "A prefix argument serves as a repeat count.  Zero means repeat until error."//LF// &
+                        "MACRO defaults to `last_kbd_macro'."//LF// &
+                        ""//LF// &
+                        "When you call the macro, you can call the macro again by repeating"//LF// &
+                        "just the last key in the key sequence that you used to call this"//LF// &
+                        "command.  See `kmacro_execute_repeat_key' and `kmacro_execute_repeat_with_arg'"//LF// &
+                        "for details on how to adjust or disable this behavior."
+        case ("kmacro_execute_macro_repeat")
+            entry%file = "kmacro_fm.f90"
+            entry%command = .true.
+            entry%doc = "Call the keyboard macro again, with the argument and macro of the"//LF// &
+                        "call it repeats (the command of the repeat key after"//LF// &
+                        "\[kmacro_end_and_execute_macro]).  Upstream an anonymous command made"//LF// &
+                        "by kmacro.el:kmacro-call-macro."
+        case ("kmacro_execute_ring_2nd")
+            entry%file = "kmacro_fm.f90"
+            entry%command = .true.
+            entry%doc = "Execute second keyboard macro in macro ring."//LF// &
+                        "With numeric argument ARG, execute the macro that many times."
+        case ("kmacro_execute_ring_2nd_repeat")
+            entry%file = "kmacro_fm.f90"
+            entry%command = .true.
+            entry%doc = "Execute second keyboard macro in macro ring."//LF// &
+                        "This is like `kmacro_execute_ring_2nd', but allows repeating macro commands"//LF// &
+                        "without repeating the prefix."
         case ("kmacro_insert_counter")
             entry%file = "kmacro_fm.f90"
             entry%command = .true.
@@ -9992,7 +10064,7 @@ contains
             entry%doc = "Record subsequent keyboard input, defining a keyboard macro."//LF// &
                         "The commands are recorded even as they are executed."//LF// &
                         "Use \[kmacro_end_macro] to finish recording and make the macro available."//LF// &
-                        "Use \[kmacro_end_and_call_macro] to execute the macro."//LF// &
+                        "Use \[kmacro_end_and_execute_macro] to execute the macro."//LF// &
                         ""//LF// &
                         "A true arg (prefix arg) means append to last macro defined."//LF// &
                         ""//LF// &
@@ -13136,76 +13208,6 @@ contains
             entry%command = .true.
             entry%doc = "Rotate the yanking point in the kill ring."//LF// &
                         "With ARG, rotate that many kills forward (or backward, if negative)."
-        case ("run_at_time")
-            entry%file = "timer_fm.f90"
-            entry%fortran = "call run_at_time(timer, time, function, status, repeat)"
-            entry%declarations = "type(handle_type), intent(out) :: timer"//LF// &
-                                 "real(real64), intent(in) :: time"//LF// &
-                                 "procedure(command_proc) :: function"//LF// &
-                                 "type(status_type), intent(out) :: status"//LF// &
-                                 "real(real64), intent(in), optional :: repeat"
-            entry%doc = "Perform an action at time TIME."//LF// &
-                        "Repeat the action every REPEAT seconds, if REPEAT is present."//LF// &
-                        "REPEAT may be a non-negative integer or floating point number."//LF// &
-                        "TIME is a number of seconds from now (0 meaning now)."//LF// &
-                        ""//LF// &
-                        "The action is to call FUNCTION."//LF// &
-                        ""//LF// &
-                        "This function returns a timer object which you can use in"//LF// &
-                        "`cancel_timer'."
-        case ("run_mode_hooks")
-            entry%file = "subr_fm.f90"
-            entry%fortran = "call run_mode_hooks(status, hook)"
-            entry%declarations = "type(status_type), intent(out) :: status"//LF// &
-                                 "type(hook_type), intent(in), target, optional :: hook"
-            entry%doc = "Run mode hooks `delayed_mode_hooks' and HOOK, or delay HOOK."//LF// &
-                        ""//LF// &
-                        "If the variable `delay_mode_hooks' is true, does not do anything,"//LF// &
-                        "just adds HOOK to `delayed_mode_hooks'."//LF// &
-                        "Otherwise, runs hooks in the sequence: `change_major_mode_after_body_hook',"//LF// &
-                        "`delayed_mode_hooks' (in reverse order), HOOK, then"//LF// &
-                        "runs the hook `after_change_major_mode_hook'."//LF// &
-                        ""//LF// &
-                        "Major mode functions should use this instead of `run_hooks' when"//LF// &
-                        "running their FOO_mode_hook."
-        case ("run_with_idle_timer")
-            entry%file = "timer_fm.f90"
-            entry%fortran = "call run_with_idle_timer(timer, secs, repeat, function, status)"
-            entry%declarations = "type(handle_type), intent(out) :: timer"//LF// &
-                                 "real(real64), intent(in) :: secs"//LF// &
-                                 "logical, intent(in) :: repeat"//LF// &
-                                 "procedure(command_proc) :: function"//LF// &
-                                 "type(status_type), intent(out) :: status"
-            entry%doc = "Perform an action the next time Emacs is idle for SECS seconds."//LF// &
-                        "The action is to call FUNCTION."//LF// &
-                        "SECS may be an integer, a floating point number, or the internal"//LF// &
-                        "time format returned by, e.g., `current_idle_time'."//LF// &
-                        "If Emacs is currently idle, and has been idle for N seconds (N < SECS),"//LF// &
-                        "then it will call FUNCTION in SECS - N seconds from now.  Using"//LF// &
-                        "SECS <= N is not recommended if this function is invoked from an idle"//LF// &
-                        "timer, because FUNCTION will then be called immediately."//LF// &
-                        ""//LF// &
-                        "If REPEAT is true, do the action each time Emacs has been idle for"//LF// &
-                        "exactly SECS seconds (that is, only once for each time Emacs becomes idle)."//LF// &
-                        ""//LF// &
-                        "This function returns a timer object which you can use in"//LF// &
-                        "`cancel_timer'."
-        case ("run_with_timer")
-            entry%file = "timer_fm.f90"
-            entry%fortran = "call run_with_timer(timer, secs, function, status, repeat)"
-            entry%declarations = "type(handle_type), intent(out) :: timer"//LF// &
-                                 "real(real64), intent(in) :: secs"//LF// &
-                                 "procedure(command_proc) :: function"//LF// &
-                                 "type(status_type), intent(out) :: status"//LF// &
-                                 "real(real64), intent(in), optional :: repeat"
-            entry%doc = "Perform an action after a delay of SECS seconds."//LF// &
-                        "Repeat the action every REPEAT seconds, if REPEAT is present."//LF// &
-                        "SECS and REPEAT may be integers or floating point numbers."//LF// &
-                        "REPEAT, if present, must be a non-negative number."//LF// &
-                        "The action is to call FUNCTION."//LF// &
-                        ""//LF// &
-                        "This function returns a timer object which you can use in"//LF// &
-                        "`cancel_timer'."
         case ("rzgrep")
             entry%file = "grep_fm.f90"
             entry%command = .true.
@@ -18338,7 +18340,7 @@ contains
                         "its end."//LF// &
                         ""//LF// &
                         "If Emacs lacks asynchronous process support, this hook is run"//LF// &
-                        "after `call_process' inserts the grep output into the buffer."
+                        "after `execute_process' inserts the grep output into the buffer."
         case ("compilation_filter_start")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_filter_start"
@@ -23523,31 +23525,6 @@ contains
             entry%fortran = "killed_rectangle"
             entry%doc = "Rectangle for `yank_rectangle' to insert.  Unallocated (or empty)"//LF// &
                         "for none."
-        case ("kmacro_call_repeat_key")
-            entry%file = "kmacro_fm.f90"
-            entry%fortran = "kmacro_call_repeat_key"
-            entry%user_option = .true.
-            entry%original = "KMACRO_CALL_REPEAT_LAST_KEY"
-
-            select case (kmacro_call_repeat_key)
-            case (KMACRO_CALL_REPEAT_DISABLED)
-                entry%value = "KMACRO_CALL_REPEAT_DISABLED"
-            case (KMACRO_CALL_REPEAT_LAST_KEY)
-                entry%value = "KMACRO_CALL_REPEAT_LAST_KEY"
-            case default
-                entry%value = repr(kmacro_call_repeat_key)
-            end select
-
-            entry%doc = "Allow repeating macro call using last key or a specific key."//LF// &
-                        "In Fortran: KMACRO_CALL_REPEAT_DISABLED (none),"//LF// &
-                        "KMACRO_CALL_REPEAT_LAST_KEY (the last key) or a character."
-        case ("kmacro_call_repeat_with_arg")
-            entry%file = "kmacro_fm.f90"
-            entry%fortran = "kmacro_call_repeat_with_arg"
-            entry%user_option = .true.
-            entry%original = ".false."
-            entry%value = repr(kmacro_call_repeat_with_arg)
-            entry%doc = "Repeat macro call with original arg when true; repeat once if false."
         case ("kmacro_counter")
             entry%file = "kmacro_fm.f90"
             entry%fortran = "kmacro_counter"
@@ -23613,6 +23590,31 @@ contains
                         "Otherwise, a single \[universal_argument] prefix does not execute the"//LF// &
                         "macro, while more than one \[universal_argument] prefix causes the"//LF// &
                         "macro to be executed before appending to it."
+        case ("kmacro_execute_repeat_key")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_execute_repeat_key"
+            entry%user_option = .true.
+            entry%original = "KMACRO_EXECUTE_REPEAT_LAST_KEY"
+
+            select case (kmacro_execute_repeat_key)
+            case (KMACRO_EXECUTE_REPEAT_DISABLED)
+                entry%value = "KMACRO_EXECUTE_REPEAT_DISABLED"
+            case (KMACRO_EXECUTE_REPEAT_LAST_KEY)
+                entry%value = "KMACRO_EXECUTE_REPEAT_LAST_KEY"
+            case default
+                entry%value = repr(kmacro_execute_repeat_key)
+            end select
+
+            entry%doc = "Allow repeating macro call using last key or a specific key."//LF// &
+                        "In Fortran: KMACRO_EXECUTE_REPEAT_DISABLED (none),"//LF// &
+                        "KMACRO_EXECUTE_REPEAT_LAST_KEY (the last key) or a character."
+        case ("kmacro_execute_repeat_with_arg")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_execute_repeat_with_arg"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(kmacro_execute_repeat_with_arg)
+            entry%doc = "Repeat macro call with original arg when true; repeat once if false."
         case ("kmacro_initial_counter_value")
             entry%file = "kmacro_fm.f90"
             entry%fortran = "kmacro_initial_counter_value"
@@ -24881,7 +24883,7 @@ contains
             entry%file = "keyboard_fm.f90"
             entry%fortran = "post_command_hook"
             entry%doc = "Normal hook run after each command is executed.  (An error in one"//LF// &
-                        "of its functions ends the run; safe_run_hooks's message and removal"//LF// &
+                        "of its functions ends the run; safe_execute_hooks's message and removal"//LF// &
                         "of the function are deferred.)"
         case ("post_self_insert_hook")
             entry%file = "cmds_fm.f90"
@@ -24893,7 +24895,7 @@ contains
             entry%file = "keyboard_fm.f90"
             entry%fortran = "pre_command_hook"
             entry%doc = "Normal hook run before each command is executed.  (An error in one"//LF// &
-                        "of its functions ends the run; safe_run_hooks's message and removal"//LF// &
+                        "of its functions ends the run; safe_execute_hooks's message and removal"//LF// &
                         "of the function are deferred.)"
         case ("prefix_command_preserve_state_hook")
             entry%file = "simple_fm.f90"
@@ -28124,7 +28126,7 @@ contains
             entry%file = "vc_dir_fm.f90"
             entry%fortran = "vc_dir_mode_hook"
             entry%doc = "Normal hook run by `vc_dir_mode'."//LF// &
-                        "See `run_mode_hooks'."
+                        "See `execute_mode_hooks'."
         case ("vc_dir_save_some_buffers_on_revert")
             entry%file = "vc_dir_fm.f90"
             entry%fortran = "vc_dir_save_some_buffers_on_revert"
@@ -29314,9 +29316,9 @@ contains
             kind = OPTION_INTEGER
         case ("kill_whole_line")
             kind = OPTION_LOGICAL
-        case ("kmacro_call_repeat_key")
+        case ("kmacro_execute_repeat_key")
             kind = OPTION_CHOICE
-        case ("kmacro_call_repeat_with_arg")
+        case ("kmacro_execute_repeat_with_arg")
             kind = OPTION_LOGICAL
         case ("kmacro_execute_before_append")
             kind = OPTION_LOGICAL
@@ -30224,8 +30226,8 @@ contains
             kill_read_only_ok = v
         case ("kill_whole_line")
             kill_whole_line_option = v
-        case ("kmacro_call_repeat_with_arg")
-            kmacro_call_repeat_with_arg = v
+        case ("kmacro_execute_repeat_with_arg")
+            kmacro_execute_repeat_with_arg = v
         case ("kmacro_execute_before_append")
             kmacro_execute_before_append = v
         case ("kmacro_repeat_no_prefix")
@@ -32221,12 +32223,12 @@ contains
             case default
                 ok = .false.
             end select
-        case ("kmacro_call_repeat_key")
+        case ("kmacro_execute_repeat_key")
             select case (constant)
-            case ("KMACRO_CALL_REPEAT_DISABLED")
-                kmacro_call_repeat_key = KMACRO_CALL_REPEAT_DISABLED
-            case ("KMACRO_CALL_REPEAT_LAST_KEY")
-                kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
+            case ("KMACRO_EXECUTE_REPEAT_DISABLED")
+                kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_DISABLED
+            case ("KMACRO_EXECUTE_REPEAT_LAST_KEY")
+                kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_LAST_KEY
             case default
                 ok = .false.
             end select
@@ -33265,11 +33267,11 @@ contains
                          "JS_INDENT_FIRST_INIT_YES", "JS_INDENT_FIRST_INIT_DYNAMIC"]
             values = [integer(int64) :: int(JS_INDENT_FIRST_INIT_NO, int64), &
                       int(JS_INDENT_FIRST_INIT_YES, int64), int(JS_INDENT_FIRST_INIT_DYNAMIC, int64)]
-        case ("kmacro_call_repeat_key")
-            constants = [character(len=48) :: "KMACRO_CALL_REPEAT_DISABLED", &
-                         "KMACRO_CALL_REPEAT_LAST_KEY"]
-            values = [integer(int64) :: int(KMACRO_CALL_REPEAT_DISABLED, int64), &
-                      int(KMACRO_CALL_REPEAT_LAST_KEY, int64)]
+        case ("kmacro_execute_repeat_key")
+            constants = [character(len=48) :: "KMACRO_EXECUTE_REPEAT_DISABLED", &
+                         "KMACRO_EXECUTE_REPEAT_LAST_KEY"]
+            values = [integer(int64) :: int(KMACRO_EXECUTE_REPEAT_DISABLED, int64), &
+                      int(KMACRO_EXECUTE_REPEAT_LAST_KEY, int64)]
         case ("mode_require_final_newline")
             constants = [character(len=48) :: "FINAL_NEWLINE_NEVER", "FINAL_NEWLINE_SAVE", &
                          "FINAL_NEWLINE_VISIT", "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]

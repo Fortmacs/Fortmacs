@@ -74,7 +74,7 @@ contains
                     new_unittest("compile-test-grep-regexps", test_grep_regexps), &
                     new_unittest("wildcard-to-regexp", test_wildcard_to_regexp), &
                     new_unittest("grep-expand-template", test_expand_template), &
-                    new_unittest("grep-run", test_grep_run), &
+                    new_unittest("grep-run", test_grep_execute), &
                     new_unittest("grep-edit-mode", test_grep_edit) &
                     ]
     end subroutine collect_grep_fm
@@ -320,7 +320,7 @@ contains
 
     !> `grep' runs grep in *grep*, in Grep mode, with the exit message and
     !> the matches that `next_error' visits.
-    subroutine test_grep_run(error)
+    subroutine test_grep_execute(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buf
         type(status_type) :: st
@@ -379,7 +379,7 @@ contains
         call kill_buffer(h, st)
         open (newunit=unit, file=path, status="old")
         close (unit, status="delete")
-    end subroutine test_grep_run
+    end subroutine test_grep_execute
 
     !> Grep-Edit mode: an edit of a match line in *grep* changes the line
     !> of the file's buffer, and C-c C-c returns to Grep mode.

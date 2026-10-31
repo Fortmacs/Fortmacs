@@ -104,7 +104,7 @@ contains
     module procedure syms_of_simple_view
     call minor_modes%read_only_mode%define("read_only_mode", variable="buffer_read_only", hook=read_only_mode_hook, &
                                            body=read_only_body)
-    commands%read_only_mode%run => read_only_mode
-    commands%what_line%run => what_line
+    commands%read_only_mode%execute => read_only_mode
+    commands%what_line%execute => what_line
     end procedure syms_of_simple_view
 end submodule simple_view_fm

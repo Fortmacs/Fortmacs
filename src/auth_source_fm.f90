@@ -297,7 +297,7 @@ contains
         ! bug#12570
         call keymap_set(minor_modes%read_passwd_mode%map, "C-u", "delete_minibuffer_contents", st)
         call keymap_set(minor_modes%read_passwd_mode%map, "TAB", "read_passwd_toggle_visibility", st)
-        commands%read_passwd_toggle_visibility%run => cmd_read_passwd_toggle_visibility
-        commands%read_passwd_mode%run => read_passwd_mode
+        commands%read_passwd_toggle_visibility%execute => cmd_read_passwd_toggle_visibility
+        commands%read_passwd_mode%execute => read_passwd_mode
     end subroutine syms_of_auth_source
 end module auth_source_fm

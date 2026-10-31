@@ -1469,7 +1469,7 @@ contains
     end function detect_coding_charset
 
     !> Run the detector of CATEGORY.  Not a port.
-    logical function run_detector(category, units, head_ascii, info) result(ok)
+    logical function execute_detector(category, units, head_ascii, info) result(ok)
         integer, intent(in) :: category
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: head_ascii
@@ -1487,7 +1487,7 @@ contains
         case default
             info%rejected = ior(info%rejected, 2**category)
         end select
-    end function run_detector
+    end function execute_detector
 
     !> The end-of-line format of the text: one of EOL_SEEN_*, looking at
     !> up to three line ends (UTF-16 ones for a UTF-16 category).  Port of
@@ -1686,7 +1686,7 @@ contains
                         hit = .true.
                         exit
                     end if
-                else if (run_detector(category, units, head_ascii, info)) then
+                else if (execute_detector(category, units, head_ascii, info)) then
                     if (btest(info%found, category)) then
                         hit = .true.
                         exit
@@ -1836,7 +1836,7 @@ contains
                             hit = .true.
                             exit
                         end if
-                    else if (run_detector(category, units, head_ascii, info)) then
+                    else if (execute_detector(category, units, head_ascii, info)) then
                         if (top .and. btest(info%found, category)) then
                             if (category == CAT_UTF_16_AUTO) then
                                 if (btest(info%found, CAT_UTF_16_LE)) then

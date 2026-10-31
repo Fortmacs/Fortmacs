@@ -95,7 +95,7 @@ contains
     !> Run the editor on a pty with `keys` typed (they must end with
     !> C-x C-c), *scratch* emptied first; the terminal has `lines` lines
     !> (8 if absent).
-    subroutine run_on_pty(keys, st, args, configure, lines)
+    subroutine execute_on_pty(keys, st, args, configure, lines)
         character(len=*), intent(in) :: keys
         type(status_type), intent(out) :: st
         type(arg_type), intent(in), optional :: args(:)
@@ -133,7 +133,7 @@ contains
         call reset_sys_modes(slave, old, ignore)
         call close_fd(slave)
         call close_fd(master)
-    end subroutine run_on_pty
+    end subroutine execute_on_pty
 
     !> Arguments from strings.
     function argv(strings) result(args)
@@ -228,7 +228,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, configure=sample_configure)
+        call execute_on_pty(achar(3)//"d"//achar(24)//achar(3), st, configure=sample_configure)
         call check(error, st%ok(), "emacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "configured")
         if (.not. allocated(error)) call check(error, tab_width%value == 4)
@@ -243,7 +243,7 @@ contains
 
         args(1)%s = "-q"
         ! C-c is undefined without the init file, so "d" self-inserts.
-        call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
+        call execute_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
         call check(error, st%ok(), "emacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "d")
         if (.not. allocated(error)) call check(error, tab_width%value == 8)
@@ -254,7 +254,7 @@ contains
         type(status_type) :: st
 
         ! The editor still starts.
-        call run_on_pty("hi"//achar(24)//achar(3), st, configure=failing_configure)
+        call execute_on_pty("hi"//achar(24)//achar(3), st, configure=failing_configure)
         call check(error, st%ok(), "emacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         if (.not. allocated(error)) call check(error, init_file_had_error, "init-file-had-error")
@@ -280,7 +280,7 @@ contains
         type(value_type) :: mode, name
         type(status_type) :: vst
 
-        call run_on_pty(achar(24)//achar(3), st)
+        call execute_on_pty(achar(24)//achar(3), st)
         call check(error, st%ok(), "emacs_main")
         if (allocated(error)) return
         call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
@@ -302,7 +302,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call run_on_pty("abc"//achar(24)//achar(3), st)
+        call execute_on_pty("abc"//achar(24)//achar(3), st)
         call check(error, st%ok(), "emacs_main")
         if (allocated(error)) return
         call check(error, windows(selected_frame%root_window%index)%buffer%index == cur, "root window shows *scratch*")
@@ -333,7 +333,7 @@ contains
         call kill_buffer(tmp, st)
         names(1) = dir//"a.txt"
         names(2) = dir//"b.txt"
-        call run_on_pty(achar(24)//achar(3), st, argv(names), lines=20_int32)
+        call execute_on_pty(achar(24)//achar(3), st, argv(names), lines=20_int32)
         call check(error, st%ok(), "emacs_main: "//format_error(st))
         if (allocated(error)) return
         a = get_file_buffer(dir//"a.txt")

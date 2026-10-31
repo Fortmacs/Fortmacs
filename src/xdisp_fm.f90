@@ -1843,7 +1843,7 @@ contains
 
                 if (.not. allocated(prop%a)) then
                     fontifying = .true.
-                    call fontification_functions%run(pos, st, safe=.true.)
+                    call fontification_functions%execute(pos, st, safe=.true.)
                     fontifying = .false.
                     ! (A function may have switched buffers: a fig leaf.)
                     call set_buffer_internal(bi)

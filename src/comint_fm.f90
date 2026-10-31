@@ -61,7 +61,7 @@
 !> property is set, text property hooks are not ported);
 !> `filter_buffer_substring_function'; `window_point_insertion_type';
 !> `comint_osc_process_output'; source file commands
-!> (`comint_get_source' and friends); `comint_run' with switches read
+!> (`comint_get_source' and friends); `comint_execute' with switches read
 !> after C-u (an error says so); coding systems.
 module comint_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
@@ -110,7 +110,7 @@ module comint_fm
     use minibuf_fm, only: read_from_minibuffer, read_string
     use minibuffer_fm, only: read_file_name
     use paragraphs_fm, only: paragraph_start, forward_paragraph
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value, call_interactively, this_command
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, execute_interactively, this_command
     use keyboard_fm, only: last_command, this_command_keys
     use dispnew_fm, only: ding
     use commands_fm, only: commands
@@ -127,7 +127,7 @@ module comint_fm
     use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents, syms_of_mule_conf
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
-    use timer_fm, only: run_at_time
+    use timer_fm, only: execute_at_time
     use lisp_fm, only: make_list, xstring, value_type
     use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_unquote_proc, &
                                 completion_requote_proc, completion_quote_proc, completion_table_with_quoting, &
@@ -152,7 +152,7 @@ module comint_fm
     implicit none(type, external)
     private
 
-    public :: comint_mode, syms_of_comint, comint_check_proc, make_comint_in_buffer, make_comint, comint_run, &
+    public :: comint_mode, syms_of_comint, comint_check_proc, make_comint_in_buffer, make_comint, comint_execute, &
               comint_exec, comint_term_environment, is_comint_nonblank, comint_output_filter, comint_carriage_motion, &
               comint_send_input, comint_simple_send, comint_send_string, comint_send_region, comint_snapshot_last_prompt, &
               comint_get_old_input_default, comint_copy_old_input, comint_skip_prompt, is_comint_after_pmark, &
@@ -1138,7 +1138,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. associated(major_modes%comint_mode%run)) call syms_of_comint()
+        if (.not. associated(major_modes%comint_mode%execute)) call syms_of_comint()
         call major_modes%comint_mode%begin(saved, status)
         if (.not. status%ok()) return
         call comint_mode_body()
@@ -1282,7 +1282,7 @@ contains
     !> See `make_comint' and `comint_exec'.  Port of comint.el:comint-run
     !> (the hooks `comint-NAME-hook' are not applicable: hooks are named
     !> objects).
-    recursive subroutine comint_run(program, status, switches)
+    recursive subroutine comint_execute(program, status, switches)
         use fileio_fm, only: file_name_nondirectory
         use window_fm, only: switch_to_buffer
         character(len=*), intent(in) :: program
@@ -1295,13 +1295,13 @@ contains
         call make_comint(name, program, buf, status, switches=switches)
         if (.not. status%ok()) return
         call switch_to_buffer(buffers(buf%index)%name, status)
-    end subroutine comint_run
+    end subroutine comint_execute
 
     !> The command: read PROGRAM and run it.  The interactive form of
     !> comint.el:comint-run.
     !>
     !> Run PROGRAM in a Comint buffer and switch to that buffer.
-    recursive subroutine cmd_comint_run(status)
+    recursive subroutine cmd_comint_execute(status)
         character(len=:), allocatable :: program
         type(status_type), intent(out) :: status
 
@@ -1309,12 +1309,12 @@ contains
         if (.not. status%ok()) return
 
         if (vtag(current_prefix_arg) == V_ARRAY) then
-            call set_error(status, FM_GENERIC_ERROR, "Reading switches for comint_run is not supported yet")
+            call set_error(status, FM_GENERIC_ERROR, "Reading switches for comint_execute is not supported yet")
             return
         end if
 
-        call comint_run(program, status)
-    end subroutine cmd_comint_run
+        call comint_execute(program, status)
+    end subroutine cmd_comint_execute
 
     !> Start up a process named NAME in buffer BUFFER for Comint modes.
     !> Runs the given COMMAND with SWITCHES, and initial input from
@@ -1369,7 +1369,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call comint_exec_hook%run(status)
+        call comint_exec_hook%execute(status)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine comint_exec
 
@@ -1926,7 +1926,7 @@ contains
 
         ! If leaving the edit line, save partial input.
         if (comint_buffers(k)%input_ring_index < 0) then
-            call call_get_old_input(old, status)
+            call execute_get_old_input(old, status)
             if (.not. status%ok()) return
             k = entry_of(cur)
             comint_buffers(k)%stored_incomplete_input = old
@@ -1954,14 +1954,14 @@ contains
     end subroutine comint_input_ring_ref
 
     !> Run the current buffer's `comint_get_old_input'.  Not a port.
-    subroutine call_get_old_input(input, status)
+    subroutine execute_get_old_input(input, status)
         character(len=:), allocatable, intent(out) :: input
         type(status_type), intent(out) :: status
         integer :: k
 
         k = local_entry()
         call comint_buffers(k)%get_old_input(input, status)
-    end subroutine call_get_old_input
+    end subroutine execute_get_old_input
 
     !> Search forwards through input history for match for REGEXP.
     !> (Later history elements are more recent commands.)
@@ -2307,7 +2307,7 @@ contains
             call buffer_substring(pm, point(), intxt, status)
             if (.not. status%ok()) return
         else
-            call call_get_old_input(copy, status)
+            call execute_get_old_input(copy, status)
             if (.not. status%ok()) return
             call goto_char(pm)
             call insert(copy, status)
@@ -2351,9 +2351,9 @@ contains
 
         if (filters) then
             if (nonl) then
-                call comint_input_filter_functions%run(input, status)
+                call comint_input_filter_functions%execute(input, status)
             else
-                call comint_input_filter_functions%run(input//achar(10), status)
+                call comint_input_filter_functions%execute(input//achar(10), status)
             end if
 
             if (.not. status%ok()) return
@@ -2463,7 +2463,7 @@ contains
         ! scrolled the buffer in undesirable ways.
         k = local_entry()
         call set_marker(comint_buffers(k)%last_output_start, marker_pos(pmark), st)
-        call comint_output_filter_functions%run("", status)
+        call comint_output_filter_functions%execute("", status)
 
     contains
 
@@ -2717,7 +2717,7 @@ contains
         if (.not. status%ok()) return
         k = local_entry()
         ! Run preoutput filters.
-        call comint_preoutput_filter_functions%run(string, text, status)
+        call comint_preoutput_filter_functions%execute(string, text, status)
         if (.not. status%ok()) return
         ! Insert STRING.
         call inhibit_read_only_begin(inhibit)
@@ -2752,7 +2752,7 @@ contains
 
             ! Run these hooks with point where the user had it.
             call goto_char(marker_pos(saved_point))
-            call comint_output_filter_functions%run(text, status)
+            call comint_output_filter_functions%execute(text, status)
             call set_marker(saved_point, point(), st)
             ! In case a filter moved it.
             call goto_char(marker_pos(pmark))
@@ -3117,7 +3117,7 @@ contains
         type(handle_type) :: proc
         character(len=:), allocatable :: input
 
-        call call_get_old_input(input, status)
+        call execute_get_old_input(input, status)
         if (.not. status%ok()) return
         call current_process(proc, status)
         if (.not. status%ok()) return
@@ -3465,7 +3465,7 @@ contains
             if (.not. status%ok()) return
             call command_remapping(cmd, remap)
             if (allocated(remap%a)) cmd = remap
-            call call_interactively(cmd, status)
+            call execute_interactively(cmd, status)
         end if
     end subroutine comint_delchar_or_maybe_eof
 
@@ -4736,7 +4736,7 @@ contains
 
         ! If leaving the edit line, save partial unfinished input.
         if (comint_buffers(k)%input_ring_index < 0) then
-            call call_get_old_input(old, status)
+            call execute_get_old_input(old, status)
             if (.not. status%ok()) return
             k = local_entry()
             comint_buffers(k)%stored_incomplete_input = old
@@ -5175,7 +5175,7 @@ contains
         grown(n + 1)%buffer = current_buffer()
         grown(n + 1)%prompt = prompt
         call move_alloc(grown, pending_prompts)
-        call run_at_time(timer, 0.0_real64, send_pending_password, status)
+        call execute_at_time(timer, 0.0_real64, send_pending_password, status)
 
     contains
 
@@ -5882,7 +5882,7 @@ contains
     subroutine syms_of_comint()
         type(status_type) :: st
 
-        if (associated(major_modes%comint_mode%run)) return
+        if (associated(major_modes%comint_mode%execute)) return
         call major_modes%comint_mode%define("comint_mode", "Comint", comint_mode, comint_mode_hook)
         major_modes%comint_mode%special = .true.
         comint_mode_map = major_modes%comint_mode%map
@@ -5932,7 +5932,7 @@ contains
             comint_password_prompt_regexp = comint_password_prompt_regexp_default()
         end if
 
-        commands%comint_send_invisible%run => cmd_comint_send_invisible
+        commands%comint_send_invisible%execute => cmd_comint_send_invisible
         call add_local_variables_killer(kill_comint_locals)
         ! Keys:
         call keymap_set(comint_mode_map, "M-p", "comint_previous_input", st)
@@ -5976,54 +5976,54 @@ contains
         call keymap_set(comint_mode_map, "C-c C-d", "comint_send_eof", st)
         call keymap_set(comint_mode_map, "C-c C-s", "comint_write_output", st)
         call keymap_set(comint_mode_map, "C-c .", "comint_insert_previous_argument", st)
-        commands%comint_mode%run => comint_mode
-        commands%comint_run%run => cmd_comint_run
-        commands%comint_send_input%run => cmd_comint_send_input
-        commands%comint_previous_input%run => cmd_comint_previous_input
-        commands%comint_next_input%run => cmd_comint_next_input
-        commands%comint_previous_matching_input%run => cmd_comint_previous_matching_input
-        commands%comint_next_matching_input%run => cmd_comint_next_matching_input
-        commands%comint_previous_matching_input_from_input%run => cmd_comint_previous_matching_input_from_input
-        commands%comint_next_matching_input_from_input%run => cmd_comint_next_matching_input_from_input
-        commands%comint_restore_input%run => comint_restore_input
-        commands%comint_backward_matching_input%run => cmd_comint_backward_matching_input
-        commands%comint_forward_matching_input%run => cmd_comint_forward_matching_input
-        commands%comint_show_output%run => comint_show_output
-        commands%comint_show_maximum_output%run => comint_show_maximum_output
-        commands%comint_delchar_or_maybe_eof%run => comint_delchar_or_maybe_eof
-        commands%comint_send_eof%run => comint_send_eof
-        commands%comint_accumulate%run => comint_accumulate
-        commands%comint_get_next_from_history%run => comint_get_next_from_history
-        commands%comint_bol_or_process_mark%run => comint_bol_or_process_mark
-        commands%comint_bol%run => cmd_comint_bol
-        commands%comint_goto_process_mark%run => cmd_comint_goto_process_mark
-        commands%comint_set_process_mark%run => comint_set_process_mark
-        commands%comint_kill_input%run => comint_kill_input
-        commands%comint_interrupt_subjob%run => comint_interrupt_subjob
-        commands%comint_kill_subjob%run => comint_kill_subjob
-        commands%comint_quit_subjob%run => comint_quit_subjob
-        commands%comint_stop_subjob%run => comint_stop_subjob
-        commands%comint_continue_subjob%run => comint_continue_subjob
-        commands%comint_replace_by_expanded_history%run => cmd_comint_replace_by_expanded_history
-        commands%comint_magic_space%run => cmd_comint_magic_space
-        commands%comint_insert_previous_argument%run => cmd_comint_insert_previous_argument
-        commands%comint_history_isearch_backward%run => comint_history_isearch_backward
-        commands%comint_history_isearch_backward_regexp%run => comint_history_isearch_backward_regexp
-        commands%comint_copy_old_input%run => comint_copy_old_input
-        commands%comint_delete_output%run => cmd_comint_delete_output
-        commands%comint_write_output%run => cmd_comint_write_output
-        commands%comint_append_output_to_file%run => cmd_comint_append_output_to_file
-        commands%comint_clear_buffer%run => comint_clear_buffer
-        commands%comint_truncate_buffer%run => cmd_comint_truncate_buffer
-        commands%comint_strip_ctrl_m%run => cmd_comint_strip_ctrl_m
-        commands%comint_next_prompt%run => cmd_comint_next_prompt
-        commands%comint_previous_prompt%run => cmd_comint_previous_prompt
-        commands%comint_kill_whole_line%run => cmd_comint_kill_whole_line
-        commands%comint_kill_region%run => cmd_comint_kill_region
-        commands%comint_complete_input_ring%run => comint_complete_input_ring
-        commands%comint_dynamic_complete_filename%run => cmd_comint_dynamic_complete_filename
-        commands%comint_replace_by_expanded_filename%run => comint_replace_by_expanded_filename
-        commands%comint_dynamic_list_filename_completions%run => comint_dynamic_list_filename_completions
+        commands%comint_mode%execute => comint_mode
+        commands%comint_execute%execute => cmd_comint_execute
+        commands%comint_send_input%execute => cmd_comint_send_input
+        commands%comint_previous_input%execute => cmd_comint_previous_input
+        commands%comint_next_input%execute => cmd_comint_next_input
+        commands%comint_previous_matching_input%execute => cmd_comint_previous_matching_input
+        commands%comint_next_matching_input%execute => cmd_comint_next_matching_input
+        commands%comint_previous_matching_input_from_input%execute => cmd_comint_previous_matching_input_from_input
+        commands%comint_next_matching_input_from_input%execute => cmd_comint_next_matching_input_from_input
+        commands%comint_restore_input%execute => comint_restore_input
+        commands%comint_backward_matching_input%execute => cmd_comint_backward_matching_input
+        commands%comint_forward_matching_input%execute => cmd_comint_forward_matching_input
+        commands%comint_show_output%execute => comint_show_output
+        commands%comint_show_maximum_output%execute => comint_show_maximum_output
+        commands%comint_delchar_or_maybe_eof%execute => comint_delchar_or_maybe_eof
+        commands%comint_send_eof%execute => comint_send_eof
+        commands%comint_accumulate%execute => comint_accumulate
+        commands%comint_get_next_from_history%execute => comint_get_next_from_history
+        commands%comint_bol_or_process_mark%execute => comint_bol_or_process_mark
+        commands%comint_bol%execute => cmd_comint_bol
+        commands%comint_goto_process_mark%execute => cmd_comint_goto_process_mark
+        commands%comint_set_process_mark%execute => comint_set_process_mark
+        commands%comint_kill_input%execute => comint_kill_input
+        commands%comint_interrupt_subjob%execute => comint_interrupt_subjob
+        commands%comint_kill_subjob%execute => comint_kill_subjob
+        commands%comint_quit_subjob%execute => comint_quit_subjob
+        commands%comint_stop_subjob%execute => comint_stop_subjob
+        commands%comint_continue_subjob%execute => comint_continue_subjob
+        commands%comint_replace_by_expanded_history%execute => cmd_comint_replace_by_expanded_history
+        commands%comint_magic_space%execute => cmd_comint_magic_space
+        commands%comint_insert_previous_argument%execute => cmd_comint_insert_previous_argument
+        commands%comint_history_isearch_backward%execute => comint_history_isearch_backward
+        commands%comint_history_isearch_backward_regexp%execute => comint_history_isearch_backward_regexp
+        commands%comint_copy_old_input%execute => comint_copy_old_input
+        commands%comint_delete_output%execute => cmd_comint_delete_output
+        commands%comint_write_output%execute => cmd_comint_write_output
+        commands%comint_append_output_to_file%execute => cmd_comint_append_output_to_file
+        commands%comint_clear_buffer%execute => comint_clear_buffer
+        commands%comint_truncate_buffer%execute => cmd_comint_truncate_buffer
+        commands%comint_strip_ctrl_m%execute => cmd_comint_strip_ctrl_m
+        commands%comint_next_prompt%execute => cmd_comint_next_prompt
+        commands%comint_previous_prompt%execute => cmd_comint_previous_prompt
+        commands%comint_kill_whole_line%execute => cmd_comint_kill_whole_line
+        commands%comint_kill_region%execute => cmd_comint_kill_region
+        commands%comint_complete_input_ring%execute => comint_complete_input_ring
+        commands%comint_dynamic_complete_filename%execute => cmd_comint_dynamic_complete_filename
+        commands%comint_replace_by_expanded_filename%execute => comint_replace_by_expanded_filename
+        commands%comint_dynamic_list_filename_completions%execute => comint_dynamic_list_filename_completions
     end subroutine syms_of_comint
 
     !> The faces of comint.el.  Not a port.

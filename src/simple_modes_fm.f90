@@ -26,7 +26,7 @@ submodule(simple_fm) simple_modes_fm
     use lisp_fm, only: value_type
     use commands_fm, only: commands
     use data_fm, only: kill_all_local_variables
-    use subr_fm, only: run_mode_hooks
+    use subr_fm, only: execute_mode_hooks
     use keymap_fm, only: keymap_set, define_key
     use modes_fm, only: major_modes, minor_modes
     use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, is_buffer_live, current_buffer
@@ -38,7 +38,7 @@ contains
 
     module procedure fundamental_mode
     call kill_all_local_variables()
-    call run_mode_hooks(status)
+    call execute_mode_hooks(status)
     end procedure fundamental_mode
 
     module procedure special_mode
@@ -109,8 +109,8 @@ contains
     type(value_type) :: remap_key
     type(value_type), allocatable :: remap_events(:)
 
-    commands%fundamental_mode%run => fundamental_mode
-    commands%special_mode%run => special_mode
+    commands%fundamental_mode%execute => fundamental_mode
+    commands%special_mode%execute => special_mode
     ! Fundamental mode is not derived; it is defined so that other modes
     ! can name it as their parent.
     call major_modes%fundamental_mode%define("fundamental_mode", "Fundamental", fundamental_mode)
@@ -123,15 +123,15 @@ contains
     messages_buffer_mode_map = major_modes%messages_buffer_mode%map
     ! :parent special-mode-map "g" nil: nothing to revert.
     call keymap_set(messages_buffer_mode_map, "g", value_type(), st)
-    commands%messages_buffer_mode%run => messages_buffer_mode
+    commands%messages_buffer_mode%execute => messages_buffer_mode
     messages_buffer_mode_function => messages_buffer_mode
     message_log_hook => message_log_echo
     call minor_modes%transient_mark_mode%define("transient_mark_mode", global=.true., &
                                                 variable="transient_mark_mode", hook=transient_mark_mode_hook)
-    commands%transient_mark_mode%run => cmd_transient_mark_mode
+    commands%transient_mark_mode%execute => cmd_transient_mark_mode
     call minor_modes%indent_tabs_mode%define("indent_tabs_mode", variable="indent_tabs_mode", &
                                              hook=indent_tabs_mode_hook)
-    commands%indent_tabs_mode%run => cmd_indent_tabs_mode
+    commands%indent_tabs_mode%execute => cmd_indent_tabs_mode
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
     map = major_modes%special_mode%map
     ! subr.el:suppress-keymap: (define-key map [remap self-insert-command] #'undefined).

@@ -636,23 +636,23 @@ contains
     module procedure syms_of_subr
     type(status_type) :: st
 
-    commands%undefined%run => undefined
+    commands%undefined%execute => undefined
     undefined_function => undefined
-    commands%ignore%run => ignore
-    commands%read_y_or_n_insert_y%run => read_y_or_n_insert_y
-    commands%read_y_or_n_insert_n%run => read_y_or_n_insert_n
-    commands%read_y_or_n_insert_other%run => read_y_or_n_insert_other
-    commands%abort_recursive_edit%run => cmd_abort_recursive_edit
-    commands%exit_recursive_edit%run => cmd_exit_recursive_edit
-    commands%recursive_edit%run => cmd_recursive_edit
-    commands%top_level%run => cmd_top_level
-    commands%lossage_size%run => cmd_lossage_size
+    commands%ignore%execute => ignore
+    commands%read_y_or_n_insert_y%execute => read_y_or_n_insert_y
+    commands%read_y_or_n_insert_n%execute => read_y_or_n_insert_n
+    commands%read_y_or_n_insert_other%execute => read_y_or_n_insert_other
+    commands%abort_recursive_edit%execute => cmd_abort_recursive_edit
+    commands%exit_recursive_edit%execute => cmd_exit_recursive_edit
+    commands%recursive_edit%execute => cmd_recursive_edit
+    commands%top_level%execute => cmd_top_level
+    commands%lossage_size%execute => cmd_lossage_size
     ! The map is made again on first use (its parent and the global map
     ! may have been rebuilt).
     if (is_keymap_live(read_y_or_n_map)) call free_keymap(read_y_or_n_map, st)
-    commands%read_char_from_minibuffer_insert_char%run => read_char_from_minibuffer_insert_char
-    commands%read_char_from_minibuffer_insert_other%run => read_char_from_minibuffer_insert_other
-    commands%help_procedure_show%run => help_procedure_show
+    commands%read_char_from_minibuffer_insert_char%execute => read_char_from_minibuffer_insert_char
+    commands%read_char_from_minibuffer_insert_other%execute => read_char_from_minibuffer_insert_other
+    commands%help_procedure_show%execute => help_procedure_show
     if (is_keymap_live(read_char_from_minibuffer_map)) call free_keymap(read_char_from_minibuffer_map, st)
     end procedure syms_of_subr
 

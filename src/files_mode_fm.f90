@@ -353,7 +353,7 @@ contains
         ! (eval.c:funcall_nil).
         saved = current_prefix_arg
         current_prefix_arg = value_type()
-        call fn%run(status)
+        call fn%execute(status)
         current_prefix_arg = saved
         done = status%ok()
     end function set_auto_mode_0
@@ -513,9 +513,9 @@ contains
     call kill_all_local_variables()
 
     if (.not. delaying_mode_hooks()) then
-        call change_major_mode_after_body_hook%run(status)
+        call change_major_mode_after_body_hook%execute(status)
         if (.not. status%ok()) return
-        call after_change_major_mode_hook%run(status)
+        call after_change_major_mode_hook%execute(status)
         if (.not. status%ok()) return
     end if
 

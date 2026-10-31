@@ -425,14 +425,14 @@ contains
     end subroutine cmd_count_words_region
 
     module procedure syms_of_simple_goto
-    commands%goto_line%run => cmd_goto_line
-    commands%goto_line_relative%run => cmd_goto_line_relative
-    commands%goto_char%run => cmd_goto_char
-    commands%move_to_column%run => cmd_move_to_column
-    commands%narrow_to_region%run => cmd_narrow_to_region
+    commands%goto_line%execute => cmd_goto_line
+    commands%goto_line_relative%execute => cmd_goto_line_relative
+    commands%goto_char%execute => cmd_goto_char
+    commands%move_to_column%execute => cmd_move_to_column
+    commands%narrow_to_region%execute => cmd_narrow_to_region
     commands%narrow_to_region%disabled = .true.
-    commands%widen%run => cmd_widen
-    commands%count_words%run => cmd_count_words
-    commands%count_words_region%run => cmd_count_words_region
+    commands%widen%execute => cmd_widen
+    commands%count_words%execute => cmd_count_words
+    commands%count_words_region%execute => cmd_count_words_region
     end procedure syms_of_simple_goto
 end submodule simple_goto_fm

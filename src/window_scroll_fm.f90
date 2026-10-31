@@ -636,16 +636,16 @@ contains
     end subroutine cmd_scroll_other_window_down
 
     module subroutine syms_of_window()
-        commands%scroll_up%run => cmd_scroll_up
-        commands%scroll_down%run => cmd_scroll_down
-        commands%scroll_up_command%run => cmd_scroll_up_command
-        commands%scroll_down_command%run => cmd_scroll_down_command
-        commands%recenter%run => cmd_recenter
-        commands%scroll_other_window%run => cmd_scroll_other_window
-        commands%scroll_other_window_down%run => cmd_scroll_other_window_down
-        commands%recenter_top_bottom%run => cmd_recenter_top_bottom
-        commands%move_to_window_line%run => cmd_move_to_window_line
-        commands%move_to_window_line_top_bottom%run => cmd_move_to_window_line_top_bottom
+        commands%scroll_up%execute => cmd_scroll_up
+        commands%scroll_down%execute => cmd_scroll_down
+        commands%scroll_up_command%execute => cmd_scroll_up_command
+        commands%scroll_down_command%execute => cmd_scroll_down_command
+        commands%recenter%execute => cmd_recenter
+        commands%scroll_other_window%execute => cmd_scroll_other_window
+        commands%scroll_other_window_down%execute => cmd_scroll_other_window_down
+        commands%recenter_top_bottom%execute => cmd_recenter_top_bottom
+        commands%move_to_window_line%execute => cmd_move_to_window_line
+        commands%move_to_window_line_top_bottom%execute => cmd_move_to_window_line_top_bottom
         call syms_of_window_cmds()
         call syms_of_window_display()
     end subroutine syms_of_window

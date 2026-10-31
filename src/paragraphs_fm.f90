@@ -857,17 +857,17 @@ contains
     !> Not a port.
     subroutine syms_of_paragraphs()
         call init_paragraph_variables()
-        commands%forward_sentence%run => cmd_forward_sentence
-        commands%backward_sentence%run => cmd_backward_sentence
-        commands%kill_sentence%run => cmd_kill_sentence
-        commands%backward_kill_sentence%run => cmd_backward_kill_sentence
-        commands%mark_end_of_sentence%run => cmd_mark_end_of_sentence
-        commands%forward_paragraph%run => cmd_forward_paragraph
-        commands%backward_paragraph%run => cmd_backward_paragraph
-        commands%mark_paragraph%run => cmd_mark_paragraph
-        commands%kill_paragraph%run => cmd_kill_paragraph
-        commands%backward_kill_paragraph%run => cmd_backward_kill_paragraph
-        commands%transpose_paragraphs%run => cmd_transpose_paragraphs
-        commands%transpose_sentences%run => cmd_transpose_sentences
+        commands%forward_sentence%execute => cmd_forward_sentence
+        commands%backward_sentence%execute => cmd_backward_sentence
+        commands%kill_sentence%execute => cmd_kill_sentence
+        commands%backward_kill_sentence%execute => cmd_backward_kill_sentence
+        commands%mark_end_of_sentence%execute => cmd_mark_end_of_sentence
+        commands%forward_paragraph%execute => cmd_forward_paragraph
+        commands%backward_paragraph%execute => cmd_backward_paragraph
+        commands%mark_paragraph%execute => cmd_mark_paragraph
+        commands%kill_paragraph%execute => cmd_kill_paragraph
+        commands%backward_kill_paragraph%execute => cmd_backward_kill_paragraph
+        commands%transpose_paragraphs%execute => cmd_transpose_paragraphs
+        commands%transpose_sentences%execute => cmd_transpose_sentences
     end subroutine syms_of_paragraphs
 end module paragraphs_fm

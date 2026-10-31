@@ -1709,25 +1709,25 @@ contains
     call forward_setting(abbrev_all_caps)
     call minor_modes%abbrev_mode%define("abbrev_mode", " Abbrev")
     abbrev_mode => minor_modes%abbrev_mode%state
-    commands%abbrev_mode%run => cmd_abbrev_mode
+    commands%abbrev_mode%execute => cmd_abbrev_mode
     call major_modes%edit_abbrevs_mode%define("edit_abbrevs_mode", "Edit-Abbrevs", edit_abbrevs_mode, &
                                               edit_abbrevs_mode_hook, abbrev_table=edit_abbrevs_mode_abbrev_table)
     edit_abbrevs_mode_map = major_modes%edit_abbrevs_mode%map
-    commands%kill_all_abbrevs%run => cmd_kill_all_abbrevs
-    commands%insert_abbrevs%run => cmd_insert_abbrevs
-    commands%list_abbrevs%run => cmd_list_abbrevs
-    commands%edit_abbrevs%run => cmd_edit_abbrevs
-    commands%write_abbrev_file%run => cmd_write_abbrev_file
-    commands%add_mode_abbrev%run => cmd_add_mode_abbrev
-    commands%add_global_abbrev%run => cmd_add_global_abbrev
-    commands%inverse_add_mode_abbrev%run => cmd_inverse_add_mode_abbrev
-    commands%inverse_add_global_abbrev%run => cmd_inverse_add_global_abbrev
-    commands%abbrev_prefix_mark%run => cmd_abbrev_prefix_mark
-    commands%expand_region_abbrevs%run => cmd_expand_region_abbrevs
-    commands%define_global_abbrev%run => cmd_define_global_abbrev
-    commands%define_mode_abbrev%run => cmd_define_mode_abbrev
-    commands%expand_abbrev%run => cmd_expand_abbrev
-    commands%unexpand_abbrev%run => cmd_unexpand_abbrev
+    commands%kill_all_abbrevs%execute => cmd_kill_all_abbrevs
+    commands%insert_abbrevs%execute => cmd_insert_abbrevs
+    commands%list_abbrevs%execute => cmd_list_abbrevs
+    commands%edit_abbrevs%execute => cmd_edit_abbrevs
+    commands%write_abbrev_file%execute => cmd_write_abbrev_file
+    commands%add_mode_abbrev%execute => cmd_add_mode_abbrev
+    commands%add_global_abbrev%execute => cmd_add_global_abbrev
+    commands%inverse_add_mode_abbrev%execute => cmd_inverse_add_mode_abbrev
+    commands%inverse_add_global_abbrev%execute => cmd_inverse_add_global_abbrev
+    commands%abbrev_prefix_mark%execute => cmd_abbrev_prefix_mark
+    commands%expand_region_abbrevs%execute => cmd_expand_region_abbrevs
+    commands%define_global_abbrev%execute => cmd_define_global_abbrev
+    commands%define_mode_abbrev%execute => cmd_define_mode_abbrev
+    commands%expand_abbrev%execute => cmd_expand_abbrev
+    commands%unexpand_abbrev%execute => cmd_unexpand_abbrev
     call add_local_variables_killer(kill_local_abbrev_table)
     call add_save_some_buffers_function(abbrev_possibly_save)
     end procedure syms_of_abbrev

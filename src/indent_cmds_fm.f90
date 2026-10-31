@@ -79,7 +79,7 @@ contains
     end subroutine indent_relative_line
 
     ! The current indent-line-function.  Not a port.
-    subroutine call_indent_line_function(status, noindent)
+    subroutine execute_indent_line_function(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
 
@@ -88,7 +88,7 @@ contains
         else
             call indent_relative_line(status, noindent)
         end if
-    end subroutine call_indent_line_function
+    end subroutine execute_indent_line_function
 
     module procedure indent_line_function_name
     procedure(indent_line_proc), pointer :: q
@@ -129,7 +129,7 @@ contains
 
         noindent = .false.
         status = status_type()
-        if (associated(indent_line_function%command)) call indent_line_function%command%run(status)
+        if (associated(indent_line_function%command)) call indent_line_function%command%execute(status)
     end subroutine indent_line_by_name
 
     ! Whether the indent-line-function is one of
@@ -263,7 +263,7 @@ contains
         status = status_type()
 
         if (.not. st%ok() .or. (vtag(v) /= V_NAME .and. vtag(v) /= V_NULL) .or. value_eq(v, value_type(.true.))) then
-            call call_indent_line_function(status, noindent)
+            call execute_indent_line_function(status, noindent)
         else
             select case (symbols(xsymbol(v))%name)
             case ("indent_relative")
@@ -274,7 +274,7 @@ contains
                 call indent_to_left_margin(status, noindent)
             case default
                 call find_function(v, fn, status)
-                if (status%ok()) call fn%run(status)
+                if (status%ok()) call fn%execute(status)
             end select
         end if
 
@@ -293,7 +293,7 @@ contains
         savedb = buffers(cur)%begv
         savedz = buffers(cur)%text%z - buffers(cur)%zv
         call widen()
-        call call_indent_line_function(status, noindent)
+        call execute_indent_line_function(status, noindent)
         call widen()
         call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
     end subroutine widened_indent_line
@@ -1044,21 +1044,21 @@ contains
     type(status_type) :: st
 
     call add_local_variables_killer(kill_indent_locals)
-    commands%indent_for_tab_command%run => cmd_indent_for_tab_command
-    commands%indent_according_to_mode%run => cmd_indent_according_to_mode
-    commands%indent_rigidly%run => cmd_indent_rigidly
-    commands%indent_rigidly_left%run => cmd_indent_rigidly_left
-    commands%indent_rigidly_right%run => cmd_indent_rigidly_right
-    commands%indent_rigidly_left_to_tab_stop%run => cmd_indent_rigidly_left_to_tab_stop
-    commands%indent_rigidly_right_to_tab_stop%run => cmd_indent_rigidly_right_to_tab_stop
-    commands%indent_region%run => cmd_indent_region
-    commands%indent_relative%run => cmd_indent_relative
-    commands%indent_relative_first_indent_point%run => cmd_indent_relative_first_indent_point
-    commands%tab_to_tab_stop%run => cmd_tab_to_tab_stop
-    commands%move_to_tab_stop%run => cmd_move_to_tab_stop
-    commands%move_to_left_margin%run => cmd_move_to_left_margin
-    commands%beginning_of_line_text%run => cmd_beginning_of_line_text
-    commands%indent_to%run => cmd_indent_to
+    commands%indent_for_tab_command%execute => cmd_indent_for_tab_command
+    commands%indent_according_to_mode%execute => cmd_indent_according_to_mode
+    commands%indent_rigidly%execute => cmd_indent_rigidly
+    commands%indent_rigidly_left%execute => cmd_indent_rigidly_left
+    commands%indent_rigidly_right%execute => cmd_indent_rigidly_right
+    commands%indent_rigidly_left_to_tab_stop%execute => cmd_indent_rigidly_left_to_tab_stop
+    commands%indent_rigidly_right_to_tab_stop%execute => cmd_indent_rigidly_right_to_tab_stop
+    commands%indent_region%execute => cmd_indent_region
+    commands%indent_relative%execute => cmd_indent_relative
+    commands%indent_relative_first_indent_point%execute => cmd_indent_relative_first_indent_point
+    commands%tab_to_tab_stop%execute => cmd_tab_to_tab_stop
+    commands%move_to_tab_stop%execute => cmd_move_to_tab_stop
+    commands%move_to_left_margin%execute => cmd_move_to_left_margin
+    commands%beginning_of_line_text%execute => cmd_beginning_of_line_text
+    commands%indent_to%execute => cmd_indent_to
 
     if (indent_rigidly_map%index == 0) then
         call make_sparse_keymap(indent_rigidly_map)

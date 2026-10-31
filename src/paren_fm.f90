@@ -46,7 +46,7 @@ module paren_fm
     use syntax_fm, only: syntax_entry, syntax_descriptor_type, parse_state_type, syntax_ppss, scan_expressions, &
                          skip_syntax_backward, skip_chars_backward, parse_expression_ignore_comments, SOPEN, SCLOSE, SMATH
     use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, is_overlay
-    use timer_fm, only: run_with_idle_timer, free_timer, is_timer
+    use timer_fm, only: execute_with_idle_timer, free_timer, is_timer
     use modes_fm, only: minor_modes
     use derived_fm, only: is_derived_mode
     use simple_fm, only: blink_matching_paren_distance, blink_paren_open_paren_line_string, back_to_indentation
@@ -285,10 +285,10 @@ contains
     subroutine syms_of_paren()
         call minor_modes%show_paren_mode%define("show_paren_mode", global=.true., body=show_paren_mode_body, &
                                                 hook=show_paren_mode_hook)
-        commands%show_paren_mode%run => show_paren_mode
+        commands%show_paren_mode%execute => show_paren_mode
         call minor_modes%show_paren_local_mode%define("show_paren_local_mode", body=show_paren_local_mode_body, &
                                                       hook=show_paren_local_mode_hook, getter=is_show_paren_enabled)
-        commands%show_paren_local_mode%run => show_paren_local_mode
+        commands%show_paren_local_mode%execute => show_paren_local_mode
         if (.not. associated(show_paren_data_function)) show_paren_data_function => show_paren_default
         call add_local_variables_killer(kill_local_show_paren_data_function)
         if (.not. associated(show_paren_predicate)) show_paren_predicate => show_paren_default_predicate
@@ -321,7 +321,7 @@ contains
         ! First get rid of the old idle timer.
         if (is_timer(idle_timer)) call free_timer(idle_timer)
         idle_timer = null_handle()
-        call run_with_idle_timer(idle_timer, real(show_paren_delay, real64), .true., show_paren_function_timer, &
+        call execute_with_idle_timer(idle_timer, real(show_paren_delay, real64), .true., show_paren_function_timer, &
                                  status)
         if (.not. minor_modes%show_paren_mode%state%value) call show_paren_delete_overlays()
     end subroutine show_paren_mode_body

@@ -66,7 +66,7 @@ module vc_hooks_fm
               is_vc_up_to_date, vc_working_revision, vc_symbolic_working_revision, vc_short_revision, &
               vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
-              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible, is_vc_call_make_version_backups, &
+              vc_refresh_state, vc_state_name, vc_execute_root, vc_execute_responsible, is_vc_make_version_backups, &
               vc_not_supported
     public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_proc
 
@@ -635,17 +635,17 @@ contains
 
     !> Backend B's `registered' of FILE (vc-default-registered checks
     !> master templates, which no ported backend has).  Not a port.
-    logical function call_registered(b, file) result(r)
+    logical function execute_registered(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
 
         r = .false.
         if (associated(vc_backends(b)%registered)) r = vc_backends(b)%registered(file)
-    end function call_registered
+    end function execute_registered
 
     !> Backend B's `root' of FILE: the root directory (FOUND .false. for
     !> none); an error if it doesn't implement it.  Not a port.
-    subroutine vc_call_root(b, file, root, found, status)
+    subroutine vc_execute_root(b, file, root, found, status)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: root
@@ -661,12 +661,12 @@ contains
         end if
 
         call vc_backends(b)%root(file, root, found)
-    end subroutine vc_call_root
+    end subroutine vc_execute_root
 
     !> Backend B's `responsible_p' of FILE: the directory it is
     !> responsible for FILE from (vc-default-responsible-p: none).
     !> Not a port.
-    subroutine vc_call_responsible(b, file, dir, found)
+    subroutine vc_execute_responsible(b, file, dir, found)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: dir
@@ -675,19 +675,19 @@ contains
         dir = ""
         found = .false.
         if (associated(vc_backends(b)%responsible_p)) call vc_backends(b)%responsible_p(file, dir, found)
-    end subroutine vc_call_responsible
+    end subroutine vc_execute_responsible
 
     !> Backend B's `make_version_backups_p' of FILE.  Port of
     !> vc-hooks.el:vc-default-make-version-backups-p as the default:
     !> return true if unmodified versions should be backed up locally.
     !> The default is to switch off this feature.
-    logical function is_vc_call_make_version_backups(b, file) result(r)
+    logical function is_vc_make_version_backups(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
 
         r = .false.
         if (associated(vc_backends(b)%make_version_backups_p)) r = vc_backends(b)%make_version_backups_p(file)
-    end function is_vc_call_make_version_backups
+    end function is_vc_make_version_backups
 
     ! ------------------------------------------------------------------
     ! Per-file properties
@@ -959,7 +959,7 @@ contains
         b = vc_file_get_backend(file)
 
         if (b > 0) then
-            if (call_registered(b, file)) then
+            if (execute_registered(b, file)) then
                 call vc_file_set_backend(file, b)
                 r = .true.
                 return
@@ -971,7 +971,7 @@ contains
                 c = vc_backend_named(vc_handled_backends(k))
                 if (c == 0) cycle
 
-                if (call_registered(c, file)) then
+                if (execute_registered(c, file)) then
                     call vc_file_set_backend(file, c)
                     r = .true.
                     return
@@ -1403,7 +1403,7 @@ contains
         if (.not. is_vc_up_to_date(file)) return
         files(1)%s = file
         if (vc_checkout_model(b, files) /= VC_MODEL_IMPLICIT) return
-        if (.not. is_vc_call_make_version_backups(b, file)) return
+        if (.not. is_vc_make_version_backups(b, file)) return
         call vc_make_version_backup(file)
     end subroutine vc_before_save
 
@@ -1799,7 +1799,7 @@ contains
 
         if (.not. allocated(props)) allocate (props(0))
         call define_faces()
-        commands%vc_refresh_state%run => cmd_vc_refresh_state
+        commands%vc_refresh_state%execute => cmd_vc_refresh_state
         call find_file_hook%add(refresh_state_hook)
         call kill_buffer_hook%add(vc_kill_buffer_hook)
         vc_before_save_proc => vc_before_save

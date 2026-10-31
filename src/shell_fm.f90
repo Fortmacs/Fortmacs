@@ -1331,7 +1331,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. associated(major_modes%shell_mode%run)) call syms_of_shell()
+        if (.not. associated(major_modes%shell_mode%execute)) call syms_of_shell()
         call major_modes%shell_mode%begin(saved, status)
         if (.not. status%ok()) return
         call shell_mode_body(status)
@@ -1517,7 +1517,7 @@ contains
         type(status_type) :: st
         logical :: saved
 
-        if (.not. associated(major_modes%shell_command_mode%run)) call syms_of_shell()
+        if (.not. associated(major_modes%shell_command_mode%execute)) call syms_of_shell()
         call major_modes%shell_command_mode%begin(saved, status)
         if (.not. status%ok()) return
         call shell_font_lock_keywords(keywords)
@@ -2388,8 +2388,8 @@ contains
     subroutine syms_of_shell()
         type(status_type) :: st
 
-        if (associated(major_modes%shell_mode%run)) return
-        if (.not. associated(major_modes%comint_mode%run)) call syms_of_comint()
+        if (associated(major_modes%shell_mode%execute)) return
+        if (.not. associated(major_modes%comint_mode%execute)) call syms_of_comint()
         if (.not. allocated(shell_dumb_shell_regexp%value)) shell_dumb_shell_regexp = "cmd\(proxy\)?\.exe"
         if (.not. allocated(shell_prompt_pattern%value)) shell_prompt_pattern = "^[^#$%>"//achar(10)//"]*[#$%>] *"
         if (.not. allocated(shell_delimiter_argument_list%value)) shell_delimiter_argument_list = "|&<>();"
@@ -2457,17 +2457,17 @@ contains
         end if
 
         call keymap_set(shell_mode_map, "C-x n d", "shell_narrow_to_prompt", st)
-        commands%shell%run => cmd_shell
-        commands%shell_mode%run => shell_mode
+        commands%shell%execute => cmd_shell
+        commands%shell_mode%execute => shell_mode
         commands%shell_mode%is_command = .false.
-        commands%shell_command_mode%run => shell_command_mode
-        commands%shell_dirtrack_mode%run => shell_dirtrack_mode
-        commands%shell_forward_command%run => cmd_shell_forward_command
-        commands%shell_backward_command%run => cmd_shell_backward_command
-        commands%shell_narrow_to_prompt%run => shell_narrow_to_prompt
-        commands%shell_dynamic_complete_command%run => cmd_shell_dynamic_complete_command
-        commands%shell_dynamic_complete_environment_variable%run => cmd_shell_dynamic_complete_environment_variable
-        commands%shell_replace_by_expanded_directory%run => cmd_shell_replace_by_expanded_directory
+        commands%shell_command_mode%execute => shell_command_mode
+        commands%shell_dirtrack_mode%execute => shell_dirtrack_mode
+        commands%shell_forward_command%execute => cmd_shell_forward_command
+        commands%shell_backward_command%execute => cmd_shell_backward_command
+        commands%shell_narrow_to_prompt%execute => shell_narrow_to_prompt
+        commands%shell_dynamic_complete_command%execute => cmd_shell_dynamic_complete_command
+        commands%shell_dynamic_complete_environment_variable%execute => cmd_shell_dynamic_complete_environment_variable
+        commands%shell_replace_by_expanded_directory%execute => cmd_shell_replace_by_expanded_directory
     end subroutine syms_of_shell
 
     !> Add S at the end of LIST.  Not a port.

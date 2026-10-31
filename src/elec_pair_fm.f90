@@ -287,13 +287,13 @@ contains
     subroutine syms_of_elec_pair()
         call minor_modes%electric_pair_mode%define("electric_pair_mode", global=.true., keymap=.true., &
                                                    body=electric_pair_mode_body, hook=electric_pair_mode_hook)
-        commands%electric_pair_mode%run => electric_pair_mode
+        commands%electric_pair_mode%execute => electric_pair_mode
         call minor_modes%electric_pair_local_mode%define("electric_pair_local_mode", &
                                                          body=electric_pair_local_mode_body, &
                                                          hook=electric_pair_local_mode_hook, &
                                                          getter=is_electric_pair_local_mode)
-        commands%electric_pair_local_mode%run => electric_pair_local_mode
-        commands%electric_pair_delete_pair%run => cmd_electric_pair_delete_pair
+        commands%electric_pair_local_mode%execute => electric_pair_local_mode
+        commands%electric_pair_delete_pair%execute => cmd_electric_pair_delete_pair
         ! (?\" . ?\") and electric-quote-chars' single and double quotes.
         if (.not. allocated(electric_pair_pairs)) call default_pairs(electric_pair_pairs)
         if (.not. allocated(electric_pair_text_pairs)) call default_pairs(electric_pair_text_pairs)

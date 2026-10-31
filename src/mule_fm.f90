@@ -84,7 +84,7 @@ module mule_fm
     use help_fm, only: with_help_window
     use simple_fm, only: prefix_command_preserve_state, prefix_command_preserve_state_hook
     use keyboard_fm, only: pre_command_hook, this_command_wrapper
-    use callint_fm, only: this_command, call_interactively
+    use callint_fm, only: this_command, execute_interactively
     use coding_fm, only: coding_system_for_write, coding_system_require_warning
     use process_fm, only: get_buffer_process, set_process_coding_system
     use coding_fm, only: set_terminal_coding_system_internal, terminal_coding_system, &
@@ -237,21 +237,21 @@ contains
                                                            "emacs-mule")
         end if
 
-        commands%set_buffer_file_coding_system%run => cmd_set_buffer_file_coding_system
-        commands%revert_buffer_with_coding_system%run => cmd_revert_buffer_with_coding_system
-        commands%prefer_coding_system%run => cmd_prefer_coding_system
-        commands%describe_coding_system%run => cmd_describe_coding_system
-        commands%describe_current_coding_system%run => cmd_describe_current_coding_system
-        commands%universal_coding_system_argument%run => cmd_universal_coding_system_argument
-        commands%set_buffer_process_coding_system%run => cmd_set_buffer_process_coding_system
+        commands%set_buffer_file_coding_system%execute => cmd_set_buffer_file_coding_system
+        commands%revert_buffer_with_coding_system%execute => cmd_revert_buffer_with_coding_system
+        commands%prefer_coding_system%execute => cmd_prefer_coding_system
+        commands%describe_coding_system%execute => cmd_describe_coding_system
+        commands%describe_current_coding_system%execute => cmd_describe_current_coding_system
+        commands%universal_coding_system_argument%execute => cmd_universal_coding_system_argument
+        commands%set_buffer_process_coding_system%execute => cmd_set_buffer_process_coding_system
         prefixed_next_coding_system = ""
         prefixed_last_coding_system = ""
         prefixed_coding_system = ""
         if (.not. allocated(default_terminal_coding_system)) default_terminal_coding_system = ""
         if (.not. allocated(default_keyboard_coding_system)) default_keyboard_coding_system = ""
         if (.not. allocated(keyboard_coding_system_variable)) keyboard_coding_system_variable = "utf-8-unix"
-        commands%set_terminal_coding_system%run => cmd_set_terminal_coding_system
-        commands%set_keyboard_coding_system%run => cmd_set_keyboard_coding_system
+        commands%set_terminal_coding_system%execute => cmd_set_terminal_coding_system
+        commands%set_keyboard_coding_system%execute => cmd_set_keyboard_coding_system
         call make_sparse_keymap(mule_keymap)
         call bind(mule_keymap, "f", "set_buffer_file_coding_system")
         call bind(mule_keymap, "c", "universal_coding_system_argument")
@@ -1021,7 +1021,7 @@ contains
         coding_system_for_read = prefixed_coding_system
         coding_system_for_write = prefixed_coding_system
         coding_system_require_warning = .true.
-        call call_interactively(cmd, status)
+        call execute_interactively(cmd, status)
 
         if (had_read) then
             coding_system_for_read = saved_read

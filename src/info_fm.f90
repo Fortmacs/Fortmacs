@@ -100,7 +100,7 @@ module info_fm
     use env_fm, only: getenv
     use config_fm, only: configure_info_directory
     use coding_fm, only: inhibit_null_byte_detection, buffer_file_coding_system
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_command, is_command
     use keyboard_fm, only: this_command_keys, read_event, unread_command_events, read_key_sequence_vs, sit_for
     use isearch_fm, only: isearch_active, isearch_forward, isearch_wrapped, isearch_regexp, isearch_nonincremental, &
@@ -1544,7 +1544,7 @@ contains
                     args = value_type()
                 end if
 
-                call call_process(trim(info_suffix_list(tail)%program), result, status, infile=fullname, &
+                call execute_process(trim(info_suffix_list(tail)%program), result, status, infile=fullname, &
                                   destination=value_type(.true.), args=args)
                 inhibit_null_byte_detection%value = null_detection
                 if (.not. status%ok()) return
@@ -3788,7 +3788,7 @@ contains
         call hide_cookies_node()
         call goto_char(min(max(opoint, point_min()), point_max()))
         fold = bind_case_fold(fold)
-        call info_selection_hook%run(status)
+        call info_selection_hook%execute(status)
     end subroutine info_select_node
 
     ! Set the buffer identification of the mode line: the buffer name,
@@ -9705,7 +9705,7 @@ contains
         logical :: saved
         integer :: k
 
-        if (.not. associated(major_modes%info_mode%run)) call syms_of_info()
+        if (.not. associated(major_modes%info_mode%execute)) call syms_of_info()
         call major_modes%info_mode%begin(saved, status)
         if (.not. status%ok()) return
         call tab_width%set_local(8)
@@ -9796,7 +9796,7 @@ contains
         character(len=1) :: digit
         integer :: i
 
-        if (associated(major_modes%info_mode%run)) return
+        if (associated(major_modes%info_mode%execute)) return
         call define_info_faces()
         call info_mode_hook%add(turn_on_font_lock)
         call init_info_mode_syntax_table()
@@ -9804,52 +9804,52 @@ contains
                                           parent=major_modes%special_mode, syntax_table=info_mode_syntax_table, &
                                           abbrev_table=text_mode_abbrev_table)
         info_mode_map = major_modes%info_mode%map
-        commands%info_mode%run => info_mode
-        commands%info%run => cmd_info
-        commands%info_other_window%run => cmd_info_other_window
-        commands%info_emacs_manual%run => info_emacs_manual
-        commands%info_emacs_bug%run => info_emacs_bug
-        commands%info_on_current_buffer%run => cmd_info_on_current_buffer
-        commands%info_goto_node%run => cmd_info_goto_node
-        commands%info_next%run => info_next
-        commands%info_prev%run => info_prev
-        commands%info_up%run => cmd_info_up
-        commands%info_history_back%run => info_history_back
-        commands%info_history_forward%run => info_history_forward
-        commands%info_directory%run => info_directory
-        commands%info_follow_reference%run => cmd_info_follow_reference
-        commands%info_menu%run => cmd_info_menu
-        commands%info_nth_menu_item%run => cmd_info_nth_menu_item
-        commands%info_top_node%run => info_top_node
-        commands%info_final_node%run => info_final_node
-        commands%info_forward_node%run => cmd_info_forward_node
-        commands%info_backward_node%run => info_backward_node
-        commands%info_next_menu_item%run => info_next_menu_item
-        commands%info_last_menu_item%run => info_last_menu_item
-        commands%info_next_preorder%run => info_next_preorder
-        commands%info_last_preorder%run => info_last_preorder
-        commands%info_scroll_up%run => info_scroll_up
-        commands%info_scroll_down%run => info_scroll_down
-        commands%info_next_reference%run => cmd_info_next_reference
-        commands%info_prev_reference%run => cmd_info_prev_reference
-        commands%info_follow_nearest_node%run => cmd_info_follow_nearest_node
-        commands%info_copy_current_node_name%run => cmd_info_copy_current_node_name
-        commands%info_undefined%run => info_undefined
-        commands%info_help%run => info_help
-        commands%info_summary%run => info_summary
-        commands%info_toc%run => info_toc
-        commands%info_history%run => info_history
-        commands%info_search%run => cmd_info_search
-        commands%info_search_case_sensitively%run => info_search_case_sensitively
-        commands%info_search_next%run => info_search_next
-        commands%info_search_backward%run => cmd_info_search_backward
-        commands%info_index%run => cmd_info_index
-        commands%info_index_next%run => cmd_info_index_next
-        commands%info_virtual_index%run => cmd_info_virtual_index
-        commands%info_apropos%run => cmd_info_apropos
-        commands%info_goto_emacs_command_node%run => cmd_info_goto_emacs_command_node
-        commands%info_goto_emacs_key_command_node%run => cmd_info_goto_emacs_key_command_node
-        commands%info_display_manual%run => cmd_info_display_manual
+        commands%info_mode%execute => info_mode
+        commands%info%execute => cmd_info
+        commands%info_other_window%execute => cmd_info_other_window
+        commands%info_emacs_manual%execute => info_emacs_manual
+        commands%info_emacs_bug%execute => info_emacs_bug
+        commands%info_on_current_buffer%execute => cmd_info_on_current_buffer
+        commands%info_goto_node%execute => cmd_info_goto_node
+        commands%info_next%execute => info_next
+        commands%info_prev%execute => info_prev
+        commands%info_up%execute => cmd_info_up
+        commands%info_history_back%execute => info_history_back
+        commands%info_history_forward%execute => info_history_forward
+        commands%info_directory%execute => info_directory
+        commands%info_follow_reference%execute => cmd_info_follow_reference
+        commands%info_menu%execute => cmd_info_menu
+        commands%info_nth_menu_item%execute => cmd_info_nth_menu_item
+        commands%info_top_node%execute => info_top_node
+        commands%info_final_node%execute => info_final_node
+        commands%info_forward_node%execute => cmd_info_forward_node
+        commands%info_backward_node%execute => info_backward_node
+        commands%info_next_menu_item%execute => info_next_menu_item
+        commands%info_last_menu_item%execute => info_last_menu_item
+        commands%info_next_preorder%execute => info_next_preorder
+        commands%info_last_preorder%execute => info_last_preorder
+        commands%info_scroll_up%execute => info_scroll_up
+        commands%info_scroll_down%execute => info_scroll_down
+        commands%info_next_reference%execute => cmd_info_next_reference
+        commands%info_prev_reference%execute => cmd_info_prev_reference
+        commands%info_follow_nearest_node%execute => cmd_info_follow_nearest_node
+        commands%info_copy_current_node_name%execute => cmd_info_copy_current_node_name
+        commands%info_undefined%execute => info_undefined
+        commands%info_help%execute => info_help
+        commands%info_summary%execute => info_summary
+        commands%info_toc%execute => info_toc
+        commands%info_history%execute => info_history
+        commands%info_search%execute => cmd_info_search
+        commands%info_search_case_sensitively%execute => info_search_case_sensitively
+        commands%info_search_next%execute => info_search_next
+        commands%info_search_backward%execute => cmd_info_search_backward
+        commands%info_index%execute => cmd_info_index
+        commands%info_index_next%execute => cmd_info_index_next
+        commands%info_virtual_index%execute => cmd_info_virtual_index
+        commands%info_apropos%execute => cmd_info_apropos
+        commands%info_goto_emacs_command_node%execute => cmd_info_goto_emacs_command_node
+        commands%info_goto_emacs_key_command_node%execute => cmd_info_goto_emacs_key_command_node
+        commands%info_display_manual%execute => cmd_info_display_manual
         commands%info%info_file = "emacs"
         commands%info_goto_emacs_command_node%info_file = "emacs"
         commands%info_goto_emacs_key_command_node%info_file = "emacs"

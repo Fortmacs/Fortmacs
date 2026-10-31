@@ -51,7 +51,7 @@ module conf_mode_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set
-    use subr_fm, only: delaying_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, run_mode_hooks
+    use subr_fm, only: delaying_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
     use syntax_fm, only: make_syntax_table, copy_syntax_table, modify_syntax_entry, syntax_table, set_syntax_table, &
                          is_syntax_table_live, parse_expression_ignore_comments, forward_comment, scan_groups
     use editfns_fm, only: point, point_min, point_max, goto_char, is_eob, is_eol, char_after, char_before, delete_region, &
@@ -268,21 +268,21 @@ contains
         call keymap_set(conf_mode_map, "C-c """, "conf_quote_normal", st)
         call keymap_set(conf_mode_map, "C-c '", "conf_quote_normal", st)
         call keymap_set(conf_mode_map, "C-c C-a", "conf_align_assignments", st)
-        commands%conf_mode%run => conf_mode
-        commands%conf_unix_mode%run => conf_unix_mode
-        commands%conf_windows_mode%run => conf_windows_mode
-        commands%conf_javaprop_mode%run => conf_javaprop_mode
-        commands%conf_space_mode%run => conf_space_mode
-        commands%conf_colon_mode%run => conf_colon_mode
-        commands%conf_ppd_mode%run => conf_ppd_mode
-        commands%conf_xdefaults_mode%run => conf_xdefaults_mode
-        commands%conf_toml_mode%run => conf_toml_mode
-        commands%conf_desktop_mode%run => conf_desktop_mode
-        commands%conf_npmrc_mode%run => conf_npmrc_mode
-        commands%conf_space_keywords%run => cmd_conf_space_keywords
-        commands%conf_align_assignments%run => cmd_conf_align_assignments
-        commands%conf_quote_normal%run => cmd_conf_quote_normal
-        commands%conf_mode_maybe%run => conf_mode_maybe
+        commands%conf_mode%execute => conf_mode
+        commands%conf_unix_mode%execute => conf_unix_mode
+        commands%conf_windows_mode%execute => conf_windows_mode
+        commands%conf_javaprop_mode%execute => conf_javaprop_mode
+        commands%conf_space_mode%execute => conf_space_mode
+        commands%conf_colon_mode%execute => conf_colon_mode
+        commands%conf_ppd_mode%execute => conf_ppd_mode
+        commands%conf_xdefaults_mode%execute => conf_xdefaults_mode
+        commands%conf_toml_mode%execute => conf_toml_mode
+        commands%conf_desktop_mode%execute => conf_desktop_mode
+        commands%conf_npmrc_mode%execute => conf_npmrc_mode
+        commands%conf_space_keywords%execute => cmd_conf_space_keywords
+        commands%conf_align_assignments%execute => cmd_conf_align_assignments
+        commands%conf_quote_normal%execute => cmd_conf_quote_normal
+        commands%conf_mode_maybe%execute => conf_mode_maybe
         commands%conf_mode_maybe%is_command = .false.
     end subroutine syms_of_conf_mode
 
@@ -931,7 +931,7 @@ contains
 
         call conf_space_mode_internal(status)
         if (.not. status%ok()) return
-        call run_mode_hooks(status)
+        call execute_mode_hooks(status)
     end subroutine conf_space_keywords_command
 
     !> Enter Conf Space mode using regexp KEYWORDS to match the keywords

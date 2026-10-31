@@ -440,10 +440,10 @@ contains
         if (.not. allocated(crm_separator_string)) crm_separator_string = ","
         if (.not. allocated(crm_separator_description)) crm_separator_description = "comma-separated list"
         if (.not. allocated(crm_prompt)) crm_prompt = "[%d] %p"
-        commands%crm_complete%run => crm_complete
-        commands%crm_complete_word%run => crm_complete_word
-        commands%crm_completion_help%run => crm_completion_help
-        commands%crm_complete_and_exit%run => crm_complete_and_exit
+        commands%crm_complete%execute => crm_complete
+        commands%crm_complete_word%execute => crm_complete_word
+        commands%crm_completion_help%execute => crm_completion_help
+        commands%crm_complete_and_exit%execute => crm_complete_and_exit
         if (is_keymap_live(crm_local_completion_map)) call free_keymap(crm_local_completion_map, st)
         call make_sparse_keymap(crm_local_completion_map)
         call set_keymap_parent(crm_local_completion_map, minibuffer_local_completion_map, st)

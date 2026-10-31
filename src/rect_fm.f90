@@ -2490,14 +2490,14 @@ contains
         call bind_remap("backward_char", "rectangle_backward_char")
         call bind_remap("next_line", "rectangle_next_line")
         call bind_remap("previous_line", "rectangle_previous_line")
-        commands%rectangle_mark_mode%run => rectangle_mark_mode
-        commands%rectangle_exchange_point_and_mark%run => cmd_rectangle_exchange_point_and_mark
-        commands%rectangle_right_char%run => cmd_rectangle_right_char
-        commands%rectangle_left_char%run => cmd_rectangle_left_char
-        commands%rectangle_forward_char%run => cmd_rectangle_forward_char
-        commands%rectangle_backward_char%run => cmd_rectangle_backward_char
-        commands%rectangle_next_line%run => cmd_rectangle_next_line
-        commands%rectangle_previous_line%run => cmd_rectangle_previous_line
+        commands%rectangle_mark_mode%execute => rectangle_mark_mode
+        commands%rectangle_exchange_point_and_mark%execute => cmd_rectangle_exchange_point_and_mark
+        commands%rectangle_right_char%execute => cmd_rectangle_right_char
+        commands%rectangle_left_char%execute => cmd_rectangle_left_char
+        commands%rectangle_forward_char%execute => cmd_rectangle_forward_char
+        commands%rectangle_backward_char%execute => cmd_rectangle_backward_char
+        commands%rectangle_next_line%execute => cmd_rectangle_next_line
+        commands%rectangle_previous_line%execute => cmd_rectangle_previous_line
 
         if (.not. associated(orig_region_extract)) then
             orig_highlight => redisplay_highlight_region_function
@@ -2511,15 +2511,15 @@ contains
         end if
 
         call define_yank_handler_function("rectangle__insert_for_yank", rectangle_insert_for_yank)
-        commands%delete_rectangle%run => cmd_delete_rectangle
-        commands%kill_rectangle%run => cmd_kill_rectangle
-        commands%copy_rectangle_as_kill%run => cmd_copy_rectangle_as_kill
-        commands%yank_rectangle%run => cmd_yank_rectangle
-        commands%open_rectangle%run => cmd_open_rectangle
-        commands%delete_whitespace_rectangle%run => cmd_delete_whitespace_rectangle
-        commands%string_rectangle%run => cmd_string_rectangle
-        commands%string_insert_rectangle%run => cmd_string_insert_rectangle
-        commands%clear_rectangle%run => cmd_clear_rectangle
-        commands%rectangle_number_lines%run => cmd_rectangle_number_lines
+        commands%delete_rectangle%execute => cmd_delete_rectangle
+        commands%kill_rectangle%execute => cmd_kill_rectangle
+        commands%copy_rectangle_as_kill%execute => cmd_copy_rectangle_as_kill
+        commands%yank_rectangle%execute => cmd_yank_rectangle
+        commands%open_rectangle%execute => cmd_open_rectangle
+        commands%delete_whitespace_rectangle%execute => cmd_delete_whitespace_rectangle
+        commands%string_rectangle%execute => cmd_string_rectangle
+        commands%string_insert_rectangle%execute => cmd_string_insert_rectangle
+        commands%clear_rectangle%execute => cmd_clear_rectangle
+        commands%rectangle_number_lines%execute => cmd_rectangle_number_lines
     end subroutine syms_of_rect
 end module rect_fm

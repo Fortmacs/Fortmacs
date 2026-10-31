@@ -52,7 +52,7 @@ module vc_git_fm
     use subr_fm, only: match_string
     use fileio_fm, only: expand_file_name, is_file_directory, is_directory_name, file_exists
     use files_fm, only: file_relative_name, executable_find, revert_buffer_in_progress
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use vc_hooks_fm, only: vc_backends, vc_string_type, vc_switches_type, register_vc_backend, vc_find_root, &
                            vc_state, vc_mode_line_state, vc_working_revision, vc_file_get_git_symbolic_ref, &
                            vc_file_set_git_symbolic_ref, vc_display_status, vc_use_short_revision, &
@@ -399,7 +399,7 @@ contains
     !> in the current buffer when TO_BUFFER, else discarded; CODE is the
     !> exit status (-1 if killed by a signal).  Port of
     !> vc-git.el:vc-git--call.
-    subroutine vc_git_call(to_buffer, command, args, code, status)
+    subroutine vc_git_execute(to_buffer, command, args, code, status)
         logical, intent(in) :: to_buffer
         character(len=*), intent(in) :: command
         type(vc_string_type), intent(in) :: args(:)
@@ -426,15 +426,15 @@ contains
         end do
 
         if (to_buffer) then
-            call call_process(vc_git_program, result, status, destination=value_type(.true.), args=make_list(argv), &
+            call execute_process(vc_git_program, result, status, destination=value_type(.true.), args=make_list(argv), &
                               error_file="/dev/null", environment=make_list(envv))
         else
-            call call_process(vc_git_program, result, status, args=make_list(argv), environment=make_list(envv))
+            call execute_process(vc_git_program, result, status, args=make_list(argv), environment=make_list(envv))
         end if
 
         if (.not. status%ok()) return
         if (vtag(result) == V_INTEGER) code = int(xfixnum(result))
-    end subroutine vc_git_call
+    end subroutine vc_git_execute
 
     !> Run `git COMMAND ARGS...' and insert standard output in current buffer.
     !> Return whether the process exited with status zero.  Port of
@@ -445,7 +445,7 @@ contains
         type(status_type) :: st
         integer :: code
 
-        call vc_git_call(.true., command, args, code, st)
+        call vc_git_execute(.true., command, args, code, st)
         ok = st%ok() .and. code == 0
     end function vc_git_out_ok
 
@@ -475,7 +475,7 @@ contains
     !> Run a git command on FILE and return its output as string (OK false
     !> on failure).  FILE can be absent.  Port of
     !> vc-git.el:vc-git--run-command-string.
-    subroutine vc_git_run_command_string(args, str, ok, file)
+    subroutine vc_git_execute_command_string(args, str, ok, file)
         type(vc_string_type), intent(in) :: args(:)
         character(len=:), allocatable, intent(out) :: str
         logical, intent(out) :: ok
@@ -496,7 +496,7 @@ contains
         str = buffer_string()
         call temp_end(old, tmp)
         if (.not. ok) str = ""
-    end subroutine vc_git_run_command_string
+    end subroutine vc_git_execute_command_string
 
     !> The strings ARGS as a list (a helper for the short lists of git
     !> arguments).  Not a port.
@@ -521,7 +521,7 @@ contains
         type(status_type) :: st
         integer :: code
 
-        call vc_git_call(.false., "rev-parse", strings("--verify", "HEAD"), code, st)
+        call vc_git_execute(.false., "rev-parse", strings("--verify", "HEAD"), code, st)
         empty = code /= 0
     end function is_vc_git_empty_db
 
@@ -538,7 +538,7 @@ contains
             return
         end if
 
-        call vc_git_run_command_string(strings("version"), s, ok)
+        call vc_git_execute_command_string(strings("version"), s, ok)
         if (.not. ok) s = ""
         version = vc_git_parse_program_version(s)
         program_version = version
@@ -716,7 +716,7 @@ contains
         ! Just to be explicit, it's the default anyway.
         if (version_le("1.7.6.3", vc_git_program_version())) call push(args, "--ignored")
         call push(args, "--")
-        call vc_git_run_command_string(args, status, ok, file)
+        call vc_git_execute_command_string(args, status, ok, file)
 
         if (.not. ok) then
             ! If status is nil, there was an error calling git, likely because
@@ -778,7 +778,7 @@ contains
 
         call vc_file_get_git_symbolic_ref(file, ref, found)
         if (found) return
-        call vc_git_run_command_string(strings("symbolic-ref", "HEAD"), str, found)
+        call vc_git_execute_command_string(strings("symbolic-ref", "HEAD"), str, found)
 
         if (found) then
             if (string_match("^\(refs/heads/\)?\(.+\)$", str, st) > 0) then
@@ -904,7 +904,7 @@ contains
         type(vc_string_type) :: none(0)
         logical :: ok, found
 
-        call vc_git_run_command_string(strings("ls-files", "-z", "--full-name", "--"), fn, ok, file)
+        call vc_git_execute_command_string(strings("ls-files", "-z", "--full-name", "--"), fn, ok, file)
 
         ! ls-files does not return anything when looking for a revision of
         ! a file that has been renamed or removed.
@@ -1315,7 +1315,7 @@ contains
         type(font_lock_highlight_type) :: h(2)
         logical :: saved
 
-        if (.not. associated(major_modes%vc_git_log_edit_mode%run)) call define_log_edit_mode()
+        if (.not. associated(major_modes%vc_git_log_edit_mode%execute)) call define_log_edit_mode()
         call major_modes%vc_git_log_edit_mode%begin(saved, status)
         if (.not. status%ok()) return
         call log_edit_font_lock_keywords(keywords)
@@ -1345,13 +1345,13 @@ contains
                       "Face for Git commit summary lines beyond the maximum length."//LF// &
                       "See `vc_git_log_edit_summary_max_len'.")
         call f%spec_entry(display_when(), face_attrs(inherit="error"))
-        if (.not. associated(major_modes%log_edit_mode%run)) call syms_of_log_edit()
+        if (.not. associated(major_modes%log_edit_mode%execute)) call syms_of_log_edit()
         call major_modes%vc_git_log_edit_mode%define("vc_git_log_edit_mode", "Log-Edit/git", vc_git_log_edit_mode, &
                                                      vc_git_log_edit_mode_hook, parent=major_modes%log_edit_mode)
         vc_git_log_edit_mode_map = major_modes%vc_git_log_edit_mode%map
-        commands%vc_git_log_edit_mode%run => vc_git_log_edit_mode
-        commands%vc_git_log_edit_toggle_signoff%run => vc_git_log_edit_toggle_signoff
-        commands%vc_git_log_edit_toggle_no_verify%run => vc_git_log_edit_toggle_no_verify
+        commands%vc_git_log_edit_mode%execute => vc_git_log_edit_mode
+        commands%vc_git_log_edit_toggle_signoff%execute => vc_git_log_edit_toggle_signoff
+        commands%vc_git_log_edit_toggle_no_verify%execute => vc_git_log_edit_toggle_no_verify
         call keymap_set(vc_git_log_edit_mode_map, "C-c C-s", "vc_git_log_edit_toggle_signoff", st)
         call keymap_set(vc_git_log_edit_mode_map, "C-c C-n", "vc_git_log_edit_toggle_no_verify", st)
     end subroutine define_log_edit_mode
@@ -1612,7 +1612,7 @@ contains
         logical :: saved, short, expand
         integer :: view
 
-        if (.not. associated(major_modes%vc_git_log_view_mode%run)) call define_log_view_mode()
+        if (.not. associated(major_modes%vc_git_log_view_mode%execute)) call define_log_view_mode()
         call major_modes%vc_git_log_view_mode%begin(saved, status)
         if (.not. status%ok()) return
         view = vc_log_view_type()
@@ -1765,12 +1765,12 @@ contains
         use add_log_fm, only: syms_of_add_log
 
         ! (require 'add-log): we need the faces of add-log.
-        if (.not. associated(major_modes%change_log_mode%run)) call syms_of_add_log()
-        if (.not. associated(major_modes%log_view_mode%run)) call syms_of_log_view()
+        if (.not. associated(major_modes%change_log_mode%execute)) call syms_of_add_log()
+        if (.not. associated(major_modes%log_view_mode%execute)) call syms_of_log_view()
         call major_modes%vc_git_log_view_mode%define("vc_git_log_view_mode", "Git-Log-View", vc_git_log_view_mode, &
                                                      vc_git_log_view_mode_hook, parent=major_modes%log_view_mode)
         vc_git_log_view_mode_map = major_modes%vc_git_log_view_mode%map
-        commands%vc_git_log_view_mode%run => vc_git_log_view_mode
+        commands%vc_git_log_view_mode%execute => vc_git_log_view_mode
     end subroutine define_log_view_mode
 
     ! The default `vc_git_root_log_format'.  Not a port.
@@ -2340,7 +2340,7 @@ contains
 
         if (.not. status%ok()) return
         ! (vc-run-delayed-success ALLOWED-EXIT ...)
-        action%run => vc_git_after_dir_status_stage
+        action%execute => vc_git_after_dir_status_stage
         action%n = k
         action%buffer = current_buffer()
         action%okstatus = allowed_exit
@@ -2545,13 +2545,13 @@ contains
             if (len(path) > 0) then
                 ! Canonicalize in this branch because --git-dir always returns
                 ! an absolute file name.
-                call vc_git_run_command_string(strings("rev-parse", "--git-path", path), out, ok)
+                call vc_git_execute_command_string(strings("rev-parse", "--git-path", path), out, ok)
                 call expand_file_name(trim_right(out), full, st, buffer_directory())
                 return
             end if
         end if
 
-        call vc_git_run_command_string(strings("rev-parse", "--git-dir"), out, ok)
+        call vc_git_execute_command_string(strings("rev-parse", "--git-dir"), out, ok)
         full = trim_right(out)//"/"
 
     contains

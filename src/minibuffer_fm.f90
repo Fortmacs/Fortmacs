@@ -66,7 +66,7 @@ module minibuffer_fm
     use dired_fm, only: file_name_completion, file_name_all_completions
     use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
                            minibuffer_message_timeout, last_message
-    use timer_fm, only: run_at_time, free_timer, is_timer
+    use timer_fm, only: execute_at_time, free_timer, is_timer
     use minibuf_fm, only: is_minibuffer, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
                           is_minibuffer_innermost_command_loop, is_innermost_minibuffer, &
                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
@@ -96,7 +96,7 @@ module minibuffer_fm
               read_directory_name, completion_file_name_table
     public :: completion_insert_strings
     public :: completion_in_region, completion_in_region_default, completion_at_point, completion_help_at_point, &
-              completion_at_point_run, &
+              execute_completion_at_point, &
               cir_predicate_proc, completion_in_region_proc
     public :: internal_complete_buffer, minibuffer_maybe_quote_filename, completions_visible
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
@@ -924,25 +924,25 @@ contains
         type(status_type) :: status
         type(named_face_type), pointer :: f
 
-        commands%exit_minibuffer%run => cmd_exit_minibuffer
-        commands%abort_minibuffers%run => cmd_abort_minibuffers
-        commands%minibuffer_complete%run => cmd_minibuffer_complete
-        commands%minibuffer_complete_word%run => cmd_minibuffer_complete_word
-        commands%minibuffer_completion_help%run => cmd_minibuffer_completion_help
-        commands%minibuffer_complete_and_exit%run => cmd_minibuffer_complete_and_exit
-        commands%minibuffer_completion_exit%run => cmd_minibuffer_completion_exit
-        commands%minibuffer_recenter_top_bottom%run => cmd_minibuffer_recenter_top_bottom
-        commands%minibuffer_scroll_up_command%run => cmd_minibuffer_scroll_up_command
-        commands%minibuffer_scroll_down_command%run => cmd_minibuffer_scroll_down_command
+        commands%exit_minibuffer%execute => cmd_exit_minibuffer
+        commands%abort_minibuffers%execute => cmd_abort_minibuffers
+        commands%minibuffer_complete%execute => cmd_minibuffer_complete
+        commands%minibuffer_complete_word%execute => cmd_minibuffer_complete_word
+        commands%minibuffer_completion_help%execute => cmd_minibuffer_completion_help
+        commands%minibuffer_complete_and_exit%execute => cmd_minibuffer_complete_and_exit
+        commands%minibuffer_completion_exit%execute => cmd_minibuffer_completion_exit
+        commands%minibuffer_recenter_top_bottom%execute => cmd_minibuffer_recenter_top_bottom
+        commands%minibuffer_scroll_up_command%execute => cmd_minibuffer_scroll_up_command
+        commands%minibuffer_scroll_down_command%execute => cmd_minibuffer_scroll_down_command
         call completion_settings_defaults()
         f => completions_annotations
         call f%define("completions_annotations", "Face to use for annotations in the *Completions* buffer."//achar(10)// &
                       "This face is only used if the strings used for completions"//achar(10)// &
                       "doesn't already specify a face.")
         call f%spec_entry(display_when(), face_attrs(inherits=[character(len=12) :: "italic", "shadow"]))
-        commands%completion_at_point%run => completion_at_point
-        commands%completion_help_at_point%run => completion_help_at_point
-        commands%completion_in_region_mode%run => cmd_completion_in_region_mode
+        commands%completion_at_point%execute => completion_at_point
+        commands%completion_help_at_point%execute => completion_help_at_point
+        commands%completion_in_region_mode%execute => cmd_completion_in_region_mode
         call minor_modes%completion_in_region_mode%define("completion_in_region_mode", global=.true., &
                                                           body=completion_in_region_mode_body)
         if (is_keymap_live(completion_in_region_mode_map)) call free_keymap(completion_in_region_mode_map, status)
@@ -1154,7 +1154,7 @@ contains
         end if
 
         last_minibuffer_message = minibuffer_message_text
-        call run_at_time(minibuffer_message_timer, real(minibuffer_message_timeout, real64), &
+        call execute_at_time(minibuffer_message_timer, real(minibuffer_message_timeout, real64), &
                          delete_message_overlay_timer, st)
     end subroutine minibuffer_message
 
@@ -1735,7 +1735,7 @@ contains
     !> non-exclusive table, only if prefix completion of the text before
     !> point finds something).  Port of minibuffer.el:completion--capf-wrapper
     !> run through run-hook-wrapped.
-    recursive subroutine run_capfs(data, fn, status, functions)
+    recursive subroutine execute_capfs(data, fn, status, functions)
         type(capf_data_type), intent(out) :: data
         procedure(capf_function), pointer, intent(out) :: fn
         type(status_type), intent(out) :: status
@@ -1779,7 +1779,7 @@ contains
         end do
 
         data = capf_data_type()
-    end subroutine run_capfs
+    end subroutine execute_capfs
 
     !> completion-at-point's completion-in-region-mode-predicate: we're
     !> still in the same completion field.
@@ -1805,14 +1805,14 @@ contains
         type(status_type), intent(out) :: status
         logical :: res
 
-        call completion_at_point_run(res, status)
+        call execute_completion_at_point(res, status)
     end subroutine completion_at_point
 
     !> `completion_at_point' giving in RES whether there was a valid
     !> completion; with FUNCTIONS, those instead of
     !> `completion_at_point_functions' (saved and restored around the call; upstream binds the hook).
     !> Port of minibuffer.el:completion-at-point.
-    recursive subroutine completion_at_point_run(res, status, functions)
+    recursive subroutine execute_completion_at_point(res, status, functions)
         logical, intent(out) :: res
         type(status_type), intent(out) :: status
         type(capf_entry_type), intent(in), optional :: functions(:)
@@ -1824,7 +1824,7 @@ contains
 
         status = status_type()
         res = .false.
-        call run_capfs(data, fn, status, functions)
+        call execute_capfs(data, fn, status, functions)
         if (.not. status%ok()) return
         if (.not. data%found) return
 
@@ -1854,7 +1854,7 @@ contains
         completion_in_region_mode_predicate => saved_pred
         completion_exit_function => saved_exit
         status = status_type()
-    end subroutine completion_at_point_run
+    end subroutine execute_completion_at_point
 
     !> Display the completions on the text around point.
     !> The completion method is determined by
@@ -1870,7 +1870,7 @@ contains
         procedure(completion_predicate), pointer :: saved_mb_pred
         type(handle_type) :: saved_start
 
-        call run_capfs(data, fn, status)
+        call execute_capfs(data, fn, status)
         if (.not. status%ok()) return
 
         if (.not. data%found) then

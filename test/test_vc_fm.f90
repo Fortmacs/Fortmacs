@@ -46,7 +46,7 @@ module test_vc_fm
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                          make_directory_internal, write_region, expand_file_name
     use files_fm, only: delete_directory, find_file_noselect, executable_find
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use process_fm, only: make_process, process_arg_type, is_process_live, accept_process_output
     use bindings_fm, only: init_bindings
     use vc_hooks_fm, only: vc_string_type, vc_backend, vc_registered, vc_state, vc_working_revision, &
@@ -232,7 +232,7 @@ contains
         old = current_buffer()
         call temp_buffer(h)
         buffers(cur)%directory = tdir()
-        call call_process("git", result, st, args=make_list(args(1:n)))
+        call execute_process("git", result, st, args=make_list(args(1:n)))
         call kill_buffer(h, st)
         call set_buffer(old, st)
 
@@ -444,7 +444,7 @@ contains
         call temp_buffer(h)
         call start_shell("sleep 0.2; echo hello", h, proc)
         success = .false.
-        action%run => set_success
+        action%execute => set_success
         call vc_exec_after(action, st)
         call check(error,.not. success, "not yet")
 
@@ -468,7 +468,7 @@ contains
         call start_shell("sleep 0.2; echo hello", h, proc)
         call exec_after_wait(proc)
         success = .false.
-        action%run => set_success
+        action%execute => set_success
         call vc_exec_after(action, st)
         call check(error, success)
         call kill_buffer(h, st)
@@ -485,7 +485,7 @@ contains
         call temp_buffer(h)
         call start_shell("true", h, proc)
         success = .false.
-        action%run => set_success
+        action%execute => set_success
         action%okstatus = 0
         call vc_exec_after(action, st)
         call exec_after_wait(proc)

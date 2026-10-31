@@ -91,7 +91,7 @@ module lisp_fm
         !> The name, as M-x and the help commands show it.
         character(len=:), allocatable :: name
         !> The procedure; null if the command is not defined.
-        procedure(command_proc), pointer, nopass :: run => null()
+        procedure(command_proc), pointer, nopass :: execute => null()
         !> Whether it is a command (has an interactive spec), so M-x and
         !> keys can run it.
         logical :: is_command = .true.
@@ -694,9 +694,9 @@ contains
         name = ""
 
         do i = n_defined_commands, 1, -1
-            if (.not. associated(defined_commands(i)%p%run)) cycle
+            if (.not. associated(defined_commands(i)%p%execute)) cycle
 
-            if (associated(defined_commands(i)%p%run, proc)) then
+            if (associated(defined_commands(i)%p%execute, proc)) then
                 name = defined_commands(i)%p%name
                 return
             end if

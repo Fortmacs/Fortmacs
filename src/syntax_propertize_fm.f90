@@ -810,7 +810,7 @@ contains
                             if (.not. group_matched(branch%steps(j)%gn)) cycle
                         end if
 
-                        call run_step(branch%steps(j), status)
+                        call execute_step(branch%steps(j), status)
                         if (.not. status%ok()) return
                     end do
                 end associate
@@ -851,7 +851,7 @@ contains
 
     ! Run one highlight of a matched rule.
     ! Port of part of syntax.el:syntax-propertize-rules.
-    recursive subroutine run_step(step, status)
+    recursive subroutine execute_step(step, status)
         type(rule_step_type), intent(in) :: step
         type(status_type), intent(out) :: status
         type(syntax_property_type) :: prop
@@ -877,7 +877,7 @@ contains
         end if
 
         if (associated(step%highlight%after)) call step%highlight%after(status)
-    end subroutine run_step
+    end subroutine execute_step
 
     ! Give START..END the `syntax_table' property PROP.  Not a port.
     subroutine put_property(start, end, prop, status)

@@ -1303,7 +1303,7 @@ contains
 
         only = .false.
         if (present(form_only)) only = form_only
-        if (.not. only) call pcomplete_try_first_hook%run(st)
+        if (.not. only) call pcomplete_try_first_hook%execute(st)
         thrown = THROWN_COMPLETIONS
         has_thrown_table = .false.
 

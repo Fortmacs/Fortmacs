@@ -372,21 +372,21 @@ contains
 
         call minor_modes%font_lock_mode%define("font_lock_mode", body=font_lock_mode_body, hook=font_lock_mode_hook, &
                                                after_hook=font_lock_mode_after_hook)
-        commands%font_lock_mode%run => font_lock_mode
+        commands%font_lock_mode%execute => font_lock_mode
         call minor_modes%global_font_lock_mode%define("global_font_lock_mode", global=.true., &
                                                       body=global_font_lock_mode_body, hook=global_font_lock_mode_hook)
-        commands%global_font_lock_mode%run => global_font_lock_mode
-        commands%turn_on_font_lock%run => turn_on_font_lock
+        commands%global_font_lock_mode%execute => global_font_lock_mode
+        commands%turn_on_font_lock%execute => turn_on_font_lock
         commands%turn_on_font_lock%is_command = .false.
-        commands%turn_on_font_lock_if_desired%run => turn_on_font_lock_if_desired
+        commands%turn_on_font_lock_if_desired%execute => turn_on_font_lock_if_desired
         commands%turn_on_font_lock_if_desired%is_command = .false.
-        commands%font_lock_change_mode%run => font_lock_change_mode
+        commands%font_lock_change_mode%execute => font_lock_change_mode
         commands%font_lock_change_mode%is_command = .false.
-        commands%font_lock_defontify%run => font_lock_defontify
+        commands%font_lock_defontify%execute => font_lock_defontify
         commands%font_lock_defontify%is_command = .false.
-        commands%global_font_lock_mode_enable_in_buffer%run => global_font_lock_mode_enable_in_buffer
+        commands%global_font_lock_mode_enable_in_buffer%execute => global_font_lock_mode_enable_in_buffer
         commands%global_font_lock_mode_enable_in_buffer%is_command = .false.
-        commands%font_lock_mode_set_explicitly%run => font_lock_mode_set_explicitly
+        commands%font_lock_mode_set_explicitly%execute => font_lock_mode_set_explicitly
         commands%font_lock_mode_set_explicitly%is_command = .false.
         if (.not. associated(font_lock_function)) font_lock_function => font_lock_default_function
         ! textprop.c's char-property-alias-alist (nil by default).

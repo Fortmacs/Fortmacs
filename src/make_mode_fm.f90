@@ -49,7 +49,7 @@ module make_mode_fm
     use lisp_fm, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value, call_interactively
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, execute_interactively
     use keyboard_fm, only: last_command_event
     use buffer_fm, only: buffers, cur, buffer_serial_live, barf_if_buffer_read_only, get_buffer, get_buffer_create, &
                          set_buffer, current_buffer, erase_buffer, kill_buffer
@@ -79,7 +79,7 @@ module make_mode_fm
     use files_fm, only: write_file_functions, delete_file
     use fileio_fm, only: is_file_directory, file_name_directory, write_region, make_temp_name
     use dired_fm, only: file_name_all_completions
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND, &
                             FONT_LOCK_OVERRIDE_APPEND
@@ -519,29 +519,29 @@ contains
         call keymap_set(makefile_mode_map, "M-n", "makefile_next_dependency", st)
         call keymap_set(makefile_mode_map, "M-q", "fill_paragraph", st)
         call keymap_set(makefile_mode_map, "C-M-i", "completion_at_point", st)
-        commands%makefile_mode%run => makefile_mode
-        commands%makefile_automake_mode%run => makefile_automake_mode
-        commands%makefile_gmake_mode%run => makefile_gmake_mode
-        commands%makefile_makepp_mode%run => makefile_makepp_mode
-        commands%makefile_bsdmake_mode%run => makefile_bsdmake_mode
-        commands%makefile_imake_mode%run => makefile_imake_mode
-        commands%makefile_next_dependency%run => cmd_makefile_next_dependency
-        commands%makefile_previous_dependency%run => cmd_makefile_previous_dependency
-        commands%makefile_electric_dot%run => cmd_makefile_electric_dot
-        commands%makefile_insert_special_target%run => makefile_insert_special_target
-        commands%makefile_electric_equal%run => cmd_makefile_electric_equal
-        commands%makefile_insert_macro%run => cmd_makefile_insert_macro
-        commands%makefile_insert_macro_ref%run => cmd_makefile_insert_macro_ref
-        commands%makefile_insert_target%run => cmd_makefile_insert_target
-        commands%makefile_insert_target_ref%run => cmd_makefile_insert_target_ref
-        commands%makefile_electric_colon%run => cmd_makefile_electric_colon
-        commands%makefile_pickup_targets%run => makefile_pickup_targets
-        commands%makefile_pickup_macros%run => makefile_pickup_macros
-        commands%makefile_pickup_everything%run => cmd_makefile_pickup_everything
-        commands%makefile_pickup_filenames_as_targets%run => makefile_pickup_filenames_as_targets
-        commands%makefile_backslash_region%run => cmd_makefile_backslash_region
-        commands%makefile_create_up_to_date_overview%run => makefile_create_up_to_date_overview
-        commands%makefile_insert_gmake_function%run => makefile_insert_gmake_function
+        commands%makefile_mode%execute => makefile_mode
+        commands%makefile_automake_mode%execute => makefile_automake_mode
+        commands%makefile_gmake_mode%execute => makefile_gmake_mode
+        commands%makefile_makepp_mode%execute => makefile_makepp_mode
+        commands%makefile_bsdmake_mode%execute => makefile_bsdmake_mode
+        commands%makefile_imake_mode%execute => makefile_imake_mode
+        commands%makefile_next_dependency%execute => cmd_makefile_next_dependency
+        commands%makefile_previous_dependency%execute => cmd_makefile_previous_dependency
+        commands%makefile_electric_dot%execute => cmd_makefile_electric_dot
+        commands%makefile_insert_special_target%execute => makefile_insert_special_target
+        commands%makefile_electric_equal%execute => cmd_makefile_electric_equal
+        commands%makefile_insert_macro%execute => cmd_makefile_insert_macro
+        commands%makefile_insert_macro_ref%execute => cmd_makefile_insert_macro_ref
+        commands%makefile_insert_target%execute => cmd_makefile_insert_target
+        commands%makefile_insert_target_ref%execute => cmd_makefile_insert_target_ref
+        commands%makefile_electric_colon%execute => cmd_makefile_electric_colon
+        commands%makefile_pickup_targets%execute => makefile_pickup_targets
+        commands%makefile_pickup_macros%execute => makefile_pickup_macros
+        commands%makefile_pickup_everything%execute => cmd_makefile_pickup_everything
+        commands%makefile_pickup_filenames_as_targets%execute => makefile_pickup_filenames_as_targets
+        commands%makefile_backslash_region%execute => cmd_makefile_backslash_region
+        commands%makefile_create_up_to_date_overview%execute => makefile_create_up_to_date_overview
+        commands%makefile_insert_gmake_function%execute => makefile_insert_gmake_function
     end subroutine syms_of_make_mode
 
     !> One level of makefile-dependency-regex's elems-re.
@@ -1482,7 +1482,7 @@ contains
         if (.not. status%ok()) return
 
         if (is_bol()) then
-            call call_interactively(value_type(name="makefile_insert_macro"), status)
+            call execute_interactively(value_type(name="makefile_insert_macro"), status)
         else
             call self_insert_command(arg, event_char(), status)
         end if
@@ -1623,7 +1623,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (is_bol()) then
-            call call_interactively(value_type(name="makefile_insert_target"), status)
+            call execute_interactively(value_type(name="makefile_insert_target"), status)
         else
             call self_insert_command(arg, event_char(), status)
         end if
@@ -2370,7 +2370,7 @@ contains
         type(value_type) :: result
         type(status_type) :: st
 
-        call call_process(makefile_brave_make%value, result, st, &
+        call execute_process(makefile_brave_make%value, result, st, &
                           args=list(value_type(text="-f"), value_type(text=filename), value_type(text="-q"), &
                                     value_type(text=target)))
         rebuild = .true.

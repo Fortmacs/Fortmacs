@@ -435,7 +435,7 @@ contains
     end subroutine leave_frame
 
     !> Run `keys` (an is_key_valid string) through the command loop.
-    subroutine run_keys(keys)
+    subroutine execute_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
@@ -443,7 +443,7 @@ contains
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-    end subroutine run_keys
+    end subroutine execute_keys
 
     !> Whether `h` is the null handle (nil).
     pure logical function is_null(h)
@@ -467,7 +467,7 @@ contains
         type(handle_type), allocatable :: ws(:)
 
         call enter_frame("abc", h)
-        call run_keys("C-x 2")
+        call execute_keys("C-x 2")
         ws = leaves()
         call check(error, size(ws) == 2, "two windows")
         if (allocated(error)) return
@@ -478,7 +478,7 @@ contains
         call check(error, same_window(selected_frame%selected_window, ws(1)) .and. &
                    windows(ws(2)%index)%buffer%index == h%index, "same buffer, top selected")
         if (allocated(error)) return
-        call run_keys("C-x 3")
+        call execute_keys("C-x 3")
         ws = leaves()
         call check(error, size(ws) == 3, "three windows")
         if (allocated(error)) return
@@ -488,14 +488,14 @@ contains
                    windows(ws(2)%index)%total_lines == 12, "side by side")
         if (allocated(error)) return
         ! C-u 5 C-x 2: the upper window gets 5 lines.
-        call run_keys("C-u 5 C-x 2")
+        call execute_keys("C-u 5 C-x 2")
         ws = leaves()
         call check(error, size(ws) == 4, "C-u 5 C-x 2")
         if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_lines == 5 .and. &
                                                windows(ws(2)%index)%total_lines == 7, "C-u 5 C-x 2")
         if (allocated(error)) return
         ! A window too small to split.
-        call run_keys("C-x 2 C-x 2")
+        call execute_keys("C-x 2 C-x 2")
         call check(error, index(last_message, "too small for splitting") > 0, last_message)
         call leave_frame()
     end subroutine test_split
@@ -507,21 +507,21 @@ contains
         type(handle_type), allocatable :: ws(:)
 
         call enter_frame("abcdef", h)
-        call run_keys("C-x 2 C-x 3")
+        call execute_keys("C-x 2 C-x 3")
         ws = leaves()
         call goto_char(3_int64)
-        call run_keys("C-x o")
+        call execute_keys("C-x o")
         call check(error, same_window(selected_frame%selected_window, ws(2)) .and. point() == 1, "second window")
         if (allocated(error)) return
         call goto_char(5_int64)
-        call run_keys("C-x o C-x o")
+        call execute_keys("C-x o C-x o")
         call check(error, same_window(selected_frame%selected_window, ws(1)) .and. point() == 3, &
                    "back to the first, at its point")
         if (allocated(error)) return
-        call run_keys("C-u -1 C-x o")
+        call execute_keys("C-u -1 C-x o")
         call check(error, same_window(selected_frame%selected_window, ws(3)), "backwards")
         if (allocated(error)) return
-        call run_keys("C-x o C-x o")
+        call execute_keys("C-x o C-x o")
         call check(error, same_window(selected_frame%selected_window, ws(2)) .and. point() == 5, "its point")
         call leave_frame()
     end subroutine test_other_window
@@ -534,13 +534,13 @@ contains
         type(handle_type), allocatable :: ws(:)
 
         call enter_frame("abc", h)
-        call run_keys("C-x 0")
+        call execute_keys("C-x 0")
         call check(error, last_message == "Attempt to delete minibuffer or sole ordinary window", last_message)
         if (allocated(error)) return
-        call run_keys("C-x 2 C-x 3 C-x o C-x o")
+        call execute_keys("C-x 2 C-x 3 C-x o C-x o")
         ws = leaves()
         ! The third (bottom) window is selected; delete it.
-        call run_keys("C-x 0")
+        call execute_keys("C-x 0")
         ws = leaves()
         call check(error, size(ws) == 2, "the top windows take the space")
         if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_lines == 23 .and. &
@@ -548,13 +548,13 @@ contains
         if (allocated(error)) return
         call check(error, same_window(selected_frame%selected_window, ws(2)), "the most recently used")
         if (allocated(error)) return
-        call run_keys("C-x 0")
+        call execute_keys("C-x 0")
         ws = leaves()
         call check(error, size(ws) == 1, "one window again")
         if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_cols == 80 .and. &
                                                same_window(ws(1), selected_frame%root_window), "one window again")
         if (allocated(error)) return
-        call run_keys("C-x 2 C-x 3 C-x o C-x 1")
+        call execute_keys("C-x 2 C-x 3 C-x o C-x 1")
         ws = leaves()
         call check(error, size(ws) == 1, "C-x 1")
         if (.not. allocated(error)) call check(error, same_window(ws(1), selected_frame%selected_window) .and. &
@@ -571,7 +571,7 @@ contains
         type(handle_type), allocatable :: ws(:)
 
         call enter_frame("abc", h)
-        call run_keys("C-x 2 C-x b o t h e r - t e s t RET")
+        call execute_keys("C-x 2 C-x b o t h e r - t e s t RET")
         ws = leaves()
         o = current_buffer()
         call check(error, buffers(cur)%name == "other-test" .and. windows(ws(1)%index)%buffer%index == o%index &
@@ -580,10 +580,10 @@ contains
         ! RET takes the default, the other buffer (one not shown in a
         ! window if there is one).
         d = other_buffer(o)
-        call run_keys("C-x b RET")
+        call execute_keys("C-x b RET")
         call check(error, same_buffer(current_buffer(), d) .and. same_buffer(windows(ws(1)%index)%buffer, d))
         if (allocated(error)) return
-        call run_keys("C-x b s p l i t - t e s t RET")
+        call execute_keys("C-x b s p l i t - t e s t RET")
         call check(error, same_buffer(current_buffer(), h))
         call leave_frame()
 
@@ -604,10 +604,10 @@ contains
         type(handle_type), allocatable :: ws(:)
 
         call enter_frame("abc", h)
-        call run_keys("C-x 2 C-x b o t h e r - t e s t RET C-x o C-x b o t h e r - t e s t RET")
+        call execute_keys("C-x 2 C-x b o t h e r - t e s t RET C-x o C-x b o t h e r - t e s t RET")
         ws = leaves()
         ! Both windows show other-test now; the bottom one is selected.
-        call run_keys("C-x k RET")
+        call execute_keys("C-x k RET")
         call check(error,.not. is_buffer_live(get_buffer("other-test")), "killed")
         if (allocated(error)) return
         call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
@@ -616,10 +616,10 @@ contains
         if (allocated(error)) return
         ! A modified buffer visiting a file asks; "no" keeps it.
         buffers(cur)%filename = "/nonexistent/split-test"
-        call run_keys("C-x k RET n o RET")
+        call execute_keys("C-x k RET n o RET")
         call check(error, is_buffer_live(h), "no: kept")
         if (allocated(error)) return
-        call run_keys("C-x k RET y e s RET")
+        call execute_keys("C-x k RET y e s RET")
         call check(error,.not. is_buffer_live(h), "yes: killed")
         call leave_frame()
     end subroutine test_kill_buffer
@@ -665,19 +665,19 @@ contains
 
         call enter_frame("abcdef", h)
         call goto_char(3_int64)
-        call run_keys("C-x b o t h e r - t e s t RET")
+        call execute_keys("C-x b o t h e r - t e s t RET")
         call check(error, buffers(cur)%name == "other-test", buffers(cur)%name)
         if (allocated(error)) return
-        call run_keys("C-x <left>")
+        call execute_keys("C-x <left>")
         call check(error, buffers(cur)%name == "split-test" .and. point() == 3, buffers(cur)%name//" "//last_message)
         if (allocated(error)) return
-        call run_keys("C-x <right>")
+        call execute_keys("C-x <right>")
         call check(error, buffers(cur)%name == "other-test", buffers(cur)%name)
         if (allocated(error)) return
         ! Point moves in split-test meanwhile; the window's point stays.
         call set_buffer(h, st)
         call goto_char(6_int64)
-        call run_keys("C-x b s p l i t - t e s t RET")
+        call execute_keys("C-x b s p l i t - t e s t RET")
         call check(error, buffers(cur)%name == "split-test" .and. point() == 3, "window point restored")
         call leave_frame()
     end subroutine test_previous_next_buffer
@@ -692,7 +692,7 @@ contains
 
         call enter_frame("abc", h)
         windows(selected_frame%selected_window%index)%dedicated = DEDICATED_STRONG
-        call run_keys("C-x b")
+        call execute_keys("C-x b")
         call check(error, last_message == "Cannot switch buffers in a dedicated window", last_message)
         if (allocated(error)) return
         call switch_to_buffer("other-test", st, force_same_window=.true.)
@@ -725,18 +725,18 @@ contains
         end do
 
         call enter_frame(text, h)
-        call run_keys("C-x 2")
+        call execute_keys("C-x 2")
         ws = leaves()
         call goto_char(line(2))
         ! The bottom window has 10 text lines: a screenful is 8 lines.
-        call run_keys("C-M-v")
+        call execute_keys("C-M-v")
         call check(error, window_start(windows(ws(2)%index)) == line(9) .and. &
                    same_window(selected_frame%selected_window, ws(1)) .and. point() == line(2), "scrolled the other")
         if (allocated(error)) return
-        call run_keys("M-<prior>")
+        call execute_keys("M-<prior>")
         call check(error, window_start(windows(ws(2)%index)) == line(1), "and back")
         if (allocated(error)) return
-        call run_keys("C-x 1 C-M-v")
+        call execute_keys("C-x 1 C-M-v")
         call check(error, last_message == "There is no other window", last_message)
         call leave_frame()
     end subroutine test_scroll_other_window
@@ -750,12 +750,12 @@ contains
         type(window_configuration_type) :: config
 
         call enter_frame("abcdef", h)
-        call run_keys("C-x 2")
+        call execute_keys("C-x 2")
         ws = leaves()
         top = ws(1)
         call goto_char(3_int64)
         call current_window_configuration(config)
-        call run_keys("C-x 1 C-x b o t h e r - t e s t RET")
+        call execute_keys("C-x 1 C-x b o t h e r - t e s t RET")
         call check(error, size(leaves()) == 1 .and. buffers(cur)%name == "other-test", "changed")
         if (allocated(error)) return
         call set_window_configuration(config)
@@ -792,7 +792,7 @@ contains
         end do
 
         call enter_frame(text//"end", h)
-        call run_keys("C-x 2")
+        call execute_keys("C-x 2")
         ws = leaves()
         call fit_window_to_buffer(ws(2))
         ws = leaves()
@@ -814,7 +814,7 @@ contains
         type(status_type) :: st
 
         call enter_frame("abc", h)
-        call run_keys("C-x b o t h e r - t e s t RET")
+        call execute_keys("C-x b o t h e r - t e s t RET")
         windows(selected_frame%selected_window%index)%dedicated = DEDICATED_STRONG
         call bury_buffer(st)
         call check(error, st%ok() .and. buffers(cur)%name == "split-test" .and. &
@@ -831,7 +831,7 @@ contains
         type(status_type) :: st
 
         call enter_frame("abc", h)
-        call run_keys("C-x 2 C-x 3")
+        call execute_keys("C-x 2 C-x 3")
         ws = leaves()
         root = frame_root_window(status=st)
         top = window_top_child(root, st)
@@ -873,7 +873,7 @@ contains
                    window_bump_use_time(ws(1), st) == -1, "bump use time")
         if (allocated(error)) return
         ! A deleted window is still a window, with no buffer.
-        call run_keys("C-x o C-x o C-x 0")
+        call execute_keys("C-x o C-x o C-x 0")
         call check(error, is_window(ws(3)) .and. .not. is_window_live(ws(3)) .and. &
                    is_null(window_buffer(ws(3), st)) .and. st%ok(), "deleted window")
         if (allocated(error)) return
@@ -891,7 +891,7 @@ contains
         type(status_type) :: st
 
         call enter_frame("abc", h)
-        call run_keys("C-x 2 C-x 3")
+        call execute_keys("C-x 2 C-x 3")
         ws = leaves()
         mini = minibuffer_window()
         call check(error, same_window(next_window(ws(3), status=st), ws(1)) .and. &
@@ -931,7 +931,7 @@ contains
         integer :: x, y
 
         call enter_frame("abc", h)
-        call run_keys("C-x 2 C-x 3")
+        call execute_keys("C-x 2 C-x 3")
         ws = leaves()
         call check(error, window_part_at(38, 0, ws(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
                    "text")

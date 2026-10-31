@@ -365,8 +365,8 @@ keyboard_coding_system
 kill_read_only_ok
 kill_ring_max
 kill_whole_line
-kmacro_call_repeat_key
-kmacro_call_repeat_with_arg
+kmacro_execute_repeat_key
+kmacro_execute_repeat_with_arg
 kmacro_execute_before_append
 kmacro_repeat_no_prefix
 kmacro_ring_max

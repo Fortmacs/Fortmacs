@@ -47,7 +47,7 @@ module novice_fm
     use data_fm, only: symbol_name
     use keymap_fm, only: key_description
     use keyboard_fm, only: this_command_keys, disabled_command_hook
-    use callint_fm, only: call_interactively, is_command, find_command, command_type
+    use callint_fm, only: execute_interactively, is_command, find_command, command_type
     use character_fm, only: CHAR_META
     use help_fm, only: substitute_command_keys, documentation_hook
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
@@ -194,7 +194,7 @@ contains
             continue
         end select
 
-        if (answer /= 1) call call_interactively(cmd, status)
+        if (answer /= 1) call execute_interactively(cmd, status)
     end subroutine disabled_command_function
 
     !> TEXT with N spaces before each nonempty line (indent-rigidly).
@@ -402,8 +402,8 @@ contains
     !> `enable_command' and `disable_command'.  Not a port.
     subroutine syms_of_novice()
         disabled_command_hook => check_disabled
-        commands%enable_command%run => cmd_enable_command
-        commands%disable_command%run => cmd_disable_command
+        commands%enable_command%execute => cmd_enable_command
+        commands%disable_command%execute => cmd_disable_command
         commands%upcase_region%disabled = .true.
         commands%downcase_region%disabled = .true.
         ! bindings.el also disables `narrow_to_region', not ported yet.

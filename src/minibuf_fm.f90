@@ -52,7 +52,7 @@ module minibuf_fm
     use textprop_fm, only: add_text_properties, get_text_property
     use keymap_fm, only: make_sparse_keymap, use_local_map, is_keymap_live
     use keyboard_fm, only: recursive_edit_1, throw_exit, throw_exit_string, command_loop_level, last_message, &
-                           minibuf_level, barf_if_interaction_inhibited, safe_run_hooks
+                           minibuf_level, barf_if_interaction_inhibited, safe_execute_hooks
     use search_fm, only: fast_string_match
     use frame_fm, only: selected_frame, frame_selected_window_ref, minibuffer_window_ref
     use window_fm, only: window_type, set_window_buffer, window_configuration_type, current_window_configuration, &
@@ -63,7 +63,7 @@ module minibuf_fm
 
     public :: minibuf_level
     public :: minibuffer_depth, minibuffer_prompt, is_minibuffer_at_depth, is_live_minibuffer, nth_minibuffer, &
-              run_exit_minibuf_hook, set_initial_minibuffer_mode, match_regexps, assoc_string
+              execute_exit_minibuf_hook, set_initial_minibuffer_mode, match_regexps, assoc_string
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
               is_minibuffer, abort_minibuffers, init_minibuf, is_minibuffer_innermost_command_loop, &
               is_innermost_minibuffer, minibuffer_depth_of, minibuffer_setup_proc
@@ -535,7 +535,7 @@ contains
             call setup()
         end if
 
-        call minibuffer_setup_hook%run(st)
+        call minibuffer_setup_hook%execute(st)
         call recursive_edit_1(edit_status)
         ! Make the minibuffer contents into a string.
         call set_buffer(minibuffer, st)
@@ -557,7 +557,7 @@ contains
             have_histstring = .false.
         end if
 
-        call run_exit_minibuf_hook(minibuffer)
+        call execute_exit_minibuf_hook(minibuffer)
         ! read_minibuf_unwind
         minibuf_level = minibuf_level - 1
         if (allocated(minibuf_prompt)) deallocate (minibuf_prompt)
@@ -655,17 +655,17 @@ contains
     end function nth_minibuffer
 
     !> Run `minibuffer_exit_hook' with MINIBUF current, if it is live, as
-    !> `safe_run_hooks' does.  Port of minibuf.c:run_exit_minibuf_hook.
-    recursive subroutine run_exit_minibuf_hook(minibuf)
+    !> `safe_execute_hooks' does.  Port of minibuf.c:run_exit_minibuf_hook.
+    recursive subroutine execute_exit_minibuf_hook(minibuf)
         type(handle_type), intent(in) :: minibuf
         type(handle_type) :: saved
         type(status_type) :: st
 
         saved = current_buffer()
         if (is_buffer_live(minibuf)) call set_buffer(minibuf, st)
-        call safe_run_hooks(minibuffer_exit_hook)
+        call safe_execute_hooks(minibuffer_exit_hook)
         if (is_buffer_live(saved)) call set_buffer(saved, st)
-    end subroutine run_exit_minibuf_hook
+    end subroutine execute_exit_minibuf_hook
 
     !> Set up the minibuffer of depth 0 as minibuffer-inactive-mode would
     !> (its local variables killed, as set_minibuffer_mode does when

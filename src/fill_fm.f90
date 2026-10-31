@@ -2192,11 +2192,11 @@ contains
     subroutine syms_of_fill()
         call init_fill_variables()
         call add_local_variables_killer(kill_fill_locals)
-        commands%fill_paragraph%run => cmd_fill_paragraph
-        commands%fill_region%run => cmd_fill_region
-        commands%fill_region_as_paragraph%run => cmd_fill_region_as_paragraph
-        commands%unfill_paragraph%run => cmd_unfill_paragraph
-        commands%set_fill_prefix%run => cmd_set_fill_prefix
-        commands%justify_current_line%run => cmd_justify_current_line
+        commands%fill_paragraph%execute => cmd_fill_paragraph
+        commands%fill_region%execute => cmd_fill_region
+        commands%fill_region_as_paragraph%execute => cmd_fill_region_as_paragraph
+        commands%unfill_paragraph%execute => cmd_unfill_paragraph
+        commands%set_fill_prefix%execute => cmd_set_fill_prefix
+        commands%justify_current_line%execute => cmd_justify_current_line
     end subroutine syms_of_fill
 end module fill_fm

@@ -20,12 +20,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Running a program and waiting for it: `call_process' and
-!> `call_process_region'.  The program's output (standard output and
+!> Running a program and waiting for it: `execute_process' and
+!> `execute_process_region'.  The program's output (standard output and
 !> error together) goes into a buffer or is discarded; the result is its
 !> exit status, or a description of the signal that killed it.
 !>
-!>     call call_process("ls", result, status, destination=value_type(.true.), &
+!>     call execute_process("ls", result, status, destination=value_type(.true.), &
 !>                       args=list(value_type(text="-l")))
 !>
 !> Standard error can go to a file of its own (DESTINATION's
@@ -60,7 +60,7 @@ module callproc_fm
     implicit none(type, external)
     private
 
-    public :: call_process, call_process_region, get_current_directory, locate_program, init_callproc
+    public :: execute_process, execute_process_region, get_current_directory, locate_program, init_callproc
 
     !> File name to load inferior shells from.
     !> Initialized from the SHELL environment variable, or to a system-dependent
@@ -88,7 +88,7 @@ contains
     !> `null_device').  If INFILE is a relative path, it will be looked for
     !> relative to the directory where the process is run (see below).  If
     !> you want to make the input come from a buffer, use
-    !> `call_process_region' instead.
+    !> `execute_process_region' instead.
     !>
     !> DESTINATION specifies how to handle program's output.
     !> ("Output" here means both standard output and standard error
@@ -105,19 +105,19 @@ contains
     !> created or truncated); otherwise standard error goes where standard
     !> output goes.
     !>
-    !> If PROGRAM is not an absolute file name, `call_process' will look
+    !> If PROGRAM is not an absolute file name, `execute_process' will look
     !> for PROGRAM in PATH.
     !>
     !> If executable PROGRAM can't be found as an executable,
-    !> a `file_missing' error condition occurs in `call_process'.  `call_process' reports errors in
+    !> a `file_missing' error condition occurs in `execute_process'.  `execute_process' reports errors in
     !> execution of the program only through its return and output.
     !>
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
     !> status or a signal description string.
     !>
     !> The process runs in `default_directory'.  Port of
-    !> callproc.c:Fcall_process and call_process.
-    subroutine call_process(program, result, status, infile, destination, args, error_file, environment)
+    !> callproc.c:Fcall_process and execute_process.
+    subroutine execute_process(program, result, status, infile, destination, args, error_file, environment)
         character(len=*), intent(in) :: program
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
@@ -171,7 +171,7 @@ contains
                     discard = .false.
                     buffer = current_buffer()
                 else if (allocated(destination%a)) then
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call_process")
+                    call set_error(status, FM_GENERIC_ERROR, "Invalid destination for execute_process")
                     return
                 end if
             else if (vtag(destination) == V_BUFFER) then
@@ -187,7 +187,7 @@ contains
                 call get_buffer_create(xstring(destination), buffer, status)
                 if (.not. status%ok()) return
             else
-                call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call_process")
+                call set_error(status, FM_GENERIC_ERROR, "Invalid destination for execute_process")
                 return
             end if
         end if
@@ -294,7 +294,7 @@ contains
         else
             result = value_type(int(code, int64))
         end if
-    end subroutine call_process
+    end subroutine execute_process
 
     !> The directory a subprocess runs in: the current buffer's
     !> `default_directory' (or the directory the editor started in),
@@ -326,7 +326,7 @@ contains
     !> The executable file PROGRAM names: itself if it has a slash (relative
     !> to `dir'), else the first one in a directory of PATH (an empty entry
     !> means `dir').  `path' is "" if there is none.  Port of the part of
-    !> lread.c:openp that call_process uses (`exec_path' is PATH here).
+    !> lread.c:openp that execute_process uses (`exec_path' is PATH here).
     subroutine locate_program(program, dir, path)
         character(len=*), intent(in) :: program, dir
         character(len=:), allocatable, intent(out) :: path
@@ -408,15 +408,15 @@ contains
     !> ARGS, a list of strings, are passed to PROGRAM at startup as
     !> command-line arguments.
     !>
-    !> ERROR_FILE is as for `call_process'.
+    !> ERROR_FILE is as for `execute_process'.
     !>
-    !> If PROGRAM is not an absolute file name, `call_process_region' will
+    !> If PROGRAM is not an absolute file name, `execute_process_region' will
     !> look for PROGRAM in PATH.
     !>
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
     !> status or a signal description string.  Port of
     !> callproc.c:Fcall_process_region.
-    subroutine call_process_region(program, result, status, start, end, delete, destination, args, error_file)
+    subroutine execute_process_region(program, result, status, start, end, delete, destination, args, error_file)
         character(len=*), intent(in) :: program
         character(len=*), intent(in), optional :: error_file
         type(value_type), intent(out) :: result
@@ -473,12 +473,12 @@ contains
         end if delete_text
 
         if (len(tempfile) > 0) then
-            call call_process(program, result, status, tempfile, destination, args, error_file)
+            call execute_process(program, result, status, tempfile, destination, args, error_file)
             call delete_file_internal(tempfile, dst)
         else
-            call call_process(program, result, status, destination=destination, args=args, error_file=error_file)
+            call execute_process(program, result, status, destination=destination, args=args, error_file=error_file)
         end if
-    end subroutine call_process_region
+    end subroutine execute_process_region
 
     !> Write the text from `start' to `end' (the whole buffer if absent) to
     !> a new temporary file, named `tempfile'.  Port of

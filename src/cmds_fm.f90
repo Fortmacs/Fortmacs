@@ -331,7 +331,7 @@ contains
 
         ! Run hooks for electric keys.
         if (.not. status%ok()) return
-        call post_self_insert_hook%run(status)
+        call post_self_insert_hook%execute(status)
     end subroutine internal_self_insert
 
     !> Whether `auto_fill_chars' contains `c' (space and
@@ -491,13 +491,13 @@ contains
     !> Register this module's commands.  Port of the defsubr part of
     !> cmds.c:syms_of_cmds.
     subroutine syms_of_cmds()
-        commands%forward_char%run => cmd_forward_char
-        commands%backward_char%run => cmd_backward_char
-        commands%forward_line%run => cmd_forward_line
-        commands%beginning_of_line%run => cmd_beginning_of_line
-        commands%end_of_line%run => cmd_end_of_line
-        commands%delete_char%run => cmd_delete_char
-        commands%self_insert_command%run => cmd_self_insert_command
+        commands%forward_char%execute => cmd_forward_char
+        commands%backward_char%execute => cmd_backward_char
+        commands%forward_line%execute => cmd_forward_line
+        commands%beginning_of_line%execute => cmd_beginning_of_line
+        commands%end_of_line%execute => cmd_end_of_line
+        commands%delete_char%execute => cmd_delete_char
+        commands%self_insert_command%execute => cmd_self_insert_command
         ! character.c: space and newline; characters.el: the charsets that
         ! should invoke auto-filling.
         auto_fill_chars = [char_range_type(32, 32), char_range_type(10, 10), &

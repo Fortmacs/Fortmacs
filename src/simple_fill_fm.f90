@@ -476,16 +476,16 @@ contains
     call minor_modes%auto_fill_mode%define("auto_fill_mode", " Fill", variable="auto_fill_function", hook=auto_fill_mode_hook, &
                                            body=auto_fill_body)
     internal_auto_fill_hook => internal_auto_fill
-    commands%auto_fill_mode%run => auto_fill_mode
+    commands%auto_fill_mode%execute => auto_fill_mode
     ! turn-on-auto-fill, turn-off-auto-fill and do-auto-fill are
     ! functions, not commands.
-    commands%turn_on_auto_fill%run => turn_on_auto_fill
+    commands%turn_on_auto_fill%execute => turn_on_auto_fill
     commands%turn_on_auto_fill%is_command = .false.
-    commands%turn_off_auto_fill%run => turn_off_auto_fill
+    commands%turn_off_auto_fill%execute => turn_off_auto_fill
     commands%turn_off_auto_fill%is_command = .false.
-    commands%do_auto_fill%run => do_auto_fill
+    commands%do_auto_fill%execute => do_auto_fill
     commands%do_auto_fill%is_command = .false.
-    commands%set_fill_column%run => cmd_set_fill_column
-    commands%default_indent_new_line%run => cmd_default_indent_new_line
+    commands%set_fill_column%execute => cmd_set_fill_column
+    commands%default_indent_new_line%execute => cmd_default_indent_new_line
     end procedure syms_of_simple_fill
 end submodule simple_fill_fm

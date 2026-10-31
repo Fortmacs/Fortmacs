@@ -1881,11 +1881,11 @@ contains
         character(len=:), allocatable :: latex_node, found
         type(status_type) :: st
 
-        commands%info_lookup_name%run => cmd_info_lookup_name
+        commands%info_lookup_name%execute => cmd_info_lookup_name
         commands%info_lookup_name%info_file = "emacs"
-        commands%info_lookup_file%run => cmd_info_lookup_file
+        commands%info_lookup_file%execute => cmd_info_lookup_file
         commands%info_lookup_file%info_file = "emacs"
-        commands%info_lookup_reset%run => cmd_info_lookup_reset
+        commands%info_lookup_reset%execute => cmd_info_lookup_reset
         call add_local_variables_killer(kill_info_look_locals)
         if (.not. allocated(info_lookup_highlight_face)) info_lookup_highlight_face = "match"
 

@@ -679,7 +679,7 @@ contains
         if (status%ok()) then
             if (is_quit_event(key)) then
                 ! (keyboard-quit)
-                if (associated(commands%keyboard_quit%run)) call commands%keyboard_quit%run(status)
+                if (associated(commands%keyboard_quit%execute)) call commands%keyboard_quit%execute(status)
             else if (vtag(key) == V_INTEGER) then
                 if (xfixnum(key) >= 0 .and. xfixnum(key) <= MAX_CHAR) then
                     register = xfixnum(key)
@@ -1581,19 +1581,19 @@ contains
 
     !> Register the commands.  Not a port.
     subroutine syms_of_register()
-        commands%point_to_register%run => cmd_point_to_register
-        commands%window_configuration_to_register%run => cmd_window_configuration_to_register
-        commands%jump_to_register%run => cmd_jump_to_register
-        commands%file_to_register%run => cmd_file_to_register
-        commands%buffer_to_register%run => cmd_buffer_to_register
-        commands%number_to_register%run => cmd_number_to_register
-        commands%increment_register%run => cmd_increment_register
-        commands%view_register%run => cmd_view_register
-        commands%list_registers%run => cmd_list_registers
-        commands%insert_register%run => cmd_insert_register
-        commands%copy_to_register%run => cmd_copy_to_register
-        commands%append_to_register%run => cmd_append_to_register
-        commands%prepend_to_register%run => cmd_prepend_to_register
-        commands%copy_rectangle_to_register%run => cmd_copy_rectangle_to_register
+        commands%point_to_register%execute => cmd_point_to_register
+        commands%window_configuration_to_register%execute => cmd_window_configuration_to_register
+        commands%jump_to_register%execute => cmd_jump_to_register
+        commands%file_to_register%execute => cmd_file_to_register
+        commands%buffer_to_register%execute => cmd_buffer_to_register
+        commands%number_to_register%execute => cmd_number_to_register
+        commands%increment_register%execute => cmd_increment_register
+        commands%view_register%execute => cmd_view_register
+        commands%list_registers%execute => cmd_list_registers
+        commands%insert_register%execute => cmd_insert_register
+        commands%copy_to_register%execute => cmd_copy_to_register
+        commands%append_to_register%execute => cmd_append_to_register
+        commands%prepend_to_register%execute => cmd_prepend_to_register
+        commands%copy_rectangle_to_register%execute => cmd_copy_rectangle_to_register
     end subroutine syms_of_register
 end module register_fm

@@ -909,7 +909,7 @@ contains
         end if
 
         overriding_terminal_local_map = isearch_mode_map
-        call isearch_mode_hook%run(status)
+        call isearch_mode_hook%execute(status)
         ! Remember the initial map possibly modified by external packages
         ! in isearch-mode-hook.  (Bug#16035)
         saved_overriding_local_map = overriding_terminal_local_map
@@ -961,7 +961,7 @@ contains
         end if
 
         isearch_mode_end_hook_quit = flag(nopush) .and. .not. flag(edit)
-        call isearch_mode_end_hook%run(status)
+        call isearch_mode_end_hook%execute(status)
         isearch_mode_end_hook_quit = .false.
 
         ! If there was movement, mark the starting position.  Maybe should
@@ -2703,32 +2703,32 @@ contains
         call lazy_highlight%spec_entry(display_when(), face_attrs(underline=.true.))
         call forward_setting(search_ring)
         call forward_setting(regexp_search_ring)
-        commands%isearch_forward%run => isearch_forward_command
-        commands%isearch_backward%run => isearch_backward_command
-        commands%isearch_forward_regexp%run => isearch_forward_regexp_command
-        commands%isearch_backward_regexp%run => isearch_backward_regexp_command
-        commands%isearch_toggle_regexp%run => cmd_isearch_toggle_regexp
-        commands%isearch_toggle_lax_whitespace%run => cmd_isearch_toggle_lax_whitespace
-        commands%isearch_exit%run => cmd_isearch_exit
-        commands%isearch_cancel%run => cmd_isearch_cancel
-        commands%isearch_abort%run => cmd_isearch_abort
-        commands%isearch_repeat_forward%run => cmd_isearch_repeat_forward
-        commands%isearch_repeat_backward%run => cmd_isearch_repeat_backward
-        commands%isearch_delete_char%run => cmd_isearch_delete_char
-        commands%isearch_del_char%run => cmd_isearch_del_char
-        commands%isearch_printing_char%run => cmd_isearch_printing_char
-        commands%isearch_quote_char%run => cmd_isearch_quote_char
-        commands%isearch_yank_char%run => cmd_isearch_yank_char
-        commands%isearch_yank_line%run => cmd_isearch_yank_line
-        commands%isearch_yank_word_or_char%run => cmd_isearch_yank_word_or_char
-        commands%isearch_beginning_of_buffer%run => cmd_isearch_beginning_of_buffer
-        commands%isearch_end_of_buffer%run => cmd_isearch_end_of_buffer
-        commands%isearch_toggle_case_fold%run => cmd_isearch_toggle_case_fold
-        commands%isearch_edit_string%run => cmd_isearch_edit_string
-        commands%isearch_ring_advance%run => cmd_isearch_ring_advance
-        commands%isearch_ring_retreat%run => cmd_isearch_ring_retreat
-        commands%isearch_yank_kill%run => cmd_isearch_yank_kill
-        commands%isearch_yank_pop_only%run => cmd_isearch_yank_pop_only
+        commands%isearch_forward%execute => isearch_forward_command
+        commands%isearch_backward%execute => isearch_backward_command
+        commands%isearch_forward_regexp%execute => isearch_forward_regexp_command
+        commands%isearch_backward_regexp%execute => isearch_backward_regexp_command
+        commands%isearch_toggle_regexp%execute => cmd_isearch_toggle_regexp
+        commands%isearch_toggle_lax_whitespace%execute => cmd_isearch_toggle_lax_whitespace
+        commands%isearch_exit%execute => cmd_isearch_exit
+        commands%isearch_cancel%execute => cmd_isearch_cancel
+        commands%isearch_abort%execute => cmd_isearch_abort
+        commands%isearch_repeat_forward%execute => cmd_isearch_repeat_forward
+        commands%isearch_repeat_backward%execute => cmd_isearch_repeat_backward
+        commands%isearch_delete_char%execute => cmd_isearch_delete_char
+        commands%isearch_del_char%execute => cmd_isearch_del_char
+        commands%isearch_printing_char%execute => cmd_isearch_printing_char
+        commands%isearch_quote_char%execute => cmd_isearch_quote_char
+        commands%isearch_yank_char%execute => cmd_isearch_yank_char
+        commands%isearch_yank_line%execute => cmd_isearch_yank_line
+        commands%isearch_yank_word_or_char%execute => cmd_isearch_yank_word_or_char
+        commands%isearch_beginning_of_buffer%execute => cmd_isearch_beginning_of_buffer
+        commands%isearch_end_of_buffer%execute => cmd_isearch_end_of_buffer
+        commands%isearch_toggle_case_fold%execute => cmd_isearch_toggle_case_fold
+        commands%isearch_edit_string%execute => cmd_isearch_edit_string
+        commands%isearch_ring_advance%execute => cmd_isearch_ring_advance
+        commands%isearch_ring_retreat%execute => cmd_isearch_ring_retreat
+        commands%isearch_yank_kill%execute => cmd_isearch_yank_kill
+        commands%isearch_yank_pop_only%execute => cmd_isearch_yank_pop_only
         if (.not. allocated(search_whitespace_regexp)) search_whitespace_regexp = "[ "//achar(9)//"]+"
         if (is_keymap_live(isearch_mode_map)) call free_keymap(isearch_mode_map, status)
         call make_keymap(isearch_mode_map)

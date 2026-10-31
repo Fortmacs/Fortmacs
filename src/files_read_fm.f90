@@ -370,8 +370,8 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: status
 
-        commands%find_file_read_only%run => cmd_find_file_read_only
-        commands%find_file_read_only_other_window%run => cmd_find_file_read_only_other_window
+        commands%find_file_read_only%execute => cmd_find_file_read_only
+        commands%find_file_read_only_other_window%execute => cmd_find_file_read_only_other_window
         ! files.el: (define-key ctl-x-map "\C-r" 'find-file-read-only)
         key(1) = value_type(18_int64)
         call define_key(ctl_x_map, key, value_type(name="find_file_read_only"), status)

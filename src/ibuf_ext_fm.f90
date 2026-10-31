@@ -48,7 +48,7 @@
 !> " [predicate]" without its form).
 submodule(ibuffer_fm) ibuf_ext_fm
     use data_fm, only: value_eq
-    use simple_fm, only: call_shell_region, call_process_shell_command, shell_command_buffer_name, &
+    use simple_fm, only: execute_shell_region, execute_process_shell_command, shell_command_buffer_name, &
                          shell_command_dont_erase_buffer, kill_new, kill_append
     use keyboard_fm, only: last_command, post_command_hook
     use dispnew_fm, only: is_frame_or_buffer_changed, frame_buffer_state_type
@@ -72,7 +72,7 @@ submodule(ibuffer_fm) ibuf_ext_fm
     use derived_fm, only: major_mode_type, major_mode_named, provided_mode_derived_p
     use minibuf_fm, only: minibuffer_string_type
     use crm_fm, only: completing_read_multiple
-    use callint_fm, only: call_interactively
+    use callint_fm, only: execute_interactively
     use keymap_fm, only: where_is_internal, current_local_map
     use minibuf_table_fm, only: TABLE_OBARRAY
     use ibuf_macs_fm, only: ibuffer_filter_node_type, ibuffer_filter, ibuffer_saved, ibuffer_predicate, &
@@ -831,7 +831,7 @@ contains
         call set_buffer(out_buf, st)
         call goto_char(point_max())
         call set_buffer(here, st)
-        call call_shell_region(point_min(), point_max(), op_command, .false., exit_value, status, "", out_buf)
+        call execute_shell_region(point_min(), point_max(), op_command, .false., exit_value, status, "", out_buf)
     end subroutine shell_command_pipe_body
 
     !> Replace the contents of marked buffers with output of pipe to
@@ -869,7 +869,7 @@ contains
 
         if (mark == achar(0)) continue
         result = IBUFFER_OP_DONE
-        call call_shell_region(point_min(), point_max(), op_command, .true., exit_value, status, "", buf)
+        call execute_shell_region(point_min(), point_max(), op_command, .true., exit_value, status, "", buf)
     end subroutine shell_command_pipe_replace_body
 
     !> Run shell command COMMAND separately on files of marked buffers.
@@ -925,7 +925,7 @@ contains
         here = current_buffer()
         call set_buffer(out_buf, st)
         call goto_char(point_max())
-        call call_process_shell_command(op_command//" "//shell_quote_argument(file), exit_value, status, &
+        call execute_process_shell_command(op_command//" "//shell_quote_argument(file), exit_value, status, &
                                         buffer=out_buf)
         call set_buffer(here, st)
     end subroutine shell_command_file_body
@@ -1646,7 +1646,7 @@ contains
         ro = buffers(cur)%read_only
         buffers(cur)%read_only = .false.
         call insert(achar(10)//command//achar(10), status)
-        call call_process_shell_command(command, code, status)
+        call execute_process_shell_command(command, code, status)
 
         if (vtag(code) == V_INTEGER) then
             call diff_sentinel(int(xfixnum(code)), new_temp_file=newtmp)
@@ -3867,7 +3867,7 @@ contains
             command = "ibuffer_filter_by_"//trim(ibuffer_filtering_table(i)%name)
         end if
 
-        call call_interactively(value_type(name=command), status)
+        call execute_interactively(value_type(name=command), status)
         if (.not. status%ok()) return
         ! (mapconcat #'key-description KEY "or "): the first key sequence
         ! is a list of events, each given to key-description, which wants
@@ -3991,94 +3991,94 @@ contains
     call define_ibuffer_filter("visiting_file", "visiting a file", filter_visiting_file)
     call define_ibuffer_filter("content", "content", filter_content)
     call define_ibuffer_filter("predicate", "predicate", filter_predicate)
-    commands%ibuffer_filter_by_mode%run => cmd_ibuffer_filter_by_mode
-    commands%ibuffer_filter_by_used_mode%run => cmd_ibuffer_filter_by_used_mode
-    commands%ibuffer_filter_by_derived_mode%run => cmd_ibuffer_filter_by_derived_mode
-    commands%ibuffer_filter_by_name%run => cmd_ibuffer_filter_by_name
-    commands%ibuffer_filter_by_process%run => cmd_ibuffer_filter_by_process
-    commands%ibuffer_filter_by_starred_name%run => cmd_ibuffer_filter_by_starred_name
-    commands%ibuffer_filter_by_filename%run => cmd_ibuffer_filter_by_filename
-    commands%ibuffer_filter_by_basename%run => cmd_ibuffer_filter_by_basename
-    commands%ibuffer_filter_by_file_extension%run => cmd_ibuffer_filter_by_file_extension
-    commands%ibuffer_filter_by_directory%run => cmd_ibuffer_filter_by_directory
-    commands%ibuffer_filter_by_size_gt%run => cmd_ibuffer_filter_by_size_gt
-    commands%ibuffer_filter_by_size_lt%run => cmd_ibuffer_filter_by_size_lt
-    commands%ibuffer_filter_by_modified%run => cmd_ibuffer_filter_by_modified
-    commands%ibuffer_filter_by_visiting_file%run => cmd_ibuffer_filter_by_visiting_file
-    commands%ibuffer_filter_by_content%run => cmd_ibuffer_filter_by_content
-    commands%ibuffer_filter_chosen_by_completion%run => ibuffer_filter_chosen_by_completion
-    commands%ibuffer_interactive_filter_by_mode%run => cmd_ibuffer_interactive_filter_by_mode
-    commands%ibuffer_filter_disable%run => cmd_ibuffer_filter_disable
-    commands%ibuffer_pop_filter%run => ibuffer_pop_filter
-    commands%ibuffer_decompose_filter%run => cmd_ibuffer_decompose_filter
-    commands%ibuffer_exchange_filters%run => cmd_ibuffer_exchange_filters
-    commands%ibuffer_negate_filter%run => cmd_ibuffer_negate_filter
-    commands%ibuffer_or_filter%run => cmd_ibuffer_or_filter
-    commands%ibuffer_and_filter%run => cmd_ibuffer_and_filter
-    commands%ibuffer_save_filters%run => cmd_ibuffer_save_filters
-    commands%ibuffer_delete_saved_filters%run => cmd_ibuffer_delete_saved_filters
-    commands%ibuffer_add_saved_filters%run => cmd_ibuffer_add_saved_filters
-    commands%ibuffer_switch_to_saved_filters%run => cmd_ibuffer_switch_to_saved_filters
-    commands%ibuffer_filters_to_filter_group%run => cmd_ibuffer_filters_to_filter_group
-    commands%ibuffer_set_filter_groups_by_mode%run => cmd_ibuffer_set_filter_groups_by_mode
-    commands%ibuffer_pop_filter_group%run => cmd_ibuffer_pop_filter_group
-    commands%ibuffer_decompose_filter_group%run => cmd_ibuffer_decompose_filter_group
-    commands%ibuffer_clear_filter_groups%run => cmd_ibuffer_clear_filter_groups
-    commands%ibuffer_kill_filter_group%run => cmd_ibuffer_kill_filter_group
-    commands%ibuffer_kill_line%run => ibuffer_kill_line
-    commands%ibuffer_yank%run => ibuffer_yank
-    commands%ibuffer_yank_filter_group%run => cmd_ibuffer_yank_filter_group
-    commands%ibuffer_save_filter_groups%run => cmd_ibuffer_save_filter_groups
-    commands%ibuffer_delete_saved_filter_groups%run => cmd_ibuffer_delete_saved_filter_groups
-    commands%ibuffer_switch_to_saved_filter_groups%run => cmd_ibuffer_switch_to_saved_filter_groups
-    commands%ibuffer_bs_show%run => ibuffer_bs_show
-    commands%ibuffer_bs_toggle_all%run => ibuffer_bs_toggle_all
+    commands%ibuffer_filter_by_mode%execute => cmd_ibuffer_filter_by_mode
+    commands%ibuffer_filter_by_used_mode%execute => cmd_ibuffer_filter_by_used_mode
+    commands%ibuffer_filter_by_derived_mode%execute => cmd_ibuffer_filter_by_derived_mode
+    commands%ibuffer_filter_by_name%execute => cmd_ibuffer_filter_by_name
+    commands%ibuffer_filter_by_process%execute => cmd_ibuffer_filter_by_process
+    commands%ibuffer_filter_by_starred_name%execute => cmd_ibuffer_filter_by_starred_name
+    commands%ibuffer_filter_by_filename%execute => cmd_ibuffer_filter_by_filename
+    commands%ibuffer_filter_by_basename%execute => cmd_ibuffer_filter_by_basename
+    commands%ibuffer_filter_by_file_extension%execute => cmd_ibuffer_filter_by_file_extension
+    commands%ibuffer_filter_by_directory%execute => cmd_ibuffer_filter_by_directory
+    commands%ibuffer_filter_by_size_gt%execute => cmd_ibuffer_filter_by_size_gt
+    commands%ibuffer_filter_by_size_lt%execute => cmd_ibuffer_filter_by_size_lt
+    commands%ibuffer_filter_by_modified%execute => cmd_ibuffer_filter_by_modified
+    commands%ibuffer_filter_by_visiting_file%execute => cmd_ibuffer_filter_by_visiting_file
+    commands%ibuffer_filter_by_content%execute => cmd_ibuffer_filter_by_content
+    commands%ibuffer_filter_chosen_by_completion%execute => ibuffer_filter_chosen_by_completion
+    commands%ibuffer_interactive_filter_by_mode%execute => cmd_ibuffer_interactive_filter_by_mode
+    commands%ibuffer_filter_disable%execute => cmd_ibuffer_filter_disable
+    commands%ibuffer_pop_filter%execute => ibuffer_pop_filter
+    commands%ibuffer_decompose_filter%execute => cmd_ibuffer_decompose_filter
+    commands%ibuffer_exchange_filters%execute => cmd_ibuffer_exchange_filters
+    commands%ibuffer_negate_filter%execute => cmd_ibuffer_negate_filter
+    commands%ibuffer_or_filter%execute => cmd_ibuffer_or_filter
+    commands%ibuffer_and_filter%execute => cmd_ibuffer_and_filter
+    commands%ibuffer_save_filters%execute => cmd_ibuffer_save_filters
+    commands%ibuffer_delete_saved_filters%execute => cmd_ibuffer_delete_saved_filters
+    commands%ibuffer_add_saved_filters%execute => cmd_ibuffer_add_saved_filters
+    commands%ibuffer_switch_to_saved_filters%execute => cmd_ibuffer_switch_to_saved_filters
+    commands%ibuffer_filters_to_filter_group%execute => cmd_ibuffer_filters_to_filter_group
+    commands%ibuffer_set_filter_groups_by_mode%execute => cmd_ibuffer_set_filter_groups_by_mode
+    commands%ibuffer_pop_filter_group%execute => cmd_ibuffer_pop_filter_group
+    commands%ibuffer_decompose_filter_group%execute => cmd_ibuffer_decompose_filter_group
+    commands%ibuffer_clear_filter_groups%execute => cmd_ibuffer_clear_filter_groups
+    commands%ibuffer_kill_filter_group%execute => cmd_ibuffer_kill_filter_group
+    commands%ibuffer_kill_line%execute => ibuffer_kill_line
+    commands%ibuffer_yank%execute => ibuffer_yank
+    commands%ibuffer_yank_filter_group%execute => cmd_ibuffer_yank_filter_group
+    commands%ibuffer_save_filter_groups%execute => cmd_ibuffer_save_filter_groups
+    commands%ibuffer_delete_saved_filter_groups%execute => cmd_ibuffer_delete_saved_filter_groups
+    commands%ibuffer_switch_to_saved_filter_groups%execute => cmd_ibuffer_switch_to_saved_filter_groups
+    commands%ibuffer_bs_show%execute => ibuffer_bs_show
+    commands%ibuffer_bs_toggle_all%execute => ibuffer_bs_toggle_all
     call minor_modes%ibuffer_auto_mode%define("ibuffer_auto_mode", body=ibuffer_auto_mode)
-    commands%ibuffer_auto_mode%run => cmd_ibuffer_auto_mode
-    commands%ibuffer_toggle_filter_group%run => ibuffer_toggle_filter_group
-    commands%ibuffer_forward_filter_group%run => cmd_ibuffer_forward_filter_group
-    commands%ibuffer_backward_filter_group%run => cmd_ibuffer_backward_filter_group
-    commands%ibuffer_jump_to_filter_group%run => cmd_ibuffer_jump_to_filter_group
-    commands%ibuffer_do_shell_command_pipe%run => cmd_ibuffer_do_shell_command_pipe
-    commands%ibuffer_do_shell_command_pipe_replace%run => cmd_ibuffer_do_shell_command_pipe_replace
-    commands%ibuffer_do_shell_command_file%run => cmd_ibuffer_do_shell_command_file
-    commands%ibuffer_do_rename_uniquely%run => ibuffer_do_rename_uniquely
-    commands%ibuffer_do_revert%run => ibuffer_do_revert
-    commands%ibuffer_do_replace_regexp%run => cmd_ibuffer_do_replace_regexp
-    commands%ibuffer_do_query_replace%run => cmd_ibuffer_do_query_replace
-    commands%ibuffer_do_query_replace_regexp%run => cmd_ibuffer_do_query_replace_regexp
-    commands%ibuffer_toggle_sorting_mode%run => ibuffer_toggle_sorting_mode
-    commands%ibuffer_invert_sorting%run => ibuffer_invert_sorting
-    commands%ibuffer_do_sort_by_major_mode%run => ibuffer_do_sort_by_major_mode
-    commands%ibuffer_do_sort_by_mode_name%run => ibuffer_do_sort_by_mode_name
-    commands%ibuffer_do_sort_by_alphabetic%run => ibuffer_do_sort_by_alphabetic
-    commands%ibuffer_do_sort_by_size%run => ibuffer_do_sort_by_size
-    commands%ibuffer_do_sort_by_filename_process%run => ibuffer_do_sort_by_filename_process
-    commands%ibuffer_add_to_tmp_hide%run => cmd_ibuffer_add_to_tmp_hide
-    commands%ibuffer_add_to_tmp_show%run => cmd_ibuffer_add_to_tmp_show
-    commands%ibuffer_forward_next_marked%run => cmd_ibuffer_forward_next_marked
-    commands%ibuffer_backwards_next_marked%run => cmd_ibuffer_backwards_next_marked
-    commands%ibuffer_do_kill_lines%run => ibuffer_do_kill_lines
-    commands%ibuffer_jump_to_buffer%run => cmd_ibuffer_jump_to_buffer
-    commands%ibuffer_diff_with_file%run => ibuffer_diff_with_file
-    commands%ibuffer_copy_filename_as_kill%run => ibuffer_copy_filename_as_kill
-    commands%ibuffer_copy_buffername_as_kill%run => ibuffer_copy_buffername_as_kill
-    commands%ibuffer_mark_by_name_regexp%run => cmd_ibuffer_mark_by_name_regexp
-    commands%ibuffer_mark_by_locked%run => ibuffer_mark_by_locked
-    commands%ibuffer_mark_by_mode_regexp%run => cmd_ibuffer_mark_by_mode_regexp
-    commands%ibuffer_mark_by_file_name_regexp%run => cmd_ibuffer_mark_by_file_name_regexp
-    commands%ibuffer_mark_by_content_regexp%run => cmd_ibuffer_mark_by_content_regexp
-    commands%ibuffer_mark_by_mode%run => cmd_ibuffer_mark_by_mode
-    commands%ibuffer_mark_modified_buffers%run => ibuffer_mark_modified_buffers
-    commands%ibuffer_mark_unsaved_buffers%run => ibuffer_mark_unsaved_buffers
-    commands%ibuffer_mark_dissociated_buffers%run => ibuffer_mark_dissociated_buffers
-    commands%ibuffer_mark_help_buffers%run => ibuffer_mark_help_buffers
-    commands%ibuffer_mark_compressed_file_buffers%run => ibuffer_mark_compressed_file_buffers
-    commands%ibuffer_mark_old_buffers%run => ibuffer_mark_old_buffers
-    commands%ibuffer_mark_special_buffers%run => ibuffer_mark_special_buffers
-    commands%ibuffer_mark_read_only_buffers%run => ibuffer_mark_read_only_buffers
-    commands%ibuffer_mark_dired_buffers%run => ibuffer_mark_dired_buffers
-    commands%ibuffer_do_occur%run => cmd_ibuffer_do_occur
+    commands%ibuffer_auto_mode%execute => cmd_ibuffer_auto_mode
+    commands%ibuffer_toggle_filter_group%execute => ibuffer_toggle_filter_group
+    commands%ibuffer_forward_filter_group%execute => cmd_ibuffer_forward_filter_group
+    commands%ibuffer_backward_filter_group%execute => cmd_ibuffer_backward_filter_group
+    commands%ibuffer_jump_to_filter_group%execute => cmd_ibuffer_jump_to_filter_group
+    commands%ibuffer_do_shell_command_pipe%execute => cmd_ibuffer_do_shell_command_pipe
+    commands%ibuffer_do_shell_command_pipe_replace%execute => cmd_ibuffer_do_shell_command_pipe_replace
+    commands%ibuffer_do_shell_command_file%execute => cmd_ibuffer_do_shell_command_file
+    commands%ibuffer_do_rename_uniquely%execute => ibuffer_do_rename_uniquely
+    commands%ibuffer_do_revert%execute => ibuffer_do_revert
+    commands%ibuffer_do_replace_regexp%execute => cmd_ibuffer_do_replace_regexp
+    commands%ibuffer_do_query_replace%execute => cmd_ibuffer_do_query_replace
+    commands%ibuffer_do_query_replace_regexp%execute => cmd_ibuffer_do_query_replace_regexp
+    commands%ibuffer_toggle_sorting_mode%execute => ibuffer_toggle_sorting_mode
+    commands%ibuffer_invert_sorting%execute => ibuffer_invert_sorting
+    commands%ibuffer_do_sort_by_major_mode%execute => ibuffer_do_sort_by_major_mode
+    commands%ibuffer_do_sort_by_mode_name%execute => ibuffer_do_sort_by_mode_name
+    commands%ibuffer_do_sort_by_alphabetic%execute => ibuffer_do_sort_by_alphabetic
+    commands%ibuffer_do_sort_by_size%execute => ibuffer_do_sort_by_size
+    commands%ibuffer_do_sort_by_filename_process%execute => ibuffer_do_sort_by_filename_process
+    commands%ibuffer_add_to_tmp_hide%execute => cmd_ibuffer_add_to_tmp_hide
+    commands%ibuffer_add_to_tmp_show%execute => cmd_ibuffer_add_to_tmp_show
+    commands%ibuffer_forward_next_marked%execute => cmd_ibuffer_forward_next_marked
+    commands%ibuffer_backwards_next_marked%execute => cmd_ibuffer_backwards_next_marked
+    commands%ibuffer_do_kill_lines%execute => ibuffer_do_kill_lines
+    commands%ibuffer_jump_to_buffer%execute => cmd_ibuffer_jump_to_buffer
+    commands%ibuffer_diff_with_file%execute => ibuffer_diff_with_file
+    commands%ibuffer_copy_filename_as_kill%execute => ibuffer_copy_filename_as_kill
+    commands%ibuffer_copy_buffername_as_kill%execute => ibuffer_copy_buffername_as_kill
+    commands%ibuffer_mark_by_name_regexp%execute => cmd_ibuffer_mark_by_name_regexp
+    commands%ibuffer_mark_by_locked%execute => ibuffer_mark_by_locked
+    commands%ibuffer_mark_by_mode_regexp%execute => cmd_ibuffer_mark_by_mode_regexp
+    commands%ibuffer_mark_by_file_name_regexp%execute => cmd_ibuffer_mark_by_file_name_regexp
+    commands%ibuffer_mark_by_content_regexp%execute => cmd_ibuffer_mark_by_content_regexp
+    commands%ibuffer_mark_by_mode%execute => cmd_ibuffer_mark_by_mode
+    commands%ibuffer_mark_modified_buffers%execute => ibuffer_mark_modified_buffers
+    commands%ibuffer_mark_unsaved_buffers%execute => ibuffer_mark_unsaved_buffers
+    commands%ibuffer_mark_dissociated_buffers%execute => ibuffer_mark_dissociated_buffers
+    commands%ibuffer_mark_help_buffers%execute => ibuffer_mark_help_buffers
+    commands%ibuffer_mark_compressed_file_buffers%execute => ibuffer_mark_compressed_file_buffers
+    commands%ibuffer_mark_old_buffers%execute => ibuffer_mark_old_buffers
+    commands%ibuffer_mark_special_buffers%execute => ibuffer_mark_special_buffers
+    commands%ibuffer_mark_read_only_buffers%execute => ibuffer_mark_read_only_buffers
+    commands%ibuffer_mark_dired_buffers%execute => ibuffer_mark_dired_buffers
+    commands%ibuffer_do_occur%execute => cmd_ibuffer_do_occur
     m = ibuffer_mode_map
     call keymap_set(m, "=", "ibuffer_diff_with_file", st)
     call keymap_set(m, "j", "ibuffer_jump_to_buffer", st)

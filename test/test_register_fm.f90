@@ -194,7 +194,7 @@ contains
         use commands_fm, only: commands
         type(status_type), intent(out) :: status
 
-        call commands%point_to_register%run(status)
+        call commands%point_to_register%execute(status)
     end subroutine commands_point_to_register
 
     !> The register--jumpable-p cases that apply: a marker, a window

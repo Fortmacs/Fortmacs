@@ -664,14 +664,14 @@ contains
         call keymap_set(apropos_mode_map, "n", "apropos_next_name", st)
         call keymap_set(apropos_mode_map, "p", "apropos_previous_name", st)
         call register_keymap_name("apropos_mode_map", apropos_mode_map)
-        commands%apropos_mode%run => apropos_mode
-        commands%apropos_follow%run => apropos_follow
-        commands%apropos_next_name%run => apropos_next_name
-        commands%apropos_previous_name%run => apropos_previous_name
-        commands%apropos_command%run => cmd_apropos_command
-        commands%apropos_function%run => cmd_apropos_function
-        commands%apropos_user_option%run => cmd_apropos_user_option
-        commands%apropos_variable%run => cmd_apropos_variable
-        commands%apropos_documentation%run => cmd_apropos_documentation
+        commands%apropos_mode%execute => apropos_mode
+        commands%apropos_follow%execute => apropos_follow
+        commands%apropos_next_name%execute => apropos_next_name
+        commands%apropos_previous_name%execute => apropos_previous_name
+        commands%apropos_command%execute => cmd_apropos_command
+        commands%apropos_function%execute => cmd_apropos_function
+        commands%apropos_user_option%execute => cmd_apropos_user_option
+        commands%apropos_variable%execute => cmd_apropos_variable
+        commands%apropos_documentation%execute => cmd_apropos_documentation
     end subroutine syms_of_apropos
 end module apropos_fm

@@ -660,7 +660,7 @@ contains
             return
         end if
 
-        s%value => c%run
+        s%value => c%execute
         ! The name the value reads back as.
         s%command => c
         call settle(s)
@@ -1214,7 +1214,7 @@ contains
     if (cur == 0) return
     ! The first thing this function does is run the normal hook
     ! `change_major_mode_hook'.
-    call change_major_mode_hook%run(st)
+    call change_major_mode_hook%execute(st)
     all = .false.
     if (present(kill_permanent)) all = kill_permanent
     call kill_local_hooks(all)

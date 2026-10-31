@@ -3604,11 +3604,11 @@ contains
         call major_modes%js_json_mode%define("js_json_mode", "JSON", js_json_mode, js_json_mode_hook, &
                                              parent=major_modes%prog_mode, syntax_table=js_mode_syntax_table)
         js_json_mode_map = major_modes%js_json_mode%map
-        commands%js_base_mode%run => js_base_mode
-        commands%js_mode%run => js_mode
-        commands%javascript_mode%run => js_mode
-        commands%js_json_mode%run => js_json_mode
-        commands%js_indent_line%run => cmd_js_indent_line
-        commands%js_syntactic_context%run => cmd_js_syntactic_context
+        commands%js_base_mode%execute => js_base_mode
+        commands%js_mode%execute => js_mode
+        commands%javascript_mode%execute => js_mode
+        commands%js_json_mode%execute => js_json_mode
+        commands%js_indent_line%execute => cmd_js_indent_line
+        commands%js_syntactic_context%execute => cmd_js_syntactic_context
     end subroutine syms_of_js
 end module js_fm

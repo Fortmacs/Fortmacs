@@ -42,14 +42,14 @@ module test_kmacro_fm
     use xdisp_fm, only: mode_line_modes_faces, face_span_type
     use edmacro_fm, only: format_kbd_macro
     use kmacro_fm, only: kmacro_insert_counter, kmacro_set_counter, kmacro_set_format, kmacro_start_macro, &
-                         kmacro_end_macro, kmacro_end_or_call_macro, kmacro_end_and_call_macro, kmacro_call_macro, &
-                         kmacro_call_ring_2nd, kmacro_view_ring_2nd, kmacro_cycle_ring_next, kmacro_cycle_ring_previous, &
+                         kmacro_end_macro, kmacro_end_or_execute_macro, kmacro_end_and_execute_macro, kmacro_execute_macro, &
+                         kmacro_execute_ring_2nd, kmacro_view_ring_2nd, kmacro_cycle_ring_next, kmacro_cycle_ring_previous, &
                          kmacro_swap_ring, kmacro_delete_ring_head, kmacro_view_macro, kmacro_start_macro_or_insert_counter, &
-                         kmacro_ring, kmacro_counter, kmacro_ring_max, kmacro_call_repeat_key, kmacro_call_repeat_with_arg, &
+                         kmacro_ring, kmacro_counter, kmacro_ring_max, kmacro_execute_repeat_key, kmacro_execute_repeat_with_arg, &
                          kmacro_initial_counter_value, kmacro_counter_format, kmacro_default_counter_format, &
                          kmacro_counter_format_start, kmacro_counter_value_start, kmacro_last_counter, &
-                         kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_CALL_REPEAT_DISABLED, &
-                         KMACRO_CALL_REPEAT_LAST_KEY, KMACRO_REPEAT_NO
+                         kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_EXECUTE_REPEAT_DISABLED, &
+                         KMACRO_EXECUTE_REPEAT_LAST_KEY, KMACRO_REPEAT_NO
     implicit none(type, external)
     private
 
@@ -74,13 +74,13 @@ contains
                     new_unittest("kmacro-tests-set-macro-counter-while-defining", test_counter_while_defining), &
                     new_unittest("kmacro-tests-start-insert-counter-appends-to-macro", test_appends_to_macro), &
                     new_unittest("kmacro-tests-test-reg-and-quit-counters", test_reg_and_quit_counters), &
-                    new_unittest("kmacro-tests-end-call-macro-prefix-args", test_end_call_prefix_args), &
-                    new_unittest("kmacro-tests-end-and-call-macro", test_end_and_call_macro), &
+                    new_unittest("kmacro-tests-end-call-macro-prefix-args", test_end_execute_prefix_args), &
+                    new_unittest("kmacro-tests-end-and-call-macro", test_end_and_execute_macro), &
                     new_unittest("kmacro-tests-call-macro-hint-and-repeat", test_hint_and_repeat), &
                     new_unittest("kmacro-tests-test-ring-2nd-commands", test_ring_2nd_commands), &
                     new_unittest("kmacro-tests-fill-ring-and-rotate", test_fill_ring_and_rotate), &
                     new_unittest("kmacro-tests-test-ring-commands-when-no-macros", test_ring_no_macros), &
-                    new_unittest("kmacro-tests-repeat-view-and-run", test_repeat_view_and_run), &
+                    new_unittest("kmacro-tests-repeat-view-and-run", test_repeat_view_and_execute), &
                     new_unittest("recording", test_recording), &
                     new_unittest("recording/prefix-args", test_recording_prefix), &
                     new_unittest("recording/end-with-repeat-count", test_end_with_count), &
@@ -117,8 +117,8 @@ contains
         kmacro_execute_before_append = .true.
         kmacro_ring_max = 8
         kmacro_repeat_no_prefix = .true.
-        kmacro_call_repeat_key = KMACRO_CALL_REPEAT_DISABLED
-        kmacro_call_repeat_with_arg = .false.
+        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_DISABLED
+        kmacro_execute_repeat_with_arg = .false.
         if (allocated(last_kbd_macro)) deallocate (last_kbd_macro)
         if (allocated(kmacro_ring)) deallocate (kmacro_ring)
         kmacro_counter = 0
@@ -375,7 +375,7 @@ contains
         ! The macro recorded is "hello" (kmacro-tests-end-macro-advice).
         call record(chars("hello"))
         current_prefix_arg = value_type(3_int64)
-        call kmacro_end_or_call_macro(value_type(3_int64), st)
+        call kmacro_end_or_execute_macro(value_type(3_int64), st)
         current_prefix_arg = value_type()
         call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "finished")
         if (allocated(error)) return
@@ -474,7 +474,7 @@ contains
         if (set) call set_counter(start)
         call define_macro(kbd(mac))
         current_prefix_arg = value_type(count)
-        call kmacro_end_or_call_macro(value_type(count), st)
+        call kmacro_end_or_execute_macro(value_type(count), st)
         current_prefix_arg = value_type()
         call check(error, st%ok(), name//": "//format_error(st))
         if (allocated(error)) return
@@ -498,7 +498,7 @@ contains
         if (set) call set_counter(start)
         call define_macro(kbd(mac))
         current_prefix_arg = value_type(4_int64)
-        call kmacro_end_or_call_macro(value_type(4_int64), st)
+        call kmacro_end_or_execute_macro(value_type(4_int64), st)
         call check(error, text(), expected, name)
         if (allocated(error)) return
 
@@ -508,7 +508,7 @@ contains
         end if
 
         current_prefix_arg = value_type(1_int64)
-        call kmacro_end_or_call_macro(value_type(1_int64), st)
+        call kmacro_end_or_execute_macro(value_type(1_int64), st)
         current_prefix_arg = value_type()
         call check(error, (st%code == FM_QUIT) .eqv. quits, name//": quit")
         if (allocated(error)) return
@@ -517,7 +517,7 @@ contains
     end subroutine quit_case
 
     !> kmacro-end-call-macro changes behavior based on prefix arg.
-    subroutine test_end_call_prefix_args(error)
+    subroutine test_end_execute_prefix_args(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -526,17 +526,17 @@ contains
         call define_macro(chars("macro #1"))
         call define_macro(chars("macro #2"))
         ! With no prefix arg, it should call the second macro.
-        call kmacro_end_or_call_macro(value_type(), st)
+        call kmacro_end_or_execute_macro(value_type(), st)
         call check(error, text(), "macro #2")
         if (allocated(error)) return
         ! With universal arg, it should call the first one.
-        call kmacro_end_or_call_macro(list(value_type(4_int64)), st)
+        call kmacro_end_or_execute_macro(list(value_type(4_int64)), st)
         call check(error, text(), "macro #2macro #1")
         call kill_buffer(h, st)
-    end subroutine test_end_call_prefix_args
+    end subroutine test_end_execute_prefix_args
 
     !> Keyboard command to end and call macro works under various conditions.
-    subroutine test_end_and_call_macro(error)
+    subroutine test_end_and_execute_macro(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -544,7 +544,7 @@ contains
         call fresh(h)
         ! First, try it with no macro to record.
         call kmacro_start_macro(value_type(), st)
-        call kmacro_end_and_call_macro(value_type(2_int64), st)
+        call kmacro_end_and_execute_macro(value_type(2_int64), st)
         call check(error, format_error(st), "No kbd macro has been defined")
         if (allocated(error)) return
         ! Check that it stopped defining and that no macro was recorded.
@@ -553,10 +553,10 @@ contains
         if (allocated(error)) return
         ! Now try it while not recording, but first record a macro.
         call define_macro(chars("macro"))
-        call kmacro_end_and_call_macro(value_type(), st)
+        call kmacro_end_and_execute_macro(value_type(), st)
         call check(error, text(), "macro")
         call kill_buffer(h, st)
-    end subroutine test_end_and_call_macro
+    end subroutine test_end_and_execute_macro
 
     !> `kmacro-call-macro' gives hint in Messages and sets up repeat keymap.
     !> This is a regression test for: Bug#3412, Bug#11817.
@@ -567,12 +567,12 @@ contains
 
         call fresh(h)
         call define_macro(chars("m"))
-        kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
-        kmacro_call_repeat_with_arg = .true.
+        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_LAST_KEY
+        kmacro_execute_repeat_with_arg = .true.
         last_input_event = value_type(int(iachar("e"), int64))
         this_command_keys = kbd("C-x e")
         last_message = ""
-        call kmacro_call_macro(value_type(3_int64), st)
+        call kmacro_execute_macro(value_type(3_int64), st)
         call check(error, last_message, "(Type e to repeat macro 3 times)")
         if (allocated(error)) return
         ! Check that it set up for repeat, and run the repeat.
@@ -595,7 +595,7 @@ contains
         call record(kbd("C-x C-k C-i C-u C-x C-k C-i"))
         call kmacro_end_macro(value_type(), st)
         ! Check that execute and display do nothing with no 2nd macro.
-        call kmacro_call_ring_2nd(value_type(), st)
+        call kmacro_execute_ring_2nd(value_type(), st)
         call check(error, text(), "")
         if (allocated(error)) return
         call kmacro_view_ring_2nd(st)
@@ -605,7 +605,7 @@ contains
         call kmacro_set_format("=%d=")
         call define_macro(chars("bar"))
         ! Execute the first one; should get default format.
-        call kmacro_call_ring_2nd(value_type(), st)
+        call kmacro_execute_ring_2nd(value_type(), st)
         call check(error, text(), "11")
         if (allocated(error)) return
         ! Now display the 2nd ring macro and check result.
@@ -633,7 +633,7 @@ contains
         call check(error, last_message, "Macro: bb")
         if (allocated(error)) return
         ! Execute the current macro and check arguments.
-        call kmacro_call_macro(value_type(2_int64), st, KMACRO_REPEAT_NO)
+        call kmacro_execute_macro(value_type(2_int64), st, KMACRO_REPEAT_NO)
         call check(error, text(), "bbbb")
         if (allocated(error)) return
         ! Cycle the ring the other way; #5 expected.
@@ -674,7 +674,7 @@ contains
             case (5)
                 call kmacro_view_ring_2nd(st)
             case (6)
-                call kmacro_call_ring_2nd(value_type(), st)
+                call kmacro_execute_ring_2nd(value_type(), st)
             case default
                 ! kmacro-view-macro says so, then that there are none.
                 call kmacro_view_macro(st)
@@ -690,13 +690,13 @@ contains
     end subroutine test_ring_no_macros
 
     !> Kmacro view cycles through ring and executes macro just viewed.
-    subroutine test_repeat_view_and_run(error)
+    subroutine test_repeat_view_and_execute(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
+        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_LAST_KEY
         call define_macro(chars("a"))
         call define_macro(chars("b"))
         call define_macro(chars("c"))
@@ -710,7 +710,7 @@ contains
         ! (Reading C-k wiped the echo area; the views were logged.)
         call check(error, index(messages_text(), "2nd previous macro: c"//achar(10)) > 0, "view messages")
         call kill_buffer(h, st)
-    end subroutine test_repeat_view_and_run
+    end subroutine test_repeat_view_and_execute
 
     !> The text of *Messages*.
     function messages_text() result(t)
@@ -740,7 +740,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
+        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_LAST_KEY
         call type_events(kbd("C-x ( a b C-x )"))
         call check(error, last_macro_is(chars("ab")), "macro recorded")
         if (allocated(error)) return
@@ -839,7 +839,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
+        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_LAST_KEY
         call type_events(kbd("M-5 <f3> x M-2 <f3> y <f4> <f4> <f4> <f4>"))
         call check(error, text(), "x5yx7yx9yx11y")
         if (allocated(error)) return
@@ -865,9 +865,9 @@ contains
         terminations = 0
         call kbd_macro_termination_hook%add(count_termination)
         call define_macro(chars("a"))
-        call kmacro_call_macro(value_type(2_int64), st)
+        call kmacro_execute_macro(value_type(2_int64), st)
         call define_macro(kbd("C-a C-b"))
-        call kmacro_call_macro(value_type(), st)
+        call kmacro_execute_macro(value_type(), st)
         call kbd_macro_termination_hook%remove(count_termination)
         call check(error, terminations, 2)
         if (allocated(error)) return
@@ -937,8 +937,8 @@ contains
                                                                        "C-x C-k C-i", "C-x C-k C-c", "C-x C-k C-a", "C-x C-k C-f", &
                                                                                                                    "C-x C-k C-d"]
         character(len=*), parameter :: cmds(14) = [character(len=36) :: "kmacro_start_macro", "kmacro_end_macro", &
-                                                              "kmacro_end_and_call_macro", "kmacro_start_macro_or_insert_counter", &
-                                                                    "kmacro_end_or_call_macro", "kmacro_end_or_call_macro_repeat", &
+                                     "kmacro_end_and_execute_macro", "kmacro_start_macro_or_insert_counter", &
+                                     "kmacro_end_or_execute_macro", "kmacro_end_or_execute_macro_repeat", &
                                                                            "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", &
                                                                               "kmacro_view_macro_repeat", "kmacro_insert_counter", &
                                                                   "kmacro_set_counter", "kmacro_add_counter", "kmacro_set_format", &

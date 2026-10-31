@@ -310,7 +310,7 @@ contains
     !> Register this module's commands.  Port of the defsubr part of
     !> dispnew.c:syms_of_display.
     subroutine syms_of_display()
-        commands%redraw_display%run => cmd_redraw_display
+        commands%redraw_display%execute => cmd_redraw_display
     end subroutine syms_of_display
 
     !> Leading blanks of `r(1:len)'.  Port of dispnew.c:count_blanks.

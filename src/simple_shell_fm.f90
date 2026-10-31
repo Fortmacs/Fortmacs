@@ -61,7 +61,7 @@ submodule(simple_fm) simple_shell_fm
                          delete_file_internal, report_file_errno
     use files_fm, only: temporary_file_directory, abbreviate_file_name, file_relative_name
     use sysdep_fm, only: emacs_mkostemp, close_fd
-    use callproc_fm, only: call_process, call_process_region, shell_file_name, init_callproc
+    use callproc_fm, only: execute_process, execute_process_region, shell_file_name, init_callproc
     use window_fm, only: window_type, windows, get_buffer_window, display_buffer, set_window_point
     use frame_fm, only: selected_frame
     use keymap_fm, only: make_sparse_keymap, set_keymap_parent, is_keymap_live
@@ -300,7 +300,7 @@ contains
     !> specifies the value of ERROR_BUFFER.
     !>
     !> In Fortran code, you will often be better served by calling
-    !> `call_process' or `start_process' directly, since they offer more
+    !> `execute_process' or `start_process' directly, since they offer more
     !> control and do not impose the use of a shell (with its need to quote
     !> arguments).  Port of simple.el:shell-command.
     module procedure shell_command
@@ -348,9 +348,9 @@ contains
         call shell_command_save_pos_or_erase(.true.)
 
         if (len(error_file) > 0) then
-            call call_process_shell_command(command, result, status, error_file)
+            call execute_process_shell_command(command, result, status, error_file)
         else
-            call call_process_shell_command(command, result, status)
+            call execute_process_shell_command(command, result, status)
         end if
 
         if (len(error_file) > 0) then
@@ -720,7 +720,7 @@ contains
         is_async_command = command(k:k) == "&"
     end function is_async_command
 
-    module subroutine call_process_shell_command(command, result, status, error_file, buffer)
+    module subroutine execute_process_shell_command(command, result, status, error_file, buffer)
         character(len=*), intent(in) :: command
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
@@ -734,10 +734,10 @@ contains
             destination = value_type(.true.)
         end if
 
-        call call_process(shell_program(), result, status, destination=destination, &
+        call execute_process(shell_program(), result, status, destination=destination, &
                           args=list(value_type(text=shell_switch()), value_type(text=command)), &
                           error_file=error_file)
-    end subroutine call_process_shell_command
+    end subroutine execute_process_shell_command
 
     !> Display MESSAGE (the contents of buffer BUFFER) in the echo area if
     !> possible, otherwise in a pop-up buffer.  A pop-up buffer is
@@ -914,7 +914,7 @@ contains
         ! Don't muck with mark unless REPLACE says we should.
         call goto_char(start)
         if (replacing .and. .not. no_mark_flag) call push_mark(point(), nomsg=.true.)
-        call call_shell_region(start, end, command, replacing, exit_value, cst, error_file)
+        call execute_shell_region(start, end, command, replacing, exit_value, cst, error_file)
 
         if (cst%ok()) then
             have_exit = .true.
@@ -957,11 +957,11 @@ contains
             call delete_region(point_min(), min(start, end), st)
 
             if (len(error_file) > 0) then
-                call call_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
+                call execute_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
                                          value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)), &
                                          error_file)
             else
-                call call_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
+                call execute_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
                                          value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)))
             end if
         else
@@ -974,7 +974,7 @@ contains
             if (.not. (present(output_buffer) .or. present(output_buffer_name))) buffers(cur)%directory = directory
             call shell_command_save_pos_or_erase(.false.)
             call set_buffer(old, st)
-            call call_shell_region(start, end, command, .false., exit_value, cst, error_file, buffer)
+            call execute_shell_region(start, end, command, .false., exit_value, cst, error_file, buffer)
         end if
 
         have_exit = cst%ok()
@@ -1058,7 +1058,7 @@ contains
     end if
     end procedure shell_command_on_region
 
-    module subroutine call_shell_region(start, end, command, delete, result, status, error_file, buffer)
+    module subroutine execute_shell_region(start, end, command, delete, result, status, error_file, buffer)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: command, error_file
         logical, intent(in) :: delete
@@ -1074,13 +1074,13 @@ contains
         end if
 
         if (len(error_file) > 0) then
-            call call_process_region(shell_program(), result, status, start, end, delete, destination, &
+            call execute_process_region(shell_program(), result, status, start, end, delete, destination, &
                                      list(value_type(text=shell_switch()), value_type(text=command)), error_file)
         else
-            call call_process_region(shell_program(), result, status, start, end, delete, destination, &
+            call execute_process_region(shell_program(), result, status, start, end, delete, destination, &
                                      list(value_type(text=shell_switch()), value_type(text=command)))
         end if
-    end subroutine call_shell_region
+    end subroutine execute_shell_region
 
     !> The prompt of `shell_command': with the current directory if
     !> `shell_command_prompt_show_cwd'.
@@ -1186,9 +1186,9 @@ contains
     type(status_type) :: st
 
     if (.not. allocated(shell_command_switch%value)) shell_command_switch = "-c"
-    commands%shell_command%run => cmd_shell_command
-    commands%shell_command_on_region%run => cmd_shell_command_on_region
-    commands%async_shell_command%run => cmd_async_shell_command
+    commands%shell_command%execute => cmd_shell_command
+    commands%shell_command_on_region%execute => cmd_shell_command_on_region
+    commands%async_shell_command%execute => cmd_async_shell_command
     if (.not. associated(async_shell_command_mode%value)) async_shell_command_mode%value => shell_command_mode
 
     if (.not. is_keymap_live(minibuffer_local_shell_command_map)) then

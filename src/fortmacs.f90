@@ -52,7 +52,7 @@
 !> value).  Commands are subroutines taking a `status_type', defined as
 !> `command_type' objects: built-in ones are the components of
 !> `commands', so that `commands%upcase_region%disabled = .false.'
-!> enables C-x C-u, and `call commands%yank%run(status)' runs one.  Keys
+!> enables C-x C-u, and `call commands%yank%execute(status)' runs one.  Keys
 !> are bound with `keymap_global_set'.  Modes are customized from
 !> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%add(turn_on_auto_fill)'.  New modes
 !> are `major_mode_type' and `minor_mode_type' objects made known with
@@ -166,7 +166,7 @@ module fortmacs
                            REGISTER_RECTANGLE, REGISTER_NUMBER, REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, &
                            REGISTER_FILE_QUERY, REGISTER_BUFFER
     ! Buffer-local variables, hooks and modes.
-    use subr_fm, only: run_mode_hooks
+    use subr_fm, only: execute_mode_hooks
     use simple_fm, only: fundamental_mode, special_mode
     use text_mode_fm, only: text_mode
     use prog_mode_fm, only: prog_mode
@@ -272,8 +272,8 @@ module fortmacs
                                     backward_up_group, kill_expression, backward_kill_expression, mark_expression
     ! Keyboard macros.
     use keyboard_fm, only: kbd_macro_termination_hook
-    use kmacro_fm, only: kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, kmacro_call_repeat_key, &
-                         kmacro_call_repeat_with_arg, KMACRO_CALL_REPEAT_DISABLED, KMACRO_CALL_REPEAT_LAST_KEY
+    use kmacro_fm, only: kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, kmacro_execute_repeat_key, &
+                         kmacro_execute_repeat_with_arg, KMACRO_EXECUTE_REPEAT_DISABLED, KMACRO_EXECUTE_REPEAT_LAST_KEY
     use edmacro_fm, only: edmacro_eight_bits
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
@@ -365,7 +365,7 @@ module fortmacs
                        grep_save_buffers_function, grep_error_screen_columns, grep_setup_hook, grep_mode_hook, &
                        grep_mode_map, grep_find_abbreviate, grep_use_headings, grep_program, find_program, &
                        xargs_program, grep_find_use_xargs, grep_read_files_function, find_name_arg
-    use comint_fm, only: comint_inhibit_carriage_motion, comint_mode, make_comint, make_comint_in_buffer, comint_run, &
+    use comint_fm, only: comint_inhibit_carriage_motion, comint_mode, make_comint, make_comint_in_buffer, comint_execute, &
                          comint_exec, comint_send_input, comint_send_string, comint_prompt_regexp, &
                          comint_prompt_read_only, comint_highlight_input, comint_input_ignoredups, &
                          comint_input_ring_file_name, comint_pager, comint_input_ring_file_prefix, &
@@ -456,7 +456,7 @@ module fortmacs
     use simple_fm, only: messages_buffer_mode_hook, messages_buffer_mode_map
     use apropos_fm, only: apropos_mode_hook, apropos_mode_map
     use cmds_fm, only: post_self_insert_hook
-    use timer_fm, only: run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, is_timer, &
+    use timer_fm, only: execute_at_time, execute_with_timer, execute_with_idle_timer, cancel_timer, free_timer, is_timer, &
                         timer_max_repeats
     use autorevert_fm, only: auto_revert_mode, auto_revert_tail_mode, global_auto_revert_mode, &
                              turn_on_auto_revert_mode, turn_on_auto_revert_tail_mode, auto_revert_interval, &
@@ -717,7 +717,7 @@ module fortmacs
               compilation_minor_mode, &
               compilation_shell_minor_mode, compile_goto_error, compilation_next_error, compilation_previous_error, &
               compilation_next_file, compilation_previous_file
-    public :: comint_mode, make_comint, make_comint_in_buffer, comint_run, comint_exec, comint_send_input, &
+    public :: comint_mode, make_comint, make_comint_in_buffer, comint_execute, comint_exec, comint_send_input, &
               comint_send_string, comint_prompt_regexp, comint_prompt_read_only, comint_highlight_input, &
               comint_input_ignoredups, comint_input_ring_file_name, comint_pager, comint_input_ring_file_prefix, &
               comint_move_point_for_output, comint_move_point_for_matching_input, COMINT_MOVE_NO, COMINT_MOVE_YES, &
@@ -819,7 +819,7 @@ module fortmacs
               insert_register, copy_to_register, append_to_register, prepend_to_register, copy_rectangle_to_register, &
               register_read_with_preview, REGISTER_EMPTY, REGISTER_MARKER, REGISTER_TEXT, REGISTER_RECTANGLE, &
               REGISTER_NUMBER, REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
-    public :: run_mode_hooks, fundamental_mode, special_mode, text_mode, prog_mode, normal_mode, set_auto_mode, &
+    public :: execute_mode_hooks, fundamental_mode, special_mode, text_mode, prog_mode, normal_mode, set_auto_mode, &
               add_auto_mode, file_name_sans_versions
     public :: history_delete_duplicates, read_y_or_n_use_read_key, use_short_answers, minibuffer_message_timeout, &
               read_file_name_completion_ignore_case, read_buffer_completion_ignore_case, read_char_choice_use_read_key
@@ -868,8 +868,8 @@ module fortmacs
               FONT_LOCK_ADD_END, FONT_LOCK_ADD_SET, jit_lock_chunk_size, fontification_functions, &
               position_hook_type, position_function
     public :: kbd_macro_termination_hook, kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, &
-              kmacro_call_repeat_key, kmacro_call_repeat_with_arg, KMACRO_CALL_REPEAT_DISABLED, &
-              KMACRO_CALL_REPEAT_LAST_KEY, edmacro_eight_bits
+              kmacro_execute_repeat_key, kmacro_execute_repeat_with_arg, KMACRO_EXECUTE_REPEAT_DISABLED, &
+              KMACRO_EXECUTE_REPEAT_LAST_KEY, edmacro_eight_bits
     public :: describe_mode, describe_name, describe_bindings, view_lossage, view_echo_area_messages, &
               message_log_max, MESSAGE_LOG_DISABLED, MESSAGE_LOG_UNLIMITED, messages_buffer_mode_hook, &
               messages_buffer_mode_map, apropos_mode_hook, apropos_mode_map
@@ -905,7 +905,7 @@ module fortmacs
               auto_coding_table, auto_coding_regexp_table, auto_coding_type, prefer_coding_system, &
               set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system, &
               set_process_coding_system, process_coding_system
-    public :: post_self_insert_hook, run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, &
+    public :: post_self_insert_hook, execute_at_time, execute_with_timer, execute_with_idle_timer, cancel_timer, free_timer, &
               is_timer, timer_max_repeats
     public :: auto_revert_mode, auto_revert_tail_mode, global_auto_revert_mode, turn_on_auto_revert_mode, &
               turn_on_auto_revert_tail_mode, auto_revert_interval, auto_revert_stop_on_user_input, auto_revert_verbose, &

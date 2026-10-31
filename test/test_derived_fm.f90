@@ -64,7 +64,7 @@ contains
         testsuite = [ &
                     new_unittest("subr-tests-add-hook-depth", test_add_hook_depth), &
                     new_unittest("remove-hook-forgets-depth", test_depth_memory), &
-                    new_unittest("run-hooks-local-and-global", test_run_hooks_local), &
+                    new_unittest("run-hooks-local-and-global", test_execute_hooks_local), &
                     new_unittest("remove-hook", test_remove_hook), &
                     new_unittest("text-mode", test_text_mode), &
                     new_unittest("derived-mode-hooks-order", test_hooks_order), &
@@ -199,7 +199,7 @@ contains
         type(status_type) :: st
 
         trace = ""
-        call hook%run(st)
+        call hook%execute(st)
         s = adjustl(trace)
         s = trim(s)
     end function hook_names
@@ -252,7 +252,7 @@ contains
 
     !> A buffer's own functions run first, then the global ones in the
     !> place of `t`.
-    subroutine test_run_hooks_local(error)
+    subroutine test_execute_hooks_local(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
@@ -270,7 +270,7 @@ contains
         call check(error, hook_names(test_hook), "f1", "global only in B")
         call kill_buffer(a, st)
         call kill_buffer(b, st)
-    end subroutine test_run_hooks_local
+    end subroutine test_execute_hooks_local
 
     !> remove-hook drops a function, and a local value of just t.
     subroutine test_remove_hook(error)

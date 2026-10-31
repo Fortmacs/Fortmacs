@@ -734,3 +734,90 @@ name	apropos_symbol	apropos_name
 name	table_symbol	table_name	src/abbrev_cmds_fm.f90
 name	symbol_in	name_in	src/abbrev_cmds_fm.f90
 name	f90_equal_symbols	f90_equal_names
+
+# V1: execute is the only verb for running something (commands, keyboard
+# macros, hooks, timers, processes); procedure pointers are called
+# directly (PORTING.md, "One word per meaning").  Per name, never a term:
+# the nouns runs, run_prop, excluded_run and char_table_runs stay.
+name	call_interactively	execute_interactively
+name	call_last_kbd_macro	execute_last_kbd_macro
+name	kmacro_call	kmacro_execute
+name	end_or_call_macro	end_or_execute_macro
+name	end_and_call_macro	end_and_execute_macro
+name	end_call_prefix_args	end_execute_prefix_args
+name	repeat_view_and_run	repeat_view_and_execute
+name	comint_run	comint_execute
+name	call_process	execute_process
+name	call_shell_region	execute_shell_region
+name	run_at_time	execute_at_time
+name	run_with_timer	execute_with_timer
+name	run_with_idle_timer	execute_with_idle_timer
+name	run_mode_hooks	execute_mode_hooks
+name	safe_run_hooks	safe_execute_hooks
+name	run_buffer_list_update_hook	execute_buffer_list_update_hook
+name	run_undoable_change	execute_undoable_change
+name	run_exit_minibuf_hook	execute_exit_minibuf_hook
+name	run_timers	execute_timers
+name	run_special_events	execute_special_events
+name	call_mod_hooks	execute_mod_hooks
+name	call_overlay_mod_hooks	execute_overlay_mod_hooks
+name	jit_lock_run_functions	jit_lock_execute_functions
+name	vc_git_call	vc_git_execute
+name	vc_git_run_command_string	vc_git_execute_command_string
+name	recentf_auto_cleanup_run	execute_recentf_auto_cleanup
+name	completion_at_point_run	execute_completion_at_point
+name	hook_run	hook_execute
+name	run_kill_buffer_hook	execute_kill_buffer_hook
+name	run_hooks_local	execute_hooks_local
+name	grep_run	grep_execute
+name	call_property_function	execute_property_function
+name	call_overlay_change_function	execute_overlay_change_function
+name	vc_call_root	vc_execute_root
+name	vc_call_responsible	vc_execute_responsible
+# A predicate: "execute" would not read as one.
+name	is_vc_call_make_version_backups	is_vc_make_version_backups
+# Internal procedures of one module.
+name	call_handler	execute_handler	src/filenotify_fm.f90
+name	call_callback	execute_callback	src/filenotify_fm.f90
+name	call_entry	execute_entry	src/eval_fm.f90
+name	call_indent_line_function	execute_indent_line_function	src/indent_cmds_fm.f90
+name	call_end_of_subprogram_function	execute_end_of_subprogram_function	src/expression_motion_fm.f90
+name	call_get_old_input	execute_get_old_input	src/comint_fm.f90
+name	call_rules	execute_rules	src/smie_fm.f90
+name	run_body_function	execute_body_function	src/window_display_fm.f90
+name	run_detector	execute_detector	src/coding_fm.f90
+name	run_action	execute_action	src/vc_dispatcher_fm.f90
+name	run_point_hook	execute_point_hook	src/textprop_fm.f90
+name	call_log_edit	execute_log_edit	src/vc_dispatcher_log_fm.f90
+name	call_ring_element	execute_ring_element	src/kmacro_fm.f90
+name	call_without_prefix	execute_without_prefix	src/kmacro_fm.f90
+name	call_registered	execute_registered	src/vc_hooks_fm.f90
+name	run_step	execute_step	src/syntax_propertize_fm.f90
+name	run_after_readin_on_line	execute_after_readin_on_line	src/dired_aux_fm.f90
+name	run_batch	execute_batch	src/dired_aux_fm.f90
+name	run_command	execute_command	src/replace_fm.f90
+name	run_hook_quietly	execute_hook_quietly	src/dired_mode_fm.f90
+name	run_capfs	execute_capfs	src/minibuffer_fm.f90
+name	run_kill_hook	execute_kill_hook	src/files_fm.f90
+name	run_user_build	execute_user_build	src/emacs_fm.f90
+name	run_on_pty	execute_on_pty	test/test_emacs_fm.f90
+name	run_keys	execute_keys	test/test_window_fm.f90
+name	run_erts	execute_erts	test/test_fill_fm.f90
+name	run_comments	execute_comments	test/test_syntax_scan_fm.f90
+name	run_br_comments	execute_br_comments	test/test_syntax_scan_fm.f90
+name	run_pps_comments	execute_pps_comments	test/test_syntax_scan_fm.f90
+name	run_case	execute_case	test/test_replace_fm.f90
+name	repeat_tests_call	repeat_tests_execute	test/test_repeat_fm.f90
+name	call_a	execute_a	test/test_repeat_fm.f90
+name	call_b	execute_b	test/test_repeat_fm.f90
+name	call_c	execute_c	test/test_repeat_fm.f90
+name	call_d	execute_d	test/test_repeat_fm.f90
+name	call_e	execute_e	test/test_repeat_fm.f90
+name	call_g	execute_g	test/test_repeat_fm.f90
+name	call_o	execute_o	test/test_repeat_fm.f90
+name	call_q	execute_q	test/test_repeat_fm.f90
+name	call_s	execute_s	test/test_repeat_fm.f90
+name	call_t	execute_t	test/test_repeat_fm.f90
+name	call_u	execute_u	test/test_repeat_fm.f90
+# It tests whether a character is in a set; it runs nothing.
+name	execute_charset	match_charset

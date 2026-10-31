@@ -86,7 +86,7 @@ module log_edit_fm
                          display_buffer_mark_dedicated, DEDICATED_STRONG, display_buffer, get_buffer_window, &
                          bury_buffer, quit_windows_on, delete_window
     use marker_fm, only: copy_marker_at, marker_position, free_marker
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use derived_fm, only: is_derived_mode
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set
@@ -984,7 +984,7 @@ contains
         if (do_setup) then
             call erase_buffer(status)
             if (.not. status%ok()) return
-            call log_edit_hook%run(status)
+            call log_edit_hook%execute(status)
             if (.not. status%ok()) return
         end if
 
@@ -1024,7 +1024,7 @@ contains
         logical :: saved
         integer :: k
 
-        if (.not. associated(major_modes%log_edit_mode%run)) call syms_of_log_edit()
+        if (.not. associated(major_modes%log_edit_mode%execute)) call syms_of_log_edit()
         call major_modes%log_edit_mode%begin(saved, status)
         if (.not. status%ok()) return
         call log_edit_font_lock_keywords(keywords)
@@ -1206,7 +1206,7 @@ contains
             return
         end if
 
-        call log_edit_done_hook%run(status)
+        call log_edit_done_hook%execute(status)
         if (.not. status%ok()) return
         call log_edit_hide_buf()
         k = local_index(.false.)
@@ -1314,14 +1314,6 @@ contains
 
         call set_error(status, FM_GENERIC_ERROR, "Diff functionality has not been set up")
     end subroutine log_edit_show_diff
-
-    ! The current buffer's log-edit-diff-function, for
-    ! `log_edit_maybe_show_diff' (in log_edit_vc_fm).  Not a port.
-    recursive subroutine call_diff_function(status)
-        type(status_type), intent(out) :: status
-
-        call log_edit_show_diff(status)
-    end subroutine call_diff_function
 
     !> Show the list of files to be committed.  Port of
     !> log-edit.el:log-edit-show-files.
@@ -1522,7 +1514,7 @@ contains
             args(1) = value_type(text="checkout")
             args(2) = value_type(text="-p")
             args(3) = value_type(text="CVSROOT/rcstemplate")
-            call call_process("cvs", result, st, destination=value_type(.true.), args=make_list(args))
+            call execute_process("cvs", result, st, destination=value_type(.true.), args=make_list(args))
         end if
     end subroutine log_edit_insert_cvs_rcstemplate
 
@@ -2867,24 +2859,24 @@ contains
         call major_modes%log_edit_mode%define("log_edit_mode", "Log-Edit", log_edit_mode, log_edit_mode_hook, &
                                               parent=major_modes%text_mode)
         log_edit_mode_map = major_modes%log_edit_mode%map
-        commands%log_edit_mode%run => log_edit_mode
-        commands%log_edit_done%run => cmd_log_edit_done
-        commands%log_edit_done_strip_cvs_lines%run => cmd_log_edit_done_strip_cvs_lines
-        commands%log_edit_insert_changelog%run => cmd_log_edit_insert_changelog
-        commands%log_edit_show_diff%run => cmd_log_edit_show_diff
-        commands%log_edit_show_files%run => cmd_log_edit_show_files
-        commands%log_edit_kill_buffer%run => cmd_log_edit_kill_buffer
-        commands%log_edit_next_comment%run => cmd_log_edit_next_comment
-        commands%log_edit_previous_comment%run => cmd_log_edit_previous_comment
-        commands%log_edit_comment_search_backward%run => cmd_log_edit_comment_search_backward
-        commands%log_edit_comment_search_forward%run => cmd_log_edit_comment_search_forward
-        commands%log_edit_mode_help%run => cmd_log_edit_mode_help
-        commands%log_edit_insert_message_template%run => cmd_log_edit_insert_message_template
-        commands%log_edit_insert_cvs_template%run => cmd_log_edit_insert_cvs_template
-        commands%log_edit_insert_cvs_rcstemplate%run => cmd_log_edit_insert_cvs_rcstemplate
-        commands%log_edit_insert_filenames%run => cmd_log_edit_insert_filenames
-        commands%log_edit_insert_filenames_without_changelog%run => cmd_log_edit_insert_filenames_without_changelog
-        commands%log_edit_diff_fileset%run => cmd_log_edit_diff_fileset
+        commands%log_edit_mode%execute => log_edit_mode
+        commands%log_edit_done%execute => cmd_log_edit_done
+        commands%log_edit_done_strip_cvs_lines%execute => cmd_log_edit_done_strip_cvs_lines
+        commands%log_edit_insert_changelog%execute => cmd_log_edit_insert_changelog
+        commands%log_edit_show_diff%execute => cmd_log_edit_show_diff
+        commands%log_edit_show_files%execute => cmd_log_edit_show_files
+        commands%log_edit_kill_buffer%execute => cmd_log_edit_kill_buffer
+        commands%log_edit_next_comment%execute => cmd_log_edit_next_comment
+        commands%log_edit_previous_comment%execute => cmd_log_edit_previous_comment
+        commands%log_edit_comment_search_backward%execute => cmd_log_edit_comment_search_backward
+        commands%log_edit_comment_search_forward%execute => cmd_log_edit_comment_search_forward
+        commands%log_edit_mode_help%execute => cmd_log_edit_mode_help
+        commands%log_edit_insert_message_template%execute => cmd_log_edit_insert_message_template
+        commands%log_edit_insert_cvs_template%execute => cmd_log_edit_insert_cvs_template
+        commands%log_edit_insert_cvs_rcstemplate%execute => cmd_log_edit_insert_cvs_rcstemplate
+        commands%log_edit_insert_filenames%execute => cmd_log_edit_insert_filenames
+        commands%log_edit_insert_filenames_without_changelog%execute => cmd_log_edit_insert_filenames_without_changelog
+        commands%log_edit_diff_fileset%execute => cmd_log_edit_diff_fileset
         call keymap_set(log_edit_mode_map, "C-c C-c", "log_edit_done", st)
         call keymap_set(log_edit_mode_map, "C-c C-a", "log_edit_insert_changelog", st)
         call keymap_set(log_edit_mode_map, "C-c C-d", "log_edit_show_diff", st)

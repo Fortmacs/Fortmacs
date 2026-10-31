@@ -136,7 +136,7 @@ contains
         call insert("abc"//achar(10)//"a", st)
         call goto_char(6_int64)
         call switch_to_buffer("dabbrev-test", st)
-        call run("C-M-/")
+        call execute_keys("C-M-/")
         call check(error, buffer_string() == "abc"//achar(10)//"abc", buffer_string())
         call kill_buffer(h, st)
         call kill_buffer(other, st)
@@ -159,7 +159,7 @@ contains
         call insert("abc"//achar(10)//"a", st)
         call goto_char(6_int64)
         call switch_to_buffer("dabbrev-test", st)
-        call run("C-u C-u C-M-/")
+        call execute_keys("C-u C-u C-M-/")
         call check(error, buffer_string() == "abc"//achar(10)//"a", buffer_string())
         call kill_buffer(h, st)
         call kill_buffer(other, st)
@@ -167,7 +167,7 @@ contains
     end subroutine test_completion_with_argument
 
     !> Type KEYS (kbd syntax) to the command loop.
-    subroutine run(keys)
+    subroutine execute_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
@@ -175,7 +175,7 @@ contains
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-    end subroutine run
+    end subroutine execute_keys
 
     !> The file NAME of test/dabbrev-resources.
     function resource(name) result(path)
@@ -234,7 +234,7 @@ contains
         call fresh("*dabbrev-test*", h)
         call insert("ab  x"//LF//"a"//LF//"ab  y", st)
         call goto_char(8_int64)
-        call run("M-/ SPC M-/ M-/")
+        call execute_keys("M-/ SPC M-/ M-/")
         call check(error, buffer_string(), "ab  x"//LF//"ab y"//LF//"ab  y")
         call kill_buffer(h, st)
     end subroutine test_expand
@@ -249,10 +249,10 @@ contains
         call find_resource("INSTALL_BEGIN", h)
         call goto_char(point_max())
         call insert(LF, st)
-        call run("Ind M-/")
+        call execute_keys("Ind M-/")
         call check(error, line(), "Indic")
         if (allocated(error)) return
-        call run("SPC M-/")
+        call execute_keys("SPC M-/")
         call check(error, line(), "Indic and")
         call done(h)
         call kill_buffer(s, st)
@@ -268,10 +268,10 @@ contains
         call find_resource("INSTALL_BEGIN", h)
         call goto_char(point_max())
         call insert(LF, st)
-        call run("Indic SPC M-/")
+        call execute_keys("Indic SPC M-/")
         call check(error, line(), "Indic and")
         if (allocated(error)) return
-        call run("SPC M-/")
+        call execute_keys("SPC M-/")
         call check(error, line(), "Indic and Khmer")
         call done(h)
         call kill_buffer(s, st)
@@ -291,14 +291,14 @@ contains
         call insert_file_contents(resource("dabbrev-expand.el"), .false., inserted, st)
         call goto_char(point_max())
         call insert(LF, st)
-        call run("Ind M-/")
+        call execute_keys("Ind M-/")
         call check(error, line(), "Indicate")
         if (allocated(error)) return
-        call run("<C-S-backspace>")
-        call run("Ind M-/ M-/")
+        call execute_keys("<C-S-backspace>")
+        call execute_keys("Ind M-/ M-/")
         call check(error, line(), "Indic")
         if (allocated(error)) return
-        call run("SPC M-/")
+        call execute_keys("SPC M-/")
         call check(error, line(), "Indic and")
         call done(h)
         call kill_buffer(s, st)
@@ -311,7 +311,7 @@ contains
         type(status_type) :: st
 
         call goto_char(point_min())
-        call run("C-s Ind M-a C-SPC M-}")
+        call execute_keys("C-s Ind M-a C-SPC M-}")
         call region_beginning(b, st)
         call region_end(e, st)
         call narrow_to_region(b, e, st)
@@ -328,10 +328,10 @@ contains
         call narrow_to_ind()
         call goto_char(point_max())
         call insert(LF, st)
-        call run("Ind M-/")
+        call execute_keys("Ind M-/")
         call check(error, line(), "Indic")
         if (allocated(error)) return
-        call run("SPC M-/")
+        call execute_keys("SPC M-/")
         call check(error, line(), "Indic and")
         call done(h)
         call kill_buffer(s, st)
@@ -348,10 +348,10 @@ contains
         call find_resource("INSTALL_BEGIN", h)
         call get_buffer_create("a", a, st, inhibit_buffer_hooks=.true.)
         call switch_to_buffer("a", st)
-        call run("Ind M-/")
+        call execute_keys("Ind M-/")
         call check(error, buffer_string(), "Indic")
         if (allocated(error)) return
-        call run("SPC M-/")
+        call execute_keys("SPC M-/")
         call check(error, buffer_string(), "Indic and")
         call kill_buffer(a, st)
         call done(h)
@@ -368,10 +368,10 @@ contains
         call find_resource("INSTALL_BEGIN", h)
         call get_buffer_create("a", a, st, inhibit_buffer_hooks=.true.)
         call switch_to_buffer("a", st)
-        call run("Indic SPC M-/")
+        call execute_keys("Indic SPC M-/")
         call check(error, buffer_string(), "Indic and")
         if (allocated(error)) return
-        call run("SPC M-/")
+        call execute_keys("SPC M-/")
         call check(error, buffer_string(), "Indic and Khmer")
         call kill_buffer(a, st)
         call done(h)
@@ -389,10 +389,10 @@ contains
         call narrow_to_ind()
         call get_buffer_create("a", a, st, inhibit_buffer_hooks=.true.)
         call switch_to_buffer("a", st)
-        call run("Ind M-/")
+        call execute_keys("Ind M-/")
         call check(error, buffer_string(), "Indic")
         if (allocated(error)) return
-        call run("SPC M-/")
+        call execute_keys("SPC M-/")
         call check(error, buffer_string(), "Indic and")
         call kill_buffer(a, st)
         call done(h)
@@ -412,21 +412,21 @@ contains
         call get_buffer_create("*scratch*", scratch, st)
         call switch_to_buffer("*scratch*", st)
         call erase_buffer(st)
-        call run("ab M-/")
+        call execute_keys("ab M-/")
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call run("SPC ab M-/")
+        call execute_keys("SPC ab M-/")
         call check(error, buffer_string(), "abc abc")
         if (allocated(error)) return
         call erase_buffer(st)
-        call run("abc SPC ab M-/ M-/")
+        call execute_keys("abc SPC ab M-/ M-/")
         call check(error, buffer_string(), "abc abd")
         if (allocated(error)) return
         call kill_buffer(foo, st)
         call set_buffer(scratch, st)
         call erase_buffer(st)
         last_message = ""
-        call run("abc SPC ab M-/ M-/")
+        call execute_keys("abc SPC ab M-/ M-/")
         call check(error, buffer_string(), "abc ab")
         if (allocated(error)) return
         call check(error, last_message, "No further dynamic expansion for "//char(226)//char(128)//char(152)// &
@@ -448,13 +448,13 @@ contains
 
         call fresh("*dabbrev-test*", h)
         call insert("foo1 foo2 foo1 ", st)
-        call run("fo M-/")
+        call execute_keys("fo M-/")
         call check(error, buffer_string(), "foo1 foo2 foo1 foo1")
         if (allocated(error)) return
-        call run("M-/")
+        call execute_keys("M-/")
         call check(error, buffer_string(), "foo1 foo2 foo1 foo2")
         if (allocated(error)) return
-        call run("M-/")
+        call execute_keys("M-/")
         call check(error, buffer_string(), "foo1 foo2 foo1 fo")
         if (allocated(error)) return
         call check(error, last_message, "No further dynamic expansion for "//char(226)//char(128)//char(152)// &
@@ -463,12 +463,12 @@ contains
         ! A prefix argument takes the Nth distinct expansion back.
         call delete_region(point_min(), point_max(), st)
         call insert("foo1 foo2 ", st)
-        call run("fo C-u 2 M-/")
+        call execute_keys("fo C-u 2 M-/")
         call check(error, buffer_string(), "foo1 foo2 foo1")
         if (allocated(error)) return
         ! At the beginning of the buffer there is no abbreviation.
         call delete_region(point_min(), point_max(), st)
-        call run("C-e M-/")
+        call execute_keys("C-e M-/")
         call check(error, last_message, "No possible abbreviation preceding point")
         call kill_buffer(h, st)
     end subroutine test_cycling
@@ -482,7 +482,7 @@ contains
 
         call fresh("*dabbrev-test*", h)
         call insert("abcdef"//LF, st)
-        call run("Ab M-/ SPC AB M-/")
+        call execute_keys("Ab M-/ SPC AB M-/")
         call check(error, buffer_string(), "abcdef"//LF//"Abcdef ABCDEF")
         call kill_buffer(h, st)
     end subroutine test_case_replace
@@ -495,7 +495,7 @@ contains
         call fresh("*dabbrev-test*", h)
         call insert("Abc"//LF, st)
         dabbrev_case_fold_search = DABBREV_OFF
-        call run("ab M-/")
+        call execute_keys("ab M-/")
         dabbrev_case_fold_search = DABBREV_LIKE_CASE_FOLD_SEARCH
         call check(error, buffer_string(), "Abc"//LF//"ab")
         if (allocated(error)) return

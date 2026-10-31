@@ -70,7 +70,7 @@ module keyboard_fm
                          key_description, parse_modifiers, apply_modifiers, &
                          overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
                          push_key_description, key_parse, M_UP, M_DOWN, M_DRAG, M_CLICK, M_DOUBLE, M_TRIPLE
-    use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
+    use callint_fm, only: execute_interactively, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, this_command, command_name_of
     use buffer_fm, only: buffers, cur, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer
     use casetab_fm, only: downcase, is_uppercase
@@ -94,10 +94,10 @@ module keyboard_fm
               request_exit, is_exit_requested, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
     public :: exit_transient_map
-    public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, has_pending_special_events, &
+    public :: add_read_fd, delete_read_fd, insert_special_event, execute_special_events, has_pending_special_events, &
               read_fd_proc, special_event_proc
     public :: execute_kbd_macro, ring_bell, bitch_at_user, is_executing_kbd_macro
-    public :: start_kbd_macro, end_kbd_macro, call_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
+    public :: start_kbd_macro, end_kbd_macro, execute_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
               finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, is_defining_kbd_macro, &
               syms_of_macros
     public :: recent_keys, lossage_size, message_log_proc
@@ -106,7 +106,7 @@ module keyboard_fm
               set__this_command_keys, clear_this_command_keys, recursion_depth, top_level, recursive_edit
     public :: cancel_echoing, echo_now, prefix_command_update, internal_echo_keystrokes_prefix, is_help_char
     public :: event_convert_list, event_name_parse_modifiers, parse_solitary_modifier, lispy_modifier_list, &
-              make_ctrl_char, ascii_character, safe_run_hooks
+              make_ctrl_char, ascii_character, safe_execute_hooks
     public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc, kbd_macro_loop_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -309,13 +309,13 @@ module keyboard_fm
     logical, public :: global_disable_point_adjustment = .false.
 
     !> Normal hook run after each command is executed.  (An error in one
-    !> of its functions ends the run; safe_run_hooks's message and removal
+    !> of its functions ends the run; safe_execute_hooks's message and removal
     !> of the function are deferred.)  Port of keyboard.c
     !> post-command-hook.
     type(hook_type), target, public :: post_command_hook = hook_type(name="post_command_hook")
 
     !> Normal hook run before each command is executed.  (An error in one
-    !> of its functions ends the run; safe_run_hooks's message and removal
+    !> of its functions ends the run; safe_execute_hooks's message and removal
     !> of the function are deferred.)  Port of keyboard.c
     !> pre-command-hook.
     type(hook_type), target, public :: pre_command_hook = hook_type(name="pre_command_hook")
@@ -572,7 +572,7 @@ module keyboard_fm
 
         !> Finish defining a keyboard macro.
         !> The definition was started by \[start_kbd_macro].
-        !> The macro is now available for use via \[call_last_kbd_macro].
+        !> The macro is now available for use via \[execute_last_kbd_macro].
         !>
         !> With numeric arg, repeat macro now that many times,
         !> counting the definition just completed as the first repetition.
@@ -596,12 +596,12 @@ module keyboard_fm
         !> Optional second arg LOOPFUNC may be a function that is called prior to
         !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
         !> false.  Port of macros.c:Fcall_last_kbd_macro.
-        recursive module subroutine call_last_kbd_macro(prefix, status, loopfunc)
+        recursive module subroutine execute_last_kbd_macro(prefix, status, loopfunc)
             implicit none(type, external)
             type(value_type), intent(in) :: prefix
             type(status_type), intent(out) :: status
             procedure(kbd_macro_loop_proc), optional :: loopfunc
-        end subroutine call_last_kbd_macro
+        end subroutine execute_last_kbd_macro
 
         !> Store character C into kbd macro being defined.  Port of
         !> macros.c:store_kbd_macro_char.
@@ -1108,7 +1108,7 @@ contains
         call system_clock(start, rate)
 
         reading: do
-            call run_special_events()
+            call execute_special_events()
 
             if (nunread > 0) then
                 ev = unread(1)
@@ -1199,7 +1199,7 @@ contains
                     if (time_left(timeout) < 0) return
                     if (wait_for_input(timeout)) exit waiting
                 else
-                    if (wait_for_input(run_timers())) exit waiting
+                    if (wait_for_input(execute_timers())) exit waiting
                 end if
 
                 ! A timer or subprocess may have queued events, or C-g came.
@@ -1230,7 +1230,7 @@ contains
             call system_clock(now)
             left = int(seconds*1000, int64) - (now - start)*1000/max(rate, 1_int64)
             ms = int(max(left, 0_int64), int32)
-            next_timer = run_timers()
+            next_timer = execute_timers()
             if (next_timer >= 0) ms = min(ms, next_timer)
         end function time_left
     end subroutine read_event_1
@@ -1794,7 +1794,7 @@ contains
     !> number of milliseconds to wait for the next timer, or -1 for none.
     !> Port of keyboard.c:detect_input_pending_run_timers (the timers and
     !> the redisplay; `is_input_pending' checks for input).
-    recursive integer(int32) function run_timers() result(ms)
+    recursive integer(int32) function execute_timers() result(ms)
         integer(int64) :: old_timers_run
 
         old_timers_run = timers_run
@@ -1806,7 +1806,7 @@ contains
         end if
 
         if (timers_run /= old_timers_run .and. associated(redisplay_hook)) call redisplay_hook()
-    end function run_timers
+    end function execute_timers
 
     !> Redisplay, then wait `ms' milliseconds or until input arrives,
     !> taking subprocess output, handling special events and running the
@@ -1835,7 +1835,7 @@ contains
         call system_clock(start, rate)
 
         do
-            call run_special_events()
+            call execute_special_events()
             call system_clock(now)
             left = int(ms, int64) - (now - start)*1000/max(rate, 1_int64)
             timed_out = left < 0
@@ -1847,7 +1847,7 @@ contains
             end if
 
             timeout = int(left, int32)
-            next_timer = run_timers()
+            next_timer = execute_timers()
             if (next_timer >= 0) timeout = min(timeout, next_timer)
             if (wait_for_input(timeout)) return
             if (is_input_pending()) return
@@ -1893,7 +1893,7 @@ contains
             call read_fds(k)%callback(fds(2 + k))
         end do
 
-        call run_special_events()
+        call execute_special_events()
         if (any(got) .and. associated(redisplay_hook)) call redisplay_hook()
     end function wait_for_input
 
@@ -1979,7 +1979,7 @@ contains
     !> Handle the queued special events, oldest first, including those
     !> queued meanwhile; an error is reported as the command loop does.
     !> Port of keyboard.c:read_char in part.
-    recursive subroutine run_special_events()
+    recursive subroutine execute_special_events()
         type(special_event_type) :: ev
         type(status_type) :: st
 
@@ -1990,7 +1990,7 @@ contains
             call ev%handler(ev%arg, st)
             if (.not. st%ok()) call cmd_error(st)
         end do
-    end subroutine run_special_events
+    end subroutine execute_special_events
 
     !> Make `command_loop' return after the current command.  Not a port.
     subroutine request_exit()
@@ -2153,7 +2153,7 @@ contains
         ! pre-command-hook: a transient map lasts for one key sequence,
         ! unless KEEP-PRED keeps it.
         if (transient_active) call clear_transient_map(keys)
-        call safe_run_hooks_maybe_narrowed(pre_command_hook)
+        call safe_execute_hooks_maybe_narrowed(pre_command_hook)
         ! The hook may have changed the command (command-execute runs
         ! this-command).
         cmd = this_command
@@ -2199,7 +2199,7 @@ contains
             else
                 handled = .false.
                 if (associated(disabled_command_hook)) call disabled_command_hook(cmd, handled, status)
-                if (.not. handled) call call_interactively(cmd, status)
+                if (.not. handled) call execute_interactively(cmd, status)
             end if
         end if
 
@@ -2213,7 +2213,7 @@ contains
             call cancel_echoing()
             call set_command_key_count(0)
             this_single_command_key_start = 0
-            call safe_run_hooks_maybe_narrowed(post_command_hook)
+            call safe_execute_hooks_maybe_narrowed(post_command_hook)
             last_command = this_command
             real_last_command = real_this_command
             if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
@@ -2222,7 +2222,7 @@ contains
         end if
 
         last_prefix_arg = current_prefix_arg
-        call safe_run_hooks_maybe_narrowed(post_command_hook)
+        call safe_execute_hooks_maybe_narrowed(post_command_hook)
         last_command = this_command
         real_last_command = real_this_command
         if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
@@ -3573,24 +3573,24 @@ contains
     !> keyboard.c:safe_run_hook_funcall, keyboard.c:safe_run_hooks_1 and
     !> keyboard.c:safe_run_hooks_error (the error as its name and
     !> message, a status having no other data).
-    recursive subroutine safe_run_hooks(hook)
+    recursive subroutine safe_execute_hooks(hook)
         type(hook_type), intent(inout) :: hook
 
-        call hook%run_safe(report_hook_error)
-    end subroutine safe_run_hooks
+        call hook%execute_safe(report_hook_error)
+    end subroutine safe_execute_hooks
 
-    !> Run HOOK as `safe_run_hooks' does, for pre-command-hook and
+    !> Run HOOK as `safe_execute_hooks' does, for pre-command-hook and
     !> post-command-hook.  Port of keyboard.c:safe_run_hooks_maybe_narrowed
     !> (no long-line optimizations: their narrowing is Deferred with
     !> xdisp.c).
-    recursive subroutine safe_run_hooks_maybe_narrowed(hook)
+    recursive subroutine safe_execute_hooks_maybe_narrowed(hook)
         type(hook_type), intent(inout) :: hook
 
-        call safe_run_hooks(hook)
-    end subroutine safe_run_hooks_maybe_narrowed
+        call safe_execute_hooks(hook)
+    end subroutine safe_execute_hooks_maybe_narrowed
 
     !> Show the error STATUS of FN, a function of the hook named HOOK_NAME
-    !> (safe_run_hooks_error's message).  Not a port.
+    !> (keyboard.c:safe_run_hooks_error's message).  Not a port.
     subroutine report_hook_error(hook_name, fn, status)
         character(len=*), intent(in) :: hook_name
         procedure(command_proc) :: fn
@@ -3739,7 +3739,7 @@ contains
         this_single_command_key_start = 0
         ! Make sure this hook runs after commands that get errors and throw
         ! to top level.
-        call safe_run_hooks_maybe_narrowed(post_command_hook)
+        call safe_execute_hooks_maybe_narrowed(post_command_hook)
         ! Do this after running Vpost_command_hook, for consistency.
         last_command = this_command
         real_last_command = real_this_command

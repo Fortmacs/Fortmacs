@@ -50,7 +50,7 @@ module config_fm
                          make_symbolic_link, file_attributes, file_stat_type
     use dired_fm, only: directory_files
     use files_fm, only: make_directory
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use sysdep_fm, only: emacs_readlink, emacs_localtime, ENOENT
     implicit none(type, external)
     private
@@ -166,13 +166,13 @@ contains
 
         text = "! Written by fortmacs --recompile."//nl// &
                "program fortmacs_user"//nl// &
-               "    use emacs_fm, only: run"//nl// &
+               "    use emacs_fm, only: execute_editor"//nl// &
                "    use user_config, only: configure"//nl// &
                "    implicit none(type, external)"//nl// &
                nl// &
                "    integer :: exit_code"//nl// &
                nl// &
-               "    call run(configure, exit_code, "//fortran_string(prefix)//")"//nl// &
+               "    call execute_editor(configure, exit_code, "//fortran_string(prefix)//")"//nl// &
                "    if (exit_code /= 0) stop exit_code, quiet = .true."//nl// &
                "end program fortmacs_user"//nl
     end function driver_source
@@ -292,7 +292,7 @@ contains
         call set_buffer(buf, status)
         if (.not. status%ok()) return
         buffers(cur)%directory = cache
-        call call_process(compiler, result, status, destination=value_type(.true.), args=make_list(args))
+        call execute_process(compiler, result, status, destination=value_type(.true.), args=make_list(args))
         log = buffer_string()
         call kill_buffer(buf, ignore)
         if (old%index /= 0) call set_buffer(old, ignore)

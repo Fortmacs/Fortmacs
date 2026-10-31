@@ -37,7 +37,7 @@ module test_info_fm
     use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_exists, &
                          file_name_directory, file_name_nondirectory
     use files_fm, only: make_temp_file, delete_file
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use simple_fm, only: current_kill
     use window_fm, only: window_configuration_type, current_window_configuration, set_window_configuration
     use bindings_fm, only: init_bindings
@@ -626,7 +626,7 @@ contains
         zipped = temp//".info.gz"
         command = resource_dir()
         command = "gzip -c "//command//"test.info > "//zipped
-        call call_process("sh", result, st, args=list(value_type(text="-c"), value_type(text=command)))
+        call execute_process("sh", result, st, args=list(value_type(text="-c"), value_type(text=command)))
 
         if (.not. file_exists(zipped)) then
             ! (No gzip: nothing to test.)

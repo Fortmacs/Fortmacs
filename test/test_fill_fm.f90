@@ -225,31 +225,31 @@ contains
     subroutine test_erts_default(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-region-as-paragraph-default.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-region-as-paragraph-default.erts")
     end subroutine test_erts_default
 
     subroutine test_erts_frap(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-region-as-paragraph.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-region-as-paragraph.erts")
     end subroutine test_erts_frap
 
     subroutine test_erts_region(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-region.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-region.erts")
     end subroutine test_erts_region
 
     subroutine test_erts_paragraph(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-paragraph.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-paragraph.erts")
     end subroutine test_erts_paragraph
 
     !> Run the tests of an erts file (ert-test-erts-file): each has a
     !> Name, inherits the last Code and Point-Char, and has the text
     !> before and after between =-= lines.
-    subroutine run_erts_file(error, file)
+    subroutine execute_erts_file(error, file)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: data, line, code, name, before, after, point_char
@@ -300,7 +300,7 @@ contains
                 if (line == "=-=-=") then
                     state = 0
                     ! The texts end with a newline (ert-test--erts-test).
-                    call run_erts_test(error, name, code, point_char, before, after)
+                    call execute_erts_test(error, name, code, point_char, before, after)
                     if (allocated(error)) return
                     ran = ran + 1
                 else
@@ -336,13 +336,13 @@ contains
         end do
 
         call check(error, ran > 0, "no tests in "//file)
-    end subroutine run_erts_file
+    end subroutine execute_erts_file
 
     ! Run one erts test: recognize the forms of CODE (setq-local of
     ! fill-column, sentence-end-double-space and
     ! fill-separate-heterogeneous-words-with-space; the fill call) and
     ! compare the result with AFTER.
-    subroutine run_erts_test(error, name, code, point_char, before, after)
+    subroutine execute_erts_test(error, name, code, point_char, before, after)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: name, code, point_char, before, after
         type(handle_type) :: h
@@ -402,7 +402,7 @@ contains
         got = buffer_string()
         call check(error, got == expected .and. len(got) == len(expected), name//":"//LF//got)
         call leave(h)
-    end subroutine run_erts_test
+    end subroutine execute_erts_test
 
     !> fill-match-adaptive-prefix limits the prefix by its length in
     !> characters, not its width: a tab (width 8) is a prefix with

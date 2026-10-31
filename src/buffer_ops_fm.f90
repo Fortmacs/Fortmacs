@@ -50,10 +50,10 @@ contains
         if (.not. status%ok()) return
 
         ! Run hooks with the buffer to be killed as the current buffer.
-        if (associated(run_kill_buffer_hook)) then
+        if (associated(execute_kill_buffer_hook)) then
             other = current_buffer()
             call set_buffer_internal(i)
-            call run_kill_buffer_hook(h)
+            call execute_kill_buffer_hook(h)
             call resolve_buffer(other, k, ignore)
 
             if (ignore%ok()) then
@@ -102,7 +102,7 @@ contains
         buffers(i) = buffer_type()
         if (was_current) call other_buffer_current()
         if (.not. status%ok()) return
-        if (.not. inhibit_hooks) call buffer_list_update_hook%run(status)
+        if (.not. inhibit_hooks) call buffer_list_update_hook%execute(status)
 
     contains
 
@@ -152,15 +152,15 @@ contains
         end do
     end subroutine buffer_order_remove
 
-    recursive module subroutine run_buffer_list_update_hook(i, status)
+    recursive module subroutine execute_buffer_list_update_hook(i, status)
         integer(int64), intent(in) :: i
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (i <= 0) return
         if (buffers(i)%inhibit_buffer_hooks) return
-        call buffer_list_update_hook%run(status)
-    end subroutine run_buffer_list_update_hook
+        call buffer_list_update_hook%execute(status)
+    end subroutine execute_buffer_list_update_hook
 
     module function find_buffer(variable, value) result(h)
         type(value_type), intent(in) :: variable, value
@@ -185,7 +185,7 @@ contains
     end function find_buffer
 
     module subroutine syms_of_buffer()
-        commands%buffer_enable_undo%run => cmd_buffer_enable_undo
+        commands%buffer_enable_undo%execute => cmd_buffer_enable_undo
     end subroutine syms_of_buffer
 
     !> Start keeping undo information for buffer BUFFER.

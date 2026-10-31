@@ -2171,7 +2171,7 @@ contains
     !> the character to test (after translation), CORIG the original one.
     !> `unibyte' says C is a unibyte character.  Port of
     !> regex-emacs.c:execute_charset.
-    logical function execute_charset(buf, p, c, corig, unibyte, canon) result(matched)
+    logical function match_charset(buf, p, c, corig, unibyte, canon) result(matched)
         integer, intent(in) :: buf(0:)
         integer, intent(inout) :: p
         integer(int32), intent(in) :: c, corig
@@ -2267,7 +2267,7 @@ contains
 
             class_match = .false.
         end function class_match
-    end function execute_charset
+    end function match_charset
 
     !> Case where `p2' points to an `exactn' or `endline'.  Port of
     !> regex-emacs.c:mutually_exclusive_exactn.
@@ -2290,7 +2290,7 @@ contains
             if (c /= c1) excl = .true.
         else if (buf(p1) == CHARSET .or. buf(p1) == CHARSET_NOT) then
             q = p1
-            if (.not. execute_charset(buf, q, c, c, is_ascii_char(c), .false.)) excl = .true.
+            if (.not. match_charset(buf, q, c, c, is_ascii_char(c), .false.)) excl = .true.
         else if (buf(p1) == ANYCHAR .and. c == 10) then
             excl = .true.
         end if
@@ -2710,7 +2710,7 @@ contains
                         if (unibyte_char) c = c1
                         p = p - 1
 
-                        if (.not. execute_charset(bufp%buffer, p, c, corig, unibyte_char, bufp%translate)) then
+                        if (.not. match_charset(bufp%buffer, p, c, corig, unibyte_char, bufp%translate)) then
                             do_fail = .true.
                         else
                             d = d + buf_charlen

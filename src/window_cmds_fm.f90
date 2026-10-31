@@ -732,13 +732,13 @@ contains
     end subroutine cmd_kill_buffer
 
     module subroutine syms_of_window_cmds()
-        commands%split_window_below%run => cmd_split_window_below
-        commands%split_window_right%run => cmd_split_window_right
-        commands%delete_window%run => cmd_delete_window
-        commands%delete_other_windows%run => cmd_delete_other_windows
-        commands%other_window%run => cmd_other_window
-        commands%other_window_backward%run => cmd_other_window_backward
-        commands%switch_to_buffer%run => cmd_switch_to_buffer
-        commands%kill_buffer%run => cmd_kill_buffer
+        commands%split_window_below%execute => cmd_split_window_below
+        commands%split_window_right%execute => cmd_split_window_right
+        commands%delete_window%execute => cmd_delete_window
+        commands%delete_other_windows%execute => cmd_delete_other_windows
+        commands%other_window%execute => cmd_other_window
+        commands%other_window_backward%execute => cmd_other_window_backward
+        commands%switch_to_buffer%execute => cmd_switch_to_buffer
+        commands%kill_buffer%execute => cmd_kill_buffer
     end subroutine syms_of_window_cmds
 end submodule window_cmds_fm

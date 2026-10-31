@@ -265,7 +265,7 @@ contains
 
     !> Call the handler of watch K with DESC, ACTION, FILE and FILE1 (if
     !> present).  Port of filenotify.el:file-notify--call-handler.
-    recursive subroutine call_handler(k, desc, action, file, status, file1)
+    recursive subroutine execute_handler(k, desc, action, file, status, file1)
         integer, intent(in) :: k
         type(watch_descriptor_type), intent(in) :: desc
         integer, intent(in) :: action
@@ -287,12 +287,12 @@ contains
         ev%file = file
         if (present(file1)) ev%file1 = file1
         call callback(ev, status)
-    end subroutine call_handler
+    end subroutine execute_handler
 
     !> Call the callback of the watch with descriptor DESC, if it is
     !> still registered, with ACTION, FILE and FILE1 (if present).
     !> Not a port.
-    recursive subroutine call_callback(desc, action, file, status, file1)
+    recursive subroutine execute_callback(desc, action, file, status, file1)
         type(watch_descriptor_type), intent(in) :: desc
         integer, intent(in) :: action
         character(len=*), intent(in) :: file
@@ -309,7 +309,7 @@ contains
         ev%file = file
         if (present(file1)) ev%file1 = file1
         call file_notify_descriptors(k)%callback(ev, status)
-    end subroutine call_callback
+    end subroutine execute_callback
 
     !> Handle an event returned from file notification.
     !> DESC is the back-end descriptor.  ACTIONS is a list of:
@@ -343,7 +343,7 @@ contains
             if (pending_rename) then
                 if (.not. (pending_cookie == cookie .and. action == RENAMED_TO)) then
                     pending_rename = .false.
-                    call call_callback(pending_desc, FILE_NOTIFY_DELETED, pending_from_file, status)
+                    call execute_callback(pending_desc, FILE_NOTIFY_DELETED, pending_from_file, status)
                 end if
             end if
 
@@ -369,7 +369,7 @@ contains
                     pending_rename = .false.
 
                     if (.not. (desc == p_desc)) then
-                        call call_callback(p_desc, FILE_NOTIFY_RENAMED, file, status, file1)
+                        call execute_callback(p_desc, FILE_NOTIFY_RENAMED, file, status, file1)
                     end if
 
                     action = FILE_NOTIFY_RENAMED
@@ -384,9 +384,9 @@ contains
 
             if (action /= 0 .and. k /= 0) then
                 if (have_file1) then
-                    call call_handler(k, desc, action, file, status, file1)
+                    call execute_handler(k, desc, action, file, status, file1)
                 else
-                    call call_handler(k, desc, action, file, status)
+                    call execute_handler(k, desc, action, file, status)
                 end if
             end if
 

@@ -345,7 +345,7 @@ module compile_fm
     !> its end.
     !>
     !> If Emacs lacks asynchronous process support, this hook is run
-    !> after `call_process' inserts the grep output into the buffer.  Port
+    !> after `execute_process' inserts the grep output into the buffer.  Port
     !> of compile.el compilation-filter-hook.
     type(hook_type), target, public :: compilation_filter_hook = hook_type(name="compilation_filter_hook")
 
@@ -3962,13 +3962,13 @@ contains
     !> \[compile_goto_error].  To kill the compilation, type
     !> \[kill_compilation].
     !>
-    !> Runs `compilation_mode_hook' with `run_mode_hooks' (which see).
+    !> Runs `compilation_mode_hook' with `execute_mode_hooks' (which see).
     !> Port of compile.el:compilation-mode (NAME-OF-MODE "Compilation").
     recursive subroutine compilation_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. associated(major_modes%compilation_mode%run)) call syms_of_compile()
+        if (.not. associated(major_modes%compilation_mode%execute)) call syms_of_compile()
         ! kill-all-local-variables, use-local-map, major-mode, mode-name.
         call major_modes%compilation_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -4508,7 +4508,7 @@ contains
             if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
 
             if (present(mode)) then
-                call mode%run(status)
+                call mode%execute(status)
             else
                 call compilation_mode(status)
             end if
@@ -4907,7 +4907,7 @@ contains
             call set_marker(mark, point(), st)
             ! Update the number of errors in compilation-mode-line-errors.
             call compilation_ensure_parse(point())
-            call compilation_filter_hook%run(status)
+            call compilation_filter_hook%execute(status)
         end if
 
         call marker_position(pos, p, st)
@@ -5159,20 +5159,20 @@ contains
         call keymap_set(compilation_shell_minor_mode_map, "C-M-p", "compilation_previous_error", st)
         call keymap_set(compilation_shell_minor_mode_map, "M-{", "compilation_previous_file", st)
         call keymap_set(compilation_shell_minor_mode_map, "M-}", "compilation_next_file", st)
-        commands%compilation_mode%run => compilation_mode
-        commands%compile%run => cmd_compile
-        commands%recompile%run => cmd_recompile
-        commands%kill_compilation%run => kill_compilation
-        commands%compile_goto_error%run => compile_goto_error
-        commands%compilation_next_error%run => cmd_compilation_next_error
-        commands%compilation_previous_error%run => cmd_compilation_previous_error
-        commands%compilation_next_file%run => cmd_compilation_next_file
-        commands%compilation_previous_file%run => cmd_compilation_previous_file
-        commands%compilation_display_error%run => compilation_display_error
-        commands%compilation_set_skip_threshold%run => cmd_compilation_set_skip_threshold
-        commands%compilation_next_error_function%run => cmd_compilation_next_error_function
-        commands%compilation_minor_mode%run => compilation_minor_mode
-        commands%compilation_shell_minor_mode%run => compilation_shell_minor_mode
+        commands%compilation_mode%execute => compilation_mode
+        commands%compile%execute => cmd_compile
+        commands%recompile%execute => cmd_recompile
+        commands%kill_compilation%execute => kill_compilation
+        commands%compile_goto_error%execute => compile_goto_error
+        commands%compilation_next_error%execute => cmd_compilation_next_error
+        commands%compilation_previous_error%execute => cmd_compilation_previous_error
+        commands%compilation_next_file%execute => cmd_compilation_next_file
+        commands%compilation_previous_file%execute => cmd_compilation_previous_file
+        commands%compilation_display_error%execute => compilation_display_error
+        commands%compilation_set_skip_threshold%execute => cmd_compilation_set_skip_threshold
+        commands%compilation_next_error_function%execute => cmd_compilation_next_error_function
+        commands%compilation_minor_mode%execute => compilation_minor_mode
+        commands%compilation_shell_minor_mode%execute => compilation_shell_minor_mode
         call add_local_variables_killer(kill_compilation_locals)
         call add_mode_line_modes_entry("compilation_in_progress", "[Compiling] ", is_compilation_in_progress)
         call forward_setting(compilation_error_screen_columns)

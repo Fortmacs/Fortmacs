@@ -54,10 +54,10 @@ submodule(simple_fm) simple_electric_fm
 contains
 
     module procedure syms_of_simple_electric
-    commands%blink_matching_open%run => cmd_blink_matching_open
-    commands%newline_and_indent%run => cmd_newline_and_indent
-    commands%reindent_then_newline_and_indent%run => cmd_reindent_then_newline_and_indent
-    commands%backward_delete_char_untabify%run => cmd_backward_delete_char_untabify
+    commands%blink_matching_open%execute => cmd_blink_matching_open
+    commands%newline_and_indent%execute => cmd_newline_and_indent
+    commands%reindent_then_newline_and_indent%execute => cmd_reindent_then_newline_and_indent
+    commands%backward_delete_char_untabify%execute => cmd_backward_delete_char_untabify
     if (.not. associated(blink_matching_check_function)) blink_matching_check_function => blink_matching_check_mismatch
     if (.not. associated(blink_paren_function)) blink_paren_function => blink_matching_open
     ! Most likely, this hook is nil, so this arg doesn't matter, but I use

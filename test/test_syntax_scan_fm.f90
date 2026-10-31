@@ -403,7 +403,7 @@ contains
 
     !> The syntax-comments tests: (forward-comment 1/-1) from label START
     !> gives RES and stops at label STOP.  DIRS has an f or b per case.
-    subroutine run_comments(error, kind, section, dirs, res, start, stop)
+    subroutine execute_comments(error, kind, section, dirs, res, start, stop)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: kind
         character(len=*), intent(in) :: section, dirs
@@ -442,11 +442,11 @@ contains
         end do
 
         call done_buffer(table)
-    end subroutine run_comments
+    end subroutine execute_comments
 
     !> The syntax-br-comments tests: (scan-lists START 1/-1 0) returns
     !> label STOP if RES, else signals scan-error.
-    subroutine run_br_comments(error, kind, section, dirs, res, start, stop)
+    subroutine execute_br_comments(error, kind, section, dirs, res, start, stop)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: kind
         character(len=*), intent(in) :: section, dirs
@@ -490,13 +490,13 @@ contains
         end do
 
         call done_buffer(table)
-    end subroutine run_br_comments
+    end subroutine execute_br_comments
 
     !> The syntax-pps-comments tests: parse-partial-sexp from label START
     !> stops after the comment opener (label OPEN) and closer (label
     !> CLOSE) with COMMENTSTOP `syntax-table', then at the paren matching
     !> the one at START (label STOP).
-    subroutine run_pps_comments(error, kind, section, start, open, close, stop)
+    subroutine execute_pps_comments(error, kind, section, start, open, close, stop)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: kind
         character(len=*), intent(in) :: section
@@ -540,14 +540,14 @@ contains
         end do
 
         call done_buffer(table)
-    end subroutine run_pps_comments
+    end subroutine execute_pps_comments
 
     !> "Pascal" style comments - single character delimiters, the closing
     !> delimiter not being newline.
     subroutine test_comments_pascal(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_comments(error, PASCAL, "pascal", "fbfbfbfbfbfb", &
+        call execute_comments(error, PASCAL, "pascal", "fbfbfbfbfbfb", &
                           [.false., .false., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true.], &
                           [20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 26, 26], &
                           [0, 0, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE])
@@ -558,7 +558,7 @@ contains
     subroutine test_comments_lisp(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_comments(error, LISP, "lisp", "bfbfbfb", [.false., .true., .true., .true., .true., .true., .true.], &
+        call execute_comments(error, LISP, "lisp", "bfbfbfb", [.false., .true., .true., .true., .true., .true., .true.], &
                           [30, 31, 31, 32, 32, 33, 33], [30, NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_comments_lisp
 
@@ -566,7 +566,7 @@ contains
     subroutine test_br_comments_lisp(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_br_comments(error, LISP, "lisp", "bfbfbf", [.false., .true., .true., .true., .true., .false.], &
+        call execute_br_comments(error, LISP, "lisp", "bfbfbf", [.false., .true., .true., .true., .true., .false.], &
                              [40, 41, 41, 42, 42, 43], [NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_br_comments_lisp
 
@@ -574,7 +574,7 @@ contains
     subroutine test_pps_comments_lisp(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_pps_comments(error, LISP, "lisp", [41, 42, 43], [90, 92, 94], [91, 93, 95], [NONE, NONE, -999])
+        call execute_pps_comments(error, LISP, "lisp", [41, 42, 43], [90, 92, 94], [91, 93, 95], [NONE, NONE, -999])
     end subroutine test_pps_comments_lisp
 
     !> "Lisp" style nested comments: between delimiters #|  |#; and mixed
@@ -582,7 +582,7 @@ contains
     subroutine test_comments_lisp_n(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_comments(error, LISP_N, "lisp-n", "fbffbfbfbfbfbfbfbfb", &
+        call execute_comments(error, LISP_N, "lisp-n", "fbffbfbfbfbfbfbfbfb", &
                           [.false., .false., .false., .true., .true., .true., .true., .true., .true., .false., .true., &
                            .true., .true., .true., .true., .true., .true., .true., .true.], &
                           [100, 100, 101, 102, 102, 103, 103, 104, 104, 105, 105, 106, 106, 107, 107, 110, 110, 111, 111], &
@@ -594,7 +594,7 @@ contains
     subroutine test_comments_c(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbfbfbfbfbfbfb", &
+        call execute_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbfbfbfbfbfbfb", &
                           [.true., .true., .true., .true., .true., .true., .true., .true., .true., .false., .false., &
                            .true., .true., .false., .false., .true., .true., .true., .false., .false., .true., .true., &
                            .true., .false., .true., .true.], &
@@ -607,7 +607,7 @@ contains
     subroutine test_br_comments_c(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_br_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbbfb", &
+        call execute_br_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbbfb", &
                              [.true., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true., &
                               .true., .true., .true., .false., .true., .true.], &
                              [50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56, 58, 59, 60, 60], &
@@ -619,7 +619,7 @@ contains
     subroutine test_pps_comments_c(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_pps_comments(error, C_STYLE, "c", [50, 52, 54, 56, 60], [70, 72, 74, 76, 78], [71, 73, 55, 77, 79], &
+        call execute_pps_comments(error, C_STYLE, "c", [50, 52, 54, 56, 60], [70, 72, 74, 76, 78], [71, 73, 55, 77, 79], &
                               [NONE, NONE, 20, 58, NONE])
     end subroutine test_pps_comments_c
 

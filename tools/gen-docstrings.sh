@@ -25,7 +25,7 @@
 # its "Port of" citation (the rest of the comment is notes on the port).
 # This script collects:
 #
-#   - commands: every `commands%NAME%run => PROC` in src/.  The
+#   - commands: every `commands%NAME%execute => PROC` in src/.  The
 #     docstring is PROC's, or else that of the procedure whose comment
 #     cites NAME ("Port of simple.el:NAME" or "Port of cmds.c:FNAME");
 #   - functions: the procedures src/fortmacs.f90 exports (the config
@@ -205,10 +205,10 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
     next
 }
 
-# Built-in commands (not in comments): `commands%NAME%run => PROC`, and
+# Built-in commands (not in comments): `commands%NAME%execute => PROC`, and
 # `commands%NAME%is_command = .false.` for a function that is not a
 # command.
-/^[ \t]*commands%[a-z0-9_]+%run[ \t]*=>/ {
+/^[ \t]*commands%[a-z0-9_]+%execute[ \t]*=>/ {
     line = $0
     sub(/^[ \t]*commands%/, "", line)
     name = line; sub(/%.*/, "", name); name = help_name(name)

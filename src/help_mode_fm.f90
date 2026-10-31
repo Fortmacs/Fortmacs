@@ -59,7 +59,7 @@ contains
         call major_modes%help_mode%define("help_mode", "Help", help_mode, help_mode_hook, &
                                           parent=major_modes%special_mode, abbrev_table=help_mode_abbrev_table)
         help_mode_map = major_modes%help_mode%map
-        commands%help_mode%run => help_mode
+        commands%help_mode%execute => help_mode
     end subroutine init_help_mode
 
     !> Major mode for viewing help text and navigating references in it.

@@ -2090,11 +2090,11 @@ contains
         end if
 
         call add_local_variables_killer(kill_font_lock_locals)
-        commands%font_lock_update%run => font_lock_update
-        commands%font_lock_fontify_buffer%run => cmd_font_lock_fontify_buffer
-        commands%font_lock_fontify_block%run => font_lock_fontify_block
-        commands%font_lock_debug_fontify%run => font_lock_debug_fontify
-        commands%font_lock_refresh_defaults%run => font_lock_refresh_defaults
+        commands%font_lock_update%execute => font_lock_update
+        commands%font_lock_fontify_buffer%execute => cmd_font_lock_fontify_buffer
+        commands%font_lock_fontify_block%execute => font_lock_fontify_block
+        commands%font_lock_debug_fontify%execute => font_lock_debug_fontify
+        commands%font_lock_refresh_defaults%execute => font_lock_refresh_defaults
         commands%font_lock_refresh_defaults%is_command = .false.
         commands%font_lock_change_mode%is_command = .false.
     end subroutine syms_of_font_lock

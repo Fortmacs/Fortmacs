@@ -394,7 +394,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. associated(major_modes%change_log_mode%run)) call syms_of_add_log()
+        if (.not. associated(major_modes%change_log_mode%execute)) call syms_of_add_log()
         call major_modes%change_log_mode%begin(saved, status)
         if (.not. status%ok()) return
         call left_margin%set_local(8_int64)

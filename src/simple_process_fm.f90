@@ -288,8 +288,8 @@ contains
         call major_modes%process_menu_mode%define("process_menu_mode", "Process Menu", process_menu_mode, &
                                                   parent=major_modes%tabulated_list_mode)
         call keymap_set(major_modes%process_menu_mode%map, "d", "process_menu_delete_process", st)
-        commands%process_menu_mode%run => process_menu_mode
-        commands%process_menu_delete_process%run => process_menu_delete_process
-        commands%list_processes%run => cmd_list_processes
+        commands%process_menu_mode%execute => process_menu_mode
+        commands%process_menu_delete_process%execute => process_menu_delete_process
+        commands%list_processes%execute => cmd_list_processes
     end subroutine syms_of_simple_process
 end submodule simple_process_fm

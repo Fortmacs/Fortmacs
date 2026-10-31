@@ -39,7 +39,7 @@ module test_keyboard_fm
                            translate_upper_case_key_bindings, this_command_key_events, this_single_command_keys, &
                            this_single_command_raw_keys, set__this_command_keys, echo_keystrokes, echo_keystrokes_help, &
                            cancel_echoing, event_convert_list, event_name_parse_modifiers, make_ctrl_char, &
-                           recursion_depth, top_level, recursive_edit, post_command_hook, safe_run_hooks, echo_now
+                           recursion_depth, top_level, recursive_edit, post_command_hook, safe_execute_hooks, echo_now
     use fns_fm, only: value_equal
     use subr_fm, only: syms_of_subr
     use sysdep_fm, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, &
@@ -1134,7 +1134,7 @@ contains
 
     !> recursion-depth in a recursive edit, top-level leaving it without
     !> a message, and an error in post-command-hook shown and its function
-    !> removed (safe_run_hooks).
+    !> removed (safe_execute_hooks).
     subroutine test_recursive_edit(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: global
@@ -1158,7 +1158,7 @@ contains
         call check(error, last_message, "")
         if (allocated(error)) return
         call post_command_hook%add(cmd_fail)
-        call safe_run_hooks(post_command_hook)
+        call safe_execute_hooks(post_command_hook)
         call check(error, last_message, "Error in post_command_hook (cmd-fail): (user_error ""Boom"")")
         if (allocated(error)) return
         call check(error,.not. post_command_hook%member(cmd_fail), "removed")

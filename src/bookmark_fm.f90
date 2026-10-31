@@ -2012,7 +2012,7 @@ contains
             if (.not. found) call bookmark_set_fringe_mark()
         end if
 
-        call bookmark_after_jump_hook%run(status)
+        call bookmark_after_jump_hook%execute(status)
         if (.not. status%ok()) return
         ! If there is an annotation for this bookmark, show it in a buffer.
         if (bookmark_automatically_show_annotations) call bookmark_show_annotation(bookmark_name, status)
@@ -2818,7 +2818,7 @@ contains
         ! (On an error the file's buffer stays, as upstream.)
         call set_buffer(old, st)
         if (.not. status%ok()) return
-        call bookmark_after_load_file_hook%run(status)
+        call bookmark_after_load_file_hook%execute(status)
         if (.not. status%ok()) return
         if (.not. quiet) call progress_reporter_done(reporter)
     end subroutine bookmark_load
@@ -3839,13 +3839,13 @@ contains
     ! idleness.  Not a port.
     recursive subroutine bmenu_search_setup(status)
         use minibuf_fm, only: minibuffer_setup_hook
-        use timer_fm, only: run_with_idle_timer
+        use timer_fm, only: execute_with_idle_timer
         type(status_type), intent(out) :: status
 
         ! (minibuffer-with-setup-hook: once.)
         call minibuffer_setup_hook%remove(bmenu_search_setup)
         search_minibuffer = current_buffer()
-        call run_with_idle_timer(search_timer, real(bookmark_search_delay, real64), .true., bmenu_search_filter, status)
+        call execute_with_idle_timer(search_timer, real(bookmark_search_delay, real64), .true., bmenu_search_filter, status)
     end subroutine bmenu_search_setup
 
     ! Not a port.
@@ -3984,7 +3984,7 @@ contains
     recursive subroutine bookmark_exit_hook_internal(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_exit_hook%run(status)
+        call bookmark_exit_hook%execute(status)
         if (.not. status%ok()) return
         if (is_bookmark_time_to_save(.true.)) call bookmark_save(status)
     end subroutine bookmark_exit_hook_internal
@@ -4045,24 +4045,24 @@ contains
         bookmark_edit_annotation_mode_map = major_modes%bookmark_edit_annotation_mode%map
         call keymap_set(bookmark_edit_annotation_mode_map, "C-c C-c", "bookmark_edit_annotation_confirm", st)
         call keymap_set(bookmark_edit_annotation_mode_map, "C-c C-k", "bookmark_edit_annotation_cancel", st)
-        commands%bookmark_edit_annotation_mode%run => bookmark_edit_annotation_mode
-        commands%bookmark_edit_annotation_confirm%run => bookmark_edit_annotation_confirm
-        commands%bookmark_edit_annotation_cancel%run => bookmark_edit_annotation_cancel
-        commands%bookmark_set%run => cmd_bookmark_set
-        commands%bookmark_set_no_overwrite%run => cmd_bookmark_set_no_overwrite
-        commands%bookmark_jump%run => cmd_bookmark_jump
-        commands%bookmark_jump_other_window%run => cmd_bookmark_jump_other_window
-        commands%bookmark_relocate%run => cmd_bookmark_relocate
-        commands%bookmark_insert_location%run => cmd_bookmark_insert_location
-        commands%bookmark_locate%run => cmd_bookmark_insert_location
-        commands%bookmark_rename%run => cmd_bookmark_rename
-        commands%bookmark_insert%run => cmd_bookmark_insert
-        commands%bookmark_delete%run => cmd_bookmark_delete
-        commands%bookmark_delete_all%run => cmd_bookmark_delete_all
-        commands%bookmark_write%run => cmd_bookmark_write
-        commands%bookmark_save%run => cmd_bookmark_save
-        commands%bookmark_load%run => cmd_bookmark_load
-        commands%bookmark_yank_word%run => bookmark_yank_word
+        commands%bookmark_edit_annotation_mode%execute => bookmark_edit_annotation_mode
+        commands%bookmark_edit_annotation_confirm%execute => bookmark_edit_annotation_confirm
+        commands%bookmark_edit_annotation_cancel%execute => bookmark_edit_annotation_cancel
+        commands%bookmark_set%execute => cmd_bookmark_set
+        commands%bookmark_set_no_overwrite%execute => cmd_bookmark_set_no_overwrite
+        commands%bookmark_jump%execute => cmd_bookmark_jump
+        commands%bookmark_jump_other_window%execute => cmd_bookmark_jump_other_window
+        commands%bookmark_relocate%execute => cmd_bookmark_relocate
+        commands%bookmark_insert_location%execute => cmd_bookmark_insert_location
+        commands%bookmark_locate%execute => cmd_bookmark_insert_location
+        commands%bookmark_rename%execute => cmd_bookmark_rename
+        commands%bookmark_insert%execute => cmd_bookmark_insert
+        commands%bookmark_delete%execute => cmd_bookmark_delete
+        commands%bookmark_delete_all%execute => cmd_bookmark_delete_all
+        commands%bookmark_write%execute => cmd_bookmark_write
+        commands%bookmark_save%execute => cmd_bookmark_save
+        commands%bookmark_load%execute => cmd_bookmark_load
+        commands%bookmark_yank_word%execute => bookmark_yank_word
         ! The keymaps are rebuilt.
         if (is_keymap_live(bookmark_minibuffer_read_name_map)) call free_keymap(bookmark_minibuffer_read_name_map, st)
         call make_sparse_keymap(bookmark_minibuffer_read_name_map)
@@ -4096,35 +4096,35 @@ contains
         call major_modes%bookmark_bmenu_mode%define("bookmark_bmenu_mode", "Bookmark Menu", bookmark_bmenu_mode, &
                                                     bookmark_bmenu_mode_hook, parent=major_modes%tabulated_list_mode)
         bookmark_bmenu_mode_map = major_modes%bookmark_bmenu_mode%map
-        commands%bookmark_bmenu_mode%run => bookmark_bmenu_mode
-        commands%bookmark_bmenu_list%run => cmd_bookmark_bmenu_list
-        commands%list_bookmarks%run => cmd_bookmark_bmenu_list
-        commands%edit_bookmarks%run => cmd_bookmark_bmenu_list
-        commands%bookmark_bmenu_select%run => bookmark_bmenu_select
-        commands%bookmark_bmenu_locate%run => bookmark_bmenu_locate
-        commands%bookmark_bmenu_2_window%run => bookmark_bmenu_2_window
-        commands%bookmark_bmenu_1_window%run => bookmark_bmenu_1_window
-        commands%bookmark_bmenu_this_window%run => bookmark_bmenu_this_window
-        commands%bookmark_bmenu_other_window%run => bookmark_bmenu_other_window
-        commands%bookmark_bmenu_switch_other_window%run => bookmark_bmenu_switch_other_window
-        commands%bookmark_bmenu_save%run => bookmark_bmenu_save
-        commands%bookmark_bmenu_delete%run => bookmark_bmenu_delete
-        commands%bookmark_bmenu_delete_backwards%run => bookmark_bmenu_delete_backwards
-        commands%bookmark_bmenu_execute_deletions%run => bookmark_bmenu_execute_deletions
-        commands%bookmark_bmenu_delete_all%run => bookmark_bmenu_delete_all
-        commands%bookmark_bmenu_backup_unmark%run => bookmark_bmenu_backup_unmark
-        commands%bookmark_bmenu_unmark%run => cmd_bookmark_bmenu_unmark
-        commands%bookmark_bmenu_unmark_all%run => bookmark_bmenu_unmark_all
-        commands%bookmark_bmenu_mark%run => bookmark_bmenu_mark
-        commands%bookmark_bmenu_mark_all%run => bookmark_bmenu_mark_all
-        commands%bookmark_bmenu_load%run => bookmark_bmenu_load
-        commands%bookmark_bmenu_rename%run => bookmark_bmenu_rename
-        commands%bookmark_bmenu_relocate%run => bookmark_bmenu_relocate
-        commands%bookmark_bmenu_toggle_filenames%run => cmd_bookmark_bmenu_toggle_filenames
-        commands%bookmark_bmenu_show_annotation%run => bookmark_bmenu_show_annotation
-        commands%bookmark_bmenu_show_all_annotations%run => bookmark_bmenu_show_all_annotations
-        commands%bookmark_bmenu_edit_annotation%run => bookmark_bmenu_edit_annotation
-        commands%bookmark_bmenu_search%run => bookmark_bmenu_search
+        commands%bookmark_bmenu_mode%execute => bookmark_bmenu_mode
+        commands%bookmark_bmenu_list%execute => cmd_bookmark_bmenu_list
+        commands%list_bookmarks%execute => cmd_bookmark_bmenu_list
+        commands%edit_bookmarks%execute => cmd_bookmark_bmenu_list
+        commands%bookmark_bmenu_select%execute => bookmark_bmenu_select
+        commands%bookmark_bmenu_locate%execute => bookmark_bmenu_locate
+        commands%bookmark_bmenu_2_window%execute => bookmark_bmenu_2_window
+        commands%bookmark_bmenu_1_window%execute => bookmark_bmenu_1_window
+        commands%bookmark_bmenu_this_window%execute => bookmark_bmenu_this_window
+        commands%bookmark_bmenu_other_window%execute => bookmark_bmenu_other_window
+        commands%bookmark_bmenu_switch_other_window%execute => bookmark_bmenu_switch_other_window
+        commands%bookmark_bmenu_save%execute => bookmark_bmenu_save
+        commands%bookmark_bmenu_delete%execute => bookmark_bmenu_delete
+        commands%bookmark_bmenu_delete_backwards%execute => bookmark_bmenu_delete_backwards
+        commands%bookmark_bmenu_execute_deletions%execute => bookmark_bmenu_execute_deletions
+        commands%bookmark_bmenu_delete_all%execute => bookmark_bmenu_delete_all
+        commands%bookmark_bmenu_backup_unmark%execute => bookmark_bmenu_backup_unmark
+        commands%bookmark_bmenu_unmark%execute => cmd_bookmark_bmenu_unmark
+        commands%bookmark_bmenu_unmark_all%execute => bookmark_bmenu_unmark_all
+        commands%bookmark_bmenu_mark%execute => bookmark_bmenu_mark
+        commands%bookmark_bmenu_mark_all%execute => bookmark_bmenu_mark_all
+        commands%bookmark_bmenu_load%execute => bookmark_bmenu_load
+        commands%bookmark_bmenu_rename%execute => bookmark_bmenu_rename
+        commands%bookmark_bmenu_relocate%execute => bookmark_bmenu_relocate
+        commands%bookmark_bmenu_toggle_filenames%execute => cmd_bookmark_bmenu_toggle_filenames
+        commands%bookmark_bmenu_show_annotation%execute => bookmark_bmenu_show_annotation
+        commands%bookmark_bmenu_show_all_annotations%execute => bookmark_bmenu_show_all_annotations
+        commands%bookmark_bmenu_edit_annotation%execute => bookmark_bmenu_edit_annotation
+        commands%bookmark_bmenu_search%execute => bookmark_bmenu_search
         call keymap_set(bookmark_bmenu_mode_map, "v", "bookmark_bmenu_select", st)
         call keymap_set(bookmark_bmenu_mode_map, "w", "bookmark_bmenu_locate", st)
         call keymap_set(bookmark_bmenu_mode_map, "2", "bookmark_bmenu_2_window", st)

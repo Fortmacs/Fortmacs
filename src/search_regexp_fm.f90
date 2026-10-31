@@ -741,11 +741,11 @@ contains
     end subroutine cmd_posix_search_backward
 
     module procedure syms_of_search
-    commands%search_forward%run => cmd_search_forward
-    commands%search_backward%run => cmd_search_backward
-    commands%re_search_forward%run => cmd_re_search_forward
-    commands%re_search_backward%run => cmd_re_search_backward
-    commands%posix_search_forward%run => cmd_posix_search_forward
-    commands%posix_search_backward%run => cmd_posix_search_backward
+    commands%search_forward%execute => cmd_search_forward
+    commands%search_backward%execute => cmd_search_backward
+    commands%re_search_forward%execute => cmd_re_search_forward
+    commands%re_search_backward%execute => cmd_re_search_backward
+    commands%posix_search_forward%execute => cmd_posix_search_forward
+    commands%posix_search_backward%execute => cmd_posix_search_backward
     end procedure syms_of_search
 end submodule search_regexp_fm

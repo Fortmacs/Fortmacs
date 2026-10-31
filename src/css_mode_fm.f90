@@ -3540,9 +3540,9 @@ contains
         ! `info_complete_name' is not used.
         call bind_remap("complete_name", "completion_at_point")
         call keymap_set(css_mode_map, "C-c C-f", "css_cycle_color_format", st)
-        commands%css_base_mode%run => css_base_mode
-        commands%css_mode%run => css_mode
-        commands%scss_mode%run => scss_mode
-        commands%css_cycle_color_format%run => cmd_css_cycle_color_format
+        commands%css_base_mode%execute => css_base_mode
+        commands%css_mode%execute => css_mode
+        commands%scss_mode%execute => scss_mode
+        commands%css_cycle_color_format%execute => cmd_css_cycle_color_format
     end subroutine syms_of_css_mode
 end module css_mode_fm

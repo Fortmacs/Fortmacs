@@ -392,7 +392,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
 
-        if (.not. associated(major_modes%log_view_mode%run)) call syms_of_log_view()
+        if (.not. associated(major_modes%log_view_mode%execute)) call syms_of_log_view()
         call major_modes%log_view_mode%begin(saved, status)
         if (.not. status%ok()) return
         buffers(cur)%read_only = .true.
@@ -1479,28 +1479,28 @@ contains
     subroutine syms_of_log_view()
         type(status_type) :: st
 
-        if (associated(major_modes%log_view_mode%run)) return
+        if (associated(major_modes%log_view_mode%execute)) return
         call define_faces()
         call major_modes%log_view_mode%define("log_view_mode", "Log-View", log_view_mode, log_view_mode_hook, &
                                               parent=major_modes%special_mode)
         log_view_mode_map = major_modes%log_view_mode%map
-        commands%log_view_mode%run => log_view_mode
-        commands%log_view_msg_next%run => cmd_log_view_msg_next
-        commands%log_view_msg_prev%run => cmd_log_view_msg_prev
-        commands%log_view_file_next%run => cmd_log_view_file_next
-        commands%log_view_file_prev%run => cmd_log_view_file_prev
-        commands%log_view_msg_and_diff_next%run => cmd_log_view_msg_and_diff_next
-        commands%log_view_msg_and_diff_prev%run => cmd_log_view_msg_and_diff_prev
-        commands%log_view_toggle_mark_entry%run => log_view_toggle_mark_entry
-        commands%log_view_mark_entry%run => cmd_log_view_mark_entry
-        commands%log_view_unmark_entry%run => cmd_log_view_unmark_entry
-        commands%log_view_unmark_all_entries%run => log_view_unmark_all_entries
-        commands%log_view_toggle_entry_display%run => log_view_toggle_entry_display
-        commands%log_view_display_entry_and_diff%run => log_view_display_entry_and_diff
-        commands%log_view_find_revision%run => cmd_log_view_find_revision
-        commands%log_view_diff%run => cmd_log_view_diff
-        commands%log_view_diff_changeset%run => cmd_log_view_diff_changeset
-        commands%log_view_copy_revision_as_kill%run => log_view_copy_revision_as_kill
+        commands%log_view_mode%execute => log_view_mode
+        commands%log_view_msg_next%execute => cmd_log_view_msg_next
+        commands%log_view_msg_prev%execute => cmd_log_view_msg_prev
+        commands%log_view_file_next%execute => cmd_log_view_file_next
+        commands%log_view_file_prev%execute => cmd_log_view_file_prev
+        commands%log_view_msg_and_diff_next%execute => cmd_log_view_msg_and_diff_next
+        commands%log_view_msg_and_diff_prev%execute => cmd_log_view_msg_and_diff_prev
+        commands%log_view_toggle_mark_entry%execute => log_view_toggle_mark_entry
+        commands%log_view_mark_entry%execute => cmd_log_view_mark_entry
+        commands%log_view_unmark_entry%execute => cmd_log_view_unmark_entry
+        commands%log_view_unmark_all_entries%execute => log_view_unmark_all_entries
+        commands%log_view_toggle_entry_display%execute => log_view_toggle_entry_display
+        commands%log_view_display_entry_and_diff%execute => log_view_display_entry_and_diff
+        commands%log_view_find_revision%execute => cmd_log_view_find_revision
+        commands%log_view_diff%execute => cmd_log_view_diff
+        commands%log_view_diff_changeset%execute => cmd_log_view_diff_changeset
+        commands%log_view_copy_revision_as_kill%execute => log_view_copy_revision_as_kill
         call keymap_set(log_view_mode_map, "RET", "log_view_toggle_entry_display", st)
         call keymap_set(log_view_mode_map, "M-RET", "log_view_display_entry_and_diff", st)
         call keymap_set(log_view_mode_map, "m", "log_view_mark_entry", st)

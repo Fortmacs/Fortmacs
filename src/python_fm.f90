@@ -639,33 +639,33 @@ contains
         call make_sparse_keymap(python_indent_repeat_map)
         call keymap_set(python_indent_repeat_map, "<", "python_indent_shift_left", st)
         call keymap_set(python_indent_repeat_map, ">", "python_indent_shift_right", st)
-        commands%python_base_mode%run => python_base_mode
-        commands%python_mode%run => python_mode
-        commands%python_indent_guess_indent_offset%run => cmd_python_indent_guess_indent_offset
-        commands%python_indent_dedent_line%run => cmd_python_indent_dedent_line
-        commands%python_indent_dedent_line_backspace%run => cmd_python_indent_dedent_line_backspace
-        commands%python_indent_shift_left%run => cmd_python_indent_shift_left
-        commands%python_indent_shift_right%run => cmd_python_indent_shift_right
-        commands%python_mark_definition%run => cmd_python_mark_definition
-        commands%python_nav_end_of_definition%run => cmd_python_nav_end_of_definition
-        commands%python_nav_backward_definition%run => cmd_python_nav_backward_definition
-        commands%python_nav_forward_definition%run => cmd_python_nav_forward_definition
-        commands%python_nav_beginning_of_statement%run => cmd_python_nav_beginning_of_statement
-        commands%python_nav_end_of_statement%run => cmd_python_nav_end_of_statement
-        commands%python_nav_backward_statement%run => cmd_python_nav_backward_statement
-        commands%python_nav_forward_statement%run => cmd_python_nav_forward_statement
-        commands%python_nav_beginning_of_block%run => cmd_python_nav_beginning_of_block
-        commands%python_nav_end_of_block%run => cmd_python_nav_end_of_block
-        commands%python_nav_backward_block%run => cmd_python_nav_backward_block
-        commands%python_nav_forward_block%run => cmd_python_nav_forward_block
-        commands%python_nav_forward_expression%run => cmd_python_nav_forward_expression
-        commands%python_nav_backward_expression%run => cmd_python_nav_backward_expression
-        commands%python_nav_forward_expression_safe%run => cmd_python_nav_forward_expression_safe
-        commands%python_nav_backward_expression_safe%run => cmd_python_nav_backward_expression_safe
-        commands%python_nav_up_group%run => cmd_python_nav_up_group
-        commands%python_nav_backward_up_group%run => cmd_python_nav_backward_up_group
-        commands%python_nav_if_name_main%run => cmd_python_nav_if_name_main
-        commands%python_fill_paragraph%run => cmd_python_fill_paragraph
+        commands%python_base_mode%execute => python_base_mode
+        commands%python_mode%execute => python_mode
+        commands%python_indent_guess_indent_offset%execute => cmd_python_indent_guess_indent_offset
+        commands%python_indent_dedent_line%execute => cmd_python_indent_dedent_line
+        commands%python_indent_dedent_line_backspace%execute => cmd_python_indent_dedent_line_backspace
+        commands%python_indent_shift_left%execute => cmd_python_indent_shift_left
+        commands%python_indent_shift_right%execute => cmd_python_indent_shift_right
+        commands%python_mark_definition%execute => cmd_python_mark_definition
+        commands%python_nav_end_of_definition%execute => cmd_python_nav_end_of_definition
+        commands%python_nav_backward_definition%execute => cmd_python_nav_backward_definition
+        commands%python_nav_forward_definition%execute => cmd_python_nav_forward_definition
+        commands%python_nav_beginning_of_statement%execute => cmd_python_nav_beginning_of_statement
+        commands%python_nav_end_of_statement%execute => cmd_python_nav_end_of_statement
+        commands%python_nav_backward_statement%execute => cmd_python_nav_backward_statement
+        commands%python_nav_forward_statement%execute => cmd_python_nav_forward_statement
+        commands%python_nav_beginning_of_block%execute => cmd_python_nav_beginning_of_block
+        commands%python_nav_end_of_block%execute => cmd_python_nav_end_of_block
+        commands%python_nav_backward_block%execute => cmd_python_nav_backward_block
+        commands%python_nav_forward_block%execute => cmd_python_nav_forward_block
+        commands%python_nav_forward_expression%execute => cmd_python_nav_forward_expression
+        commands%python_nav_backward_expression%execute => cmd_python_nav_backward_expression
+        commands%python_nav_forward_expression_safe%execute => cmd_python_nav_forward_expression_safe
+        commands%python_nav_backward_expression_safe%execute => cmd_python_nav_backward_expression_safe
+        commands%python_nav_up_group%execute => cmd_python_nav_up_group
+        commands%python_nav_backward_up_group%execute => cmd_python_nav_backward_up_group
+        commands%python_nav_if_name_main%execute => cmd_python_nav_if_name_main
+        commands%python_fill_paragraph%execute => cmd_python_fill_paragraph
         call set_repeat_map(python_indent_repeat_map)
     end subroutine syms_of_python
 

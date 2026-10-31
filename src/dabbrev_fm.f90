@@ -67,7 +67,7 @@ module dabbrev_fm
                                 completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_fm, only: try_completion, all_completions, test_completion
     use eval_fm, only: capf_entry_type
-    use minibuffer_fm, only: completion_at_point_run
+    use minibuffer_fm, only: execute_completion_at_point
     implicit none(type, external)
     private
 
@@ -1625,7 +1625,7 @@ contains
         ! Set it so `dabbrev_capf' won't reset the vars.
         call copy_marker_at(point(), last_abbrev_location, .false., status)
         fns(1)%fn => dabbrev_capf
-        call completion_at_point_run(res, status, fns)
+        call execute_completion_at_point(res, status, fns)
         if (.not. status%ok()) return
 
         if (.not. res) then
@@ -1799,8 +1799,8 @@ contains
     !> Register `dabbrev_expand' and give the list settings their
     !> defaults.  Not a port.
     subroutine syms_of_dabbrev()
-        commands%dabbrev_expand%run => cmd_dabbrev_expand
-        commands%dabbrev_completion%run => cmd_dabbrev_completion
+        commands%dabbrev_expand%execute => cmd_dabbrev_expand
+        commands%dabbrev_completion%execute => cmd_dabbrev_completion
         call forward_setting(dabbrev_abbrev_skip_leading_regexp)
 
         if (.not. allocated(dabbrev_ignored_buffer_names)) then

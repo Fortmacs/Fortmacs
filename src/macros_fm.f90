@@ -154,7 +154,7 @@ contains
     call store_kbd_macro_char(event)
     end procedure store_kbd_macro_event
 
-    module procedure call_last_kbd_macro
+    module procedure execute_last_kbd_macro
     type(value_type), allocatable :: macro(:)
 
     status = status_type()
@@ -184,7 +184,7 @@ contains
     ! last command within the macro so that it can be last, again, after
     ! we return.
     this_command = last_command
-    end procedure call_last_kbd_macro
+    end procedure execute_last_kbd_macro
 
     module procedure execute_kbd_macro_value
     type(value_type), allocatable :: final(:)
@@ -303,7 +303,7 @@ contains
         if (allocated(macro_events)) deallocate (macro_events)
         if (allocated(saved_events)) call move_alloc(saved_events, macro_events)
         real_this_command = saved_real_this_command
-        call kbd_macro_termination_hook%run(hook_status)
+        call kbd_macro_termination_hook%execute(hook_status)
         if (status%ok() .and. .not. hook_status%ok()) status = hook_status
     end subroutine execute_events
 
@@ -325,7 +325,7 @@ contains
 
     !> Finish defining a keyboard macro.
     !> The definition was started by \[start_kbd_macro].
-    !> The macro is now available for use via \[call_last_kbd_macro].
+    !> The macro is now available for use via \[execute_last_kbd_macro].
     !>
     !> With numeric arg, repeat macro now that many times,
     !> counting the definition just completed as the first repetition.
@@ -341,15 +341,15 @@ contains
     !>
     !> A prefix argument serves as a repeat count.  Zero means repeat until
     !> error.  Port of macros.c:Fcall_last_kbd_macro (the command, "p").
-    recursive subroutine cmd_call_last_kbd_macro(status)
+    recursive subroutine cmd_execute_last_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call call_last_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
-    end subroutine cmd_call_last_kbd_macro
+        call execute_last_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
+    end subroutine cmd_execute_last_kbd_macro
 
     module procedure syms_of_macros
-    commands%start_kbd_macro%run => cmd_start_kbd_macro
-    commands%end_kbd_macro%run => cmd_end_kbd_macro
-    commands%call_last_kbd_macro%run => cmd_call_last_kbd_macro
+    commands%start_kbd_macro%execute => cmd_start_kbd_macro
+    commands%end_kbd_macro%execute => cmd_end_kbd_macro
+    commands%execute_last_kbd_macro%execute => cmd_execute_last_kbd_macro
     end procedure syms_of_macros
 end submodule macros_fm

@@ -47,7 +47,7 @@ module textprop_fm
     use buffer_fm, only: buffers, cur, BEG, inhibit_read_only, temp_set_point_both, set_buffer_internal
     use marker_fm, only: buf_charpos_to_bytepos
     use handle_fm, only: handle_type, null_handle
-    use eval_fm, only: call_property_function
+    use eval_fm, only: execute_property_function
     use itree_fm, only: overlays_at, overlay_get_prop, next_overlay_change, previous_overlay_change, overlays_in, &
                         overlay_start, overlay_end, overlay_advance, overlay_priority, compare_overlays, buffer_has_overlays
     use intervals_fm, only: create_root_interval, find_interval, interval_end, intervals_equal, &
@@ -1381,7 +1381,7 @@ contains
 
     !> Run each function of LIST with START and END.  Port of
     !> textprop.c:call_mod_hooks.
-    recursive subroutine call_mod_hooks(list, start, end, status)
+    recursive subroutine execute_mod_hooks(list, start, end, status)
         type(value_type), intent(in) :: list
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -1393,10 +1393,10 @@ contains
         call list_elements(list, fns)
 
         do k = 1, size(fns)
-            call call_property_function(fns(k), start, end, status)
+            call execute_property_function(fns(k), start, end, status)
             if (.not. status%ok()) return
         end do
-    end subroutine call_mod_hooks
+    end subroutine execute_mod_hooks
 
     !> Check for read-only intervals between character positions START ...
     !> END, in the current buffer, and an error condition occurs if we find one.
@@ -1580,7 +1580,7 @@ contains
 
             if (.not. inhibit_modification_hooks%value) then
                 do j = 1, nhooks
-                    call call_mod_hooks(hooks(j), start, end, status)
+                    call execute_mod_hooks(hooks(j), start, end, status)
                     if (.not. status%ok()) return
                 end do
             end if
@@ -1603,12 +1603,12 @@ contains
         in_front = interval_insert_in_front_hooks
 
         if (allocated(behind%a)) then
-            call call_mod_hooks(behind, start, end, status)
+            call execute_mod_hooks(behind, start, end, status)
             if (.not. status%ok()) return
         end if
 
         if (allocated(in_front%a) .and. .not. value_eq(in_front, behind)) then
-            call call_mod_hooks(in_front, start, end, status)
+            call execute_mod_hooks(in_front, start, end, status)
         end if
     end subroutine report_interval_modification
 
@@ -2328,13 +2328,13 @@ contains
         leave_after = run_prop(from, "point_left")
         enter_before = run_prop(toprev, "point_entered")
         enter_after = run_prop(to, "point_entered")
-        call run_point_hook(leave_before, enter_before)
+        call execute_point_hook(leave_before, enter_before)
         if (.not. status%ok()) return
-        call run_point_hook(leave_after, enter_after)
+        call execute_point_hook(leave_after, enter_after)
         if (.not. status%ok()) return
-        call run_point_hook(enter_before, leave_before)
+        call execute_point_hook(enter_before, leave_before)
         if (.not. status%ok()) return
-        call run_point_hook(enter_after, leave_after)
+        call execute_point_hook(enter_after, leave_after)
 
     contains
 
@@ -2408,12 +2408,12 @@ contains
             v = textget(buffers(cur)%text%intervals%runs(k)%plist, qsym(name))
         end function run_prop
 
-        recursive subroutine run_point_hook(fn, other)
+        recursive subroutine execute_point_hook(fn, other)
             type(value_type), intent(in) :: fn, other
 
             if (value_eq(fn, other) .or. .not. allocated(fn%a)) return
-            call call_property_function(fn, old_position, charpos, status)
-        end subroutine run_point_hook
+            call execute_property_function(fn, old_position, charpos, status)
+        end subroutine execute_point_hook
     end subroutine set_point_both
 
     !> Move point to POSITION, unless POSITION is inside an intangible

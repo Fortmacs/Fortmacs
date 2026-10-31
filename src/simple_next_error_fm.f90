@@ -295,7 +295,7 @@ contains
 
     ! (next-error-recenter, next-error-found-function and the message
     ! highlight are Deferred.)
-    call next_error_hook%run(status)
+    call next_error_hook%execute(status)
     end procedure next_error_found
 
     !> The command: with C-u, start at the first error.  The interactive
@@ -375,10 +375,10 @@ contains
 
     module procedure syms_of_simple_next_error
     call add_local_variables_killer(kill_next_error_locals)
-    commands%next_error%run => cmd_next_error
-    commands%previous_error%run => previous_error
-    commands%first_error%run => first_error
-    commands%next_error_no_select%run => next_error_no_select
-    commands%previous_error_no_select%run => previous_error_no_select
+    commands%next_error%execute => cmd_next_error
+    commands%previous_error%execute => previous_error
+    commands%first_error%execute => first_error
+    commands%next_error_no_select%execute => next_error_no_select
+    commands%previous_error_no_select%execute => previous_error_no_select
     end procedure syms_of_simple_next_error
 end submodule simple_next_error_fm

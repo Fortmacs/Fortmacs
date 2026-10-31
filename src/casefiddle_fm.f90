@@ -855,12 +855,12 @@ contains
 
     !> Register the commands.  Port of casefiddle.c:syms_of_casefiddle.
     subroutine syms_of_casefiddle()
-        commands%upcase_word%run => cmd_upcase_word
-        commands%downcase_word%run => cmd_downcase_word
-        commands%capitalize_word%run => cmd_capitalize_word
-        commands%upcase_region%run => cmd_upcase_region
-        commands%downcase_region%run => cmd_downcase_region
-        commands%capitalize_region%run => cmd_capitalize_region
-        commands%upcase_initials_region%run => cmd_upcase_initials_region
+        commands%upcase_word%execute => cmd_upcase_word
+        commands%downcase_word%execute => cmd_downcase_word
+        commands%capitalize_word%execute => cmd_capitalize_word
+        commands%upcase_region%execute => cmd_upcase_region
+        commands%downcase_region%execute => cmd_downcase_region
+        commands%capitalize_region%execute => cmd_capitalize_region
+        commands%upcase_initials_region%execute => cmd_upcase_initials_region
     end subroutine syms_of_casefiddle
 end module casefiddle_fm

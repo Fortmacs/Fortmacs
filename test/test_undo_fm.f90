@@ -34,7 +34,7 @@ module test_undo_fm
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, delete_region
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_command, this_command
-    use callint_fm, only: prefix_arg, call_interactively
+    use callint_fm, only: prefix_arg, execute_interactively
     use bindings_fm, only: init_bindings
     use undo_fm, only: undo_boundary
     use simple_fm, only: undo, undo_more, undo_only, undo_redo
@@ -87,7 +87,7 @@ contains
             last_command = this_command
             this_command = value_type(name=trim(cmds(k)))
             prefix_arg = value_type()
-            call call_interactively(value_type(name=trim(cmds(k))), st)
+            call execute_interactively(value_type(name=trim(cmds(k))), st)
             call undo_boundary()
         end do
     end subroutine exec

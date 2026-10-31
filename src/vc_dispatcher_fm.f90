@@ -50,7 +50,7 @@ module vc_dispatcher_fm
     use search_fm, only: search_forward, SEARCH_NOERROR
     use fileio_fm, only: expand_file_name, is_file_name_absolute, file_exists, is_file_directory
     use files_fm, only: file_relative_name, revert_buffer, save_buffer
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use process_fm, only: make_process, process_arg_type, get_buffer_process, delete_process, process_status, &
                           process_exit_status, process_buffer, process_mark, set_process_filter, &
                           set_process_sentinel, accept_process_output, PROCESS_CONNECTION_PIPE
@@ -68,7 +68,7 @@ module vc_dispatcher_fm
     public :: vc_action_type, vc_action_proc, vc_do_command, vc_setup_buffer, vc_exec_after, vc_process_filter, &
               vc_delistify, vc_resynch_window, vc_resynch_buffer, vc_resynch_buffers_in_directory, vc_buffer_sync, &
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
-              vc_mode_line_hook_run, syms_of_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
+              vc_mode_line_hook_execute, syms_of_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
               set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, &
               vc_set_mode_line_busy_indicator
@@ -115,7 +115,7 @@ module vc_dispatcher_fm
     !> buffers and strings it captured, and OKSTATUS (a maximum exit
     !> status, or VC_OKSTATUS_UNLESS_SIGNAL for none).
     type :: vc_action_type
-        procedure(vc_action_proc), pointer, nopass :: run => null()
+        procedure(vc_action_proc), pointer, nopass :: execute => null()
         type(handle_type) :: buffer, buffer2
         character(len=:), allocatable :: s1, s2
         type(vc_string_type), allocatable :: files(:)
@@ -177,7 +177,7 @@ module vc_dispatcher_fm
     !> operation itself and so what it captured (a BACKEND, a revision
     !> REV, a PATCH_STRING, files to REGISTER), and FILES and COMMENT.
     type, public :: vc_log_operation_type
-        procedure(vc_log_operation_proc), pointer, nopass :: run => null()
+        procedure(vc_log_operation_proc), pointer, nopass :: execute => null()
         integer :: backend = 0
         character(len=:), allocatable :: rev, patch_string
         type(vc_string_type), allocatable :: register(:)
@@ -631,7 +631,7 @@ contains
 
         if (p%index == 0) then
             ! If there's no background process, just execute the code.
-            call run_action(action, p, status)
+            call execute_action(action, p, status)
             return
         end if
 
@@ -641,7 +641,7 @@ contains
             ! Nonblocking call in case we are ourselves called from a
             ! process sentinel.
             call accept_process_output(got, st, p, 0.0)
-            call run_action(action, p, status)
+            call execute_action(action, p, status)
         else if (pstatus == "run") then
             buf = process_buffer(p)
             if (is_buffer_live(buf)) call in_buffer_busy(buf)
@@ -665,21 +665,21 @@ contains
 
     !> Run ACTION if its OKSTATUS allows the exit of process P (null for
     !> none).  Not a port.
-    recursive subroutine run_action(action, p, status)
+    recursive subroutine execute_action(action, p, status)
         type(vc_action_type), intent(in) :: action
         type(handle_type), intent(in) :: p
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. associated(action%run)) return
+        if (.not. associated(action%execute)) return
 
         if (action%okstatus /= VC_OKSTATUS_UNLESS_SIGNAL .and. p%index /= 0) then
             if (process_status(p) /= "exit") return
             if (action%okstatus < process_exit_status(p)) return
         end if
 
-        call action%run(action, status)
-    end subroutine run_action
+        call action%execute(action, status)
+    end subroutine execute_action
 
     !> Add ACTION to those run when process P is done.  Not a port.
     subroutine queue_action(p, action)
@@ -759,7 +759,7 @@ contains
             call goto_char(mpos)
             ! Each sentinel may move point and the next one should be run
             ! from that new position.
-            call run_action(actions(j), proc, status)
+            call execute_action(actions(j), proc, status)
             if (.not. is_buffer_live(buf)) exit
             call set_buffer(buf, st)
             call set_marker(m, point(), st)
@@ -971,12 +971,12 @@ contains
             dest = value_type(.true.)
 
             if (.not. to_buffer) then
-                call call_process(cmd, result, status, args=make_list(argv), environment=make_list(envv))
+                call execute_process(cmd, result, status, args=make_list(argv), environment=make_list(envv))
             else if (mix) then
-                call call_process(cmd, result, status, destination=dest, args=make_list(argv), &
+                call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
                                   environment=make_list(envv))
             else
-                call call_process(cmd, result, status, destination=dest, args=make_list(argv), &
+                call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
                                   error_file="/dev/null", environment=make_list(envv))
             end if
 
@@ -1174,11 +1174,11 @@ contains
     end subroutine set_mark_at
 
     !> Run `vc_mode_line_hook' with FILE.  Not a port.
-    subroutine vc_mode_line_hook_run(file)
+    subroutine vc_mode_line_hook_execute(file)
         character(len=*), intent(in) :: file
 
         if (associated(vc_mode_line_hook)) call vc_mode_line_hook(file)
-    end subroutine vc_mode_line_hook_run
+    end subroutine vc_mode_line_hook_execute
 
     !> The name FILE is visited under: itself if absolute, else expanded
     !> from ROOT.  Not a port.
@@ -1225,7 +1225,7 @@ contains
 
             call vc_revert_buffer_internal(status, .true., noquery)
             if (.not. status%ok()) return
-            call vc_mode_line_hook_run(buffers(cur)%filename)
+            call vc_mode_line_hook_execute(buffers(cur)%filename)
         end if
     end subroutine vc_resynch_window
 

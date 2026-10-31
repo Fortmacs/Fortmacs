@@ -25,7 +25,7 @@
 !> `emacs_main' sets up the *scratch* buffer, the key bindings and the
 !> terminal, runs the init file's `configure' (unless -q), visits the
 !> files named on the command line, then runs the command loop until
-!> C-x C-c, redisplaying whenever it waits for input.  `run' is the
+!> C-x C-c, redisplaying whenever it waits for input.  `execute_editor' is the
 !> program around it.
 module emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
@@ -63,7 +63,7 @@ module emacs_fm
     implicit none(type, external)
     private
 
-    public :: emacs_main, command_line, command_line_1, arg_type, init_proc, run, sort_args
+    public :: emacs_main, command_line, command_line_1, arg_type, init_proc, execute_editor, sort_args
     public :: load_init_file
 
     !> One command-line argument.
@@ -455,7 +455,7 @@ contains
             init = .true.
         end if
 
-        ! A reminder from `run`; errors from what follows replace it.
+        ! A reminder from `execute_editor`; errors from what follows replace it.
         if (allocated(startup_message)) then
             if (len(startup_message) > 0) call message(startup_message)
             startup_message = ""
@@ -488,7 +488,7 @@ contains
         ring_bell_hook => frame_ring_bell
         call command_loop(st)
         ! Fkill_emacs: run the hook.
-        call kill_emacs_hook%run(st)
+        call kill_emacs_hook%execute(st)
         ring_bell_hook => null()
         redisplay_hook => null()
         call delete_tty(selected_frame%tty, status)
@@ -815,13 +815,13 @@ contains
     end subroutine try_completion_list
 
     !> The program: handle --version, --help and --recompile, check for a
-    !> terminal, then run the editor with the user's `configure'.
+    !> terminal, then execute the editor with the user's `configure'.
     !> `exit_code' is the process's exit status (the main program stops
     !> with it).  An installed fortmacs runs the user's build instead, if
     !> there is an up-to-date one; a user build passes `prefix', the
     !> installation it was built against.  Port of the startup part of
     !> emacs.c:main.
-    subroutine run(configure, exit_code, prefix)
+    subroutine execute_editor(configure, exit_code, prefix)
         procedure(init_proc) :: configure
         integer, intent(out) :: exit_code
         character(len=*), intent(in), optional :: prefix
@@ -872,7 +872,7 @@ contains
         end if
 
         reminder = ""
-        if (.not. present(prefix) .and. installed) call run_user_build(args, reminder)
+        if (.not. present(prefix) .and. installed) call execute_user_build(args, reminder)
 
         if (present(prefix)) then
             if (is_file_newer_than_file(init_file_name(), running_executable())) then
@@ -941,7 +941,7 @@ contains
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             exit_code = 1
         end if
-    end subroutine run
+    end subroutine execute_editor
 
     !> `fortmacs --recompile': build the init file into the user's own
     !> fortmacs, reporting on standard output and error.  Not a port.
@@ -1039,7 +1039,7 @@ contains
     !> Replace this process with the user's build, if there is one and it
     !> is newer than this fortmacs; otherwise `reminder' says what to do.
     !> Returns only if the build is not run.  Not a port.
-    subroutine run_user_build(args, reminder)
+    subroutine execute_user_build(args, reminder)
         type(arg_type), intent(in) :: args(:)
         character(len=:), allocatable, intent(inout) :: reminder
         type(sys_string_type), allocatable :: argv(:)
@@ -1069,5 +1069,5 @@ contains
 
         err = emacs_execv(build, argv)
         reminder = "Can't run "//build//": "//emacs_strerror(err)
-    end subroutine run_user_build
+    end subroutine execute_user_build
 end module emacs_fm

@@ -423,16 +423,16 @@ contains
         if (.not. associated(uncomment_region_function)) uncomment_region_function => uncomment_region_default
         if (.not. associated(comment_quote_nested_function)) comment_quote_nested_function => comment_quote_nested_default
         comment_line_break_function => comment_line_break
-        commands%comment_indent%run => cmd_comment_indent
-        commands%comment_set_column%run => cmd_comment_set_column
-        commands%comment_kill%run => cmd_comment_kill
-        commands%uncomment_region%run => cmd_uncomment_region
-        commands%comment_region%run => cmd_comment_region
-        commands%comment_box%run => cmd_comment_box
-        commands%comment_or_uncomment_region%run => cmd_comment_or_uncomment_region
-        commands%comment_dwim%run => cmd_comment_dwim
-        commands%comment_indent_new_line%run => cmd_comment_indent_new_line
-        commands%comment_line%run => cmd_comment_line
+        commands%comment_indent%execute => cmd_comment_indent
+        commands%comment_set_column%execute => cmd_comment_set_column
+        commands%comment_kill%execute => cmd_comment_kill
+        commands%uncomment_region%execute => cmd_uncomment_region
+        commands%comment_region%execute => cmd_comment_region
+        commands%comment_box%execute => cmd_comment_box
+        commands%comment_or_uncomment_region%execute => cmd_comment_or_uncomment_region
+        commands%comment_dwim%execute => cmd_comment_dwim
+        commands%comment_indent_new_line%execute => cmd_comment_indent_new_line
+        commands%comment_line%execute => cmd_comment_line
     end subroutine syms_of_newcomment
 
     ! ------------------------------------------------------------------

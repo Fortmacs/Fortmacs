@@ -767,7 +767,7 @@ contains
             return
         end if
 
-        call tabulated_list_revert_hook%run(status)
+        call tabulated_list_revert_hook%execute(status)
         if (.not. status%ok()) return
         call tabulated_list_print(status, remember_pos=.true.)
     end subroutine tabulated_list_revert
@@ -1726,12 +1726,12 @@ contains
         call keymap_set(tabulated_list_mode_map, "S", "tabulated_list_sort", st)
         call keymap_set(tabulated_list_mode_map, "}", "tabulated_list_widen_current_column", st)
         call keymap_set(tabulated_list_mode_map, "{", "tabulated_list_narrow_current_column", st)
-        commands%tabulated_list_mode%run => tabulated_list_mode
-        commands%tabulated_list_revert%run => tabulated_list_revert
-        commands%tabulated_list_sort%run => cmd_tabulated_list_sort
-        commands%tabulated_list_widen_current_column%run => cmd_tabulated_list_widen_current_column
-        commands%tabulated_list_narrow_current_column%run => cmd_tabulated_list_narrow_current_column
-        commands%tabulated_list_next_column%run => cmd_tabulated_list_next_column
-        commands%tabulated_list_previous_column%run => cmd_tabulated_list_previous_column
+        commands%tabulated_list_mode%execute => tabulated_list_mode
+        commands%tabulated_list_revert%execute => tabulated_list_revert
+        commands%tabulated_list_sort%execute => cmd_tabulated_list_sort
+        commands%tabulated_list_widen_current_column%execute => cmd_tabulated_list_widen_current_column
+        commands%tabulated_list_narrow_current_column%execute => cmd_tabulated_list_narrow_current_column
+        commands%tabulated_list_next_column%execute => cmd_tabulated_list_next_column
+        commands%tabulated_list_previous_column%execute => cmd_tabulated_list_previous_column
     end subroutine syms_of_tabulated_list
 end module tabulated_list_fm

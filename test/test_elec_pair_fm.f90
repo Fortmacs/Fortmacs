@@ -41,7 +41,7 @@ module test_elec_pair_fm
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, transient_mark_mode
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max, buffer_string
-    use callint_fm, only: call_interactively, current_prefix_arg
+    use callint_fm, only: execute_interactively, current_prefix_arg
     use keyboard_fm, only: last_command_event
     use cmds_fm, only: delete_char, forward_char
     use simple_fm, only: fundamental_mode, blink_paren_function, newline, undo, deactivate_mark
@@ -167,7 +167,7 @@ contains
         call fixture_fn()
         call bindings(.true.)
         if (present(prefix)) current_prefix_arg = value_type(prefix)
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         current_prefix_arg = value_type()
         call bindings(.false.)
         call minor_modes%electric_pair_mode%disable(st)
@@ -584,7 +584,7 @@ contains
         call minor_modes%electric_pair_local_mode%enable(st)
         call insert("/", st)
         last_command_event = value_type(int(iachar("*"), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), expected)
         call move_alloc(saved, electric_pair_pairs)
         call minor_modes%electric_pair_local_mode%disable(st)
@@ -632,14 +632,14 @@ contains
         call temp_buffer(h, "")
         call minor_modes%electric_pair_local_mode%enable(st)
         last_command_event = value_type(int(iachar("("), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call undo_boundary()
         last_command_event = value_type(int(iachar("a"), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call undo_boundary()
         call undo(value_type(), st)
         last_command_event = value_type(int(iachar("("), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "(())")
         call minor_modes%electric_pair_local_mode%disable(st)
         call kill_buffer(h, st)
@@ -682,11 +682,11 @@ contains
                    .not. minor_modes%electric_pair_mode%enabled(), "locally on, globally off")
         if (allocated(error)) return
         last_command_event = value_type(int(iachar("("), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "()")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "(")
         if (allocated(error)) return
         call set_buffer(a, st)

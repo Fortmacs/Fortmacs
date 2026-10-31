@@ -30,7 +30,7 @@ module test_timer_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
-    use timer_fm, only: run_with_idle_timer, run_with_timer, run_at_time, cancel_timer, free_timer, is_timer, &
+    use timer_fm, only: execute_with_idle_timer, execute_with_timer, execute_at_time, cancel_timer, free_timer, is_timer, &
                         timer_check, timer_start_idle, timer_stop_idle, is_timer_active, is_timer_triggered, &
                         cancel_function_timers, current_idle_time
     use keyboard_fm, only: read_event, set_input_fd, sit_for, discard_input, last_message
@@ -168,8 +168,8 @@ contains
         call pty_open(old, ok)
         call check(error, ok, "pty")
         if (allocated(error)) return
-        call run_with_idle_timer(idle, 0.05_real64, .false., write_x, st)
-        call check(error, st%ok() .and. is_timer_active(idle), "run_with_idle_timer")
+        call execute_with_idle_timer(idle, 0.05_real64, .false., write_x, st)
+        call check(error, st%ok() .and. is_timer_active(idle), "execute_with_idle_timer")
         if (allocated(error)) return
         ! Not idle: idle timers are not considered.
         call check(error, timer_check() == -1, "no timer before idle")
@@ -180,7 +180,7 @@ contains
         call check(error, ms >= 1 .and. ms <= 50 .and. idle_p, "wait for the idle timer")
         call timer_stop_idle()
         if (allocated(error)) return
-        call run_with_timer(fallback, 5.0_real64, write_z, st)
+        call execute_with_timer(fallback, 5.0_real64, write_z, st)
         call check(error, next_char() == iachar("x"), "the idle timer ended the wait")
         if (allocated(error)) return
         call check(error, is_timer_triggered(idle) .and. .not. is_timer_active(idle), "a one-shot timer is done")
@@ -204,15 +204,15 @@ contains
         call check(error, ok, "pty")
         if (allocated(error)) return
         calls = 0
-        call run_with_idle_timer(idle, 0.01_real64, .true., count_call, st)
-        call run_with_timer(ordinary, 0.15_real64, write_y, st)
-        call run_with_timer(fallback, 5.0_real64, write_z, st)
+        call execute_with_idle_timer(idle, 0.01_real64, .true., count_call, st)
+        call execute_with_timer(ordinary, 0.15_real64, write_y, st)
+        call execute_with_timer(fallback, 5.0_real64, write_z, st)
         call check(error, next_char() == iachar("y"), "first wait")
         if (allocated(error)) return
         call check(error, calls == 1 .and. is_timer_active(idle), "once in the first idle period")
         if (allocated(error)) return
         call free_timer(ordinary)
-        call run_with_timer(ordinary, 0.1_real64, write_y, st)
+        call execute_with_timer(ordinary, 0.1_real64, write_y, st)
         call check(error, next_char() == iachar("y"), "second wait")
         if (allocated(error)) return
         call check(error, calls == 2, "once more in the second idle period")
@@ -235,8 +235,8 @@ contains
         call check(error, ok, "pty")
         if (allocated(error)) return
         calls = 0
-        call run_with_timer(ordinary, 0.02_real64, count_call, st)
-        call run_with_idle_timer(idle, 0.01_real64, .false., count_call, st)
+        call execute_with_timer(ordinary, 0.02_real64, count_call, st)
+        call execute_with_idle_timer(idle, 0.01_real64, .false., count_call, st)
         call sit_for(150_int32)
         call check(error, calls == 1 .and. is_timer_triggered(ordinary) .and. is_timer_active(idle), &
                    "the ordinary timer ran, the idle one waits")
@@ -252,7 +252,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
 
-        call run_with_timer(a, 100.0_real64, count_call, st)
+        call execute_with_timer(a, 100.0_real64, count_call, st)
         call check(error, is_timer_active(a) .and. timer_check() > 0, "active")
         if (allocated(error)) return
         call cancel_timer(a)
@@ -261,8 +261,8 @@ contains
         call free_timer(a)
         call check(error,.not. is_timer(a), "freed")
         if (allocated(error)) return
-        call run_with_timer(a, 100.0_real64, count_call, st)
-        call run_with_idle_timer(b, 100.0_real64, .true., count_call, st)
+        call execute_with_timer(a, 100.0_real64, count_call, st)
+        call execute_with_idle_timer(b, 100.0_real64, .true., count_call, st)
         call cancel_function_timers(count_call)
         call check(error,.not. is_timer_active(a) .and. .not. is_timer_active(b), "cancel_function_timers")
         if (allocated(error)) return
@@ -283,14 +283,14 @@ contains
         call pty_open(old, ok)
         call check(error, ok, "pty")
         if (allocated(error)) return
-        call run_with_timer(a, 0.01_real64, fail_call, st)
-        call run_with_timer(fallback, 5.0_real64, write_z, st)
+        call execute_with_timer(a, 0.01_real64, fail_call, st)
+        call execute_with_timer(fallback, 5.0_real64, write_z, st)
         call check(error, next_char() == iachar("x"), "the failing timer ran")
         if (allocated(error)) return
         ! Reading the key wiped the echo area; a failing timer that types
         ! nothing leaves its message.
         call free_timer(a)
-        call run_with_timer(a, 0.01_real64, fail_quiet, st)
+        call execute_with_timer(a, 0.01_real64, fail_quiet, st)
         call check(error, read_nothing(0.2), "no input")
         if (allocated(error)) return
         call check(error, last_message, "Error running timer: boom")
@@ -305,7 +305,7 @@ contains
         type(handle_type) :: a
         type(status_type) :: st
 
-        call run_at_time(a, 1.0_real64, count_call, st, repeat=-1.0_real64)
+        call execute_at_time(a, 1.0_real64, count_call, st, repeat=-1.0_real64)
         call check(error,.not. st%ok() .and. .not. is_timer(a), "Invalid repetition interval")
     end subroutine test_invalid_repeat
 end module test_timer_fm

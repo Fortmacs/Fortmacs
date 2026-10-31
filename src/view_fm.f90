@@ -1531,33 +1531,33 @@ contains
         view_mode_map = minor_modes%view_mode%map
         call register_keymap_name("view_mode_map", view_mode_map)
         call add_local_variables_killer(kill_view_locals)
-        commands%view_mode%run => view_mode
-        commands%view_file%run => cmd_view_file
-        commands%view_file_other_window%run => cmd_view_file_other_window
-        commands%view_buffer%run => cmd_view_buffer
-        commands%view_buffer_other_window%run => cmd_view_buffer_other_window
-        commands%view_exit%run => view_exit
-        commands%view_exit_and_edit%run => view_exit_and_edit
-        commands%view_leave%run => view_leave
-        commands%view_quit%run => view_quit
-        commands%view_quit_all%run => view_quit_all
-        commands%view_kill_and_leave%run => view_kill_and_leave
-        commands%view_goto_percent%run => view_goto_percent
-        commands%view_goto_line%run => view_goto_line
-        commands%view_back_to_mark%run => view_back_to_mark
-        commands%view_scroll_to_buffer_end%run => view_scroll_to_buffer_end
-        commands%view_scroll_page_forward%run => view_scroll_page_forward
-        commands%view_scroll_page_backward%run => view_scroll_page_backward
-        commands%view_scroll_page_forward_set_page_size%run => view_scroll_page_forward_set_page_size
-        commands%view_scroll_page_backward_set_page_size%run => view_scroll_page_backward_set_page_size
-        commands%view_scroll_line_forward%run => view_scroll_line_forward
-        commands%view_scroll_line_backward%run => view_scroll_line_backward
-        commands%view_scroll_half_page_forward%run => view_scroll_half_page_forward
-        commands%view_scroll_half_page_backward%run => view_scroll_half_page_backward
-        commands%view_search_regexp_forward%run => view_search_regexp_forward
-        commands%view_search_regexp_backward%run => view_search_regexp_backward
-        commands%view_search_last_regexp_forward%run => view_search_last_regexp_forward
-        commands%view_search_last_regexp_backward%run => view_search_last_regexp_backward
+        commands%view_mode%execute => view_mode
+        commands%view_file%execute => cmd_view_file
+        commands%view_file_other_window%execute => cmd_view_file_other_window
+        commands%view_buffer%execute => cmd_view_buffer
+        commands%view_buffer_other_window%execute => cmd_view_buffer_other_window
+        commands%view_exit%execute => view_exit
+        commands%view_exit_and_edit%execute => view_exit_and_edit
+        commands%view_leave%execute => view_leave
+        commands%view_quit%execute => view_quit
+        commands%view_quit_all%execute => view_quit_all
+        commands%view_kill_and_leave%execute => view_kill_and_leave
+        commands%view_goto_percent%execute => view_goto_percent
+        commands%view_goto_line%execute => view_goto_line
+        commands%view_back_to_mark%execute => view_back_to_mark
+        commands%view_scroll_to_buffer_end%execute => view_scroll_to_buffer_end
+        commands%view_scroll_page_forward%execute => view_scroll_page_forward
+        commands%view_scroll_page_backward%execute => view_scroll_page_backward
+        commands%view_scroll_page_forward_set_page_size%execute => view_scroll_page_forward_set_page_size
+        commands%view_scroll_page_backward_set_page_size%execute => view_scroll_page_backward_set_page_size
+        commands%view_scroll_line_forward%execute => view_scroll_line_forward
+        commands%view_scroll_line_backward%execute => view_scroll_line_backward
+        commands%view_scroll_half_page_forward%execute => view_scroll_half_page_forward
+        commands%view_scroll_half_page_backward%execute => view_scroll_half_page_backward
+        commands%view_search_regexp_forward%execute => view_search_regexp_forward
+        commands%view_search_regexp_backward%execute => view_search_regexp_backward
+        commands%view_search_last_regexp_forward%execute => view_search_last_regexp_forward
+        commands%view_search_last_regexp_backward%execute => view_search_last_regexp_backward
         call keymap_set(view_mode_map, "C", "view_kill_and_leave", st)
         call keymap_set(view_mode_map, "c", "view_leave", st)
         call keymap_set(view_mode_map, "Q", "view_quit_all", st)

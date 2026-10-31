@@ -92,7 +92,7 @@ module dired_mode_fm
                         revert_buffer_function, find_directory_functions, find_file_run_dired, &
                         temporary_file_directory, dired_ls_error_buffer, dired_ls_error_file, make_directory, &
                         directory_listing_before_filename_regexp
-    use callproc_fm, only: call_process, shell_file_name, init_callproc
+    use callproc_fm, only: execute_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files, completion_ignored_extensions
     use window_fm, only: windows, window_leaves, is_window_live, pop_to_buffer_same_window, &
                          switch_to_buffer_other_window, display_buffer, fit_window_to_buffer, select_window, &
@@ -1770,12 +1770,12 @@ contains
     end function dired_plural_s
 
     !> Run hook HOOK, ignoring its status.  Not a port.
-    subroutine run_hook_quietly(hook)
+    subroutine execute_hook_quietly(hook)
         type(hook_type), intent(inout) :: hook
         type(status_type) :: st
 
-        call hook%run(st)
-    end subroutine run_hook_quietly
+        call hook%execute(st)
+    end subroutine execute_hook_quietly
 
     ! ------------------------------------------------------------------
     ! Switches
@@ -1819,7 +1819,7 @@ contains
         type(value_type) :: result
         type(status_type) :: st
 
-        call call_process(insert_directory_program, result, st, args=list(value_type(text="--dired"), value_type(text="-N")))
+        call execute_process(insert_directory_program, result, st, args=list(value_type(text="--dired"), value_type(text="-N")))
         dired_check_use_ls_dired = .false.
         if (st%ok() .and. vtag(result) == V_INTEGER) dired_check_use_ls_dired = xfixnum(result) == 0
     end function dired_check_use_ls_dired
@@ -1887,7 +1887,7 @@ contains
             had_dir = allocated(buffers(cur)%directory)
             if (had_dir) saved_dir = buffers(cur)%directory
             buffers(cur)%directory = dw_dir
-            call call_process(shell_name(), result, status, destination=value_type(.true.), &
+            call execute_process(shell_name(), result, status, destination=value_type(.true.), &
                               args=list(value_type(text="-c"), value_type(text=script)))
 
             if (had_dir) then
@@ -2344,7 +2344,7 @@ contains
         opoint = point()
         ! This hook which may want to modify dired-actual-switches based on
         ! dired-directory.
-        call dired_before_readin_hook%run(status)
+        call dired_before_readin_hook%execute(status)
         if (.not. status%ok()) return
         if (buffers(cur)%undo_enabled) buffers(cur)%undo_count = 0
         call widen()
@@ -2376,7 +2376,7 @@ contains
         call goto_char(point_min())
         ! The hook can successfully use dired functions (e.g.
         ! dired-get-filename) as the subdir-alist has been built.
-        if (after) call dired_after_readin_hook%run(status)
+        if (after) call dired_after_readin_hook%execute(status)
     end subroutine dired_readin
 
     !> Insert listing for the specified dir already in dired-directory,
@@ -3585,7 +3585,7 @@ contains
 
         call end_of_line()
         if (allocated(dired_trivial_filenames)) call dired_goto_next_nontrivial_file()
-        call run_hook_quietly(dired_initial_position_hook)
+        call execute_hook_quietly(dired_initial_position_hook)
         if (len(dirname) < 0) return
     end subroutine dired_initial_position
 
@@ -3757,7 +3757,7 @@ contains
             call dired_mark_remembered(mark_files, mark_chars)
             ! ... run the hook for the whole buffer, and only after markers
             ! have been reinserted.
-            call dired_after_readin_hook%run(status)
+            call dired_after_readin_hook%execute(status)
             call dired_restore_positions(positions)
             if (.not. modflag) call restore_buffer_modified(.false.)
         end if
@@ -7321,50 +7321,50 @@ contains
         call add_local_variables_killer(kill_dired_locals)
         find_directory_functions => dired_noselect_dir
         ! Commands.
-        commands%dired%run => cmd_dired
-        commands%dired_other_window%run => cmd_dired_other_window
-        commands%dired_mode%run => dired_mode_cmd
+        commands%dired%execute => cmd_dired
+        commands%dired_other_window%execute => cmd_dired_other_window
+        commands%dired_mode%execute => dired_mode_cmd
         commands%dired_mode%is_command = .false.
-        commands%dired_next_line%run => cmd_dired_next_line
-        commands%dired_previous_line%run => cmd_dired_previous_line
-        commands%dired_next_dirline%run => cmd_dired_next_dirline
-        commands%dired_prev_dirline%run => cmd_dired_prev_dirline
-        commands%dired_next_subdir%run => cmd_dired_next_subdir
-        commands%dired_prev_subdir%run => cmd_dired_prev_subdir
-        commands%dired_up_directory%run => cmd_dired_up_directory
-        commands%dired_find_file%run => cmd_dired_find_file
+        commands%dired_next_line%execute => cmd_dired_next_line
+        commands%dired_previous_line%execute => cmd_dired_previous_line
+        commands%dired_next_dirline%execute => cmd_dired_next_dirline
+        commands%dired_prev_dirline%execute => cmd_dired_prev_dirline
+        commands%dired_next_subdir%execute => cmd_dired_next_subdir
+        commands%dired_prev_subdir%execute => cmd_dired_prev_subdir
+        commands%dired_up_directory%execute => cmd_dired_up_directory
+        commands%dired_find_file%execute => cmd_dired_find_file
         commands%dired_find_file%advertised_binding = "RET"
-        commands%dired_find_file_other_window%run => cmd_dired_find_file_other_window
-        commands%dired_display_file%run => cmd_dired_display_file
-        commands%dired_goto_file%run => cmd_dired_goto_file
-        commands%dired_mark%run => cmd_dired_mark
-        commands%dired_unmark%run => cmd_dired_unmark
-        commands%dired_flag_file_deletion%run => cmd_dired_flag_file_deletion
-        commands%dired_unmark_backward%run => cmd_dired_unmark_backward
-        commands%dired_toggle_marks%run => cmd_dired_toggle_marks
-        commands%dired_mark_files_regexp%run => cmd_dired_mark_files_regexp
-        commands%dired_mark_files_containing_regexp%run => cmd_dired_mark_files_containing_regexp
-        commands%dired_flag_files_regexp%run => cmd_dired_flag_files_regexp
-        commands%dired_flag_garbage_files%run => cmd_dired_flag_garbage_files
-        commands%dired_mark_symlinks%run => cmd_dired_mark_symlinks
-        commands%dired_mark_directories%run => cmd_dired_mark_directories
-        commands%dired_mark_executables%run => cmd_dired_mark_executables
-        commands%dired_flag_auto_save_files%run => cmd_dired_flag_auto_save_files
-        commands%dired_flag_backup_files%run => cmd_dired_flag_backup_files
-        commands%dired_change_marks%run => cmd_dired_change_marks
-        commands%dired_unmark_all_files%run => cmd_dired_unmark_all_files
-        commands%dired_unmark_all_marks%run => cmd_dired_unmark_all_marks
-        commands%dired_next_marked_file%run => cmd_dired_next_marked_file
-        commands%dired_prev_marked_file%run => cmd_dired_prev_marked_file
-        commands%dired_number_of_marked_files%run => cmd_dired_number_of_marked_files
-        commands%dired_do_flagged_delete%run => cmd_dired_do_flagged_delete
-        commands%dired_do_delete%run => cmd_dired_do_delete
-        commands%dired_why%run => cmd_dired_why
-        commands%dired_summary%run => cmd_dired_summary
-        commands%dired_undo%run => cmd_dired_undo
-        commands%dired_copy_filename_as_kill%run => cmd_dired_copy_filename_as_kill
-        commands%dired_sort_toggle_or_edit%run => cmd_dired_sort_toggle_or_edit
-        commands%dired_build_subdir_table%run => cmd_dired_build_subdir_table
+        commands%dired_find_file_other_window%execute => cmd_dired_find_file_other_window
+        commands%dired_display_file%execute => cmd_dired_display_file
+        commands%dired_goto_file%execute => cmd_dired_goto_file
+        commands%dired_mark%execute => cmd_dired_mark
+        commands%dired_unmark%execute => cmd_dired_unmark
+        commands%dired_flag_file_deletion%execute => cmd_dired_flag_file_deletion
+        commands%dired_unmark_backward%execute => cmd_dired_unmark_backward
+        commands%dired_toggle_marks%execute => cmd_dired_toggle_marks
+        commands%dired_mark_files_regexp%execute => cmd_dired_mark_files_regexp
+        commands%dired_mark_files_containing_regexp%execute => cmd_dired_mark_files_containing_regexp
+        commands%dired_flag_files_regexp%execute => cmd_dired_flag_files_regexp
+        commands%dired_flag_garbage_files%execute => cmd_dired_flag_garbage_files
+        commands%dired_mark_symlinks%execute => cmd_dired_mark_symlinks
+        commands%dired_mark_directories%execute => cmd_dired_mark_directories
+        commands%dired_mark_executables%execute => cmd_dired_mark_executables
+        commands%dired_flag_auto_save_files%execute => cmd_dired_flag_auto_save_files
+        commands%dired_flag_backup_files%execute => cmd_dired_flag_backup_files
+        commands%dired_change_marks%execute => cmd_dired_change_marks
+        commands%dired_unmark_all_files%execute => cmd_dired_unmark_all_files
+        commands%dired_unmark_all_marks%execute => cmd_dired_unmark_all_marks
+        commands%dired_next_marked_file%execute => cmd_dired_next_marked_file
+        commands%dired_prev_marked_file%execute => cmd_dired_prev_marked_file
+        commands%dired_number_of_marked_files%execute => cmd_dired_number_of_marked_files
+        commands%dired_do_flagged_delete%execute => cmd_dired_do_flagged_delete
+        commands%dired_do_delete%execute => cmd_dired_do_delete
+        commands%dired_why%execute => cmd_dired_why
+        commands%dired_summary%execute => cmd_dired_summary
+        commands%dired_undo%execute => cmd_dired_undo
+        commands%dired_copy_filename_as_kill%execute => cmd_dired_copy_filename_as_kill
+        commands%dired_sort_toggle_or_edit%execute => cmd_dired_sort_toggle_or_edit
+        commands%dired_build_subdir_table%execute => cmd_dired_build_subdir_table
         call syms_of_dired_aux()
         ! Dired mode, with a full keymap whose parent is special-mode-map.
         if (.not. is_keymap_live(dired_mode_map)) call make_keymap(dired_mode_map)

@@ -265,7 +265,7 @@ contains
     !> Run `jit_lock_functions' on BEG..END: TIGHT_BEG and TIGHT_END give
     !> the part all of them fontified, LOOSE_BEG and LOOSE_END the part some
     !> of them did.  Port of jit-lock.el:jit-lock--run-functions.
-    subroutine jit_lock_run_functions(beg, end, tight_beg, tight_end, loose_beg, loose_end, status)
+    subroutine jit_lock_execute_functions(beg, end, tight_beg, tight_end, loose_beg, loose_end, status)
         integer(int64), intent(in) :: beg, end
         integer(int64), intent(out) :: tight_beg, tight_end, loose_beg, loose_end
         type(status_type), intent(out) :: status
@@ -310,7 +310,7 @@ contains
             tight_beg = min(tight_beg, beg)
             tight_end = max(tight_end, end)
         end if
-    end subroutine jit_lock_run_functions
+    end subroutine jit_lock_execute_functions
 
     !> Fontify current buffer from START to END.
     !> Defaults to the whole buffer.  END can be out of bounds.  Port of
@@ -348,7 +348,7 @@ contains
                 ! first, to make sure that we don't indefinitely re-execute
                 ! this fontification if an error occurs.
                 call put_text_property(start, next, value_type(name="fontified"), value_type(.true.), status)
-                call jit_lock_run_functions(start, next, tight_beg, tight_end, loose_beg, loose_end, status)
+                call jit_lock_execute_functions(start, next, tight_beg, tight_end, loose_beg, loose_end, status)
                 if (.not. status%ok()) exit
 
                 ! In case we fontified more than requested, take advantage
@@ -392,7 +392,7 @@ contains
         jit_lock_start = start
         jit_lock_end = end
         call silent_modifications_begin(silent)
-        call jit_lock_after_change_extend_region_functions%run(start, end, old_len, status)
+        call jit_lock_after_change_extend_region_functions%execute(start, end, old_len, status)
 
         if (status%ok()) then
             ! Make sure we change at least one char (in case of deletions).

@@ -160,7 +160,7 @@ contains
     end subroutine queue_keys
 
     !> query-replace--run-tests: INPUT, KEYS, EXPECTED.
-    subroutine run_case(error, input, keys, expected)
+    subroutine execute_case(error, input, keys, expected)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: input, keys, expected
         type(handle_type) :: h
@@ -169,65 +169,65 @@ contains
         call type_keys(keys)
         call check(error, buffer_string() == expected, input//" / "//keys//": got "//buffer_string())
         call leave(h)
-    end subroutine run_case
+    end subroutine execute_case
 
     subroutine test_query_replace(error)
         type(error_type), allocatable, intent(out) :: error
 
         ! query-replace
-        call run_case(error, "aaa", "M-% a RET 1 RET !", "111")
+        call execute_case(error, "aaa", "M-% a RET 1 RET !", "111")
         if (allocated(error)) return
-        call run_case(error, "aaa", "M-% a RET 1 RET y n y", "1a1")
+        call execute_case(error, "aaa", "M-% a RET 1 RET y n y", "1a1")
         if (allocated(error)) return
         ! Empty inputs
-        call run_case(error, "aaa", "M-% a RET RET !", "")
+        call execute_case(error, "aaa", "M-% a RET RET !", "")
         if (allocated(error)) return
-        call run_case(error, "aaa", "M-% RET 1 RET !", "1a1a1a")
+        call execute_case(error, "aaa", "M-% RET 1 RET !", "1a1a1a")
         if (allocated(error)) return
-        call run_case(error, "aaa", "M-% RET RET !", "aaa")
+        call execute_case(error, "aaa", "M-% RET RET !", "aaa")
         if (allocated(error)) return
         ! Reuse the previous default
-        call run_case(error, "aaa", "M-% a RET 1 RET . M-% RET !", "111")
+        call execute_case(error, "aaa", "M-% a RET 1 RET . M-% RET !", "111")
         if (allocated(error)) return
         ! query-replace-regexp
-        call run_case(error, "aaa", "C-M-% a* RET 1 RET !", "1")
+        call execute_case(error, "aaa", "C-M-% a* RET 1 RET !", "1")
         if (allocated(error)) return
         ! Empty inputs
-        call run_case(error, "aaa", "C-M-% a* RET RET !", "")
+        call execute_case(error, "aaa", "C-M-% a* RET RET !", "")
         if (allocated(error)) return
-        call run_case(error, "aaa", "C-M-% RET 1 RET !", "1a1a1a")
+        call execute_case(error, "aaa", "C-M-% RET 1 RET !", "1a1a1a")
         if (allocated(error)) return
-        call run_case(error, "aaa", "C-M-% RET RET !", "aaa")
+        call execute_case(error, "aaa", "C-M-% RET RET !", "aaa")
         if (allocated(error)) return
         ! Empty matches
-        call run_case(error, "aaa", "C-M-% b* RET 1 RET !", "1a1a1a")
+        call execute_case(error, "aaa", "C-M-% b* RET 1 RET !", "1a1a1a")
         if (allocated(error)) return
         ! Complete matches
-        call run_case(error, "aaa", "C-M-% .* RET 1 RET !", "1")
+        call execute_case(error, "aaa", "C-M-% .* RET 1 RET !", "1")
         if (allocated(error)) return
         ! Adjacent non-empty matches
-        call run_case(error, "abaab", "C-M-% ab* RET 12 RET !", "121212")
+        call execute_case(error, "abaab", "C-M-% ab* RET 12 RET !", "121212")
         if (allocated(error)) return
         ! Adjacent non-empty and empty matches
-        call run_case(error, "abab", "C-M-% a* RET 1 RET !", "1b1b")
+        call execute_case(error, "abab", "C-M-% a* RET 1 RET !", "1b1b")
         if (allocated(error)) return
-        call run_case(error, "abab", "C-M-% b* RET 1 RET !", "1a1a1")
+        call execute_case(error, "abab", "C-M-% b* RET 1 RET !", "1a1a1")
         if (allocated(error)) return
         ! Test case from commit 5632eb272c7
-        call run_case(error, "a a a ", "C-M-% \ba SPC RET c RET !", "ccc")
+        call execute_case(error, "a a a ", "C-M-% \ba SPC RET c RET !", "ccc")
         if (allocated(error)) return
         ! Backup ('^') with calculated replacement (bug#79811)
-        call run_case(error, "abc", "C-M-% \([abc]\) RET [\1,\#] RET y n ^ y y", "[a,0][b,1][c,2]")
+        call execute_case(error, "abc", "C-M-% \([abc]\) RET [\1,\#] RET y n ^ y y", "[a,0][b,1][c,2]")
         if (allocated(error)) return
         ! Fortmacs: the word (delimited) and backward prefixes
-        call run_case(error, "a aa a", "C-u M-% a RET b RET !", "b aa b")
+        call execute_case(error, "a aa a", "C-u M-% a RET b RET !", "b aa b")
         if (allocated(error)) return
-        call run_case(error, "aaa", "C-e M-- M-% a RET b RET y y", "abb")
+        call execute_case(error, "aaa", "C-e M-- M-% a RET b RET y y", "abb")
         if (allocated(error)) return
         ! Fortmacs: act-and-show (,) then act, and the region
-        call run_case(error, "aaa", "M-% a RET b RET , y y q", "bba")
+        call execute_case(error, "aaa", "M-% a RET b RET , y y q", "bba")
         if (allocated(error)) return
-        call run_case(error, "aaaa", "C-f C-SPC C-f C-f M-% a RET b RET !", "abba")
+        call execute_case(error, "aaaa", "C-f C-SPC C-f C-f M-% a RET b RET !", "abba")
     end subroutine test_query_replace
 
     subroutine test_perform_replace(error)

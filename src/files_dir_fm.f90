@@ -21,14 +21,14 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `insert_directory' (running `insert_directory_program' through
-!> `call_process'), `file_truename',
+!> `execute_process'), `file_truename',
 !> `delete_file', `delete_directory', file size strings and
 !> `revert_buffer': a submodule because they use callproc_fm and dired_fm,
 !> which use files_fm.
 submodule(files_fm) files_dir_fm
     use lisp_fm, only: make_list, list_elements, xstring, value_type
     use lread_fm, only: read_string_literal
-    use callproc_fm, only: call_process, shell_file_name, init_callproc
+    use callproc_fm, only: execute_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files
     use search_fm, only: string_match, match_beginning, match_end, looking_at, string_index_to_offset
     use subr_fm, only: match_string
@@ -151,7 +151,7 @@ contains
             argv(1) = value_type(text="-c")
             argv(2) = value_type(text=command)
             args = make_list(argv)
-            call call_process(shell_name(), result, status, destination=value_type(.true.), args=args, error_file=errfile)
+            call execute_process(shell_name(), result, status, destination=value_type(.true.), args=args, error_file=errfile)
 
             if (had_dir) then
                 buffers(cur)%directory = saved_dir
@@ -190,7 +190,7 @@ contains
             argv(size(elems) + 1) = value_type(text="--")
             argv(size(elems) + 2) = value_type(text=f)
             args = make_list(argv)
-            call call_process(insert_directory_program, result, status, destination=value_type(.true.), args=args, &
+            call execute_process(insert_directory_program, result, status, destination=value_type(.true.), args=args, &
                               error_file=errfile)
         end if
 
@@ -215,7 +215,7 @@ contains
         call delete_file(errfile, status)
         if (.not. status%ok()) return
         call insert_directory_clean(beg, switches, status)
-        ! The output was decoded as UTF-8 by call_process.
+        ! The output was decoded as UTF-8 by execute_process.
     end subroutine insert_directory
 
     recursive module subroutine insert_directory_clean(beg, switches, status)
@@ -1056,7 +1056,7 @@ contains
             if (.not. status%ok() .or. .not. proceed) return
         end if
 
-        call before_revert_hook%run(st)
+        call before_revert_hook%execute(st)
         ! If file was backed up but has changed since,
         ! we should make another backup.
         if (.not. auto_save_p .and. .not. verify_visited_file_modtime()) buffers(cur)%backed_up = .false.
@@ -1075,7 +1075,7 @@ contains
         if (.not. status%ok()) return
         call after_find_file(.false., .false., revert_buffer_preserve_modes)
         ! Run after_revert_hook as it was before we reverted.
-        call run_hook%run(st)
+        call run_hook%execute(st)
     end subroutine revert_buffer_default
 
     !> Default function for `revert_buffer_insert_file_contents_function'.

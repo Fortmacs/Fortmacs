@@ -337,12 +337,12 @@ contains
 
     !> Register the commands.  Not a port.
     subroutine syms_of_page()
-        commands%forward_page%run => cmd_forward_page
-        commands%backward_page%run => cmd_backward_page
-        commands%mark_page%run => cmd_mark_page
-        commands%narrow_to_page%run => cmd_narrow_to_page
+        commands%forward_page%execute => cmd_forward_page
+        commands%backward_page%execute => cmd_backward_page
+        commands%mark_page%execute => cmd_mark_page
+        commands%narrow_to_page%execute => cmd_narrow_to_page
         commands%narrow_to_page%disabled = .true.
-        commands%count_lines_page%run => count_lines_page
-        commands%what_page%run => what_page
+        commands%count_lines_page%execute => count_lines_page
+        commands%what_page%execute => what_page
     end subroutine syms_of_page
 end module page_fm

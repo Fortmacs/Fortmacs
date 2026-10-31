@@ -131,9 +131,9 @@ contains
     ! (cond (diff-function) (vc-patch-string #'log-edit-diff-patch)
     !       (t #'log-edit-diff-fileset)): patches are deferred.
     if (present(diff_function)) then
-        call call_log_edit(diff_function)
+        call execute_log_edit(diff_function)
     else
-        call call_log_edit(log_edit_diff_fileset)
+        call execute_log_edit(log_edit_diff_fileset)
     end if
 
     if (.not. status%ok()) return
@@ -143,7 +143,7 @@ contains
 
 contains
 
-    recursive subroutine call_log_edit(diff)
+    recursive subroutine execute_log_edit(diff)
         procedure(command_proc) :: diff
         integer :: b
 
@@ -157,7 +157,7 @@ contains
             call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
                           diff_function=diff, vc_backend=b, set_params=set_params)
         end if
-    end subroutine call_log_edit
+    end subroutine execute_log_edit
     end procedure vc_log_edit
 
     ! Whether the file lists A and B are equal.  Not a port.
@@ -246,14 +246,14 @@ contains
 
     ! Check and record the comment, if any.
     if (.not. nc) then
-        call vc_logentry_check_hook%run(status)
+        call vc_logentry_check_hook%execute(status)
         if (.not. status%ok()) return
     end if
 
     k = log_local_index(.false.)
     has = k > 0
     if (has) has = log_locals(k)%has_operation
-    if (has) has = associated(log_locals(k)%operation%run)
+    if (has) has = associated(log_locals(k)%operation%execute)
 
     if (.not. has) then
         call set_error(status, FM_GENERIC_ERROR, "No log operation is pending")
@@ -270,7 +270,7 @@ contains
     ! OK, do it to it
     call set_buffer(parent, status)
     if (.not. status%ok()) return
-    call operation%run(operation, fileset, log_entry, status)
+    call operation%execute(operation, fileset, log_entry, status)
     if (.not. status%ok()) return
     call pop_to_buffer(parent, status)
     if (.not. status%ok()) return
@@ -299,11 +299,11 @@ contains
         end do
 
         if (associated(after_hook)) then
-            call after_hook%run(status)
+            call after_hook%execute(status)
             if (.not. status%ok()) return
         end if
 
-        call vc_finish_logentry_hook%run(status)
+        call vc_finish_logentry_hook%execute(status)
         if (.not. status%ok()) return
         if (is_buffer_live(old)) call set_buffer(old, st)
     end if

@@ -43,7 +43,7 @@ module files_fm
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
                          buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
-                         rename_buffer, restore_buffer_modified, is_buffer_live, buffer_handle, run_kill_buffer_hook
+                         rename_buffer, restore_buffer_modified, is_buffer_live, buffer_handle, execute_kill_buffer_hook
     use fileio_fm, only: open_dribble_file
     use fileio_fm, only: file_stat_type, expand_file_name, file_name_directory, is_directory_name, &
                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
@@ -379,7 +379,7 @@ module files_fm
         !> `insert_directory_program', as any other option.  Port of
         !> files.el:insert-directory (no file name handlers or `ls_lisp';
         !> SWITCHES a string; the output is decoded as UTF-8 by
-        !> `call_process'; the shell is $SHELL or /bin/sh, as callproc.c
+        !> `execute_process'; the shell is $SHELL or /bin/sh, as callproc.c
         !> sets `shell_file_name').  (In files_dir_fm.)
         recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory)
             implicit none(type, external)
@@ -1351,7 +1351,7 @@ contains
             if (missing_final_newline()) call insert_final_newline(st)
         end if
 
-        call find_file_hook%run(st)
+        call find_file_hook%execute(st)
     end subroutine after_find_file
 
     !> Edit file FILENAME: visit it with `find_file_noselect' and switch to
@@ -1600,7 +1600,7 @@ contains
         call final_newline_on_save(status)
         if (.not. status%ok()) return
         ! Don't let errors prevent saving the buffer.
-        call before_save_hook%run(st)
+        call before_save_hook%execute(st)
         if (.not. st%ok()) call message("Before-save hook error: "//format_error(st))
 
         ! If buffer has no file name, ask user for one.
@@ -1638,7 +1638,7 @@ contains
         if (associated(vc_before_save_proc)) call vc_before_save_proc()
         ! If a hook returned true, file is already "written".
         ! Otherwise, write it the usual way now.
-        call write_file_functions%run(written, status)
+        call write_file_functions%execute(written, status)
         if (.not. status%ok()) return
 
         if (.not. written) then
@@ -1714,7 +1714,7 @@ contains
         if (.not. written) call message(wrote)
         ! Support VC `implicit' locking.
         if (associated(vc_after_save_proc)) call vc_after_save_proc()
-        call after_save_hook%run(status)
+        call after_save_hook%execute(status)
     end subroutine basic_save_buffer
 
     !> Add a newline at the end of the current buffer if
@@ -2040,7 +2040,7 @@ contains
             if (change_mode) call set_auto_mode(st, .true.)
         end if
 
-        call after_set_visited_file_name_hook%run(status)
+        call after_set_visited_file_name_hook%execute(status)
     end subroutine set_visited_file_name
 
     !> Write the current buffer to `filename' and visit it there; a
@@ -2424,13 +2424,13 @@ contains
 
     !> Run `kill_buffer_hook' in the buffer H being killed (current).
     !> Port of part of buffer.c:Fkill_buffer.
-    recursive subroutine run_kill_hook(h)
+    recursive subroutine execute_kill_hook(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
         if (h%index == 0) return
-        call kill_buffer_hook%run(st)
-    end subroutine run_kill_hook
+        call kill_buffer_hook%execute(st)
+    end subroutine execute_kill_hook
 
     !> Set up files.el's variables and commands, and bind its keys in
     !> CTL_X_MAP and CTL_X_4_MAP.  Not a port: upstream defines them where
@@ -2448,11 +2448,11 @@ contains
         if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
         if (.not. allocated(mounted_file_systems)) mounted_file_systems = &
             "^\(?:/\(?:afs/\|m\(?:edia/\|nt\)\|\(?:ne\|tmp_mn\)t/\)\)"
-        commands%find_file%run => cmd_find_file
-        commands%open_dribble_file%run => cmd_open_dribble_file
-        commands%find_file_other_window%run => cmd_find_file_other_window
-        commands%revert_buffer%run => cmd_revert_buffer
-        run_kill_buffer_hook => run_kill_hook
+        commands%find_file%execute => cmd_find_file
+        commands%open_dribble_file%execute => cmd_open_dribble_file
+        commands%find_file_other_window%execute => cmd_find_file_other_window
+        commands%revert_buffer%execute => cmd_revert_buffer
+        execute_kill_buffer_hook => execute_kill_hook
         call syms_of_files_copy()
         call syms_of_files_read(ctl_x_map, ctl_x_4_map)
 
@@ -2465,11 +2465,11 @@ contains
             call define_key(ctl_x_4_map, key, value_type(name="find_file_other_window"), status)
         end if
 
-        commands%normal_mode%run => cmd_normal_mode
-        commands%write_file%run => cmd_write_file
-        commands%save_buffer%run => cmd_save_buffer
-        commands%save_some_buffers%run => cmd_save_some_buffers
-        commands%save_buffers_kill_terminal%run => cmd_save_buffers_kill_terminal
+        commands%normal_mode%execute => cmd_normal_mode
+        commands%write_file%execute => cmd_write_file
+        commands%save_buffer%execute => cmd_save_buffer
+        commands%save_some_buffers%execute => cmd_save_some_buffers
+        commands%save_buffers_kill_terminal%execute => cmd_save_buffers_kill_terminal
         ! files.el: (define-key ctl-x-map "\C-f" 'find-file)
         key(1) = value_type(6_int64)
         call define_key(ctl_x_map, key, value_type(name="find_file"), status)

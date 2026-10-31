@@ -748,11 +748,11 @@ contains
 
         describe_function_1_hook => describe_function_1
         documentation_hook => documentation
-        commands%describe_function%run => cmd_describe_function
-        commands%describe_variable%run => cmd_describe_variable
-        commands%describe_mode%run => cmd_describe_mode
-        commands%describe_name%run => cmd_describe_name
-        commands%describe_command%run => cmd_describe_command
+        commands%describe_function%execute => cmd_describe_function
+        commands%describe_variable%execute => cmd_describe_variable
+        commands%describe_mode%execute => cmd_describe_mode
+        commands%describe_name%execute => cmd_describe_name
+        commands%describe_command%execute => cmd_describe_command
     end subroutine syms_of_help_fns
 
     !> The raw docstring of function NAME.  Port of doc.c:Fdocumentation

@@ -50,7 +50,7 @@ module diff_fm
     use fileio_fm, only: expand_file_name, file_exists, file_name_directory, file_name_nondirectory, write_region
     use files_fm, only: make_temp_file, file_newest_backup, is_backup_file_name, file_name_sans_versions, &
                         delete_file, revert_buffer_function, temporary_file_directory
-    use callproc_fm, only: call_process, shell_file_name, init_callproc
+    use callproc_fm, only: execute_process, shell_file_name, init_callproc
     use process_fm, only: make_process, process_arg_type, process_buffer, process_mark, process_exit_status, &
                           set_process_filter, set_process_sentinel
     use simple_fm, only: shell_command_switch
@@ -250,7 +250,7 @@ contains
         call get_buffer_create(" *diff-check-labels*", tmp, st)
         call set_buffer(tmp, st)
         call erase_buffer(st)
-        call call_process(diff_command, result, st, destination=value_type(.true.), args=list(value_type(text="--help")))
+        call execute_process(diff_command, result, st, destination=value_type(.true.), args=list(value_type(text="--help")))
 
         if (st%ok()) then
             call search_backward("--label", found, st, noerror=SEARCH_NOERROR)
@@ -407,7 +407,7 @@ contains
         else
             ! Async processes aren't available.
             call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
-            call call_process(shell_file_name%value, code, status, destination=value_type(.true.), &
+            call execute_process(shell_file_name%value, code, status, destination=value_type(.true.), &
                               args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
             buffers(cur)%directory = olddir
             k = 2
@@ -795,10 +795,10 @@ contains
     !> Register the commands of diff.el and give the settings their
     !> defaults.  Not a port.
     subroutine syms_of_diff()
-        commands%diff%run => cmd_diff
-        commands%diff_backup%run => cmd_diff_backup
-        commands%diff_buffer_with_file%run => cmd_diff_buffer_with_file
-        commands%diff_buffers%run => cmd_diff_buffers
+        commands%diff%execute => cmd_diff
+        commands%diff_backup%execute => cmd_diff_backup
+        commands%diff_buffer_with_file%execute => cmd_diff_buffer_with_file
+        commands%diff_buffers%execute => cmd_diff_buffers
         if (.not. allocated(diff_switches)) diff_switches = "-u"
         if (.not. allocated(diff_command)) diff_command = "diff"
     end subroutine syms_of_diff

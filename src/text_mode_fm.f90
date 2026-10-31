@@ -107,6 +107,6 @@ contains
         call major_modes%text_mode%define("text_mode", "Text", text_mode, text_mode_hook, &
                                           syntax_table=text_mode_syntax_table, abbrev_table=text_mode_abbrev_table)
         text_mode_map = major_modes%text_mode%map
-        commands%text_mode%run => text_mode
+        commands%text_mode%execute => text_mode
     end subroutine syms_of_text_mode
 end module text_mode_fm

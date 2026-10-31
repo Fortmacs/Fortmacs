@@ -111,14 +111,14 @@ contains
 
         call minor_modes%electric_indent_mode%define("electric_indent_mode", global=.true., &
                                                      body=electric_indent_mode_body, hook=electric_indent_mode_hook)
-        commands%electric_indent_mode%run => electric_indent_mode
+        commands%electric_indent_mode%execute => electric_indent_mode
         call minor_modes%electric_indent_local_mode%define("electric_indent_local_mode", &
                                                            body=electric_indent_local_mode_body, &
                                                            hook=electric_indent_local_mode_hook, &
                                                            getter=is_electric_indent_local_mode)
-        commands%electric_indent_local_mode%run => electric_indent_local_mode
-        commands%electric_indent_just_newline%run => electric_indent_just_newline
-        commands%electric_newline_and_maybe_indent%run => electric_newline_and_maybe_indent
+        commands%electric_indent_local_mode%execute => electric_indent_local_mode
+        commands%electric_indent_just_newline%execute => electric_indent_just_newline
+        commands%electric_newline_and_maybe_indent%execute => electric_newline_and_maybe_indent
         if (.not. allocated(electric_indent_chars)) electric_indent_chars = [10]
         call add_local_variables_killer(kill_electric_locals)
 

@@ -4669,7 +4669,7 @@ contains
             ! Skip the group name by default.
             call ibuffer_forward_line(0_int64, .true.)
             buffers(cur)%read_only = .false.
-            call ibuffer_hook%run(status)
+            call ibuffer_hook%execute(status)
             buffers(cur)%read_only = .true.
         end if
 
@@ -5226,41 +5226,41 @@ contains
                                              parent=major_modes%special_mode)
         ibuffer_mode_map = major_modes%ibuffer_mode%map
         m = ibuffer_mode_map
-        commands%ibuffer_mode%run => ibuffer_mode
-        commands%ibuffer%run => cmd_ibuffer
-        commands%ibuffer_other_window%run => cmd_ibuffer_other_window
-        commands%ibuffer_list_buffers%run => cmd_ibuffer_list_buffers
-        commands%ibuffer_jump%run => cmd_ibuffer_jump
-        commands%ibuffer_find_file%run => ibuffer_find_file
-        commands%ibuffer_backward_line%run => cmd_ibuffer_backward_line
-        commands%ibuffer_forward_line%run => cmd_ibuffer_forward_line
-        commands%ibuffer_visit_buffer%run => cmd_ibuffer_visit_buffer
-        commands%ibuffer_visit_buffer_other_window%run => cmd_ibuffer_visit_buffer_other_window
-        commands%ibuffer_visit_buffer_other_window_noselect%run => ibuffer_visit_buffer_other_window_noselect
-        commands%ibuffer_visit_buffer_1_window%run => ibuffer_visit_buffer_1_window
-        commands%ibuffer_bury_buffer%run => ibuffer_bury_buffer
-        commands%ibuffer_do_view%run => ibuffer_do_view
-        commands%ibuffer_do_view_horizontally%run => ibuffer_do_view_horizontally
-        commands%ibuffer_do_save%run => ibuffer_do_save
-        commands%ibuffer_do_toggle_modified%run => ibuffer_do_toggle_modified
-        commands%ibuffer_do_toggle_read_only%run => cmd_ibuffer_do_toggle_read_only
-        commands%ibuffer_do_toggle_lock%run => ibuffer_do_toggle_lock
-        commands%ibuffer_do_delete%run => ibuffer_do_delete
-        commands%ibuffer_do_kill_on_deletion_marks%run => ibuffer_do_kill_on_deletion_marks
-        commands%ibuffer_unmark_all%run => cmd_ibuffer_unmark_all
-        commands%ibuffer_unmark_all_marks%run => ibuffer_unmark_all_marks
-        commands%ibuffer_toggle_marks%run => cmd_ibuffer_toggle_marks
-        commands%ibuffer_change_marks%run => cmd_ibuffer_change_marks
-        commands%ibuffer_mark_forward%run => cmd_ibuffer_mark_forward
-        commands%ibuffer_unmark_forward%run => cmd_ibuffer_unmark_forward
-        commands%ibuffer_unmark_backward%run => cmd_ibuffer_unmark_backward
-        commands%ibuffer_mark_for_delete%run => cmd_ibuffer_mark_for_delete
-        commands%ibuffer_mark_for_delete_backwards%run => cmd_ibuffer_mark_for_delete_backwards
-        commands%ibuffer_recompile_formats%run => ibuffer_recompile_formats
-        commands%ibuffer_do_sort_by_recency%run => ibuffer_do_sort_by_recency
-        commands%ibuffer_switch_format%run => ibuffer_switch_format
-        commands%ibuffer_redisplay%run => cmd_ibuffer_redisplay
-        commands%ibuffer_update%run => cmd_ibuffer_update
+        commands%ibuffer_mode%execute => ibuffer_mode
+        commands%ibuffer%execute => cmd_ibuffer
+        commands%ibuffer_other_window%execute => cmd_ibuffer_other_window
+        commands%ibuffer_list_buffers%execute => cmd_ibuffer_list_buffers
+        commands%ibuffer_jump%execute => cmd_ibuffer_jump
+        commands%ibuffer_find_file%execute => ibuffer_find_file
+        commands%ibuffer_backward_line%execute => cmd_ibuffer_backward_line
+        commands%ibuffer_forward_line%execute => cmd_ibuffer_forward_line
+        commands%ibuffer_visit_buffer%execute => cmd_ibuffer_visit_buffer
+        commands%ibuffer_visit_buffer_other_window%execute => cmd_ibuffer_visit_buffer_other_window
+        commands%ibuffer_visit_buffer_other_window_noselect%execute => ibuffer_visit_buffer_other_window_noselect
+        commands%ibuffer_visit_buffer_1_window%execute => ibuffer_visit_buffer_1_window
+        commands%ibuffer_bury_buffer%execute => ibuffer_bury_buffer
+        commands%ibuffer_do_view%execute => ibuffer_do_view
+        commands%ibuffer_do_view_horizontally%execute => ibuffer_do_view_horizontally
+        commands%ibuffer_do_save%execute => ibuffer_do_save
+        commands%ibuffer_do_toggle_modified%execute => ibuffer_do_toggle_modified
+        commands%ibuffer_do_toggle_read_only%execute => cmd_ibuffer_do_toggle_read_only
+        commands%ibuffer_do_toggle_lock%execute => ibuffer_do_toggle_lock
+        commands%ibuffer_do_delete%execute => ibuffer_do_delete
+        commands%ibuffer_do_kill_on_deletion_marks%execute => ibuffer_do_kill_on_deletion_marks
+        commands%ibuffer_unmark_all%execute => cmd_ibuffer_unmark_all
+        commands%ibuffer_unmark_all_marks%execute => ibuffer_unmark_all_marks
+        commands%ibuffer_toggle_marks%execute => cmd_ibuffer_toggle_marks
+        commands%ibuffer_change_marks%execute => cmd_ibuffer_change_marks
+        commands%ibuffer_mark_forward%execute => cmd_ibuffer_mark_forward
+        commands%ibuffer_unmark_forward%execute => cmd_ibuffer_unmark_forward
+        commands%ibuffer_unmark_backward%execute => cmd_ibuffer_unmark_backward
+        commands%ibuffer_mark_for_delete%execute => cmd_ibuffer_mark_for_delete
+        commands%ibuffer_mark_for_delete_backwards%execute => cmd_ibuffer_mark_for_delete_backwards
+        commands%ibuffer_recompile_formats%execute => ibuffer_recompile_formats
+        commands%ibuffer_do_sort_by_recency%execute => ibuffer_do_sort_by_recency
+        commands%ibuffer_switch_format%execute => ibuffer_switch_format
+        commands%ibuffer_redisplay%execute => cmd_ibuffer_redisplay
+        commands%ibuffer_update%execute => cmd_ibuffer_update
         call keymap_set(m, "0", "digit_argument", st)
         call keymap_set(m, "1", "digit_argument", st)
         call keymap_set(m, "2", "digit_argument", st)

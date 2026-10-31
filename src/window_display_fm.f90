@@ -1385,7 +1385,7 @@ contains
             if (allocated(windows(h%index)%prev_buffers)) call clear_prev_buffers(h)
         end if
 
-        if (associated(table%body_function)) call run_body_function(table, h)
+        if (associated(table%body_function)) call execute_body_function(table, h)
 
         ! A window that never showed another buffer but BUFFER ever since
         ! it was created on an existing frame: adjust its height if asked
@@ -1401,7 +1401,7 @@ contains
     !> Call the `body_function' of TABLE with window H, with
     !> `inhibit_read_only' and `inhibit_modification_hooks' true.
     !> Not a port.
-    subroutine run_body_function(table, h)
+    subroutine execute_body_function(table, h)
         type(display_action_table_type), intent(in) :: table
         type(handle_type), intent(in) :: h
         type(value_type) :: saved
@@ -1415,7 +1415,7 @@ contains
         call table%body_function(h)
         inhibit_modification_hooks = saved_hooks
         call set(value_type(name="inhibit_read_only"), saved, st)
-    end subroutine run_body_function
+    end subroutine execute_body_function
 
     !> Clear the previous buffers of window H (`set_window_prev_buffers' to none).  Not a port.
     subroutine clear_prev_buffers(h)
@@ -2487,9 +2487,9 @@ contains
     !> Register the commands of this submodule.
     module subroutine syms_of_window_display()
         replace_buffer_in_windows_hook => replace_buffer_in_windows
-        commands%quit_window%run => cmd_quit_window
-        commands%bury_buffer%run => cmd_bury_buffer
-        commands%previous_buffer%run => cmd_previous_buffer
-        commands%next_buffer%run => cmd_next_buffer
+        commands%quit_window%execute => cmd_quit_window
+        commands%bury_buffer%execute => cmd_bury_buffer
+        commands%previous_buffer%execute => cmd_previous_buffer
+        commands%next_buffer%execute => cmd_next_buffer
     end subroutine syms_of_window_display
 end submodule window_display_fm

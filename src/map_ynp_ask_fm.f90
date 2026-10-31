@@ -30,7 +30,7 @@ submodule(map_ynp_fm) map_ynp_ask_fm
     use keymap_fm, only: key_description, make_sparse_keymap, set_keymap_parent, define_key, define_key_range, &
                          lookup_key, key_parse, is_keymap_live, current_global_map
     use keyboard_fm, only: this_command, real_this_command, this_command_keys, last_message, sit_for
-    use callint_fm, only: is_command, call_interactively
+    use callint_fm, only: is_command, execute_interactively
     use character_fm, only: MAX_CHAR
     use, intrinsic :: iso_fortran_env, only: int32
     use xdisp_fm, only: message, message_nolog
@@ -202,7 +202,7 @@ contains
                     again = .true.
                 case default
                     if ((vtag(def) == V_NAME .or. vtag(def) == V_NULL) .and. allocated(def%a) .and. is_command(def)) then
-                        call call_interactively(def, status)
+                        call execute_interactively(def, status)
                         if (.not. status%ok()) exit objects_loop
                     else
                         ! Random char.
@@ -352,7 +352,7 @@ contains
 
         if (short) then
             ! short-answer-map
-            if (.not. associated(cmd_answer_select%run)) then
+            if (.not. associated(cmd_answer_select%execute)) then
                 cmd_answer_select = command_type("read_answer__select", answer_select)
                 call cmd_answer_select%define()
                 cmd_answer_reject = command_type("read_answer__reject", answer_reject)

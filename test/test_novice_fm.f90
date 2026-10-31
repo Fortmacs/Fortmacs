@@ -76,7 +76,7 @@ contains
     end subroutine enter
 
     !> Select the whole text and type `keys`.
-    subroutine run(keys)
+    subroutine execute_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
@@ -86,7 +86,7 @@ contains
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-    end subroutine run
+    end subroutine execute_keys
 
     logical function disabled(name)
         character(len=*), intent(in) :: name
@@ -103,29 +103,29 @@ contains
 
         call enter(h)
         ! n: cancel.
-        call run("C-x C-u n")
+        call execute_keys("C-x C-u n")
         call check(error, buffer_string() == "abc" .and. disabled("upcase_region"), buffer_string())
         if (allocated(error)) return
         ! SPC: run it once.
-        call run("C-x C-u SPC")
+        call execute_keys("C-x C-u SPC")
         call check(error, buffer_string() == "ABC" .and. disabled("upcase_region"), buffer_string())
         if (allocated(error)) return
         ! Other keys ask again.
-        call run("C-x C-l x n")
+        call execute_keys("C-x C-l x n")
         call check(error, buffer_string() == "ABC", buffer_string())
         if (allocated(error)) return
         ! y: enable it.
-        call run("C-x C-l y")
+        call execute_keys("C-x C-l y")
         call check(error, buffer_string() == "abc" .and. .not. disabled("downcase_region"), buffer_string())
         if (allocated(error)) return
-        call run("C-x C-l")
+        call execute_keys("C-x C-l")
         call check(error, buffer_string() == "abc")
         if (allocated(error)) return
         ! !: enable all disabled commands.
-        call run("C-x C-u !")
+        call execute_keys("C-x C-u !")
         call check(error, buffer_string() == "ABC" .and. .not. disabled_command_function_variable, buffer_string())
         if (allocated(error)) return
-        call run("C-x C-l")
+        call execute_keys("C-x C-l")
         call check(error, buffer_string() == "abc", buffer_string())
         disabled_command_function_variable = .true.
         call disable_command("downcase_region", st)
@@ -153,7 +153,7 @@ contains
         call enable_command("upcase_region", st)
         call check(error, st%ok(), "enable_command")
         if (allocated(error)) return
-        call run("C-x C-u")
+        call execute_keys("C-x C-u")
         call check(error, buffer_string() == "ABC", buffer_string())
         if (allocated(error)) return
         ! novice.el: the old line is replaced by one at the end.
@@ -212,13 +212,13 @@ contains
         call enter(h)
         commands%upcase_region%disabled = .false.
         commands%upcase_region%disabled_message = "Not for you."
-        call run("C-x C-u n")
+        call execute_keys("C-x C-u n")
         call check(error, buffer_string() == "abc", buffer_string())
         if (allocated(error)) return
         if (allocated(user_init_file)) saved = user_init_file
         ! (No init file: y enables it for the session.)
         user_init_file = ""
-        call run("C-x C-u y")
+        call execute_keys("C-x C-u y")
 
         if (allocated(saved)) then
             user_init_file = saved

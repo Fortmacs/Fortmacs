@@ -1162,10 +1162,10 @@ contains
 
     !> Run `undo_auto__undoable_change' unless the current buffer keeps no
     !> undo information.  Port of insdel.c:run_undoable_change.
-    subroutine run_undoable_change()
+    subroutine execute_undoable_change()
         if (.not. buffers(cur)%undo_enabled) return
         call undo_auto_undoable_change()
-    end subroutine run_undoable_change
+    end subroutine execute_undoable_change
 
     !> Check that it is okay to modify the buffer between START and END,
     !> which are char positions: the buffer's read-only state and
@@ -1185,7 +1185,7 @@ contains
 
         call barf_if_buffer_read_only(status, start)
         if (.not. status%ok()) return
-        call run_undoable_change()
+        call execute_undoable_change()
         buffers(cur)%text%redisplay = .true.
 
         if (buffers(cur)%text%intervals%n > 0) then
@@ -1263,7 +1263,7 @@ contains
             if (.not. first_change_hook%empty()) then
                 call preserve_value()
                 call preserve_start_end()
-                call first_change_hook%run(status)
+                call first_change_hook%execute(status)
             end if
         end if
 
@@ -1280,7 +1280,7 @@ contains
                     call marker_position(end_marker, e, st)
                 end if
 
-                call before_change_functions%run(s, e, status)
+                call before_change_functions%execute(s, e, status)
                 ! Reset before-change-functions to nil on an error.
                 if (.not. status%ok()) call before_change_functions%clear()
             end if
@@ -1381,7 +1381,7 @@ contains
         inhibit_modification_hooks%value = .true.
 
         if (.not. after_change_functions%empty()) then
-            call after_change_functions%run(charpos, charpos + lenins, lendel, status)
+            call after_change_functions%execute(charpos, charpos + lenins, lendel, status)
 
             ! Reset after-change-functions to nil on an error.
             if (.not. status%ok()) then

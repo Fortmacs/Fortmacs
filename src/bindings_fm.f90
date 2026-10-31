@@ -309,11 +309,11 @@ contains
         call syms_of_simple()
         call syms_of_window()
         call syms_of_buffer()
-        commands%right_char%run => cmd_right_char
-        commands%complete_name%run => cmd_complete_name
-        commands%left_char%run => cmd_left_char
-        commands%right_word%run => cmd_right_word
-        commands%left_word%run => cmd_left_word
+        commands%right_char%execute => cmd_right_char
+        commands%complete_name%execute => cmd_complete_name
+        commands%left_char%execute => cmd_left_char
+        commands%right_word%execute => cmd_right_word
+        commands%left_word%execute => cmd_left_word
         call syms_of_syntax()
         call syms_of_syntax_propertize()
         call syms_of_smie()
@@ -506,9 +506,9 @@ contains
         ! kmacro.el (autoloads): keyboard macros.
         call bind(ctl_x_map, "(", "kmacro_start_macro")
         call bind(ctl_x_map, ")", "kmacro_end_macro")
-        call bind(ctl_x_map, "e", "kmacro_end_and_call_macro")
+        call bind(ctl_x_map, "e", "kmacro_end_and_execute_macro")
         call bind(global_map, "<f3>", "kmacro_start_macro_or_insert_counter")
-        call bind(global_map, "<f4>", "kmacro_end_or_call_macro")
+        call bind(global_map, "<f4>", "kmacro_end_or_execute_macro")
         key(1) = value_type(11_int64)
         call define_key(ctl_x_map, key, make_keymap_ref(kmacro_keymap), status)
         ! bindings.el: abbrev-map, and the abbrev keys.

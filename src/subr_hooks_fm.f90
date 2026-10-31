@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `run_mode_hooks' and `delay_mode_hooks': a submodule because they use
+!> `execute_mode_hooks' and `delay_mode_hooks': a submodule because they use
 !> syntax_propertize_fm (which uses subr_fm) and
 !> the buffers.  `delay_mode_hooks' (permanent-local) and
 !> `delayed_mode_hooks' (buffer-local) are kept per buffer, by the
@@ -130,7 +130,7 @@ contains
     if (k > 0) delays(k)%delay = saved
     end procedure delay_mode_hooks_end
 
-    module procedure run_mode_hooks
+    module procedure execute_mode_hooks
     type(hook_ref_type), allocatable :: delayed(:)
     type(after_fn_type), allocatable :: after(:)
     integer :: k, i, n
@@ -164,20 +164,20 @@ contains
         call parse_expression_lookup_properties%set_local(.true.)
     end if
 
-    call change_major_mode_after_body_hook%run(status)
+    call change_major_mode_after_body_hook%execute(status)
     if (.not. status%ok()) return
 
     do i = 1, size(delayed)
-        call delayed(i)%p%run(status)
+        call delayed(i)%p%execute(status)
         if (.not. status%ok()) return
     end do
 
     if (present(hook)) then
-        call hook%run(status)
+        call hook%execute(status)
         if (.not. status%ok()) return
     end if
 
-    call after_change_major_mode_hook%run(status)
+    call after_change_major_mode_hook%execute(status)
     if (.not. status%ok()) return
     ! The delayed after-hook functions, oldest first (nreverse).
     k = delay_index(.false.)
@@ -189,5 +189,5 @@ contains
         call after(i)%fn(status)
         if (.not. status%ok()) return
     end do
-    end procedure run_mode_hooks
+    end procedure execute_mode_hooks
 end submodule subr_hooks_fm

@@ -340,7 +340,7 @@ contains
                                                                  highlights=h)
         end if
 
-        commands%executable_set_magic%run => cmd_executable_set_magic
-        commands%executable_self_display%run => executable_self_display_command
+        commands%executable_set_magic%execute => cmd_executable_set_magic
+        commands%executable_self_display%execute => executable_self_display_command
     end subroutine syms_of_executable
 end module executable_fm

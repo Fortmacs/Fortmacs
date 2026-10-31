@@ -1384,9 +1384,9 @@ contains
         call ansi_color_bright_cyan%spec_entry(display_when(), face_attrs(foreground="cyan2", background="cyan2"))
         call ansi_color_bright_white%define("ansi_color_bright_white", "Face used to render bright white color code.")
         call ansi_color_bright_white%spec_entry(display_when(), face_attrs(foreground="white", background="white"))
-        commands%ansi_color_for_comint_mode_on%run => ansi_color_for_comint_mode_on
-        commands%ansi_color_for_comint_mode_off%run => ansi_color_for_comint_mode_off
-        commands%ansi_color_for_comint_mode_filter%run => ansi_color_for_comint_mode_filter
+        commands%ansi_color_for_comint_mode_on%execute => ansi_color_for_comint_mode_on
+        commands%ansi_color_for_comint_mode_off%execute => ansi_color_for_comint_mode_off
+        commands%ansi_color_for_comint_mode_filter%execute => ansi_color_for_comint_mode_filter
         call add_local_variables_killer(kill_ansi_color_locals)
         call comint_output_filter_functions%add(ansi_color_process_output)
     end subroutine syms_of_ansi_color

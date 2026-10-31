@@ -49,7 +49,7 @@ module savehist_fm
     use easy_mmode_fm, only: mode_called_interactively
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, free_timer, is_timer
+    use timer_fm, only: execute_with_timer, free_timer, is_timer
     use buffer_fm, only: get_buffer_create, generate_new_buffer_name, set_buffer, kill_buffer, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
@@ -195,7 +195,7 @@ contains
 
         if (minor_modes%savehist_mode%enabled() .and. savehist_autosave_interval > 0 .and. &
             .not. is_timer(savehist_timer)) then
-            call run_with_timer(savehist_timer, real(savehist_autosave_interval, real64), savehist_autosave_timer, &
+            call execute_with_timer(savehist_timer, real(savehist_autosave_interval, real64), savehist_autosave_timer, &
                                 st, real(savehist_autosave_interval, real64))
         else
             call savehist_cancel_timer()
@@ -551,7 +551,7 @@ contains
             call savehist_reload(.false., st)
         end if
 
-        call savehist_save_hook%run(st)
+        call savehist_save_hook%execute(st)
         group%name = "savehist"
 
         ! Save the minibuffer histories, along with the value of
@@ -793,7 +793,7 @@ contains
         if (.not. allocated(savehist_minibuffer_history_variables)) allocate (savehist_minibuffer_history_variables(0))
         call minor_modes%savehist_mode%define("savehist_mode", global=.true., hook=savehist_mode_hook, &
                                               body=savehist_mode_body)
-        commands%savehist_mode%run => savehist_mode
-        commands%savehist_save%run => cmd_savehist_save
+        commands%savehist_mode%execute => savehist_mode
+        commands%savehist_save%execute => cmd_savehist_save
     end subroutine syms_of_savehist
 end module savehist_fm

@@ -82,7 +82,7 @@ module vc_fm
                            vc_symbolic_working_revision, vc_file_set_backend, vc_file_set_state, vc_file_get_state, &
                            vc_file_set_checkout_time, vc_file_get_backend, vc_file_clearprops, vc_mode_line, &
                            vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
-                           vc_call_root, vc_call_responsible, is_vc_call_make_version_backups, vc_not_supported, &
+                           vc_execute_root, vc_execute_responsible, is_vc_make_version_backups, vc_not_supported, &
                            vc_clear_context, vc_touch_reset, vc_touched, vc_state_name, &
                           VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_NONE, VC_SWITCHES_LIST, VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_EDITED, &
                            VC_LOCKED, VC_NEEDS_UPDATE, VC_NEEDS_MERGE, VC_UNLOCKED_CHANGES, VC_ADDED, VC_REMOVED, &
@@ -728,7 +728,7 @@ contains
         if (present(backend)) b = backend
         if (b == 0) b = vc_deduce_backend()
         if (b == 0) return
-        call vc_call_root(b, default_directory(), root, found, status)
+        call vc_execute_root(b, default_directory(), root, found, status)
         if (status%code == FM_VC_NOT_SUPPORTED) status = status_type()
     end subroutine vc_root_dir
 
@@ -762,7 +762,7 @@ contains
                 if (vc_backends(b)%registered(file)) cycle
             end if
 
-            call vc_call_responsible(b, file, dir, found)
+            call vc_execute_responsible(b, file, dir, found)
             if (.not. found) cycle
             n = count_components(expand(dir))
 
@@ -855,7 +855,7 @@ contains
         do k = 1, size(vc_handled_backends)
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
-            call vc_call_responsible(b, full, dir, found)
+            call vc_execute_responsible(b, full, dir, found)
             if (.not. found) cycle
             ! We run DIR through `expand-file-name' so that abbreviated
             ! directories, such as "~/", wouldn't look "less specific" due
@@ -1559,9 +1559,9 @@ contains
         type(vc_string_type), intent(in), optional :: register(:)
         type(vc_log_operation_type) :: action
 
-        call vc_before_checkin_hook%run(status)
+        call vc_before_checkin_hook%execute(status)
         if (.not. status%ok()) return
-        action%run => checkin_operation
+        action%execute => checkin_operation
         action%backend = b
         if (present(rev)) action%rev = rev
 
@@ -1985,7 +1985,7 @@ contains
             b = vc_backend(file)
 
             if (b /= 0) then
-                if (is_vc_call_make_version_backups(b, file) .and. is_vc_up_to_date(file)) call vc_make_version_backup(file)
+                if (is_vc_make_version_backups(b, file) .and. is_vc_up_to_date(file)) call vc_make_version_backup(file)
             end if
         end if
 
@@ -2027,7 +2027,7 @@ contains
         call vc_root_dir(root, found, st)
         call vc_resynch_buffer(file, root, status, keep=.true., noquery=VC_NOQUERY_YES)
         if (.not. status%ok()) return
-        call vc_checkout_hook%run(status)
+        call vc_checkout_hook%execute(status)
     end subroutine vc_checkout
 
     ! The one-element array of S (an array constructor holding a function
@@ -2298,7 +2298,7 @@ contains
         ! The diff process may finish early, so call `vc-diff-finish'
         ! after `pop-to-buffer'; the former assumes the diff buffer is
         ! shown in some window.
-        finish%run => vc_diff_finish
+        finish%execute => vc_diff_finish
         finish%buffer = buf
         finish%flag = verb
         finish%s1 = msg1
@@ -2518,7 +2518,7 @@ contains
         fs%backend = vc_deduce_backend()
 
         if (fs%backend /= 0) then
-            call vc_call_root(fs%backend, default_directory(), rootdir, found, status)
+            call vc_execute_root(fs%backend, default_directory(), rootdir, found, status)
             if (.not. status%ok()) return
         else
             call read_file_name("Directory for "//desc//": ", rootdir, status, default_filename=default_directory(), &
@@ -2705,7 +2705,7 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call vc_call_root(args%backend, default_directory(), root, found, status)
+            call vc_execute_root(args%backend, default_directory(), root, found, status)
             if (.not. status%ok()) return
             call one(args%files, root)
             call vc_diff_build_argument_list_internal(args, rev1, rev2, status)
@@ -2972,7 +2972,7 @@ contains
         found = .false.
         b = vc_backend(file)
         if (b == 0) return
-        if (.not. is_vc_call_make_version_backups(b, file)) return
+        if (.not. is_vc_make_version_backups(b, file)) return
         backup = vc_version_backup_file_name(file, rev)
 
         if (file_exists(backup)) then
@@ -3574,7 +3574,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call vc_call_root(args%backend, default_directory(), root, found, status)
+        call vc_execute_root(args%backend, default_directory(), root, found, status)
         if (.not. status%ok()) return
         call one(args%files, root)
         call vc_diff_build_argument_list_internal(args, rev1, rev2, status)
@@ -3666,22 +3666,22 @@ contains
         end if
 
         if (.not. allocated(locals)) allocate (locals(0))
-        commands%vc_next_action%run => cmd_vc_next_action
-        commands%vc_register%run => cmd_vc_register
-        commands%vc_create_repo%run => cmd_vc_create_repo
-        commands%vc_ignore%run => cmd_vc_ignore
-        commands%vc_diff%run => cmd_vc_diff
-        commands%vc_version_diff%run => cmd_vc_version_diff
-        commands%vc_root_version_diff%run => cmd_vc_root_version_diff
-        commands%vc_root_diff%run => cmd_vc_root_diff
-        commands%vc_revision_other_window%run => cmd_vc_revision_other_window
-        commands%vc_revert%run => cmd_vc_revert
-        commands%vc_restore%run => cmd_vc_revert
-        commands%vc_delete_file%run => cmd_vc_delete_file
-        commands%vc_rename_file%run => cmd_vc_rename_file
-        commands%vc_clear_context%run => cmd_vc_clear_context
-        commands%vc_print_log%run => cmd_vc_print_log
-        commands%vc_print_root_log%run => cmd_vc_print_root_log
+        commands%vc_next_action%execute => cmd_vc_next_action
+        commands%vc_register%execute => cmd_vc_register
+        commands%vc_create_repo%execute => cmd_vc_create_repo
+        commands%vc_ignore%execute => cmd_vc_ignore
+        commands%vc_diff%execute => cmd_vc_diff
+        commands%vc_version_diff%execute => cmd_vc_version_diff
+        commands%vc_root_version_diff%execute => cmd_vc_root_version_diff
+        commands%vc_root_diff%execute => cmd_vc_root_diff
+        commands%vc_revision_other_window%execute => cmd_vc_revision_other_window
+        commands%vc_revert%execute => cmd_vc_revert
+        commands%vc_restore%execute => cmd_vc_revert
+        commands%vc_delete_file%execute => cmd_vc_delete_file
+        commands%vc_rename_file%execute => cmd_vc_rename_file
+        commands%vc_clear_context%execute => cmd_vc_clear_context
+        commands%vc_print_log%execute => cmd_vc_print_log
+        commands%vc_print_root_log%execute => cmd_vc_print_root_log
 
         if (.not. vc_log_finish_functions%member(vc_shrink_buffer_window)) then
             call vc_log_finish_functions%add(vc_shrink_buffer_window)

@@ -1860,7 +1860,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
 
-        if (.not. associated(major_modes%diff_mode%run)) call syms_of_diff_mode()
+        if (.not. associated(major_modes%diff_mode%execute)) call syms_of_diff_mode()
         call major_modes%diff_mode%begin(saved, status)
         if (.not. status%ok()) return
         call diff_font_lock_keywords(keywords)
@@ -2353,24 +2353,24 @@ contains
         call major_modes%diff_mode%define("diff_mode", "Diff", diff_mode, diff_mode_hook)
         major_modes%diff_mode%special = .true.
         diff_mode_map = major_modes%diff_mode%map
-        commands%diff_mode%run => diff_mode
-        commands%diff_hunk_next%run => cmd_diff_hunk_next
-        commands%diff_hunk_prev%run => cmd_diff_hunk_prev
-        commands%diff_file_next%run => cmd_diff_file_next
-        commands%diff_file_prev%run => cmd_diff_file_prev
-        commands%diff_hunk_kill%run => cmd_diff_hunk_kill
-        commands%diff_file_kill%run => cmd_diff_file_kill
-        commands%diff_delete_other_hunks%run => cmd_diff_delete_other_hunks
-        commands%diff_restrict_view%run => cmd_diff_restrict_view
+        commands%diff_mode%execute => diff_mode
+        commands%diff_hunk_next%execute => cmd_diff_hunk_next
+        commands%diff_hunk_prev%execute => cmd_diff_hunk_prev
+        commands%diff_file_next%execute => cmd_diff_file_next
+        commands%diff_file_prev%execute => cmd_diff_file_prev
+        commands%diff_hunk_kill%execute => cmd_diff_hunk_kill
+        commands%diff_file_kill%execute => cmd_diff_file_kill
+        commands%diff_delete_other_hunks%execute => cmd_diff_delete_other_hunks
+        commands%diff_restrict_view%execute => cmd_diff_restrict_view
         commands%diff_restrict_view%disabled = .true.
-        commands%diff_split_hunk%run => cmd_diff_split_hunk
-        commands%diff_kill_junk%run => cmd_diff_kill_junk
-        commands%diff_fixup_modifs%run => cmd_diff_fixup_modifs
-        commands%diff_goto_source%run => cmd_diff_goto_source
-        commands%diff_apply_hunk%run => cmd_diff_apply_hunk
-        commands%diff_test_hunk%run => cmd_diff_test_hunk
-        commands%diff_revert_and_kill_hunk%run => cmd_diff_revert_and_kill_hunk
-        commands%diff_apply_buffer%run => cmd_diff_apply_buffer
+        commands%diff_split_hunk%execute => cmd_diff_split_hunk
+        commands%diff_kill_junk%execute => cmd_diff_kill_junk
+        commands%diff_fixup_modifs%execute => cmd_diff_fixup_modifs
+        commands%diff_goto_source%execute => cmd_diff_goto_source
+        commands%diff_apply_hunk%execute => cmd_diff_apply_hunk
+        commands%diff_test_hunk%execute => cmd_diff_test_hunk
+        commands%diff_revert_and_kill_hunk%execute => cmd_diff_revert_and_kill_hunk
+        commands%diff_apply_buffer%execute => cmd_diff_apply_buffer
         ! diff-mode-shared-map.
         if (is_keymap_live(diff_mode_shared_map)) call free_keymap(diff_mode_shared_map, st)
         call make_sparse_keymap(diff_mode_shared_map)

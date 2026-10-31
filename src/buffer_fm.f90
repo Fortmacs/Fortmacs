@@ -358,7 +358,7 @@ module buffer_fm
     !> Called by kill_buffer, with the buffer to kill current, to run
     !> `kill_buffer_hook' (set by files_fm, which defines the hook as
     !> files.el does).
-    procedure(buffer_proc), pointer, public :: run_kill_buffer_hook => null()
+    procedure(buffer_proc), pointer, public :: execute_kill_buffer_hook => null()
 
     interface
         !> Kill buffer `h': unchain its markers, free its text, and if it was
@@ -380,11 +380,11 @@ module buffer_fm
         !> Run `buffer_list_update_hook' unless buffer slot I inhibits
         !> buffer hooks.  Port of buffer.c:run_buffer_list_update_hook.
         !> (In buffer_ops_fm.)
-        recursive module subroutine run_buffer_list_update_hook(i, status)
+        recursive module subroutine execute_buffer_list_update_hook(i, status)
             implicit none(type, external)
             integer(int64), intent(in) :: i
             type(status_type), intent(out) :: status
-        end subroutine run_buffer_list_update_hook
+        end subroutine execute_buffer_list_update_hook
 
         !> Return the buffer with buffer-local VARIABLE `equal' to VALUE.
         !> If there is no such live buffer, return the null handle.
@@ -419,7 +419,7 @@ module buffer_fm
               buf_next_char_len, buf_prev_char_len, buf_bytes
     public :: temp_set_point_both
     public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
-              set_buffer_if_live, run_buffer_list_update_hook, find_buffer, syms_of_buffer
+              set_buffer_if_live, execute_buffer_list_update_hook, find_buffer, syms_of_buffer
     public :: buffer_serial_live
 
 contains
@@ -608,7 +608,7 @@ contains
         buffer_order(2:buffer_order_count) = buffer_order(1:buffer_order_count - 1)
         buffer_order(1) = h
         if (cur == 0) call set_buffer_internal(i)
-        call run_buffer_list_update_hook(i, status)
+        call execute_buffer_list_update_hook(i, status)
     end subroutine get_buffer_create
 
     !> The live buffer visiting `filename', or the null handle.  The caller
@@ -768,7 +768,7 @@ contains
 
         buffers(cur)%last_name = oldname
         buffers(cur)%name = actual
-        call run_buffer_list_update_hook(cur, status)
+        call execute_buffer_list_update_hook(cur, status)
     end subroutine rename_buffer
 
     !> Return a list of all live buffers, most recently selected first.
@@ -899,7 +899,7 @@ contains
         ! Update buffer lists of selected frame.
         call list_delq(frame_buffers, h)
         call list_push(frame_buried, h)
-        call run_buffer_list_update_hook(h%index, status)
+        call execute_buffer_list_update_hook(h%index, status)
     end subroutine bury_buffer_internal
 
     !> Drop the killed buffer `h' from the frame's buffer lists.  Port of
@@ -961,7 +961,7 @@ contains
         ! Update buffer list of selected frame.
         call list_push(frame_buffers, h)
         call list_delq(frame_buried, h)
-        call run_buffer_list_update_hook(h%index, status)
+        call execute_buffer_list_update_hook(h%index, status)
     end subroutine record_buffer
 
     ! Not a port.

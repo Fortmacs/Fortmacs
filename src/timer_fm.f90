@@ -37,7 +37,7 @@
 !> releases its handle.
 !>
 !> Deferred: timer functions with arguments (a timer calls a procedure
-!> of no arguments), run_at_time's string times ("11:23pm", "2 hours
+!> of no arguments), execute_at_time's string times ("11:23pm", "2 hours
 !> 35 minutes"), encoded times and t (integral multiples of REPEAT,
 !> timer-next-integral-multiple-of-time), `with_timeout',
 !> `read_y_or_n_with_timeout', `timer_duration', `add_timeout' (obsolete),
@@ -56,7 +56,7 @@ module timer_fm
 
     public :: timer_create, free_timer, is_timer, timer_set_time, timer_set_idle_time, timer_inc_time, &
               timer_set_function, timer_activate, timer_activate_when_idle, cancel_timer, cancel_function_timers, &
-              timer_event_handler, run_at_time, run_with_timer, run_with_idle_timer, internal_timer_start_idle, &
+              timer_event_handler, execute_at_time, execute_with_timer, execute_with_idle_timer, internal_timer_start_idle, &
               timer_start_idle, timer_stop_idle, timer_resume_idle, timer_check, current_idle_time, &
               is_timer_triggered, is_timer_active, is_timer_idle
 
@@ -460,8 +460,8 @@ contains
     end subroutine remove_at
 
     !> Cancel all timers which would run FUNCTION.
-    !> This affects ordinary timers such as are scheduled by `run_at_time',
-    !> and idle timers such as are scheduled by `run_with_idle_timer'.
+    !> This affects ordinary timers such as are scheduled by `execute_at_time',
+    !> and idle timers such as are scheduled by `execute_with_idle_timer'.
     !> Port of timer.el:cancel-function-timers (a function, not a
     !> command).
     subroutine cancel_function_timers(function)
@@ -565,7 +565,7 @@ contains
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-at-time (TIME is a number;
     !> strings, encoded times and t are not ported; no ARGS).
-    subroutine run_at_time(timer, time, function, status, repeat)
+    subroutine execute_at_time(timer, time, function, status, repeat)
         type(handle_type), intent(out) :: timer
         real(real64), intent(in) :: time
         procedure(command_proc) :: function
@@ -587,7 +587,7 @@ contains
         call timer_set_time(timer, time, status, repeat)
         if (status%ok()) call timer_set_function(timer, function, status)
         if (status%ok()) call timer_activate(timer, status)
-    end subroutine run_at_time
+    end subroutine execute_at_time
 
     !> Perform an action after a delay of SECS seconds.
     !> Repeat the action every REPEAT seconds, if REPEAT is present.
@@ -597,15 +597,15 @@ contains
     !>
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-with-timer (no ARGS).
-    subroutine run_with_timer(timer, secs, function, status, repeat)
+    subroutine execute_with_timer(timer, secs, function, status, repeat)
         type(handle_type), intent(out) :: timer
         real(real64), intent(in) :: secs
         procedure(command_proc) :: function
         type(status_type), intent(out) :: status
         real(real64), intent(in), optional :: repeat
 
-        call run_at_time(timer, secs, function, status, repeat)
-    end subroutine run_with_timer
+        call execute_at_time(timer, secs, function, status, repeat)
+    end subroutine execute_with_timer
 
     !> Perform an action the next time Emacs is idle for SECS seconds.
     !> The action is to call FUNCTION.
@@ -622,7 +622,7 @@ contains
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-with-idle-timer (no ARGS;
     !> not a command).
-    subroutine run_with_idle_timer(timer, secs, repeat, function, status)
+    subroutine execute_with_idle_timer(timer, secs, repeat, function, status)
         type(handle_type), intent(out) :: timer
         real(real64), intent(in) :: secs
         logical, intent(in) :: repeat
@@ -633,7 +633,7 @@ contains
         call timer_set_function(timer, function, status)
         if (status%ok()) call timer_set_idle_time(timer, secs, status, repeat)
         if (status%ok()) call timer_activate_when_idle(timer, status, .true.)
-    end subroutine run_with_idle_timer
+    end subroutine execute_with_idle_timer
 
     !> Mark all idle-time timers as once again candidates for running.
     !> Port of timer.el:internal-timer-start-idle.

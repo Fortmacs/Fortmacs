@@ -46,7 +46,7 @@ module derived_fm
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur
     use keymap_fm, only: make_sparse_keymap, is_keymap_live, keymap_parent, set_keymap_parent, use_local_map
-    use subr_fm, only: delay_mode_hooks_begin, delay_mode_hooks_end, run_mode_hooks
+    use subr_fm, only: delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
     use abbrev_fm, only: abbrev_table_type, local_abbrev_table, set_local_abbrev_table
     implicit none(type, external)
     private
@@ -75,7 +75,7 @@ module derived_fm
         !> Shown in the mode line (`mode_name').
         character(len=:), allocatable :: mode_name
         !> The mode's command.
-        procedure(command_proc), pointer, nopass :: run => null()
+        procedure(command_proc), pointer, nopass :: execute => null()
         !> The mode it is derived from (`derived_mode_parent'), or null.
         type(major_mode_type), pointer :: parent => null()
         !> Its keymap (`MODE-map'), inheriting the parent's.
@@ -133,15 +133,15 @@ contains
     end function major_mode_named
 
     !> Define major mode SELF named NAME, shown as MODE_NAME, whose command
-    !> is RUN, derived from PARENT (none if absent: the body starts by
+    !> is EXECUTE, derived from PARENT (none if absent: the body starts by
     !> killing all local variables).  SYNTAX_TABLE, if present, is its
     !> syntax table, ABBREV_TABLE its abbrev table (made known as
     !> NAME_abbrev_table).  Its keymap inherits PARENT's.  Port of
     !> derived.el:define-derived-mode.
-    subroutine major_mode_define(self, name, mode_name, run, hook, parent, syntax_table, abbrev_table)
+    subroutine major_mode_define(self, name, mode_name, execute, hook, parent, syntax_table, abbrev_table)
         class(major_mode_type), intent(inout), target :: self
         character(len=*), intent(in) :: name, mode_name
-        procedure(command_proc) :: run
+        procedure(command_proc) :: execute
         type(hook_type), intent(inout), target, optional :: hook
         type(major_mode_type), intent(in), target, optional :: parent
         type(handle_type), intent(in), optional :: syntax_table
@@ -152,7 +152,7 @@ contains
 
         self%name = name
         self%mode_name = mode_name
-        self%run => run
+        self%execute => execute
         self%hook => null()
 
         if (present(hook)) then
@@ -210,7 +210,7 @@ contains
         call delay_mode_hooks_begin(saved)
 
         if (associated(self%parent)) then
-            if (associated(self%parent%run)) call self%parent%run(status)
+            if (associated(self%parent%execute)) call self%parent%execute(status)
 
             if (.not. status%ok()) then
                 call delay_mode_hooks_end(saved)
@@ -257,9 +257,9 @@ contains
         select type (self)
         type is (major_mode_type)
             if (associated(self%hook)) then
-                call run_mode_hooks(status, self%hook)
+                call execute_mode_hooks(status, self%hook)
             else
-                call run_mode_hooks(status)
+                call execute_mode_hooks(status)
             end if
         end select
     end subroutine major_mode_finish

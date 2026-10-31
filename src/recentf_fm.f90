@@ -54,7 +54,7 @@ module recentf_fm
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, run_with_idle_timer, free_timer, is_timer
+    use timer_fm, only: execute_with_timer, execute_with_idle_timer, free_timer, is_timer
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, generate_new_buffer_name, &
                          kill_buffer
     use insdel_fm, only: insert
@@ -507,7 +507,7 @@ contains
 
     !> Automatic cleanup of the recent list.  Port of
     !> recentf.el:recentf-auto-cleanup.
-    subroutine recentf_auto_cleanup_run()
+    subroutine execute_recentf_auto_cleanup()
         type(status_type) :: st
 
         if (is_timer(recentf_auto_cleanup_timer)) call free_timer(recentf_auto_cleanup_timer)
@@ -517,10 +517,10 @@ contains
         if (recentf_auto_cleanup == RECENTF_AUTO_CLEANUP_MODE) then
             call recentf_cleanup()
         else if (recentf_auto_cleanup > 0) then
-            call run_with_idle_timer(recentf_auto_cleanup_timer, real(recentf_auto_cleanup, real64), .true., &
+            call execute_with_idle_timer(recentf_auto_cleanup_timer, real(recentf_auto_cleanup, real64), .true., &
                                      recentf_cleanup_proc, st)
         end if
-    end subroutine recentf_auto_cleanup_run
+    end subroutine execute_recentf_auto_cleanup
 
     !> Prompt for FILE in `recentf_list' and visit it.
     !> Enable `recentf_mode' if it isn't already.  Port of
@@ -623,7 +623,7 @@ contains
 
         if (minor_modes%recentf_mode%enabled() .and. recentf_autosave_interval > 0 .and. &
             .not. is_timer(recentf_autosave_timer)) then
-            call run_with_timer(recentf_autosave_timer, real(recentf_autosave_interval, real64), &
+            call execute_with_timer(recentf_autosave_timer, real(recentf_autosave_interval, real64), &
                                 recentf_save_list_proc, st, real(recentf_autosave_interval, real64))
         else
             call recentf_cancel_autosave_timer()
@@ -859,7 +859,7 @@ contains
             call recentf_save_list(mode_called_interactively)
         end if
 
-        call recentf_auto_cleanup_run()
+        call execute_recentf_auto_cleanup()
         call recentf_manage_autosave_timer()
 
         if (enable) then
@@ -893,12 +893,12 @@ contains
         call minor_modes%recentf_mode%define("recentf_mode", global=.true., hook=recentf_mode_hook, keymap=.true., &
                                              body=recentf_mode_body)
         recentf_mode_map = minor_modes%recentf_mode%map
-        commands%recentf_mode%run => recentf_mode
-        commands%recentf_open%run => recentf_open
-        commands%recentf%run => recentf_open
-        commands%recentf_open_most_recent_file%run => cmd_recentf_open_most_recent_file
-        commands%recentf_save_list%run => cmd_recentf_save_list
-        commands%recentf_load_list%run => cmd_recentf_load_list
-        commands%recentf_cleanup%run => recentf_cleanup_proc
+        commands%recentf_mode%execute => recentf_mode
+        commands%recentf_open%execute => recentf_open
+        commands%recentf%execute => recentf_open
+        commands%recentf_open_most_recent_file%execute => cmd_recentf_open_most_recent_file
+        commands%recentf_save_list%execute => cmd_recentf_save_list
+        commands%recentf_load_list%execute => cmd_recentf_load_list
+        commands%recentf_cleanup%execute => recentf_cleanup_proc
     end subroutine syms_of_recentf
 end module recentf_fm

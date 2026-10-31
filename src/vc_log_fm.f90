@@ -157,7 +157,7 @@ contains
         ! the major-mode.
         call pop_to_buffer(buffer, status)
         if (.not. status%ok()) return
-        action%run => log_finish
+        action%execute => log_finish
         action%buffer = buffer
         action%n = backend
         action%s1 = working_revision
@@ -193,7 +193,7 @@ contains
         end if
 
         call restore_buffer_modified(.false.)
-        call vc_log_finish_functions%run(status)
+        call vc_log_finish_functions%execute(status)
         call set(value_type(name="inhibit_read_only"), saved, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine log_finish

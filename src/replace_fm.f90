@@ -2134,7 +2134,7 @@ contains
 
     ! The interactive commands: read the arguments, then operate on the
     ! region when it is in use.  Not a port.
-    recursive subroutine run_command(base, what, regexp_flag, query, status)
+    recursive subroutine execute_command(base, what, regexp_flag, query, status)
         character(len=*), intent(in) :: base, what
         logical, intent(in) :: regexp_flag, query
         type(status_type), intent(out) :: status
@@ -2156,30 +2156,30 @@ contains
             call perform_replace(from, to, query, regexp_flag, delimited, status, backward=backward, &
                                  counted=counted)
         end if
-    end subroutine run_command
+    end subroutine execute_command
 
     recursive subroutine cmd_query_replace(status)
         type(status_type), intent(out) :: status
 
-        call run_command("Query replace", "", .false., .true., status)
+        call execute_command("Query replace", "", .false., .true., status)
     end subroutine cmd_query_replace
 
     recursive subroutine cmd_query_replace_regexp(status)
         type(status_type), intent(out) :: status
 
-        call run_command("Query replace", " regexp", .true., .true., status)
+        call execute_command("Query replace", " regexp", .true., .true., status)
     end subroutine cmd_query_replace_regexp
 
     recursive subroutine cmd_replace_string(status)
         type(status_type), intent(out) :: status
 
-        call run_command("Replace", " string", .false., .false., status)
+        call execute_command("Replace", " string", .false., .false., status)
     end subroutine cmd_replace_string
 
     recursive subroutine cmd_replace_regexp(status)
         type(status_type), intent(out) :: status
 
-        call run_command("Replace", " regexp", .true., .false., status)
+        call execute_command("Replace", " regexp", .true., .false., status)
     end subroutine cmd_replace_regexp
 
     recursive subroutine cmd_map_query_replace_regexp(status)
@@ -2238,11 +2238,11 @@ contains
         call forward_setting(query_replace_history)
         call forward_setting(regexp_history)
         query_replace_to_history_variable = "query_replace_history"
-        commands%query_replace%run => cmd_query_replace
-        commands%query_replace_regexp%run => cmd_query_replace_regexp
-        commands%map_query_replace_regexp%run => cmd_map_query_replace_regexp
-        commands%replace_string%run => cmd_replace_string
-        commands%replace_regexp%run => cmd_replace_regexp
+        commands%query_replace%execute => cmd_query_replace
+        commands%query_replace_regexp%execute => cmd_query_replace_regexp
+        commands%map_query_replace_regexp%execute => cmd_map_query_replace_regexp
+        commands%replace_string%execute => cmd_replace_string
+        commands%replace_regexp%execute => cmd_replace_regexp
     end subroutine syms_of_replace
 
     ! ------------------------------------------------------------------
@@ -2947,7 +2947,7 @@ contains
         if (.not. status%ok()) return
         call marker_position(marker, pos, st)
         call goto_char(pos)
-        call occur_mode_find_occurrence_hook%run(status)
+        call occur_mode_find_occurrence_hook%execute(status)
     end subroutine occur_mode_goto_occurrence
 
     !> Go to the occurrence the current line describes, in another window.
@@ -2970,7 +2970,7 @@ contains
         call marker_position(marker, pos, st)
         call goto_char(pos)
         call next_error_found(status, occur_buf, current_buffer())
-        if (status%ok()) call occur_mode_find_occurrence_hook%run(status)
+        if (status%ok()) call occur_mode_find_occurrence_hook%execute(status)
     end subroutine occur_mode_goto_occurrence_other_window
 
     !> Display in another window the occurrence the current line describes.
@@ -2996,7 +2996,7 @@ contains
         call marker_position(marker, pos, st)
         call goto_char(pos)
         call next_error_found(status, occur_buf, current_buffer())
-        if (status%ok()) call occur_mode_find_occurrence_hook%run(status)
+        if (status%ok()) call occur_mode_find_occurrence_hook%execute(status)
         call select_window(old_window, st)
     end subroutine occur_mode_display_occurrence
 
@@ -3949,7 +3949,7 @@ contains
             next_error_last_buffer = occur_buf
             buffers(cur)%read_only = .true.
             call restore_buffer_modified(.false.)
-            call occur_hook%run(status)
+            call occur_hook%execute(status)
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -4673,28 +4673,28 @@ contains
         call set_keymap_parent(occur_edit_mode_map, text_mode_map, st)
         call keymap_set(occur_edit_mode_map, "C-c C-c", "occur_cease_edit", st)
         call keymap_set(occur_edit_mode_map, "C-o", "occur_mode_display_occurrence", st)
-        commands%keep_lines%run => cmd_keep_lines
-        commands%delete_non_matching_lines%run => cmd_keep_lines
-        commands%flush_lines%run => cmd_flush_lines
-        commands%delete_matching_lines%run => cmd_flush_lines
-        commands%kill_matching_lines%run => cmd_kill_matching_lines
-        commands%copy_matching_lines%run => cmd_copy_matching_lines
-        commands%how_many%run => cmd_how_many
-        commands%count_matches%run => cmd_how_many
-        commands%occur%run => cmd_occur
-        commands%list_matching_lines%run => cmd_occur
-        commands%multi_occur%run => cmd_multi_occur
-        commands%multi_occur_in_matching_buffers%run => cmd_multi_occur_in_matching_buffers
-        commands%occur_rename_buffer%run => cmd_occur_rename_buffer
-        commands%occur_mode%run => occur_mode
-        commands%occur_edit_mode%run => occur_edit_mode
-        commands%occur_cease_edit%run => occur_cease_edit
-        commands%occur_mode_goto_occurrence%run => occur_mode_goto_occurrence
-        commands%occur_mode_mouse_goto%run => occur_mode_goto_occurrence
-        commands%occur_mode_goto_occurrence_other_window%run => occur_mode_goto_occurrence_other_window
-        commands%occur_mode_display_occurrence%run => occur_mode_display_occurrence
-        commands%occur_next%run => occur_next
-        commands%occur_prev%run => occur_prev
+        commands%keep_lines%execute => cmd_keep_lines
+        commands%delete_non_matching_lines%execute => cmd_keep_lines
+        commands%flush_lines%execute => cmd_flush_lines
+        commands%delete_matching_lines%execute => cmd_flush_lines
+        commands%kill_matching_lines%execute => cmd_kill_matching_lines
+        commands%copy_matching_lines%execute => cmd_copy_matching_lines
+        commands%how_many%execute => cmd_how_many
+        commands%count_matches%execute => cmd_how_many
+        commands%occur%execute => cmd_occur
+        commands%list_matching_lines%execute => cmd_occur
+        commands%multi_occur%execute => cmd_multi_occur
+        commands%multi_occur_in_matching_buffers%execute => cmd_multi_occur_in_matching_buffers
+        commands%occur_rename_buffer%execute => cmd_occur_rename_buffer
+        commands%occur_mode%execute => occur_mode
+        commands%occur_edit_mode%execute => occur_edit_mode
+        commands%occur_cease_edit%execute => occur_cease_edit
+        commands%occur_mode_goto_occurrence%execute => occur_mode_goto_occurrence
+        commands%occur_mode_mouse_goto%execute => occur_mode_goto_occurrence
+        commands%occur_mode_goto_occurrence_other_window%execute => occur_mode_goto_occurrence_other_window
+        commands%occur_mode_display_occurrence%execute => occur_mode_display_occurrence
+        commands%occur_next%execute => occur_next
+        commands%occur_prev%execute => occur_prev
     end subroutine syms_of_occur
 
     !> turn-on-font-lock as a function of `occur_mode_hook'.  Not a port.

@@ -54,7 +54,7 @@ module autorevert_fm
     use undo_fm, only: undo_boundary
     use search_fm, only: string_match
     use keyboard_fm, only: is_input_pending
-    use timer_fm, only: run_with_timer, free_timer, is_timer, is_timer_active
+    use timer_fm, only: execute_with_timer, free_timer, is_timer, is_timer_active
     use xdisp_fm, only: message
     use fileio_fm, only: expand_file_name, is_file_readable, is_file_symlink, file_attributes, file_stat_type, &
                          file_name_nondirectory, insert_file_contents, set_visited_file_modtime, verify_visited_file_modtime
@@ -985,7 +985,7 @@ contains
         auto_revert_timer = null_handle()
 
         if (is_auto_revert_need_polling()) then
-            call run_with_timer(auto_revert_timer, real(auto_revert_interval, real64), auto_revert_buffers, status, &
+            call execute_with_timer(auto_revert_timer, real(auto_revert_interval, real64), auto_revert_buffers, status, &
                                 real(auto_revert_interval, real64))
         end if
     end subroutine auto_revert_set_timer
@@ -1140,7 +1140,7 @@ contains
                 locals(k)%modified_p = .true.
 
                 if (.not. is_timer(locals(k)%lockout_timer)) then
-                    call run_with_timer(locals(k)%lockout_timer, real(auto_revert_lockout_interval, real64), &
+                    call execute_with_timer(locals(k)%lockout_timer, real(auto_revert_lockout_interval, real64), &
                                         auto_revert_end_lockout, st)
 
                     if (now_seconds() - locals(k)%last_time > auto_revert_lockout_interval) then
@@ -1369,7 +1369,7 @@ contains
         call move_alloc(buffers(cur)%filename, file)
 
         if (locals(k)%tail_pos /= fsize) then
-            call before_revert_hook%run(st)
+            call before_revert_hook%execute(st)
             call undo_boundary()
             ! save-restriction, save-excursion
             opoint = point()
@@ -1387,7 +1387,7 @@ contains
 
             if (narrowed) call narrow_to_region(obegv, ozv, st)
             call goto_char(opoint)
-            call after_revert_hook%run(st)
+            call after_revert_hook%execute(st)
             call undo_boundary()
             k = local_index(.true.)
             locals(k)%tail_pos = fsize
@@ -1570,9 +1570,9 @@ contains
         call add_local_variables_killer(kill_autorevert_locals)
         call find_file_hook%add(auto_revert_find_file_function)
         call after_set_visited_file_name_hook%add(auto_revert_set_visited_file_name)
-        commands%auto_revert_mode%run => auto_revert_mode
-        commands%auto_revert_tail_mode%run => auto_revert_tail_mode
-        commands%global_auto_revert_mode%run => global_auto_revert_mode
-        commands%auto_revert_set_timer%run => cmd_auto_revert_set_timer
+        commands%auto_revert_mode%execute => auto_revert_mode
+        commands%auto_revert_tail_mode%execute => auto_revert_tail_mode
+        commands%global_auto_revert_mode%execute => global_auto_revert_mode
+        commands%auto_revert_set_timer%execute => cmd_auto_revert_set_timer
     end subroutine syms_of_autorevert
 end module autorevert_fm

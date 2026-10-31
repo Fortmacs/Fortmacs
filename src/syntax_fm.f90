@@ -1338,7 +1338,7 @@ contains
     subroutine syms_of_syntax()
         call forward_setting(parse_expression_lookup_properties, local_if_set=.true.)
         call forward_setting(syntax_propertize__done, local_if_set=.true.)
-        commands%forward_word%run => cmd_forward_word
+        commands%forward_word%execute => cmd_forward_word
     end subroutine syms_of_syntax
 
     ! ------------------------------------------------------------------

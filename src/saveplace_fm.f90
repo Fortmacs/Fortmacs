@@ -48,7 +48,7 @@ module saveplace_fm
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, free_timer, is_timer
+    use timer_fm, only: execute_with_timer, free_timer, is_timer
     use buffer_fm, only: buffers, cur, buffer_list, set_buffer, current_buffer, get_buffer_create, &
                          generate_new_buffer_name, kill_buffer
     use insdel_fm, only: insert
@@ -450,7 +450,7 @@ contains
 
         if (save_place_mode_on() .and. save_place_autosave_interval > 0 .and. &
             .not. is_timer(save_place_autosave_timer)) then
-            call run_with_timer(save_place_autosave_timer, real(save_place_autosave_interval, real64), &
+            call execute_with_timer(save_place_autosave_timer, real(save_place_autosave_interval, real64), &
                                 save_place_autosave, st, real(save_place_autosave_interval, real64))
         else
             call save_place_cancel_timer()
@@ -770,7 +770,7 @@ contains
             call set(value_type(name="save_place_mode"), value_type(.true.), st)
         end if
 
-        call save_place_after_find_file_hook%run(status)
+        call save_place_after_find_file_hook%execute(status)
     end subroutine save_place_find_file_hook
 
     ! `save_place_find_file_hook' as a hook function.  Not a port.
@@ -852,8 +852,8 @@ contains
         call minor_modes%save_place_local_mode%define("save_place_local_mode", variable="save_place_mode", &
                                                       hook=save_place_local_mode_hook, &
                                                       body=save_place_local_mode_body)
-        commands%save_place_mode%run => save_place_mode
-        commands%save_place_local_mode%run => save_place_local_mode
-        commands%save_place_forget_unreadable_files%run => cmd_save_place_forget_unreadable_files
+        commands%save_place_mode%execute => save_place_mode
+        commands%save_place_local_mode%execute => save_place_local_mode
+        commands%save_place_forget_unreadable_files%execute => cmd_save_place_forget_unreadable_files
     end subroutine syms_of_saveplace
 end module saveplace_fm

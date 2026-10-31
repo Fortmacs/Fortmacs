@@ -73,7 +73,7 @@ module grep_fm
     use fileio_fm, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
                          is_file_accessible_directory
     use files_fm, only: save_some_buffers, file_name_extension, wildcard_to_regexp, make_temp_file, delete_file
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use simple_fm, only: read_shell_command, next_error_last_buffer, shell_command_switch
     use callproc_fm, only: shell_file_name, init_callproc
     use minibuf_fm, only: read_from_minibuffer, read_string, minibuffer_string_type
@@ -88,7 +88,7 @@ module grep_fm
     use keymap_fm, only: keymap_set, set_keymap_parent, make_sparse_keymap, current_local_map, use_local_map
     use text_mode_fm, only: text_mode_map
     use derived_fm, only: is_derived_mode
-    use subr_fm, only: run_mode_hooks
+    use subr_fm, only: execute_mode_hooks
     use insdel_fm, only: after_change_functions
     use data_fm, only: set
     use help_fm, only: substitute_command_keys
@@ -960,7 +960,7 @@ contains
         logical :: saved
         integer :: n, i
 
-        if (.not. associated(major_modes%grep_mode%run)) call syms_of_grep()
+        if (.not. associated(major_modes%grep_mode%execute)) call syms_of_grep()
         call major_modes%grep_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! The variables define-compilation-mode sets from the mode's name.
@@ -1053,7 +1053,7 @@ contains
         k = local_entry()
         locals(k)%num_matches_found = 0
         call compilation_set_mode_locals(exit_message_function=grep_exit_message)
-        call grep_setup_hook%run(status)
+        call grep_setup_hook%execute(status)
 
     contains
 
@@ -1309,7 +1309,7 @@ contains
 
         dest = value_type()
         if (insert) dest = value_type(.true.)
-        call call_process(program, res, st, destination=dest, args=make_list(argv))
+        call execute_process(program, res, st, destination=dest, args=make_list(argv))
         ok = .false.
         if (.not. st%ok()) return
         if (vtag(res) == V_INTEGER) ok = xfixnum(res) == expected
@@ -1383,7 +1383,7 @@ contains
                     ! `grep_command' is already set, so use that for testing.
                     ! process-file-shell-command.
                     if (.not. allocated(shell_file_name%value)) call init_callproc()
-                    call call_process(shell_file_name%value, res, st, destination=value_type(.true.), &
+                    call execute_process(shell_file_name%value, res, st, destination=value_type(.true.), &
                                       args=list(value_type(text=shell_command_switch%value), &
                                                 value_type(text=grep_command//" "//shell_quote_argument("^Copyright")// &
                                                            " "//shell_quote_argument(hello))))
@@ -1943,7 +1943,7 @@ contains
         call restore_buffer_modified(.false.)
         if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
         call after_change_functions%add(occur_after_change_function, local=.true.)
-        call run_mode_hooks(status, grep_edit_mode_hook)
+        call execute_mode_hooks(status, grep_edit_mode_hook)
         if (.not. status%ok()) return
         call message(substitute_command_keys("Editing: Type \[grep_edit_save_changes] to return to Grep mode"))
     end subroutine grep_change_to_grep_edit_mode
@@ -2991,8 +2991,8 @@ contains
         type(status_type) :: st
         integer :: i, n
 
-        if (associated(major_modes%grep_mode%run)) return
-        if (.not. associated(major_modes%compilation_mode%run)) call syms_of_compile()
+        if (associated(major_modes%grep_mode%execute)) return
+        if (.not. associated(major_modes%compilation_mode%execute)) call syms_of_compile()
         grep_match_regexp = ESC//"\[\(?:0?1;\)?31m\(.*?\)"//ESC//"\[[0-9]*m"
         grep_match_face = "match"
         grep_error = "grep hit"
@@ -3092,19 +3092,19 @@ contains
         call forward_setting(grep_find_history)
         call forward_setting(grep_regexp_history)
         call forward_setting(grep_files_history)
-        commands%grep_mode%run => grep_mode
-        commands%grep%run => cmd_grep
-        commands%grep_find%run => cmd_grep_find
-        commands%find_grep%run => cmd_grep_find
-        commands%lgrep%run => cmd_lgrep
-        commands%rgrep%run => cmd_rgrep
-        commands%zrgrep%run => cmd_zrgrep
-        commands%rzgrep%run => cmd_zrgrep
-        commands%kill_grep%run => kill_compilation
-        commands%grep_find_toggle_abbreviation%run => grep_find_toggle_abbreviation
-        commands%grep_edit_mode%run => grep_edit_mode
-        commands%grep_change_to_grep_edit_mode%run => grep_change_to_grep_edit_mode
-        commands%grep_edit_save_changes%run => grep_edit_save_changes
+        commands%grep_mode%execute => grep_mode
+        commands%grep%execute => cmd_grep
+        commands%grep_find%execute => cmd_grep_find
+        commands%find_grep%execute => cmd_grep_find
+        commands%lgrep%execute => cmd_lgrep
+        commands%rgrep%execute => cmd_rgrep
+        commands%zrgrep%execute => cmd_zrgrep
+        commands%rzgrep%execute => cmd_zrgrep
+        commands%kill_grep%execute => kill_compilation
+        commands%grep_find_toggle_abbreviation%execute => grep_find_toggle_abbreviation
+        commands%grep_edit_mode%execute => grep_edit_mode
+        commands%grep_change_to_grep_edit_mode%execute => grep_change_to_grep_edit_mode
+        commands%grep_edit_save_changes%execute => grep_edit_save_changes
         call add_local_variables_killer(kill_grep_locals)
 
     contains

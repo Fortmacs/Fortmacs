@@ -17,19 +17,19 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Entry point: runs the editor (`run' in emacs_fm) with the built-in
+!> Entry point: executes the editor (`execute_editor' in emacs_fm) with the built-in
 !> configuration, which changes nothing.  `fortmacs --recompile' builds
 !> the user's init.f90 into a binary of its own (see config_fm), which an
 !> installed fortmacs runs instead.
 program fortmacs_main
-    use emacs_fm, only: run
+    use emacs_fm, only: execute_editor
     ! Written against the API like an init.f90 (which also keeps fpm from
     ! pruning the `fortmacs` module out of an install).
     use fortmacs, only: status_type
     implicit none(type, external)
     integer :: exit_code
 
-    call run(configure, exit_code)
+    call execute_editor(configure, exit_code)
     if (exit_code /= 0) stop exit_code, quiet = .true.
 
 contains

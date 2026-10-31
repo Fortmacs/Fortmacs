@@ -176,7 +176,7 @@ contains
         text = driver_source("/usr/local/")
         call check(error, index(text, "use user_config, only: configure") > 0, "uses user_config")
         if (allocated(error)) return
-        call check(error, index(text, 'call run(configure, exit_code, "/usr/local/")') > 0, text)
+        call check(error, index(text, 'call execute_editor(configure, exit_code, "/usr/local/")') > 0, text)
         if (allocated(error)) return
         ! Quotes are doubled; long prefixes are split over lines that stay
         ! within 132 columns.

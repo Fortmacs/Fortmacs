@@ -724,26 +724,26 @@ contains
         call bind_remap("forward_sentence", "sh_end_of_command")
         call minor_modes%sh_electric_here_document_mode%define("sh_electric_here_document_mode", &
                                                                body=sh_electric_here_document_mode_body)
-        commands%sh_base_mode%run => sh_base_mode
-        commands%sh_mode%run => sh_mode
-        commands%shell_script_mode%run => sh_mode
-        commands%sh_set_shell%run => cmd_sh_set_shell
-        commands%sh_basic_indent_line%run => cmd_sh_basic_indent_line
-        commands%sh_execute_region%run => cmd_sh_execute_region
-        commands%sh_make_vars_local%run => cmd_sh_make_vars_local
-        commands%sh_reset_indent_vars_to_global_values%run => sh_reset_indent_vars_to_global_values
-        commands%sh_add%run => cmd_sh_add
-        commands%sh_assignment%run => cmd_sh_assignment
-        commands%sh_electric_here_document_mode%run => sh_electric_here_document_mode
-        commands%sh_beginning_of_command%run => cmd_sh_beginning_of_command
-        commands%sh_end_of_command%run => cmd_sh_end_of_command
-        commands%sh_backslash_region%run => cmd_sh_backslash_region
-        commands%sh_show_shell%run => sh_show_shell
-        commands%sh_cd_here%run => sh_cd_here
-        commands%sh_send_line_or_region_and_step%run => sh_send_line_or_region_and_step
-        commands%sh_name_style%run => cmd_sh_name_style
-        commands%sh_load_style%run => cmd_sh_load_style
-        commands%sh_save_styles_to_buffer%run => cmd_sh_save_styles_to_buffer
+        commands%sh_base_mode%execute => sh_base_mode
+        commands%sh_mode%execute => sh_mode
+        commands%shell_script_mode%execute => sh_mode
+        commands%sh_set_shell%execute => cmd_sh_set_shell
+        commands%sh_basic_indent_line%execute => cmd_sh_basic_indent_line
+        commands%sh_execute_region%execute => cmd_sh_execute_region
+        commands%sh_make_vars_local%execute => cmd_sh_make_vars_local
+        commands%sh_reset_indent_vars_to_global_values%execute => sh_reset_indent_vars_to_global_values
+        commands%sh_add%execute => cmd_sh_add
+        commands%sh_assignment%execute => cmd_sh_assignment
+        commands%sh_electric_here_document_mode%execute => sh_electric_here_document_mode
+        commands%sh_beginning_of_command%execute => cmd_sh_beginning_of_command
+        commands%sh_end_of_command%execute => cmd_sh_end_of_command
+        commands%sh_backslash_region%execute => cmd_sh_backslash_region
+        commands%sh_show_shell%execute => sh_show_shell
+        commands%sh_cd_here%execute => sh_cd_here
+        commands%sh_send_line_or_region_and_step%execute => sh_send_line_or_region_and_step
+        commands%sh_name_style%execute => cmd_sh_name_style
+        commands%sh_load_style%execute => cmd_sh_load_style
+        commands%sh_save_styles_to_buffer%execute => cmd_sh_save_styles_to_buffer
         ! (The default value, in reverse order: `add' puts a function first.)
         call sh_dynamic_complete_functions%add(comint_filename_completion)
         call sh_dynamic_complete_functions%add(shell_command_completion)
@@ -3508,7 +3508,7 @@ contains
             call font_lock_flush(st)
         end if
 
-        call sh_set_shell_hook%run(status)
+        call sh_set_shell_hook%execute(status)
     end subroutine sh_set_shell
 
     ! `sh_set_shell' as a command.

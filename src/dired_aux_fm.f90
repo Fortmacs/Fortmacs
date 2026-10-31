@@ -291,7 +291,7 @@ contains
             call aux_fwd_line(-1_int64)
             ! The subdir-alist is not affected, so we can run the hook right
             ! now (narrowed to the new line).
-            call run_after_readin_on_line()
+            call execute_after_readin_on_line()
             p = dired_move_to_filename(st)
             call aux_inhibit_read_only_end(saved_ro)
             added = status%ok()
@@ -316,7 +316,7 @@ contains
 
     !> Run `dired_after_readin_hook' with the buffer narrowed to the
     !> current line.  Port of part of dired-aux.el:dired-do-redisplay.
-    subroutine run_after_readin_on_line()
+    subroutine execute_after_readin_on_line()
         integer(int64) :: opoint, begv, zv
         type(status_type) :: st
 
@@ -325,11 +325,11 @@ contains
         zv = buffers(cur)%zv
         call beginning_of_line()
         call narrow_to_region(point(), aux_bol(2_int64), st)
-        call dired_after_readin_hook%run(st)
+        call dired_after_readin_hook%execute(st)
         call widen()
         call narrow_to_region(begv, min(zv, point_max()), st)
         call goto_char(opoint)
-    end subroutine run_after_readin_on_line
+    end subroutine execute_after_readin_on_line
 
     module function dired_after_subdir_garbage(dir, status) result(pos)
         character(len=*), intent(in) :: dir
@@ -382,7 +382,7 @@ contains
         call message("Redisplaying...")
         call dired_map_over_marks(redisplay_line, arg_kind, arg_n, status, found, upward)
         if (.not. status%ok()) return
-        call dired_after_readin_hook%run(status)
+        call dired_after_readin_hook%execute(status)
         p = dired_move_to_filename(st)
         call message("Redisplaying...done")
     end subroutine dired_do_redisplay
@@ -584,35 +584,35 @@ contains
     end function dired_prev_subdir
 
     module subroutine syms_of_dired_aux()
-        commands%dired_create_directory%run => cmd_dired_create_directory
-        commands%dired_do_redisplay%run => cmd_dired_do_redisplay
-        commands%dired_kill_subdir%run => cmd_dired_kill_subdir
-        commands%dired_mark_subdir_files%run => cmd_dired_mark_subdir_files
-        commands%dired_do_chmod%run => cmd_dired_do_chmod
-        commands%dired_do_chgrp%run => cmd_dired_do_chgrp
-        commands%dired_do_chown%run => cmd_dired_do_chown
-        commands%dired_do_touch%run => cmd_dired_do_touch
-        commands%dired_kill_line%run => cmd_dired_kill_line
-        commands%dired_do_kill_lines%run => cmd_dired_do_kill_lines
-        commands%dired_do_compress%run => cmd_dired_do_compress
-        commands%dired_do_compress_to%run => cmd_dired_do_compress_to
-        commands%dired_do_copy%run => cmd_dired_do_copy
-        commands%dired_do_symlink%run => cmd_dired_do_symlink
-        commands%dired_do_relsymlink%run => cmd_dired_do_relsymlink
-        commands%dired_do_hardlink%run => cmd_dired_do_hardlink
-        commands%dired_do_rename%run => cmd_dired_do_rename
-        commands%dired_do_rename_regexp%run => cmd_dired_do_rename_regexp
-        commands%dired_do_copy_regexp%run => cmd_dired_do_copy_regexp
-        commands%dired_do_hardlink_regexp%run => cmd_dired_do_hardlink_regexp
-        commands%dired_do_symlink_regexp%run => cmd_dired_do_symlink_regexp
-        commands%dired_do_relsymlink_regexp%run => cmd_dired_do_relsymlink_regexp
-        commands%dired_upcase%run => cmd_dired_upcase
-        commands%dired_downcase%run => cmd_dired_downcase
-        commands%dired_create_empty_file%run => cmd_dired_create_empty_file
-        commands%dired_view_file%run => cmd_dired_view_file
-        commands%dired_show_file_type%run => cmd_dired_show_file_type
-        commands%dired_diff%run => cmd_dired_diff
-        commands%dired_backup_diff%run => cmd_dired_backup_diff
+        commands%dired_create_directory%execute => cmd_dired_create_directory
+        commands%dired_do_redisplay%execute => cmd_dired_do_redisplay
+        commands%dired_kill_subdir%execute => cmd_dired_kill_subdir
+        commands%dired_mark_subdir_files%execute => cmd_dired_mark_subdir_files
+        commands%dired_do_chmod%execute => cmd_dired_do_chmod
+        commands%dired_do_chgrp%execute => cmd_dired_do_chgrp
+        commands%dired_do_chown%execute => cmd_dired_do_chown
+        commands%dired_do_touch%execute => cmd_dired_do_touch
+        commands%dired_kill_line%execute => cmd_dired_kill_line
+        commands%dired_do_kill_lines%execute => cmd_dired_do_kill_lines
+        commands%dired_do_compress%execute => cmd_dired_do_compress
+        commands%dired_do_compress_to%execute => cmd_dired_do_compress_to
+        commands%dired_do_copy%execute => cmd_dired_do_copy
+        commands%dired_do_symlink%execute => cmd_dired_do_symlink
+        commands%dired_do_relsymlink%execute => cmd_dired_do_relsymlink
+        commands%dired_do_hardlink%execute => cmd_dired_do_hardlink
+        commands%dired_do_rename%execute => cmd_dired_do_rename
+        commands%dired_do_rename_regexp%execute => cmd_dired_do_rename_regexp
+        commands%dired_do_copy_regexp%execute => cmd_dired_do_copy_regexp
+        commands%dired_do_hardlink_regexp%execute => cmd_dired_do_hardlink_regexp
+        commands%dired_do_symlink_regexp%execute => cmd_dired_do_symlink_regexp
+        commands%dired_do_relsymlink_regexp%execute => cmd_dired_do_relsymlink_regexp
+        commands%dired_upcase%execute => cmd_dired_upcase
+        commands%dired_downcase%execute => cmd_dired_downcase
+        commands%dired_create_empty_file%execute => cmd_dired_create_empty_file
+        commands%dired_view_file%execute => cmd_dired_view_file
+        commands%dired_show_file_type%execute => cmd_dired_show_file_type
+        commands%dired_diff%execute => cmd_dired_diff
+        commands%dired_backup_diff%execute => cmd_dired_backup_diff
         call init_dired_aux_options()
     end subroutine syms_of_dired_aux
 
@@ -982,7 +982,7 @@ contains
         end do
 
         arglist = make_list(elems)
-        call call_process(program, result, status, destination=value_type(.true.), args=arglist)
+        call execute_process(program, result, status, destination=value_type(.true.), args=arglist)
 
         if (.not. status%ok()) then
             call set_buffer(old, st)
@@ -1030,7 +1030,7 @@ contains
             ! If we have at least 1 pending file and this file won't fit
             ! in the length limit, process now.
             if (k > first .and. thislength + pending_length > max_chars) then
-                call run_batch(first, k - 1)
+                call execute_batch(first, k - 1)
                 if (.not. status%ok()) return
                 first = k
                 pending_length = 0
@@ -1039,11 +1039,11 @@ contains
             pending_length = pending_length + thislength
         end do
 
-        call run_batch(first, size(files))
+        call execute_batch(first, size(files))
 
     contains
 
-        recursive subroutine run_batch(from, to)
+        recursive subroutine execute_batch(from, to)
             integer, intent(in) :: from, to
             type(dired_string_type), allocatable :: argv(:)
             integer :: j
@@ -1060,7 +1060,7 @@ contains
 
             call dired_check_process(msg, program, argv, f, status)
             if (f) failed = .true.
-        end subroutine run_batch
+        end subroutine execute_batch
     end subroutine dired_bunch_files
 
     !> (format-time-string "%Y%m%d%H%M.%S" SECONDS): the local time as
@@ -1527,7 +1527,7 @@ contains
         call erase_buffer(st)
         buffers(cur)%directory = dir
         args = list(value_type(text="-c"), value_type(text=cmd))
-        call call_process(aux_shell_file_name(), res, status, destination=value_type(.true.), args=args)
+        call execute_process(aux_shell_file_name(), res, status, destination=value_type(.true.), args=args)
         call set_buffer(old, st)
         if (.not. status%ok()) return
         zero = .false.
@@ -3657,7 +3657,7 @@ contains
         args = list(value_type(text="--"), value_type(text=file))
     end if
 
-    call call_process("file", res, status, destination=value_type(.true.), args=args)
+    call execute_process("file", res, status, destination=value_type(.true.), args=args)
 
     if (status%ok()) then
         if (is_bol() .and. point() > point_min()) call delete_char(-1_int64, st)

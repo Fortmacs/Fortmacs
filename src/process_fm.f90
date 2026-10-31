@@ -1885,7 +1885,7 @@ contains
     !> process.c:syms_of_process (the part ported).
     subroutine syms_of_process()
         call init_callproc()
-        commands%delete_process%run => cmd_delete_process
+        commands%delete_process%execute => cmd_delete_process
         kill_buffer_processes_hook => kill_buffer_processes
         mode_line_process_status => mode_line_status
     end subroutine syms_of_process

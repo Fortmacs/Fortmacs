@@ -1817,7 +1817,7 @@ contains
     end subroutine smie_backward_token
 
     ! (funcall smie-rules-function METHOD ARG).  Not a port.
-    recursive subroutine call_rules(method, arg, result, status)
+    recursive subroutine execute_rules(method, arg, result, status)
         integer, intent(in) :: method
         character(len=*), intent(in) :: arg
         type(smie_rule_result_type), intent(out) :: result
@@ -1834,7 +1834,7 @@ contains
         end if
 
         if (associated(fn)) call fn(method, arg, result, status)
-    end subroutine call_rules
+    end subroutine execute_rules
 
     ! The current buffer's `smie_blink_matching_triggers'.  Not a port.
     function triggers() result(t)
@@ -3435,11 +3435,11 @@ contains
         type(smie_rule_result_type) :: r
 
         n = smie_indent_basic
-        call call_rules(SMIE_ELEM, elem, r, status)
+        call execute_rules(SMIE_ELEM, elem, r, status)
         if (.not. status%ok()) return
 
         if (r%kind == SMIE_RULE_NONE .and. elem /= "basic") then
-            call call_rules(SMIE_ELEM, "basic", r, status)
+            call execute_rules(SMIE_ELEM, "basic", r, status)
             if (.not. status%ok()) return
         end if
 
@@ -3544,7 +3544,7 @@ contains
         smie__token = token
         smie__after = 0
         if (present(after)) smie__after = after
-        call call_rules(method, token, result, status)
+        call execute_rules(method, token, result, status)
         smie__parent = saved_parent
 
         if (had_token) then
@@ -4272,7 +4272,7 @@ contains
         status = status_type()
         if (.not. is_eol()) return
         ! FIXME: Should we default to ";"?
-        call call_rules(SMIE_ELEM, "empty_line_token", r, status)
+        call execute_rules(SMIE_ELEM, "empty_line_token", r, status)
         if (.not. status%ok()) return
         if (r%kind /= SMIE_RULE_TOKEN) return
         t = smie_grammar_token(r%token)
@@ -4322,7 +4322,7 @@ contains
                 call smie_backward_token(tok, status)
                 if (.not. status%ok()) exit body
                 if (.not. allocated(tok)) tok = ""
-                call call_rules(SMIE_LIST_INTRO, tok, r, status)
+                call execute_rules(SMIE_LIST_INTRO, tok, r, status)
                 if (.not. status%ok()) exit body
                 arg = r%kind /= SMIE_RULE_NONE
             end if
@@ -4881,10 +4881,10 @@ contains
         end if
 
         call add_local_variables_killer(kill_smie_locals)
-        commands%smie_close_block%run => cmd_smie_close_block
-        commands%smie_down_group%run => cmd_smie_down_group
-        commands%smie_forward_expression_command%run => cmd_smie_forward_expression_command
-        commands%smie_backward_expression_command%run => cmd_smie_backward_expression_command
-        commands%smie__next_indent_change%run => smie_next_indent_change
+        commands%smie_close_block%execute => cmd_smie_close_block
+        commands%smie_down_group%execute => cmd_smie_down_group
+        commands%smie_forward_expression_command%execute => cmd_smie_forward_expression_command
+        commands%smie_backward_expression_command%execute => cmd_smie_backward_expression_command
+        commands%smie__next_indent_change%execute => smie_next_indent_change
     end subroutine syms_of_smie
 end module smie_fm

@@ -1150,7 +1150,7 @@ contains
 
     ! Call `end_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine call_end_of_subprogram_function(status)
+    recursive subroutine execute_end_of_subprogram_function(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -1158,7 +1158,7 @@ contains
         if (associated(end_of_subprogram_function%value)) then
             call end_of_subprogram_function%value(status)
         end if
-    end subroutine call_end_of_subprogram_function
+    end subroutine execute_end_of_subprogram_function
 
     ! (unless (is_bol) (skip-chars-forward " \t") (if (looking-at "\\s<\\|\n")
     ! (forward-line 1))): a position right after the end of a function
@@ -1216,7 +1216,7 @@ contains
         call beginning_of_subprogram_raw(1_int64, found, status)
         if (.not. status%ok()) return
         beg = point()
-        call call_end_of_subprogram_function(status)
+        call execute_end_of_subprogram_function(status)
         if (.not. status%ok()) return
         if (n <= 1) call skip_after_subprogram()
 
@@ -1237,7 +1237,7 @@ contains
             if (n /= 0) then
                 call beginning_of_subprogram_raw(-n, success, status)
                 if (.not. status%ok()) return
-                if (success) call call_end_of_subprogram_function(status)
+                if (success) call execute_end_of_subprogram_function(status)
                 if (.not. status%ok()) return
             end if
         else if (n < 0) then
@@ -1257,7 +1257,7 @@ contains
 
                 if (success) then
                     beg = point()
-                    call call_end_of_subprogram_function(status)
+                    call execute_end_of_subprogram_function(status)
                     if (.not. status%ok()) return
                 end if
             end if
@@ -1278,7 +1278,7 @@ contains
                 n = 0
             else
                 beg = point()
-                call call_end_of_subprogram_function(status)
+                call execute_end_of_subprogram_function(status)
                 if (.not. status%ok()) return
                 call skip_after_subprogram()
             end if
@@ -1952,16 +1952,16 @@ contains
     subroutine syms_of_expression_motion()
         forward_expression_function%value => forward_expression_default_function
         call add_local_variables_killer(kill_expression_motion_locals)
-        commands%forward_expression%run => cmd_forward_expression
-        commands%backward_expression%run => cmd_backward_expression
-        commands%forward_group%run => cmd_forward_group
-        commands%backward_group%run => cmd_backward_group
-        commands%down_group%run => cmd_down_group
-        commands%up_group%run => cmd_up_group
-        commands%backward_up_group%run => cmd_backward_up_group
-        commands%kill_expression%run => cmd_kill_expression
-        commands%backward_kill_expression%run => cmd_backward_kill_expression
-        commands%mark_expression%run => cmd_mark_expression
+        commands%forward_expression%execute => cmd_forward_expression
+        commands%backward_expression%execute => cmd_backward_expression
+        commands%forward_group%execute => cmd_forward_group
+        commands%backward_group%execute => cmd_backward_group
+        commands%down_group%execute => cmd_down_group
+        commands%up_group%execute => cmd_up_group
+        commands%backward_up_group%execute => cmd_backward_up_group
+        commands%kill_expression%execute => cmd_kill_expression
+        commands%backward_kill_expression%execute => cmd_backward_kill_expression
+        commands%mark_expression%execute => cmd_mark_expression
         call forward_setting(subprogram_prompt_regexp, local_if_set=.true.)
         call forward_setting(parens_require_spaces)
         call forward_setting(end_of_subprogram_function)
@@ -1981,16 +1981,16 @@ contains
             insert_pair_table(7) = insert_pair_type(open=iachar("`"), close=iachar("'"))
         end if
 
-        commands%beginning_of_subprogram%run => cmd_beginning_of_subprogram
-        commands%beginning_of_subprogram_raw%run => cmd_beginning_of_subprogram_raw
-        commands%beginning_of_subprogram_comments%run => cmd_beginning_of_subprogram_comments
-        commands%end_of_subprogram%run => cmd_end_of_subprogram
-        commands%mark_subprogram%run => cmd_mark_subprogram
-        commands%narrow_to_subprogram%run => cmd_narrow_to_subprogram
-        commands%insert_pair%run => cmd_insert_pair
-        commands%insert_parentheses%run => cmd_insert_parentheses
-        commands%delete_pair%run => cmd_delete_pair
-        commands%raise_expression%run => cmd_raise_expression
-        commands%check_parens%run => check_parens
+        commands%beginning_of_subprogram%execute => cmd_beginning_of_subprogram
+        commands%beginning_of_subprogram_raw%execute => cmd_beginning_of_subprogram_raw
+        commands%beginning_of_subprogram_comments%execute => cmd_beginning_of_subprogram_comments
+        commands%end_of_subprogram%execute => cmd_end_of_subprogram
+        commands%mark_subprogram%execute => cmd_mark_subprogram
+        commands%narrow_to_subprogram%execute => cmd_narrow_to_subprogram
+        commands%insert_pair%execute => cmd_insert_pair
+        commands%insert_parentheses%execute => cmd_insert_parentheses
+        commands%delete_pair%execute => cmd_delete_pair
+        commands%raise_expression%execute => cmd_raise_expression
+        commands%check_parens%execute => check_parens
     end subroutine syms_of_expression_motion
 end module expression_motion_fm

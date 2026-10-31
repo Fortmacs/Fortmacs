@@ -53,7 +53,7 @@ module itree_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use lisp_fm, only: value_type, xfixnum, make_list, list_elements
-    use eval_fm, only: call_overlay_change_function
+    use eval_fm, only: execute_overlay_change_function
     use data_fm, only: value_eq
     use buffer_fm, only: buffers, cur, is_buffer_live, buffer_handle, resolve_buffer, modiff_incr, &
                          buf_compute_unchanged, BUF_BEG => BEG
@@ -1229,14 +1229,14 @@ contains
             if (.not. is_overlay(copy_overlays(k))) cycle
             if (.not. is_buffer_live(overlays(copy_overlays(k)%index)%buffer)) cycle
             if (overlays(copy_overlays(k)%index)%buffer%index /= cur) cycle
-            call call_overlay_mod_hooks(copy(k), copy_overlays(k), after, arg1, arg2, status, arg3)
+            call execute_overlay_mod_hooks(copy(k), copy_overlays(k), after, arg1, arg2, status, arg3)
             if (.not. status%ok()) return
         end do
     end subroutine report_overlay_modification
 
     !> Call each function of LIST with OVERLAY, AFTER, ARG1, ARG2 and, if
     !> present, ARG3.  Port of buffer.c:call_overlay_mod_hooks.
-    recursive subroutine call_overlay_mod_hooks(list, overlay, after, arg1, arg2, status, arg3)
+    recursive subroutine execute_overlay_mod_hooks(list, overlay, after, arg1, arg2, status, arg3)
         type(value_type), intent(in) :: list
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
@@ -1251,8 +1251,8 @@ contains
         call list_elements(list, fns)
 
         do k = 1, size(fns)
-            call call_overlay_change_function(fns(k), overlay, after, arg1, arg2, status, arg3)
+            call execute_overlay_change_function(fns(k), overlay, after, arg1, arg2, status, arg3)
             if (.not. status%ok()) return
         end do
-    end subroutine call_overlay_mod_hooks
+    end subroutine execute_overlay_mod_hooks
 end module itree_fm

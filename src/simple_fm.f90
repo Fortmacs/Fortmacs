@@ -84,7 +84,7 @@ module simple_fm
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use lread_fm, only: intern_soft
     use callint_fm, only: current_prefix_arg, prefix_arg, &
-                          prefix_numeric_value, mark_even_if_inactive, is_command, call_interactively
+                          prefix_numeric_value, mark_even_if_inactive, is_command, execute_interactively
     use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          backward_prefix_chars
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
@@ -119,7 +119,7 @@ module simple_fm
     public :: set_variable, read_variable
     public :: read_only_mode, what_line, what_line_text
     public :: goto_line, goto_line_relative, count_words, count_words_format
-    public :: read_shell_command, shell_command, shell_command_on_region, call_process_shell_command, call_shell_region, &
+    public :: read_shell_command, shell_command, shell_command_on_region, execute_process_shell_command, execute_shell_region, &
               display_message_or_buffer, &
               syms_of_simple_shell
     public :: process_menu_mode, process_menu_delete_process, list_processes, syms_of_simple_process
@@ -739,21 +739,21 @@ module simple_fm
         !> absent), with the standard error in ERROR_FILE if present.  Port of
         !> subr.el:call-process-shell-command (BUFFER a buffer, t, or
         !> (t ERROR-FILE)).  (In simple_shell_fm.)
-        module subroutine call_process_shell_command(command, result, status, error_file, buffer)
+        module subroutine execute_process_shell_command(command, result, status, error_file, buffer)
             implicit none(type, external)
             character(len=*), intent(in) :: command
             type(value_type), intent(out) :: result
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: error_file
             type(handle_type), intent(in), optional :: buffer
-        end subroutine call_process_shell_command
+        end subroutine execute_process_shell_command
 
         !> Send text from START to END as input to an inferior shell running
         !> COMMAND.  Delete the text if DELETE is true.  Insert output in
         !> BUFFER (the current buffer if absent) before point, the standard
         !> error going to ERROR_FILE unless it is "".  Port of
         !> subr.el:call-shell-region.  (In simple_shell_fm.)
-        module subroutine call_shell_region(start, end, command, delete, result, status, error_file, buffer)
+        module subroutine execute_shell_region(start, end, command, delete, result, status, error_file, buffer)
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
             character(len=*), intent(in) :: command, error_file
@@ -761,7 +761,7 @@ module simple_fm
             type(value_type), intent(out) :: result
             type(status_type), intent(out) :: status
             type(handle_type), intent(in), optional :: buffer
-        end subroutine call_shell_region
+        end subroutine execute_shell_region
 
         !> REPLACE true means to insert the output in place of text from
         !> START to END, putting point and mark around it (NO_MARK: don't
@@ -1453,7 +1453,7 @@ module simple_fm
     !> name; `define_yank_handler_function' names a procedure).
     type :: yank_handler_function_type
         character(len=:), allocatable :: name
-        procedure(yank_handler_proc), pointer, nopass :: run => null()
+        procedure(yank_handler_proc), pointer, nopass :: execute => null()
     end type yank_handler_function_type
     type(yank_handler_function_type), allocatable :: yank_handler_functions(:)
 
@@ -1676,7 +1676,7 @@ contains
     recursive subroutine prefix_command_preserve_state()
         type(status_type) :: st
 
-        call prefix_command_preserve_state_hook%run(st)
+        call prefix_command_preserve_state_hook%execute(st)
         prefix_arg = current_prefix_arg
         current_prefix_arg = last_prefix_arg
         this_command = last_command
@@ -3055,7 +3055,7 @@ contains
         prefix_arg = value_type()
         handled = .false.
         if (associated(disabled_command_hook)) call disabled_command_hook(function, handled, status)
-        if (.not. handled) call call_interactively(function, status)
+        if (.not. handled) call execute_interactively(function, status)
         if (.not. status%ok()) return
 
         if (suggest_key_bindings .and. allocated(binding%a)) then
@@ -3092,59 +3092,59 @@ contains
         call add_local_variables_killer(kill_local_blink_matching_check_function)
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
-        commands%execute_extended_command%run => cmd_execute_extended_command
-        commands%next_line%run => cmd_next_line
-        commands%move_beginning_of_line%run => cmd_move_beginning_of_line
-        commands%move_end_of_line%run => cmd_move_end_of_line
-        commands%previous_line%run => cmd_previous_line
-        commands%previous_history_element%run => cmd_previous_history_element
-        commands%next_history_element%run => cmd_next_history_element
-        commands%next_line_or_history_element%run => cmd_next_line_or_history_element
-        commands%previous_line_or_history_element%run => cmd_previous_line_or_history_element
-        commands%newline%run => cmd_newline
-        commands%open_line%run => cmd_open_line
-        commands%delete_backward_char%run => cmd_delete_backward_char
-        commands%delete_forward_char%run => cmd_delete_forward_char
-        commands%keyboard_quit%run => cmd_keyboard_quit
-        commands%quoted_insert%run => cmd_quoted_insert
-        commands%universal_argument%run => cmd_universal_argument
-        commands%universal_argument_more%run => cmd_universal_argument_more
-        commands%universal_argument_minus%run => cmd_universal_argument_minus
-        commands%negative_argument%run => cmd_negative_argument
-        commands%digit_argument%run => cmd_digit_argument
-        commands%undo%run => cmd_undo
-        commands%undo_only%run => cmd_undo_only
-        commands%undo_redo%run => cmd_undo_redo
-        commands%set_mark_command%run => cmd_set_mark_command
-        commands%exchange_point_and_mark%run => cmd_exchange_point_and_mark
-        commands%mark_whole_buffer%run => cmd_mark_whole_buffer
-        commands%pop_to_mark_command%run => cmd_pop_to_mark_command
-        commands%kill_region%run => cmd_kill_region
-        commands%copy_region_as_kill%run => cmd_copy_region_as_kill
-        commands%kill_ring_save%run => cmd_kill_ring_save
-        commands%kill_line%run => cmd_kill_line
-        commands%kill_whole_line%run => cmd_kill_whole_line
-        commands%yank%run => cmd_yank
-        commands%yank_pop%run => cmd_yank_pop
-        commands%rotate_yank_pointer%run => cmd_rotate_yank_pointer
-        commands%backward_word%run => cmd_backward_word
-        commands%kill_word%run => cmd_kill_word
-        commands%backward_kill_word%run => cmd_backward_kill_word
-        commands%transpose_chars%run => cmd_transpose_chars
-        commands%transpose_words%run => cmd_transpose_words
-        commands%transpose_lines%run => cmd_transpose_lines
-        commands%delete_horizontal_space%run => cmd_delete_horizontal_space
-        commands%delete_all_space%run => cmd_delete_all_space
-        commands%just_one_space%run => cmd_just_one_space
-        commands%cycle_spacing%run => cmd_cycle_spacing
-        commands%fixup_whitespace%run => cmd_fixup_whitespace
-        commands%delete_blank_lines%run => cmd_delete_blank_lines
-        commands%delete_indentation%run => cmd_delete_indentation
+        commands%execute_extended_command%execute => cmd_execute_extended_command
+        commands%next_line%execute => cmd_next_line
+        commands%move_beginning_of_line%execute => cmd_move_beginning_of_line
+        commands%move_end_of_line%execute => cmd_move_end_of_line
+        commands%previous_line%execute => cmd_previous_line
+        commands%previous_history_element%execute => cmd_previous_history_element
+        commands%next_history_element%execute => cmd_next_history_element
+        commands%next_line_or_history_element%execute => cmd_next_line_or_history_element
+        commands%previous_line_or_history_element%execute => cmd_previous_line_or_history_element
+        commands%newline%execute => cmd_newline
+        commands%open_line%execute => cmd_open_line
+        commands%delete_backward_char%execute => cmd_delete_backward_char
+        commands%delete_forward_char%execute => cmd_delete_forward_char
+        commands%keyboard_quit%execute => cmd_keyboard_quit
+        commands%quoted_insert%execute => cmd_quoted_insert
+        commands%universal_argument%execute => cmd_universal_argument
+        commands%universal_argument_more%execute => cmd_universal_argument_more
+        commands%universal_argument_minus%execute => cmd_universal_argument_minus
+        commands%negative_argument%execute => cmd_negative_argument
+        commands%digit_argument%execute => cmd_digit_argument
+        commands%undo%execute => cmd_undo
+        commands%undo_only%execute => cmd_undo_only
+        commands%undo_redo%execute => cmd_undo_redo
+        commands%set_mark_command%execute => cmd_set_mark_command
+        commands%exchange_point_and_mark%execute => cmd_exchange_point_and_mark
+        commands%mark_whole_buffer%execute => cmd_mark_whole_buffer
+        commands%pop_to_mark_command%execute => cmd_pop_to_mark_command
+        commands%kill_region%execute => cmd_kill_region
+        commands%copy_region_as_kill%execute => cmd_copy_region_as_kill
+        commands%kill_ring_save%execute => cmd_kill_ring_save
+        commands%kill_line%execute => cmd_kill_line
+        commands%kill_whole_line%execute => cmd_kill_whole_line
+        commands%yank%execute => cmd_yank
+        commands%yank_pop%execute => cmd_yank_pop
+        commands%rotate_yank_pointer%execute => cmd_rotate_yank_pointer
+        commands%backward_word%execute => cmd_backward_word
+        commands%kill_word%execute => cmd_kill_word
+        commands%backward_kill_word%execute => cmd_backward_kill_word
+        commands%transpose_chars%execute => cmd_transpose_chars
+        commands%transpose_words%execute => cmd_transpose_words
+        commands%transpose_lines%execute => cmd_transpose_lines
+        commands%delete_horizontal_space%execute => cmd_delete_horizontal_space
+        commands%delete_all_space%execute => cmd_delete_all_space
+        commands%just_one_space%execute => cmd_just_one_space
+        commands%cycle_spacing%execute => cmd_cycle_spacing
+        commands%fixup_whitespace%execute => cmd_fixup_whitespace
+        commands%delete_blank_lines%execute => cmd_delete_blank_lines
+        commands%delete_indentation%execute => cmd_delete_indentation
         ! (defalias 'join-line #'delete-indentation)
-        commands%join_line%run => cmd_delete_indentation
-        commands%back_to_indentation%run => cmd_back_to_indentation
-        commands%beginning_of_buffer%run => cmd_beginning_of_buffer
-        commands%end_of_buffer%run => cmd_end_of_buffer
+        commands%join_line%execute => cmd_delete_indentation
+        commands%back_to_indentation%execute => cmd_back_to_indentation
+        commands%beginning_of_buffer%execute => cmd_beginning_of_buffer
+        commands%end_of_buffer%execute => cmd_end_of_buffer
         kill_forward_chars_hook => kill_forward_chars
         call syms_of_simple_fill()
         call syms_of_simple_modes()
@@ -3156,8 +3156,8 @@ contains
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
                                  cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
                                  cycle_spacing_action_type(CYCLE_RESTORE)]
-        commands%mark_word%run => cmd_mark_word
-        commands%set_variable%run => cmd_set_variable
+        commands%mark_word%execute => cmd_mark_word
+        commands%set_variable%execute => cmd_set_variable
         call forward_setting(set_variable_value_history)
         call forward_setting(custom_variable_history)
     end subroutine syms_of_simple
@@ -3576,7 +3576,7 @@ contains
         if (present(force)) forced = force
         if (.not. (is_region_active() .or. forced)) return
         buffers(cur)%mark_active = .false.
-        call deactivate_mark_hook%run(st)
+        call deactivate_mark_hook%execute(st)
     end subroutine deactivate_mark
 
     !> deactivate_mark without FORCE, for the command loop.  Not a port.
@@ -4513,7 +4513,7 @@ contains
         if ((vtag(fn) == V_NAME .or. vtag(fn) == V_NULL) .and. allocated(fn%a)) then
             do k = 1, n_yank_handler_functions()
                 if (yank_handler_functions(k)%name == symbols(xsymbol(fn))%name) then
-                    call yank_handler_functions(k)%run(param, status)
+                    call yank_handler_functions(k)%execute(param, status)
                     return
                 end if
             end do
@@ -4537,7 +4537,7 @@ contains
 
         do k = 1, n
             if (yank_handler_functions(k)%name == name) then
-                yank_handler_functions(k)%run => proc
+                yank_handler_functions(k)%execute => proc
                 return
             end if
         end do
@@ -4546,11 +4546,11 @@ contains
 
         do k = 1, n
             grown(k)%name = yank_handler_functions(k)%name
-            grown(k)%run => yank_handler_functions(k)%run
+            grown(k)%execute => yank_handler_functions(k)%execute
         end do
 
         grown(n + 1)%name = name
-        grown(n + 1)%run => proc
+        grown(n + 1)%execute => proc
         call move_alloc(grown, yank_handler_functions)
     end subroutine define_yank_handler_function
 

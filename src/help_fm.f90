@@ -89,7 +89,7 @@ module help_fm
     use window_fm, only: set_window_point, pop_to_buffer, scroll_up, scroll_down, window_configuration_type, &
                          current_window_configuration, set_window_configuration, free_window_configuration, &
                          window_text_cols
-    use callint_fm, only: is_command_defined, call_interactively
+    use callint_fm, only: is_command_defined, execute_interactively
     use data_fm, only: default_value
     use fns_fm, only: value_equal
     use print_fm, only: fortran_repr
@@ -1422,7 +1422,7 @@ contains
                 have_config = .false.
 
                 if ((vtag(defn) == V_NAME .or. vtag(defn) == V_NULL)) then
-                    call call_interactively(defn, status)
+                    call execute_interactively(defn, status)
                 end if
             else
                 name = key_description(keys)
@@ -2335,14 +2335,14 @@ contains
         call register_keymap_name("help_map", help_map)
         call register_keymap_name("help_mode_map", help_mode_map)
         call register_keymap_name("minibuffer_local_map", minibuffer_local_map)
-        commands%describe_key%run => cmd_describe_key
-        commands%describe_key_briefly%run => cmd_describe_key_briefly
-        commands%where_is%run => cmd_where_is
-        commands%help_quit%run => help_quit
-        commands%view_echo_area_messages%run => view_echo_area_messages
-        commands%view_lossage%run => view_lossage
-        commands%help_for_help%run => help_for_help
-        commands%describe_bindings%run => describe_bindings
+        commands%describe_key%execute => cmd_describe_key
+        commands%describe_key_briefly%execute => cmd_describe_key_briefly
+        commands%where_is%execute => cmd_where_is
+        commands%help_quit%execute => help_quit
+        commands%view_echo_area_messages%execute => view_echo_area_messages
+        commands%view_lossage%execute => view_lossage
+        commands%help_for_help%execute => help_for_help
+        commands%describe_bindings%execute => describe_bindings
     end subroutine syms_of_help
 
     subroutine cmd_describe_key(status)

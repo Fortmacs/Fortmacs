@@ -27,7 +27,7 @@
 !> name's function cell, and here a command reads its own arguments
 !> (the prefix argument is `current_prefix_arg').
 !>
-!>     commands%forward_char%run => cmd_forward_char
+!>     commands%forward_char%execute => cmd_forward_char
 module callint_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
@@ -43,7 +43,7 @@ module callint_fm
 
     public :: command_proc, command_type, find_command, is_command, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of
-    public :: call_interactively, find_function, prefix_numeric_value
+    public :: execute_interactively, find_function, prefix_numeric_value
 
     !> The value of the prefix argument for this editing command.
     !> It may be an integer, or `-' for just a minus sign as arg, or an
@@ -55,7 +55,7 @@ module callint_fm
     !> The command now being executed.
     !> The command can set this variable; whatever is put here
     !> will be in `last_command' during the following command.  Port of
-    !> keyboard.c this-command (kept here for `call_interactively').
+    !> keyboard.c this-command (kept here for `execute_interactively').
     type(value_type), public :: this_command
 
     !> This is like `this_command', but bound recursively.
@@ -88,7 +88,7 @@ contains
         if (.not. associated(p)) p => builtin_command(name)
 
         if (associated(p)) then
-            if (.not. associated(p%run)) p => null()
+            if (.not. associated(p%execute)) p => null()
         end if
     end function find_command
 
@@ -116,9 +116,9 @@ contains
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
-            if (.not. associated(p%run)) cycle
+            if (.not. associated(p%execute)) cycle
 
-            if (associated(p%run, proc)) then
+            if (associated(p%execute, proc)) then
                 name = trim(BUILTIN_COMMAND_NAMES(i))
                 return
             end if
@@ -188,7 +188,7 @@ contains
     !> Run command `cmd'.  Port of callint.c:Fcall_interactively (how the
     !> command reads its arguments is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
-    recursive subroutine call_interactively(cmd, status)
+    recursive subroutine execute_interactively(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
@@ -212,9 +212,9 @@ contains
 
         saved = current_minibuffer_command
         current_minibuffer_command = this_command
-        call p%run(status)
+        call p%execute(status)
         current_minibuffer_command = saved
-    end subroutine call_interactively
+    end subroutine execute_interactively
 
     !> The function named FN, as a pointer P to call directly; a
     !> `void-function' (or `invalid-function') error condition occurs if

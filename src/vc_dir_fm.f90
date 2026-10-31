@@ -97,7 +97,7 @@ module vc_dir_fm
     integer, parameter, public :: VC_DIR_AUTO_HIDE_NO = 0, VC_DIR_AUTO_HIDE_YES = 1, VC_DIR_AUTO_HIDE_REVERT = 2
 
     !> Normal hook run by `vc_dir_mode'.
-    !> See `run_mode_hooks'.  Port of vc-dir.el vc-dir-mode-hook.
+    !> See `execute_mode_hooks'.  Port of vc-dir.el vc-dir-mode-hook.
     type(hook_type), target, public :: vc_dir_mode_hook = hook_type(name="vc_dir_mode_hook")
 
     !> Hook run after a refresh of the VC-Dir buffer completes (the hook
@@ -1972,7 +1972,7 @@ contains
         logical :: saved_mode
         integer :: k
 
-        if (.not. associated(major_modes%vc_dir_mode%run)) call syms_of_vc_dir()
+        if (.not. associated(major_modes%vc_dir_mode%execute)) call syms_of_vc_dir()
         call major_modes%vc_dir_mode%begin(saved_mode, status)
         if (.not. status%ok()) return
         k = local_index(.true.)
@@ -2203,7 +2203,7 @@ contains
                 call vc_dir_refresh_files(names, st)
             else
                 call clear_mode_line_process()
-                call vc_dir_refresh_hook%run(st)
+                call vc_dir_refresh_hook%execute(st)
             end if
         end if
 
@@ -2805,38 +2805,38 @@ contains
         type(status_type) :: st
 
         vc_dir_resynch_file => vc_dir_resynch_file_impl
-        commands%vc_dir%run => cmd_vc_dir
-        commands%vc_dir_root%run => vc_dir_root
-        if (associated(major_modes%vc_dir_mode%run)) return
+        commands%vc_dir%execute => cmd_vc_dir
+        commands%vc_dir_root%execute => vc_dir_root
+        if (associated(major_modes%vc_dir_mode%execute)) return
         call define_faces()
         call major_modes%vc_dir_mode%define("vc_dir_mode", "VC dir", vc_dir_mode, vc_dir_mode_hook, &
                                             parent=major_modes%special_mode)
         vc_dir_mode_map = major_modes%vc_dir_mode%map
-        commands%vc_dir_mode%run => vc_dir_mode
-        commands%vc_dir_mark%run => vc_dir_mark
-        commands%vc_dir_delete_file%run => vc_dir_delete_file
-        commands%vc_dir_mark_all_files%run => cmd_vc_dir_mark_all_files
-        commands%vc_dir_unmark%run => vc_dir_unmark
-        commands%vc_dir_unmark_all_files%run => cmd_vc_dir_unmark_all_files
-        commands%vc_dir_unmark_file_up%run => vc_dir_unmark_file_up
-        commands%vc_dir_next_line%run => cmd_vc_dir_next_line
-        commands%vc_dir_previous_line%run => cmd_vc_dir_previous_line
-        commands%vc_dir_next_directory%run => cmd_vc_dir_next_directory
-        commands%vc_dir_previous_directory%run => cmd_vc_dir_previous_directory
-        commands%vc_dir_find_file%run => vc_dir_find_file
-        commands%vc_dir_find_file_other_window%run => vc_dir_find_file_other_window
-        commands%vc_dir_display_file%run => vc_dir_display_file
-        commands%vc_dir_view_file%run => vc_dir_view_file
-        commands%vc_dir_kill_dir_status_process%run => vc_dir_kill_dir_status_process
-        commands%vc_dir_hide_up_to_date%run => cmd_vc_dir_hide_up_to_date
-        commands%vc_dir_kill_line%run => vc_dir_kill_line
-        commands%vc_dir_ignore%run => cmd_vc_dir_ignore
-        commands%vc_dir_root_next_action%run => vc_dir_root_next_action
-        commands%vc_dir_mark_by_regexp%run => cmd_vc_dir_mark_by_regexp
-        commands%vc_dir_mark_registered_files%run => vc_dir_mark_registered_files
-        commands%vc_dir_mark_unregistered_files%run => vc_dir_mark_unregistered_files
-        commands%vc_dir_refresh%run => vc_dir_refresh
-        commands%vc_dir_show_fileentry%run => cmd_vc_dir_show_fileentry
+        commands%vc_dir_mode%execute => vc_dir_mode
+        commands%vc_dir_mark%execute => vc_dir_mark
+        commands%vc_dir_delete_file%execute => vc_dir_delete_file
+        commands%vc_dir_mark_all_files%execute => cmd_vc_dir_mark_all_files
+        commands%vc_dir_unmark%execute => vc_dir_unmark
+        commands%vc_dir_unmark_all_files%execute => cmd_vc_dir_unmark_all_files
+        commands%vc_dir_unmark_file_up%execute => vc_dir_unmark_file_up
+        commands%vc_dir_next_line%execute => cmd_vc_dir_next_line
+        commands%vc_dir_previous_line%execute => cmd_vc_dir_previous_line
+        commands%vc_dir_next_directory%execute => cmd_vc_dir_next_directory
+        commands%vc_dir_previous_directory%execute => cmd_vc_dir_previous_directory
+        commands%vc_dir_find_file%execute => vc_dir_find_file
+        commands%vc_dir_find_file_other_window%execute => vc_dir_find_file_other_window
+        commands%vc_dir_display_file%execute => vc_dir_display_file
+        commands%vc_dir_view_file%execute => vc_dir_view_file
+        commands%vc_dir_kill_dir_status_process%execute => vc_dir_kill_dir_status_process
+        commands%vc_dir_hide_up_to_date%execute => cmd_vc_dir_hide_up_to_date
+        commands%vc_dir_kill_line%execute => vc_dir_kill_line
+        commands%vc_dir_ignore%execute => cmd_vc_dir_ignore
+        commands%vc_dir_root_next_action%execute => vc_dir_root_next_action
+        commands%vc_dir_mark_by_regexp%execute => cmd_vc_dir_mark_by_regexp
+        commands%vc_dir_mark_registered_files%execute => vc_dir_mark_registered_files
+        commands%vc_dir_mark_unregistered_files%execute => vc_dir_mark_unregistered_files
+        commands%vc_dir_refresh%execute => vc_dir_refresh
+        commands%vc_dir_show_fileentry%execute => cmd_vc_dir_show_fileentry
         ! VC commands
         call keymap_set(vc_dir_mode_map, "v", "vc_next_action", st)    ! C-x v v
         call keymap_set(vc_dir_mode_map, "=", "vc_diff", st)           ! C-x v =

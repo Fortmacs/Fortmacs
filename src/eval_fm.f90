@@ -62,7 +62,7 @@ module eval_fm
     public :: kill_local_hooks, hook_error_proc
     public :: change_function, after_change_function, position_function, region_function, region_entry_type
     public :: string_function, string_filter_function, capf_function, capf_entry_type, until_success_function
-    public :: overlay_change_function, call_property_function, call_overlay_change_function
+    public :: overlay_change_function, execute_property_function, execute_overlay_change_function
 
     !> The value `current_prefix_arg' had where the normal hook whose
     !> function is running was run.  The functions of a normal hook run
@@ -117,7 +117,7 @@ module eval_fm
         end subroutine region_function
 
         !> Report the error STATUS that FN, a function of the hook named
-        !> HOOK_NAME, returned with (`hook_type%run_safe').  Not a port.
+        !> HOOK_NAME, returned with (`hook_type%execute_safe').  Not a port.
         subroutine hook_error_proc(hook_name, fn, status)
             import :: command_proc, status_type
             implicit none(type, external)
@@ -255,7 +255,7 @@ module eval_fm
         procedure, private :: add_entry => hook_add_entry
         procedure, private :: remove_entry => hook_remove_entry
         procedure, private :: member_entry => hook_member_entry
-        procedure, private :: run_entries => hook_run_entries
+        procedure, private :: execute_entries => hook_execute_entries
     end type hook_base_type
 
     !> A pointer to a hook.
@@ -274,12 +274,12 @@ module eval_fm
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => hook_remove
         !> Run the hook's functions (run-hooks).
-        procedure :: run => hook_run
+        procedure :: execute => hook_execute
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => hook_member
         !> Run the hook's functions, reporting and removing the ones that
-        !> return with an error condition (keyboard.c's safe_run_hooks).
-        procedure :: run_safe => hook_run_safe
+        !> return with an error condition (keyboard.c:safe_run_hooks).
+        procedure :: execute_safe => hook_execute_safe
     end type hook_type
 
     !> A hook of functions taking the bounds of a change
@@ -292,7 +292,7 @@ module eval_fm
         procedure :: remove => change_hook_remove
         !> Run the hook's functions with the bounds of a change
         !> (run-hook-with-args).
-        procedure :: run => change_hook_run
+        procedure :: execute => change_hook_execute
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => change_hook_member
     end type change_hook_type
@@ -308,7 +308,7 @@ module eval_fm
         procedure :: remove => after_change_hook_remove
         !> Run the hook's functions with the bounds of a change and the
         !> old length (run-hook-with-args).
-        procedure :: run => after_change_hook_run
+        procedure :: execute => after_change_hook_execute
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => after_change_hook_member
     end type after_change_hook_type
@@ -322,7 +322,7 @@ module eval_fm
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => position_hook_remove
         !> Run the hook's functions with a position (run-hook-with-args).
-        procedure :: run => position_hook_run
+        procedure :: execute => position_hook_execute
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => position_hook_member
     end type position_hook_type
@@ -351,7 +351,7 @@ module eval_fm
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => string_hook_remove
         !> Run the hook's functions with a string (run-hook-with-args).
-        procedure :: run => string_hook_run
+        procedure :: execute => string_hook_execute
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => string_hook_member
     end type string_hook_type
@@ -366,7 +366,7 @@ module eval_fm
         procedure :: remove => string_filter_hook_remove
         !> Pass a string through the hook's functions in turn, each given
         !> what the previous one returned.
-        procedure :: run => string_filter_hook_run
+        procedure :: execute => string_filter_hook_execute
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => string_filter_hook_member
     end type string_filter_hook_type
@@ -396,7 +396,7 @@ module eval_fm
         procedure :: remove => until_success_hook_remove
         !> Run the hook's functions until one succeeds
         !> (run-hook-with-args-until-success).
-        procedure :: run => until_success_hook_run
+        procedure :: execute => until_success_hook_execute
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => until_success_hook_member
     end type until_success_hook_type
@@ -876,7 +876,7 @@ contains
     !> those run, with the default functions in the place of `t'.  BEG,
     !> END and OLD_LEN are the arguments for the functions of the kinds
     !> that take them.  Port of eval.c:run_hook_with_args.
-    recursive subroutine hook_run_entries(self, beg, end, old_len, status, safe)
+    recursive subroutine hook_execute_entries(self, beg, end, old_len, status, safe)
         class(hook_base_type), intent(in) :: self
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
@@ -912,22 +912,22 @@ contains
                     ! In a global value, t should not occur.  If it does,
                     ! we must ignore it to avoid an endless loop.
                     if (global(j)%is_t) cycle
-                    call call_entry(global(j), beg, end, old_len, status)
+                    call execute_entry(global(j), beg, end, old_len, status)
                     if (keep_going) status = status_type()
                     if (.not. status%ok()) return
                 end do
             else
-                call call_entry(entries(i), beg, end, old_len, status)
+                call execute_entry(entries(i), beg, end, old_len, status)
                 if (keep_going) status = status_type()
                 if (.not. status%ok()) return
             end if
         end do
-    end subroutine hook_run_entries
+    end subroutine hook_execute_entries
 
     !> Call the function of E with the arguments its kind takes.  A
     !> normal hook's functions are commands: they run without a prefix
     !> argument.  Not a port.
-    recursive subroutine call_entry(e, beg, end, old_len, status)
+    recursive subroutine execute_entry(e, beg, end, old_len, status)
         type(hook_entry_type), intent(in) :: e
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
@@ -950,7 +950,7 @@ contains
         else if (associated(e%position_fn)) then
             call e%position_fn(beg, status)
         end if
-    end subroutine call_entry
+    end subroutine execute_entry
 
     ! Not a port.
     subroutine hook_kill_local(self)
@@ -1064,20 +1064,20 @@ contains
     !> error.  In a buffer with its own functions, those run, with the
     !> default functions in the place of `t'.  Port of eval.c:run_hook
     !> (via run_hook_with_args).
-    recursive subroutine hook_run(self, status)
+    recursive subroutine hook_execute(self, status)
         class(hook_type), intent(in) :: self
         type(status_type), intent(out) :: status
 
-        call self%run_entries(0_int64, 0_int64, 0_int64, status)
-    end subroutine hook_run
+        call self%execute_entries(0_int64, 0_int64, 0_int64, status)
+    end subroutine hook_execute
 
-    !> Run each function of the hook as `hook_run' does, but an error in
+    !> Run each function of the hook as `hook_execute' does, but an error in
     !> one doesn't stop the others: REPORT is told of it, and the function
     !> is removed from the hook, from the current buffer's own functions
     !> if it is one of them, else from the default ones.  Port of
     !> keyboard.c:safe_run_hooks_error (the removal; keyboard_fm's
-    !> safe_run_hooks reports).
-    recursive subroutine hook_run_safe(self, report)
+    !> safe_execute_hooks reports).
+    recursive subroutine hook_execute_safe(self, report)
         class(hook_type), intent(inout) :: self
         procedure(hook_error_proc) :: report
         type(hook_entry_type), allocatable :: entries(:), global(:)
@@ -1105,11 +1105,11 @@ contains
                 do j = 1, size(global)
                     ! In a global value, t should not occur.
                     if (global(j)%is_t) cycle
-                    call call_entry(global(j), 0_int64, 0_int64, 0_int64, status)
+                    call execute_entry(global(j), 0_int64, 0_int64, 0_int64, status)
                     if (.not. status%ok()) call fail(global(j))
                 end do
             else
-                call call_entry(entries(i), 0_int64, 0_int64, 0_int64, status)
+                call execute_entry(entries(i), 0_int64, 0_int64, 0_int64, status)
                 if (.not. status%ok()) call fail(entries(i))
             end if
         end do
@@ -1139,7 +1139,7 @@ contains
             n = find_entry(self%entries, e)
             if (n > 0) call delete_entry(self%entries, n)
         end subroutine fail
-    end subroutine hook_run_safe
+    end subroutine hook_execute_safe
 
     ! Not a port.
     logical function hook_member(self, fn) result(found)
@@ -1180,15 +1180,15 @@ contains
     end subroutine change_hook_remove
 
     !> Call each function of the hook with BEG and END, in order, stopping
-    !> at the first error; buffers' own functions as `hook_run'.
+    !> at the first error; buffers' own functions as `hook_execute'.
     !> Port of eval.c:Frun_hook_with_args.
-    recursive subroutine change_hook_run(self, beg, end, status)
+    recursive subroutine change_hook_execute(self, beg, end, status)
         class(change_hook_type), intent(in) :: self
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
 
-        call self%run_entries(beg, end, 0_int64, status)
-    end subroutine change_hook_run
+        call self%execute_entries(beg, end, 0_int64, status)
+    end subroutine change_hook_execute
 
     ! Not a port.
     logical function change_hook_member(self, fn) result(found)
@@ -1226,14 +1226,14 @@ contains
 
     !> Call each function of the hook with BEG, END and OLD_LEN, in order,
     !> stopping at the first error; buffers' own functions as
-    !> `hook_run'.  Port of eval.c:Frun_hook_with_args.
-    recursive subroutine after_change_hook_run(self, beg, end, old_len, status)
+    !> `hook_execute'.  Port of eval.c:Frun_hook_with_args.
+    recursive subroutine after_change_hook_execute(self, beg, end, old_len, status)
         class(after_change_hook_type), intent(in) :: self
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
 
-        call self%run_entries(beg, end, old_len, status)
-    end subroutine after_change_hook_run
+        call self%execute_entries(beg, end, old_len, status)
+    end subroutine after_change_hook_execute
 
     ! Not a port.
     logical function after_change_hook_member(self, fn) result(found)
@@ -1274,17 +1274,17 @@ contains
     end subroutine position_hook_remove
 
     !> Call each function of the hook with POS, in order, stopping at the
-    !> first error; buffers' own functions as `hook_run'.  Port of
+    !> first error; buffers' own functions as `hook_execute'.  Port of
     !> eval.c:Frun_hook_with_args.
-    recursive subroutine position_hook_run(self, pos, status, safe)
+    recursive subroutine position_hook_execute(self, pos, status, safe)
         class(position_hook_type), intent(in) :: self
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         !> Ignore errors, calling every function (redisplay's safe calls).
         logical, intent(in), optional :: safe
 
-        call self%run_entries(pos, 0_int64, 0_int64, status, safe)
-    end subroutine position_hook_run
+        call self%execute_entries(pos, 0_int64, 0_int64, status, safe)
+    end subroutine position_hook_execute
 
     ! Not a port.
     logical function position_hook_member(self, fn) result(found)
@@ -1497,7 +1497,7 @@ contains
     !> Run the hook's functions in the current buffer, in order, until one
     !> of them succeeds (DONE); an error stops the hook.  Port of
     !> eval.c:Frun_hook_with_args_until_success.
-    recursive subroutine until_success_hook_run(self, done, status)
+    recursive subroutine until_success_hook_execute(self, done, status)
         class(until_success_hook_type), intent(in) :: self
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
@@ -1513,7 +1513,7 @@ contains
             call run(i)%until_success_fn(done, status)
             if (done .or. .not. status%ok()) return
         end do
-    end subroutine until_success_hook_run
+    end subroutine until_success_hook_execute
 
     !> The entries run in the current buffer, in order: the buffer's own,
     !> with the global ones in place of `t' (copies, in case a function
@@ -1576,9 +1576,9 @@ contains
     end subroutine string_hook_remove
 
     !> Call each function of the hook with STRING, in order, stopping at
-    !> the first error; buffers' own functions as `hook_run'.  Port of
+    !> the first error; buffers' own functions as `hook_execute'.  Port of
     !> eval.c:Frun_hook_with_args.
-    recursive subroutine string_hook_run(self, string, status)
+    recursive subroutine string_hook_execute(self, string, status)
         class(string_hook_type), intent(in) :: self
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
@@ -1593,7 +1593,7 @@ contains
             call entries(i)%string_fn(string, status)
             if (.not. status%ok()) return
         end do
-    end subroutine string_hook_run
+    end subroutine string_hook_execute
 
     ! Not a port.
     logical function string_hook_member(self, fn) result(found)
@@ -1633,7 +1633,7 @@ contains
     !> the next, and so on; RESULT is what the last one returns (STRING if
     !> there are none).  Stops at the first error.  A `t' in a buffer's own
     !> value runs the default functions there.  Not a port.
-    recursive subroutine string_filter_hook_run(self, string, result, status)
+    recursive subroutine string_filter_hook_execute(self, string, result, status)
         class(string_filter_hook_type), intent(in) :: self
         character(len=*), intent(in) :: string
         character(len=:), allocatable, intent(out) :: result
@@ -1652,7 +1652,7 @@ contains
             if (.not. status%ok()) return
             call move_alloc(next, result)
         end do
-    end subroutine string_filter_hook_run
+    end subroutine string_filter_hook_execute
 
     ! Not a port.
     logical function string_filter_hook_member(self, fn) result(found)
@@ -1726,7 +1726,7 @@ contains
 
     !> Call the property function FN (a name) with the positions A and B.
     !> Port of eval.c:Ffuncall (for a property function of two positions).
-    recursive subroutine call_property_function(fn, a, b, status)
+    recursive subroutine execute_property_function(fn, a, b, status)
         type(value_type), intent(in) :: fn
         integer(int64), intent(in) :: a, b
         type(status_type), intent(out) :: status
@@ -1741,12 +1741,12 @@ contains
         end if
 
         call p%positions(a, b, status)
-    end subroutine call_property_function
+    end subroutine execute_property_function
 
     !> Call the property function FN (a name) with OVERLAY, AFTER, BEG,
     !> END and, if present, OLD_LEN.  Port of eval.c:Ffuncall (for the
     !> functions of overlay properties).
-    recursive subroutine call_overlay_change_function(fn, overlay, after, beg, end, status, old_len)
+    recursive subroutine execute_overlay_change_function(fn, overlay, after, beg, end, status, old_len)
         type(value_type), intent(in) :: fn
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
@@ -1764,5 +1764,5 @@ contains
         end if
 
         call p%overlay_change(overlay, after, beg, end, status, old_len)
-    end subroutine call_overlay_change_function
+    end subroutine execute_overlay_change_function
 end module eval_fm

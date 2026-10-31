@@ -38,7 +38,7 @@ module test_paren_fm
     use simple_fm, only: blink_paren_open_paren_line_string, fundamental_mode, special_mode
     use modes_fm, only: minor_modes
     use bindings_fm, only: init_bindings
-    use timer_fm, only: run_with_timer, free_timer
+    use timer_fm, only: execute_with_timer, free_timer
     use keyboard_fm, only: read_event, set_input_fd, discard_input
     use sysdep_fm, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, emacs_write
     use test_support, only: show_alone
@@ -378,7 +378,7 @@ contains
         if (allocated(error)) return
         call init_sys_modes(slave, old, st)
         call set_input_fd(slave)
-        call run_with_timer(key_timer, 0.5_real64, write_x, st)
+        call execute_with_timer(key_timer, 0.5_real64, write_x, st)
         call read_event(ev, have, st)
         call check(error, have .and. face_at(1_int64) == "show_paren_match" .and. &
                    face_at(5_int64) == "show_paren_match", "highlighted after the delay")

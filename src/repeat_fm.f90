@@ -42,7 +42,7 @@ module repeat_fm
     use eval_fm, only: hook_type, hook_current_prefix_arg
     use commands_fm, only: commands, builtin_command, BUILTIN_COMMAND_NAMES
     use modes_fm, only: minor_modes
-    use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, this_command, current_minibuffer_command
+    use callint_fm, only: execute_interactively, current_prefix_arg, prefix_arg, this_command, current_minibuffer_command
     use keyboard_fm, only: real_this_command, last_command_event, last_prefix_arg, last_repeatable_command, &
                            num_input_keys, set_transient_map, exit_transient_map, pre_command_hook, post_command_hook, &
                            last_message
@@ -50,7 +50,7 @@ module repeat_fm
                          access_keymap, copy_keymap, key_parse, key_description, parse_modifiers, is_keymap
     use character_fm, only: CHAR_MODIFIER_MASK
     use minibuf_fm, only: minibuf_level
-    use timer_fm, only: run_with_idle_timer, free_timer, is_timer
+    use timer_fm, only: execute_with_idle_timer, free_timer, is_timer
     use xdisp_fm, only: message, message_nolog
     use rmc_fm, only: rmc_choice_type, rmc_add_key_description
     use editfns_fm, only: char_before
@@ -260,7 +260,7 @@ contains
             end if
         end if
 
-        call call_interactively(last_repeatable_command, status)
+        call execute_interactively(last_repeatable_command, status)
         if (.not. status%ok()) return
 
         if (allocated(repeat_repeat_char%a)) then
@@ -372,7 +372,7 @@ contains
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
-            if (.not. associated(p%run) .or. .not. p%is_command) cycle
+            if (.not. associated(p%execute) .or. .not. p%is_command) cycle
             if (.not. is_keymap_live(p%repeat_map)) cycle
             ncommands = ncommands + 1
             seen = .false.
@@ -584,7 +584,7 @@ contains
                 end if
             end if
 
-            if (timeout > 0.0) call run_with_idle_timer(repeat_exit_timer, real(timeout, real64), .false., &
+            if (timeout > 0.0) call execute_with_idle_timer(repeat_exit_timer, real(timeout, real64), .false., &
                                                         repeat_exit, st)
         end if
 
@@ -738,8 +738,8 @@ contains
 
         if (.not. associated(repeat_echo_function)) repeat_echo_function => repeat_echo_message
         call minor_modes%repeat_mode%define("repeat_mode", global=.true., hook=repeat_mode_hook, body=repeat_mode_body)
-        commands%repeat%run => repeat
-        commands%repeat_mode%run => repeat_mode
-        commands%repeat_exit%run => repeat_exit
+        commands%repeat%execute => repeat
+        commands%repeat_mode%execute => repeat_mode
+        commands%repeat_exit%execute => repeat_exit
     end subroutine syms_of_repeat
 end module repeat_fm

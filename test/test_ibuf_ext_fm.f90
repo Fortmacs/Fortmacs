@@ -835,49 +835,49 @@ contains
             f(3) = ibuffer_filename("A")
             f(4) = ibuffer_major_mode("text_mode")
             call set_filters()
-            call run(.false.)
+            call execute_filter(.false.)
             call check(error,.not. st%ok(), "no filters")
             if (allocated(error)) return
             call set_filters(f(2))
-            call run(.false.)
+            call execute_filter(.false.)
             call check(error,.not. st%ok(), "one filter")
             if (allocated(error)) return
             call set_filters(f(1), f(2))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op(f(1), f(2))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "two")
             if (allocated(error)) return
-            call run(.true.)
+            call execute_filter(.true.)
             call check(error, same_filters(f(1:2), ibuffer_filtering_qualifiers()), "decompose")
             if (allocated(error)) return
             ! Same op: flattened.
             call set_filters(op(f(1), f(2)), op(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op4(f(1), f(2), f(3), f(4))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "same op")
             if (allocated(error)) return
             ! The other op second.
             call set_filters(op(f(1), f(2)), other(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op3(f(1), f(2), other(f(3), f(4)))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "other second")
             if (allocated(error)) return
             ! The other op first.
             call set_filters(other(f(1), f(2)), op(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op3(other(f(1), f(2)), f(3), f(4))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "other first")
             if (allocated(error)) return
             ! Both the other op.
             call set_filters(other(f(1), f(2)), other(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             parts(1) = other(f(1), f(2))
             parts(2) = other(f(3), f(4))
             outer(1) = op(parts(1), parts(2))
             call check(error, same_filters(outer(1:1), ibuffer_filtering_qualifiers()), "both other")
         end subroutine body
 
-        subroutine run(decompose)
+        subroutine execute_filter(decompose)
             logical, intent(in) :: decompose
 
             if (and) then
@@ -885,7 +885,7 @@ contains
             else
                 call ibuffer_or_filter(st, decompose)
             end if
-        end subroutine run
+        end subroutine execute_filter
 
         function op(a, b) result(r)
             type(ibuffer_filter_type), intent(in) :: a, b
