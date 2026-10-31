@@ -14,7 +14,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="520" height="206" alt="Ported: ≈4.45% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+<img src="docs/progress/pie.svg" width="520" height="206" alt="Ported: ≈5.23% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
 </picture>
 <!-- progress:end -->
 
@@ -88,16 +88,20 @@ running. Each generation is kept with the `init.f90` it was built from in
 
 ## Differences from Emacs
 
-Fortmacs follows Emacs 31.1 exactly, except where being Fortran requires
-otherwise:
+Fortmacs behaves like Emacs: the same commands, keys and results, with
+Emacs's own tests ported to check it. It is not a 1:1 copy, though: its
+names, help and internals are Fortran-first.
 
-- Names use underscores: `M-x find_file`, `C-h v fill_column`,
-  `text_mode_hook`. Keys and mode-line text are unchanged.
+- Names use underscores (`M-x find_file`, `C-h v fill_column`,
+  `text_mode_hook`), and Lisp terms take Fortran names: defun, sexp and <!-- fortran-names: keep -->
+  alist become subprogram, expression and table (`C-M-f` is <!-- fortran-names: keep -->
+  `forward_expression`). Keys and mode-line text are unchanged.
+  PORTING.md, "Fortran names for Lisp terms", has the full list.
+- Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
+  names the Fortran file a definition lives in.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
   `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
   configuration means rebuilding.
-- Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
-  names the Fortran file a definition lives in.
 - Configuration and packages are Fortran modules compiled into the binary;
   commands that save settings write Fortran into `init.f90`.
 
@@ -109,16 +113,23 @@ handful of porters could never keep up, and maintainers shouldn't be asked
 to port their work to a niche experiment, so without help Emacs in Fortran
 would never happen. This is for fun. Let's see where it goes.
 
-AI has made breakthroughs once out of reach, from AlphaFold's 200 million
-protein structures (part of the 2024 Nobel Prize in Chemistry) to the
-antibiotic candidate halicin, yet AI-assisted coding still carries a
-stigma. Fortmacs judges its code like any other: it must build, pass
+AI has made breakthroughs once out of reach: AlphaFold's 200 million
+protein structures (part of the 2024 Nobel Prize in Chemistry), the
+antibiotic candidate halicin and, according to press reports the CIA has
+not confirmed, the 2026 rescue of an airman shot down over Iran, located by
+a sensor called "Ghost Murmur" that reportedly uses AI to single out his
+heartbeat from the background noise. Yet AI-assisted coding still carries
+a stigma. Fortmacs judges its code like any other: it must build, pass
 Emacs's own tests and survive human review.
 
 Fortmacs is co-written with Claude Code, Anthropic's coding agent. It needs
 constant direction: left alone it drifted toward Lisp written in Fortran,
 such as `call put("upcase-region", "disabled", .false., status)` where
-Fortmacs now has `commands%upcase_region%disabled = .false.`. In return it:
+Fortmacs now has `commands%upcase_region%disabled = .false.`. It also let
+Lisp terms slip into Fortran names unremarked, such as <!-- fortran-names: keep -->
+`beginning_of_defun`, `forward_sexp` and `auto_mode_alist`; the renames <!-- fortran-names: keep -->
+are recorded in PORTING.md, and a check in CI keeps them from coming
+back. In return it:
 
 - reads C, Elisp and Fortran, porting each function with a citation to its
   source and porting Emacs's tests with it;

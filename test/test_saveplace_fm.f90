@@ -36,9 +36,9 @@ module test_saveplace_fm
     use dired_mode_fm, only: dired
     use bindings_fm, only: init_bindings
     use modes_fm, only: minor_modes
-    use saveplace_fm, only: save_place_alist, save_place_type, save_place_loaded, save_place_file, &
-                            save_place_to_alist, save_place_forget_unreadable_files, save_place_alist_to_file, &
-                            save_place_load_alist_from_file
+    use saveplace_fm, only: save_place_table, save_place_type, save_place_loaded, save_place_file, &
+                            save_place_to_table, save_place_forget_unreadable_files, save_place_table_to_file, &
+                            save_place_load_table_from_file
     implicit none(type, external)
     private
 
@@ -51,11 +51,11 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("saveplace-test-save-place-to-alist/dir", test_to_alist_dir), &
-                    new_unittest("saveplace-test-save-place-to-alist/file", test_to_alist_file), &
+                    new_unittest("saveplace-test-save-place-to-alist/dir", test_to_table_dir), &
+                    new_unittest("saveplace-test-save-place-to-alist/file", test_to_table_file), &
                     new_unittest("saveplace-test-forget-unreadable-files", test_forget_unreadable), &
-                    new_unittest("saveplace-test-place-alist-to-file", test_alist_to_file), &
-                    new_unittest("saveplace-test-load-alist-from-file", test_load_alist) &
+                    new_unittest("saveplace-test-place-alist-to-file", test_table_to_file), &
+                    new_unittest("saveplace-test-load-alist-from-file", test_load_table) &
                     ]
     end subroutine collect_saveplace_fm
 
@@ -69,7 +69,7 @@ contains
         dir = file_name_as_directory(dir)
     end function resource_directory
 
-    !> (save-place-mode), with SAVE_PLACE_ALIST empty and loaded as
+    !> (save-place-mode), with SAVE_PLACE_TABLE empty and loaded as
     !> LOADED.
     subroutine start(loaded)
         logical, intent(in) :: loaded
@@ -77,27 +77,27 @@ contains
 
         call init_bindings()
         call minor_modes%save_place_mode%enable(st)
-        if (allocated(save_place_alist)) deallocate (save_place_alist)
-        allocate (save_place_alist(0))
+        if (allocated(save_place_table)) deallocate (save_place_table)
+        allocate (save_place_table(0))
         save_place_loaded = loaded
     end subroutine start
 
-    !> Make the alist the places FILES with POSITIONS.
-    subroutine set_alist(files, positions)
+    !> Make the table the places FILES with POSITIONS.
+    subroutine set_table(files, positions)
         character(len=*), intent(in) :: files(:)
         integer(int64), intent(in) :: positions(:)
         integer :: k
 
-        if (allocated(save_place_alist)) deallocate (save_place_alist)
-        allocate (save_place_alist(size(files)))
+        if (allocated(save_place_table)) deallocate (save_place_table)
+        allocate (save_place_table(size(files)))
 
         do k = 1, size(files)
-            save_place_alist(k)%file = trim(files(k))
-            save_place_alist(k)%position = positions(k)
+            save_place_table(k)%file = trim(files(k))
+            save_place_table(k)%position = positions(k)
         end do
-    end subroutine set_alist
+    end subroutine set_table
 
-    subroutine test_to_alist_dir(error)
+    subroutine test_to_table_dir(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
         type(status_type) :: st
@@ -110,19 +110,19 @@ contains
         call dired(loc, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call save_place_to_alist()
-        call check(error, size(save_place_alist) == 1, "one place")
+        call save_place_to_table()
+        call check(error, size(save_place_table) == 1, "one place")
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%file, loc)
+        call check(error, save_place_table(1)%file, loc)
         if (allocated(error)) return
-        call check(error, allocated(save_place_alist(1)%dired_filename), "a Dired place")
+        call check(error, allocated(save_place_table(1)%dired_filename), "a Dired place")
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%dired_filename, loc//"saveplace")
+        call check(error, save_place_table(1)%dired_filename, loc//"saveplace")
         call kill_buffer(current_buffer(), st)
         call set_buffer(old, st)
-    end subroutine test_to_alist_dir
+    end subroutine test_to_table_dir
 
-    subroutine test_to_alist_file(error)
+    subroutine test_to_table_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, h
         type(status_type) :: st
@@ -138,19 +138,19 @@ contains
         if (allocated(error)) return
         ! (Must insert something.)
         call insert("abc", st)
-        call save_place_to_alist()
-        call check(error, size(save_place_alist) == 1, "one place")
+        call save_place_to_table()
+        call check(error, size(save_place_table) == 1, "one place")
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%file, tmpfile)
+        call check(error, save_place_table(1)%file, tmpfile)
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%position == 4 .and. .not. allocated(save_place_alist(1)%dired_filename), &
+        call check(error, save_place_table(1)%position == 4 .and. .not. allocated(save_place_table(1)%dired_filename), &
                    "at 4")
         h = current_buffer()
         call restore_buffer_modified_p(.false.)
         call kill_buffer(h, st)
         call set_buffer(old, st)
         call delete_file(tmpfile, st)
-    end subroutine test_to_alist_file
+    end subroutine test_to_table_file
 
     subroutine test_forget_unreadable(error)
         type(error_type), allocatable, intent(out) :: error
@@ -159,17 +159,17 @@ contains
 
         call start(.true.)
         call make_temp_file("saveplace-test", tmpfile, st)
-        call set_alist([character(len=len(tmpfile) + 32) :: "/this/file/does/not/exist", tmpfile], [10_int64, 1917_int64])
+        call set_table([character(len=len(tmpfile) + 32) :: "/this/file/does/not/exist", tmpfile], [10_int64, 1917_int64])
         call save_place_forget_unreadable_files()
-        call check(error, size(save_place_alist) == 1, "one place left")
+        call check(error, size(save_place_table) == 1, "one place left")
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%file, tmpfile)
+        call check(error, save_place_table(1)%file, tmpfile)
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%position == 1917, "1917")
+        call check(error, save_place_table(1)%position == 1917, "1917")
         call delete_file(tmpfile, st)
     end subroutine test_forget_unreadable
 
-    subroutine test_alist_to_file(error)
+    subroutine test_table_to_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(handle_type) :: old, h
@@ -180,10 +180,10 @@ contains
         call make_temp_file("saveplace-test", tmpfile, st)
         call make_temp_file("saveplace-test", tmpfile2, st)
         save_place_file = tmpfile
-        call set_alist([tmpfile2], [99_int64])
-        call save_place_alist_to_file()
-        if (allocated(save_place_alist)) deallocate (save_place_alist)
-        allocate (save_place_alist(0))
+        call set_table([tmpfile2], [99_int64])
+        call save_place_table_to_file()
+        if (allocated(save_place_table)) deallocate (save_place_table)
+        allocate (save_place_table(0))
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *saveplace-test*"), h, st)
         call set_buffer(h, st)
@@ -194,25 +194,25 @@ contains
         call check(error, index(text, tmpfile2) > 0, text)
         call delete_file(tmpfile, st)
         call delete_file(tmpfile2, st)
-    end subroutine test_alist_to_file
+    end subroutine test_table_to_file
 
-    subroutine test_load_alist(error)
+    subroutine test_load_table(error)
         type(error_type), allocatable, intent(out) :: error
 
         call start(.false.)
         save_place_file = resource_directory()//"saveplace"
-        call save_place_load_alist_from_file()
-        call check(error, size(save_place_alist) == 2, "two places")
+        call save_place_load_table_from_file()
+        call check(error, size(save_place_table) == 2, "two places")
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%file, "/home/skangas/.emacs.d/cache/recentf")
+        call check(error, save_place_table(1)%file, "/home/skangas/.emacs.d/cache/recentf")
         if (allocated(error)) return
-        call check(error, save_place_alist(1)%position == 1306 .and. .not. allocated(save_place_alist(1)%dired_filename), &
+        call check(error, save_place_table(1)%position == 1306 .and. .not. allocated(save_place_table(1)%dired_filename), &
                    "1306")
         if (allocated(error)) return
-        call check(error, save_place_alist(2)%file, "/home/skangas/wip/emacs/")
+        call check(error, save_place_table(2)%file, "/home/skangas/wip/emacs/")
         if (allocated(error)) return
-        call check(error, allocated(save_place_alist(2)%dired_filename), "a Dired place")
+        call check(error, allocated(save_place_table(2)%dired_filename), "a Dired place")
         if (allocated(error)) return
-        call check(error, save_place_alist(2)%dired_filename, "/home/skangas/wip/emacs/COPYING")
-    end subroutine test_load_alist
+        call check(error, save_place_table(2)%dired_filename, "/home/skangas/wip/emacs/COPYING")
+    end subroutine test_load_table
 end module test_saveplace_fm

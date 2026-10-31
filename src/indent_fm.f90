@@ -31,7 +31,7 @@
 module indent_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buffer_serial_live
-    use characters_fm, only: char_has_category
+    use category_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
     use lisp_fm, only: value_type, nilp, consp, stringp, xstring, fixnump, xfixnum, list_elements
@@ -186,7 +186,7 @@ module indent_fm
         !> If `transient_mark_mode' is turned on and the region is active,
         !> this function instead calls `indent_region'.  In this case, any
         !> prefix argument is ignored.  Port of
-        !> indent.el:indent-for-tab-command (no prefix-argument sexp
+        !> indent.el:indent-for-tab-command (no prefix-argument expression
         !> reindentation, no completion).
         module subroutine indent_for_tab_command(arg, status)
             implicit none(type, external)

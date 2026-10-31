@@ -67,8 +67,9 @@ module smie_fm
     use search_fm, only: looking_at, string_match, match_beginning, match_end, re_search_forward, regexp_quote, &
                          SEARCH_NOERROR
     use subr_fm, only: looking_back
-    use lisp_cmds_fm, only: forward_sexp, backward_sexp, backward_up_list, down_list, forward_sexp_function, &
-                            forward_sexp_proc
+    use expression_motion_fm, only: forward_expression, backward_expression, backward_up_group, down_group, &
+                                    forward_expression_function, &
+                                    forward_expression_proc
     use indent_fm, only: current_column, current_indentation, indent_line_to, move_to_column, indent_according_to_mode, &
                          indent_line_function
     use fill_fm, only: current_fill_column
@@ -92,10 +93,10 @@ module smie_fm
     private
 
     public :: smie_bnf_to_prec2, smie_precs_to_prec2, smie_merge_prec2s, smie_prec2_to_grammar, smie_set_prec2tab, &
-              smie_bnf_closer_alist, smie_bnf_classify
-    public :: smie_default_forward_token, smie_default_backward_token, smie_next_sexp, smie_backward_sexp, &
-              smie_forward_sexp, smie_backward_sexp_command, smie_forward_sexp_command, smie_close_block, &
-              smie_down_list, smie_blink_matching_check, smie_blink_matching_open, smie_forward_token, &
+              smie_bnf_closer_table, smie_bnf_classify
+    public :: smie_default_forward_token, smie_default_backward_token, smie_next_expression, smie_backward_expression, &
+              smie_forward_expression, smie_backward_expression_command, smie_forward_expression_command, smie_close_block, &
+              smie_down_group, smie_blink_matching_check, smie_blink_matching_open, smie_forward_token, &
               smie_backward_token, smie_grammar_token, smie_closer_p, smie_opener_p
     public :: smie_rule_hanging_p, smie_rule_bolp, smie_indent_bolp_1, smie_indent_current_column, smie_rule_parent_p, &
               smie_rule_next_p, smie_rule_prev_p, smie_rule_sibling_p, smie_rule_parent, smie_rule_separator, &
@@ -186,7 +187,7 @@ module smie_fm
         logical :: has_open_close = .false.
         type(smie_string_type), allocatable :: class_tokens(:)
         integer, allocatable :: classes(:)
-        logical :: has_closer_alist = .false.
+        logical :: has_closer_table = .false.
         type(smie_string_type), allocatable :: openers(:), closers(:)
     end type smie_prec2_type
 
@@ -205,18 +206,18 @@ module smie_fm
         logical :: unset = .true.
         type(smie_string_type), allocatable :: tokens(:)
         type(smie_level_type), allocatable :: left(:), right(:)
-        logical :: has_closer_alist = .false.
+        logical :: has_closer_table = .false.
         type(smie_string_type), allocatable :: openers(:), closers(:)
     end type smie_grammar_type
 
-    !> What `smie_next_sexp' returns: nil (`null'), or (LEVEL POS TOKEN)
+    !> What `smie_next_expression' returns: nil (`null'), or (LEVEL POS TOKEN)
     !> (`token' unallocated is nil, `pos' 0 too).
-    type, public :: smie_sexp_type
+    type, public :: smie_expression_type
         logical :: null = .true.
         type(smie_level_type) :: level
         integer(int64) :: pos = 0
         character(len=:), allocatable :: token
-    end type smie_sexp_type
+    end type smie_expression_type
 
     !> A token and its levels: (TOKEN LEFT RIGHT), or nil (`null').
     type, public :: smie_toklevels_type
@@ -315,7 +316,7 @@ module smie_fm
         logical :: has_rules = .false.
         procedure(smie_token_proc), pointer, nopass :: forward_token => null()
         procedure(smie_token_proc), pointer, nopass :: backward_token => null()
-        logical :: has_closer_alist = .false.
+        logical :: has_closer_table = .false.
         logical :: has_triggers = .false.
         character(len=:), allocatable :: triggers
         ! smie--matching-block-data-cache: ((POS . TICK) . DATA).
@@ -439,7 +440,7 @@ module smie_fm
     integer :: warning_count = 0
 
     ! The dynamically bound smie--parent, smie--after and smie--token.
-    type(smie_sexp_type) :: smie__parent
+    type(smie_expression_type) :: smie__parent
     integer(int64) :: smie__after = 0
     character(len=:), allocatable :: smie__token
 
@@ -727,14 +728,14 @@ contains
                 end if
             end if
 
-            if (tables(t)%has_closer_alist) then
-                if (prec2%has_closer_alist) then
+            if (tables(t)%has_closer_table) then
+                if (prec2%has_closer_table) then
                     if (.not. same_pairs(prec2%openers, prec2%closers, tables(t)%openers, tables(t)%closers)) then
                         call set_error(status, FM_GENERIC_ERROR, "Conflicting values for :smie-closer-alist property")
                         return
                     end if
                 else
-                    prec2%has_closer_alist = .true.
+                    prec2%has_closer_table = .true.
                     prec2%openers = tables(t)%openers
                     prec2%closers = tables(t)%closers
                 end if
@@ -1000,8 +1001,8 @@ contains
         call smie_bnf_classify(bnf, ops, prec2%classes)
         call move_alloc(ops, prec2%class_tokens)
         prec2%has_open_close = .true.
-        call smie_bnf_closer_alist(bnf, prec2%openers, prec2%closers)
-        prec2%has_closer_alist = .true.
+        call smie_bnf_closer_table(bnf, prec2%openers, prec2%closers)
+        prec2%has_closer_table = .true.
         ! (The total of warnings is not reported: display-warning is
         ! deferred.)
         warning_count = saved_count
@@ -1082,10 +1083,10 @@ contains
 
     !> Build a closer-alist from a BNF table: (OPENER . CLOSER) pairs in
     !> OPENERS and CLOSERS.  The return value is in the same form as
-    !> `smie_closer_alist'.  NO_INNERS true means that inner keywords will
+    !> `smie_closer_table'.  NO_INNERS true means that inner keywords will
     !> be excluded from the table, e.g. the table will not include things
     !> like ("if" . "else").  Port of smie.el:smie-bnf--closer-alist.
-    subroutine smie_bnf_closer_alist(bnf, openers, closers, no_inners)
+    subroutine smie_bnf_closer_table(bnf, openers, closers, no_inners)
         type(smie_bnf_type), intent(in) :: bnf
         type(smie_string_type), allocatable, intent(out) :: openers(:), closers(:)
         logical, intent(in), optional :: no_inners
@@ -1145,7 +1146,7 @@ contains
             call move_alloc(go, openers)
             call move_alloc(gc, closers)
         end subroutine add_pair
-    end subroutine smie_bnf_closer_alist
+    end subroutine smie_bnf_closer_table
 
     !> Return a table classifying terminals: each terminal of TOKENS can
     !> either be an opener (SMIE_OPENER) or a closer (SMIE_CLOSER); the
@@ -1238,7 +1239,7 @@ contains
         end subroutine set_class
     end subroutine smie_bnf_classify
 
-    !> Take a 2D precedence table and turn it into an alist of precedence levels.
+    !> Take a 2D precedence table and turn it into a table of precedence levels.
     !> PREC2 is a table as returned by `smie_precs_to_prec2' or
     !> `smie_bnf_to_prec2'.  Port of smie.el:smie-prec2->grammar.
     subroutine smie_prec2_to_grammar(prec2, grammar, status)
@@ -1429,9 +1430,9 @@ contains
             end do
         end if
 
-        if (prec2%has_closer_alist) then
+        if (prec2%has_closer_table) then
             if (size(prec2%openers) > 0) then
-                grammar%has_closer_alist = .true.
+                grammar%has_closer_table = .true.
                 grammar%openers = prec2%openers
                 grammar%closers = prec2%closers
             end if
@@ -1706,51 +1707,51 @@ contains
         end if
     end function grammar
 
-    ! Whether the current buffer has a `smie_closer_alist'.  Not a port.
-    logical function closer_alist_p()
+    ! Whether the current buffer has a `smie_closer_table'.  Not a port.
+    logical function closer_table_p()
         integer :: k
         type(smie_grammar_type), pointer :: g
 
-        closer_alist_p = .false.
+        closer_table_p = .false.
         k = local_index(.false.)
         if (k == 0) return
-        if (.not. locals(k)%has_closer_alist) return
+        if (.not. locals(k)%has_closer_table) return
         g => grammar()
-        closer_alist_p = g%has_closer_alist
-    end function closer_alist_p
+        closer_table_p = g%has_closer_table
+    end function closer_table_p
 
-    !> Whether TOKEN is a closer of `smie_closer_alist' (rassoc).
+    !> Whether TOKEN is a closer of `smie_closer_table' (rassoc).
     !> Not a port.
     logical function smie_closer_p(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
 
         smie_closer_p = .false.
-        if (.not. closer_alist_p()) return
+        if (.not. closer_table_p()) return
         g => grammar()
         smie_closer_p = member(token, g%closers)
     end function smie_closer_p
 
-    !> Whether TOKEN is an opener of `smie_closer_alist' (assoc).
+    !> Whether TOKEN is an opener of `smie_closer_table' (assoc).
     !> Not a port.
     logical function smie_opener_p(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
 
         smie_opener_p = .false.
-        if (.not. closer_alist_p()) return
+        if (.not. closer_table_p()) return
         g => grammar()
         smie_opener_p = member(token, g%openers)
     end function smie_opener_p
 
-    ! Whether (OPENER . CLOSER) is in `smie_closer_alist'.  Not a port.
+    ! Whether (OPENER . CLOSER) is in `smie_closer_table'.  Not a port.
     logical function closer_pair_p(opener, closer)
         character(len=*), intent(in) :: opener, closer
         type(smie_grammar_type), pointer :: g
         integer :: i
 
         closer_pair_p = .false.
-        if (.not. closer_alist_p()) return
+        if (.not. closer_table_p()) return
         g => grammar()
 
         do i = 1, size(g%openers)
@@ -1932,14 +1933,14 @@ contains
         call set_error(status, FM_SCAN_ERROR, fortran_string(message)//", "//trim(sa)//", "//trim(sb))
     end subroutine signal_scan_error
 
-    !> Skip over one sexp, forward (FORWARD) or backward.
+    !> Skip over one expression, forward (FORWARD) or backward.
     !> The next token comes from the token function, the lower-level
-    !> sexp is skipped with `forward_sexp' or `backward_sexp', and the
+    !> expression is skipped with `forward_expression' or `backward_expression', and the
     !> forward and backward levels are the right and left ones forward, the
     !> left and right ones backward.
-    !> HALFSEXP if true, means skip over a partial sexp if needed.  I.e. if the
+    !> HALFEXPRESSION if true, means skip over a partial expression if needed.  I.e. if the
     !> first token we see is an operator, skip over its left-hand-side argument.
-    !> HALFSEXP can also be a token (TOKEN), in which case it means to parse as if
+    !> HALFEXPRESSION can also be a token (TOKEN), in which case it means to parse as if
     !> we had just successfully passed this token.
     !> Possible return values:
     !>   (FORW-LEVEL POS TOKEN): we couldn't skip TOKEN because its back-level
@@ -1950,11 +1951,11 @@ contains
     !>   (nil POS TOKEN): we skipped over a paren-like pair.
     !>   nil: we skipped over an identifier, matched parentheses, ...
     !> Port of smie.el:smie-next-sexp.
-    recursive subroutine smie_next_sexp(forward, res, status, halfsexp, token)
+    recursive subroutine smie_next_expression(forward, res, status, halfexpression, token)
         logical, intent(in) :: forward
-        type(smie_sexp_type), intent(out) :: res
+        type(smie_expression_type), intent(out) :: res
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: halfsexp
+        logical, intent(in), optional :: halfexpression
         character(len=*), intent(in), optional :: token
         type(smie_level_type), allocatable :: lfw(:), lbk(:), last_fw(:), last_bk(:)
         type(smie_toklevels_type) :: toklevels
@@ -1966,7 +1967,7 @@ contains
 
         status = status_type()
         half = .false.
-        if (present(halfsexp)) half = halfsexp
+        if (present(halfexpression)) half = halfexpression
         allocate (lfw(0), lbk(0))
 
         if (present(token)) then
@@ -2008,7 +2009,7 @@ contains
 
             if (toklevels%null) then
                 if (len(tok) == 0) then
-                    call next_sexp(status)
+                    call next_expression(status)
 
                     if (status%code == FM_SCAN_ERROR) then
                         call scan_error_data(status, message, beg, end_pos)
@@ -2187,27 +2188,27 @@ contains
             call goto_char(p)
         end subroutine bump
 
-        ! NEXT-SEXP: skip one sexp.
-        recursive subroutine next_sexp(st)
+        ! NEXT-SEXP: skip one expression.
+        recursive subroutine next_expression(st)
             type(status_type), intent(out) :: st
 
             st = status_type()
 
             if (forward) then
-                call forward_sexp(1_int64, st)
+                call forward_expression(1_int64, st)
             else if (bobp()) then
                 ! Arguably backward-sexp should signal this error for us.
                 call signal_scan_error(st, "Beginning of buffer", point(), point())
             else
-                call backward_sexp(1_int64, st)
+                call backward_expression(1_int64, st)
             end if
-        end subroutine next_sexp
-    end subroutine smie_next_sexp
+        end subroutine next_expression
+    end subroutine smie_next_expression
 
-    !> Skip over one sexp.
-    !> HALFSEXP if true, means skip over a partial sexp if needed.  I.e. if the
+    !> Skip over one expression.
+    !> HALFEXPRESSION if true, means skip over a partial expression if needed.  I.e. if the
     !> first token we see is an operator, skip over its left-hand-side argument.
-    !> HALFSEXP can also be a token (TOKEN), in which case we should skip the text
+    !> HALFEXPRESSION can also be a token (TOKEN), in which case we should skip the text
     !> assuming it is the left-hand-side argument of that token.
     !> Possible return values:
     !>   (LEFT-LEVEL POS TOKEN): we couldn't skip TOKEN because its right-level
@@ -2218,19 +2219,19 @@ contains
     !>   (nil POS TOKEN): we skipped over a paren-like pair.
     !>   nil: we skipped over an identifier, matched parentheses, ...
     !> Port of smie.el:smie-backward-sexp.
-    recursive subroutine smie_backward_sexp(res, status, halfsexp, token)
-        type(smie_sexp_type), intent(out) :: res
+    recursive subroutine smie_backward_expression(res, status, halfexpression, token)
+        type(smie_expression_type), intent(out) :: res
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: halfsexp
+        logical, intent(in), optional :: halfexpression
         character(len=*), intent(in), optional :: token
 
-        call smie_next_sexp(.false., res, status, halfsexp, token)
-    end subroutine smie_backward_sexp
+        call smie_next_expression(.false., res, status, halfexpression, token)
+    end subroutine smie_backward_expression
 
-    !> Skip over one sexp.
-    !> HALFSEXP if true, means skip over a partial sexp if needed.  I.e. if the
+    !> Skip over one expression.
+    !> HALFEXPRESSION if true, means skip over a partial expression if needed.  I.e. if the
     !> first token we see is an operator, skip over its right-hand-side argument.
-    !> HALFSEXP can also be a token (TOKEN), in which case we should skip the text
+    !> HALFEXPRESSION can also be a token (TOKEN), in which case we should skip the text
     !> assuming it is the right-hand-side argument of that token.
     !> Possible return values:
     !>   (RIGHT-LEVEL POS TOKEN): we couldn't skip TOKEN because its left-level
@@ -2241,14 +2242,14 @@ contains
     !>   (nil POS TOKEN): we skipped over a paren-like pair.
     !>   nil: we skipped over an identifier, matched parentheses, ...
     !> Port of smie.el:smie-forward-sexp.
-    recursive subroutine smie_forward_sexp(res, status, halfsexp, token)
-        type(smie_sexp_type), intent(out) :: res
+    recursive subroutine smie_forward_expression(res, status, halfexpression, token)
+        type(smie_expression_type), intent(out) :: res
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: halfsexp
+        logical, intent(in), optional :: halfexpression
         character(len=*), intent(in), optional :: token
 
-        call smie_next_sexp(.true., res, status, halfsexp, token)
-    end subroutine smie_forward_sexp
+        call smie_next_expression(.true., res, status, halfexpression, token)
+    end subroutine smie_forward_expression
 
     ! ------------------------------------------------------------------
     ! Miscellaneous commands using the precedence parser
@@ -2256,30 +2257,30 @@ contains
 
     !> Move backward through N logical elements.  Port of
     !> smie.el:smie-backward-sexp-command.
-    recursive subroutine smie_backward_sexp_command(n, status)
+    recursive subroutine smie_backward_expression_command(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call smie_forward_sexp_command(-n, status)
-    end subroutine smie_backward_sexp_command
+        call smie_forward_expression_command(-n, status)
+    end subroutine smie_backward_expression_command
 
-    !> Move forward through N logical elements (the `forward_sexp_function'
+    !> Move forward through N logical elements (the `forward_expression_function'
     !> of SMIE modes).  Port of smie.el:smie-forward-sexp-command.
-    recursive subroutine smie_forward_sexp_command(n, status)
+    recursive subroutine smie_forward_expression_command(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-        type(smie_sexp_type) :: res
+        type(smie_expression_type) :: res
         integer(int64) :: left, pos
         logical :: forw, edge, was_local
-        procedure(forward_sexp_proc), pointer :: saved
+        procedure(forward_expression_proc), pointer :: saved
 
         status = status_type()
         forw = n > 0
         left = n
         ! (let ((forward-sexp-function nil)) ...)
-        was_local = forward_sexp_function%local_p()
-        saved => forward_sexp_function%get()
-        call forward_sexp_function%set_local()
+        was_local = forward_expression_function%local_p()
+        saved => forward_expression_function%get()
+        call forward_expression_function%set_local()
 
         do while (left /= 0)
             if (forw) then
@@ -2291,9 +2292,9 @@ contains
             pos = point()
 
             if (forw) then
-                call smie_forward_sexp(res, status, halfsexp=.true.)
+                call smie_forward_expression(res, status, halfexpression=.true.)
             else
-                call smie_backward_sexp(res, status, halfsexp=.true.)
+                call smie_backward_expression(res, status, halfexpression=.true.)
             end if
 
             if (.not. status%ok()) exit
@@ -2311,11 +2312,11 @@ contains
         end do
 
         if (was_local) then
-            call forward_sexp_function%set_local(saved)
+            call forward_expression_function%set_local(saved)
         else
-            call forward_sexp_function%kill_local()
+            call forward_expression_function%kill_local()
         end if
-    end subroutine smie_forward_sexp_command
+    end subroutine smie_forward_expression_command
 
     !> The character of SYNTAX entry D matches (cdr (syntax-after POS)),
     !> as a string; "" if it has none.  Not a port.
@@ -2443,7 +2444,7 @@ contains
         here = point()
 
         body: block
-            call backward_up_list(1_int64, status)
+            call backward_up_group(1_int64, status)
             if (.not. status%ok()) exit body
             matched = looking_at("\s(", status)
             if (.not. status%ok()) exit body
@@ -2539,7 +2540,7 @@ contains
             character(len=:), allocatable :: c
             integer :: m
 
-            if (.not. closer_alist_p()) return
+            if (.not. closer_table_p()) return
 
             do m = 1, size(g%openers)
                 if (str_eq(g%openers(m)%s, o)) then
@@ -2557,12 +2558,12 @@ contains
         call smie_close_block(status)
     end subroutine cmd_smie_close_block
 
-    !> Move forward down one level paren-like blocks.  Like `down_list'.
+    !> Move forward down one level paren-like blocks.  Like `down_group'.
     !> With argument ARG, do this that many times.
     !> A negative argument means move backward but still go down a level.
     !> This command assumes point is not in a string or comment.  Port of
     !> smie.el:smie-down-list.
-    recursive subroutine smie_down_list(arg_in, status)
+    recursive subroutine smie_down_group(arg_in, status)
         integer(int64), intent(in) :: arg_in
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: token
@@ -2611,11 +2612,11 @@ contains
                         ! Go back to `start' in case of an error.  This presumes
                         ! none of the token we've found until now include a ( or ).
                         call goto_char(start)
-                        call down_list(inc, status)
+                        call down_group(inc, status)
                         if (.not. status%ok()) return
                         more = .false.
                     else
-                        call forward_sexp(inc, status)
+                        call forward_expression(inc, status)
                         if (.not. status%ok()) return
                         more = point() /= pos
                     end if
@@ -2633,7 +2634,7 @@ contains
                 if (.not. more) exit
             end do
         end do
-    end subroutine smie_down_list
+    end subroutine smie_down_group
 
     ! (nth N LEVELS) of (TOKEN LEFT RIGHT): 1 is LEFT, 2 is RIGHT.
     ! Not a port.
@@ -2649,26 +2650,26 @@ contains
         end if
     end function side
 
-    ! `smie_down_list' as a command ("p").
-    recursive subroutine cmd_smie_down_list(status)
+    ! `smie_down_group' as a command ("p").
+    recursive subroutine cmd_smie_down_group(status)
         type(status_type), intent(out) :: status
 
-        call smie_down_list(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_smie_down_list
+        call smie_down_group(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_smie_down_group
 
-    ! `smie_forward_sexp_command' as a command ("^p").
-    recursive subroutine cmd_smie_forward_sexp_command(status)
+    ! `smie_forward_expression_command' as a command ("^p").
+    recursive subroutine cmd_smie_forward_expression_command(status)
         type(status_type), intent(out) :: status
 
-        call smie_forward_sexp_command(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_smie_forward_sexp_command
+        call smie_forward_expression_command(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_smie_forward_expression_command
 
-    ! `smie_backward_sexp_command' as a command ("^p").
-    recursive subroutine cmd_smie_backward_sexp_command(status)
+    ! `smie_backward_expression_command' as a command ("^p").
+    recursive subroutine cmd_smie_backward_expression_command(status)
         type(status_type), intent(out) :: status
 
-        call smie_backward_sexp_command(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_smie_backward_sexp_command
+        call smie_backward_expression_command(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_smie_backward_expression_command
 
     !> The `blink_matching_check_function' of SMIE modes: whether the
     !> opener at START and the closer before END do not match.  Port of
@@ -2721,7 +2722,7 @@ contains
         lce = command_char()
         if (blink_matching_paren == BLINK_MATCHING_PAREN_NIL) return
         ! Optimization.
-        if (.not. closer_alist_p()) return
+        if (.not. closer_table_p()) return
         ! Sanity check.
         ok = before_char() == lce
 
@@ -2904,7 +2905,7 @@ contains
         type(show_paren_data_type), intent(out) :: data
         type(status_type) :: st
         type(parse_state_type) :: ppss
-        type(smie_sexp_type) :: sdata
+        type(smie_expression_type) :: sdata
         type(smie_toklevels_type) :: ht, tt
         character(len=:), allocatable :: htok, ignored
         integer(int64) :: tick, hbeg, hend, tend, tbeg, here, pt
@@ -2915,7 +2916,7 @@ contains
         k = local_index(.true.)
         call buffer_chars_modified_tick(current_buffer(), tick, st)
 
-        if (closer_alist_p()) then
+        if (closer_table_p()) then
             if (.not. (locals(k)%has_cache .and. locals(k)%cache_pos == point() .and. locals(k)%cache_tick == tick)) then
                 locals(k)%has_cache = .true.
                 locals(k)%cache_pos = point()
@@ -2950,7 +2951,7 @@ contains
 
                         if (hopener) then
                             ! Opener.
-                            call smie_forward_sexp(sdata, st, halfsexp=.true.)
+                            call smie_forward_expression(sdata, st, halfexpression=.true.)
                             if (.not. st%ok()) exit body
                             tend = point()
 
@@ -2963,7 +2964,7 @@ contains
                             end if
                         else
                             ! Closer.
-                            call smie_backward_sexp(sdata, st, halfsexp=.true.)
+                            call smie_backward_expression(sdata, st, halfexpression=.true.)
                             if (.not. st%ok()) exit body
 
                             if (.not. sdata%null .and. sdata%level%kind /= SMIE_LEVEL_NIL) then
@@ -3159,11 +3160,11 @@ contains
     !> The parent of the current token: smie--parent, computed if needed.
     !> Port of smie.el:smie-indent--parent.
     recursive subroutine smie_parent(parent, status)
-        type(smie_sexp_type), intent(out) :: parent
+        type(smie_expression_type), intent(out) :: parent
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tok
         type(smie_toklevels_type) :: t
-        type(smie_sexp_type) :: res
+        type(smie_expression_type) :: res
         integer(int64) :: pos, here
 
         status = status_type()
@@ -3188,12 +3189,12 @@ contains
                 call goto_char(pos)
             end if
 
-            call smie_backward_sexp(parent, status, halfsexp=.true.)
+            call smie_backward_expression(parent, status, halfexpression=.true.)
             if (.not. status%ok()) exit body
 
             if (parent%null) then
                 do
-                    call smie_backward_sexp(res, status)
+                    call smie_backward_expression(res, status)
                     if (.not. status%ok()) exit body
                     if (.not. res%null) exit
                 end do
@@ -3214,7 +3215,7 @@ contains
     recursive function smie_parent_level(status) result(level)
         type(status_type), intent(out) :: status
         type(smie_level_type) :: level
-        type(smie_sexp_type) :: parent
+        type(smie_expression_type) :: parent
 
         call smie_parent(parent, status)
         level = parent%level
@@ -3227,7 +3228,7 @@ contains
     recursive logical function smie_rule_parent_p(parents, status) result(p)
         character(len=*), intent(in) :: parents(:)
         type(status_type), intent(out) :: status
-        type(smie_sexp_type) :: parent
+        type(smie_expression_type) :: parent
 
         p = .false.
         call smie_parent(parent, status)
@@ -3320,7 +3321,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: offset
         type(smie_rule_result_type) :: r
-        type(smie_sexp_type) :: parent
+        type(smie_expression_type) :: parent
         type(smie_indent_type) :: v
         integer(int64) :: here
 
@@ -3467,7 +3468,7 @@ contains
     ! smie-indent--rule: compute indentation column according to
     ! `smie_rules_function'.  METHOD and TOKEN are passed to it.  AFTER is
     ! the position after TOKEN, if known (0 if not).  PARENT is the parent
-    ! info returned by `smie_backward_sexp', if known.  BASE_POS is the
+    ! info returned by `smie_backward_expression', if known.  BASE_POS is the
     ! position relative to which offsets should be applied (0 for none).
     ! Port of smie.el:smie-indent--rule.
     recursive function indent_rule(method, token, status, after, parent, base_pos) result(indent)
@@ -3475,7 +3476,7 @@ contains
         character(len=*), intent(in) :: token
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: after, base_pos
-        type(smie_sexp_type), intent(in), optional :: parent
+        type(smie_expression_type), intent(in), optional :: parent
         type(smie_indent_type) :: indent
         type(smie_rule_result_type) :: offset
         type(smie_indent_type) :: v
@@ -3547,8 +3548,8 @@ contains
         type(smie_rule_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: after
-        type(smie_sexp_type), intent(in), optional :: parent
-        type(smie_sexp_type) :: saved_parent
+        type(smie_expression_type), intent(in), optional :: parent
+        type(smie_expression_type) :: saved_parent
         character(len=:), allocatable :: saved_token
         integer(int64) :: saved_after
         logical :: had_token
@@ -3557,7 +3558,7 @@ contains
         had_token = allocated(smie__token)
         if (had_token) saved_token = smie__token
         saved_after = smie__after
-        smie__parent = smie_sexp_type()
+        smie__parent = smie_expression_type()
         if (present(parent)) smie__parent = parent
         smie__token = token
         smie__after = 0
@@ -3617,7 +3618,7 @@ contains
         if (.not. status%ok()) return
 
         if (paren) then
-            call forward_sexp(1_int64, status)
+            call forward_expression(1_int64, status)
             return
         end if
 
@@ -3664,7 +3665,7 @@ contains
                 t%right = smie_level_type()
             end if
         else if (class == 7 .or. class == 15) then
-            call backward_sexp(1_int64, status)
+            call backward_expression(1_int64, status)
         else if (bobp()) then
             continue
         else
@@ -3795,7 +3796,7 @@ contains
                 if (.not. status%ok()) exit body
             end if
 
-            call backward_sexp(1_int64, status)
+            call backward_expression(1_int64, status)
 
             if (status%code == FM_SCAN_ERROR) then
                 status = status_type()
@@ -3837,7 +3838,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: token
         type(smie_toklevels_type) :: toklevels, res, again
-        type(smie_sexp_type) :: parent
+        type(smie_expression_type) :: parent
         type(smie_level_type) :: plevel
         type(status_type) :: st
         integer(int64) :: pos, endpos, shortage, here
@@ -3904,7 +3905,7 @@ contains
             end if
 
             ! FIXME: This still looks too much like black magic!!
-            call smie_backward_sexp(parent, status, token=tok)
+            call smie_backward_expression(parent, status, token=tok)
             if (.not. status%ok()) exit body
             ! Different behaviors:
             ! - align with parent.
@@ -4012,7 +4013,7 @@ contains
 
         ! (car parent): nil for a nil parent.
         function merge_level(p) result(l)
-            type(smie_sexp_type), intent(in) :: p
+            type(smie_expression_type), intent(in) :: p
             type(smie_level_type) :: l
 
             l = smie_level_type()
@@ -4308,7 +4309,7 @@ contains
     recursive subroutine smie_indent_exps(indent, status)
         type(smie_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
-        type(smie_sexp_type) :: res
+        type(smie_expression_type) :: res
         type(smie_rule_result_type) :: r
         character(len=:), allocatable :: tok
         integer(int64), allocatable :: positions(:)
@@ -4322,7 +4323,7 @@ contains
 
         body: block
             do
-                call smie_backward_sexp(res, status)
+                call smie_backward_expression(res, status)
                 if (.not. status%ok()) exit body
                 if (.not. (res%null .or. res%level%kind == SMIE_LEVEL_NIL)) exit
                 positions = [point(), positions]
@@ -4332,7 +4333,7 @@ contains
             ! Figure out if the atom we just skipped is an argument rather
             ! than a function.
             inner = point()
-            call smie_backward_sexp(res, status)
+            call smie_backward_expression(res, status)
             if (.not. status%ok()) exit body
             arg = res%null .or. res%level%kind == SMIE_LEVEL_NIL
 
@@ -4795,11 +4796,11 @@ contains
             call normal_auto_fill_function%set_local(smie_auto_fill_function)
         end if
 
-        call forward_sexp_function%set_local(smie_forward_sexp_command)
+        call forward_expression_function%set_local(smie_forward_expression_command)
         if (present(forward_token)) locals(k)%forward_token => forward_token
         if (present(backward_token)) locals(k)%backward_token => backward_token
-        if (.not. grammar_in%has_closer_alist) return
-        locals(k)%has_closer_alist = .true.
+        if (.not. grammar_in%has_closer_table) return
+        locals(k)%has_closer_table = .true.
         ! Only needed for interactive calls to blink-matching-open.
         call set_local_blink_matching_check_function(smie_blink_matching_check)
         call post_self_insert_hook%add(smie_blink_matching_open, depth=90, local=.true.)
@@ -4900,9 +4901,9 @@ contains
 
         call add_local_variables_killer(kill_smie_locals)
         commands%smie_close_block%run => cmd_smie_close_block
-        commands%smie_down_list%run => cmd_smie_down_list
-        commands%smie_forward_sexp_command%run => cmd_smie_forward_sexp_command
-        commands%smie_backward_sexp_command%run => cmd_smie_backward_sexp_command
+        commands%smie_down_group%run => cmd_smie_down_group
+        commands%smie_forward_expression_command%run => cmd_smie_forward_expression_command
+        commands%smie_backward_expression_command%run => cmd_smie_backward_expression_command
         commands%smie__next_indent_change%run => smie_next_indent_change
     end subroutine syms_of_smie
 end module smie_fm

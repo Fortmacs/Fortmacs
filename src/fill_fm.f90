@@ -40,7 +40,7 @@ module fill_fm
     use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
                          buffer_modified_p, restore_buffer_modified_p, current_buffer, buffer_serial_live
     use character_fm, only: string_char_and_length
-    use characters_fm, only: char_has_category
+    use category_fm, only: char_has_category
     use charscript_fm, only: char_script, script_names
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, eolp, buffer_substring, &

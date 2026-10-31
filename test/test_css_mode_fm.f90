@@ -44,7 +44,7 @@ module test_css_mode_fm
     use bindings_fm, only: init_bindings
     use tty_colors_fm, only: tty_register_default_colors, tty_color_clear
     use css_mode_fm, only: css_mode, scss_mode, css_property_values, css_value_class_lookup, &
-                           css_property_value_cache_get, css_current_defun_name, css_completion_at_point, &
+                           css_property_value_cache_get, css_current_rule_name, css_completion_at_point, &
                            css_foreign_completions, css_class_list_function, css_id_list_function, css_color_to_4_dpc, &
                            css_format_hex, css_named_color_to_hex, css_format_rgba_alpha, css_hex_to_rgb, &
                            css_rgb_to_named_color_or_hex, css_cycle_color_format, css_join_nested_selectors, &
@@ -238,9 +238,9 @@ contains
                      new_unittest("css-test-property-value-cache", test_property_value_cache), &
                      new_unittest("css-test-property-values-no-duplicates", test_property_values_no_duplicates), &
                      new_unittest("css-test-value-class-lookup", test_value_class_lookup), &
-                     new_unittest("css-test-current-defun-name", test_current_defun_name), &
-                     new_unittest("css-test-current-defun-name-nested", test_current_defun_name_nested), &
-                     new_unittest("css-test-current-defun-name-complex", test_current_defun_name_complex), &
+                     new_unittest("css-test-current-defun-name", test_current_subprogram_name), &
+                     new_unittest("css-test-current-defun-name-nested", test_current_subprogram_name_nested), &
+                     new_unittest("css-test-current-defun-name-complex", test_current_subprogram_name_complex), &
                      new_unittest("css-test-complete-bang-rule", test_complete_bang_rule), &
                      new_unittest("scss-test-complete-bang-rule", test_scss_complete_bang_rule), &
                      new_unittest("css-test-complete-property-value", test_complete_property_value), &
@@ -397,14 +397,6 @@ contains
         end do
     end function completions
 
-    ! Whether NAME is in LIST.
-    logical function member(name, list)
-        character(len=*), intent(in) :: name
-        character(len=*), intent(in) :: list(:)
-
-        member = any(list == name)
-    end function member
-
     ! The face at point (the first of a list), "" if none.
     function face() result(name)
         character(len=:), allocatable :: name
@@ -432,14 +424,14 @@ contains
         call font_lock_ensure(st)
     end subroutine fontify
 
-    ! The defun name at point, "" for none.
-    function defun_name() result(name)
+    ! The subprogram name at point, "" for none.
+    function subprogram_name() result(name)
         character(len=:), allocatable :: name
         logical :: found
 
-        call css_current_defun_name(name, found)
+        call css_current_rule_name(name, found)
         if (.not. found) name = "<nil>"
-    end function defun_name
+    end function subprogram_name
 
     ! The completion list functions of the tests.
     subroutine foo_bar(names)
@@ -536,35 +528,35 @@ contains
                                       [character(len=6) :: "bottom", "calc()", "center", "left", "right", "top"]))
     end subroutine test_value_class_lookup
 
-    subroutine test_current_defun_name(error)
+    subroutine test_current_subprogram_name(error)
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(plain=.true.)
         call ins("body { top: 0; }")
         call goto_char(7_int64)
-        call check(error, defun_name(), "body")
+        call check(error, subprogram_name(), "body")
         if (allocated(error)) return
         call goto_char(15_int64)
-        call check(error, defun_name(), "body")
-    end subroutine test_current_defun_name
+        call check(error, subprogram_name(), "body")
+    end subroutine test_current_subprogram_name
 
-    subroutine test_current_defun_name_nested(error)
+    subroutine test_current_subprogram_name_nested(error)
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(plain=.true.)
         call ins("body > .main a { top: 0; }")
         call goto_char(20_int64)
-        call check(error, defun_name(), "body > .main a")
-    end subroutine test_current_defun_name_nested
+        call check(error, subprogram_name(), "body > .main a")
+    end subroutine test_current_subprogram_name_nested
 
-    subroutine test_current_defun_name_complex(error)
+    subroutine test_current_subprogram_name_complex(error)
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(plain=.true.)
         call ins("input[type=submit]:hover { color: red; }")
         call goto_char(30_int64)
-        call check(error, defun_name(), "input[type=submit]:hover")
-    end subroutine test_current_defun_name_complex
+        call check(error, subprogram_name(), "input[type=submit]:hover")
+    end subroutine test_current_subprogram_name_complex
 
     subroutine test_complete_bang_rule(error)
         type(error_type), allocatable, intent(out) :: error
@@ -573,10 +565,10 @@ contains
         call temp_buffer()
         call ins("body { left: 0 !")
         c = completions()
-        call check(error, member("important", c))
+        call check(error, any(c == "important"))
         if (allocated(error)) return
         ! Don't include SCSS bang-rules
-        call check(error,.not. member("default", c))
+        call check(error,.not. any(c == "default"))
     end subroutine test_complete_bang_rule
 
     subroutine test_scss_complete_bang_rule(error)
@@ -586,9 +578,9 @@ contains
         call temp_buffer(scss=.true.)
         call ins("body { left: 0 !")
         c = completions()
-        call check(error, member("important", c))
+        call check(error, any(c == "important"))
         if (allocated(error)) return
-        call check(error, member("default", c))
+        call check(error, any(c == "default"))
     end subroutine test_scss_complete_bang_rule
 
     subroutine test_complete_property_value(error)
@@ -607,12 +599,12 @@ contains
         call temp_buffer()
         call ins("body:a")
         c = completions()
-        call check(error, member(":active", c))
+        call check(error, any(c == ":active"))
         if (allocated(error)) return
-        call check(error,.not. member(":disabled", c))
+        call check(error,.not. any(c == ":disabled"))
         if (allocated(error)) return
         ! Don't include pseudo-elements
-        call check(error,.not. member("::after", c))
+        call check(error,.not. any(c == "::after"))
     end subroutine test_complete_pseudo_class
 
     subroutine test_complete_pseudo_element(error)
@@ -622,12 +614,12 @@ contains
         call temp_buffer()
         call ins("body::a")
         c = completions()
-        call check(error, member("::after", c))
+        call check(error, any(c == "::after"))
         if (allocated(error)) return
-        call check(error,.not. member("::disabled", c))
+        call check(error,.not. any(c == "::disabled"))
         if (allocated(error)) return
         ! Don't include pseudo-classes
-        call check(error,.not. member(":active", c))
+        call check(error,.not. any(c == ":active"))
     end subroutine test_complete_pseudo_element
 
     subroutine test_complete_at_rule(error)
@@ -637,12 +629,12 @@ contains
         call temp_buffer()
         call ins("@m")
         c = completions()
-        call check(error, member("media", c))
+        call check(error, any(c == "media"))
         if (allocated(error)) return
-        call check(error,.not. member("keyframes", c))
+        call check(error,.not. any(c == "keyframes"))
         if (allocated(error)) return
         ! Don't include SCSS at-rules
-        call check(error,.not. member("mixin", c))
+        call check(error,.not. any(c == "mixin"))
     end subroutine test_complete_at_rule
 
     subroutine test_scss_complete_at_rule(error)
@@ -652,11 +644,11 @@ contains
         call temp_buffer(scss=.true.)
         call ins("@m")
         c = completions()
-        call check(error, member("media", c))
+        call check(error, any(c == "media"))
         if (allocated(error)) return
-        call check(error,.not. member("keyframes", c))
+        call check(error,.not. any(c == "keyframes"))
         if (allocated(error)) return
-        call check(error, member("mixin", c))
+        call check(error, any(c == "mixin"))
     end subroutine test_scss_complete_at_rule
 
     subroutine test_complete_property(error)
@@ -666,9 +658,9 @@ contains
         call temp_buffer()
         call ins("body { f")
         c = completions()
-        call check(error, member("filter", c))
+        call check(error, any(c == "filter"))
         if (allocated(error)) return
-        call check(error,.not. member("position", c))
+        call check(error,.not. any(c == "position"))
         if (allocated(error)) return
         ! Bug#27392
         call temp_buffer()
@@ -707,9 +699,9 @@ contains
         call temp_buffer()
         call ins("b")
         c = completions()
-        call check(error, member("body", c))
+        call check(error, any(c == "body"))
         if (allocated(error)) return
-        call check(error,.not. member("article", c))
+        call check(error,.not. any(c == "article"))
     end subroutine test_complete_selector_tag
 
     subroutine test_complete_selector_class(error)
@@ -755,7 +747,7 @@ contains
 
         call temp_buffer()
         call ins("body {")
-        call check(error,.not. member("body", completions()))
+        call check(error,.not. any(completions() == "body"))
     end subroutine test_complete_nested_selector
 
     subroutine test_scss_complete_nested_selector(error)
@@ -765,9 +757,9 @@ contains
         call temp_buffer(scss=.true.)
         call ins("body { b")
         c = completions()
-        call check(error, member("body", c))
+        call check(error, any(c == "body"))
         if (allocated(error)) return
-        call check(error,.not. member("article", c))
+        call check(error,.not. any(c == "article"))
     end subroutine test_scss_complete_nested_selector
 
     subroutine test_color_to_4_dpc(error)

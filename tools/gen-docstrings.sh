@@ -50,7 +50,10 @@ trap 'rm -f "$tmp".*' EXIT
 # lines by \036:
 #   F  lisp-name  file  fortran-call  interactive(0/1)  doc
 #   V  lisp-name  file  fortran-name  type  array(0/1)  init  enum  doc
-find src -name '*.f90' ! -name docstrings_fm.f90 | sort | xargs awk '
+# (The program is in a file, to be run with tools/fortran-names-lib.awk,
+# which gives the cited upstream names their Fortran names.)
+cat >"$tmp.pass1" <<'EOF'
+BEGIN { load_names("tools/fortran-names") }
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
 function help_name(s) { return s }
 # A declaration line with deferred lengths (len=:) written as len=*, so
@@ -102,6 +105,7 @@ function citation(b, var,    flat, k, rest, file, name) {
         if (substr(rest, RLENGTH + 1, 1) == "_") return ""
         sub(/-$/, "", name)
         gsub(/-/, "_", name)
+        name = rename(name)
         return name
     }
     if (!match(rest, /^:[A-Za-z0-9_*+<>=\/-]+/)) return ""
@@ -111,9 +115,10 @@ function citation(b, var,    flat, k, rest, file, name) {
         if (name !~ /^F[a-z]/) return ""
         name = substr(name, 2)
     }
-    # Fortmacs names use underscores where Emacs uses hyphens.
+    # Fortmacs names use underscores where Emacs uses hyphens, and Fortran
+    # words for Lisp terms (tools/fortran-names).
     gsub(/-/, "_", name)
-    return name
+    return rename(name)
 }
 
 FNR == 1 { block = ""; sig = ""; insig = 0; base = FILENAME; sub(/.*\//, "", base) }
@@ -372,7 +377,10 @@ END {
     for (lisp in fdoc)
         printf "F\037%s\037%s\037%s\037%d\037%s\n", lisp, ffile[lisp], fcall[lisp], finter[lisp], fdoc[lisp]
 }
-' | LC_ALL=C sort -t "$(printf '\037')" -k1,1 -k2,2 >"$tmp.records"
+EOF
+find src -name '*.f90' ! -name docstrings_fm.f90 | sort |
+    xargs awk -f tools/fortran-names-lib.awk -f "$tmp.pass1" |
+    LC_ALL=C sort -t "$(printf '\037')" -k1,1 -k2,2 >"$tmp.records"
 
 # The named constants of enumerated settings (integer variables whose
 # value is one of a set of parameters, like search_upper_case).

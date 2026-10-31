@@ -46,7 +46,7 @@ module test_elec_pair_fm
     use cmds_fm, only: delete_char, forward_char
     use simple_fm, only: fundamental_mode, blink_paren_function, newline, undo, deactivate_mark
     use text_mode_fm, only: text_mode
-    use lisp_cmds_fm, only: mark_sexp
+    use expression_motion_fm, only: mark_expression
     use undo_fm, only: undo_boundary
     use modes_fm, only: minor_modes
     use bindings_fm, only: init_bindings
@@ -480,7 +480,7 @@ contains
         type(status_type) :: st
 
         call minor_modes%electric_pair_mode%enable(st)
-        call mark_sexp(1_int64, .true., .false., st)
+        call mark_expression(1_int64, .true., .false., st)
     end subroutine mark_forward
 
     !> (electric-pair-mode 1) (goto-char (point-max)) (skip-chars-backward
@@ -495,7 +495,7 @@ contains
             if (buffer_string_tail() == '"') call goto_char(point() - 1)
         end if
 
-        call mark_sexp(-1_int64, .true., .false., st)
+        call mark_expression(-1_int64, .true., .false., st)
     end subroutine mark_backward
 
     !> The last character of the buffer.

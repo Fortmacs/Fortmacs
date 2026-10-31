@@ -31,10 +31,7 @@
 !> `comint_output_filter_functions' and `ansi_color_compilation_filter'
 !> can be put on `compilation_filter_hook'.
 !>
-!> Deferred: the overlay hooks of `ansi_color_make_extent' (the
-!> `modification_hooks' and `insert_behind_hooks' properties are set,
-!> but overlay modification hooks are not ported, so an overlay ending at
-!> a comint's process mark grows with later output there); the obsolete
+!> Deferred: the obsolete
 !> `ansi_color_faces_vector', `ansi_color_names_vector', `ansi_color_map'
 !> and their functions (`ansi_color_make_color_map',
 !> `ansi_color_map_update', `ansi_color_get_face_1',
@@ -53,7 +50,8 @@ module ansi_color_fm
     use editfns_fm, only: point, point_min, goto_char, delete_region, buffer_substring
     use search_fm, only: string_match, re_search_forward, match_beginning, match_end, SEARCH_NOERROR
     use textprop_fm, only: put_text_property, string_put_text_property, propertized_substring, propertized_concat
-    use itree_fm, only: make_overlay, overlay_put
+    use itree_fm, only: make_overlay, overlay_put, move_overlay, overlay_start, overlay_end
+    use eval_fm, only: property_function_type
     use faces_fm, only: named_face_type, face_attrs, face_box, display_when, face_attributes_type, face_named
     use commands_fm, only: commands
     use process_fm, only: get_buffer_process, process_mark
@@ -317,6 +315,9 @@ module ansi_color_fm
     end type context_type
 
     type(context_type), allocatable :: contexts(:)
+    !> The property function `ansi_color_freeze_overlay', named by the
+    !> overlays of `ansi_color_make_extent'.
+    type(property_function_type), target :: ansi_color_freeze_overlay_function
 
 contains
 
@@ -1248,13 +1249,35 @@ contains
     ! Setup
     ! ------------------------------------------------------------------
 
-    !> Define the faces and commands of ansi-color, and put
+    !> Prevent OVERLAY from being extended.
+    !> This function can be used for the `modification_hooks' overlay
+    !> property.  Port of ansi-color.el:ansi-color-freeze-overlay.
+    recursive subroutine ansi_color_freeze_overlay(overlay, is_after, begin, end, status, len)
+        type(handle_type), intent(in) :: overlay
+        logical, intent(in) :: is_after
+        integer(int64), intent(in) :: begin, end
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: len
+
+        status = status_type()
+        if (.not. is_after) return
+        if (.not. present(len)) return
+        if (len /= 0) return
+        ! If stuff was inserted at the end of the overlay, reset the end of
+        ! the overlay.
+        if (end == overlay_end(overlay)) call move_overlay(overlay, overlay_start(overlay), begin, status)
+    end subroutine ansi_color_freeze_overlay
+
+    !> Define the faces, commands and property functions of ansi-color, and put
     !> `ansi_color_process_output' first in
     !> `comint_output_filter_functions' (as its default value lists it).
     !> Not a port.
     subroutine syms_of_ansi_color()
         type(face_attributes_type) :: attrs
 
+        ansi_color_freeze_overlay_function = property_function_type("ansi_color_freeze_overlay", &
+                                                                    overlay_change=ansi_color_freeze_overlay)
+        call ansi_color_freeze_overlay_function%define()
         call ansi_color_bold%define("ansi_color_bold", "Face used to render bold text.")
         call ansi_color_bold%spec_entry(display_when(), face_attrs(inherit="bold"))
         call ansi_color_faint%define("ansi_color_faint", "Face used to render faint text.")

@@ -26,7 +26,7 @@
 !> buffer's serial number.
 submodule(subr_fm) subr_hooks_fm
     use buffer_fm, only: buffers, cur
-    use syntax_fm, only: parse_sexp_lookup_properties
+    use syntax_fm, only: parse_expression_lookup_properties
     use syntax_propertize_fm, only: syntax_propertize_function
     implicit none(type, external)
 
@@ -156,12 +156,12 @@ contains
     call move_alloc(delays(k)%delayed, delayed)
     allocate (delays(k)%delayed(0))
 
-    ! `syntax_propertize' sets `parse_sexp_lookup_properties' for us, but
-    ! in order for the sexp primitives to automatically call
-    ! `syntax_propertize' we need `parse_sexp_lookup_properties' to be
+    ! `syntax_propertize' sets `parse_expression_lookup_properties' for us, but
+    ! in order for the expression primitives to automatically call
+    ! `syntax_propertize' we need `parse_expression_lookup_properties' to be
     ! set first.
-    if (associated(syntax_propertize_function%get()) .and. .not. parse_sexp_lookup_properties%local_p()) then
-        call parse_sexp_lookup_properties%set_local(.true.)
+    if (associated(syntax_propertize_function%get()) .and. .not. parse_expression_lookup_properties%local_p()) then
+        call parse_expression_lookup_properties%set_local(.true.)
     end if
 
     call change_major_mode_after_body_hook%run(status)

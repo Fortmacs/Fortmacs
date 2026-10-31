@@ -38,25 +38,28 @@ module bindings_fm
                          key_parse, keymap_live_p, free_keymap, set_repeat_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_fm, only: syms_of_page
-    use keyboard_fm, only: local_function_key_map, syms_of_macros
+    use keyboard_fm, only: local_function_key_map, syms_of_macros, help_event_list
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
-    use simple_fm, only: syms_of_simple, backward_word
+    use dispnew_fm, only: syms_of_display
+    use simple_fm, only: syms_of_simple, backward_word, region_bounds, region_noncontiguous_p
     use syntax_fm, only: syms_of_syntax, forward_word
     use syntax_propertize_fm, only: syms_of_syntax_propertize
     use smie_fm, only: syms_of_smie
     use executable_fm, only: syms_of_executable
     use sh_script_fm, only: syms_of_sh_script
     use paragraphs_fm, only: syms_of_paragraphs
-    use lisp_cmds_fm, only: syms_of_lisp_cmds
-    use search_fm, only: syms_of_search
+    use expression_motion_fm, only: syms_of_expression_motion
+    use search_fm, only: syms_of_search, begin_running_asynch_code, end_running_asynch_code
     use replace_fm, only: syms_of_replace, syms_of_occur
-    use casefiddle_fm, only: syms_of_casefiddle
+    use casefiddle_fm, only: syms_of_casefiddle, casefiddle_region_bounds => region_bounds, &
+                             casefiddle_region_noncontiguous_p => region_noncontiguous_p
     use novice_fm, only: syms_of_novice
     use indent_fm, only: syms_of_indent
     use fill_fm, only: syms_of_fill
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
+    use buffer_fm, only: syms_of_buffer
     use files_fm, only: syms_of_files
     use vc_hooks_fm, only: syms_of_vc_hooks
     use vc_fm, only: syms_of_vc
@@ -90,7 +93,7 @@ module bindings_fm
     use jit_lock_fm, only: syms_of_jit_lock
     use dired_mode_fm, only: syms_of_dired_mode, dired_mode_map
     use view_fm, only: syms_of_view
-    use process_fm, only: syms_of_process
+    use process_fm, only: syms_of_process, begin_asynch_code, end_asynch_code
     use compile_fm, only: syms_of_compile, compilation_mode_map
     use grep_fm, only: syms_of_grep
     use diff_mode_fm, only: syms_of_diff_mode
@@ -280,6 +283,8 @@ contains
         integer(int64) :: c
 
         call intern_command_names()
+        ! bindings.el's help-event-list.
+        help_event_list = [character(len=16) :: "<help>", "<f1>", "?"]
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(global_map)) call free_keymap(global_map, status)
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
@@ -300,8 +305,10 @@ contains
         ! First: bindings.el's minor-mode-alist starts with abbrev-mode.
         call syms_of_abbrev()
         call syms_of_cmds()
+        call syms_of_display()
         call syms_of_simple()
         call syms_of_window()
+        call syms_of_buffer()
         commands%right_char%run => cmd_right_char
         commands%complete_symbol%run => cmd_complete_symbol
         commands%left_char%run => cmd_left_char
@@ -311,10 +318,15 @@ contains
         call syms_of_syntax_propertize()
         call syms_of_smie()
         call syms_of_paragraphs()
-        call syms_of_lisp_cmds()
+        call syms_of_expression_motion()
         call syms_of_search()
+        ! A process filter or sentinel keeps the match data (search.c).
+        begin_asynch_code => begin_running_asynch_code
+        end_asynch_code => end_running_asynch_code
         call syms_of_replace()
         call syms_of_casefiddle()
+        casefiddle_region_bounds => region_bounds
+        casefiddle_region_noncontiguous_p => region_noncontiguous_p
         call syms_of_indent()
         call syms_of_fill()
         call syms_of_newcomment()
@@ -384,6 +396,8 @@ contains
         call bind(global_map, "C-b", "backward_char")
         call bind(global_map, "C-e", "move_end_of_line")
         call bind(global_map, "C-f", "forward_char")
+        call bind(global_map, "C-M-c", "exit_recursive_edit")
+        call bind(global_map, "C-]", "abort_recursive_edit")
         call bind(global_map, "C-n", "next_line")
         call bind(global_map, "C-p", "previous_line")
         ! bindings.el
@@ -588,36 +602,36 @@ contains
         call bind(esc_map, "k", "kill_sentence")
         call bind(ctl_x_map, "DEL", "backward_kill_sentence")
         ! Balanced expressions (bindings.el).
-        call bind(global_map, "C-M-<left>", "backward_sexp")
-        call bind(esc_map, "C-<left>", "backward_sexp")
-        call bind(global_map, "C-M-<right>", "forward_sexp")
-        call bind(esc_map, "C-<right>", "forward_sexp")
-        call bind(global_map, "C-M-<up>", "backward_up_list")
-        call bind(esc_map, "C-<up>", "backward_up_list")
-        call bind(global_map, "C-M-<down>", "down_list")
-        call bind(esc_map, "C-<down>", "down_list")
-        call bind(esc_map, "C-f", "forward_sexp")
-        call bind(esc_map, "C-b", "backward_sexp")
-        call bind(esc_map, "C-u", "backward_up_list")
-        call bind(esc_map, "C-@", "mark_sexp")
-        call bind(esc_map, "C-SPC", "mark_sexp")
-        call bind(esc_map, "C-d", "down_list")
-        call bind(esc_map, "C-k", "kill_sexp")
-        call bind(global_map, "C-M-<delete>", "backward_kill_sexp")
-        call bind(global_map, "C-M-<backspace>", "backward_kill_sexp")
-        call bind(esc_map, "C-<delete>", "backward_kill_sexp")
-        call bind(esc_map, "C-<backspace>", "backward_kill_sexp")
-        call bind(global_map, "C-M-<home>", "beginning_of_defun")
-        call bind(esc_map, "C-<home>", "beginning_of_defun")
-        call bind(global_map, "C-M-<end>", "end_of_defun")
-        call bind(esc_map, "C-<end>", "end_of_defun")
-        call bind(esc_map, "C-a", "beginning_of_defun")
-        call bind(esc_map, "C-e", "end_of_defun")
-        call bind(esc_map, "C-h", "mark_defun")
-        call bind(ctl_x_map, "n d", "narrow_to_defun")
+        call bind(global_map, "C-M-<left>", "backward_expression")
+        call bind(esc_map, "C-<left>", "backward_expression")
+        call bind(global_map, "C-M-<right>", "forward_expression")
+        call bind(esc_map, "C-<right>", "forward_expression")
+        call bind(global_map, "C-M-<up>", "backward_up_group")
+        call bind(esc_map, "C-<up>", "backward_up_group")
+        call bind(global_map, "C-M-<down>", "down_group")
+        call bind(esc_map, "C-<down>", "down_group")
+        call bind(esc_map, "C-f", "forward_expression")
+        call bind(esc_map, "C-b", "backward_expression")
+        call bind(esc_map, "C-u", "backward_up_group")
+        call bind(esc_map, "C-@", "mark_expression")
+        call bind(esc_map, "C-SPC", "mark_expression")
+        call bind(esc_map, "C-d", "down_group")
+        call bind(esc_map, "C-k", "kill_expression")
+        call bind(global_map, "C-M-<delete>", "backward_kill_expression")
+        call bind(global_map, "C-M-<backspace>", "backward_kill_expression")
+        call bind(esc_map, "C-<delete>", "backward_kill_expression")
+        call bind(esc_map, "C-<backspace>", "backward_kill_expression")
+        call bind(global_map, "C-M-<home>", "beginning_of_subprogram")
+        call bind(esc_map, "C-<home>", "beginning_of_subprogram")
+        call bind(global_map, "C-M-<end>", "end_of_subprogram")
+        call bind(esc_map, "C-<end>", "end_of_subprogram")
+        call bind(esc_map, "C-a", "beginning_of_subprogram")
+        call bind(esc_map, "C-e", "end_of_subprogram")
+        call bind(esc_map, "C-h", "mark_subprogram")
+        call bind(ctl_x_map, "n d", "narrow_to_subprogram")
         call bind(esc_map, "(", "insert_parentheses")
-        call bind(esc_map, "C-n", "forward_list")
-        call bind(esc_map, "C-p", "backward_list")
+        call bind(esc_map, "C-n", "forward_group")
+        call bind(esc_map, "C-p", "backward_group")
         call bind(esc_map, "%", "query_replace")
         call bind(esc_map, "C-%", "query_replace_regexp")
         call bind(esc_map, "!", "shell_command")

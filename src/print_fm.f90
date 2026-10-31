@@ -36,7 +36,7 @@ module print_fm
     use buffer_fm, only: buffer_name, buffers
     use handle_fm, only: handle_type
     use marker_fm, only: markers, resolve_marker
-    use keymap_fm, only: keymap_live_p, keymap_full_p, keymap_prompt, keymap_parent, keymap_entries
+    use keymap_fm, only: keymap_live_p, keymap_full_p, keymap_own_prompt, keymap_parent, keymap_entries
     implicit none(type, external)
     private
 
@@ -244,7 +244,7 @@ contains
             s = s//" "//cons_repr(prin1_to_string(events(k)), bindings(k))
         end do
 
-        prompt = keymap_prompt(km)
+        prompt = keymap_own_prompt(km)
         if (vtag(prompt) /= V_NIL) s = s//" "//prin1_to_string(prompt)
         parent = keymap_parent(km)
 

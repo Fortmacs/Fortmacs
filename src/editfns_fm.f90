@@ -25,9 +25,12 @@
 !> (or similar) logical here.  Text comes back as byte strings in the
 !> buffer's representation.
 !>
-!> Point is set with `temp_set_point_both': upstream's SET_PT also runs
-!> text-property hooks (`point_entered' etc.), which arrive with
-!> intervals.  Labeled restrictions (`with_restriction') are deferred, as
+!> `goto_char' sets point with `set_point_both' (intervals.c, in textprop_fm:
+!> `intangible', `point_entered' and `point_left' when
+!> `inhibit_point_motion_hooks' is false); the other primitives that use
+!> SET_PT upstream still set it with `temp_set_point_both' (the same while
+!> that variable is true, its default).  Labeled restrictions
+!> (`with_restriction') are deferred, as
 !> are `format', fields, `transpose_regions' and
 !> `compare_buffer_substrings' (they need case tables, intervals or undo).
 module editfns_fm
@@ -51,7 +54,7 @@ module editfns_fm
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use textprop_fm, only: get_text_property, text_property_stickiness, &
-                           next_single_char_property_change, previous_single_char_property_change
+                           next_single_char_property_change, previous_single_char_property_change, set_point_both
     use error_fm, only: format_message
     implicit none(type, external)
     private
@@ -60,7 +63,7 @@ module editfns_fm
               gap_position, gap_size
     public :: goto_char, goto_char_marker, set_point_from_marker
     public :: point_marker, point_min_marker, point_max_marker
-    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, region_position_proc
+    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, check_mark, region_position_proc
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
@@ -160,18 +163,20 @@ contains
     end function gap_size
 
     !> Set point to `position', clipped to the accessible region.
-    !> Port of editfns.c:Fgoto_char (integer POSITION).
-    subroutine goto_char(position)
+    !> Port of editfns.c:Fgoto_char (integer POSITION; an error of a
+    !> `point_left' or `point_entered' function is dropped).
+    recursive subroutine goto_char(position)
         integer(int64), intent(in) :: position
         integer(int64) :: pos
+        type(status_type) :: st
 
         pos = max(buffers(cur)%begv, min(position, buffers(cur)%zv))
-        call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
+        call set_point_both(pos, char_to_byte(pos), st)
     end subroutine goto_char
 
     !> Set point to marker `m'.  Port of editfns.c:Fgoto_char (marker
     !> POSITION), i.e. intervals.c:set_point_from_marker.
-    subroutine goto_char_marker(m, status)
+    recursive subroutine goto_char_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
 
@@ -180,7 +185,7 @@ contains
 
     !> Port of intervals.c:set_point_from_marker.  The marker's byte
     !> position is only trusted if it is in the current buffer.
-    subroutine set_point_from_marker(m, status)
+    recursive subroutine set_point_from_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
         integer(int64) :: i, charpos, bytepos
@@ -193,17 +198,15 @@ contains
             return
         end if
 
-        associate (b => buffers(cur))
-            charpos = max(b%begv, min(markers(i)%charpos, b%zv))
+        charpos = max(buffers(cur)%begv, min(markers(i)%charpos, buffers(cur)%zv))
 
-            if (markers(i)%buffer /= cur) then
-                bytepos = buf_charpos_to_bytepos(cur, charpos)
-            else
-                bytepos = max(b%begv_byte, min(markers(i)%bytepos, b%zv_byte))
-            end if
+        if (markers(i)%buffer /= cur) then
+            bytepos = buf_charpos_to_bytepos(cur, charpos)
+        else
+            bytepos = max(buffers(cur)%begv_byte, min(markers(i)%bytepos, buffers(cur)%zv_byte))
+        end if
 
-            call temp_set_point_both(b, charpos, bytepos)
-        end associate
+        call set_point_both(charpos, bytepos, status)
     end subroutine set_point_from_marker
 
     !> A new marker at point; the caller frees it.
@@ -304,18 +307,47 @@ contains
         call region_limit(.false., pos, status)
     end subroutine primitive_region_end
 
+    !> Check that the mark is set in the current buffer and, in Transient
+    !> Mark mode unless `mark_even_if_inactive', active: an error
+    !> otherwise.  FOR_REGION words the error for the region.  Port of
+    !> callint.c:check_mark.
+    subroutine check_mark(for_region, status)
+        logical, intent(in) :: for_region
+        type(status_type), intent(out) :: status
+
+        if (mark_position() == 0) then
+            if (for_region) then
+                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now, so there is no region")
+            else
+                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now")
+            end if
+
+            return
+        end if
+
+        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
+            call set_error(status, FM_MARK_INACTIVE)
+        end if
+    end subroutine check_mark
+
     !> The region as the arguments of a command whose interactive spec
-    !> has `r': point and the mark, the smaller first.  An inactive mark
-    !> is an error as for `region_beginning', which rectangle_mark_mode's
-    !> advice does not change here.  Port of the `r' code of
+    !> has `r': point and the mark, the smaller first (as they are, not
+    !> limited to the accessible part).  `check_mark' reports a mark that
+    !> is not set or inactive; rectangle_mark_mode's advice of
+    !> `region_beginning' does not apply.  Port of the `r' code of
     !> callint.c:Fcall_interactively.
     subroutine interactive_region(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
+        integer(int64) :: mark
 
+        beg = 0
         end = 0
-        call region_limit(.true., beg, status)
-        if (status%ok()) call region_limit(.false., end, status)
+        call check_mark(.true., status)
+        if (.not. status%ok()) return
+        mark = mark_position()
+        beg = min(buffers(cur)%pt, mark)
+        end = max(buffers(cur)%pt, mark)
     end subroutine interactive_region
 
     !> Port of editfns.c:Fpoint_min_marker.
@@ -856,17 +888,16 @@ contains
     !> If the current buffer is multibyte and BUFFER is unibyte, or vice
     !> versa, strings are converted from unibyte to multibyte or vice versa
     !> using `string_make_multibyte' or `string_make_unibyte', which see.
-    !> Port of editfns.c:Finsert_buffer_substring (text properties pending,
-    !> as for `buffer_substring'; both buffers multibyte).
+    !> Port of editfns.c:Finsert_buffer_substring.
     recursive subroutine insert_buffer_substring(buffer, status, start, end)
         use buffer_fm, only: set_buffer, buffer_live_p
+        use insdel_fm, only: insert_from_buffer
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
         type(handle_type) :: old
         type(status_type) :: st
-        character(len=:), allocatable :: text
-        integer(int64) :: b, e
+        integer(int64) :: b, e, bp
 
         status = status_type()
 
@@ -878,14 +909,15 @@ contains
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
+        bp = cur
         b = point_min()
         e = point_max()
         if (present(start)) b = start
         if (present(end)) e = end
-        call buffer_substring(b, e, text, status)
+        call validate_region(b, e, status)
         call set_buffer(old, st)
         if (.not. status%ok()) return
-        call insert(text, status)
+        call insert_from_buffer(bp, b, e - b, .false., status)
     end subroutine insert_buffer_substring
 
     !> Delete the text between `start' and `end' (either order).
@@ -1008,7 +1040,7 @@ contains
     end function char_property
 
     !> The value of `prop' that a character inserted at `position' would
-    !> get from its neighbours.  Port of editfns.c:Fget_pos_property (text
+    !> get from its neighbors.  Port of editfns.c:Fget_pos_property (text
     !> properties only).
     function get_pos_property(position, prop) result(v)
         integer(int64), intent(in) :: position
@@ -1134,7 +1166,7 @@ contains
 
     !> `new_pos' moved, if needed, to stay in the field of `old_pos'.  With
     !> `escape_from_edge', `old_pos' at a field edge may count as in the
-    !> neighbouring field; with `only_in_line', constrain only if the
+    !> neighboring field; with `only_in_line', constrain only if the
     !> field edge is on the same line.  Port of
     !> editfns.c:Fconstrain_to_field (NEW-POS given; no
     !> INHIBIT-CAPTURE-PROPERTY).

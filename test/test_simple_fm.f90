@@ -1082,7 +1082,7 @@ contains
     end subroutine test_delete_char_killflag
 
     !> C-q: octal codes, meta characters, non-character events, and the
-    !> read-only check before reading.  Port of the behaviour of
+    !> read-only check before reading.  Port of the behavior of
     !> simple.el:read-quoted-char.
     subroutine test_quoted_insert(error)
         type(error_type), allocatable, intent(out) :: error

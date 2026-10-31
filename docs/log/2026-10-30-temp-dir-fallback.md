@@ -1,0 +1,1 @@
+2026-10-30 — temporary-file-directory (`temp-dir-fallback`): files_fm's `temporary_file_directory` takes the first of $TMPDIR, $TMP and $TEMP that is set (an empty value included, giving "./"), else "/tmp", as cus-start.el's GNU/Linux standard value does; it read only $TMPDIR and skipped an empty one.  Own test.

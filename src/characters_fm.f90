@@ -23,23 +23,26 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The parts of characters.el that word motion needs: the entries it
-!> makes in the standard syntax table for Unicode characters, in its
-!> order (later entries override earlier ones), and the categories that
-!> `word_combining_categories' and `word_separating_categories' refer to
-!> (^ combining, C han, H hiragana, K katakana).
+!> The parts of characters.el that word motion, filling, indentation
+!> and regexps need: the entries it makes in the standard syntax table
+!> for Unicode characters, in its order (later entries override earlier
+!> ones), and the categories that `word_combining_categories',
+!> `word_separating_categories', filling (|) and indentation (space)
+!> refer to, with their characters (^ combining, C han, H hiragana, K
+!> katakana, l Latin), for the standard category table (category_fm).
+!> The case entries are in casetab_fm (from uni_case_fm).
 !>
 !> Deferred: entries made through legacy charsets (`map_charset_chars'
 !> over GB2312, Big5, JIS X 0208/0212, KS C 5601 and so on, which need
-!> their mapping tables), the other categories, the case-table side of
-!> `set_case_syntax', and everything else characters.el sets up.
+!> their mapping tables), the other categories, and everything else
+!> characters.el sets up.
 module characters_fm
     use uni_category_fm, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
                                nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
     implicit none(type, external)
     private
 
-    public :: syntax_entry_proc, characters_syntax, char_has_category
+    public :: syntax_entry_proc, characters_syntax, category_define_proc, category_entry_proc, characters_categories
 
     abstract interface
         !> Give the characters `from' to `to' the syntax `descriptor'
@@ -49,6 +52,22 @@ module characters_fm
             integer, intent(in) :: from, to
             character(len=*), intent(in) :: descriptor
         end subroutine syntax_entry_proc
+
+        !> Define category `category' with `docstring' (as for
+        !> `define_category').  Not a port.
+        recursive subroutine category_define_proc(category, docstring)
+            implicit none(type, external)
+            character, intent(in) :: category
+            character(len=*), intent(in) :: docstring
+        end subroutine category_define_proc
+
+        !> Add category `category' to the characters `from' to `to' (as
+        !> for `modify_category_entry').  Not a port.
+        recursive subroutine category_entry_proc(from, to, category)
+            implicit none(type, external)
+            integer, intent(in) :: from, to
+            character, intent(in) :: category
+        end subroutine category_entry_proc
     end interface
 
 contains
@@ -236,87 +255,77 @@ contains
         end if
     end function utf8
 
-    !> Whether character `c' has category `category' (one of ^, C, H, K,
-    !> l and | so far; false for others).  Not a port.
-    pure logical function char_has_category(c, category)
-        integer, intent(in) :: c
-        character, intent(in) :: category
+    !> Define, through `define', the categories characters.el defines
+    !> that are ported (in its order), and give them, through `entry',
+    !> its characters: ^ combining, C han, H hiragana, K katakana, l
+    !> Latin, | line breakable, and space for indent (which it gives to no
+    !> character).  Not a port.
+    subroutine characters_categories(define, entry)
+        procedure(category_define_proc) :: define
+        procedure(category_entry_proc) :: entry
+        character(len=*), parameter :: nl = new_line("a")
+        integer :: k
 
-        select case (category)
-        case ("^")
-            ! Combining diacritics and marks, and every nonspacing mark.
-            char_has_category = in(c, int(z'300'), int(z'362')) .or. in(c, int(z'20D0'), int(z'20FF')) .or. &
-                                in_runs(c, nonspacing_mark_starts, nonspacing_mark_ends, nonspacing_mark_runs)
-        case ("C")
-            ! Han, and the kanji-like 々 〆 〇.
-            char_has_category = in(c, int(z'3400'), int(z'4DBF')) .or. in(c, int(z'4E00'), int(z'9FFF')) .or. &
-                                in(c, int(z'F900'), int(z'FAFF')) .or. in(c, int(z'20000'), int(z'2FFFF')) .or. &
-                                in(c, int(z'30000'), int(z'323AF')) .or. in(c, int(z'3005'), int(z'3007'))
-        case ("K")
-            char_has_category = in(c, int(z'3099'), int(z'309C')) .or. in(c, int(z'30A0'), int(z'30FF')) .or. &
-                                in(c, int(z'31F0'), int(z'31FF')) .or. in(c, int(z'1AFF0'), int(z'1B000')) .or. &
-                                in(c, int(z'1B120'), int(z'1B122')) .or. in(c, int(z'1B164'), int(z'1B167'))
-        case ("H")
-            char_has_category = in(c, int(z'3040'), int(z'309F')) .or. c == int(z'30A0') .or. c == int(z'30FC') .or. &
-                                in(c, int(z'1B001'), int(z'1B11F')) .or. in(c, int(z'1B150'), int(z'1B152'))
-        case ("l")
-            ! Latin: ASCII graphic characters, U+0080..U+02B8, Latin
-            ! Extended Additional, circled Latin, Latin Extended-C, D, E
-            ! and G, and the fullwidth Latin letters (characters.el; the
-            ! VISCII charsets add nothing outside these).
-            char_has_category = in(c, 32, 127) .or. in(c, int(z'80'), int(z'2B8')) .or. &
-                                in(c, int(z'1E00'), int(z'1EF9')) .or. in(c, int(z'24B6'), int(z'24E9')) .or. &
-                                in(c, int(z'2C60'), int(z'2C7F')) .or. in(c, int(z'A720'), int(z'A7FF')) .or. &
-                                in(c, int(z'AB30'), int(z'AB64')) .or. in(c, int(z'FF21'), int(z'FF3A')) .or. &
-                                in(c, int(z'FF41'), int(z'FF5A')) .or. in(c, int(z'1DF00'), int(z'1DFFF'))
-        case ("|")
-            ! Line breakable: the CJK ranges, the Tibetan line-break
-            ! characters, fullwidth characters and the Unicode equivalents of
-            ! JISX0201-kana (characters.el; the kana blocks given `|'
-            ! there are inside U+2E80..U+312F).
-            char_has_category = in(c, int(z'2E80'), int(z'312F')) .or. in(c, int(z'3190'), int(z'33FF')) .or. &
-                                in(c, int(z'3400'), int(z'9FFF')) .or. in(c, int(z'F900'), int(z'FAFF')) .or. &
-                                in(c, int(z'20000'), int(z'2FFFF')) .or. in(c, int(z'30000'), int(z'323AF')) .or. &
-                                c == int(z'F0B') .or. in(c, int(z'F0D'), int(z'F12')) .or. c == int(z'F14') .or. &
-                                c == int(z'F7F') .or. in(c, int(z'FF01'), int(z'FF9F'))
-        case (" ")
-            ! Space for indent: characters.el gives it to no character.
-            char_has_category = .false.
-        case default
-            char_has_category = .false.
-        end select
+        call define("l", "Latin")
+        call define("C", "2-byte han"//nl//"Chinese (Han) characters of 2-byte character sets")
+        call define("H", "2-byte Hiragana"//nl//"Japanese Hiragana characters of 2-byte character sets")
+        call define("K", "2-byte Katakana"//nl//"Japanese Katakana characters of 2-byte character sets")
+        call define("|", "line breakable"//nl//"While filling, we can break a line at this character.")
+        call define(" ", "space for indent"//nl//"This character counts as a space for indentation purposes.")
+        call define("^", "Combining"//nl//"Combining diacritic or mark (Unicode General Category M)")
+        ! Combining diacritics and marks, and every nonspacing mark.
+        call entry(int(z'300'), int(z'362'), "^")
+        call entry(int(z'20D0'), int(z'20FF'), "^")
 
-    contains
-
-        pure logical function in(x, lo, hi)
-            integer, intent(in) :: x, lo, hi
-
-            in = lo <= x .and. x <= hi
-        end function in
-    end function char_has_category
-
-    !> Whether `c' is in one of the sorted runs `starts(k)'..`ends(k)'.
-    !> Not a port.
-    pure logical function in_runs(c, starts, ends, n)
-        integer, intent(in) :: c, n
-        integer, intent(in) :: starts(:), ends(:)
-        integer :: lo, hi, mid
-
-        in_runs = .false.
-        lo = 1
-        hi = n
-
-        do while (lo <= hi)
-            mid = (lo + hi)/2
-
-            if (c < starts(mid)) then
-                hi = mid - 1
-            else if (c > ends(mid)) then
-                lo = mid + 1
-            else
-                in_runs = .true.
-                return
-            end if
+        do k = 1, nonspacing_mark_runs
+            call entry(nonspacing_mark_starts(k), nonspacing_mark_ends(k), "^")
         end do
-    end function in_runs
+
+        ! Han, and the kanji-like 々 〆 〇.
+        call entry(int(z'3400'), int(z'4DBF'), "C")
+        call entry(int(z'4E00'), int(z'9FFF'), "C")
+        call entry(int(z'F900'), int(z'FAFF'), "C")
+        call entry(int(z'20000'), int(z'2FFFF'), "C")
+        call entry(int(z'30000'), int(z'323AF'), "C")
+        call entry(int(z'3005'), int(z'3007'), "C")
+        call entry(int(z'3099'), int(z'309C'), "K")
+        call entry(int(z'30A0'), int(z'30FF'), "K")
+        call entry(int(z'31F0'), int(z'31FF'), "K")
+        call entry(int(z'1AFF0'), int(z'1B000'), "K")
+        call entry(int(z'1B120'), int(z'1B122'), "K")
+        call entry(int(z'1B164'), int(z'1B167'), "K")
+        call entry(int(z'3040'), int(z'309F'), "H")
+        call entry(int(z'30A0'), int(z'30A0'), "H")
+        call entry(int(z'30FC'), int(z'30FC'), "H")
+        call entry(int(z'1B001'), int(z'1B11F'), "H")
+        call entry(int(z'1B150'), int(z'1B152'), "H")
+        ! Latin: ASCII graphic characters, U+0080..U+02B8, Latin Extended
+        ! Additional, circled Latin, Latin Extended-C, D, E and G, and the
+        ! fullwidth Latin letters (the VISCII charsets add nothing outside
+        ! these).
+        call entry(32, 127, "l")
+        call entry(int(z'80'), int(z'2B8'), "l")
+        call entry(int(z'1E00'), int(z'1EF9'), "l")
+        call entry(int(z'24B6'), int(z'24E9'), "l")
+        call entry(int(z'2C60'), int(z'2C7F'), "l")
+        call entry(int(z'A720'), int(z'A7FF'), "l")
+        call entry(int(z'AB30'), int(z'AB64'), "l")
+        call entry(int(z'FF21'), int(z'FF3A'), "l")
+        call entry(int(z'FF41'), int(z'FF5A'), "l")
+        call entry(int(z'1DF00'), int(z'1DFFF'), "l")
+        ! Line breakable: the CJK ranges, the Tibetan line-break characters,
+        ! fullwidth characters and the Unicode equivalents of JISX0201-kana
+        ! (the kana blocks given `|' there are inside U+2E80..U+312F).
+        call entry(int(z'2E80'), int(z'312F'), "|")
+        call entry(int(z'3190'), int(z'33FF'), "|")
+        call entry(int(z'3400'), int(z'9FFF'), "|")
+        call entry(int(z'F900'), int(z'FAFF'), "|")
+        call entry(int(z'20000'), int(z'2FFFF'), "|")
+        call entry(int(z'30000'), int(z'323AF'), "|")
+        call entry(int(z'F0B'), int(z'F0B'), "|")
+        call entry(int(z'F0D'), int(z'F12'), "|")
+        call entry(int(z'F14'), int(z'F14'), "|")
+        call entry(int(z'F7F'), int(z'F7F'), "|")
+        call entry(int(z'FF01'), int(z'FF9F'), "|")
+    end subroutine characters_categories
 end module characters_fm

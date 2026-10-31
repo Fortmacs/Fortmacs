@@ -88,6 +88,7 @@ contains
                     new_unittest("save-buffer-unmodified", test_save_unmodified), &
                     new_unittest("save-buffer-no-file", test_save_no_file), &
                     new_unittest("backup-predicate", test_backup_predicate), &
+                    new_unittest("temporary-file-directory", test_temporary_file_directory), &
                     new_unittest("y-or-n-p", test_y_or_n_p), &
                     new_unittest("map-y-or-n-p", test_map_ynp), &
                     new_unittest("save-some-buffers", test_save_some_buffers), &
@@ -441,6 +442,43 @@ contains
         call check(error, normal_backup_enable_predicate(path("a.txt")) .eqv. &
                    (index(path("a.txt"), temporary_file_directory()) /= 1))
     end subroutine test_backup_predicate
+
+    subroutine test_temporary_file_directory(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=6), parameter :: names(3) = [character(len=6) :: "TMPDIR", "TMP", "TEMP"]
+        character(len=256) :: saved(3)
+        integer :: stat(3), i
+        integer(int32) :: e
+
+        do i = 1, size(names)
+            call get_environment_variable(trim(names(i)), saved(i), status=stat(i))
+            e = sys_unsetenv(trim(names(i)))
+        end do
+
+        body: block
+            call check(error, temporary_file_directory() == "/tmp/")
+            if (allocated(error)) exit body
+            e = sys_setenv("TEMP", "/c")
+            call check(error, temporary_file_directory() == "/c/", "TEMP is the last fallback")
+            if (allocated(error)) exit body
+            e = sys_setenv("TMP", "/b/")
+            call check(error, temporary_file_directory() == "/b/", "TMP comes before TEMP")
+            if (allocated(error)) exit body
+            e = sys_setenv("TMPDIR", "/a")
+            call check(error, temporary_file_directory() == "/a/", "TMPDIR comes first")
+            if (allocated(error)) exit body
+            e = sys_setenv("TMPDIR", "")
+            call check(error, temporary_file_directory() == "./", "an empty TMPDIR is still set")
+        end block body
+
+        do i = 1, size(names)
+            if (stat(i) == 0) then
+                e = sys_setenv(trim(names(i)), trim(saved(i)))
+            else
+                e = sys_unsetenv(trim(names(i)))
+            end if
+        end do
+    end subroutine test_temporary_file_directory
 
     subroutine test_y_or_n_p(error)
         type(error_type), allocatable, intent(out) :: error

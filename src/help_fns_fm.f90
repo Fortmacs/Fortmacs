@@ -455,7 +455,7 @@ contains
     !> minor modes and the global minor modes, each under a heading.
     !>
     !> For this to work correctly for a minor mode, the mode's indicator
-    !> variable (listed in `minor_mode_alist') must also be a function
+    !> variable (listed in `minor_mode_table') must also be a function
     !> whose documentation describes the minor mode.  Port of
     !> help-fns.el:describe-mode (no BUFFER; the layout of
     !> `describe_mode_outline' true, without Outline minor mode itself).
@@ -716,7 +716,7 @@ contains
     !> descriptions of the minor modes, each on a separate page.
     !>
     !> For this to work correctly for a minor mode, the mode's indicator
-    !> variable (listed in `minor_mode_alist') must also be a function
+    !> variable (listed in `minor_mode_table') must also be a function
     !> whose documentation describes the minor mode.  Port of
     !> help-fns.el:describe-mode (the command; its layout is that of
     !> `describe_mode_outline' true).

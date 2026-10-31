@@ -66,7 +66,8 @@ module kmacro_fm
     use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
                            executing_kbd_macro_p, start_kbd_macro, end_kbd_macro, execute_kbd_macro, this_command, &
                            real_this_command, last_command, this_command_keys, last_input_event, last_message, &
-                           read_event, unread_command_events, set_transient_map, redisplay_hook, defining_kbd_macro_p
+                           read_event, unread_command_events, set_transient_map, redisplay_hook, defining_kbd_macro_p, &
+                           clear_this_command_keys
     use xdisp_fm, only: message, add_minor_mode_lighter
     use print_fm, only: fortran_string, marker_repr
     use subr_fm, only: read_number
@@ -809,12 +810,6 @@ contains
         current_prefix_arg = saved_arg
     end subroutine call_without_prefix
 
-    !> Clear `this_command_keys' (clear-this-command-keys).  Not a port.
-    subroutine clear_this_command_keys()
-        if (allocated(this_command_keys)) deallocate (this_command_keys)
-        allocate (this_command_keys(0))
-    end subroutine clear_this_command_keys
-
     !> Process kmacro commands keys immediately after cycling the ring.
     !> Port of kmacro.el:kmacro-repeat-on-last-key (at the end of input it
     !> returns).
@@ -841,7 +836,7 @@ contains
 
             select case (repeat_property(cmd))
             case (REPEAT_RING)
-                call clear_this_command_keys()
+                call clear_this_command_keys(keep_record=.true.)
 
                 if (ring_size() > 0) then
                     call call_without_prefix(cmd, status)
@@ -849,10 +844,10 @@ contains
                     call display_last(status, trunc=.true.)
                 end if
             case (REPEAT_HEAD)
-                call clear_this_command_keys()
+                call clear_this_command_keys(keep_record=.true.)
                 call call_without_prefix(cmd, status)
             case (REPEAT_STOP)
-                call clear_this_command_keys()
+                call clear_this_command_keys(keep_record=.true.)
                 call call_without_prefix(cmd, status)
                 done = .true.
             case default
@@ -864,7 +859,7 @@ contains
         end do
 
         if (.not. nilp(last_input_event)) then
-            call clear_this_command_keys()
+            call clear_this_command_keys(keep_record=.true.)
             call unread_command_events([last_input_event])
         end if
     end subroutine kmacro_repeat_on_last_key

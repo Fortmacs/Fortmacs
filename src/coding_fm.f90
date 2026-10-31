@@ -62,9 +62,9 @@
 !> translation tables; compositions and charset annotations; the
 !> `:post-read-conversion' and `:pre-write-conversion' functions;
 !> `define_coding_system' for user-defined coding systems;
-!> `coding_system_put'; `network_coding_system_alist' and
-!> `process_coding_system_alist'; and the functions in
-!> `file_coding_system_alist' (xml, po and latexenc detection).
+!> `coding_system_put'; `network_coding_system_table' and
+!> `process_coding_system_table'; and the functions in
+!> `file_coding_system_table' (xml, po and latexenc detection).
 module coding_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_CODING_SYSTEM_ERROR, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
@@ -173,7 +173,7 @@ module coding_fm
         integer :: id = 0
     end type alias_type
 
-    !> An entry of `file_coding_system_alist': a regexp matching file
+    !> An entry of `file_coding_system_table': a regexp matching file
     !> names, and the coding systems for decoding and for encoding ("" for
     !> nil).
     type, public :: file_coding_type
@@ -194,9 +194,9 @@ module coding_fm
     !> Specify the coding system for read operations.
     !> It is useful to bind this variable temporarily, but do not set it globally.
     !> If the value is a coding system, it is used for decoding on read operation.
-    !> If not, an appropriate element is used from one of the coding system alists.
-    !> There are three such tables: `file_coding_system_alist',
-    !> `process_coding_system_alist', and `network_coding_system_alist'.
+    !> If not, an appropriate element is used from one of the coding system tables.
+    !> There are three such tables: `file_coding_system_table',
+    !> `process_coding_system_table', and `network_coding_system_table'.
     !> Port of coding.c coding-system-for-read (unallocated is nil).
     type(string_setting), public :: coding_system_for_read = string_setting(name="coding_system_for_read")
 
@@ -206,9 +206,9 @@ module coding_fm
     !> when writing it to a file and when sending it to a file or subprocess.
     !>
     !> If this does not specify a coding system, an appropriate element
-    !> is used from one of the coding system alists.
-    !> There are three such tables: `file_coding_system_alist',
-    !> `process_coding_system_alist', and `network_coding_system_alist'.
+    !> is used from one of the coding system tables.
+    !> There are three such tables: `file_coding_system_table',
+    !> `process_coding_system_table', and `network_coding_system_table'.
     !> For output to files, if the above procedure does not specify a coding system,
     !> the value of `buffer_file_coding_system' is used.  Port of coding.c
     !> coding-system-for-write (unallocated is nil).
@@ -285,15 +285,15 @@ module coding_fm
     !> prefer-coding-system gives it in a UTF-8 locale).
     character(len=40), public :: default_process_coding_system(2) = ["utf-8-unix", "utf-8-unix"]
 
-    !> Alist to decide a coding system to use for a file I/O operation.
+    !> Table to decide a coding system to use for a file I/O operation.
     !> Each element has a PATTERN, a regular expression matching a file
     !> name, and the coding systems for decoding and for encoding the
     !> file contents ("" for none).  See also the function
-    !> `find_operation_coding_system' and the variable `auto_coding_alist'.
+    !> `find_operation_coding_system' and the variable `auto_coding_table'.
     !> Port of coding.c file-coding-system-alist, with mule-conf.el's value
     !> (without its functions: the xml, po and latexenc detection is
     !> Deferred).
-    type(file_coding_type), allocatable, public :: file_coding_system_alist(:)
+    type(file_coding_type), allocatable, public :: file_coding_system_table(:)
 
     !> Coding system to use with system messages.
     !> Potentially also used for decoding keyboard input on X Windows, and is
@@ -315,7 +315,7 @@ module coding_fm
     !> It does not apply to sending output to subprocesses, however.
     !>
     !> If this is nil, the buffer is saved without any code conversion
-    !> unless some coding system is specified in `file_coding_system_alist'
+    !> unless some coding system is specified in `file_coding_system_table'
     !> for the buffer file.
     !>
     !> If the text to be saved cannot be encoded as specified by this variable,
@@ -434,14 +434,14 @@ contains
         call define_coding_system_alias("ascii", "us-ascii")
 
         ! mule-conf.el's file-coding-system-alist, without its functions.
-        if (.not. allocated(file_coding_system_alist)) then
-            allocate (file_coding_system_alist(6))
-            file_coding_system_alist(1) = file_coding_type("\.elc\'", "utf-8-emacs", "utf-8-emacs")
-            file_coding_system_alist(2) = file_coding_type("\.el\'", "prefer-utf-8", "prefer-utf-8")
-            file_coding_system_alist(3) = file_coding_type("\.utf\(-8\)?\'", "utf-8", "utf-8")
-            file_coding_system_alist(4) = file_coding_type("\(\`\|/\)loaddefs.el\'", "raw-text", "raw-text-unix")
-            file_coding_system_alist(5) = file_coding_type("\.tar\'", "no-conversion", "no-conversion")
-            file_coding_system_alist(6) = file_coding_type("", "undecided", "")
+        if (.not. allocated(file_coding_system_table)) then
+            allocate (file_coding_system_table(6))
+            file_coding_system_table(1) = file_coding_type("\.elc\'", "utf-8-emacs", "utf-8-emacs")
+            file_coding_system_table(2) = file_coding_type("\.el\'", "prefer-utf-8", "prefer-utf-8")
+            file_coding_system_table(3) = file_coding_type("\.utf\(-8\)?\'", "utf-8", "utf-8")
+            file_coding_system_table(4) = file_coding_type("\(\`\|/\)loaddefs.el\'", "raw-text", "raw-text-unix")
+            file_coding_system_table(5) = file_coding_type("\.tar\'", "no-conversion", "no-conversion")
+            file_coding_system_table(6) = file_coding_type("", "undecided", "")
         end if
 
         ! reset-language-environment: utf-8, iso-2022-7bit, iso-latin-1,
@@ -1129,7 +1129,7 @@ contains
     !> is selected as the TARGET.  For file I/O, the file name is the target.
     !>
     !> This function looks up what is specified for TARGET in
-    !> `file_coding_system_alist'.  If no match is found, both are "".
+    !> `file_coding_system_table'.  If no match is found, both are "".
     !> Port of coding.c:Ffind_operation_coding_system (file operations
     !> only: process and network operations are Deferred; MATCHER, a
     !> regexp matcher returning whether a pattern matches, keeps this
@@ -1149,10 +1149,10 @@ contains
         encoding = ""
         if (ncodings == 0) call syms_of_coding()
 
-        do k = 1, size(file_coding_system_alist)
-            if (matcher(file_coding_system_alist(k)%pattern, filename)) then
-                decoding = file_coding_system_alist(k)%decoding
-                encoding = file_coding_system_alist(k)%encoding
+        do k = 1, size(file_coding_system_table)
+            if (matcher(file_coding_system_table(k)%pattern, filename)) then
+                decoding = file_coding_system_table(k)%decoding
+                encoding = file_coding_system_table(k)%encoding
                 return
             end if
         end do
@@ -2626,7 +2626,7 @@ contains
     !> function returns nil (an empty RESULT).
     !>
     !> If some of the coding systems cannot encode the whole region, value is
-    !> an alist, each element of which has the form (CODING-SYSTEM POS1 POS2 ...),
+    !> a table, each element of which has the form (CODING-SYSTEM POS1 POS2 ...),
     !> which means that CODING-SYSTEM cannot encode the text at buffer positions
     !> POS1, POS2, ...  (FIRST, FIRST + 1, ...; FIRST is 0 for a string
     !> as upstream counts.)  Port of coding.c:Fcheck_coding_systems_region.
