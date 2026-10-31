@@ -94,12 +94,12 @@ module compile_fm
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
                        add_local_variables_killer, forward_setting
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, buffer_live_p, &
-                         buffer_list, erase_buffer, restore_buffer_modified_p
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, &
+                         buffer_list, erase_buffer, restore_buffer_modified
     use marker_fm, only: copy_marker_at, free_marker, marker_position, set_marker, marker_buffer, make_marker
     use insdel_fm, only: insert, before_change_functions
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, narrow_to_region, &
-                          line_beginning_position, line_end_position, eobp, bobp, bolp, buffer_size, &
+                          line_beginning_position, line_end_position, is_eob, is_bob, is_bol, buffer_size, &
                           buffer_substring, point_marker
     use textprop_fm, only: put_text_property, get_text_property, add_text_properties, &
                            remove_list_of_text_properties, next_single_property_change, &
@@ -111,11 +111,11 @@ module compile_fm
                          case_fold_search, SEARCH_NOERROR
     use subr_fm, only: match_string, silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use env_fm, only: substitute_env_vars, getenv
-    use fileio_fm, only: expand_file_name, file_name_as_directory, file_name_absolute_p, file_directory_p, &
-                         file_exists_p, file_accessible_directory_p, file_name_directory, file_name_nondirectory
+    use fileio_fm, only: expand_file_name, file_name_as_directory, is_file_name_absolute, is_file_directory, &
+                         file_exists, is_file_accessible_directory, file_name_directory, file_name_nondirectory
     use files_fm, only: abbreviate_file_name, save_some_buffers, find_file_noselect, file_truename
     use print_fm, only: prin1_to_string
-    use fns_fm, only: yes_or_no_p
+    use fns_fm, only: read_yes_or_no
     use eval_fm, only: hook_type, change_major_mode_hook
     use keyboard_fm, only: sit_for
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -149,7 +149,7 @@ module compile_fm
               compilation_next_file, compilation_previous_file, compilation_display_error, compile_goto_error, &
               compilation_next_error_function, compilation_find_buffer, compilation_forget_errors, &
               compilation_set_skip_threshold, compilation_minor_mode, compilation_shell_minor_mode, &
-              compilation_setup, compilation_face, compilation_buffer_internal_p, compilation_buffer_p, &
+              compilation_setup, compilation_face, is_compilation_buffer_internal, is_compilation_buffer, &
               compilation_message_info, compilation_message_counts, compilation_find_file, compilation_set_mode_locals, &
               compilation_update_mode_line, compilation_message_location
 
@@ -1143,7 +1143,7 @@ contains
         if (.not. allocated(compilation_buffers)) allocate (compilation_buffers(0))
 
         do k = 1, size(compilation_buffers)
-            if (.not. buffer_live_p(compilation_buffers(k)%buffer)) then
+            if (.not. is_buffer_live(compilation_buffers(k)%buffer)) then
                 call reset_entry(k)
                 compilation_buffers(k)%buffer = current_buffer()
                 return
@@ -1285,24 +1285,24 @@ contains
 
     !> Test if inside a compilation buffer.  Port of
     !> compile.el:compilation-buffer-internal-p.
-    logical function compilation_buffer_internal_p()
+    logical function is_compilation_buffer_internal()
         integer :: k
 
-        compilation_buffer_internal_p = .false.
+        is_compilation_buffer_internal = .false.
         k = entry_of(current_buffer())
-        if (k /= 0) compilation_buffer_internal_p = compilation_buffers(k)%setup
-    end function compilation_buffer_internal_p
+        if (k /= 0) is_compilation_buffer_internal = compilation_buffers(k)%setup
+    end function is_compilation_buffer_internal
 
     !> Test if BUFFER is a compilation buffer.  Port of
     !> compile.el:compilation-buffer-p.
-    logical function compilation_buffer_p(buffer)
+    logical function is_compilation_buffer(buffer)
         type(handle_type), intent(in) :: buffer
         integer :: k
 
-        compilation_buffer_p = .false.
+        is_compilation_buffer = .false.
         k = entry_of(buffer)
-        if (k /= 0) compilation_buffer_p = compilation_buffers(k)%setup
-    end function compilation_buffer_p
+        if (k /= 0) is_compilation_buffer = compilation_buffers(k)%setup
+    end function is_compilation_buffer
 
     !> Return a compilation buffer.
     !> If AVOID_CURRENT is false, and the current buffer is a compilation
@@ -1319,12 +1319,12 @@ contains
         if (present(avoid_current)) avoid = avoid_current
         status = status_type()
 
-        if (compilation_buffer_internal_p() .and. .not. avoid) then
+        if (is_compilation_buffer_internal() .and. .not. avoid) then
             buffer = current_buffer()
             return
         end if
 
-        call next_error_find_buffer(buffer, status, avoid, compilation_buffer_internal_p)
+        call next_error_find_buffer(buffer, status, avoid, is_compilation_buffer_internal)
     end subroutine compilation_find_buffer
 
     !> The counts of errors, warnings and informational messages found so
@@ -2329,7 +2329,7 @@ contains
                 filename = md_string(md, rule%file)
                 has_file = .true.
 
-                if (.not. file_name_absolute_p(filename)) then
+                if (.not. is_file_name_absolute(filename)) then
                     d = directory_before(md_pos(md, 0, .false.))
 
                     if (d /= 0) then
@@ -2718,7 +2718,7 @@ contains
         end = end_in
         call goto_char(end)
 
-        if (.not. bolp()) then
+        if (.not. is_bol()) then
             ! We generally don't like to parse partial lines.
             proc = get_buffer_process(current_buffer())
 
@@ -2834,7 +2834,7 @@ contains
             ! Not line-beginning-position: ignore (comint) fields.
             moved = forward_line(0_int64)
 
-            do while (.not. bobp())
+            do while (.not. is_bob())
                 call get_text_property(point() - 1, sym("compilation_multiline"), v, st)
                 if (nilp(v)) exit
                 moved = forward_line(-1_int64)
@@ -2909,7 +2909,7 @@ contains
 
         status = status_type()
         found = .false.
-        if (.not. compilation_buffer_internal_p()) return
+        if (.not. is_compilation_buffer_internal()) return
         call compilation_ensure_parse(limit)
     end subroutine ensure_parse_matcher
 
@@ -3089,7 +3089,7 @@ contains
         different = .false.
         if (present(different_file)) different = different_file
 
-        if (.not. compilation_buffer_p(current_buffer())) then
+        if (.not. is_compilation_buffer(current_buffer())) then
             call set_error(status, FM_GENERIC_ERROR, "Not in a compilation buffer")
             return
         end if
@@ -3400,7 +3400,7 @@ contains
 
         status = status_type()
 
-        if (.not. compilation_buffer_p(current_buffer())) then
+        if (.not. is_compilation_buffer(current_buffer())) then
             call set_error(status, FM_GENERIC_ERROR, "Not in a compilation buffer")
             return
         end if
@@ -3540,7 +3540,7 @@ contains
             call marker_buffer(compilation_buffers(k)%locs(loc)%marker, buffer, st)
         end if
 
-        if (compilation_buffers(k)%locs(loc)%marker%index == 0 .or. .not. buffer_live_p(buffer)) then
+        if (compilation_buffers(k)%locs(loc)%marker%index == 0 .or. .not. is_buffer_live(buffer)) then
             call make_marker(dummy)
             call compilation_update_markers(loc, dummy, compilation_error_screen_columns%value, &
                                             compilation_first_column%value, status)
@@ -3552,7 +3552,7 @@ contains
         if (compilation_buffers(k)%locs(loc)%marker%index == 0) return
         call marker_buffer(compilation_buffers(k)%locs(loc)%marker, buffer, st)
         call marker_position(compilation_buffers(k)%locs(loc)%marker, position, st)
-        found = st%ok() .and. buffer_live_p(buffer)
+        found = st%ok() .and. is_buffer_live(buffer)
     end subroutine compilation_message_location
 
     !> Advance to the next error message and visit the file where the
@@ -3766,7 +3766,7 @@ contains
         type(status_type) :: st
 
         call expand_file_name(filename, name, st, directory)
-        if (file_exists_p(name)) return
+        if (file_exists(name)) return
         call file_truename(file_name_as_directory(directory)//filename, name, st)
         if (.not. st%ok()) call expand_file_name(filename, name, st, directory)
     end function compilation_expand_fn
@@ -3803,7 +3803,7 @@ contains
         filename = filename_in
         thisdir = spec_dir
 
-        if (file_name_absolute_p(filename)) then
+        if (is_file_name_absolute(filename)) then
             ! The file name is absolute.  Use its explicit directory as the
             ! first in the search path, and strip it from FILENAME.
             call expand_file_name(filename, absolute, st, default_dir())
@@ -3812,7 +3812,7 @@ contains
             filename = file_name_nondirectory(filename)
             name = compilation_expand_fn(thisdir, filename)
 
-            if (file_exists_p(name)) then
+            if (file_exists(name)) then
                 call find_file_noselect(name, buffer, status)
                 return
             end if
@@ -3823,7 +3823,7 @@ contains
 
         name = compilation_expand_fn(thisdir, filename)
 
-        if (file_exists_p(name)) then
+        if (file_exists(name)) then
             call find_file_noselect(name, buffer, status)
             return
         end if
@@ -3852,7 +3852,7 @@ contains
                 thisdir = compilation_buffers(k)%dirs(d)%dir
                 name = compilation_expand_fn(thisdir, filename)
 
-                if (file_exists_p(name)) then
+                if (file_exists(name)) then
                     call set_buffer(old, st)
                     call find_file_noselect(name, buffer, status)
                     return
@@ -3924,14 +3924,14 @@ contains
             if (.not. status%ok()) return
             origname = name
 
-            if (.not. file_exists_p(name)) then
+            if (.not. file_exists(name)) then
                 call message(format_message("Cannot find file `")//name//format_message("'"))
                 call ding(status=st)
                 call sit_for(2000_int32)
-            else if (file_directory_p(name)) then
+            else if (is_file_directory(name)) then
                 name = compilation_expand_fn(name, filename)
 
-                if (.not. file_exists_p(name)) then
+                if (.not. file_exists(name)) then
                     call message(format_message("No `")//filename//format_message("' in directory ")//origname)
                     call ding(status=st)
                     call sit_for(2000_int32)
@@ -4318,7 +4318,7 @@ contains
             type(status_type) :: st
 
             ! The let binding ends in the buffer that was current.
-            if (.not. buffer_live_p(old)) return
+            if (.not. is_buffer_live(old)) return
             call set_buffer(old, st)
 
             if (had_dir) then
@@ -4457,7 +4457,7 @@ contains
             answer = process_status(comp_proc) /= "run" .or. .not. process_query_on_exit_flag(comp_proc)
 
             if (.not. answer) then
-                call yes_or_no_p("A "//name_of_mode//" process is running; kill it? ", answer, status)
+                call read_yes_or_no("A "//name_of_mode//" process is running; kill it? ", answer, status)
                 if (.not. status%ok()) return
             end if
 
@@ -4537,7 +4537,7 @@ contains
         call set(sym("inhibit_read_only"), inhibit, st)
         ! The let binding of default-directory ends here.
         buffers(cur)%directory = thisdir
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         ! Pop up the compilation buffer.
         call display_buffer(outbuf, outwin, st)
         scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_NIL
@@ -4650,10 +4650,10 @@ contains
 
     !> Whether compilations are in progress (`compilation_in_progress' is
     !> true), for the "[Compiling] " of the mode line.  Not a port.
-    logical function compilation_in_progress_p()
-        compilation_in_progress_p = .false.
-        if (allocated(compilation_in_progress)) compilation_in_progress_p = size(compilation_in_progress) > 0
-    end function compilation_in_progress_p
+    logical function is_compilation_in_progress()
+        is_compilation_in_progress = .false.
+        if (allocated(compilation_in_progress)) is_compilation_in_progress = size(compilation_in_progress) > 0
+    end function is_compilation_in_progress
 
     !> Give entry K's buffer (the current buffer) the `mode_line_process'
     !> of its state: ":%s" or the exit status, then
@@ -4793,7 +4793,7 @@ contains
         base = ""
         if (allocated(buffers(cur)%directory)) base = buffers(cur)%directory
 
-        if (file_name_absolute_p(dir)) then
+        if (is_file_name_absolute(dir)) then
             call expand_file_name(dir, absolute, status, base)
             if (.not. status%ok()) return
         else
@@ -4819,7 +4819,7 @@ contains
                 call expand_file_name(dir, candidate, status, file_name_as_directory(cdir))
 
                 if (status%ok()) then
-                    if (file_directory_p(candidate)) then
+                    if (is_file_directory(candidate)) then
                         absolute = candidate
                         exit
                     end if
@@ -4837,8 +4837,8 @@ contains
         ! cd-absolute.
         absolute = abbreviate_file_name(file_name_as_directory(absolute))
 
-        if (.not. file_directory_p(absolute)) then
-            if (file_exists_p(absolute)) then
+        if (.not. is_file_directory(absolute)) then
+            if (file_exists(absolute)) then
                 call set_error(status, FM_GENERIC_ERROR, absolute//" is not a directory")
             else
                 call set_error(status, FM_GENERIC_ERROR, absolute//": no such directory")
@@ -4847,7 +4847,7 @@ contains
             return
         end if
 
-        if (.not. file_accessible_directory_p(absolute)) then
+        if (.not. is_file_accessible_directory(absolute)) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot cd to "//absolute//":  Permission denied")
             return
         end if
@@ -4876,7 +4876,7 @@ contains
 
         status = status_type()
         buf = process_buffer(proc)
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         call set_buffer(buf, status)
         if (.not. status%ok()) return
         call symbol_value(sym("inhibit_read_only"), inhibit, st)
@@ -4932,7 +4932,7 @@ contains
         if (state /= "exit" .and. state /= "signal") return
         buffer = process_buffer(proc)
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             ! Buffer killed.
             call set_process_buffer(proc, null_handle(), st)
         else
@@ -4941,7 +4941,7 @@ contains
             ! Write something in the compilation buffer and hack its mode
             ! line.
             call compilation_handle_exit(state, process_exit_status(proc), msg)
-            if (buffer_live_p(old)) call set_buffer(old, st)
+            if (is_buffer_live(old)) call set_buffer(old, st)
         end if
 
         if (allocated(compilation_in_progress)) then
@@ -4989,7 +4989,7 @@ contains
         ! Record where we put the message, so we can ignore it later on.
         call goto_char(omax)
         call compilation_insert_annotation(NL//buffers(cur)%mode_name//" "//text)
-        if (bolp() .and. point() > point_min()) call goto_char(point() - 1)
+        if (is_bol() .and. point() > point_min()) call goto_char(point() - 1)
         k = entry_of(current_buffer())
         call system_clock(now, rate)
         elapsed = 0
@@ -5169,7 +5169,7 @@ contains
         commands%compilation_minor_mode%run => compilation_minor_mode
         commands%compilation_shell_minor_mode%run => compilation_shell_minor_mode
         call add_local_variables_killer(kill_compilation_locals)
-        call add_mode_line_modes_entry("compilation_in_progress", "[Compiling] ", compilation_in_progress_p)
+        call add_mode_line_modes_entry("compilation_in_progress", "[Compiling] ", is_compilation_in_progress)
         call forward_setting(compilation_error_screen_columns)
         call forward_setting(compilation_first_column)
         if (.not. allocated(compile_command%value)) compile_command = default_compile_command()

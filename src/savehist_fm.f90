@@ -49,11 +49,11 @@ module savehist_fm
     use easy_mmode_fm, only: mode_called_interactively
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, free_timer, timerp
+    use timer_fm, only: run_with_timer, free_timer, is_timer
     use buffer_fm, only: get_buffer_create, generate_new_buffer_name, set_buffer, kill_buffer, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
-    use fileio_fm, only: file_exists_p, file_attributes, file_stat_type, set_file_modes, write_region, &
+    use fileio_fm, only: file_exists, file_attributes, file_stat_type, set_file_modes, write_region, &
                          insert_file_contents, file_name_directory, expand_file_name
     use files_fm, only: make_directory
     use config_fm, only: state_directory
@@ -183,7 +183,7 @@ contains
     !> Cancel `savehist_autosave' timer, if set.  Port of
     !> savehist.el:savehist--cancel-timer.
     subroutine savehist_cancel_timer()
-        if (timerp(savehist_timer)) call free_timer(savehist_timer)
+        if (is_timer(savehist_timer)) call free_timer(savehist_timer)
         savehist_timer = handle_type()
     end subroutine savehist_cancel_timer
 
@@ -194,7 +194,7 @@ contains
         type(status_type) :: st
 
         if (minor_modes%savehist_mode%enabled() .and. savehist_autosave_interval > 0 .and. &
-            .not. timerp(savehist_timer)) then
+            .not. is_timer(savehist_timer)) then
             call run_with_timer(savehist_timer, real(savehist_autosave_interval, real64), savehist_autosave_timer, &
                                 st, real(savehist_autosave_interval, real64))
         else
@@ -289,7 +289,7 @@ contains
         integer :: k, n
 
         status = status_type()
-        if (.not. file_exists_p(savehist_file)) return
+        if (.not. file_exists(savehist_file)) return
         if (savehist_loaded .and. same_modtime(savehist_file_sync_modtime, savehist_file_modtime())) return
         ! The history variables we know about, with their values.
         n = 0
@@ -649,7 +649,7 @@ contains
 
         ! Ensure that the directory exists before saving.
         dir = file_name_directory(savehist_file)
-        if (.not. file_exists_p(dir)) call make_directory(dir, st, parents=.true.)
+        if (.not. file_exists(dir)) call make_directory(dir, st, parents=.true.)
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)

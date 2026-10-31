@@ -36,8 +36,8 @@ module edmacro_fm
     use data_fm, only: value_eq
     use character_fm, only: CHAR_ALT, CHAR_CTL, CHAR_HYPER, CHAR_META, CHAR_SUPER, CHAR_SHIFT, &
                             string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
-    use keymap_fm, only: current_active_maps, lookup_key, key_binding, keymapp, keymap_live_p
-    use callint_fm, only: commandp
+    use keymap_fm, only: current_active_maps, lookup_key, key_binding, is_keymap, is_keymap_live
+    use callint_fm, only: is_command
     use keyboard_fm, only: local_function_key_map
     implicit none(type, external)
     private
@@ -189,7 +189,7 @@ contains
                 end if
             end do
 
-            if (.not. found .and. keymap_live_p(local_function_key_map)) then
+            if (.not. found .and. is_keymap_live(local_function_key_map)) then
                 call lookup_key(make_keymap_ref(local_function_key_map), rest(pos:n + 1), fk, st)
 
                 if (fixnump(fk)) then
@@ -197,7 +197,7 @@ contains
                     tkey = rest(pos:pos + tlen - 1)
                     call lookup_key(make_keymap_ref(local_function_key_map), tkey, fk, st)
 
-                    if (.not. nilp(fk) .and. .not. fixnump(fk) .and. .not. keymapp(fk)) then
+                    if (.not. nilp(fk) .and. .not. fixnump(fk) .and. .not. is_keymap(fk)) then
                         call translation_events(fk, fkey)
 
                         do k = 1, size(maps)
@@ -279,7 +279,7 @@ contains
                     k = intern_soft(desc)
 
                     if (k > 0) then
-                        if (commandp(make_symbol_ref(k))) then
+                        if (is_command(make_symbol_ref(k))) then
                             bind_name = desc
                             desc = "<<"//desc//">>"
                             bind_len = text + 1

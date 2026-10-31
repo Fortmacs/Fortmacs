@@ -33,7 +33,7 @@ module test_inotify_fm
     use files_fm, only: make_temp_file, delete_file
     use keyboard_fm, only: read_event
     use inotify_fm, only: watch_descriptor_type, inotify_event_type, inotify_add_watch, inotify_rm_watch, &
-                          inotify_valid_p, INOTIFY_ALL_EVENTS, INOTIFY_IGNORED
+                          is_inotify_valid, INOTIFY_ALL_EVENTS, INOTIFY_IGNORED
     implicit none(type, external)
     private
 
@@ -117,16 +117,16 @@ contains
         if (iand(event%aspects, INOTIFY_IGNORED) /= 0) success = .true.
     end subroutine note_ignored
 
-    !> Simple tests for `inotify_valid_p'.
+    !> Simple tests for `is_inotify_valid'.
     subroutine test_valid_p_simple(error)
         type(error_type), allocatable, intent(out) :: error
         type(watch_descriptor_type) :: wd
 
-        call check(error,.not. inotify_valid_p(wd), "invalid descriptor")
+        call check(error,.not. is_inotify_valid(wd), "invalid descriptor")
         if (allocated(error)) return
         wd%wd = 0
         wd%id = 0
-        call check(error,.not. inotify_valid_p(wd), "(0 . 0)")
+        call check(error,.not. is_inotify_valid(wd), "(0 . 0)")
     end subroutine test_valid_p_simple
 
     !> Test if watching a normal file works.
@@ -146,9 +146,9 @@ contains
         call write_file(temp_file, "Foo"//achar(10))
         call wait_until(have_events, 5.0)
         call check(error, events > 0, "no events")
-        if (.not. allocated(error)) call check(error, inotify_valid_p(wd), "valid")
+        if (.not. allocated(error)) call check(error, is_inotify_valid(wd), "valid")
         call inotify_rm_watch(wd, st)
-        if (.not. allocated(error)) call check(error,.not. inotify_valid_p(wd), "invalid after rm")
+        if (.not. allocated(error)) call check(error,.not. is_inotify_valid(wd), "invalid after rm")
         call delete_file(temp_file, st)
     end subroutine test_file_watch_simple
 

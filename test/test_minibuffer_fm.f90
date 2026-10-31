@@ -51,7 +51,7 @@ module test_minibuffer_fm
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point, goto_char
     use modes_fm, only: minor_modes
-    use window_fm, only: get_buffer_window, window_live_p
+    use window_fm, only: get_buffer_window, is_window_live
     use buffer_fm, only: get_buffer
     implicit none(type, external)
     private
@@ -480,13 +480,13 @@ contains
         call check(error, minor_modes%completion_in_region_mode%enabled(), "mode on")
         if (allocated(error)) return
         comp = get_buffer("*Completions*")
-        call check(error, window_live_p(get_buffer_window(comp)), "*Completions* shown")
+        call check(error, is_window_live(get_buffer_window(comp)), "*Completions* shown")
         if (allocated(error)) return
         call type_keys("C-a")
         call command_loop(st)
         call check(error,.not. minor_modes%completion_in_region_mode%enabled(), "mode off after C-a")
         if (allocated(error)) return
-        call check(error,.not. window_live_p(get_buffer_window(comp)), "*Completions* hidden")
+        call check(error,.not. is_window_live(get_buffer_window(comp)), "*Completions* hidden")
         call kill_buffer(buf, st)
         call show_alone()
     end subroutine test_completion_at_point

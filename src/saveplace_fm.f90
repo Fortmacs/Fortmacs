@@ -49,16 +49,16 @@ module saveplace_fm
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, free_timer, timerp
+    use timer_fm, only: run_with_timer, free_timer, is_timer
     use buffer_fm, only: buffers, cur, buffer_list, set_buffer, current_buffer, get_buffer_create, &
                          generate_new_buffer_name, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, buffer_string
-    use fileio_fm, only: file_readable_p, expand_file_name, write_region, insert_file_contents
+    use fileio_fm, only: is_file_readable, expand_file_name, write_region, insert_file_contents
     use files_fm, only: find_file_hook, kill_buffer_hook, abbreviate_file_name, revert_buffer_in_progress
     use config_fm, only: state_directory
     use coding_fm, only: coding_system_for_write
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use dired_mode_fm, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
                              dired_goto_file, dired_subdir_dirs, dired_string_type
     use search_fm, only: string_match
@@ -134,7 +134,7 @@ module saveplace_fm
     !>
     !> The filenames in `save_place_table' that do not match
     !> `save_place_skip_check_regexp' are filtered through
-    !> `file_readable_p'.  If false, their table entries are removed.
+    !> `is_file_readable'.  If false, their table entries are removed.
     !>
     !> You may do this anytime by calling the complementary function,
     !> `save_place_forget_unreadable_files'.  When this option is turned
@@ -206,7 +206,7 @@ contains
         save_place_loaded = .true.
         file = expand(save_place_file)
 
-        if (file_readable_p(file)) then
+        if (is_file_readable(file)) then
             call file_text(file, text, st)
             if (st%ok()) call read_namelist(text, groups, st)
 
@@ -439,7 +439,7 @@ contains
     !> Cancel `save_place_autosave' timer, if set.  Port of
     !> saveplace.el:save-place--cancel-timer.
     subroutine save_place_cancel_timer()
-        if (timerp(save_place_autosave_timer)) call free_timer(save_place_autosave_timer)
+        if (is_timer(save_place_autosave_timer)) call free_timer(save_place_autosave_timer)
         save_place_autosave_timer = handle_type()
     end subroutine save_place_cancel_timer
 
@@ -450,7 +450,7 @@ contains
         type(status_type) :: st
 
         if (save_place_mode_on() .and. save_place_autosave_interval > 0 .and. &
-            .not. timerp(save_place_autosave_timer)) then
+            .not. is_timer(save_place_autosave_timer)) then
             call run_with_timer(save_place_autosave_timer, real(save_place_autosave_interval, real64), &
                                 save_place_autosave, st, real(save_place_autosave_interval, real64))
         else
@@ -555,7 +555,7 @@ contains
         type(status_type) :: st
 
         dir = ""
-        if (.not. derived_mode_p("dired_mode")) return
+        if (.not. is_derived_mode("dired_mode")) return
         dirs = dired_subdir_dirs()
         if (size(dirs) == 0) return
         dir = dired_current_directory(st)
@@ -596,7 +596,7 @@ contains
         place%file = item
         place%position = point()
 
-        if (derived_mode_p("dired_mode") .and. len(directory) > 0) then
+        if (is_derived_mode("dired_mode") .and. len(directory) > 0) then
             call dired_get_filename(filename, found, st, no_error_if_not_filep=.true.)
 
             if (found) then
@@ -640,12 +640,12 @@ contains
         if (string_match(save_place_skip_check_regexp, file, st) > 0) then
             keep = save_place_save_skipped
         else
-            keep = file_readable_p(file)
+            keep = is_file_readable(file)
         end if
     end function keep_place
 
     !> Remove unreadable files from `save_place_table'.
-    !> For each entry in the table, if `file_readable_p' returns false for
+    !> For each entry in the table, if `is_file_readable' returns false for
     !> the filename, remove the entry.  Port of
     !> saveplace.el:save-place-forget-unreadable-files.
     recursive subroutine save_place_forget_unreadable_files()

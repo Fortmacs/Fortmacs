@@ -35,14 +35,14 @@ module bindings_fm
     use character_fm, only: MAX_CHAR, CHAR_CTL, CHAR_META
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, &
                          define_key_range, use_global_map, set_keymap_parent, &
-                         key_parse, keymap_live_p, free_keymap, set_repeat_map
+                         key_parse, is_keymap_live, free_keymap, set_repeat_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_fm, only: syms_of_page
     use keyboard_fm, only: local_function_key_map, syms_of_macros, help_event_list
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use dispnew_fm, only: syms_of_display
-    use simple_fm, only: syms_of_simple, backward_word, region_bounds, region_noncontiguous_p
+    use simple_fm, only: syms_of_simple, backward_word, region_bounds, is_region_noncontiguous
     use syntax_fm, only: syms_of_syntax, forward_word
     use syntax_propertize_fm, only: syms_of_syntax_propertize
     use smie_fm, only: syms_of_smie
@@ -53,7 +53,7 @@ module bindings_fm
     use search_fm, only: syms_of_search, begin_running_asynch_code, end_running_asynch_code
     use replace_fm, only: syms_of_replace, syms_of_occur
     use casefiddle_fm, only: syms_of_casefiddle, casefiddle_region_bounds => region_bounds, &
-                             casefiddle_region_noncontiguous_p => region_noncontiguous_p
+                             casefiddle_is_region_noncontiguous => is_region_noncontiguous
     use novice_fm, only: syms_of_novice
     use indent_fm, only: syms_of_indent
     use fill_fm, only: syms_of_fill
@@ -284,22 +284,22 @@ contains
         ! bindings.el's help-event-list.
         help_event_list = [character(len=16) :: "<help>", "<f1>", "?"]
         ! Rebuilding: drop the old maps.
-        if (keymap_live_p(global_map)) call free_keymap(global_map, status)
-        if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
-        if (keymap_live_p(ctl_x_map)) call free_keymap(ctl_x_map, status)
-        if (keymap_live_p(ctl_x_x_map)) call free_keymap(ctl_x_x_map, status)
-        if (keymap_live_p(ctl_x_4_map)) call free_keymap(ctl_x_4_map, status)
-        if (keymap_live_p(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
-        if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
-        if (keymap_live_p(goto_map)) call free_keymap(goto_map, status)
-        if (keymap_live_p(narrow_map)) call free_keymap(narrow_map, status)
-        if (keymap_live_p(search_map)) call free_keymap(search_map, status)
-        if (keymap_live_p(abbrev_map)) call free_keymap(abbrev_map, status)
-        if (keymap_live_p(undo_repeat_map)) call free_keymap(undo_repeat_map, status)
-        if (keymap_live_p(buffer_navigation_repeat_map)) call free_keymap(buffer_navigation_repeat_map, status)
-        if (keymap_live_p(next_error_repeat_map)) call free_keymap(next_error_repeat_map, status)
-        if (keymap_live_p(page_navigation_repeat_map)) call free_keymap(page_navigation_repeat_map, status)
-        if (keymap_live_p(other_window_repeat_map)) call free_keymap(other_window_repeat_map, status)
+        if (is_keymap_live(global_map)) call free_keymap(global_map, status)
+        if (is_keymap_live(esc_map)) call free_keymap(esc_map, status)
+        if (is_keymap_live(ctl_x_map)) call free_keymap(ctl_x_map, status)
+        if (is_keymap_live(ctl_x_x_map)) call free_keymap(ctl_x_x_map, status)
+        if (is_keymap_live(ctl_x_4_map)) call free_keymap(ctl_x_4_map, status)
+        if (is_keymap_live(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
+        if (is_keymap_live(function_key_map)) call free_keymap(function_key_map, status)
+        if (is_keymap_live(goto_map)) call free_keymap(goto_map, status)
+        if (is_keymap_live(narrow_map)) call free_keymap(narrow_map, status)
+        if (is_keymap_live(search_map)) call free_keymap(search_map, status)
+        if (is_keymap_live(abbrev_map)) call free_keymap(abbrev_map, status)
+        if (is_keymap_live(undo_repeat_map)) call free_keymap(undo_repeat_map, status)
+        if (is_keymap_live(buffer_navigation_repeat_map)) call free_keymap(buffer_navigation_repeat_map, status)
+        if (is_keymap_live(next_error_repeat_map)) call free_keymap(next_error_repeat_map, status)
+        if (is_keymap_live(page_navigation_repeat_map)) call free_keymap(page_navigation_repeat_map, status)
+        if (is_keymap_live(other_window_repeat_map)) call free_keymap(other_window_repeat_map, status)
         ! First: bindings.el's minor-mode-alist starts with abbrev-mode.
         call syms_of_abbrev()
         call syms_of_cmds()
@@ -324,7 +324,7 @@ contains
         call syms_of_replace()
         call syms_of_casefiddle()
         casefiddle_region_bounds => region_bounds
-        casefiddle_region_noncontiguous_p => region_noncontiguous_p
+        casefiddle_is_region_noncontiguous => is_region_noncontiguous
         call syms_of_indent()
         call syms_of_fill()
         call syms_of_newcomment()
@@ -708,7 +708,7 @@ contains
         call syms_of_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.
-        if (keymap_live_p(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
+        if (is_keymap_live(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
         call init_minibuf()
         call syms_of_minibuffer()
         call syms_of_auth_source()
@@ -762,7 +762,7 @@ contains
         call translate(function_key_map, "<delete>", make_fixnum(127_int64))
         call translate(function_key_map, "<kp-delete>", make_fixnum(127_int64))
 
-        if (.not. keymap_live_p(local_function_key_map)) then
+        if (.not. is_keymap_live(local_function_key_map)) then
             call make_sparse_keymap(local_function_key_map)
         end if
 

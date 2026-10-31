@@ -46,12 +46,12 @@ module callproc_fm
                        list_elements
     use data_fm, only: check_string, string_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, BEG, &
-                         buffer_live_p
+                         is_buffer_live
     use character_fm, only: str_as_multibyte
     use insdel_fm, only: insert, del_range
     use editfns_fm, only: point_min, point_max, widen, delete_region, validate_region
-    use fileio_fm, only: expand_file_name, file_name_as_directory, file_accessible_directory_p, &
-                         file_executable_p, file_directory_p, &
+    use fileio_fm, only: expand_file_name, file_name_as_directory, is_file_accessible_directory, &
+                         is_file_executable, is_file_directory, &
                          report_file_errno, write_region, delete_file_internal, emacs_wd
     use files_fm, only: temporary_file_directory
     use env_fm, only: getenv
@@ -179,7 +179,7 @@ contains
                 discard = .false.
                 buffer = xhandle(destination)
 
-                if (.not. buffer_live_p(buffer)) then
+                if (.not. is_buffer_live(buffer)) then
                     call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
                     return
                 end if
@@ -319,7 +319,7 @@ contains
         if (.not. status%ok()) return
         dir = file_name_as_directory(expanded)
 
-        if (.not. file_accessible_directory_p(dir)) then
+        if (.not. is_file_accessible_directory(dir)) then
             call report_file_errno("Setting current directory", curdir, ENOENT, status)
         end if
     end subroutine get_current_directory
@@ -340,7 +340,7 @@ contains
 
         if (index(program, "/") > 0) then
             call expand_file_name(program, candidate, st, dir)
-            if (st%ok() .and. executable_file_p(candidate)) path = candidate
+            if (st%ok() .and. is_executable_file(candidate)) path = candidate
             return
         end if
 
@@ -361,7 +361,7 @@ contains
             if (len(entry) == 0) entry = dir
             call expand_file_name(program, candidate, st, file_name_as_directory(entry))
 
-            if (st%ok() .and. executable_file_p(candidate)) then
+            if (st%ok() .and. is_executable_file(candidate)) then
                 path = candidate
                 return
             end if
@@ -371,11 +371,11 @@ contains
 
     contains
 
-        logical function executable_file_p(name)
+        logical function is_executable_file(name)
             character(len=*), intent(in) :: name
 
-            executable_file_p = file_executable_p(name) .and. .not. file_directory_p(name)
-        end function executable_file_p
+            is_executable_file = is_file_executable(name) .and. .not. is_file_directory(name)
+        end function is_executable_file
     end subroutine locate_program
 
     !> Insert the program output `bytes' at point, decoded as UTF-8 in a

@@ -61,7 +61,7 @@ module register_fm
     use character_fm, only: MAX_CHAR, string_char_and_length
     use keymap_fm, only: single_key_description
     use print_fm, only: fortran_string, marker_repr
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_live_p, get_file_buffer, get_buffer_create, &
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, get_file_buffer, get_buffer_create, &
                          set_buffer, set_buffer_read_only, erase_buffer, kill_buffer, barf_if_buffer_read_only, &
                          deactivate_mark_variable, get_buffer
     use marker_fm, only: free_marker, marker_position, marker_buffer
@@ -73,12 +73,12 @@ module register_fm
                          region_extract_function, REGION_EXTRACT_COPY, REGION_EXTRACT_DELETE
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command
-    use subr_fm, only: read_key, y_or_n_p
+    use subr_fm, only: read_key, read_y_or_n
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, window_configuration_type, current_window_configuration, &
                          set_window_configuration, free_window_configuration, switch_to_buffer, temp_buffer_window_show, &
                          display_action_table_type, DISPLAY_ACTION_AT_BOTTOM, fit_window_to_buffer, get_buffer_window, &
-                         delete_window, window_live_p, window_leaves, windows, same_window, window_text_cols
+                         delete_window, is_window_live, window_leaves, windows, same_window, window_text_cols
     use fileio_fm, only: expand_file_name
     use files_fm, only: find_file
     use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_T
@@ -90,7 +90,7 @@ module register_fm
 
     public :: get_register, set_register, register_describe_oneline, register_preview_default, register_preview, &
               register_read_with_preview, point_to_register, window_configuration_to_register, jump_to_register, &
-              file_to_register, buffer_to_register, register_jumpable_p, register_insertable_p, number_to_register, &
+              file_to_register, buffer_to_register, is_register_jumpable, is_register_insertable, number_to_register, &
               increment_register, view_register, list_registers, describe_register_1, insert_register, &
               copy_to_register, append_to_register, prepend_to_register, copy_rectangle_to_register, syms_of_register
 
@@ -349,7 +349,7 @@ contains
             i = modulo(first - 1 + k, size(leaves)) + 1
             b = windows(leaves(i)%index)%buffer
             if (k > 0) s = s//", "
-            if (buffer_live_p(b)) s = s//buffers(b%index)%name
+            if (is_buffer_live(b)) s = s//buffers(b%index)%name
         end do
 
         call set_window_configuration(saved)
@@ -362,7 +362,7 @@ contains
         type(handle_type), intent(in) :: b
         character(len=:), allocatable :: s
 
-        if (buffer_live_p(b)) then
+        if (is_buffer_live(b)) then
             s = "#<buffer "//buffers(b%index)%name//">"
         else
             s = "#<killed buffer>"
@@ -435,7 +435,7 @@ contains
         case (REGISTER_MARKER)
             call marker_buffer(val%marker, b, st)
 
-            if (.not. buffer_live_p(b)) then
+            if (.not. is_buffer_live(b)) then
                 s = "a marker in no buffer"
             else
                 call marker_position(val%marker, pos, st)
@@ -617,7 +617,7 @@ contains
             if (register_kind(names(k)) /= REGISTER_EMPTY) call insert(register_preview_default(names(k)), status)
         end do
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
         table%window_height => fit_preview_window
         call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_AT_BOTTOM], table)
@@ -630,9 +630,9 @@ contains
         type(status_type) :: st
 
         buf = get_buffer(PREVIEW_BUFFER)
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         w = get_buffer_window(buf)
-        if (window_live_p(w)) call delete_window(w, st)
+        if (is_window_live(w)) call delete_window(w, st)
         call kill_buffer(buf, st)
     end subroutine remove_preview
 
@@ -672,13 +672,13 @@ contains
             if (xfixnum(key) /= HELP_CHAR) exit
             buf = get_buffer(PREVIEW_BUFFER)
 
-            if (.not. window_live_p(get_buffer_window(buf))) then
+            if (.not. is_window_live(get_buffer_window(buf))) then
                 call register_preview(PREVIEW_BUFFER, .true., st, pred)
             end if
         end do
 
         if (status%ok()) then
-            if (quit_event_p(key)) then
+            if (is_quit_event(key)) then
                 ! (keyboard-quit)
                 if (associated(commands%keyboard_quit%run)) call commands%keyboard_quit%run(status)
             else if (fixnump(key)) then
@@ -696,17 +696,17 @@ contains
     end subroutine register_read_with_preview
 
     !> Whether KEY is C-g, `escape' or C-[.  Not a port.
-    logical function quit_event_p(key)
+    logical function is_quit_event(key)
         type(value_type), intent(in) :: key
 
-        quit_event_p = .false.
+        is_quit_event = .false.
 
         if (fixnump(key)) then
-            quit_event_p = xfixnum(key) == 7 .or. xfixnum(key) == 27
+            is_quit_event = xfixnum(key) == 7 .or. xfixnum(key) == 27
         else if (symbolp(key)) then
-            quit_event_p = symbols(xsymbol(key))%name == "escape"
+            is_quit_event = symbols(xsymbol(key))%name == "escape"
         end if
-    end function quit_event_p
+    end function is_quit_event
 
     ! ------------------------------------------------------------------
     ! Storing positions and configurations, jumping
@@ -794,7 +794,7 @@ contains
         case (REGISTER_MARKER)
             call marker_buffer(val%marker, b, st)
 
-            if (.not. buffer_live_p(b)) then
+            if (.not. is_buffer_live(b)) then
                 call set_error(status, FM_USER_ERROR, format_message("That register's buffer no longer exists"))
                 return
             end if
@@ -810,7 +810,7 @@ contains
         case (REGISTER_FILE)
             call find_file(val%text, status)
         case (REGISTER_BUFFER)
-            if (.not. buffer_live_p(val%buffer)) then
+            if (.not. is_buffer_live(val%buffer)) then
                 ! As set-window-buffer signals.
                 call set_error(status, FM_GENERIC_ERROR, "Attempt to display deleted buffer")
                 return
@@ -818,8 +818,8 @@ contains
 
             call switch_to_buffer(buffers(val%buffer%index)%name, status)
         case (REGISTER_FILE_QUERY)
-            if (.not. buffer_live_p(find_buffer_visiting(val%text))) then
-                call y_or_n_p("Visit file "//val%text//" again? ", ok, status)
+            if (.not. is_buffer_live(find_buffer_visiting(val%text))) then
+                call read_y_or_n("Visit file "//val%text//" again? ", ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -886,29 +886,29 @@ contains
 
     !> Return true if `register_val_jump_to' is implemented for REGVAL.
     !> Port of register.el:register--jumpable-p.
-    logical function register_jumpable_p(regval)
+    logical function is_register_jumpable(regval)
         type(register_value_type), intent(in) :: regval
 
         select case (regval%kind)
         case (REGISTER_MARKER, REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_BUFFER, REGISTER_FILE_QUERY)
-            register_jumpable_p = .true.
+            is_register_jumpable = .true.
         case default
-            register_jumpable_p = .false.
+            is_register_jumpable = .false.
         end select
-    end function register_jumpable_p
+    end function is_register_jumpable
 
     !> Return true if `register_val_insert' is implemented for REGVAL.
     !> Port of register.el:register--insertable-p.
-    logical function register_insertable_p(regval)
+    logical function is_register_insertable(regval)
         type(register_value_type), intent(in) :: regval
 
         select case (regval%kind)
         case (REGISTER_TEXT, REGISTER_NUMBER, REGISTER_MARKER, REGISTER_RECTANGLE)
-            register_insertable_p = .true.
+            is_register_insertable = .true.
         case default
-            register_insertable_p = .false.
+            is_register_insertable = .false.
         end select
-    end function register_insertable_p
+    end function is_register_insertable
 
     ! ------------------------------------------------------------------
     ! Numbers
@@ -1356,7 +1356,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: register
 
-        call register_read_with_preview("Jump to register: ", register, status, register_jumpable_p)
+        call register_read_with_preview("Jump to register: ", register, status, is_register_jumpable)
         if (status%ok()) call jump_to_register(register, status, prefix_given())
     end subroutine cmd_jump_to_register
 
@@ -1397,7 +1397,7 @@ contains
             buffer = current_buffer()
         end if
 
-        if (buffer_live_p(buffer)) then
+        if (is_buffer_live(buffer)) then
             name = buffers(buffer%index)%name
         else
             name = ".false."
@@ -1410,27 +1410,27 @@ contains
 
     !> Augment register predicate of `increment_register': a number, empty
     !> or text.  Not a port.
-    logical function number_or_text_p(regval)
+    logical function is_number_or_text(regval)
         type(register_value_type), intent(in) :: regval
 
-        number_or_text_p = regval%kind == REGISTER_NUMBER .or. regval%kind == REGISTER_EMPTY .or. &
-                           regval%kind == REGISTER_TEXT
-    end function number_or_text_p
+        is_number_or_text = regval%kind == REGISTER_NUMBER .or. regval%kind == REGISTER_EMPTY .or. &
+                            regval%kind == REGISTER_TEXT
+    end function is_number_or_text
 
     !> The register predicate of `append_to_register' and
     !> `prepend_to_register': empty or text.  Not a port.
-    logical function empty_or_text_p(regval)
+    logical function is_empty_or_text(regval)
         type(register_value_type), intent(in) :: regval
 
-        empty_or_text_p = regval%kind == REGISTER_EMPTY .or. regval%kind == REGISTER_TEXT
-    end function empty_or_text_p
+        is_empty_or_text = regval%kind == REGISTER_EMPTY .or. regval%kind == REGISTER_TEXT
+    end function is_empty_or_text
 
     !> The register predicate of `view_register': not empty.  Not a port.
-    logical function nonempty_p(regval)
+    logical function is_nonempty(regval)
         type(register_value_type), intent(in) :: regval
 
-        nonempty_p = regval%kind /= REGISTER_EMPTY
-    end function nonempty_p
+        is_nonempty = regval%kind /= REGISTER_EMPTY
+    end function is_nonempty
 
     recursive subroutine cmd_number_to_register(status)
         type(status_type), intent(out) :: status
@@ -1456,7 +1456,7 @@ contains
 
         given = prefix_given()
         number = prefix_numeric_value(current_prefix_arg)
-        call register_read_with_preview("Increment register: ", register, status, number_or_text_p)
+        call register_read_with_preview("Increment register: ", register, status, is_number_or_text)
         if (.not. status%ok()) return
 
         if (given) then
@@ -1470,7 +1470,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: register
 
-        call register_read_with_preview("View register: ", register, status, nonempty_p)
+        call register_read_with_preview("View register: ", register, status, is_nonempty)
         if (status%ok()) call view_register(register, status)
     end subroutine cmd_view_register
 
@@ -1488,7 +1488,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         arg = .not. prefix_given()
-        call register_read_with_preview("Insert register: ", register, status, register_insertable_p)
+        call register_read_with_preview("Insert register: ", register, status, is_register_insertable)
         if (status%ok()) call insert_register(register, status, arg)
     end subroutine cmd_insert_register
 
@@ -1526,7 +1526,7 @@ contains
         logical :: del
 
         del = prefix_given()
-        call read_register_and_region("Append to register: ", register, start, end, status, empty_or_text_p)
+        call read_register_and_region("Append to register: ", register, start, end, status, is_empty_or_text)
         if (.not. status%ok()) return
         call append_to_register(register, start, end, status, del)
         if (status%ok() .and. .not. del) call indicate_copied_region()
@@ -1538,7 +1538,7 @@ contains
         logical :: del
 
         del = prefix_given()
-        call read_register_and_region("Prepend to register: ", register, start, end, status, empty_or_text_p)
+        call read_register_and_region("Prepend to register: ", register, start, end, status, is_empty_or_text)
         if (.not. status%ok()) return
         call prepend_to_register(register, start, end, status, del)
         if (status%ok() .and. .not. del) call indicate_copied_region()

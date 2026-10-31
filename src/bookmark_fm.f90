@@ -47,7 +47,7 @@
 !>
 !> Deferred: the menu and the mouse command of the bookmark list
 !> (`bookmark_bmenu_other_window_with_mouse'), and its sorting in the locale's
-!> collation order (`string_collate_lessp': names sort case-insensitively
+!> collation order (`is_string_collate_less': names sort case-insensitively
 !> by character code, as in the POSIX locale); `truncate_lines' in it;
 !> bookmarks with a `handler' (Help, VC-Dir and Shell buffers set
 !> `bookmark_make_record_function' to make them; that function is not
@@ -72,39 +72,39 @@ module bookmark_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, buffer_live_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live, &
                          buffer_list, erase_buffer, kill_buffer, buffer_serial_live, generate_new_buffer_name, &
-                         restore_buffer_modified_p
+                         restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, delete_region, &
-                          following_char, pos_bol, pos_eol, widen, bolp, eobp, user_full_name, user_login_name, &
+                          following_char, pos_bol, pos_eol, widen, is_bol, is_eob, user_full_name, user_login_name, &
                           system_name, current_time_string
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line, delete_char, forward_char
     use syntax_fm, only: forward_word
     use simple_fm, only: push_mark
     use search_fm, only: search_forward, search_backward, match_beginning, match_end
-    use fileio_fm, only: file_readable_p, expand_file_name, file_name_nondirectory, file_name_directory, &
+    use fileio_fm, only: is_file_readable, expand_file_name, file_name_nondirectory, file_name_directory, &
                          directory_file_name, file_attributes
     use sysdep_fm, only: file_stat_type, emacs_clock_realtime
     use files_fm, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
-    use frame_fm, only: selected_frame, frame_window_p, selected_window
+    use frame_fm, only: selected_frame, selected_window
     use tabulated_list_fm, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
                                  set_tabulated_list_entries, set_tabulated_list_padding, set_tabulated_list_sort_key, &
                                  clear_tabulated_list_sort_key, tabulated_list_init_header, tabulated_list_print, &
                                  tabulated_list_get_id, tabulated_list_put_tag, tabulated_list_revert_hook
     use dired_mode_fm, only: dired_directory_of
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use config_fm, only: state_directory
     use coding_fm, only: coding_system_for_write, buffer_file_coding_system, coding_system_base
     use itree_fm, only: make_overlay, overlay_put, overlay_get, overlays_in, free_overlay
-    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, keymap_live_p, free_keymap, keymap_set
+    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, is_keymap_live, free_keymap, keymap_set
     use keyboard_fm, only: kill_emacs_hook
     use callint_fm, only: current_prefix_arg
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type, completion_ignore_case
     use minibuf_table_fm, only: completion_table_type, TABLE_LIST
     use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
-    use fns_fm, only: yes_or_no_p
-    use subr_fm, only: add_to_history, defvar_nil, y_or_n_p, make_progress_reporter, progress_reporter_done, &
+    use fns_fm, only: read_yes_or_no
+    use subr_fm, only: add_to_history, defvar_nil, read_y_or_n, make_progress_reporter, progress_reporter_done, &
                        progress_reporter_type
     use dispnew_fm, only: ding
     use help_fm, only: substitute_command_keys
@@ -132,7 +132,7 @@ module bookmark_fm
               bookmark_buffer_file_name, bookmark_maybe_load_default_file, bookmark_jump, &
               bookmark_jump_other_window, bookmark_handle_bookmark, bookmark_default_handler, bookmark_relocate, &
               bookmark_insert_location, bookmark_location, bookmark_rename, bookmark_insert, bookmark_delete, &
-              bookmark_delete_all, bookmark_time_to_save_p, bookmark_write, bookmark_save, bookmark_write_file, &
+              bookmark_delete_all, is_bookmark_time_to_save, bookmark_write, bookmark_save, bookmark_write_file, &
               bookmark_import_new_list, bookmark_maybe_rename, bookmark_load, bookmark_show_annotation, &
               bookmark_show_all_annotations, bookmark_exit_hook_internal, bookmark_current_bookmark, &
               set_bookmark_current_bookmark, bookmark_bmenu_surreptitiously_rebuild_list, bookmark_bmenu_get_buffer, &
@@ -890,31 +890,31 @@ contains
     end subroutine clear_table
 
     ! Whether time A is before time B (time-less-p).  Not a port.
-    pure logical function time_less_p(a, b)
+    pure logical function is_time_less(a, b)
         integer(int64), intent(in) :: a(:), b(:)
 
         if (a(1) /= b(1)) then
-            time_less_p = a(1) < b(1)
+            is_time_less = a(1) < b(1)
         else
-            time_less_p = a(2) < b(2)
+            is_time_less = a(2) < b(2)
         end if
-    end function time_less_p
+    end function is_time_less
 
     ! Whether name A sorts before name B (string-lessp: by character code,
     ! which is the order of the UTF-8 bytes).  Not a port.
-    pure logical function name_lessp(a, b)
+    pure logical function is_name_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
 
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
-                name_lessp = iachar(a(k:k)) < iachar(b(k:k))
+                is_name_less = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
 
-        name_lessp = len(a) < len(b)
-    end function name_lessp
+        is_name_less = len(a) < len(b)
+    end function is_name_less
 
     !> Return `bookmark_table' for display.
     !> If `bookmark_sort_flag' is BOOKMARK_SORT_FLAG_T, then return a
@@ -963,10 +963,10 @@ contains
                 else if (.not. allocated(y%last_modified)) then
                     before = .true.
                 else
-                    before = time_less_p(y%last_modified, x%last_modified)
+                    before = is_time_less(y%last_modified, x%last_modified)
                 end if
             else
-                before = name_lessp(bookmark_name_from_full_record(x), bookmark_name_from_full_record(y))
+                before = is_name_less(bookmark_name_from_full_record(x), bookmark_name_from_full_record(y))
             end if
         end function before
     end function bookmark_maybe_sort_table
@@ -1175,7 +1175,7 @@ contains
 
         call set_bookmark_current_bookmark(name)
         bookmark_table_modification_count = bookmark_table_modification_count + 1
-        if (bookmark_time_to_save_p()) call bookmark_save(status)
+        if (is_bookmark_time_to_save()) call bookmark_save(status)
         call set_bookmark_current_bookmark(name)
         call bookmark_bmenu_surreptitiously_rebuild_list()
     end subroutine bookmark_store
@@ -1466,7 +1466,7 @@ contains
 
             ! Don't set `bookmark_yank_point' and `bookmark_current_buffer'
             ! if they have been already set in another buffer.
-            if (.not. (bookmark_yank_point /= 0 .and. buffer_live_p(bookmark_current_buffer))) then
+            if (.not. (bookmark_yank_point /= 0 .and. is_buffer_live(bookmark_current_buffer))) then
                 bookmark_yank_point = point()
                 bookmark_current_buffer = current_buffer()
             end if
@@ -1742,7 +1742,7 @@ contains
         integer(int64) :: shortage
         integer :: k
 
-        if (.not. derived_mode_p("bookmark_edit_annotation_mode")) then
+        if (.not. is_derived_mode("bookmark_edit_annotation_mode")) then
             call set_error(status, FM_GENERIC_ERROR, "Not in bookmark_edit_annotation_mode")
             return
         end if
@@ -1892,7 +1892,7 @@ contains
     ! with this mtime (NEW_KNOWN false for none, which `time_equal_p' takes
     ! as the current time).  Port of
     ! bookmark.el:bookmark--watch-file-already-queried-p.
-    logical function watch_file_already_queried_p(new_known, new_sec, new_nsec) result(queried)
+    logical function is_watch_file_already_queried(new_known, new_sec, new_nsec) result(queried)
         logical, intent(in) :: new_known
         integer(int64), intent(in) :: new_sec
         integer(int32), intent(in) :: new_nsec
@@ -1908,7 +1908,7 @@ contains
         watch_asked_nil = .not. new_known
         watch_asked_sec = new_sec
         watch_asked_nsec = new_nsec
-    end function watch_file_already_queried_p
+    end function is_watch_file_already_queried
 
     !> If bookmarks have not been loaded from the default place, load them.
     !> Port of bookmark.el:bookmark-maybe-load-default-file.
@@ -1921,7 +1921,7 @@ contains
         if (.not. allocated(bookmark_table)) allocate (bookmark_table(0))
 
         if (.not. allocated(bookmark_bookmarks_timestamp%file) .and. size(bookmark_table) == 0 .and. &
-            file_readable_p(expand(bookmark_default_file))) then
+            is_file_readable(expand(bookmark_default_file))) then
             call bookmark_load(bookmark_default_file, status, overwrite=.true., no_msg=.true.)
             return
         end if
@@ -1941,11 +1941,11 @@ contains
             return
         end if
 
-        if (watch_file_already_queried_p(found, stat%mtime_sec, stat%mtime_nsec)) return
+        if (is_watch_file_already_queried(found, stat%mtime_sec, stat%mtime_nsec)) return
 
         if (bookmark_watch_bookmark_file /= BOOKMARK_WATCH_BOOKMARK_FILE_SILENT) then
-            call yes_or_no_p("Bookmarks "//bookmark_bookmarks_timestamp%file//" changed on disk.  Reload? ", &
-                             ok, status)
+            call read_yes_or_no("Bookmarks "//bookmark_bookmarks_timestamp%file//" changed on disk.  Reload? ", &
+                                ok, status)
             if (.not. status%ok() .or. .not. ok) return
         end if
 
@@ -2132,7 +2132,7 @@ contains
                 ! file.
                 display_name = directory_file_name(file)
                 call ding()
-                call y_or_n_p(display_name//" nonexistent.  Relocate """//bookmark_name//"""? ", ok, status)
+                call read_y_or_n(display_name//" nonexistent.  Relocate """//bookmark_name//"""? ", ok, status)
                 if (.not. status%ok()) return
 
                 if (ok) then
@@ -2166,7 +2166,7 @@ contains
         integer(int64) :: found
 
         if (allocated(bmk_record%filename)) then
-            if (file_readable_p(expand(bmk_record%filename))) then
+            if (is_file_readable(expand(bmk_record%filename))) then
                 call find_file_noselect(bmk_record%filename, buf, status)
                 if (.not. status%ok()) return
                 call set_buffer(buf, status)
@@ -2231,7 +2231,7 @@ contains
         if (.not. status%ok()) return
         call bookmark_update_last_modified(bookmark_name, status)
         bookmark_table_modification_count = bookmark_table_modification_count + 1
-        if (bookmark_time_to_save_p()) call bookmark_save(status)
+        if (is_bookmark_time_to_save()) call bookmark_save(status)
         call bookmark_bmenu_surreptitiously_rebuild_list()
     end subroutine bookmark_relocate
 
@@ -2319,7 +2319,7 @@ contains
         call set_bookmark_current_bookmark(final_new_name)
         call bookmark_bmenu_surreptitiously_rebuild_list()
         bookmark_table_modification_count = bookmark_table_modification_count + 1
-        if (bookmark_time_to_save_p()) call bookmark_save(status)
+        if (is_bookmark_time_to_save()) call bookmark_save(status)
     end subroutine bookmark_rename
 
     recursive subroutine cmd_bookmark_rename(status)
@@ -2408,7 +2408,7 @@ contains
         if (present(batch)) rebuild = .not. batch
         if (rebuild) call bookmark_bmenu_surreptitiously_rebuild_list()
         bookmark_table_modification_count = bookmark_table_modification_count + 1
-        if (bookmark_time_to_save_p()) call bookmark_save(status)
+        if (is_bookmark_time_to_save()) call bookmark_save(status)
     end subroutine bookmark_delete
 
     recursive subroutine cmd_bookmark_delete(status)
@@ -2441,7 +2441,7 @@ contains
         status = status_type()
 
         if (.not. ok) then
-            call yes_or_no_p("Permanently delete all bookmarks? ", ok, status)
+            call read_yes_or_no("Permanently delete all bookmarks? ", ok, status)
             if (.not. status%ok()) return
         end if
 
@@ -2456,7 +2456,7 @@ contains
         bookmark_table_modification_count = bookmark_table_modification_count + size(bookmark_table)
         call clear_table()
         call bookmark_bmenu_surreptitiously_rebuild_list()
-        if (bookmark_time_to_save_p()) call bookmark_save(status)
+        if (is_bookmark_time_to_save()) call bookmark_save(status)
     end subroutine bookmark_delete_all
 
     recursive subroutine cmd_bookmark_delete_all(status)
@@ -2471,7 +2471,7 @@ contains
     !> `bookmark_save_flag' is a number and is greater than
     !> `bookmark_table_modification_count'.  Port of
     !> bookmark.el:bookmark-time-to-save-p.
-    logical function bookmark_time_to_save_p(final_time) result(save)
+    logical function is_bookmark_time_to_save(final_time) result(save)
         logical, intent(in), optional :: final_time
         logical :: final
 
@@ -2485,7 +2485,7 @@ contains
         else
             save = .false.
         end if
-    end function bookmark_time_to_save_p
+    end function is_bookmark_time_to_save
 
     !> Write bookmarks to a file (reading the file name with the
     !> minibuffer).  Port of bookmark.el:bookmark-write.
@@ -2766,7 +2766,7 @@ contains
         if (.not. status%ok()) return
         afile = abbreviate_file_name(f)
 
-        if (.not. file_readable_p(f)) then
+        if (.not. is_file_readable(f)) then
             call set_error(status, FM_USER_ERROR, "Cannot read bookmark file "//afile)
             return
         end if
@@ -2864,7 +2864,7 @@ contains
         call erase_buffer(st)
         call insert(annotation, st)
         call goto_char(point_min())
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         buffers(cur)%read_only = .true.
         call switch_to_buffer_other_window(old_buf, status)
         ! (save-excursion)
@@ -2875,7 +2875,7 @@ contains
     !> Display the annotations for all bookmarks in a buffer.  Port of
     !> bookmark.el:bookmark-show-all-annotations.
     recursive subroutine bookmark_show_all_annotations(status)
-        use window_fm, only: select_window, window_live_p
+        use window_fm, only: select_window, is_window_live
         type(status_type), intent(out) :: status
         type(bookmark_type), allocatable :: sorted(:)
         type(handle_type) :: buf, old_window, old_buffer
@@ -2907,7 +2907,7 @@ contains
                     integer(int64) :: here
                     here = point()
                     call insert(ann, st)
-                    if (.not. bolp()) call insert(achar(10), st)
+                    if (.not. is_bol()) call insert(achar(10), st)
                     call goto_char(here)
                 end block
 
@@ -2922,10 +2922,10 @@ contains
         end do
 
         call goto_char(point_min())
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         buffers(cur)%read_only = .true.
         ! (save-selected-window)
-        if (window_live_p(old_window)) call select_window(old_window, st, norecord=.true.)
+        if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
         call set_buffer(old_buffer, st)
     end subroutine bookmark_show_all_annotations
 
@@ -2942,7 +2942,7 @@ contains
         type(status_type) :: st
         integer(int64) :: pt
 
-        if (.not. buffer_live_p(get_buffer(bookmark_bmenu_buffer))) return
+        if (.not. is_buffer_live(get_buffer(bookmark_bmenu_buffer))) return
         old = current_buffer()
         pt = point()
         call current_window_configuration(config)
@@ -2981,7 +2981,7 @@ contains
                 e%cols(2)%text = bookmark_name_from_full_record(r)
                 e%cols(2)%face = ""
                 ! (display-mouse-p: a window system.)
-                if (frame_window_p(selected_frame)) e%cols(2)%face = "bookmark_menu_bookmark"
+                if (associated(selected_frame%rif)) e%cols(2)%face = "bookmark_menu_bookmark"
                 ! (No handlers: no types.)
                 e%cols(3)%text = ""
                 e%cols(3)%face = ""
@@ -3189,12 +3189,12 @@ contains
 
     ! string-collate-lessp with IGNORE-CASE: case-insensitive, in the
     ! POSIX locale's order (by character code).  Not a port.
-    logical function collate_lessp(a, b)
+    logical function is_collate_less(a, b)
         use fns_fm, only: compare_strings
         character(len=*), intent(in) :: a, b
 
-        collate_lessp = compare_strings(a, b, ignore_case=.true.) < 0
-    end function collate_lessp
+        is_collate_less = compare_strings(a, b, ignore_case=.true.) < 0
+    end function is_collate_less
 
     !> Predicate to sort "*Bookmark List*" buffer by the name column.
     !> This is used for `tabulated_list_format' in `bookmark_bmenu_mode'.
@@ -3202,7 +3202,7 @@ contains
     logical function bookmark_bmenu_name_predicate(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_name_predicate = collate_lessp(a%id, b%id)
+        bookmark_bmenu_name_predicate = is_collate_less(a%id, b%id)
     end function bookmark_bmenu_name_predicate
 
     !> Predicate to sort "*Bookmark List*" buffer by the type column.
@@ -3211,7 +3211,7 @@ contains
     logical function bookmark_bmenu_type_predicate(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_type_predicate = collate_lessp(a%cols(3)%text, b%cols(3)%text)
+        bookmark_bmenu_type_predicate = is_collate_less(a%cols(3)%text, b%cols(3)%text)
     end function bookmark_bmenu_type_predicate
 
     !> Predicate to sort "*Bookmark List*" buffer by the file column.
@@ -3220,7 +3220,7 @@ contains
     logical function bookmark_bmenu_file_predicate(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_file_predicate = collate_lessp(bookmark_location(a%id), bookmark_location(b%id))
+        bookmark_bmenu_file_predicate = is_collate_less(bookmark_location(a%id), bookmark_location(b%id))
     end function bookmark_bmenu_file_predicate
 
     !> Toggle whether filenames are shown in the bookmark list.
@@ -3269,7 +3269,7 @@ contains
     !> value is undefined.  Port of
     !> bookmark.el:bookmark-bmenu-ensure-position.
     subroutine bookmark_bmenu_ensure_position()
-        if (bolp() .and. eobp()) call beginning_of_line(0_int64)
+        if (is_bol() .and. is_eob()) call beginning_of_line(0_int64)
     end subroutine bookmark_bmenu_ensure_position
 
     !> Return the bookmark for this line in an interactive bookmark list
@@ -3302,7 +3302,7 @@ contains
         call bookmark_bmenu_ensure_position()
         status = status_type()
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             call tabulated_list_put_tag(tag, status, .true.)
             if (.not. status%ok()) exit
         end do
@@ -3412,7 +3412,7 @@ contains
         call bookmark_bmenu_ensure_position()
         any = .false.
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             call beginning_of_line()
 
             if (looking_at("^\S-", st)) then
@@ -3442,7 +3442,7 @@ contains
         pt = point()
         call current_window_configuration(config)
         call cmd_bookmark_save(status)
-        if (status%ok()) call restore_buffer_modified_p(.false.)
+        if (status%ok()) call restore_buffer_modified(.false.)
         call set_window_configuration(config)
         call set_buffer(old, st)
         call goto_char(pt)
@@ -3682,7 +3682,7 @@ contains
         status = status_type()
 
         if (bookmark_menu_confirm_deletion) then
-            call yes_or_no_p("Delete selected bookmarks? ", ok, status)
+            call read_yes_or_no("Delete selected bookmarks? ", ok, status)
             if (.not. status%ok()) return
 
             if (.not. ok) then
@@ -3806,7 +3806,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu-search.
     recursive subroutine bookmark_bmenu_search(status)
         use minibuf_fm, only: read_string, minibuffer_setup_hook
-        use timer_fm, only: timerp, free_timer
+        use timer_fm, only: is_timer, free_timer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bmk, pattern
         type(status_type) :: st
@@ -3818,11 +3818,11 @@ contains
         call minibuffer_setup_hook%remove(bmenu_search_setup)
 
         if (status%ok()) then
-            if (timerp(search_timer)) call free_timer(search_timer)
+            if (is_timer(search_timer)) call free_timer(search_timer)
             search_timer = handle_type()
         end if
 
-        if (timerp(search_timer)) then
+        if (is_timer(search_timer)) then
             ! Signaled an error or a `quit'.
             call free_timer(search_timer)
             search_timer = handle_type()
@@ -3867,7 +3867,7 @@ contains
 
         call goto_char(point_min())
 
-        do while (.not. (same(name, bookmark_bmenu_bookmark()) .or. eobp()))
+        do while (.not. (same(name, bookmark_bmenu_bookmark()) .or. is_eob()))
             shortage = forward_line(1_int64)
         end do
 
@@ -3983,7 +3983,7 @@ contains
 
         call bookmark_exit_hook%run(status)
         if (.not. status%ok()) return
-        if (bookmark_time_to_save_p(.true.)) call bookmark_save(status)
+        if (is_bookmark_time_to_save(.true.)) call bookmark_save(status)
     end subroutine bookmark_exit_hook_internal
 
     ! ------------------------------------------------------------------
@@ -4061,11 +4061,11 @@ contains
         commands%bookmark_load%run => cmd_bookmark_load
         commands%bookmark_yank_word%run => bookmark_yank_word
         ! The keymaps are rebuilt.
-        if (keymap_live_p(bookmark_minibuffer_read_name_map)) call free_keymap(bookmark_minibuffer_read_name_map, st)
+        if (is_keymap_live(bookmark_minibuffer_read_name_map)) call free_keymap(bookmark_minibuffer_read_name_map, st)
         call make_sparse_keymap(bookmark_minibuffer_read_name_map)
         call set_keymap_parent(bookmark_minibuffer_read_name_map, minibuffer_local_map, st)
         call keymap_set(bookmark_minibuffer_read_name_map, "C-w", "bookmark_yank_word", st)
-        if (keymap_live_p(bookmark_map)) call free_keymap(bookmark_map, st)
+        if (is_keymap_live(bookmark_map)) call free_keymap(bookmark_map, st)
         call make_sparse_keymap(bookmark_map)
         call keymap_set(bookmark_map, "x", "bookmark_set", st)
         ! "m"ark

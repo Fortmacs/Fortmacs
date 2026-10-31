@@ -38,12 +38,12 @@ module test_diff_mode_fm
     use lisp_fm, only: value_type, consp, nilp, symbolp, xsymbol, symbols, list_elements
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, current_buffer, &
-                         get_buffer, get_file_buffer, buffer_live_p, restore_buffer_modified_p
+                         get_buffer, get_file_buffer, is_buffer_live, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max, buffer_string, narrow_to_region, widen
     use search_fm, only: re_search_forward, re_search_backward, match_beginning
     use textprop_fm, only: get_text_property
-    use fileio_fm, only: init_fileio, emacs_wd, expand_file_name, file_name_as_directory, file_directory_p, &
+    use fileio_fm, only: init_fileio, emacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
                          make_directory_internal, write_region
     use files_fm, only: find_file_noselect, delete_directory
     use keyboard_fm, only: discard_input, kbd_store_bytes, command_loop
@@ -219,7 +219,7 @@ contains
         call init_fileio()
         call discard_input()
         call scratch()
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call make_directory_internal(tdir(), st)
     end subroutine setup
 
@@ -237,7 +237,7 @@ contains
         end do
 
         call scratch()
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
     end subroutine teardown
 
     !> Make *scratch* current, shown alone.
@@ -287,10 +287,10 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
 
-        if (.not. buffer_live_p(h)) return
+        if (.not. is_buffer_live(h)) return
         old = current_buffer()
         call set_buffer(h, st)
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine discard
@@ -918,7 +918,7 @@ contains
         h = get_buffer("*Diff*")
 
         body: block
-            call check(error, buffer_live_p(h), "*Diff* exists")
+            call check(error, is_buffer_live(h), "*Diff* exists")
             if (allocated(error)) exit body
             call wait_process(h)
             text = text_of(h)
@@ -931,7 +931,7 @@ contains
             call check(error, buffers(h%index)%major_mode, "diff_mode")
         end block body
 
-        if (buffer_live_p(h)) call kill_buffer(h, st)
+        if (is_buffer_live(h)) call kill_buffer(h, st)
         call teardown()
     end subroutine test_diff_files
 
@@ -955,7 +955,7 @@ contains
         h = get_buffer("*Diff*")
 
         body: block
-            call check(error, buffer_live_p(h), "*Diff* exists")
+            call check(error, is_buffer_live(h), "*Diff* exists")
             if (allocated(error)) exit body
             call wait_process(h)
             text = text_of(h)
@@ -964,7 +964,7 @@ contains
             call check(error, index(text, LF//"-alpha"//LF//"+alpha2"//LF) > 0, text)
         end block body
 
-        if (buffer_live_p(h)) call kill_buffer(h, st)
+        if (is_buffer_live(h)) call kill_buffer(h, st)
         call teardown()
     end subroutine test_dired_diff
 end module test_diff_mode_fm

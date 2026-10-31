@@ -28,8 +28,8 @@
 !> Thread column shows "--"), and network, serial and pipe connections
 !> in the Command column.
 submodule(simple_fm) simple_process_fm
-    use buffer_fm, only: get_buffer_create, set_buffer, current_buffer, buffer_live_p
-    use editfns_fm, only: point_max, eobp
+    use buffer_fm, only: get_buffer_create, set_buffer, current_buffer, is_buffer_live
+    use editfns_fm, only: point_max, is_eob
     use cmds_fm, only: forward_line, beginning_of_line
     use process_fm, only: process_list, process_status, process_id, process_name, process_tty_name, &
                           process_buffer, process_command, process_arg_type, process_query_on_exit_flag, &
@@ -151,7 +151,7 @@ contains
         if (.not. status%ok()) return
         call goto_char(min(pos, point_max()))
 
-        if (eobp()) then
+        if (is_eob()) then
             shortage = forward_line(-1_int64)
         else
             call beginning_of_line()
@@ -206,7 +206,7 @@ contains
                     e%cols(2)%text = pid
                     e%cols(3)%text = status_name
 
-                    if (buffer_live_p(buf)) then
+                    if (is_buffer_live(buf)) then
                         e%cols(4)%text = buffers(buf%index)%name
                         e%cols(4)%face = "link"
                     else
@@ -269,7 +269,7 @@ contains
             call tabulated_list_print(status)
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
         call display_buffer(buf, window, status)
     end subroutine list_processes

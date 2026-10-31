@@ -32,7 +32,7 @@ module test_values_fm
     use data_fm, only: boundp, car, car_safe, cdr, keywordp, makunbound, set, symbol_name, &
                        symbol_value, value_eq
     use fns_fm, only: get, length, member, memq, nth, nthcdr, plist_get, plist_member, plist_put, &
-                      put, string_greaterp, string_lessp, value_equal
+                      put, is_string_greater, is_string_less, value_equal
     implicit none(type, external)
     private
 
@@ -310,21 +310,21 @@ contains
         if (allocated(error)) return
         plist = list(sym(":a"), make_fixnum(1_int64), sym(":b"), make_fixnum(2_int64), &
                      sym(":c"), make_fixnum(3_int64))
-        call plist_put(plist, make_string(":a"), make_fixnum(4_int64), st, string_greaterp)
+        call plist_put(plist, make_string(":a"), make_fixnum(4_int64), st, is_string_greater)
         call check(error, value_equal(plist, list(sym(":a"), make_fixnum(1_int64), sym(":b"), &
                                                   make_fixnum(4_int64), sym(":c"), make_fixnum(3_int64))), &
                    "block 4 put")
         if (allocated(error)) return
-        call check(error, value_equal(plist_get(plist, make_string(":b"), string_greaterp), &
+        call check(error, value_equal(plist_get(plist, make_string(":b"), is_string_greater), &
                                       make_fixnum(3_int64)), "block 4 get")
         if (allocated(error)) return
-        call check(error, value_equal(plist_member(plist, make_string(":c"), string_lessp), plist), &
+        call check(error, value_equal(plist_member(plist, make_string(":c"), is_string_less), plist), &
                    "block 4 member")
         if (allocated(error)) return
-        call check(error, nilp(plist_get(plist, make_string(":a"), string_lessp)) .and. &
-                   nilp(plist_member(plist, make_string(":a"), string_lessp)) .and. &
-                   nilp(plist_get(plist, make_string(":c"), string_greaterp)) .and. &
-                   nilp(plist_member(plist, make_string(":c"), string_greaterp)), "block 4 misses")
+        call check(error, nilp(plist_get(plist, make_string(":a"), is_string_less)) .and. &
+                   nilp(plist_member(plist, make_string(":a"), is_string_less)) .and. &
+                   nilp(plist_get(plist, make_string(":c"), is_string_greater)) .and. &
+                   nilp(plist_member(plist, make_string(":c"), is_string_greater)), "block 4 misses")
     end subroutine test_plist
 
     subroutine test_get_put(error)

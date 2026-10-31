@@ -66,12 +66,12 @@ module sh_script_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use keymap_fm, only: keymap_set, define_key
-    use syntax_fm, only: copy_syntax_table, make_syntax_table, modify_syntax_entry, syntax_table_live_p, free_syntax_table, &
+    use syntax_fm, only: copy_syntax_table, make_syntax_table, modify_syntax_entry, is_syntax_table_live, free_syntax_table, &
                          set_syntax_table, syntax_descriptor_type, string_to_syntax, parse_state_type, syntax_ppss, &
                          forward_comment, forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          skip_syntax_backward, &
                          syntax_descriptor_value, syntax_entry_at, ST_STRING_STYLE
-    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, &
+    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, &
                           char_after, char_before, delete_region, buffer_substring, line_beginning_position, &
                           line_end_position, preceding_char
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char, self_insert_command, &
@@ -82,7 +82,7 @@ module sh_script_fm
     use search_fm, only: looking_at, re_search_forward, re_search_backward, search_forward, match_beginning, match_end, &
                          regexp_quote, string_match, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string, looking_back
-    use simple_fm, only: delete_horizontal_space, back_to_indentation, count_lines, shell_command_on_region, use_region_p
+    use simple_fm, only: delete_horizontal_space, back_to_indentation, count_lines, shell_command_on_region, is_use_region
     use textprop_fm, only: get_text_property, put_text_property
     use xdisp_fm, only: message, set_mode_line_process, mode_line_part_type, tab_width
     use window_fm, only: window_text_cols
@@ -99,7 +99,7 @@ module sh_script_fm
     use comint_fm, only: comint_prompt_regexp, comint_dynamic_complete_functions, comint_filename_completion, &
                          comint_completion_at_point, comint_send_string
     use shell_fm, only: shell_command_completion, shell_environment_variable_completion, shell, explicit_shell_file_name
-    use process_fm, only: process_live_p, process_list, process_command, process_buffer, get_buffer_process, &
+    use process_fm, only: is_process_live, process_list, process_command, process_buffer, get_buffer_process, &
                           process_arg_type
     use window_fm, only: pop_to_buffer, display_buffer_overriding_action, display_action_type, DISPLAY_ACTION_SAME_WINDOW
     use eval_fm, only: capf_hook_type, capf_entry_type
@@ -108,7 +108,7 @@ module sh_script_fm
     use minibuffer_fm, only: completion_at_point_functions, REQUIRE_MATCH_T
     use files_fm, only: locate_file_completion_table
     use expression_motion_fm, only: subprogram_prompt_regexp
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use abbrev_fm, only: abbrev_table_type, set_local_abbrev_table
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
@@ -127,9 +127,9 @@ module sh_script_fm
     use smie_fm, only: smie_bnf_type, smie_precs_type, smie_prec2_type, smie_grammar_type, smie_rule_result_type, &
                        smie_indent_type, smie_expression_type, smie_toklevels_type, smie_bnf_to_prec2, smie_prec2_to_grammar, &
                        smie_setup, smie_forward_token, smie_backward_token, smie_grammar_token, smie_backward_expression, &
-                       smie_rule_parent_p, smie_rule_prev_p, smie_rule_hanging_p, smie_rule_bolp, smie_rule_parent, &
+                       is_smie_rule_parent, is_smie_rule_prev, is_smie_rule_hanging, is_smie_rule_bol, smie_rule_parent, &
                        smie_rule_separator, smie_indent_virtual, smie_indent_calculate, smie_indent_keyword, &
-                       smie_indent_functions, smie_set_hanging_eolp_function, smie_default_hanging_eolp, &
+                       smie_indent_functions, smie_set_is_hanging_eol_function, is_smie_default_hanging_eol, &
                        SMIE_ASSOC, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_LEVEL_NUMBER, SMIE_NIL, &
                        SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_T, SMIE_INDENT_COLUMN, SMIE_INDENT_NIL
     use sysdep_fm, only: sys_string_type, emacs_environment
@@ -137,7 +137,7 @@ module sh_script_fm
     private
 
     public :: syms_of_sh_script, sh_mode, sh_base_mode, sh_set_shell, sh_canonicalize_shell, sh_feature_shell, &
-              sh_var_value, sh_basic_indent_line, sh_execute_region, sh_remember_variable, sh_quoted_p, sh_is_quoted_p, &
+              sh_var_value, sh_basic_indent_line, sh_execute_region, sh_remember_variable, is_sh_quoted, is_sh_backslash_quoted, &
               sh_in_comment_or_string, cmd_sh_make_vars_local, sh_reset_indent_vars_to_global_values, sh_add, &
               sh_shell_initialize_variables, cmd_sh_beginning_of_command, cmd_sh_end_of_command, sh_backslash_region, &
               sh_current_subprogram_name, sh_mkword_regexpr, sh_indent_supported_here, sh_shell_variables, &
@@ -653,7 +653,7 @@ contains
         character(len=:), allocatable :: shell
         logical :: found
 
-        if (syntax_table_live_p(sh_mode_syntax_table)) return
+        if (is_syntax_table_live(sh_mode_syntax_table)) return
         call forward_setting(sh_shell_file)
         call forward_setting(sh_shell)
         call forward_setting(sh_basic_offset)
@@ -1915,12 +1915,12 @@ contains
 
     !> Whether the character before POS is an unquoted backslash.  Port of
     !> sh-script.el:sh-is-quoted-p.
-    recursive logical function sh_is_quoted_p(pos) result(quoted)
+    recursive logical function is_sh_backslash_quoted(pos) result(quoted)
         integer(int64), intent(in) :: pos
 
         quoted = .false.
-        if (cb(pos) == iachar("\")) quoted = .not. sh_is_quoted_p(pos - 1)
-    end function sh_is_quoted_p
+        if (cb(pos) == iachar("\")) quoted = .not. is_sh_backslash_quoted(pos - 1)
+    end function is_sh_backslash_quoted
 
     ! Port of sh-script.el:sh-font-lock-paren: the syntax of the `)' at
     ! START (PROP), punctuation in a case pattern.
@@ -1943,7 +1943,7 @@ contains
             do
                 ok = forward_comment(-point_max())
 
-                if (eolp() .and. sh_is_quoted_p(point())) then
+                if (is_eol() .and. is_sh_backslash_quoted(point())) then
                     call forward_char(st, -1_int64)
                     cycle
                 end if
@@ -1956,7 +1956,7 @@ contains
                 if (skip_syntax_backward("w_") /= 0) cycle
                 if (skip_chars_backward("-$=?[]*@/\\!%:.^~,", st) /= 0) cycle
 
-                if (sh_is_quoted_p(point() - 1)) then
+                if (is_sh_backslash_quoted(point() - 1)) then
                     call goto_char(point() - 2)
                     cycle
                 end if
@@ -1978,7 +1978,7 @@ contains
             do
                 ok = forward_comment(-point_max())
                 ! Maybe we've bumped into an escaped newline.
-                if (.not. sh_is_quoted_p(point())) exit
+                if (.not. is_sh_backslash_quoted(point())) exit
                 call forward_char(st, -1_int64)
             end do
 
@@ -2256,7 +2256,7 @@ contains
     ! A keyword position is one where if we're looking at something that looks
     ! like a keyword, then it is a keyword.  Port of
     ! sh-script.el:sh-smie--keyword-p.
-    recursive logical function sh_smie_keyword_p() result(p)
+    recursive logical function is_sh_smie_keyword() result(p)
         character(len=:), allocatable :: prev
         type(status_type) :: st
 
@@ -2267,7 +2267,7 @@ contains
         else
             p = in_grammar(prev)
         end if
-    end function sh_smie_keyword_p
+    end function is_sh_smie_keyword
 
     ! Return non-nil if a newline should be treated as a semi-colon.
     ! Here we assume that a newline should be treated as a semi-colon unless it
@@ -2276,7 +2276,7 @@ contains
     ! If TOK is absent, point should be before the newline; otherwise, TOK is the token
     ! before the newline and in that case point should be just before the token.
     ! Port of sh-script.el:sh-smie--newline-semi-p.
-    recursive logical function sh_smie_newline_semi_p(tok_in) result(semi)
+    recursive logical function is_sh_smie_newline_semi(tok_in) result(semi)
         character(len=:), allocatable, intent(in), optional :: tok_in
         character(len=:), allocatable :: tok
         type(smie_toklevels_type) :: t
@@ -2303,11 +2303,11 @@ contains
         end if
 
         call goto_char(here)
-    end function sh_smie_newline_semi_p
+    end function is_sh_smie_newline_semi
 
     ! When looking at TOK (either "in" or "do"), non-nil if TOK is a keyword.
     ! Does not preserve point.  Port of sh-script.el:sh-smie--sh-keyword-in/do-p.
-    recursive logical function sh_smie_sh_keyword_in_do_p(tok) result(keyword)
+    recursive logical function is_sh_smie_sh_keyword_in_do(tok) result(keyword)
         character(len=*), intent(in) :: tok
         integer, parameter :: UNDECIDED = 0, WORD = 1, KEYWORD_RES = 2, UNKNOWN = 3
         character(len=:), allocatable :: prev
@@ -2325,7 +2325,7 @@ contains
             if (empty(prev)) then
                 if (newline) then
                     res = WORD
-                else if (bobp()) then
+                else if (is_bob()) then
                     res = WORD
                 else
                     words = .true.
@@ -2352,22 +2352,22 @@ contains
         end do
 
         keyword = res == KEYWORD_RES
-    end function sh_smie_sh_keyword_in_do_p
+    end function is_sh_smie_sh_keyword_in_do
 
     ! Non-nil if TOK (at which we're looking) really is a keyword.  Port of
     ! sh-script.el:sh-smie--sh-keyword-p.
-    recursive logical function sh_smie_sh_keyword_p(tok) result(p)
+    recursive logical function is_sh_smie_sh_keyword(tok) result(p)
         character(len=*), intent(in) :: tok
         type(status_type) :: st
 
         if (looking_at("[[:alnum:]_]+=", st)) then
             p = .false.
         else if (tok == "in" .or. tok == "do") then
-            p = sh_smie_sh_keyword_in_do_p(tok)
+            p = is_sh_smie_sh_keyword_in_do(tok)
         else
-            p = sh_smie_keyword_p()
+            p = is_sh_smie_keyword()
         end if
-    end function sh_smie_sh_keyword_p
+    end function is_sh_smie_sh_keyword
 
     !> Port of sh-script.el:sh-smie--default-forward-token.
     recursive subroutine sh_smie_default_forward_token(token, status)
@@ -2469,7 +2469,7 @@ contains
             me1 = match_end(1, status)
             here = point()
             moved = skip_chars_backward(" "//TAB, status)
-            hanging = .not. bolp()
+            hanging = .not. is_bol()
             call goto_char(here)
         end if
 
@@ -2488,11 +2488,11 @@ contains
                 ! Pretend the here-document is a "newline representing a
                 ! semi-colon", since the here-doc otherwise covers the newline(s).
                 token = ";"
-            else if (.not. eobp()) then
-                semi = sh_smie_newline_semi_p()
+            else if (.not. is_eob()) then
+                semi = is_sh_smie_newline_semi()
                 moved = forward_line(1_int64)
 
-                if (semi .or. eobp()) then
+                if (semi .or. is_eob()) then
                     token = ";"
                 else
                     call sh_smie_sh_forward_token(token, status)
@@ -2530,7 +2530,7 @@ contains
             else if (starts_lower(tok) .and. in_grammar(tok)) then
                 here = point()
                 call goto_char(pos)
-                ok = sh_smie_sh_keyword_p(tok)
+                ok = is_sh_smie_sh_keyword(tok)
                 call goto_char(here)
 
                 if (ok) then
@@ -2545,7 +2545,7 @@ contains
     end subroutine sh_smie_sh_forward_token
 
     ! Port of sh-script.el:sh-smie--looking-back-at-continuation-p.
-    recursive logical function sh_smie_looking_back_at_continuation_p() result(p)
+    recursive logical function is_sh_smie_looking_back_at_continuation() result(p)
         type(status_type) :: st
         integer(int64) :: here
 
@@ -2555,12 +2555,12 @@ contains
             call forward_char(st, -1_int64)
             p = .true.
         else
-            p = eolp()
+            p = is_eol()
         end if
 
         if (p) p = looking_back("\(?:^\|[^\]\)\(?:\\\\\)*\\", st, line_beginning_position())
         call goto_char(here)
-    end function sh_smie_looking_back_at_continuation_p
+    end function is_sh_smie_looking_back_at_continuation
 
     ! (equal (syntax-after (1- (point))) (string-to-syntax "|")).
     ! Not a port.
@@ -2586,7 +2586,7 @@ contains
         ok = forward_comment(-point())
         fence = .false.
 
-        if (bolp() .and. .not. bobp()) then
+        if (is_bol() .and. .not. is_bob()) then
             if (after_fence()) then
                 state = ppss()
                 fence = state%instring == -1
@@ -2601,10 +2601,10 @@ contains
             ! semi-colon", since the here-doc otherwise covers the newline(s).
             token = ";"
         else if (point() < bol) then
-            if (sh_smie_looking_back_at_continuation_p()) then
+            if (is_sh_smie_looking_back_at_continuation()) then
                 call forward_char(status, -1_int64)
                 call smie_backward_token(token, status)
-            else if (sh_smie_newline_semi_p()) then
+            else if (is_sh_smie_newline_semi()) then
                 token = ";"
             else
                 call smie_backward_token(token, status)
@@ -2622,7 +2622,7 @@ contains
                 token = "case-("
             else if (starts_lower(tok) .and. in_grammar(tok)) then
                 here = point()
-                ok = sh_smie_sh_keyword_p(tok)
+                ok = is_sh_smie_sh_keyword(tok)
                 call goto_char(here)
 
                 if (ok) then
@@ -2652,7 +2652,7 @@ contains
 
         if (sh_indent_after_continuation /= SH_CONTINUATION_NIL) then
             moved = skip_chars_backward(" "//TAB, status)
-            continued = sh_smie_looking_back_at_continuation_p()
+            continued = is_sh_smie_looking_back_at_continuation()
             call goto_char(here)
             status = status_type()
         end if
@@ -2663,7 +2663,7 @@ contains
             moved = forward_line(-1_int64)
             indent%kind = SMIE_INDENT_COLUMN
 
-            if (sh_smie_looking_back_at_continuation_p()) then
+            if (is_sh_smie_looking_back_at_continuation()) then
                 indent%column = int(current_indentation())
             else
                 indent%column = int(current_indentation()) + sh_var_value(sh_indent_for_continuation)
@@ -2690,7 +2690,7 @@ contains
             if (ci < indent%column) then
                 ! Previous line is less indented, we're good.
                 exit
-            else if (sh_smie_looking_back_at_continuation_p()) then
+            else if (is_sh_smie_looking_back_at_continuation()) then
                 max_ci = min(max_ci, ci)
                 ! Previous line is itself a continuation.
                 ! If it's indented like us, we're good, otherwise
@@ -2762,12 +2762,12 @@ contains
                 call smie_backward_expression(data, status, token=arg)
 
                 if (status%ok()) then
-                    bol = smie_rule_bolp()
+                    bol = is_smie_rule_bol()
 
                     if (.not. bol) then
                         here = point()
                         call smie_backward_token(tok, status)
-                        if (is(tok, "in") .or. is(tok, ";;")) bol = smie_rule_bolp()
+                        if (is(tok, "in") .or. is(tok, ";;")) bol = is_smie_rule_bol()
                         call goto_char(here)
                     end if
 
@@ -2789,7 +2789,7 @@ contains
             case ("if")
                 result = offset_result(sh_var_value(sh_indent_after_if))
             case ("do")
-                if (smie_rule_hanging_p(status)) then
+                if (is_smie_rule_hanging(status)) then
                     result = offset_result(sh_var_value(sh_indent_after_loop_construct))
                 else
                     result = offset_result(sh_var_value(sh_indent_after_do))
@@ -2808,17 +2808,17 @@ contains
         case (SMIE_BEFORE)
             select case (arg)
             case ("(", "{", "[", "while", "if", "for", "case")
-                if (arg == "{" .and. smie_rule_parent_p([character(len=4) :: "for", "case"], status)) then
+                if (arg == "{" .and. is_smie_rule_parent([character(len=4) :: "for", "case"], status)) then
                     call smie_backward_expression(data, status, token="in")
 
                     if (is(data%token, "for") .or. is(data%token, "case")) then
                         v = smie_indent_virtual(status)
                         result = column_result(v)
                     end if
-                else if (.not. smie_rule_prev_p([character(len=2) :: "&&", "||", "|"], status)) then
-                    if (smie_rule_hanging_p(status)) result = smie_rule_parent(status)
+                else if (.not. is_smie_rule_prev([character(len=2) :: "&&", "||", "|"], status)) then
+                    if (is_smie_rule_hanging(status)) result = smie_rule_parent(status)
                 else
-                    if (.not. smie_rule_bolp()) then
+                    if (.not. is_smie_rule_bol()) then
                         do
                             call smie_backward_expression(data, status, halfexpression=.true.)
                             if (.not. is(data%token, "|")) exit
@@ -2831,14 +2831,14 @@ contains
                 ! FIXME: Maybe this handling of ;; should be made into
                 ! a smie-rule-terminator function that takes the substitute ";" as arg.
             case (";;", ";&", ";;&", ";|")
-                if (smie_rule_bolp() .and. looking_at(";\(?:;&?\|[&|]\)?[ "//TAB//"]*\(#\|$\)", status)) then
+                if (is_smie_rule_bol() .and. looking_at(";\(?:;&?\|[&|]\)?[ "//TAB//"]*\(#\|$\)", status)) then
                     call smie_indent_keyword(v, status, ";")
                     result = column_result(v)
                 else
                     result = smie_rule_separator(method, status)
                 end if
             case ("|", "&&", "||")
-                if (.not. smie_rule_parent_p([arg], status)) then
+                if (.not. is_smie_rule_parent([arg], status)) then
                     if (arg /= "&&" .or. sh_indent_statement_after_and) then
                         call smie_backward_expression(data, status, token=arg)
                         v = smie_indent_virtual(status)
@@ -2889,7 +2889,7 @@ contains
     ! Return non-nil if a newline should be treated as a semi-colon.
     ! Point should be before the newline.  Port of
     ! sh-script.el:sh-smie--rc-newline-semi-p.
-    recursive logical function sh_smie_rc_newline_semi_p() result(semi)
+    recursive logical function is_sh_smie_rc_newline_semi() result(semi)
         character(len=:), allocatable :: tok, construct
         type(status_type) :: st
         integer(int64) :: here
@@ -2910,11 +2910,11 @@ contains
             call sh_smie_rc_after_special_arg_p(construct)
             semi = .not. allocated(construct)
         else
-            semi = sh_smie_newline_semi_p(tok)
+            semi = is_sh_smie_newline_semi(tok)
         end if
 
         call goto_char(here)
-    end function sh_smie_rc_newline_semi_p
+    end function is_sh_smie_rc_newline_semi
 
     ! (forward-word-strictly 1).  Not a port.
     subroutine forward_word_strictly()
@@ -2939,7 +2939,7 @@ contains
             me1 = match_end(1, status)
             here = point()
             moved = skip_chars_backward(" "//TAB, status)
-            hanging = .not. bolp()
+            hanging = .not. is_bol()
             call goto_char(here)
         end if
 
@@ -2959,10 +2959,10 @@ contains
                 ! semi-colon", since the here-doc otherwise covers the newline(s).
                 token = ";"
             else
-                semi = sh_smie_rc_newline_semi_p()
+                semi = is_sh_smie_rc_newline_semi()
                 moved = forward_line(1_int64)
 
-                if (semi .or. eobp()) then
+                if (semi .or. is_eob()) then
                     token = ";"
                 else
                     call sh_smie_rc_forward_token(token, status)
@@ -2985,7 +2985,7 @@ contains
             if (starts_lower(tok) .and. in_grammar(tok)) then
                 here = point()
                 call goto_char(pos)
-                ok = sh_smie_keyword_p()
+                ok = is_sh_smie_keyword()
                 call goto_char(here)
 
                 if (ok) then
@@ -3015,7 +3015,7 @@ contains
         ok = forward_comment(-point())
         fence = .false.
 
-        if (bolp() .and. .not. bobp()) then
+        if (is_bol() .and. .not. is_bob()) then
             if (after_fence()) then
                 state = ppss()
                 fence = state%instring == -1
@@ -3031,11 +3031,11 @@ contains
             token = ";"
         else if (point() < bol) then
             ! We skipped over a newline.
-            if (eolp() .and. looking_back("\(?:^\|[^\]\)\(?:\\\\\)*\\", status, line_beginning_position())) then
+            if (is_eol() .and. looking_back("\(?:^\|[^\]\)\(?:\\\\\)*\\", status, line_beginning_position())) then
                 ! A continued line.
                 call forward_char(status, -1_int64)
                 call smie_backward_token(token, status)
-            else if (sh_smie_rc_newline_semi_p()) then
+            else if (is_sh_smie_rc_newline_semi()) then
                 token = ";"
             else
                 call smie_backward_token(token, status)
@@ -3046,7 +3046,7 @@ contains
 
             if (starts_lower(tok) .and. in_grammar(tok)) then
                 here = point()
-                ok = sh_smie_keyword_p()
+                ok = is_sh_smie_keyword()
                 call goto_char(here)
 
                 if (ok) then
@@ -3078,7 +3078,7 @@ contains
             if (arg == "basic") result = offset_result(int(sh_basic_offset%value))
         case (SMIE_AFTER)
             if (arg == ";") then
-                if (smie_rule_parent_p([character(len=4) :: "case"], status)) then
+                if (is_smie_rule_parent([character(len=4) :: "case"], status)) then
                     result = smie_rule_parent(status, sh_var_value(sh_indent_after_case))
                 end if
             end if
@@ -3090,7 +3090,7 @@ contains
                 if (allocated(construct)) result = column_at(current_column())
                 call goto_char(here)
             case ("(", "[")
-                if (smie_rule_hanging_p(status)) result = smie_rule_parent(status)
+                if (is_smie_rule_hanging(status)) result = smie_rule_parent(status)
             case default
             end select
         case (SMIE_LIST_INTRO)
@@ -3161,14 +3161,14 @@ contains
         n = 0
 
         do i = 1, size(sh_smie_sh_grammar%tokens)
-            if (operator_p(sh_smie_sh_grammar%tokens(i)%s)) n = n + 1
+            if (is_operator(sh_smie_sh_grammar%tokens(i)%s)) n = n + 1
         end do
 
         allocate (character(len=3) :: ops(n))
         n = 0
 
         do i = 1, size(sh_smie_sh_grammar%tokens)
-            if (operator_p(sh_smie_sh_grammar%tokens(i)%s)) then
+            if (is_operator(sh_smie_sh_grammar%tokens(i)%s)) then
                 n = n + 1
                 ops(n) = sh_smie_sh_grammar%tokens(i)%s
             end if
@@ -3210,25 +3210,25 @@ contains
 
     contains
 
-        logical function operator_p(tok)
+        logical function is_operator(tok)
             character(len=*), intent(in) :: tok
 
-            operator_p = .true.
-            if (len(tok) > 0) operator_p = .not. (tok(1:1) >= "a" .and. tok(1:1) <= "z")
-        end function operator_p
+            is_operator = .true.
+            if (len(tok) > 0) is_operator = .not. (tok(1:1) >= "a" .and. tok(1:1) <= "z")
+        end function is_operator
     end subroutine init_grammars
 
     ! The around advice sh puts on smie--hanging-eolp-function.  Not a port.
-    recursive logical function sh_hanging_eolp() result(eol)
+    recursive logical function is_sh_hanging_eol() result(eol)
         type(status_type) :: st
 
         if (looking_at("[ "//TAB//"]*\\"//LF, st)) then
             call goto_char(match_end(0, st))
             eol = .true.
         else
-            eol = smie_default_hanging_eolp()
+            eol = is_smie_default_hanging_eol()
         end if
-    end function sh_hanging_eolp
+    end function is_sh_hanging_eol
 
     ! ------------------------------------------------------------------
     ! The modes
@@ -3488,7 +3488,7 @@ contains
         if (allocated(supported)) then
             locals(k)%indent_supported = supported
             call message("Setting up indent for shell type "//sh_shell%value)
-            call smie_set_hanging_eolp_function(sh_hanging_eolp)
+            call smie_set_is_hanging_eol_function(is_sh_hanging_eol)
             call smie_indent_functions%add(sh_smie_indent_continuation, local=.true.)
 
             if (supported == "rc") then
@@ -3623,10 +3623,10 @@ contains
 
         do
             call beginning_of_line()
-            if (bobp()) exit
+            if (is_bob()) exit
             moved = forward_line(-1_int64)
             call back_to_indentation()
-            if (.not. (eolp() .or. ca(point()) == iachar("#"))) exit
+            if (.not. (is_eol() .or. ca(point()) == iachar("#"))) exit
         end do
 
         previous = current_column()
@@ -3646,7 +3646,7 @@ contains
             current = current_column()
 
             if (here < current) then
-                if (eolp()) then
+                if (is_eol()) then
                     col = previous
                 else
                     col = 0
@@ -3660,7 +3660,7 @@ contains
                     return
                 end if
 
-                if (eolp()) then
+                if (is_eol()) then
                     col = max(previous, (1 + current/sh_basic_offset%value)*sh_basic_offset%value)
                 else
                     col = (1 + current/sh_basic_offset%value)*sh_basic_offset%value
@@ -3821,14 +3821,14 @@ contains
 
     !> Is point preceded by an odd number of backslashes?  Port of
     !> sh-script.el:sh-quoted-p.
-    logical function sh_quoted_p()
+    logical function is_sh_quoted()
         type(status_type) :: st
         integer(int64) :: here
 
         here = point()
-        sh_quoted_p = mod(skip_chars_backward("\\", st), 2_int64) == -1
+        is_sh_quoted = mod(skip_chars_backward("\\", st), 2_int64) == -1
         call goto_char(here)
-    end function sh_quoted_p
+    end function is_sh_quoted
 
     ! The variables `sh_make_vars_local' and
     ! `sh_reset_indent_vars_to_global_values' handle (sh-var-list).
@@ -4055,7 +4055,7 @@ contains
         if (.not. looking_back("[^<]<<[ E-]", status, line_beginning_position())) return
         here = point()
         call goto_char(here - 2)
-        ok = .not. (sh_quoted_p() .or. sh_inside_noncommand_expression(point()))
+        ok = .not. (is_sh_quoted() .or. sh_inside_noncommand_expression(point()))
         call goto_char(here)
         if (.not. ok) return
         state = ppss()
@@ -4081,10 +4081,10 @@ contains
         if (preceding_char() /= iachar("-")) call delete_char(-1_int64, status)
         if (.not. status%ok()) return
         call insert(sh_here_document_word, status)
-        if (.not. (eolp() .or. looking_at("[ "//TAB//"]", status))) call insert(" ", status)
+        if (.not. (is_eol() .or. looking_at("[ "//TAB//"]", status))) call insert(" ", status)
         call end_of_line(1_int64)
 
-        do while (sh_quoted_p())
+        do while (is_sh_quoted())
             call end_of_line(2_int64)
         end do
 
@@ -4208,7 +4208,7 @@ contains
         ! Don't modify blank lines at start of region.
         call goto_char(from)
 
-        do while (point() < mpos(endmark) .and. eolp())
+        do while (point() < mpos(endmark) .and. is_eol())
             moved = forward_line(1_int64)
         end do
 
@@ -4290,7 +4290,7 @@ contains
 
         status = status_type()
         call end_of_line()
-        if (bolp()) return
+        if (is_bol()) return
         call forward_char(status, -1_int64)
 
         if (looking_at("\\", status)) then
@@ -4365,7 +4365,7 @@ contains
         status = status_type()
         k = local_index(.true.)
 
-        if (process_live_p(locals(k)%process)) then
+        if (is_process_live(locals(k)%process)) then
             proc = locals(k)%process
             return
         end if
@@ -4374,7 +4374,7 @@ contains
         procs = process_list()
 
         do i = 1, size(procs)
-            if (.not. process_live_p(procs(i))) exit
+            if (.not. is_process_live(procs(i))) exit
             call process_command(procs(i), command)
             if (size(command) == 0) exit
 
@@ -4458,7 +4458,7 @@ contains
         integer(int64) :: from, to, end
         character(len=:), allocatable :: text
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(from, status)
             if (status%ok()) call region_end(to, status)
             if (.not. status%ok()) return
@@ -4645,7 +4645,7 @@ contains
             data%start = start
             data%end = end
             data%table%list = sh_vars_before_point()
-        else if (sh_smie_keyword_p()) then
+        else if (is_sh_smie_keyword()) then
             data%found = .true.
             data%start = start
             data%end = end
@@ -4709,7 +4709,7 @@ contains
             ok = .true.
 
             if (confirm) then
-                call y_or_n_p("This style exists.  Overwrite it? ", ok, status)
+                call read_y_or_n("This style exists.  Overwrite it? ", ok, status)
                 if (.not. status%ok()) return
             end if
 

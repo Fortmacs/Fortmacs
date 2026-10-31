@@ -38,19 +38,19 @@ submodule(indent_fm) indent_cmds_fm
     use data_fm, only: value_eq, default_value, add_local_variables_killer
     use lisp_fm, only: value_type, symbolp, xsymbol, symbols, t_value
     use marker_fm, only: copy_marker_at, marker_position, free_marker
-    use editfns_fm, only: interactive_region, point_min, point_max, bobp, eobp, bolp, eolp, delete_region, buffer_substring, &
+  use editfns_fm, only: interactive_region, point_min, point_max, is_bob, is_eob, is_bol, is_eol, delete_region, buffer_substring, &
                           char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
                           preceding_char, following_char
     use insdel_fm, only: insert
     use cmds_fm, only: forward_line, beginning_of_line
     use textprop_fm, only: get_text_property
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, char_syntax
-    use abbrev_fm, only: abbrev_mode_p, expand_abbrev
+    use abbrev_fm, only: is_abbrev_mode, expand_abbrev
     use search_fm, only: looking_at, re_search_backward, re_search_forward, regexp_quote, SEARCH_NOERROR
     use keymap_fm, only: make_sparse_keymap, keymap_set_key => define_key, key_parse
     use keyboard_fm, only: this_command, last_command, set_transient_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, funcall
-    use simple_fm, only: fill_prefix, use_region_p, delete_horizontal_space, back_to_indentation, deactivate_mark
+    use simple_fm, only: fill_prefix, is_use_region, delete_horizontal_space, back_to_indentation, deactivate_mark
     use keymap_fm, only: overriding_terminal_local_map
     use buffer_fm, only: UE_BOUNDARY
     use buffer_fm, only: barf_if_buffer_read_only, deactivate_mark_variable, left_margin
@@ -165,7 +165,7 @@ contains
         opoint = point()
         call beginning_of_line()
 
-        if (bobp()) then
+        if (is_bob()) then
             column = 0
         else
             call beginning_of_line(0_int64)
@@ -224,7 +224,7 @@ contains
         to_left_margin = associated(indent_line_function%value, p)
     end if
 
-    if (use_region_p()) then
+    if (is_use_region()) then
         ! The region is active, indent it.
         call region_beginning(b, status)
         call region_end(e, status)
@@ -302,7 +302,7 @@ contains
     count = prefix_numeric_value(arg)
     status = status_type()
 
-    if (abbrev_mode_p()) then
+    if (is_abbrev_mode()) then
         if (char_syntax(int(preceding_char())) == "w") call expand_abbrev(status)
         if (.not. status%ok()) return
     end if
@@ -352,7 +352,7 @@ contains
     call copy_marker_at(point(), opoint_marker, .false., st)
     call copy_marker_at(end, end_marker, .false., st)
     call goto_char(start)
-    if (.not. bolp()) shortage = forward_line(1_int64)
+    if (.not. is_bol()) shortage = forward_line(1_int64)
 
     do
         call marker_position(end_marker, endpos, st)
@@ -360,7 +360,7 @@ contains
         indent = current_indentation()
         from = point()
         moved = skip_chars_forward(" "//TAB, st)
-        eol_flag = eolp()
+        eol_flag = is_eol()
         call goto_char(from)
         if (.not. eol_flag) col = indent_to(max(0_int64, indent + arg), status, 0_int64)
         if (.not. status%ok()) exit
@@ -442,7 +442,7 @@ contains
     opoint = point()
     call back_to_indentation()
     pos = point()
-    if (eobp() .and. .not. bobp()) pos = pos - 1
+    if (is_eob() .and. .not. is_bob()) pos = pos - 1
     call get_text_property(pos, sym("left_margin"), v, st)
     current_left_margin = left_margin%value
     if (fixnump(v)) current_left_margin = left_margin%value + xfixnum(v)
@@ -461,7 +461,7 @@ contains
     call beginning_of_line(n)
     moved = skip_chars_forward(" "//TAB, st)
 
-    if (minibuf_level > 0 .and. buffers(cur)%begv /= 0 .and. is_minibuffer()) then
+    if (minibuf_level > 0 .and. buffers(cur)%begv /= 0 .and. current_buffer_is_minibuffer()) then
         if (pos_bol() == point_min()) then
             call goto_char(minibuffer_prompt_end())
         else
@@ -483,10 +483,10 @@ contains
     end if
     end procedure move_to_left_margin
 
-    ! (minibufferp): the current buffer is a minibuffer.  Not a port.
-    logical function is_minibuffer()
-        is_minibuffer = minibuffer_prompt_end() > point_min()
-    end function is_minibuffer
+    ! (is_minibuffer): the current buffer is a minibuffer.  Not a port.
+    logical function current_buffer_is_minibuffer()
+        current_buffer_is_minibuffer = minibuffer_prompt_end() > point_min()
+    end function current_buffer_is_minibuffer
 
     module procedure indent_to_left_margin
     integer(int64) :: moved, opoint
@@ -498,7 +498,7 @@ contains
     opoint = point()
     moved = skip_chars_backward(" "//TAB, st)
 
-    if (bolp()) then
+    if (is_bol()) then
         moved = skip_chars_forward(" "//TAB, st)
     else
         call goto_char(opoint)
@@ -525,7 +525,7 @@ contains
         call goto_char(point_min())
     end if
 
-    if (.not. bolp()) shortage = forward_line(1_int64)
+    if (.not. is_bol()) shortage = forward_line(1_int64)
 
     do
         call marker_position(to_marker, endpos, st)
@@ -591,7 +591,7 @@ contains
         call copy_marker_at(point(), opoint_marker, .false., st)
         call copy_marker_at(end, end_marker, .false., st)
         call goto_char(start)
-        if (.not. bolp()) shortage = forward_line(1_int64)
+        if (.not. is_bol()) shortage = forward_line(1_int64)
 
         do
             call marker_position(end_marker, endpos, st)
@@ -600,7 +600,7 @@ contains
             moved = skip_chars_forward(" "//TAB, st)
             call delete_region(from, point(), status)
             if (.not. status%ok()) exit
-            if (.not. eolp()) col = indent_to(column, status, 0_int64)
+            if (.not. is_eol()) col = indent_to(column, status, 0_int64)
             if (.not. status%ok()) exit
             shortage = forward_line(1_int64)
         end do
@@ -621,7 +621,7 @@ contains
             call marker_position(end_marker, endpos, st)
             if (point() >= endpos) exit
 
-            if (.not. looking_at(regexp, st) .and. .not. (bolp() .and. eolp())) then
+            if (.not. looking_at(regexp, st) .and. .not. (is_bol() .and. is_eol())) then
                 call insert(fill_prefix%value, status)
                 if (.not. status%ok()) exit
             end if
@@ -666,7 +666,7 @@ contains
     call copy_marker_at(point(), opoint_marker, .false., st)
     call copy_marker_at(end, end_marker, .false., st)
     call goto_char(start)
-    report = .not. is_minibuffer()
+    report = .not. current_buffer_is_minibuffer()
 
     if (report) then
         call marker_position(end_marker, endpos, st)
@@ -677,7 +677,7 @@ contains
         call marker_position(end_marker, endpos, st)
         if (point() >= endpos) exit
 
-        if (.not. (bolp() .and. eolp())) then
+        if (.not. (is_bol() .and. is_eol())) then
             call indent_according_to_mode(status, .true.)
             if (.not. status%ok()) exit
         end if
@@ -710,7 +710,7 @@ contains
     unindented = .false.
     if (present(unindented_ok)) unindented = unindented_ok
 
-    if (abbrev_mode_p()) then
+    if (is_abbrev_mode()) then
         if (char_syntax(int(preceding_char())) == "w") call expand_abbrev(status)
         if (.not. status%ok()) return
     end if
@@ -829,7 +829,7 @@ contains
 
     status = status_type()
 
-    if (abbrev_mode_p()) then
+    if (is_abbrev_mode()) then
         if (char_syntax(int(preceding_char())) == "w") call expand_abbrev(status)
         if (.not. status%ok()) return
     end if

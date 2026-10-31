@@ -50,7 +50,7 @@ module chartab_fm
     implicit none(type, external)
     private
 
-    public :: make_char_table, free_char_table, char_table_p, char_table_subtype, char_table_parent, &
+    public :: make_char_table, free_char_table, is_char_table, char_table_subtype, char_table_parent, &
               set_char_table_parent, char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, &
               set_char_table_extra_table, char_table_range, &
               set_char_table_range, char_table_ref, char_table_set, char_table_set_range, char_table_ref_and_range, &
@@ -153,16 +153,16 @@ contains
         type(status_type), intent(out) :: status
 
         call registry%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "char_table_p")
+        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_char_table")
     end subroutine check_char_table
 
     !> Return true if OBJECT is a char-table.  Not a port (data.c
     !> char-table-p: a live handle).
-    pure logical function char_table_p(object)
+    pure logical function is_char_table(object)
         type(handle_type), intent(in) :: object
 
-        char_table_p = registry%is_live(object)
-    end function char_table_p
+        is_char_table = registry%is_live(object)
+    end function is_char_table
 
     !> Free char-table H.  Not a port: upstream relies on GC.
     subroutine free_char_table(h, status)

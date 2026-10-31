@@ -27,7 +27,7 @@ module test_buff_menu_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, current_buffer, set_buffer, kill_buffer, get_buffer_create, get_buffer, &
-                         buffer_live_p, rename_buffer, restore_buffer_modified_p
+                         is_buffer_live, rename_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point_min, pos_bol, pos_eol, buffer_substring
     use cmds_fm, only: beginning_of_line
@@ -125,7 +125,7 @@ contains
             if (.not. allocated(error)) call check(error, buffers(b%index)%name == " foo", buffers(b%index)%name)
         end if
 
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
         call delete_file(file, st)
         call set_buffer(old, st)
     end subroutine test_24962
@@ -171,7 +171,7 @@ contains
         end if
 
         call set_buffer(a, st)
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call kill_buffer(a, st)
         call kill_buffer(internal, st)
         call kill_buffer(list, st)
@@ -256,15 +256,15 @@ contains
             call check(error, st%ok(), format_error(st))
         end if
 
-        if (.not. allocated(error)) call check(error,.not. buffer_live_p(a), "bm-gamma not killed")
-        if (.not. allocated(error)) call check(error, buffer_live_p(b), "bm-delta killed")
+        if (.not. allocated(error)) call check(error,.not. is_buffer_live(a), "bm-gamma not killed")
+        if (.not. allocated(error)) call check(error, is_buffer_live(b), "bm-delta killed")
 
         if (.not. allocated(error)) then
             call goto_entry("bm-gamma", found)
             call check(error,.not. found, "bm-gamma still listed")
         end if
 
-        if (buffer_live_p(a)) call kill_buffer(a, st)
+        if (is_buffer_live(a)) call kill_buffer(a, st)
         call kill_buffer(b, st)
         call kill_buffer(list, st)
         call set_buffer(old, st)

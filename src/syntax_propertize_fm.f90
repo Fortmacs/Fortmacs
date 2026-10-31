@@ -48,14 +48,14 @@ module syntax_propertize_fm
     use insdel_fm, only: before_change_functions
     use textprop_fm, only: get_text_property, put_text_property, remove_text_properties, &
                            previous_single_property_change, text_property_any
-    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_table, set_syntax_table, syntax_table_live_p, &
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_table, set_syntax_table, is_syntax_table_live, &
                          string_to_syntax, syntax_descriptor_type, syntax_descriptor_value, syntax_propertize__done, &
                          parse_expression_lookup_properties, internal_syntax_propertize, syntax_ppss_function
     use search_fm, only: re_search_forward, string_match, match_beginning, match_end, match_data, set_match_data, &
                          string_index_to_offset, SEARCH_NOERROR
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, &
-                       subregexp_context_p
-    use editfns_fm, only: point, goto_char, point_min, point_max, bolp, line_beginning_position, &
+                       is_subregexp_context
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bol, line_beginning_position, &
                           inhibit_field_text_motion
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use xdisp_fm, only: message
@@ -65,7 +65,7 @@ module syntax_propertize_fm
 
     public :: syntax_propertize, internal_syntax_propertize_function, syntax_ppss_cached, syntax_ppss_flush_cache, &
               syntax_propertize_wholelines, syntax_propertize_multiline, syntax_propertize_shift_groups_and_backrefs, &
-              syntax_propertize_in_process_p, syntax_ppss_depth, syntax_ppss_toplevel_pos, syntax_ppss_context, &
+              is_syntax_propertize_in_process, syntax_ppss_depth, syntax_ppss_toplevel_pos, syntax_ppss_context, &
               syms_of_syntax_propertize
 
     !> What `syntax_ppss_context' returns: neither, a string, a comment.
@@ -482,7 +482,7 @@ contains
         call ppss_table_get(h, found)
 
         if (found) then
-            if (syntax_table_live_p(h)) return
+            if (is_syntax_table_live(h)) return
         end if
 
         h = syntax_table()
@@ -532,10 +532,10 @@ contains
         inhibit_field_text_motion = .true.
         call goto_char(beg)
         new_beg = beg
-        if (.not. bolp()) new_beg = syntax_lbp()
+        if (.not. is_bol()) new_beg = syntax_lbp()
         call goto_char(end)
         new_end = end
-        if (.not. bolp()) new_end = syntax_lbp(2_int64)
+        if (.not. is_bol()) new_end = syntax_lbp(2_int64)
         inhibit_field_text_motion = saved
     end subroutine syntax_propertize_wholelines
 
@@ -621,7 +621,7 @@ contains
             pos = 1 + mb
             ! With \N, the \ must be in a subregexp context, i.e.,
             ! not in a character class or in a \{\} repetition.
-            context = subregexp_context_p(new_re, mb0, status)
+            context = is_subregexp_context(new_re, mb0, status)
             if (.not. status%ok()) return
 
             if (context) then
@@ -900,9 +900,9 @@ contains
     !> It's also used so that `syntax_ppss_flush_cache' can be used from within
     !> `syntax_propertize' without ruining the `syntax_table' already set.
     !> Port of syntax.el:syntax-propertize--in-process-p.
-    logical function syntax_propertize_in_process_p()
-        syntax_propertize_in_process_p = syntax_propertize__done%value == MOST_POSITIVE_FIXNUM
-    end function syntax_propertize_in_process_p
+    logical function is_syntax_propertize_in_process()
+        is_syntax_propertize_in_process = syntax_propertize__done%value == MOST_POSITIVE_FIXNUM
+    end function is_syntax_propertize_in_process
 
     !> Ensure that syntax-table properties are set until POS (a buffer point).
     !> Port of syntax.el:syntax-propertize.
@@ -1108,7 +1108,7 @@ contains
         if (cur == 0) return
 
         ! Set syntax-propertize to refontify anything past beg.
-        if (.not. syntax_propertize_in_process_p()) then
+        if (.not. is_syntax_propertize_in_process()) then
             call syntax_propertize__done%set_local(min(beg, syntax_propertize__done%value))
         end if
 

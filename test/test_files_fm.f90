@@ -36,8 +36,8 @@ module test_files_fm
                          current_buffer, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, buffer_string, goto_char, point_max
-    use keyboard_fm, only: unread_command_events, discard_input, last_message, exit_requested_p
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists_p, &
+    use keyboard_fm, only: unread_command_events, discard_input, last_message, is_exit_requested
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, &
                          file_modes, set_file_modes, write_region, make_directory_internal, &
                          delete_file_internal, delete_directory_internal
     use files_fm, only: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, &
@@ -45,8 +45,8 @@ module test_files_fm
                         normal_backup_enable_predicate, save_some_buffers, &
                         save_buffers_kill_emacs, temporary_file_directory, make_directory, require_final_newline, &
                         FINAL_NEWLINE_NEVER, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired
-    use subr_fm, only: y_or_n_p
-    use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK, YNP_ACT
+    use subr_fm, only: read_y_or_n
+    use map_ynp_fm, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
     use emacs_fm, only: command_line_1, arg_type
     use sysdep_fm, only: sys_setenv, sys_unsetenv
     implicit none(type, external)
@@ -56,7 +56,7 @@ module test_files_fm
 
     character(len=*), parameter :: testdir = "build/test-files"
 
-    !> Objects acted on by the map_y_or_n_p test.
+    !> Objects acted on by the map_read_y_or_n test.
     logical :: acted(5)
 
 contains
@@ -89,7 +89,7 @@ contains
                     new_unittest("save-buffer-no-file", test_save_no_file), &
                     new_unittest("backup-predicate", test_backup_predicate), &
                     new_unittest("temporary-file-directory", test_temporary_file_directory), &
-                    new_unittest("y-or-n-p", test_y_or_n_p), &
+                    new_unittest("y-or-n-p", test_read_y_or_n), &
                     new_unittest("map-y-or-n-p", test_map_ynp), &
                     new_unittest("save-some-buffers", test_save_some_buffers), &
                     new_unittest("save-buffers-kill-emacs", test_kill_emacs), &
@@ -292,7 +292,7 @@ contains
         ! Saving an empty new buffer creates the file.
         call set_buffer(buf, st)
         call save_buffer(1_int64, .true., st)
-        call check(error, st%ok() .and. file_exists_p(path("new")), format_error(st))
+        call check(error, st%ok() .and. file_exists(path("new")), format_error(st))
         if (allocated(error)) return
         call check(error, last_message == "Wrote "//path("new"), last_message)
         call kill_buffer(buf, st)
@@ -392,7 +392,7 @@ contains
             call save_buffer(1_int64, .true., st)
             call check(error, st%ok() .and. last_message == "(No changes need to be saved)", last_message)
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(path("a.txt~")), "no backup")
+            call check(error,.not. file_exists(path("a.txt~")), "no backup")
             if (allocated(error)) exit body
             ! A visited file deleted behind Emacs's back is saved again.
             call delete_file_internal(path("a.txt"), st)
@@ -480,28 +480,28 @@ contains
         end do
     end subroutine test_temporary_file_directory
 
-    subroutine test_y_or_n_p(error)
+    subroutine test_read_y_or_n(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: answer
 
         call discard_input()
         call type_keys("y")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%ok() .and. answer .and. last_message == "Go? (y or n) y", last_message)
         if (allocated(error)) return
         call type_keys(achar(127))
-        call y_or_n_p("Go? ", answer, st)
+        call read_y_or_n("Go? ", answer, st)
         call check(error, st%ok() .and. .not. answer .and. last_message == "Go? (y or n) n", last_message)
         if (allocated(error)) return
         call type_keys(achar(7))
-        call y_or_n_p("Go? ", answer, st)
+        call read_y_or_n("Go? ", answer, st)
         call check(error, st%code == FM_QUIT)
         if (allocated(error)) return
         ! End of input reads as quit.
-        call y_or_n_p("Go? ", answer, st)
+        call read_y_or_n("Go? ", answer, st)
         call check(error, st%code == FM_QUIT)
-    end subroutine test_y_or_n_p
+    end subroutine test_read_y_or_n
 
     subroutine ask_all(k, how, prompt)
         integer, intent(in) :: k
@@ -532,7 +532,7 @@ contains
         ! y on 1, (2 skipped by the prompter), n on 3, ! for 4 and 5
         acted = .false.
         call type_keys("yn!")
-        call map_y_or_n_p(5, ask_all, act, actions, st)
+        call map_read_y_or_n(5, ask_all, act, actions, st)
         call check(error, st%ok() .and. actions == 3, "three acted on")
         if (allocated(error)) return
         call check(error, all(acted .eqv. [.true., .false., .false., .true., .true.]))
@@ -540,12 +540,12 @@ contains
         ! "." acts and stops; q stops without acting.
         acted = .false.
         call type_keys(".")
-        call map_y_or_n_p(5, ask_all, act, actions, st)
+        call map_read_y_or_n(5, ask_all, act, actions, st)
         call check(error, actions == 1 .and. acted(1) .and. .not. any(acted(2:)))
         if (allocated(error)) return
         acted = .false.
         call type_keys("nq")
-        call map_y_or_n_p(5, ask_all, act, actions, st)
+        call map_read_y_or_n(5, ask_all, act, actions, st)
         call check(error, actions == 0 .and. .not. any(acted))
         if (allocated(error)) return
         ! The echo area is restored.
@@ -554,11 +554,11 @@ contains
         ! Other keys say how to get help; the question stays.
         acted = .false.
         call type_keys("xy.")
-        call map_y_or_n_p(5, ask_all, act, actions, st)
+        call map_read_y_or_n(5, ask_all, act, actions, st)
         call check(error, st%ok() .and. actions == 2 .and. acted(1) .and. acted(3), "x is not an answer")
         if (allocated(error)) return
         call type_keys(achar(7))
-        call map_y_or_n_p(5, ask_all, act, actions, st)
+        call map_read_y_or_n(5, ask_all, act, actions, st)
         call check(error, st%code == FM_QUIT)
     end subroutine test_map_ynp
 
@@ -579,7 +579,7 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             ! Text mode (from the file name) sets require-final-newline.
-            call check(error, slurp(path("b.txt")) == "bee"//achar(10) .and. .not. file_exists_p(path("c.txt")))
+            call check(error, slurp(path("b.txt")) == "bee"//achar(10) .and. .not. file_exists(path("c.txt")))
             if (allocated(error)) exit body
             ! With ARG, save all without asking.
             call save_some_buffers(.true., .true., st)
@@ -600,7 +600,7 @@ contains
         body: block
             call setup()
             call save_buffers_kill_emacs(.false., st)
-            call check(error, st%ok() .and. exit_requested_p(), "nothing to save: exit")
+            call check(error, st%ok() .and. is_exit_requested(), "nothing to save: exit")
             if (allocated(error)) exit body
             call find_file(path("b.txt"), st)
             call insert("bee", st)
@@ -608,12 +608,12 @@ contains
             call reset_exit()
             call type_keys("nno"//achar(13))
             call save_buffers_kill_emacs(.false., st)
-            call check(error, st%ok() .and. .not. exit_requested_p(), "stayed")
+            call check(error, st%ok() .and. .not. is_exit_requested(), "stayed")
             if (allocated(error)) exit body
             ! Save it: then exit without further questions.
             call type_keys("y")
             call save_buffers_kill_emacs(.false., st)
-            call check(error, st%ok() .and. exit_requested_p() .and. slurp(path("b.txt")) == "bee"//achar(10))
+            call check(error, st%ok() .and. is_exit_requested() .and. slurp(path("b.txt")) == "bee"//achar(10))
         end block body
 
         call kill_file_buffers()

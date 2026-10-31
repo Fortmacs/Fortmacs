@@ -63,8 +63,8 @@ module xfaces_fm
                         FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, FACE_STYLE_DOTS, &
                         FACE_STYLE_DASHES, FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
-    use frame_fm, only: frame_type, selected_frame, frame_window_p
-    use term_fm, only: tty_capable_p
+    use frame_fm, only: frame_type, selected_frame
+    use term_fm, only: is_tty_capable
     use tty_colors_fm, only: tty_color_desc, tty_color_assoc, tty_color_standard_values, &
                              tty_defined_color_count, clear_face_cache_hook
     use buffer_fm, only: buffers, cur, set_buffer_internal
@@ -76,8 +76,8 @@ module xfaces_fm
     private
 
     public :: realize_basic_faces, recompute_basic_faces, clear_face_cache, lookup_face, lookup_named_face, &
-              merge_faces, face_at_buffer_position, face_at_string_position, merge_face_ref, tty_supports_face_attributes_p, &
-              init_frame_faces, frame_background_mode, face_differs_from_default_p
+              merge_faces, face_at_buffer_position, face_at_string_position, merge_face_ref, is_tty_supports_face_attributes, &
+              init_frame_faces, frame_background_mode, is_face_differs_from_default
 
     !> Suppress/allow boldness of faces with inverse default colors.
     !> If true, bold faces on terminals whose foreground is the default
@@ -169,7 +169,7 @@ contains
         character(len=*), intent(in) :: term_type
         integer :: class
 
-        display_supports_face_attributes_p => tty_supports_face_attributes_p
+        display_supports_face_attributes_p => is_tty_supports_face_attributes
         clear_face_cache_hook => clear_face_cache
         ! display-color-p: tty-display-color-p.
         class = FACE_CLASS_MONO
@@ -290,7 +290,7 @@ contains
         ! xfaces.c:realize_gui_face (font_load_for_lface); its other parts
         ! (colors, box, overline, stipple) are Deferred with the GUI, so
         ! the face is otherwise realized as on a terminal.
-        if (frame_window_p(f)) then
+        if (associated(f%rif)) then
             if (associated(f%font_driver)) f%faces(k)%font = f%font_driver%load_for_lface(attrs)
         end if
 
@@ -1240,7 +1240,7 @@ contains
     !> close in spirit to what the attributes specify.  Port of
     !> xfaces.c:tty_supports_face_attributes_p (with the terminal part of
     !> Fdisplay_supports_face_attributes_p).
-    logical function tty_supports_face_attributes_p(attrs) result(supports)
+    logical function is_tty_supports_face_attributes(attrs) result(supports)
         type(face_attributes_type), intent(in) :: attrs
         type(face_attributes_type) :: def_attrs
         type(emacs_color_type) :: fg_tty_color, fg_std_color, bg_tty_color, bg_std_color, def_color
@@ -1358,7 +1358,7 @@ contains
 
         ! See if the capabilities we selected above are supported, with
         ! the given colors.
-        supports = tty_capable_p(selected_frame%tty, test_caps)
+        supports = is_tty_capable(selected_frame%tty, test_caps)
 
     contains
 
@@ -1370,13 +1370,13 @@ contains
             same_color_name = .false.
             if (allocated(b)) same_color_name = a == b .and. len(a) == len(b)
         end function same_color_name
-    end function tty_supports_face_attributes_p
+    end function is_tty_supports_face_attributes
 
     !> Return true if the face NAME displays differently from the default
     !> face on the selected frame.  Port of
     !> faces.el:face-differs-from-default-p (here because it merges
     !> faces as xfaces does).
-    logical function face_differs_from_default_p(name) result(differs)
+    logical function is_face_differs_from_default(name) result(differs)
         character(len=*), intent(in) :: name
         type(face_attributes_type) :: attrs, one
         logical :: ok
@@ -1478,13 +1478,13 @@ contains
         logical function supported(a)
             type(face_attributes_type), intent(in) :: a
 
-            if (frame_window_p(selected_frame)) then
+            if (associated(selected_frame%rif)) then
                 supported = .true.
             else
-                supported = tty_supports_face_attributes_p(a)
+                supported = is_tty_supports_face_attributes(a)
             end if
 
             differs = supported
         end function supported
-    end function face_differs_from_default_p
+    end function is_face_differs_from_default
 end module xfaces_fm

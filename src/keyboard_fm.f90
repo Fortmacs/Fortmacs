@@ -64,9 +64,9 @@ module keyboard_fm
     use lread_fm, only: intern, sym
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_MODIFIER_MASK, CHAR_CTL, CHAR_ALT, CHAR_SUPER, CHAR_HYPER, &
                             bytes_by_char_head, byte8_to_char, &
-                            multibyte_length, string_char_and_length, char_byte8_p, char_to_byte8, &
+                            multibyte_length, string_char_and_length, is_char_byte8, char_to_byte8, &
                             char_resolve_modifier_mask, MAX_CHAR
-    use keymap_fm, only: keymapp, keymap_live_p, access_keymap, &
+    use keymap_fm, only: is_keymap, is_keymap_live, access_keymap, &
                          current_active_maps, &
                          key_description, parse_modifiers, apply_modifiers, &
                          overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
@@ -74,7 +74,7 @@ module keyboard_fm
     use callint_fm, only: call_interactively, funcall, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, this_command, command_name_of
     use buffer_fm, only: buffers, cur, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer
-    use casetab_fm, only: downcase, uppercasep
+    use casetab_fm, only: downcase, is_uppercase
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                        buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending, inputs_available, emacs_write
@@ -90,22 +90,22 @@ module keyboard_fm
 
     public :: current_input_meta_mode, set_input_meta_mode, set_input_fd, kbd_store_bytes, &
               tty_read_avail_input, unread_command_events, &
-              discard_input, input_pending_p, read_event, unread_command_events_p, read_input_event, store_event
+              discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event
     public :: read_key_sequence, command_loop_step, command_loop, &
-              request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
+              request_exit, is_exit_requested, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
     public :: exit_transient_map
-    public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, special_events_pending_p, &
+    public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, has_pending_special_events, &
               read_fd_proc, special_event_proc
-    public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
+    public :: execute_kbd_macro, ring_bell, bitch_at_user, is_executing_kbd_macro
     public :: start_kbd_macro, end_kbd_macro, call_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
-              finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, defining_kbd_macro_p, &
+              finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, is_defining_kbd_macro, &
               syms_of_macros
     public :: recent_keys, lossage_size, message_log_proc
     public :: read_char, read_char_exclusive, read_filtered_event, read_key_sequence_vs, barf_if_interaction_inhibited
     public :: this_command_keys_vector, this_single_command_keys, this_single_command_raw_keys, &
               set__this_command_keys, clear_this_command_keys, recursion_depth, top_level, recursive_edit
-    public :: cancel_echoing, echo_now, prefix_command_update, internal_echo_keystrokes_prefix, help_char_p
+    public :: cancel_echoing, echo_now, prefix_command_update, internal_echo_keystrokes_prefix, is_help_char
     public :: event_convert_list, event_symbol_parse_modifiers, parse_solitary_modifier, lispy_modifier_list, &
               make_ctrl_char, ascii_character, safe_run_hooks
     public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc, kbd_macro_loop_proc
@@ -469,7 +469,7 @@ module keyboard_fm
     integer(int64), public :: help_char = 8
     !> List of input events to recognize as meaning Help.
     !> These work just like the value of `help_char' (see that).  Port of
-    !> keyboard.c help-event-list (the events as `key_valid_p' strings;
+    !> keyboard.c help-event-list (the events as `is_key_valid' strings;
     !> bindings.el's value is set by bindings_fm).
     character(len=16), allocatable, public :: help_event_list(:)
     !> Whether to append help text to echoed commands.
@@ -645,9 +645,9 @@ contains
 
     !> Whether a keyboard macro is being defined (`defining_kbd_macro' is
     !> not nil).  Not a port.
-    logical function defining_kbd_macro_p()
-        defining_kbd_macro_p = defining_kbd_macro /= DEFINING_KBD_MACRO_NIL
-    end function defining_kbd_macro_p
+    logical function is_defining_kbd_macro()
+        is_defining_kbd_macro = defining_kbd_macro /= DEFINING_KBD_MACRO_NIL
+    end function is_defining_kbd_macro
 
     ! ------------------------------------------------------------------
     ! Input
@@ -893,9 +893,9 @@ contains
 
     !> Whether `unread_command_events' holds events (the variable is
     !> non-nil).  Not a port.
-    logical function unread_command_events_p()
-        unread_command_events_p = nunread > 0
-    end function unread_command_events_p
+    logical function has_unread_command_events()
+        has_unread_command_events = nunread > 0
+    end function has_unread_command_events
 
     !> Whether input is waiting: unread events, queued events or bytes
     !> from the terminal.  Port of keyboard.c:Finput_pending_p with
@@ -903,11 +903,11 @@ contains
     !> keyboard.c:detect_input_pending, keyboard.c:requeued_events_pending_p,
     !> keyboard.c:requeued_command_events_pending_p and
     !> keyboard.c:kbd_buffer_events_waiting (no input methods).
-    logical function input_pending_p()
-        input_pending_p = nunread > 0 .or. tail >= head
-        if (input_pending_p .or. input_fd < 0) return
-        input_pending_p = input_available(input_fd, 0_int32)
-    end function input_pending_p
+    logical function is_input_pending()
+        is_input_pending = nunread > 0 .or. tail >= head
+        if (is_input_pending .or. input_fd < 0) return
+        is_input_pending = input_available(input_fd, 0_int32)
+    end function is_input_pending
 
     !> The next input event.  Waits for terminal input if there is a
     !> terminal; otherwise `have' is false when the queue is empty (end of
@@ -1120,7 +1120,7 @@ contains
             ! If we're executing a macro, process it unless we are at its
             ! end.
             if (macro_active) then
-                if (.not. at_end_of_macro_p()) then
+                if (.not. is_at_end_of_macro()) then
                     executing_kbd_macro_index = executing_kbd_macro_index + 1
                     ev = macro_events(executing_kbd_macro_index)
 
@@ -1241,7 +1241,7 @@ contains
         type(handle_type), intent(in) :: km
         type(value_type) :: v
 
-        if (keymap_live_p(km)) v = make_keymap_ref(km)
+        if (is_keymap_live(km)) v = make_keymap_ref(km)
     end function map_value
 
     !> Whether BINDING is undefined: nil, `undefined', or a command
@@ -1313,10 +1313,10 @@ contains
         diff = 0
         key = keybuf(fk%end + 1)
         fk%end = fk%end + 1
-        if (keymapp(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
+        if (is_keymap(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
 
         if (doit .and. (stringp(next) .or. (vtag(next) == V_LIST .and. &
-                                            .not. keymapp(next)))) then
+                                            .not. is_keymap(next)))) then
             call sequence_events(next, seq)
             n = size(seq)
             diff = n - (fk%end - fk%start)
@@ -1344,7 +1344,7 @@ contains
             return
         end if
 
-        if (keymapp(next)) then
+        if (is_keymap(next)) then
             fk%map = next
         else
             fk%start = fk%start + 1
@@ -1407,7 +1407,7 @@ contains
             echo_prompt = prompt
             immediate_echo = .false.
             call echo_now()
-            if (.not. echo_keystrokes_p()) immediate_echo = .false.
+            if (.not. is_echo_keystrokes()) immediate_echo = .false.
         end if
 
         ! Record the initial state of the echo area and this_command_keys;
@@ -1436,7 +1436,7 @@ contains
             keyloop: do
                 if (nilp(current_binding)) then
                     if (keytran%start >= t) exit replay
-                else if (.not. keymapp(current_binding)) then
+                else if (.not. is_keymap(current_binding)) then
                     exit replay
                 end if
 
@@ -1460,7 +1460,7 @@ contains
                 end if
 
                 macro_end = .false.
-                if (macro_active .and. nunread == 0) macro_end = at_end_of_macro_p()
+                if (macro_active .and. nunread == 0) macro_end = is_at_end_of_macro()
 
                 if (t < mock_input) then
                     key = keybuf(t + 1)
@@ -1520,7 +1520,7 @@ contains
                 end do
 
                 ! local-function-key-map: only for undefined sequences.
-                if (.not. keymapp(current_binding) .and. &
+                if (.not. is_keymap(current_binding) .and. &
                     .not. test_undefined(current_binding) .and. indec%start >= t) then
                     if (fkey%start < t) call reset_remap(fkey, t)
                 else
@@ -1634,7 +1634,7 @@ contains
 
         if (shift_translated) this_command_keys_shift_translated = .true.
         binding = current_binding
-        if (keymapp(binding)) binding = nil()
+        if (is_keymap(binding)) binding = nil()
 
         ! Occasionally we fabricate events, perhaps by expanding something
         ! according to function-key-map.  In this case, return the entire
@@ -1658,7 +1658,7 @@ contains
 
             uppercase_key = .false.
             if (c < 0 .or. c > MAX_CHAR) return
-            uppercase_key = uppercasep(int(c, int32))
+            uppercase_key = is_uppercase(int(c, int32))
         end function uppercase_key
     end subroutine read_key_sequence
 
@@ -1789,7 +1789,7 @@ contains
     !> process.c:wait_reading_process_output does.  The result is the
     !> number of milliseconds to wait for the next timer, or -1 for none.
     !> Port of keyboard.c:detect_input_pending_run_timers (the timers and
-    !> the redisplay; `input_pending_p' checks for input).
+    !> the redisplay; `is_input_pending' checks for input).
     recursive integer(int32) function run_timers() result(ms)
         integer(int64) :: old_timers_run
 
@@ -1827,7 +1827,7 @@ contains
 
         timed_out = .false.
         if (associated(redisplay_hook)) call redisplay_hook()
-        if (input_pending_p()) return
+        if (is_input_pending()) return
         call system_clock(start, rate)
 
         do
@@ -1838,7 +1838,7 @@ contains
             if (timed_out) return
 
             if (input_fd < 0 .and. .not. associated(process_output_hook) .and. n_read_fds() == 0) then
-                timed_out = .not. input_pending_p()
+                timed_out = .not. is_input_pending()
                 return
             end if
 
@@ -1846,7 +1846,7 @@ contains
             next_timer = run_timers()
             if (next_timer >= 0) timeout = min(timeout, next_timer)
             if (wait_for_input(timeout)) return
-            if (input_pending_p()) return
+            if (is_input_pending()) return
         end do
     end function sit_for_input
 
@@ -1968,9 +1968,9 @@ contains
     end subroutine insert_special_event
 
     !> Whether special events are waiting to be handled.  Not a port.
-    logical function special_events_pending_p()
-        special_events_pending_p = n_special_events > 0
-    end function special_events_pending_p
+    logical function has_pending_special_events()
+        has_pending_special_events = n_special_events > 0
+    end function has_pending_special_events
 
     !> Handle the queued special events, oldest first, including those
     !> queued meanwhile; an error is reported as the command loop does.
@@ -1994,40 +1994,40 @@ contains
     end subroutine request_exit
 
     !> Whether a command asked the command loop to stop.  Not a port.
-    logical function exit_requested_p()
-        exit_requested_p = exit_requested
-    end function exit_requested_p
+    logical function is_exit_requested()
+        is_exit_requested = exit_requested
+    end function is_exit_requested
 
     !> Whether the execution of a macro has reached its end.
     !> This should be called only while executing a macro.  Port of
     !> macros.c:at_end_of_macro_p.
-    logical function at_end_of_macro_p()
-        at_end_of_macro_p = macro_forced_end .or. .not. allocated(macro_events)
+    logical function is_at_end_of_macro()
+        is_at_end_of_macro = macro_forced_end .or. .not. allocated(macro_events)
 
-        if (.not. at_end_of_macro_p) then
-            at_end_of_macro_p = executing_kbd_macro_index >= size(macro_events, kind=int64)
+        if (.not. is_at_end_of_macro) then
+            is_at_end_of_macro = executing_kbd_macro_index >= size(macro_events, kind=int64)
         end if
-    end function at_end_of_macro_p
+    end function is_at_end_of_macro
 
     !> Whether a keyboard macro is executing (`executing_kbd_macro'
     !> true).  Not a port.
-    logical function executing_kbd_macro_p()
-        executing_kbd_macro_p = macro_active
-    end function executing_kbd_macro_p
+    logical function is_executing_kbd_macro()
+        is_executing_kbd_macro = macro_active
+    end function is_executing_kbd_macro
 
     !> Make the selected window's buffer current (set_buffer_internal
     !> (XBUFFER (XWINDOW (selected_window)->contents)) in
     !> keyboard.c:command_loop_1).  Not a port.
     subroutine select_window_buffer()
         use frame_fm, only: selected_window
-        use window_fm, only: windows, window_live_p
-        use buffer_fm, only: set_buffer, buffer_live_p
+        use window_fm, only: windows, is_window_live
+        use buffer_fm, only: set_buffer, is_buffer_live
         type(handle_type) :: sw
         type(status_type) :: st
 
         sw = selected_window()
-        if (.not. window_live_p(sw)) return
-        if (buffer_live_p(windows(sw%index)%buffer)) call set_buffer(windows(sw%index)%buffer, st)
+        if (.not. is_window_live(sw)) return
+        if (is_buffer_live(windows(sw%index)%buffer)) call set_buffer(windows(sw%index)%buffer, st)
     end subroutine select_window_buffer
 
     !> Ring the bell (flash the screen with `visible_bell').  Port of
@@ -2264,12 +2264,12 @@ contains
     !> Whether the selected window shows the current buffer.  Not a port.
     logical function selected_window_shows_current() result(shows)
         use frame_fm, only: selected_window
-        use window_fm, only: windows, window_live_p
+        use window_fm, only: windows, is_window_live
         type(handle_type) :: sw
 
         shows = .false.
         sw = selected_window()
-        if (.not. window_live_p(sw)) return
+        if (.not. is_window_live(sw)) return
         shows = windows(sw%index)%buffer%index == buffer_handle_index()
     end function selected_window_shows_current
 
@@ -2286,7 +2286,7 @@ contains
     !> string or a space spec; the other replacing specs, such as
     !> images, are not shown yet).  Port of
     !> xdisp.c:display_prop_intangible_p.
-    logical function display_prop_intangible_p(prop) result(replaces)
+    logical function is_display_prop_intangible(prop) result(replaces)
         type(value_type), intent(in) :: prop
         type(value_type), allocatable :: elts(:)
 
@@ -2294,7 +2294,7 @@ contains
         if (replaces .or. vtag(prop) /= V_LIST) return
         call list_elements(prop, elts)
         if (size(elts) > 0) replaces = value_eq(elts(1), sym("space"))
-    end function display_prop_intangible_p
+    end function is_display_prop_intangible
 
     !> Adjust point to a boundary of a region that has such a property
     !> that should be treated intangible (`display' replacing text, and
@@ -2322,7 +2322,7 @@ contains
             if (check_display .and. pt() > begv .and. pt() < zv) then
                 call get_char_property_and_overlay(pt(), sym("display"), val, overlay)
                 ok = .false.
-                if (.not. nilp(val)) ok = display_prop_intangible_p(val)
+                if (.not. nilp(val)) ok = is_display_prop_intangible(val)
 
                 if (ok) then
                     if (overlay%index == 0) then
@@ -2363,7 +2363,7 @@ contains
                     if (nilp(val)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
-                    ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
+                    ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
                     end = next_single_char_property_change(end, sym("invisible"))
                 end do
 
@@ -2372,7 +2372,7 @@ contains
                     if (nilp(val)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
-                    ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
+                    ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
                     beg = previous_single_char_property_change(beg, sym("invisible"))
                 end do
 
@@ -2413,7 +2413,7 @@ contains
                 ! there's a replacing display property on the same text.
                 call get_char_property_and_overlay(beg, sym("display"), val, overlay)
                 shown = .false.
-                if (.not. nilp(val)) shown = display_prop_intangible_p(val)
+                if (.not. nilp(val)) shown = is_display_prop_intangible(val)
                 ! If the "invisible" text is shown, undo any point
                 ! adjustments due to invisible property, as cursor
                 ! positioning by the display engine will do a better job.
@@ -2458,14 +2458,14 @@ contains
         end function empty_string
 
         !> Whether OVERLAY has an after-string or a before-string.
-        logical function overlay_strings_p(ov)
+        logical function has_overlay_strings(ov)
             type(handle_type), intent(in) :: ov
 
-            overlay_strings_p = .false.
+            has_overlay_strings = .false.
             if (ov%index == 0) return
-            overlay_strings_p = .not. nilp(overlay_get(ov, "after_string")) .or. &
-                                .not. nilp(overlay_get(ov, "before_string"))
-        end function overlay_strings_p
+            has_overlay_strings = .not. nilp(overlay_get(ov, "after_string")) .or. &
+                                  .not. nilp(overlay_get(ov, "before_string"))
+        end function has_overlay_strings
     end subroutine adjust_point_for_property
 
     !> Run commands until input ends or `request_exit' is called.  Command
@@ -2518,7 +2518,7 @@ contains
 
         do
             call command_loop_step(done, step_status)
-            if (done .and. macro_active) macro_end = at_end_of_macro_p()
+            if (done .and. macro_active) macro_end = is_at_end_of_macro()
             if (exit_pending .or. done .or. exit_requested) exit
         end do
 
@@ -2612,9 +2612,9 @@ contains
 
     !> Whether echoing is on: `echo_keystrokes' is positive.  Port of
     !> keyboard.c:echo_keystrokes_p.
-    logical function echo_keystrokes_p()
-        echo_keystrokes_p = echo_keystrokes > 0.0
-    end function echo_keystrokes_p
+    logical function is_echo_keystrokes()
+        is_echo_keystrokes = echo_keystrokes > 0.0
+    end function is_echo_keystrokes
 
     !> Add C to the echo string, without echoing it immediately.  C can
     !> be a character, which is pretty-printed, or a symbol, whose name is
@@ -2640,7 +2640,7 @@ contains
             new_string = new_string//symbols(xsymbol(head))%name
         end if
 
-        if (empty .and. help_char_p(head)) then
+        if (empty .and. is_help_char(head)) then
             new_string = new_string//" (Type ? for further options, C-q for quick help)"
         end if
 
@@ -2790,7 +2790,7 @@ contains
 
         ! If in middle of key sequence and minibuffer not active, start
         ! echoing if enough time elapses.
-        if (minibuf_level /= 0 .or. end_time .or. immediate_echo .or. .not. echo_keystrokes_p()) return
+        if (minibuf_level /= 0 .or. end_time .or. immediate_echo .or. .not. is_echo_keystrokes()) return
         ok = .false.
         if (allocated(this_command_keys)) ok = size(this_command_keys) > 0
 
@@ -2811,17 +2811,17 @@ contains
 
     !> Whether event C means help: `help_char' or one of
     !> `help_event_list'.  Port of keyboard.c:help_char_p.
-    logical function help_char_p(c)
+    logical function is_help_char(c)
         type(value_type), intent(in) :: c
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: k
 
-        help_char_p = .false.
+        is_help_char = .false.
 
         if (fixnump(c)) then
-            help_char_p = xfixnum(c) == help_char
-            if (help_char_p) return
+            is_help_char = xfixnum(c) == help_char
+            if (is_help_char) return
         end if
 
         if (.not. allocated(help_event_list)) return
@@ -2831,11 +2831,11 @@ contains
             if (.not. st%ok() .or. size(evs) /= 1) cycle
 
             if (value_eq(evs(1), c)) then
-                help_char_p = .true.
+                is_help_char = .true.
                 return
             end if
         end do
-    end function help_char_p
+    end function is_help_char
 
     !> STR followed by a hint naming the first help key (`help_char' for
     !> `help', or a `help_event_list' event) that the maps the keys of the
@@ -2888,7 +2888,7 @@ contains
             bound = .false.
 
             do j = 1, size(bindings)
-                if (.not. keymapp(bindings(j))) cycle
+                if (.not. is_keymap(bindings(j))) cycle
                 call lookup_key(bindings(j), key, def, st)
                 if (st%ok() .and. .not. nilp(def)) bound = .true.
             end do
@@ -3066,7 +3066,7 @@ contains
         do while (pos <= len(keys, kind=int64))
             call string_char_and_length(keys, pos, c, length)
             pos = pos + length
-            if (char_byte8_p(c)) c = char_to_byte8(c)
+            if (is_char_byte8(c)) c = char_to_byte8(c)
 
             ! Kludge alert: this makes M-x be in the form expected by
             ! novice.el.  (248 is \370, a.k.a. "Meta-x".)

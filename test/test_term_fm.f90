@@ -39,8 +39,8 @@ module test_term_fm
                        tty_clear_end_of_line, tty_clear_frame, tty_clear_to_end, tty_cursor_to, &
                        tty_delete_glyphs, tty_ins_del_lines, tty_insert_glyphs, &
                        tty_reset_terminal_modes, tty_ring_bell, tty_set_terminal_modes, &
-                       tty_update_end, tty_write_glyphs, tty_display_color_p, tty_display_color_cells, &
-                       tty_type, controlling_tty_p, tty_no_underline
+                       tty_update_end, tty_write_glyphs, is_tty_display_color, tty_display_color_cells, &
+                       tty_type, is_controlling_tty, tty_no_underline
     implicit none(type, external)
     private
 
@@ -89,8 +89,8 @@ contains
         type(status_type) :: st
 
         call xterm(tty)
-        call check(error, tty_display_color_p(tty) .and. tty_display_color_cells(tty) == 256 .and. &
-                   tty_type(tty) == "xterm-256color" .and. controlling_tty_p(tty), "an xterm")
+        call check(error, is_tty_display_color(tty) .and. tty_display_color_cells(tty) == 256 .and. &
+                   tty_type(tty) == "xterm-256color" .and. is_controlling_tty(tty), "an xterm")
         if (allocated(error)) return
         call check(error, allocated(tty%ts_enter_underline_mode), "it underlines")
         if (allocated(error)) return

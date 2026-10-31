@@ -46,12 +46,12 @@ module font_core_fm
     use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, list_elements, make_list
     use lread_fm, only: sym
     use data_fm, only: symbol_value, setq_local, set, set_default, boundp, add_local_variables_killer, value_eq
-    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, buffer_modified_p, &
-                         restore_buffer_modified_p, current_buffer
+    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, is_buffer_modified, &
+                         restore_buffer_modified, current_buffer
     use handle_fm, only: handle_type
     use eval_fm, only: hook_type, change_major_mode_hook
     use subr_fm, only: after_change_major_mode_hook
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use easy_mmode_fm, only: minor_mode_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
@@ -279,7 +279,7 @@ module font_core_fm
         procedure :: set_local => defaults_set_local
         !> Whether the current buffer has defaults (font-lock-defaults is
         !> non-nil).
-        procedure :: present_p => defaults_present_p
+        procedure :: present_p => has_defaults
         !> The current buffer's defaults (call only when present_p).
         procedure :: get => defaults_get
         !> Forget the current buffer's defaults.
@@ -301,7 +301,7 @@ module font_core_fm
 
     !> Whether the current buffer is ready for fontification
     !> (font-lock-specified-p of font_lock_fm, installed by it).
-    procedure(specified_proc), pointer, public :: font_lock_specified_p_proc => null()
+    procedure(specified_proc), pointer, public :: is_font_lock_specified_proc => null()
 
     !> The first fontification after Font Lock mode is turned on (its
     !> :after-hook, font-lock-initial-fontify of font_lock_fm, installed by
@@ -485,14 +485,14 @@ contains
     end subroutine defaults_set_local
 
     ! Not a port.
-    logical function defaults_present_p(self) result(p)
+    logical function has_defaults(self) result(p)
         class(font_lock_defaults_setting), intent(inout) :: self
         integer :: k
 
         k = defaults_index(self, .false.)
         p = .false.
         if (k > 0) p = self%entries(k)%set
-    end function defaults_present_p
+    end function has_defaults
 
     ! Not a port.
     function defaults_get(self) result(v)
@@ -656,7 +656,7 @@ contains
 
         status = status_type()
         if (cur == 0) return
-        call buffer_modified_p(current_buffer(), modp, status)
+        call is_buffer_modified(current_buffer(), modp, status)
         if (.not. status%ok()) return
         call symbol_value(sym("inhibit_read_only"), inhibit, status)
         call set(sym("inhibit_read_only"), t_value(), status)
@@ -666,7 +666,7 @@ contains
         call remove_list_of_text_properties(point_min(), point_max(), list(sym("font_lock_face")), changed, status)
         call narrow_to_region(begv, zv, status)
         call set(sym("inhibit_read_only"), inhibit, status)
-        call restore_buffer_modified_p(modp)
+        call restore_buffer_modified(modp)
     end subroutine font_lock_defontify
 
     !> The default `font_lock_function': with MODE, make `font_lock_face'
@@ -760,8 +760,8 @@ contains
 
         ! Only do hard work if the mode has specified stuff in
         ! `font_lock_defaults'.
-        if (associated(font_lock_specified_p_proc) .and. associated(font_lock_mode_internal_proc)) then
-            if (font_lock_specified_p_proc(mode)) call font_lock_mode_internal_proc(mode, status)
+        if (associated(is_font_lock_specified_proc) .and. associated(font_lock_mode_internal_proc)) then
+            if (is_font_lock_specified_proc(mode)) call font_lock_mode_internal_proc(mode, status)
         end if
 
     contains

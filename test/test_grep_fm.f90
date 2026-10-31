@@ -35,7 +35,7 @@ module test_grep_fm
     use lisp_fm, only: value_type, nilp, stringp, xstring
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
-                         buffer_live_p, set_buffer_read_only, current_buffer, restore_buffer_modified_p
+                         is_buffer_live, set_buffer_read_only, current_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char
     use textprop_fm, only: get_text_property
@@ -348,7 +348,7 @@ contains
         if (allocated(error)) return
         call wait_grep()
         buf = get_buffer("*grep*")
-        call check(error, buffer_live_p(buf), "*grep*")
+        call check(error, is_buffer_live(buf), "*grep*")
         if (allocated(error)) return
         call set_buffer(buf, st)
         call check(error, buffers(cur)%major_mode, "grep_mode")
@@ -423,7 +423,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         file_buf = get_buffer("fortmacs-grep-edit-test.txt")
-        call check(error, buffer_live_p(file_buf), "the file's buffer")
+        call check(error, is_buffer_live(file_buf), "the file's buffer")
         if (allocated(error)) return
         call set_buffer(file_buf, st)
         text = buffer_string()
@@ -434,7 +434,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "grep_mode")
         call set_buffer(file_buf, st)
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call kill_buffer(file_buf, st)
         call set_buffer_read_only(buf, .false., st)
         call kill_buffer(buf, st)

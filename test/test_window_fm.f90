@@ -30,7 +30,7 @@ module test_window_fm
     use lisp_fm, only: value_type, nil, make_fixnum, list
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, buffers, cur, buffer_list, current_buffer, &
-                         get_buffer, buffer_live_p
+                         get_buffer, is_buffer_live
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, last_message
     use insdel_fm, only: insert
@@ -45,10 +45,10 @@ module test_window_fm
                          move_to_window_line_top_bottom, scroll_error_top_bottom, display_buffer, quit_window, &
                          select_window, switch_to_buffer, DEDICATED_STRONG, QR_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
-                         free_window_configuration, fit_window_to_buffer, bury_buffer, window_live_p, &
+                         free_window_configuration, fit_window_to_buffer, bury_buffer, is_window_live, &
                          windowp, window_buffer, window_parent, window_top_child, window_left_child, &
                          window_next_sibling, window_prev_sibling, frame_root_window, frame_selected_window, &
-                         minibuffer_window, window_minibuffer_p, minibuffer_selected_window, window_total_height, &
+                         minibuffer_window, is_window_minibuffer, minibuffer_selected_window, window_total_height, &
                          window_total_width, window_left_column, window_top_line, window_body_height, &
                          window_body_width, window_mode_line_height, window_header_line_height, &
                          window_tab_line_height, window_hscroll, window_dedicated_p, set_window_dedicated_p, &
@@ -435,7 +435,7 @@ contains
         selected_frame%root_window = null_handle()
     end subroutine leave_frame
 
-    !> Run `keys` (a key_valid_p string) through the command loop.
+    !> Run `keys` (an is_key_valid string) through the command loop.
     subroutine run_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
@@ -609,7 +609,7 @@ contains
         ws = leaves()
         ! Both windows show other-test now; the bottom one is selected.
         call run_keys("C-x k RET")
-        call check(error,.not. buffer_live_p(get_buffer("other-test")), "killed")
+        call check(error,.not. is_buffer_live(get_buffer("other-test")), "killed")
         if (allocated(error)) return
         call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
                    windows(ws(2)%index)%buffer%index == h%index .and. buffers(cur)%name == "split-test", &
@@ -618,10 +618,10 @@ contains
         ! A modified buffer visiting a file asks; "no" keeps it.
         buffers(cur)%filename = "/nonexistent/split-test"
         call run_keys("C-x k RET n o RET")
-        call check(error, buffer_live_p(h), "no: kept")
+        call check(error, is_buffer_live(h), "no: kept")
         if (allocated(error)) return
         call run_keys("C-x k RET y e s RET")
-        call check(error,.not. buffer_live_p(h), "yes: killed")
+        call check(error,.not. is_buffer_live(h), "yes: killed")
         call leave_frame()
     end subroutine test_kill_buffer
 
@@ -763,7 +763,7 @@ contains
         call free_window_configuration(config)
         ws = leaves()
         call check(error, size(ws) == 2, "two windows again")
-        if (.not. allocated(error)) call check(error, window_live_p(ws(2)) .and. same_window(ws(1), top) .and. &
+        if (.not. allocated(error)) call check(error, is_window_live(ws(2)) .and. same_window(ws(1), top) .and. &
                                                same_window(selected_frame%selected_window, top), "two windows again")
         if (allocated(error)) return
         call check(error, buffers(cur)%name == "split-test" .and. windows(ws(2)%index)%buffer%index == h%index .and. &
@@ -856,13 +856,13 @@ contains
                    window_tab_line_height(ws(3), st) == 0 .and. window_hscroll(ws(3), st) == 0, "sizes")
         if (allocated(error)) return
         mini = minibuffer_window()
-        call check(error, window_minibuffer_p(mini, st) .and. .not. window_minibuffer_p(ws(1), st) .and. &
+        call check(error, is_window_minibuffer(mini, st) .and. .not. is_window_minibuffer(ws(1), st) .and. &
                    window_mode_line_height(mini, st) == 0 .and. &
                    is_null(minibuffer_selected_window()) .and. &
                    same_window(frame_selected_window(status=st), ws(1)), "minibuffer window")
         if (allocated(error)) return
         ! A window that is not live.
-        call check(error, window_body_height(top, st) == 0 .and. .not. st%ok(), "window_live_p error")
+        call check(error, window_body_height(top, st) == 0 .and. .not. st%ok(), "is_window_live error")
         if (allocated(error)) return
         call set_window_dedicated_p(ws(2), DEDICATED_STRONG, st)
         call check(error, window_dedicated_p(ws(2), st) == DEDICATED_STRONG .and. &
@@ -875,10 +875,10 @@ contains
         if (allocated(error)) return
         ! A deleted window is still a window, with no buffer.
         call run_keys("C-x o C-x o C-x 0")
-        call check(error, windowp(ws(3)) .and. .not. window_live_p(ws(3)) .and. &
+        call check(error, windowp(ws(3)) .and. .not. is_window_live(ws(3)) .and. &
                    is_null(window_buffer(ws(3), st)) .and. st%ok(), "deleted window")
         if (allocated(error)) return
-        call check(error, is_null(window_parent(ws(3), st)) .and. .not. st%ok(), "window_valid_p error")
+        call check(error, is_null(window_parent(ws(3), st)) .and. .not. st%ok(), "is_window_valid error")
         call set_window_dedicated_p(ws(2), DEDICATED_NONE, st)
         call leave_frame()
     end subroutine test_window_accessors

@@ -42,9 +42,9 @@ module vc_hooks_fm
     use handle_fm, only: handle_type
     use ewoc_fm, only: ewoc_part_type
     use lisp_fm, only: make_keymap_ref
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_file_buffer, buffer_live_p
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_file_buffer, is_buffer_live
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
-                         file_exists_p, file_directory_p, file_modes, copy_file, file_attributes, file_stat_type, &
+                         file_exists, is_file_directory, file_modes, copy_file, file_attributes, file_stat_type, &
                          user_real_uid
     use files_fm, only: locate_dominating_file, locate_dominating_stop_dir_regexp, find_file_hook, kill_buffer_hook, &
                         vc_before_save_proc, vc_after_save_proc, file_truename, find_file_noselect, &
@@ -52,7 +52,7 @@ module vc_hooks_fm
     use search_fm, only: string_match
     use keymap_fm, only: make_sparse_keymap, keymap_set, define_key
     use xdisp_fm, only: message
-    use fns_fm, only: yes_or_no_p
+    use fns_fm, only: read_yes_or_no
     use faces_fm, only: named_face_type, display_when, face_attrs
     implicit none(type, external)
     private
@@ -63,10 +63,10 @@ module vc_hooks_fm
               vc_file_get_checkout_time, vc_file_set_git_symbolic_ref, vc_file_get_git_symbolic_ref, &
               vc_clear_context, vc_touch_reset, vc_touched
     public :: vc_find_root, vc_registered, vc_backend, vc_checkout_model, vc_state, vc_state_refresh, &
-              vc_up_to_date_p, vc_working_revision, vc_symbolic_working_revision, vc_short_revision, &
+              is_vc_up_to_date, vc_working_revision, vc_symbolic_working_revision, vc_short_revision, &
               vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
-              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible_p, vc_call_make_version_backups_p, &
+              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible_p, is_vc_call_make_version_backups, &
               vc_not_supported
     public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_proc
 
@@ -681,13 +681,13 @@ contains
     !> vc-hooks.el:vc-default-make-version-backups-p as the default:
     !> return true if unmodified versions should be backed up locally.
     !> The default is to switch off this feature.
-    logical function vc_call_make_version_backups_p(b, file) result(r)
+    logical function is_vc_call_make_version_backups(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
 
         r = .false.
         if (associated(vc_backends(b)%make_version_backups_p)) r = vc_backends(b)%make_version_backups_p(file)
-    end function vc_call_make_version_backups_p
+    end function is_vc_call_make_version_backups
 
     ! ------------------------------------------------------------------
     ! Per-file properties
@@ -1125,11 +1125,11 @@ contains
 
     !> Convenience function to check whether `vc_state' of FILE is
     !> VC_UP_TO_DATE.  Port of vc-hooks.el:vc-up-to-date-p.
-    logical function vc_up_to_date_p(file)
+    logical function is_vc_up_to_date(file)
         character(len=*), intent(in) :: file
 
-        vc_up_to_date_p = vc_state(file) == VC_UP_TO_DATE
-    end function vc_up_to_date_p
+        is_vc_up_to_date = vc_state(file) == VC_UP_TO_DATE
+    end function is_vc_up_to_date
 
     !> The name of state STATE as upstream's symbol (`up-to-date'), or
     !> the user LOCKER of VC_LOCKED.  Not a port.
@@ -1229,7 +1229,7 @@ contains
         if (present(backend)) b = backend
         cached = 0
 
-        if (.not. (file_directory_p(file) .and. b /= 0)) then
+        if (.not. (is_file_directory(file) .and. b /= 0)) then
             cached = vc_backend(file)
             if (cached == 0) return
         end if
@@ -1397,13 +1397,13 @@ contains
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%filename)) return
         file = buffers(cur)%filename
-        if (.not. file_exists_p(file)) call vc_file_clearprops(file)
+        if (.not. file_exists(file)) call vc_file_clearprops(file)
         b = vc_backend(file)
         if (b == 0) return
-        if (.not. vc_up_to_date_p(file)) return
+        if (.not. is_vc_up_to_date(file)) return
         files(1)%s = file
         if (vc_checkout_model(b, files) /= VC_MODEL_IMPLICIT) return
-        if (.not. vc_call_make_version_backups_p(b, file)) return
+        if (.not. is_vc_call_make_version_backups(b, file)) return
         call vc_make_version_backup(file)
     end subroutine vc_before_save
 
@@ -1448,7 +1448,7 @@ contains
         end if
 
         ! Resynch *vc-dir* buffers, if any are present.
-        if (vc_dir_buffers_p() .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
+        if (has_vc_dir_buffers() .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
     end subroutine vc_after_save
 
     !> Update VC-Dir contents after reverting a buffer from disk.  Port of
@@ -1457,7 +1457,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. vc_dir_buffers_p()) return
+        if (.not. has_vc_dir_buffers()) return
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%filename)) return
         if (vc_backend(buffers(cur)%filename) == 0) return
@@ -1465,10 +1465,10 @@ contains
     end subroutine vc_after_revert
 
     !> Whether `vc_dir_buffers' is not empty.  Not a port.
-    logical function vc_dir_buffers_p()
-        vc_dir_buffers_p = .false.
-        if (allocated(vc_dir_buffers)) vc_dir_buffers_p = size(vc_dir_buffers) > 0
-    end function vc_dir_buffers_p
+    logical function has_vc_dir_buffers()
+        has_vc_dir_buffers = .false.
+        if (allocated(vc_dir_buffers)) has_vc_dir_buffers = size(vc_dir_buffers) > 0
+    end function has_vc_dir_buffers
 
     ! ------------------------------------------------------------------
     ! The mode line
@@ -1683,8 +1683,8 @@ contains
             call message("Followed link to "//buffers(cur)%filename)
             call vc_refresh_state(status)
         else
-            call yes_or_no_p("Symbolic link to "//vc_backend_name(link_type)// &
-                             "-controlled source file; follow link? ", yes, status)
+            call read_yes_or_no("Symbolic link to "//vc_backend_name(link_type)// &
+                                "-controlled source file; follow link? ", yes, status)
             if (.not. status%ok()) return
 
             if (yes) then

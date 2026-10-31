@@ -56,8 +56,8 @@ module diff_mode_fm
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer
     use data_fm, only: symbol_value, set
     use lisp_fm, only: t_value, make_keymap_ref
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, buffer_substring, &
-                          line_beginning_position, line_end_position, narrow_to_region, widen, buffer_narrowed_p, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
+                          line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
                           char_after, delete_region
     use cmds_fm, only: forward_line, beginning_of_line
     use insdel_fm, only: insert
@@ -65,10 +65,10 @@ module diff_mode_fm
                          SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use simple_fm, only: kill_region, special_mode_map, set_next_error_function, read_only_mode_hook, use_region_p
+    use simple_fm, only: kill_region, special_mode_map, set_next_error_function, read_only_mode_hook, is_use_region
     use editfns_fm, only: region_beginning, region_end
-    use fileio_fm, only: file_regular_p, file_exists_p, expand_file_name, file_name_directory, file_name_nondirectory
-    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, keymap_set, add_minor_mode_map, keymap_live_p, &
+    use fileio_fm, only: is_file_regular, file_exists, expand_file_name, file_name_directory, file_name_nondirectory
+    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, keymap_set, add_minor_mode_map, is_keymap_live, &
                          free_keymap
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
@@ -614,7 +614,7 @@ contains
 
                 if (at(diff_file_junk_re)) then
                     ! Git diff junk.
-                    do while (at(diff_file_junk_re) .and. .not. bobp())
+                    do while (at(diff_file_junk_re) .and. .not. is_bob())
                         shortage = forward_line(-1_int64)
                     end do
 
@@ -675,15 +675,15 @@ contains
 
     !> Whether the hunk at point is a unified one.  Port of
     !> diff-mode.el:diff-unified-hunk-p.
-    logical function diff_unified_hunk_p()
+    logical function is_diff_unified_hunk()
         integer(int64) :: saved, pos
         type(status_type) :: st
 
         saved = point()
         pos = diff_beginning_of_hunk(st)
-        diff_unified_hunk_p = st%ok() .and. at("^@@")
+        is_diff_unified_hunk = st%ok() .and. at("^@@")
         call goto_char(saved)
-    end function diff_unified_hunk_p
+    end function is_diff_unified_hunk
 
     !> Move to the beginning of the file header of point's file.  Port of
     !> diff-mode.el:diff-beginning-of-file.
@@ -892,14 +892,14 @@ contains
 
     !> Whether the buffer has hunks.  Port of
     !> diff-mode.el:diff--some-hunks-p.
-    logical function diff_some_hunks_p()
+    logical function has_diff_hunks()
         integer(int64) :: saved
 
         saved = point()
         call goto_char(point_min())
-        diff_some_hunks_p = search_fwd(diff_hunk_header_re) /= 0
+        has_diff_hunks = search_fwd(diff_hunk_header_re) /= 0
         call goto_char(saved)
-    end function diff_some_hunks_p
+    end function has_diff_hunks
 
     !> Kill the hunk at point.
     !> When killing the last hunk left for a file, kill the file header
@@ -934,7 +934,7 @@ contains
 
         status = status_type()
 
-        if (buffer_narrowed_p()) then
+        if (is_buffer_narrowed()) then
             call set_error(status, FM_USER_ERROR, "Command is not safe in a narrowed buffer")
             return
         end if
@@ -989,7 +989,7 @@ contains
 
         do while (at(diff_file_junk_re))
             shortage = forward_line(1_int64)
-            if (eobp()) exit
+            if (is_eob()) exit
         end do
 
         start = point()
@@ -1063,7 +1063,7 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
 
-        if (.not. diff_some_hunks_p()) then
+        if (.not. has_diff_hunks()) then
             call set_error(status, FM_GENERIC_ERROR, "No hunks")
             return
         end if
@@ -1308,7 +1308,7 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
 
-        if (.not. diff_some_hunks_p()) then
+        if (.not. has_diff_hunks()) then
             call set_error(status, FM_GENERIC_ERROR, "No hunks")
             return
         end if
@@ -1404,7 +1404,7 @@ contains
     !> You can customize `diff_ask_before_revert_and_kill_hunk' to control
     !> that.  Port of diff-mode.el:diff-revert-and-kill-hunk.
     recursive subroutine diff_revert_and_kill_hunk(status, beg, end)
-        use subr_fm, only: y_or_n_p
+        use subr_fm, only: read_y_or_n
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: beg, end
         logical :: yes
@@ -1419,7 +1419,7 @@ contains
         yes = .true.
 
         if (diff_ask_before_revert_and_kill_hunk) then
-            call y_or_n_p("Really reverse-apply and kill hunk(s)?", yes, status)
+            call read_y_or_n("Really reverse-apply and kill hunk(s)?", yes, status)
             if (.not. status%ok()) return
         end if
 
@@ -1649,7 +1649,7 @@ contains
                 call diff_merge_strings(rf%names(1)%s, fs(1)%s, rf%file, newfile, ok)
 
                 if (ok) then
-                    if (file_exists_p(newfile)) then
+                    if (file_exists(newfile)) then
                         file = newfile
                         found = .true.
                         call done()
@@ -1664,7 +1664,7 @@ contains
 
         do while (size(files) > 0)
             do k = 1, size(files)
-                if (file_regular_p(files(k)%s)) then
+                if (is_file_regular(files(k)%s)) then
                     file = files(k)%s
                     found = .true.
                     call done()
@@ -1700,7 +1700,7 @@ contains
 
             if (j > 4) then
                 if (buffers(cur)%filename(j - 3:) == ".rej") then
-                    if (file_exists_p(buffers(cur)%filename(:j - 4))) then
+                    if (file_exists(buffers(cur)%filename(:j - 4))) then
                         file = buffers(cur)%filename(:j - 4)
                         found = .true.
                         call done()
@@ -1722,7 +1722,7 @@ contains
                                 default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NIL, REQUIRE_MATCH_T, creation), &
                                 initial=file_name_nondirectory(newfile))
             if (.not. status%ok()) return
-            if (.not. creation .or. file_exists_p(answer)) call remember(entry_index(), fs, answer)
+            if (.not. creation .or. file_exists(answer)) call remember(entry_index(), fs, answer)
             file = answer
             found = .true.
             return
@@ -2094,7 +2094,7 @@ contains
         integer(int64), intent(out) :: beg, end
         type(status_type) :: st
 
-        have = use_region_p()
+        have = is_use_region()
         beg = 0
         end = 0
 
@@ -2189,7 +2189,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
 
-        if (.not. nilp(current_prefix_arg) .or. use_region_p()) then
+        if (.not. nilp(current_prefix_arg) .or. is_use_region()) then
             call region_beginning(beg, status)
             if (status%ok()) call region_end(end, status)
             if (status%ok()) call diff_fixup_modifs(beg, end, status)
@@ -2374,7 +2374,7 @@ contains
         commands%diff_revert_and_kill_hunk%run => cmd_diff_revert_and_kill_hunk
         commands%diff_apply_buffer%run => cmd_diff_apply_buffer
         ! diff-mode-shared-map.
-        if (keymap_live_p(diff_mode_shared_map)) call free_keymap(diff_mode_shared_map, st)
+        if (is_keymap_live(diff_mode_shared_map)) call free_keymap(diff_mode_shared_map, st)
         call make_sparse_keymap(diff_mode_shared_map)
         call keymap_set(diff_mode_shared_map, "n", "diff_hunk_next", st)
         call keymap_set(diff_mode_shared_map, "N", "diff_file_next", st)
@@ -2391,7 +2391,7 @@ contains
         ! other-window
         call keymap_set(diff_mode_shared_map, "o", "diff_goto_source", st)
         ! diff-mode-read-only-map.
-        if (keymap_live_p(diff_mode_read_only_map)) call free_keymap(diff_mode_read_only_map, st)
+        if (is_keymap_live(diff_mode_read_only_map)) call free_keymap(diff_mode_read_only_map, st)
         call make_sparse_keymap(diff_mode_read_only_map)
         call keymap_set(diff_mode_read_only_map, "W", "widen", st)
         call keymap_set(diff_mode_read_only_map, "r", "diff_restrict_view", st)
@@ -2411,7 +2411,7 @@ contains
         call keymap_set(diff_mode_map, "C-c C-t", "diff_test_hunk", st)
         ! diff-read-only-map (composed of diff-mode-read-only-map and
         ! special-mode-map), active while diff-mode-read-only.
-        if (keymap_live_p(diff_read_only_map)) call free_keymap(diff_read_only_map, st)
+        if (is_keymap_live(diff_read_only_map)) call free_keymap(diff_read_only_map, st)
         call make_sparse_keymap(diff_read_only_map)
         call set_keymap_parent(diff_read_only_map, diff_mode_read_only_map, st)
         call forward_setting(diff_mode_read_only, local_if_set=.true.)

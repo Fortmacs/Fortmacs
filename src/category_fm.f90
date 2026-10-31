@@ -54,7 +54,7 @@ module category_fm
     use handle_fm, only: handle_type, null_handle
     use buffer_fm, only: buffers, cur
     use character_fm, only: MAX_CHAR
-    use chartab_fm, only: make_char_table, copy_char_table, char_table_p, char_table_subtype, &
+    use chartab_fm, only: make_char_table, copy_char_table, is_char_table, char_table_subtype, &
                           char_table_extra_slot, set_char_table_extra_slot, char_table_ref, char_table_ref_and_range, &
                           char_table_set_range, set_char_table_range, NO_VALUE
     use characters_fm, only: characters_categories
@@ -62,7 +62,7 @@ module category_fm
     private
 
     public :: category_set_type, make_category_set, define_category, category_docstring, get_unused_category, &
-              category_table_p, category_table, standard_category_table, copy_category_table, make_category_table, &
+              is_category_table, category_table, standard_category_table, copy_category_table, make_category_table, &
               set_category_table, char_category_set, category_set_mnemonics, modify_category_entry, &
               char_has_category, category_member
 
@@ -103,11 +103,11 @@ contains
 
     !> Whether C is a category: a character from ` ' to `~'.  Port of
     !> category.h CATEGORYP.
-    pure logical function categoryp(c)
+    pure logical function is_category(c)
         character, intent(in) :: c
 
-        categoryp = iachar(c) >= 32 .and. iachar(c) <= 126
-    end function categoryp
+        is_category = iachar(c) >= 32 .and. iachar(c) <= 126
+    end function is_category
 
     !> True if CATEGORY_SET contains CATEGORY.  Port of
     !> category.h:CATEGORY_MEMBER.
@@ -147,8 +147,8 @@ contains
         end if
 
         do k = len(categories), 1, -1
-            if (.not. categoryp(categories(k:k))) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+            if (.not. is_category(categories(k:k))) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
                 return
             end if
 
@@ -179,13 +179,13 @@ contains
 
     !> Return true if ARG is a category table.  Port of
     !> category.c:Fcategory_table_p.
-    logical function category_table_p(arg)
+    logical function is_category_table(arg)
         type(handle_type), intent(in) :: arg
         type(status_type) :: status
 
-        category_table_p = .false.
-        if (char_table_p(arg)) category_table_p = char_table_subtype(arg, status) == "category_table"
-    end function category_table_p
+        is_category_table = .false.
+        if (is_char_table(arg)) is_category_table = char_table_subtype(arg, status) == "category_table"
+    end function is_category_table
 
     !> If TABLE is absent, give the current category table.  If TABLE is
     !> present, check the validity of TABLE as a category table: give
@@ -205,8 +205,8 @@ contains
         if (present(table)) then
             h = table
 
-            if (.not. category_table_p(h)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "category_table_p")
+            if (.not. is_category_table(h)) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category_table")
                 return
             end if
         else
@@ -224,7 +224,7 @@ contains
 
         h = standard_category_table()
         if (cur == 0) return
-        if (category_table_p(buffers(cur)%category_table)) h = buffers(cur)%category_table
+        if (is_category_table(buffers(cur)%category_table)) h = buffers(cur)%category_table
     end function category_table
 
     !> Return the standard category table.
@@ -233,7 +233,7 @@ contains
     recursive function standard_category_table() result(h)
         type(handle_type) :: h
 
-        if (.not. category_table_p(standard)) call init_category_once()
+        if (.not. is_category_table(standard)) call init_category_once()
         h = standard
     end function standard_category_table
 
@@ -364,8 +364,8 @@ contains
         type(handle_type) :: h
         integer :: info
 
-        if (.not. categoryp(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+        if (.not. is_category(category)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
             return
         end if
 
@@ -396,8 +396,8 @@ contains
         doc = ""
         if (present(defined)) defined = .false.
 
-        if (.not. categoryp(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+        if (.not. is_category(category)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
             return
         end if
 
@@ -500,8 +500,8 @@ contains
             return
         end if
 
-        if (.not. categoryp(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "categoryp")
+        if (.not. is_category(category)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_category")
             return
         end if
 

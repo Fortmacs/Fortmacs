@@ -46,14 +46,14 @@ module expression_motion_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR, FM_GENERIC_ERROR
     use buffer_fm, only: buffers, cur, transient_mark_mode, buffer_serial_live
-    use editfns_fm, only: point, goto_char, point_min, point_max, narrow_to_region, widen, mark_position, bobp, eobp, &
-                          bolp, eolp, line_beginning_position, line_end_position, region_beginning, region_end, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, narrow_to_region, widen, mark_position, is_bob, is_eob, &
+                          is_bol, is_eol, line_beginning_position, line_end_position, region_beginning, region_end, &
                           preceding_char, following_char, buffer_substring, delete_region
     use syntax_fm, only: scan_expressions, scan_groups, forward_comment, backward_prefix_chars, syntax_ppss, &
                          parse_state_type, scan_error_data, open_paren_in_column_0_is_subprogram_start, &
                          skip_chars_forward, skip_chars_backward, skip_syntax_backward, char_syntax
     use syntax_propertize_fm, only: syntax_ppss_toplevel_pos
-    use simple_fm, only: kill_region, set_mark, push_mark, use_region_p, blink_matching_delay
+    use simple_fm, only: kill_region, set_mark, push_mark, is_use_region, blink_matching_delay
     use data_fm, only: value_eq, add_local_variables_killer, string_setting, logical_setting, function_setting, &
                        forward_setting
     use lisp_fm, only: nilp, value_type, fixnump, xfixnum
@@ -107,7 +107,7 @@ module expression_motion_fm
         !> The value in the current buffer (null for nil).
         procedure :: get => forward_expression_get
         !> Whether the current buffer has its own value.
-        procedure :: local_p => forward_expression_local_p
+        procedure :: local_p => is_forward_expression_local
         !> Make the current buffer use the default again.
         procedure :: kill_local => forward_expression_kill_local
     end type forward_expression_function_type
@@ -298,11 +298,11 @@ contains
     end function forward_expression_get
 
     ! Not a port.
-    logical function forward_expression_local_p(self)
+    logical function is_forward_expression_local(self)
         class(forward_expression_function_type), intent(in) :: self
 
-        forward_expression_local_p = local_entry(self) > 0
-    end function forward_expression_local_p
+        is_forward_expression_local = local_entry(self) > 0
+    end function is_forward_expression_local
 
     ! Not a port.
     subroutine forward_expression_kill_local(self)
@@ -980,7 +980,7 @@ contains
         n = arg
 
         if (allocated(subprogram_prompt_regexp%value) .or. open_paren_in_column_0_is_subprogram_start) then
-            if (n < 0 .and. .not. eobp()) call goto_char(point() + 1)
+            if (n < 0 .and. .not. is_eob()) call goto_char(point() + 1)
 
             if (allocated(subprogram_prompt_regexp%value)) then
                 re = "\(?:"//subprogram_prompt_regexp%value//"\)\s("
@@ -1076,7 +1076,7 @@ contains
     !> Return true if the point is in an "emptyish" line.
     !> This means a line that consists entirely of comments and/or
     !> whitespace.  Port of lisp.el:beginning-of-defun--in-emptyish-line-p.
-    logical function in_emptyish_line_p() result(emptyish)
+    logical function is_in_emptyish_line() result(emptyish)
         type(parse_state_type) :: ppss
         integer(int64) :: opoint, shortage, eol
         logical :: moved
@@ -1094,7 +1094,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end function in_emptyish_line_p
+    end function is_in_emptyish_line
 
     !> Move to the beginning of ARGth subprogram, including comments.  Port of
     !> lisp.el:beginning-of-defun-comments.
@@ -1126,11 +1126,11 @@ contains
             if (more) then
                 ! Check for blank line.
                 moved = skip_syntax_backward("-", line_beginning_position())
-                more = .not. bolp()
+                more = .not. is_bol()
             end if
 
             ! Check for non-comment text.
-            if (more) more = in_emptyish_line_p()
+            if (more) more = is_in_emptyish_line()
             if (.not. more) exit
         end do
 
@@ -1161,7 +1161,7 @@ contains
         end if
     end subroutine call_end_of_subprogram_function
 
-    ! (unless (bolp) (skip-chars-forward " \t") (if (looking-at "\\s<\\|\n")
+    ! (unless (is_bol) (skip-chars-forward " \t") (if (looking-at "\\s<\\|\n")
     ! (forward-line 1))): a position right after the end of a function
     ! still counts as in it.
     ! Port of lisp.el:end-of-defun (in part).
@@ -1169,7 +1169,7 @@ contains
         type(status_type) :: st
         integer(int64) :: moved, shortage
 
-        if (bolp()) return
+        if (is_bol()) return
         moved = skip_chars_forward(" "//achar(9), st)
         if (looking_at("\s<\|"//achar(10), st)) shortage = forward_line(1_int64)
     end subroutine skip_after_subprogram
@@ -1332,7 +1332,7 @@ contains
         if (value_eq(last_command, sym("mark_subprogram_back"))) n = -n
         if (n < 0) this_command = sym("mark_subprogram_back")
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             if (n >= 0) then
                 opoint = point()
                 call goto_char(mark_position())
@@ -1405,7 +1405,7 @@ contains
         end if
 
         moved = skip_chars_backward("[:space:]"//achar(10), status)
-        if (.not. bobp()) shortage = forward_line(1_int64)
+        if (.not. is_bob()) shortage = forward_line(1_int64)
     end subroutine mark_subprogram
 
     !> Make text outside current subprogram invisible.
@@ -1432,7 +1432,7 @@ contains
         ! `beginning-of-defun'.  However now we must check that we did
         ! not move into the next function.
         here = point()
-        if (.not. eolp()) call goto_char(point() + 1)
+        if (.not. is_eol()) call goto_char(point() + 1)
         call beginning_of_subprogram(1_int64, found, status)
         if (.not. status%ok()) return
 
@@ -1599,7 +1599,7 @@ contains
             n = -n
         end if
 
-        if (parens_require_spaces%value .and. .not. bobp()) then
+        if (parens_require_spaces%value .and. .not. is_bob()) then
             syn = char_syntax(preceding_char())
 
             if (syn == "w" .or. syn == "_" .or. syn == char_syntax(c)) then
@@ -1621,7 +1621,7 @@ contains
         call insert_char(c, status)
         if (.not. status%ok()) return
 
-        if (parens_require_spaces%value .and. .not. eobp()) then
+        if (parens_require_spaces%value .and. .not. is_eob()) then
             syn = char_syntax(following_char())
             if (syn == "w" .or. syn == "_" .or. syn == char_syntax(o)) call insert(" ", status)
         end if

@@ -31,7 +31,7 @@ module dired_fm
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: value_type, make_string, make_list, nil, t_value
     use fileio_fm, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
-                         file_directory_p, file_attributes, file_stat_type
+                         is_file_directory, file_attributes, file_stat_type
     use minibuf_fm, only: completion_ignore_case, completion_predicate
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use sysdep_fm, only: sys_string_type, emacs_directory_entries, system_user_names, system_group_names, &
@@ -68,7 +68,7 @@ contains
     !> If FULL is true, return absolute file names.  Otherwise return names
     !>  that are relative to the specified directory.
     !> If NOSORT is true, the list is not sorted--its order is unpredictable.
-    !>  Otherwise, the list returned is sorted with `string_lessp'.
+    !>  Otherwise, the list returned is sorted with `is_string_less'.
     !>  NOSORT is useful if you plan to sort the result yourself.
     !> If COUNT is present and a natural number, the function will return
     !>  COUNT number of file names (if so many are present).  Port of
@@ -125,7 +125,7 @@ contains
                 j = k - 1
 
                 do while (j >= 1)
-                    if (.not. lessp(names(key)%s, names(order(j))%s)) exit
+                    if (.not. is_less(names(key)%s, names(order(j))%s)) exit
                     order(j + 1) = order(j)
                     j = j - 1
                 end do
@@ -150,19 +150,19 @@ contains
     !> Whether `a' sorts before `b', comparing bytes (UTF-8 sorts as its
     !> code points do) with a prefix first.  As fns.c:Fstring_lessp.
     !> Not a port.
-    pure logical function lessp(a, b)
+    pure logical function is_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
 
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
-                lessp = iachar(a(k:k)) < iachar(b(k:k))
+                is_less = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
 
-        lessp = len(a) < len(b)
-    end function lessp
+        is_less = len(a) < len(b)
+    end function is_less
 
     !> Complete file name FILE in directory DIRECTORY.
     !> Returns the longest string common to all file names in DIRECTORY
@@ -272,7 +272,7 @@ contains
             name = names(k)%s
             if (schars(name) < nfile) cycle
             if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
-            directoryp = file_directory_p(dir//name)
+            directoryp = is_file_directory(dir//name)
 
             ! If all_flag is set, always include all.  It would not actually
             ! be helpful to the user to ignore any possible completions when

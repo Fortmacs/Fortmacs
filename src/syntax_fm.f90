@@ -70,9 +70,9 @@ module syntax_fm
     private
 
     public :: syntax_descriptor_type, standard_syntax_table, make_syntax_table, copy_syntax_table, &
-              free_syntax_table, syntax_table_live_p, syntax_table, set_syntax_table, string_to_syntax, &
+              free_syntax_table, is_syntax_table_live, syntax_table, set_syntax_table, string_to_syntax, &
               modify_syntax_entry, syntax_entry, char_syntax_class, char_syntax, syntax_class_to_char, &
-              matching_paren, scan_words, forward_word, word_boundary_p, syms_of_syntax, &
+              matching_paren, scan_words, forward_word, is_word_boundary, syms_of_syntax, &
               skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
               skip_limit, backward_prefix_chars
     public :: parse_state_type, forward_comment, scan_groups, scan_expressions, parse_partial_expression, syntax_ppss, &
@@ -393,11 +393,11 @@ contains
     !> Return true if OBJECT is a syntax table.  Port of
     !> syntax.c:Fsyntax_table_p (syntax tables are their own objects here,
     !> so no other char-table counts as one).
-    logical function syntax_table_live_p(h)
+    logical function is_syntax_table_live(h)
         type(handle_type), intent(in) :: h
 
-        syntax_table_live_p = table%is_live(h)
-    end function syntax_table_live_p
+        is_syntax_table_live = table%is_live(h)
+    end function is_syntax_table_live
 
     !> Free syntax table `h' (not the standard one).  Not a port: upstream
     !> relies on GC.
@@ -830,7 +830,7 @@ contains
                 call descriptor_of_value(prop, d, found)
                 if (found) return
             else if (syntax_table_ref_p(prop)) then
-                if (syntax_table_live_p(xhandle(prop))) then
+                if (is_syntax_table_live(xhandle(prop))) then
                     d = syntax_entry(c, xhandle(prop))
                     return
                 end if
@@ -1184,14 +1184,14 @@ contains
     !> characters `c1' and `c2'.  Port of category.c:word_boundary_p, with
     !> characters.el's `word_combining_categories' ((nil . ^) (^ . nil)
     !> (C . H) (C . K)) and `word_separating_categories' ((H . K)).
-    logical function word_boundary_p(c1, c2)
+    logical function is_word_boundary(c1, c2)
         integer, intent(in) :: c1, c2
 
         if (char_script(c1) == char_script(c2)) then
-            word_boundary_p = between(c1, c2, "H", "K")
+            is_word_boundary = between(c1, c2, "H", "K")
         else
-            word_boundary_p = .not. (between(c1, c2, " ", "^") .or. between(c1, c2, "^", " ") .or. &
-                                     between(c1, c2, "C", "H") .or. between(c1, c2, "C", "K"))
+            is_word_boundary = .not. (between(c1, c2, " ", "^") .or. between(c1, c2, "^", " ") .or. &
+                                      between(c1, c2, "C", "H") .or. between(c1, c2, "C", "K"))
         end if
 
     contains
@@ -1207,14 +1207,14 @@ contains
             if (.not. between) return
             if (cat2 /= " ") between = .not. char_has_category(a, cat2) .and. char_has_category(b, cat2)
         end function between
-    end function word_boundary_p
+    end function is_word_boundary
 
     !> Whether syntax class `code' is part of a word.  Not a port.
-    logical function word_code_p(code)
+    logical function is_word_code(code)
         integer, intent(in) :: code
 
-        word_code_p = code == SWORD .or. (words_include_escapes .and. (code == SESCAPE .or. code == SCHARQUOTE))
-    end function word_code_p
+        is_word_code = code == SWORD .or. (words_include_escapes .and. (code == SESCAPE .or. code == SCHARQUOTE))
+    end function is_word_code
 
     !> Return the position across COUNT words from FROM.
     !> If that many words cannot be found before the end of the buffer,
@@ -1242,7 +1242,7 @@ contains
                 code = syntax_class_at(ch0, from)
                 from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                 from = from + 1
-                if (word_code_p(code)) exit
+                if (is_word_code(code)) exit
             end do
 
             ! Now CH0 is a character which begins a word and FROM is the
@@ -1251,8 +1251,8 @@ contains
                 if (from == end) exit
                 ch1 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch1, from)
-                if (.not. word_code_p(code)) exit
-                if (word_boundary_p(ch0, ch1)) exit
+                if (.not. is_word_code(code)) exit
+                if (is_word_boundary(ch0, ch1)) exit
                 from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                 from = from + 1
                 ch0 = ch1
@@ -1272,7 +1272,7 @@ contains
                 from = from - 1
                 ch1 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch1, from)
-                if (word_code_p(code)) exit
+                if (is_word_code(code)) exit
             end do
 
             ! Now CH1 is a character which ends a word and FROM is the
@@ -1284,7 +1284,7 @@ contains
                 ch0 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch0, from)
 
-                if (.not. word_code_p(code) .or. word_boundary_p(ch0, ch1)) then
+                if (.not. is_word_code(code) .or. is_word_boundary(ch0, ch1)) then
                     from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                     from = from + 1
                     exit

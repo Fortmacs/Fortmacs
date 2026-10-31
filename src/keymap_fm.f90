@@ -36,7 +36,7 @@
 !> when several active maps define the same prefix key, are lists of
 !> keymap values.  The symbol `keymap' inside such a list marks the
 !> start of an inherited part, exactly as upstream.  A list of keymaps
-!> given to `lookup_key' is the same thing, so `keymapp' accepts it too
+!> given to `lookup_key' is the same thing, so `is_keymap' accepts it too
 !> (upstream only accepts the (keymap ...) form).
 !>
 !> Lifetimes: keymaps made by `define_key' for new prefix keys, and the
@@ -71,9 +71,9 @@ module keymap_fm
     implicit none(type, external)
     private
 
-    public :: make_keymap, make_sparse_keymap, free_keymap, keymap_live_p
-    public :: keymapp, keymap_parent, set_keymap_parent, copy_keymap, get_local_map
-    public :: keymap_prompt, keymap_full_p, keymap_entries, keymap_equal, value_equal_proc
+    public :: make_keymap, make_sparse_keymap, free_keymap, is_keymap_live
+    public :: is_keymap, keymap_parent, set_keymap_parent, copy_keymap, get_local_map
+    public :: keymap_prompt, is_keymap_full, keymap_entries, keymap_equal, value_equal_proc
     public :: access_keymap, define_key, define_key_range, lookup_key, &
               key_binding
     public :: current_global_map, use_global_map
@@ -81,14 +81,14 @@ module keymap_fm
     public :: parse_modifiers, apply_modifiers
     public :: key_parse, key_description, single_key_description, &
               push_key_description
-    public :: key_valid_p, keymap_set, keymap_global_set, set_repeat_map
+    public :: is_key_valid, keymap_set, keymap_global_set, set_repeat_map
     public :: where_is_internal, keymap_events, command_remapping
     public :: accessible_keymaps, map_keymap_items, current_minor_maps, push_minor_mode_overriding_map, &
               remove_minor_mode_overriding_map
     public :: keymap_own_prompt
     public :: text_char_description, current_minor_mode_maps, minor_mode_key_binding
 
-    !> Bind a key given as a `key_valid_p' string.  A character `command'
+    !> Bind a key given as a `is_key_valid' string.  A character `command'
     !> names a command; otherwise it is any key definition.
     interface keymap_set
         module procedure keymap_set_value, keymap_set_command
@@ -242,16 +242,16 @@ contains
         call table%resolve(km, i, status)
 
         if (.not. status%ok()) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_keymap")
         end if
     end subroutine resolve_keymap
 
     !> Whether KM is the handle of a live keymap.  Not a port.
-    logical function keymap_live_p(km)
+    logical function is_keymap_live(km)
         type(handle_type), intent(in) :: km
 
-        keymap_live_p = table%is_live(km)
-    end function keymap_live_p
+        is_keymap_live = table%is_live(km)
+    end function is_keymap_live
 
     ! Not a port.
     logical function same_handle(a, b)
@@ -388,12 +388,12 @@ contains
 
     !> Whether `km' was made by make-keymap (upstream: has a char-table).
     !> Not a port.
-    logical function keymap_full_p(km)
+    logical function is_keymap_full(km)
         type(handle_type), intent(in) :: km
 
-        keymap_full_p = .false.
-        if (table%is_live(km)) keymap_full_p = keymaps(km%index)%full
-    end function keymap_full_p
+        is_keymap_full = .false.
+        if (table%is_live(km)) is_keymap_full = keymaps(km%index)%full
+    end function is_keymap_full
 
     ! ------------------------------------------------------------------
     ! Predicates and parents
@@ -425,7 +425,7 @@ contains
 
     !> Whether `v' is a live keymap or a composite (non-empty list of
     !> keymaps and `keymap' markers).  Port of keymap.c:Fkeymapp.
-    recursive logical function keymapp(v) result(yes)
+    recursive logical function is_keymap(v) result(yes)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
@@ -440,13 +440,13 @@ contains
 
             do k = 1, size(elems, kind=int64)
                 if (is_marker(elems(k))) cycle
-                if (.not. keymapp(elems(k))) return
+                if (.not. is_keymap(elems(k))) return
                 yes = .true.
             end do
         case default
             ! Nothing to do for other values.
         end select
-    end function keymapp
+    end function is_keymap
 
     !> Parent of `km', or the null handle.  Port of keymap.c:Fkeymap_parent
     !> and keymap.c:keymap_parent.
@@ -513,7 +513,7 @@ contains
 
         if (parent%index /= 0) then
             if (.not. table%is_live(parent)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_keymap")
                 return
             end if
 
@@ -721,7 +721,7 @@ contains
         ! A t binding is like an explicit nil.
         if (is_t(val)) val = nil()
 
-        if (.not. keymapp(val)) then
+        if (.not. is_keymap(val)) then
             if (.not. st%found .or. nilp(st%retval)) then
                 st%retval = val
                 st%found = .true.
@@ -780,7 +780,7 @@ contains
             ! A prefix keymap was found: compose it with the parent's.
             call access_1(tail, idx, st%t_ok, .false., entry, found)
 
-            if (found .and. keymapp(entry)) then
+            if (found .and. is_keymap(entry)) then
                 if (vtag(entry) == V_LIST) then
                     call list_elements(entry, members)
                 else
@@ -827,7 +827,7 @@ contains
                 call access_1(map, make_fixnum(META_PREFIX_CHAR), t_ok, &
                               noinherit, meta_binding, f)
 
-                if (f .and. keymapp(meta_binding)) then
+                if (f .and. is_keymap(meta_binding)) then
                     m = meta_binding
                     idx = make_fixnum(iand(c, not(M_META)))
                 else if (t_ok) then
@@ -892,7 +892,7 @@ contains
                     tail = list_tail(m, k)
                     call at_parent(st, tail, idx, noinherit, stop)
                     if (stop) exit
-                else if (keymapp(elems(k))) then
+                else if (is_keymap(elems(k))) then
                     call access_1(elems(k), idx, st%t_ok, noinherit, b, f)
 
                     if (f) then
@@ -946,8 +946,8 @@ contains
         t_ok = .false.
         if (present(accept_default)) t_ok = accept_default
 
-        if (.not. (nilp(map) .or. keymapp(map))) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
+        if (.not. (nilp(map) .or. is_keymap(map))) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_keymap")
             return
         end if
 
@@ -980,7 +980,7 @@ contains
                 return
             end if
 
-            if (.not. keymapp(cmd)) then
+            if (.not. is_keymap(cmd)) then
                 val = make_fixnum(k)
                 return
             end if
@@ -1038,7 +1038,7 @@ contains
 
         ! Removing a character from a full keymap's char-table makes it nil
         ! there, even inside a range.
-        if (remove .and. keymaps(i)%full .and. char_table_event_p(idx)) then
+        if (remove .and. keymaps(i)%full .and. is_char_table_event(idx)) then
             do j = keymaps(i)%nranges, 1, -1
                 if (xfixnum(idx) < keymaps(i)%range_from(j) .or. xfixnum(idx) > keymaps(i)%range_to(j)) cycle
                 call add_range(i, xfixnum(idx), xfixnum(idx), nil())
@@ -1161,7 +1161,7 @@ contains
 
         ok = .false.
         km = null_handle()
-        if (.not. keymapp(cmd)) return
+        if (.not. is_keymap(cmd)) return
 
         if (vtag(cmd) == V_KEYMAP) then
             km = xhandle(cmd)
@@ -1786,7 +1786,7 @@ contains
         buffers(cur)%zv_byte = old_zv_byte
 
         ! Use the local map only if it is valid.
-        if (keymapp(prop)) then
+        if (is_keymap(prop)) then
             map = prop
             return
         end if
@@ -2465,11 +2465,11 @@ contains
     !> Keys of a sequence are separated by single spaces.  Control and
     !> Meta'd characters are not accepted as keys: write "C-a" and "M-a".
     !> Port of keymap.el:key-valid-p.
-    pure logical function key_valid_p(keys)
+    pure logical function is_key_valid(keys)
         character(len=*), intent(in) :: keys
         integer :: b, e, n
 
-        key_valid_p = .false.
+        is_key_valid = .false.
         n = len(keys)
         ! "\`[^ ]+\( [^ ]+\)*\'"
         if (n == 0) return
@@ -2490,10 +2490,10 @@ contains
             b = e + 2
         end do
 
-        key_valid_p = .true.
-    end function key_valid_p
+        is_key_valid = .true.
+    end function is_key_valid
 
-    !> Whether one space-free word of `key_valid_p' input is a valid key.
+    !> Whether one space-free word of `is_key_valid' input is a valid key.
     !> Not a port.
     pure logical function valid_key(word)
         character(len=*), intent(in) :: word
@@ -2547,15 +2547,15 @@ contains
         character(len=*), intent(in) :: key
         type(status_type), intent(out) :: status
 
-        if (.not. key_valid_p(key)) then
+        if (.not. is_key_valid(key)) then
             call set_error(status, FM_GENERIC_ERROR, &
-                           """"//key//""""//format_message(" is not a valid key definition; see `key_valid_p'"))
+                           """"//key//""""//format_message(" is not a valid key definition; see `is_key_valid'"))
         end if
     end subroutine keymap_check
 
     !> Set KEY to DEFINITION in KEYMAP.
-    !> KEY is a string that satisfies `key_valid_p'.
-    !> If DEFINITION is a string, it must also satisfy `key_valid_p'.
+    !> KEY is a string that satisfies `is_key_valid'.
+    !> If DEFINITION is a string, it must also satisfy `is_key_valid'.
     !>
     !> DEFINITION is anything that can be a key's definition:
     !>  nil (means key is undefined in this keymap),
@@ -2599,7 +2599,7 @@ contains
     end subroutine keymap_set_command
 
     !> Give KEY a global binding as COMMAND.
-    !> KEY is a string that must satisfy `key_valid_p'.
+    !> KEY is a string that must satisfy `is_key_valid'.
     !>
     !> COMMAND is the command definition to use: anything that
     !> `keymap_set' accepts as its DEFINITION argument.
@@ -2827,7 +2827,7 @@ contains
             if (keymap_ref_p(def)) then
                 key = [prefix, event]
 
-                if (.not. cycle_p(xhandle(def), key) .and. size(prefix) < 10) then
+                if (.not. is_cycle(xhandle(def), key) .and. size(prefix) < 10) then
                     call push(queue, qtail, key, xhandle(def))
                 end if
             end if
@@ -2856,12 +2856,12 @@ contains
         !> Whether `map' was reached already through a prefix of `key' (a
         !> cycle; keymap.c:accessible_keymaps_1).  A map reached through
         !> other prefixes is searched again.
-        logical function cycle_p(map, key)
+        logical function is_cycle(map, key)
             type(handle_type), intent(in) :: map
             type(value_type), intent(in) :: key(:)
             integer :: j, lim
 
-            cycle_p = .false.
+            is_cycle = .false.
 
             do j = 1, qtail
                 if (queue(j)%map%index /= map%index .or. queue(j)%map%generation /= map%generation) cycle
@@ -2869,11 +2869,11 @@ contains
                 if (lim > size(key)) cycle
 
                 if (same_keys(queue(j)%keys, key(1:lim))) then
-                    cycle_p = .true.
+                    is_cycle = .true.
                     return
                 end if
             end do
-        end function cycle_p
+        end function is_cycle
     end subroutine where_is_internal
 
     !> Give the commands MAP binds (other than those named in EXIT) MAP
@@ -2941,12 +2941,12 @@ contains
 
     !> Whether entry event `ev' of a full keymap is in its char-table (a
     !> character without modifiers).  Not a port.
-    logical function char_table_event_p(ev)
+    logical function is_char_table_event(ev)
         type(value_type), intent(in) :: ev
 
-        char_table_event_p = fixnump(ev)
-        if (char_table_event_p) char_table_event_p = iand(xfixnum(ev), M_ALL) == 0
-    end function char_table_event_p
+        is_char_table_event = fixnump(ev)
+        if (is_char_table_event) is_char_table_event = iand(xfixnum(ev), M_ALL) == 0
+    end function is_char_table_event
 
     !> The runs of characters with the same non-nil binding in the
     !> char-table of full keymap `mp' (its single characters over its
@@ -2966,7 +2966,7 @@ contains
         nb = 0
 
         do i = 1, int(mp%n)
-            if (.not. char_table_event_p(mp%events(i))) cycle
+            if (.not. is_char_table_event(mp%events(i))) cycle
             nb = nb + 2
             bounds(nb - 1) = xfixnum(mp%events(i))
             bounds(nb) = xfixnum(mp%events(i)) + 1
@@ -3013,7 +3013,7 @@ contains
             have = .false.
 
             do j = 1, int(mp%n)
-                if (.not. char_table_event_p(mp%events(j))) cycle
+                if (.not. is_char_table_event(mp%events(j))) cycle
                 if (xfixnum(mp%events(j)) /= c) cycle
                 val = mp%bindings(j)
                 have = .true.
@@ -3079,7 +3079,7 @@ contains
 
         do i = n, 1, -1
             if (mp%full) then
-                if (char_table_event_p(mp%events(i))) cycle
+                if (is_char_table_event(mp%events(i))) cycle
             end if
 
             m = m + 1
@@ -3148,8 +3148,8 @@ contains
     ! Key sequences as strings, character descriptions, minor mode maps
     ! ------------------------------------------------------------------
 
-    !> KEY as events: a key given as [STRING] in `key_valid_p' syntax
-    !> ("C-c") is parsed with `key_parse'; one `key_valid_p' rejects is
+    !> KEY as events: a key given as [STRING] in `is_key_valid' syntax
+    !> ("C-c") is parsed with `key_parse'; one `is_key_valid' rejects is
     !> returned as it is (menu items bind strings to be inserted).
     !> Port of keymap.c:possibly_translate_key_sequence.
     recursive subroutine possibly_translate_key_sequence(key, translated, status)
@@ -3160,7 +3160,7 @@ contains
         translated = key
         if (size(key) /= 1) return
         if (.not. stringp(key(1))) return
-        if (.not. key_valid_p(xstring(key(1)))) return
+        if (.not. is_key_valid(xstring(key(1)))) return
         call key_parse(xstring(key(1)), translated, status)
         if (.not. status%ok()) return
 
@@ -3302,7 +3302,7 @@ contains
             if (.not. status%ok()) return
             if (nilp(binding) .or. fixnump(binding)) cycle
 
-            if (keymapp(binding)) then
+            if (is_keymap(binding)) then
                 j = j + 1
                 modes(j) = all_modes(i)
                 bindings(j) = binding

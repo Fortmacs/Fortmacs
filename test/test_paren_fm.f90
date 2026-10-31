@@ -32,7 +32,7 @@ module test_paren_fm
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max
     use itree_fm, only: overlays_at, overlay_get
-    use paren_fm, only: show_paren_unescaped_p, show_paren_categorize_paren, show_paren_locate_near_paren, &
+    use paren_fm, only: is_show_paren_unescaped, show_paren_categorize_paren, show_paren_locate_near_paren, &
                         show_paren_default, show_paren_data_type, show_paren_function, &
                         show_paren_when_point_inside_paren, show_paren_when_point_in_periphery, show_paren_style, &
                         SHOW_PAREN_EXPRESSION, SHOW_PAREN_PARENTHESIS
@@ -89,10 +89,10 @@ contains
 
         call temp_buffer(h, "(insert)")
         call goto_char(point() - 1)
-        call check(error, show_paren_unescaped_p(point()), "unescaped")
+        call check(error, is_show_paren_unescaped(point()), "unescaped")
         if (allocated(error)) return
         call insert("\", st)
-        call check(error,.not. show_paren_unescaped_p(point()), "escaped")
+        call check(error,.not. is_show_paren_unescaped(point()), "escaped")
         call kill_buffer(h, st)
     end subroutine test_unescaped_p
 

@@ -26,7 +26,7 @@ module test_category_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use category_fm, only: category_set_type, make_category_set, define_category, category_docstring, &
-                           get_unused_category, category_table_p, category_table, standard_category_table, &
+                           get_unused_category, is_category_table, category_table, standard_category_table, &
                            copy_category_table, make_category_table, set_category_table, char_category_set, &
                            category_set_mnemonics, modify_category_entry, char_has_category
     implicit none(type, external)
@@ -66,7 +66,7 @@ contains
         logical :: defined
         character(len=:), allocatable :: doc
 
-        call check(error, category_table_p(standard_category_table()))
+        call check(error, is_category_table(standard_category_table()))
         if (allocated(error)) return
         ! 漢 is han and line breakable; あ hiragana; a Latin; U+0301 combining.
         call check(error, category_set_mnemonics(char_category_set(int(z'6F22'))) == "C|")
@@ -90,7 +90,7 @@ contains
         type(status_type) :: st
 
         tbl = make_category_table()
-        call check(error, category_table_p(tbl) .and. get_unused_category(st, tbl) == " ")
+        call check(error, is_category_table(tbl) .and. get_unused_category(st, tbl) == " ")
         if (allocated(error)) return
         call define_category("x", "Test", st, tbl)
         call check(error, st%ok())

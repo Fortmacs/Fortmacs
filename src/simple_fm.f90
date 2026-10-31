@@ -60,7 +60,7 @@ module simple_fm
     use window_fm, only: window_type, window_start, window_body_lines, recenter
     use subr_fm, only: add_to_history, defvar_nil
     use editfns_fm, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
-                          bolp, constrain_to_field, pos_eol, point_min, bobp, eobp, buffer_substring, &
+                          is_bol, constrain_to_field, pos_eol, point_min, is_bob, is_eob, buffer_substring, &
                           delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
     use textprop_fm, only: get_text_property, get_char_property, next_char_property_change, &
                            previous_char_property_change, previous_single_char_property_change, &
@@ -78,13 +78,13 @@ module simple_fm
                           minibuffer_prompt_end, minibuffer_contents, minibuf_level
     use cmds_fm, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
                        backward_char
-    use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p, &
+    use keymap_fm, only: make_sparse_keymap, define_key, is_keymap_live, &
                          key_description, where_is_internal, lookup_key, command_remapping
     use minibuf_fm, only: completion_obarray_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use lread_fm, only: intern_soft
     use callint_fm, only: current_prefix_arg, prefix_arg, &
-                          prefix_numeric_value, mark_even_if_inactive, commandp, call_interactively
+                          prefix_numeric_value, mark_even_if_inactive, is_command, call_interactively
     use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          backward_prefix_chars
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
@@ -93,9 +93,9 @@ module simple_fm
     use eval_fm, only: hook_type
     use abbrev_fm, only: abbrev_table_type
     use insdel_fm, only: insert_before_markers
-    use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region, char_after, pos_bol, &
+    use editfns_fm, only: char_before, is_eol, point_marker, delete_and_extract_region, char_after, pos_bol, &
                           inhibit_field_text_motion
-    use minibuf_fm, only: minibufferp
+    use minibuf_fm, only: is_minibuffer
     use cmds_fm, only: forward_char, kill_forward_chars_hook
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
@@ -113,7 +113,7 @@ module simple_fm
 
     public :: execute_extended_command, read_extended_command
     public :: async_shell_command, shell_command_sentinel
-    public :: set_next_error_function, has_next_error_function, next_error_buffer_p, next_error_find_buffer, &
+    public :: set_next_error_function, has_next_error_function, is_next_error_buffer, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, syms_of_simple_next_error
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
     public :: set_variable, read_variable
@@ -127,7 +127,7 @@ module simple_fm
               blink_paren_post_self_insert_function, newline_and_indent, syms_of_simple_electric, &
               backward_delete_char_untabify, blink_matching_check_proc, reindent_then_newline_and_indent
     public :: set_local_blink_matching_check_function, current_blink_matching_check_function, &
-              blink_matching_check_function_local_p, kill_local_blink_matching_check_function
+              is_blink_matching_check_function_local, kill_local_blink_matching_check_function
 
     !> True means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
@@ -166,19 +166,19 @@ module simple_fm
     logical, public :: widen_automatically = .true.
     ! Values of undo-equiv-table besides list positions: nil, t, `empty`.
     integer(int64), parameter :: EQUIV_NONE = -2, EQUIV_T = -1, EQUIV_EMPTY = -4
-    public :: mark, region_active_p, use_region_p, deactivate_mark, activate_mark, set_mark, &
+    public :: mark, is_region_active, is_use_region, deactivate_mark, activate_mark, set_mark, &
               push_mark, pop_mark, pop_to_mark_command, push_mark_command, set_mark_command, &
               exchange_point_and_mark, mark_whole_buffer
     public :: kill_ring, kill_new, kill_append, current_kill, kill_region, copy_region_as_kill, &
               kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
-              region_bounds, region_noncontiguous_p, define_yank_handler_function, region_extract_proc, &
+              region_bounds, is_region_noncontiguous, define_yank_handler_function, region_extract_proc, &
               region_insert_proc, yank_handler_proc, yank_undo_proc, &
               forward_visible_line, count_lines, line_number_at_pos
     public :: backward_word, kill_word, backward_kill_word, mark_word
-    public :: indicate_copied_region, region_indistinguishable_p, predicate_proc
+    public :: indicate_copied_region, is_region_indistinguishable, predicate_proc
     ! (Public because gfortran drops private parent procedures that only a
     ! submodule uses.)
-    public :: shows_current_buffer, pos_visible_in_window_p
+    public :: shows_current_buffer, is_pos_visible_in_window
 
     public :: delete_indentation, delete_blank_lines, fixup_whitespace, delete_horizontal_space, &
               delete_all_space, just_one_space, rfc822_goto_eoh, cycle_spacing, transpose_chars, transpose_words, &
@@ -1154,13 +1154,13 @@ module simple_fm
         !> buffer would normally qualify.  If it returns false, BUFFER is
         !> rejected, and the function returns false.  Port of
         !> simple.el:next-error-buffer-p.  (In simple_next_error_fm.)
-        recursive module logical function next_error_buffer_p(buffer, avoid_current, extra_test_inclusive, &
-                                                              extra_test_exclusive)
+        recursive module logical function is_next_error_buffer(buffer, avoid_current, extra_test_inclusive, &
+                                                               extra_test_exclusive)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             logical, intent(in), optional :: avoid_current
             procedure(predicate_proc), optional :: extra_test_inclusive, extra_test_exclusive
-        end function next_error_buffer_p
+        end function is_next_error_buffer
 
         !> Return a `next_error' capable buffer in BUFFER.
         !>
@@ -1358,7 +1358,7 @@ module simple_fm
     !> current window, `kill_ring_save' will blink the cursor between
     !> point and mark for `copy_region_blink_delay' seconds.  Port of
     !> simple.el copy-region-blink-predicate.
-    procedure(predicate_proc), pointer, public :: copy_region_blink_predicate => region_indistinguishable_p
+    procedure(predicate_proc), pointer, public :: copy_region_blink_predicate => is_region_indistinguishable
 
     !> Hook run when the mark becomes inactive.  Port of simple.el
     !> deactivate-mark-hook.
@@ -1616,9 +1616,9 @@ contains
 
     !> Whether the current buffer has its own `blink_matching_check_function'.
     !> Not a port.
-    logical function blink_matching_check_function_local_p()
-        blink_matching_check_function_local_p = check_local_index() > 0
-    end function blink_matching_check_function_local_p
+    logical function is_blink_matching_check_function_local()
+        is_blink_matching_check_function_local = check_local_index() > 0
+    end function is_blink_matching_check_function_local
 
     !> Make the current buffer use the default `blink_matching_check_function'
     !> (also what `kill_all_local_variables' does to it).  Not a port.
@@ -1683,7 +1683,7 @@ contains
         integer :: d
         character(len=4) :: name
 
-        if (keymap_live_p(uarg_map)) then
+        if (is_keymap_live(uarg_map)) then
             map = uarg_map
             return
         end if
@@ -1767,7 +1767,7 @@ contains
 
         n = arg_p()
 
-        if (use_region_p() .and. delete_active_region .and. n == 1) then
+        if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
             call delete_backward_char(n, status,.not. nilp(current_prefix_arg))
@@ -1799,7 +1799,7 @@ contains
 
         n = arg_p()
 
-        if (use_region_p() .and. delete_active_region .and. n == 1) then
+        if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
             call delete_char(n, status,.not. nilp(current_prefix_arg))
@@ -1813,7 +1813,7 @@ contains
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
 
-        if (region_active_p()) call deactivate_mark()
+        if (is_region_active()) call deactivate_mark()
         if (associated(kmacro_keyboard_quit_hook)) call kmacro_keyboard_quit_hook()
         defining_kbd_macro = DEFINING_KBD_MACRO_NIL
         call set_error(status, FM_QUIT)
@@ -1857,7 +1857,7 @@ contains
             ! Translate TAB key into control-I ASCII character, and so on.
             translation = nil()
 
-            if (keymap_live_p(local_function_key_map)) then
+            if (is_keymap_live(local_function_key_map)) then
                 key(1) = ev
                 call lookup_key(make_keymap_ref(local_function_key_map), key, translation, st)
             end if
@@ -2174,7 +2174,7 @@ contains
                 if (forward_line(1_int64) == 0) n = 0
             else
                 if (forward_line(n) == 0) then
-                    if (bolp()) n = 0
+                    if (is_bol()) n = 0
                 end if
             end if
 
@@ -2186,7 +2186,7 @@ contains
             do while (n > 0 .and. .not. stop)
                 ! If the following character is currently invisible, skip
                 ! all characters with that same `invisible' property value.
-                do while (.not. eobp() .and. invisible_p(point()) /= 0)
+                do while (.not. is_eob() .and. invisible_p(point()) /= 0)
                     call goto_char(next_char_property_change(point()))
                 end do
 
@@ -2195,7 +2195,7 @@ contains
                 call goto_char(constrain_to_field(pos_eol(), point(), .true., .true.))
 
                 ! If there's no invisibility here, move over the newline.
-                if (eobp()) then
+                if (is_eob()) then
                     if (.not. noerror) call signal_end(status)
                     stop = .true.
                 else if (n > 1 .and. invisible_p(point()) == 0) then
@@ -2220,7 +2220,7 @@ contains
             do while (n < 0 .and. .not. stop)
                 call beginning_of_line()
 
-                if (bobp()) then
+                if (is_bob()) then
                     if (.not. noerror) call signal_beginning(status)
                     stop = .true.
                 else if (n < -1 .and. invisible_p(point() - 1) == 0) then
@@ -2239,7 +2239,7 @@ contains
 
                     ! Don't move over previous invis lines if our target is
                     ! the middle of this line.
-                    do while ((goal_or_temporary() == 0 .or. n < 0) .and. .not. bobp())
+                    do while ((goal_or_temporary() == 0 .or. n < 0) .and. .not. is_bob())
                         if (invisible_p(point() - 1) == 0) exit
                         call goto_char(previous_char_property_change(point()))
                     end do
@@ -2304,14 +2304,14 @@ contains
             call move_to_column(col, reached)
         end if
 
-        if (.not. line_move_ignore_invisible .or. bolp()) return
+        if (.not. line_move_ignore_invisible .or. is_bol()) return
         if (invisible_p(point() - 1) == 0) return
         normal_location = point()
         normal_column = current_column()
 
         ! If the following character is currently invisible, skip all
         ! characters with that same `invisible' property value.
-        do while (.not. eobp() .and. invisible_p(point()) /= 0)
+        do while (.not. is_eob() .and. invisible_p(point()) /= 0)
             call goto_char(next_char_property_change(point()))
         end do
 
@@ -2326,10 +2326,10 @@ contains
             ! the screen but with a more reasonable buffer position.
             call goto_char(normal_location)
             ! We want the real line beginning, so it's consistent with
-            ! bolp below, otherwise we might infloop.
+            ! is_bol below, otherwise we might infloop.
             line_beg = pos_bol()
 
-            do while (.not. bolp())
+            do while (.not. is_bol())
                 if (invisible_p(point() - 1) == 0) exit
                 call goto_char(previous_char_property_change(point(), line_beg))
             end do
@@ -2408,7 +2408,7 @@ contains
             saved = point()
             call goto_char(pos_eol())
 
-            do while (.not. eobp() .and. invisible_p(point()) /= 0)
+            do while (.not. is_eob() .and. invisible_p(point()) /= 0)
                 call goto_char(next_char_property_change(point()))
                 call goto_char(pos_eol())
             end do
@@ -2506,14 +2506,14 @@ contains
 
         do while (.not. done)
             ! (save-excursion (let ((goal-column 0) (line-move-visual nil)
-            ! (inhibit-field-text-motion (minibufferp))) ...))
+            ! (inhibit-field-text-motion (is_minibuffer))) ...))
             opoint = point()
             saved_goal = goal_column
             saved_visual = line_move_visual
             saved_inhibit = inhibit_field_text_motion
             goal_column = 0
             line_move_visual = .false.
-            inhibit_field_text_motion = minibufferp()
+            inhibit_field_text_motion = is_minibuffer()
             call line_move(n, st, noerror=.true., moved=moved)
 
             if (moved) then
@@ -2521,8 +2521,8 @@ contains
                 ! we are.
                 call goto_char(pos_bol())
 
-                if (.not. bobp()) then
-                    do while (.not. bobp())
+                if (.not. is_bob()) then
+                    do while (.not. is_bob())
                         if (invisible_p(point() - 1) == 0) exit
                         call goto_char(previous_single_char_property_change(point(), sym("invisible")))
                     end do
@@ -2544,7 +2544,7 @@ contains
 
                 if (found .and. c == 10) then
                     call goto_char(point() - 1)
-                else if (.not. eobp()) then
+                else if (.not. is_eob()) then
                     call char_after(c, found)
 
                     if (c /= 10) then
@@ -2596,7 +2596,7 @@ contains
         ! Move to beginning-of-line, ignoring fields and invisible text.
         call goto_char(pos_bol())
 
-        do while (.not. bobp())
+        do while (.not. is_bob())
             if (invisible_p(point() - 1) == 0) exit
             call goto_char(previous_char_property_change(point()))
             call goto_char(pos_bol())
@@ -2698,7 +2698,7 @@ contains
 
             if (point() <= pend) then
                 minibuffer_temporary_goal_position = pend
-            else if (eobp()) then
+            else if (is_eob()) then
                 minibuffer_temporary_goal_position = 0
             else
                 minibuffer_temporary_goal_position = point()
@@ -2783,7 +2783,7 @@ contains
         ! Remember the original goal column of possibly multi-line input
         ! excluding the length of the prompt on the first line.
         prompt_end = minibuffer_prompt_end()
-        have_column = .not. (eolp() .and. point() > prompt_end)
+        have_column = .not. (is_eol() .and. point() > prompt_end)
         old_column = 0
 
         if (have_column) then
@@ -2839,7 +2839,7 @@ contains
         ! Remember the original goal column of possibly multi-line input
         ! excluding the length of the prompt on the first line.
         prompt_end = minibuffer_prompt_end()
-        have_column = .not. (eolp() .and. point() > prompt_end)
+        have_column = .not. (is_eol() .and. point() > prompt_end)
         old_column = 0
 
         if (have_column) then
@@ -2909,7 +2909,7 @@ contains
             ! Since `end_of_visual_line' puts the cursor at the beginning
             ! of the next visual line, move it one char back to the end of
             ! the first visual line (bug#22544).
-            if (.not. eolp()) call backward_char(status)
+            if (.not. is_eol()) call backward_char(status)
             status = status_type()
         end if
 
@@ -2983,7 +2983,7 @@ contains
         ! Read a string, completing from and restricting to the set of all
         ! defined commands.  Save the command read on the extended-command
         ! history list.
-        call completing_read(prompt//"M-x ", completion_obarray_table("command"), name, status, commandp, &
+        call completing_read(prompt//"M-x ", completion_obarray_table("command"), name, status, is_command, &
                              require_match=REQUIRE_MATCH_T, history="extended_command_history")
     end subroutine read_extended_command
 
@@ -3018,7 +3018,7 @@ contains
         function = nil()
         if (id /= 0) function = sym(name)
 
-        if (id == 0 .or. .not. commandp(function)) then
+        if (id == 0 .or. .not. is_command(function)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("`")//name//format_message("' is not a valid command name"))
             return
         end if
@@ -3538,22 +3538,22 @@ contains
 
     !> Return true if Transient Mark mode is enabled and the mark is active.
     !> Port of simple.el:region-active-p.
-    logical function region_active_p()
-        region_active_p = transient_mark_mode%value .and. buffers(cur)%mark_active .and. mark_position() /= 0
-    end function region_active_p
+    logical function is_region_active()
+        is_region_active = transient_mark_mode%value .and. buffers(cur)%mark_active .and. mark_position() /= 0
+    end function is_region_active
 
     !> Return true if the region is active and it is appropriate to act on it:
     !> Transient Mark mode is enabled, the mark is active and the region is
     !> not empty.  Port of simple.el:use-region-p (use-empty-active-region
     !> nil).
-    logical function use_region_p()
+    logical function is_use_region()
         integer(int64) :: m
 
-        use_region_p = region_active_p()
-        if (.not. use_region_p) return
+        is_use_region = is_region_active()
+        if (.not. is_use_region) return
         m = mark_position()
-        use_region_p = m /= point()
-    end function use_region_p
+        is_use_region = m /= point()
+    end function is_use_region
 
     !> Deactivate the mark.
     !> If Transient Mark mode is disabled, this function normally does
@@ -3566,7 +3566,7 @@ contains
 
         forced = .false.
         if (present(force)) forced = force
-        if (.not. (region_active_p() .or. forced)) return
+        if (.not. (is_region_active() .or. forced)) return
         buffers(cur)%mark_active = .false.
         call deactivate_mark_hook%run(st)
     end subroutine deactivate_mark
@@ -3579,7 +3579,7 @@ contains
     !> Activate the mark.  Port of simple.el:activate-mark.
     subroutine activate_mark()
         if (mark_position() == 0) return
-        if (.not. region_active_p()) buffers(cur)%mark_active = .true.
+        if (.not. is_region_active()) buffers(cur)%mark_active = .true.
     end subroutine activate_mark
 
     !> Set this buffer's mark to POS (0 for none) and activate it.
@@ -3758,7 +3758,7 @@ contains
             this_command = sym("pop_to_mark_command")
             call pop_to_mark_command(status)
         else if (value_eq(last_command, sym("set_mark_command"))) then
-            if (region_active_p()) then
+            if (is_region_active()) then
                 call deactivate_mark()
                 call message("Mark deactivated")
             else
@@ -3791,7 +3791,7 @@ contains
         call set_mark(point())
         call goto_char(omark)
 
-        if (arg .neqv. .not. region_active_p()) then
+        if (arg .neqv. .not. is_region_active()) then
             call deactivate_mark()
         else
             call activate_mark()
@@ -3970,7 +3970,7 @@ contains
     !> Return the boundaries of the region, one or more pairs
     !> [STARTS(k), ENDS(k)).
     !> There is more than one pair when the region is non-contiguous, see
-    !> `region_noncontiguous_p' and `extract_rectangle_bounds'.  Port of
+    !> `is_region_noncontiguous' and `extract_rectangle_bounds'.  Port of
     !> simple.el:region-bounds.
     recursive subroutine region_bounds(starts, ends, status)
         integer(int64), allocatable, intent(out) :: starts(:), ends(:)
@@ -3984,14 +3984,14 @@ contains
     !> An example is a rectangular region handled as a list of separate
     !> contiguous regions for each line.  Port of
     !> simple.el:region-noncontiguous-p.
-    recursive logical function region_noncontiguous_p() result(noncontiguous)
+    recursive logical function is_region_noncontiguous() result(noncontiguous)
         integer(int64), allocatable :: starts(:), ends(:)
         type(status_type) :: st
 
         call region_bounds(starts, ends, st)
         noncontiguous = .false.
         if (st%ok()) noncontiguous = size(starts) > 1
-    end function region_noncontiguous_p
+    end function is_region_noncontiguous
 
     !> Kill ("cut") text between BEG and END.
     !> This deletes the text from the buffer and saves it in the kill ring.
@@ -4108,7 +4108,7 @@ contains
             ! lines, skip it.
             opoint = point()
 
-            do while (.not. eobp())
+            do while (.not. is_eob())
                 if (invisible_p(point()) == 0) exit
                 call get_text_property(point(), sym("invisible"), prop, st)
 
@@ -4121,7 +4121,7 @@ contains
                 end if
             end do
 
-            if (.not. bolp()) call goto_char(opoint)
+            if (.not. is_bol()) call goto_char(opoint)
         else
             first = .true.
 
@@ -4134,7 +4134,7 @@ contains
 
                 ! If the newline we just moved to is invisible, don't count
                 ! it.
-                if (.not. bobp()) then
+                if (.not. is_bob()) then
                     if (invisible_p(point() - 1) == 0) n = n + 1
                 end if
 
@@ -4145,7 +4145,7 @@ contains
             ! lines, skip it.
             opoint = point()
 
-            do while (.not. bobp())
+            do while (.not. is_bob())
                 if (invisible_p(point() - 1) == 0) exit
                 call get_text_property(point() - 1, sym("invisible"), prop, st)
 
@@ -4158,7 +4158,7 @@ contains
                 end if
             end do
 
-            if (.not. bolp()) call goto_char(opoint)
+            if (.not. is_bol()) call goto_char(opoint)
         end if
     end subroutine forward_visible_line
 
@@ -4179,7 +4179,7 @@ contains
         if (e <= s) return
         text = buf_bytes(buffers(cur), char_to_byte(s), char_to_byte(e))
         n = newlines_in(text)
-        ! (if (bolp) (1- (line-number-at-pos)) (line-number-at-pos)) at
+        ! (if (is_bol) (1- (line-number-at-pos)) (line-number-at-pos)) at
         ! the end of the region narrowed to.
         if (text(len(text):len(text)) /= char(10)) n = n + 1
     end function count_lines
@@ -4249,7 +4249,7 @@ contains
         if (have_arg) then
             call forward_visible_line(arg)
         else
-            if (eobp()) then
+            if (is_eob()) then
                 call set_error(status, FM_END_OF_BUFFER)
                 return
             end if
@@ -4257,7 +4257,7 @@ contains
             end = line_end_position()
             call buffer_substring(start, end, rest, status)
 
-            if (verify(rest, " "//achar(9)) == 0 .or. (kill_whole_line_option .and. bolp())) then
+            if (verify(rest, " "//achar(9)) == 0 .or. (kill_whole_line_option .and. is_bol())) then
                 call forward_visible_line(1_int64)
             else
                 call goto_char(end)
@@ -4281,7 +4281,7 @@ contains
 
         here = point()
 
-        if (arg > 0 .and. eobp()) then
+        if (arg > 0 .and. is_eob()) then
             call forward_visible_line(0_int64)
             b = point()
             call goto_char(here)
@@ -4292,7 +4292,7 @@ contains
             end if
         end if
 
-        if (arg < 0 .and. bobp()) then
+        if (arg < 0 .and. is_bob()) then
             call goto_char(line_end_position())
             b = point()
             call goto_char(here)
@@ -4320,7 +4320,7 @@ contains
             call copy_marker_at(point(), region1_end, .false., st)
             call goto_char(here)
             call forward_visible_line(arg + 1)
-            if (.not. bobp()) call goto_char(point() - 1)
+            if (.not. is_bob()) call goto_char(point() - 1)
         else
             call forward_visible_line(0_int64)
             call copy_marker_at(point(), region1_end, .false., st)
@@ -4640,9 +4640,9 @@ contains
     !> This holds when the region is inactive, or when the `region' face
     !> cannot be distinguished from the `default' face (on a terminal it
     !> always can).  Port of simple.el:region-indistinguishable-p.
-    logical function region_indistinguishable_p()
-        region_indistinguishable_p = .not. region_active_p()
-    end function region_indistinguishable_p
+    logical function is_region_indistinguishable()
+        is_region_indistinguishable = .not. is_region_active()
+    end function is_region_indistinguishable
 
     !> Whether `w' shows the current buffer.  Not a port.
     logical function shows_current_buffer(w)
@@ -4749,7 +4749,7 @@ contains
         opoint = point()
 
         if (allow_extend .and. ((value_eq(last_command, this_command) .and. mark_position() /= 0) .or. &
-                                region_active_p())) then
+                                is_region_active())) then
             if (have_arg) then
                 n = arg
             else if (mark_position() < point()) then
@@ -4893,7 +4893,7 @@ contains
 
         if (thisblank) then
             if (.not. looking_at("[ "//TAB//"]*"//LF//"[ "//TAB//"]*$", status)) then
-                if (bobp()) then
+                if (is_bob()) then
                     singleblank = .true.
                 else
                     shortage = forward_line(-1_int64)
@@ -5240,7 +5240,7 @@ contains
         type(value_type) :: read_only
         type(status_type) :: st
 
-        if (eolp() .and. .not. bobp()) then
+        if (is_eol() .and. .not. is_bob()) then
             call get_text_property(point() - 1, sym("read_only"), read_only, st)
             if (nilp(read_only)) call goto_char(point() - 1)
         end if
@@ -5508,7 +5508,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
             call delete_indentation(.not. nilp(current_prefix_arg), status, b, e)
@@ -5549,7 +5549,7 @@ contains
         type(value_type), intent(in) :: arg
         integer(int64) :: size
 
-        if (.not. consp(arg) .and. .not. region_active_p()) call push_mark()
+        if (.not. consp(arg) .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
         if (.not. nilp(arg) .and. .not. consp(arg)) then
@@ -5581,7 +5581,7 @@ contains
         type(window_type), pointer :: w
         type(status_type) :: st
 
-        if (.not. consp(arg) .and. .not. region_active_p()) call push_mark()
+        if (.not. consp(arg) .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
         if (.not. nilp(arg) .and. .not. consp(arg)) then
@@ -5626,7 +5626,7 @@ contains
     !> buffer), counting from its start.  Port of
     !> window.c:Fpos_visible_in_window_p (line-based, as on a text
     !> terminal; no partial lines).
-    logical function pos_visible_in_window_p(pos, w) result(visible)
+    logical function is_pos_visible_in_window(pos, w) result(visible)
         integer(int64), intent(in) :: pos
         type(window_type), intent(in) :: w
         integer(int64) :: start
@@ -5634,7 +5634,7 @@ contains
         start = max(point_min(), min(window_start(w), point_max()))
         visible = pos >= start .and. (pos < window_end_updated(w) .or. &
                                       (pos == point_max() .and. window_end_updated(w) == point_max()))
-    end function pos_visible_in_window_p
+    end function is_pos_visible_in_window
 
     subroutine cmd_beginning_of_buffer(status)
         type(status_type), intent(out) :: status

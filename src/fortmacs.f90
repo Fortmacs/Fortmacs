@@ -76,24 +76,24 @@ module fortmacs
                         FACE_STYLE_DOTS, FACE_STYLE_DASHES, FACE_BOX_RELEASED_BUTTON, FACE_BOX_PRESSED_BUTTON, &
                         FACE_BOX_FLAT_BUTTON
     use callint_fm, only: command_proc, command_type, set_command_disabled
-    use keymap_fm, only: keymap_global_set, keymap_set, key_valid_p, current_global_map
-    use subr_fm, only: global_set_key, y_or_n_p
+    use keymap_fm, only: keymap_global_set, keymap_set, is_key_valid, current_global_map
+    use subr_fm, only: global_set_key, read_y_or_n
     ! Buffers and editing.
     use handle_fm, only: handle_type
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, buffer_name
     use insdel_fm, only: insert
-    use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, delete_region, bobp, eobp, bolp, &
-                          eolp, region_beginning, region_end
+    use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, delete_region, is_bob, is_eob, is_bol, &
+                          is_eol, region_beginning, region_end
     use cmds_fm, only: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     use files_fm, only: find_file, save_buffer
-    use fns_fm, only: yes_or_no_p
+    use fns_fm, only: read_yes_or_no
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE
     use isearch_fm, only: isearch_forward_command, isearch_backward_command
     use simple_fm, only: undo_only, undo_redo
     use undo_fm, only: undo_boundary
-    use simple_fm, only: kill_new, current_kill, kill_region, push_mark, set_mark, mark, region_active_p, &
+    use simple_fm, only: kill_new, current_kill, kill_region, push_mark, set_mark, mark, is_region_active, &
                          deactivate_mark
     use minibuffer_fm, only: read_file_name
     use syntax_fm, only: forward_word, modify_syntax_entry, char_syntax, standard_syntax_table, make_syntax_table, &
@@ -111,7 +111,7 @@ module fortmacs
     use search_fm, only: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
                          looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
                          regexp_quote
-    use subr_fm, only: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back
+    use subr_fm, only: match_string, match_string_no_properties, string_matches, is_looking_at, looking_back
     use isearch_fm, only: isearch_forward_regexp_command, isearch_backward_regexp_command
     use paragraphs_fm, only: forward_sentence, backward_sentence, kill_sentence, backward_kill_sentence, &
                              mark_end_of_sentence, sentence_end_regexp
@@ -124,15 +124,15 @@ module fortmacs
                          delete_all_space, just_one_space, fixup_whitespace, delete_blank_lines, delete_indentation
     use paragraphs_fm, only: transpose_sentences, transpose_paragraphs
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward
-    use syntax_fm, only: syntax_table_live_p, internal_describe_syntax_value
-    use chartab_fm, only: make_char_table, char_table_p, char_table_subtype, char_table_parent, set_char_table_parent, &
+    use syntax_fm, only: is_syntax_table_live, internal_describe_syntax_value
+    use chartab_fm, only: make_char_table, is_char_table, char_table_subtype, char_table_parent, set_char_table_parent, &
                           char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, &
                           set_char_table_extra_table, char_table_range, set_char_table_range, map_char_table, &
                           optimize_char_table, char_table_map_proc, NO_VALUE
-    use casetab_fm, only: case_table_p, current_case_table, standard_case_table, set_case_table, &
+    use casetab_fm, only: is_case_table, current_case_table, standard_case_table, set_case_table, &
                           set_standard_case_table
     use category_fm, only: category_set_type, make_category_set, define_category, category_docstring, &
-                           get_unused_category, category_table_p, category_table, standard_category_table, &
+                           get_unused_category, is_category_table, category_table, standard_category_table, &
                            copy_category_table, make_category_table, set_category_table, char_category_set, &
                            category_set_mnemonics, modify_category_entry
     use novice_fm, only: enable_command, disable_command
@@ -142,8 +142,8 @@ module fortmacs
                          move_to_tab_stop, beginning_of_line_text, indent_line_proc, indent_region_proc
     use fill_fm, only: fill_paragraph, fill_region, fill_region_as_paragraph, unfill_paragraph, set_fill_prefix, &
                        justify_current_line, canonically_space_region, current_fill_column, current_justification, &
-                       fill_single_word_nobreak_p, fill_french_nobreak_p, fill_polish_nobreak_p, &
-                       fill_single_char_nobreak_p, fill_nobreak_predicate_type, JUSTIFY_NONE, JUSTIFY_LEFT, &
+                       is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, &
+                       is_fill_single_char_nobreak, fill_nobreak_predicate_type, JUSTIFY_NONE, JUSTIFY_LEFT, &
                        JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T
     use simple_fm, only: back_to_indentation, do_auto_fill, default_indent_new_line
     use subr_fm, only: read_number
@@ -151,12 +151,12 @@ module fortmacs
                           replace_regexp, replacement_function
     use simple_fm, only: count_lines, line_number_at_pos
     use rect_fm, only: apply_on_rectangle, rectangle_line_action, rectangle_line_type, rectangle_position_as_coordinates, &
-                       rectangle_intersect_p, rectangle_dimensions, delete_rectangle, delete_extract_rectangle, &
+                       is_rectangle_intersect, rectangle_dimensions, delete_rectangle, delete_extract_rectangle, &
                        extract_rectangle, extract_rectangle_bounds, kill_rectangle, copy_rectangle_as_kill, &
                        yank_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, string_rectangle, &
                        string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string, &
                        rectangle_mark_mode, rectangle_mark_mode_map, rectangle_mark_mode_hook
-    use simple_fm, only: deactivate_mark_hook, region_bounds, region_noncontiguous_p
+    use simple_fm, only: deactivate_mark_hook, region_bounds, is_region_noncontiguous
     use editfns_fm, only: interactive_region
     use register_fm, only: register_type, register_value_type, get_register, set_register, point_to_register, &
                            window_configuration_to_register, jump_to_register, file_to_register, buffer_to_register, &
@@ -175,7 +175,7 @@ module fortmacs
     use xdisp_fm, only: tab_width, truncate_partial_width_windows
     use files_fm, only: make_backup_files, change_major_mode_with_file_name
     use simple_fm, only: line_move_visual, goal_column
-    use subr_fm, only: history_length, history_delete_duplicates, y_or_n_p_use_read_key
+    use subr_fm, only: history_length, history_delete_duplicates, read_y_or_n_use_read_key
     use fns_fm, only: use_short_answers
     use rmc_fm, only: read_char_choice_use_read_key
     use keyboard_fm, only: minibuffer_message_timeout
@@ -254,7 +254,7 @@ module fortmacs
                        after_change_function
     use insdel_fm, only: before_change_functions, after_change_functions, first_change_hook, inhibit_modification_hooks
     use subr_fm, only: change_major_mode_after_body_hook, after_change_major_mode_hook
-    use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p, major_mode_named
+    use derived_fm, only: major_mode_type, is_derived_mode, provided_mode_derived_p, major_mode_named
     use easy_mmode_fm, only: minor_mode_type, minor_mode_body_proc
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table
     use prog_mode_fm, only: prog_mode_hook, prog_mode_map
@@ -317,7 +317,7 @@ module fortmacs
                        view_inhibit_help_message, view_no_disable_on_exit
     ! Processes and shell commands.
     use process_fm, only: process_arg_type, process_filter_proc, process_sentinel_proc, make_process, start_process, &
-                          delete_process, free_process, processp, process_live_p, get_process, get_buffer_process, &
+                          delete_process, free_process, is_process, is_process_live, get_process, get_buffer_process, &
                           process_list, process_status, process_exit_status, process_id, process_name, &
                           process_command, process_buffer, set_process_buffer, process_mark, set_process_filter, &
                           set_process_sentinel, process_tty_name, set_process_query_on_exit_flag, &
@@ -418,7 +418,7 @@ module fortmacs
     use help_mode_fm, only: help_mode_abbrev_table
     use files_fm, only: save_some_buffers_proc, save_some_buffers_function_type, save_some_buffers_functions, &
                         add_save_some_buffers_function
-    use dabbrev_fm, only: dabbrev_expand, dabbrev_same_major_mode_p, dabbrev_select_buffers, dabbrev_friend_buffer_proc, &
+    use dabbrev_fm, only: dabbrev_expand, is_dabbrev_same_major_mode, dabbrev_select_buffers, dabbrev_friend_buffer_proc, &
                           dabbrev_select_buffers_proc, dabbrev_backward_only, dabbrev_limit, &
                           dabbrev_abbrev_skip_leading_regexp, dabbrev_eliminate_newlines, dabbrev_case_fold_search, &
                           dabbrev_upcase_means_case_search, dabbrev_case_distinction, dabbrev_case_replace, &
@@ -431,7 +431,7 @@ module fortmacs
                          last_coding_system_used, inhibit_eol_conversion, inhibit_null_byte_detection, &
                          inhibit_iso_escape_detection, eol_mnemonic_unix, eol_mnemonic_dos, eol_mnemonic_mac, &
                          eol_mnemonic_undecided, default_process_coding_system, file_coding_system_table, &
-                         file_coding_type, locale_coding_system, coding_system_p, check_coding_system, &
+                         file_coding_type, locale_coding_system, is_coding_system, check_coding_system, &
                          coding_system_base, coding_system_eol_type, coding_system_change_eol_conversion, &
                          coding_system_change_text_conversion, coding_system_type, coding_system_priority_list, &
                          set_coding_system_priority, coding_system_list_entry_type, define_coding_system_alias, &
@@ -451,7 +451,7 @@ module fortmacs
     use simple_fm, only: messages_buffer_mode_hook, messages_buffer_mode_map
     use apropos_fm, only: apropos_mode_hook, apropos_mode_map
     use cmds_fm, only: post_self_insert_hook
-    use timer_fm, only: run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, timerp, &
+    use timer_fm, only: run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, is_timer, &
                         timer_max_repeats
     use autorevert_fm, only: auto_revert_mode, auto_revert_tail_mode, global_auto_revert_mode, &
                              turn_on_auto_revert_mode, turn_on_auto_revert_tail_mode, auto_revert_interval, &
@@ -536,7 +536,7 @@ module fortmacs
                           ibuffer_filtering_table, ibuffer_filter_format_table, ibuffer_save_with_custom, &
                           define_ibuffer_filter, ibuffer_filtering_qualifiers, ibuffer_set_filtering_qualifiers, &
                           ibuffer_filter_groups, ibuffer_set_filter_groups, ibuffer_switch_to_saved_filter_groups, &
-                          ibuffer_switch_to_saved_filters, ibuffer_included_in_filters_p
+                          ibuffer_switch_to_saved_filters, is_ibuffer_included_in_filters
     use ibuf_macs_fm, only: ibuffer_formats_type, ibuffer_column_spec_type, ibuffer_cell_type, ibuffer_column_proc, &
                             ibuffer_summarizer_proc, ibuffer_sorter_proc, ibuffer_size_proc, &
                             ibuffer_buffer_predicate_proc, ibuffer_form_proc, ibuffer_show_predicate_type, &
@@ -662,7 +662,7 @@ module fortmacs
 
     public :: int64
     public :: process_arg_type, process_filter_proc, process_sentinel_proc, make_process, start_process, &
-              delete_process, free_process, processp, process_live_p, get_process, get_buffer_process, process_list, &
+              delete_process, free_process, is_process, is_process_live, get_process, get_buffer_process, process_list, &
               process_status, process_exit_status, process_id, process_name, process_command, process_buffer, &
               set_process_buffer, process_mark, set_process_filter, set_process_sentinel, process_tty_name, &
               set_process_query_on_exit_flag, process_query_on_exit_flag, interrupt_process, kill_process, &
@@ -729,34 +729,34 @@ module fortmacs
     public :: command_proc, command_type, commands, set_command_disabled
     public :: faces, face_underline, face_box, FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, FACE_STYLE_DOTS, &
               FACE_STYLE_DASHES, FACE_BOX_RELEASED_BUTTON, FACE_BOX_PRESSED_BUTTON, FACE_BOX_FLAT_BUTTON
-    public :: keymap_global_set, keymap_set, key_valid_p, current_global_map, global_set_key
+    public :: keymap_global_set, keymap_set, is_key_valid, current_global_map, global_set_key
     public :: handle_type, current_buffer, get_buffer_create, set_buffer, buffer_name
-    public :: insert, point, point_min, point_max, goto_char, buffer_substring, delete_region, bobp, eobp, bolp, eolp
+    public :: insert, point, point_min, point_max, goto_char, buffer_substring, delete_region, is_bob, is_eob, is_bol, is_eol
     public :: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
-    public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
+    public :: find_file, save_buffer, read_yes_or_no, read_y_or_n, read_string, message
     public :: search_forward, search_backward, match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE, &
               isearch_forward_command, isearch_backward_command
     public :: undo_only, undo_redo, undo_boundary
     public :: region_beginning, region_end, kill_new, current_kill, kill_region, push_mark, set_mark, mark, &
-              region_active_p, deactivate_mark
+              is_region_active, deactivate_mark
     public :: read_file_name
     public :: forward_word, backward_word, kill_word, backward_kill_word, mark_word, modify_syntax_entry, &
               char_syntax, standard_syntax_table, make_syntax_table, copy_syntax_table, set_syntax_table, &
               syntax_table, forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
               backward_kill_paragraph, describe_function, describe_variable, substitute_command_keys
-    public :: make_char_table, char_table_p, char_table_subtype, char_table_parent, set_char_table_parent, &
+    public :: make_char_table, is_char_table, char_table_subtype, char_table_parent, set_char_table_parent, &
               char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, set_char_table_extra_table, &
               char_table_range, set_char_table_range, map_char_table, optimize_char_table, char_table_map_proc, NO_VALUE
-    public :: case_table_p, current_case_table, standard_case_table, set_case_table, set_standard_case_table
-    public :: syntax_table_live_p, internal_describe_syntax_value
+    public :: is_case_table, current_case_table, standard_case_table, set_case_table, set_standard_case_table
+    public :: is_syntax_table_live, internal_describe_syntax_value
     public :: category_set_type, make_category_set, define_category, category_docstring, get_unused_category, &
-              category_table_p, category_table, standard_category_table, copy_category_table, make_category_table, &
+              is_category_table, category_table, standard_category_table, copy_category_table, make_category_table, &
               set_category_table, char_category_set, category_set_mnemonics, modify_category_entry
     public :: split_window, delete_window, delete_other_windows, other_window, select_window, selected_window, &
               other_buffer, switch_to_buffer, quit_window, kill_buffer, read_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, looking_at, &
               posix_looking_at, string_match, posix_string_match, match_data, set_match_data, regexp_quote, &
-              match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
+              match_string, match_string_no_properties, string_matches, is_looking_at, looking_back, &
               isearch_forward_regexp_command, isearch_backward_regexp_command, forward_sentence, backward_sentence, &
               kill_sentence, backward_kill_sentence, mark_end_of_sentence, sentence_end_regexp, replace_match, &
               match_substitute_replacement, upcase_string, downcase_string, capitalize_string, &
@@ -777,16 +777,16 @@ module fortmacs
               tab_to_tab_stop, move_to_tab_stop, beginning_of_line_text, indent_line_proc, indent_region_proc, &
               fill_paragraph, fill_region, fill_region_as_paragraph, unfill_paragraph, set_fill_prefix, &
               justify_current_line, canonically_space_region, current_fill_column, current_justification, &
-              fill_single_word_nobreak_p, fill_french_nobreak_p, fill_polish_nobreak_p, fill_single_char_nobreak_p, &
+              is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, is_fill_single_char_nobreak, &
               fill_nobreak_predicate_type, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, &
               JUSTIFY_T, back_to_indentation, do_auto_fill, default_indent_new_line, read_number
     public :: count_lines, line_number_at_pos, apply_on_rectangle, rectangle_line_action, rectangle_line_type, &
-              rectangle_position_as_coordinates, rectangle_intersect_p, rectangle_dimensions, delete_rectangle, &
+              rectangle_position_as_coordinates, is_rectangle_intersect, rectangle_dimensions, delete_rectangle, &
               delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, kill_rectangle, &
               copy_rectangle_as_kill, yank_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, &
               string_rectangle, string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string, &
               rectangle_mark_mode, rectangle_mark_mode_map, rectangle_mark_mode_hook, deactivate_mark_hook, &
-              region_bounds, region_noncontiguous_p, interactive_region, &
+              region_bounds, is_region_noncontiguous, interactive_region, &
               killed_rectangle, register_type, register_value_type, register_table, register_separator, get_register, &
               set_register, point_to_register, window_configuration_to_register, jump_to_register, file_to_register, &
               buffer_to_register, number_to_register, increment_register, view_register, list_registers, &
@@ -795,7 +795,7 @@ module fortmacs
               REGISTER_NUMBER, REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
     public :: run_mode_hooks, fundamental_mode, special_mode, text_mode, prog_mode, normal_mode, set_auto_mode, &
               add_auto_mode, file_name_sans_versions
-    public :: history_delete_duplicates, y_or_n_p_use_read_key, use_short_answers, minibuffer_message_timeout, &
+    public :: history_delete_duplicates, read_y_or_n_use_read_key, use_short_answers, minibuffer_message_timeout, &
               read_file_name_completion_ignore_case, read_buffer_completion_ignore_case, read_char_choice_use_read_key
     public :: tab_width, make_backup_files, change_major_mode_with_file_name, line_move_visual, goal_column, history_length, &
               truncate_partial_width_windows, enable_recursive_minibuffers, history_add_new_input, insert_default_directory, &
@@ -820,7 +820,7 @@ module fortmacs
               fill_nobreak_predicate, auto_fill_inhibit_regexp, inhibit_auto_fill, normal_auto_fill_function
     public :: setting_type, integer_setting, logical_setting, string_setting, function_setting, hook_type, &
               change_major_mode_hook, change_major_mode_after_body_hook, after_change_major_mode_hook, &
-              major_mode_type, derived_mode_p, provided_mode_derived_p, minor_mode_type, minor_mode_body_proc, &
+              major_mode_type, is_derived_mode, provided_mode_derived_p, minor_mode_type, minor_mode_body_proc, &
               major_mode_named, text_mode_hook, text_mode_map, text_mode_syntax_table, prog_mode_hook, &
               prog_mode_map, special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
@@ -859,7 +859,7 @@ module fortmacs
               insert_abbrev_table_description, local_abbrev_table, set_local_abbrev_table, text_mode_abbrev_table, &
               prog_mode_abbrev_table, special_mode_abbrev_table, help_mode_abbrev_table, save_some_buffers_proc, &
               save_some_buffers_function_type, save_some_buffers_functions, add_save_some_buffers_function, &
-              dabbrev_expand, dabbrev_same_major_mode_p, dabbrev_select_buffers, dabbrev_friend_buffer_proc, &
+              dabbrev_expand, is_dabbrev_same_major_mode, dabbrev_select_buffers, dabbrev_friend_buffer_proc, &
               dabbrev_select_buffers_proc, dabbrev_backward_only, dabbrev_limit, dabbrev_abbrev_skip_leading_regexp, &
               dabbrev_eliminate_newlines, dabbrev_case_fold_search, dabbrev_upcase_means_case_search, &
               dabbrev_case_distinction, dabbrev_case_replace, dabbrev_abbrev_char_regexp, dabbrev_check_all_buffers, &
@@ -870,7 +870,7 @@ module fortmacs
     public :: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, last_coding_system_used, &
               inhibit_eol_conversion, inhibit_null_byte_detection, inhibit_iso_escape_detection, eol_mnemonic_unix, &
               eol_mnemonic_dos, eol_mnemonic_mac, eol_mnemonic_undecided, default_process_coding_system, &
-              file_coding_system_table, file_coding_type, locale_coding_system, coding_system_p, check_coding_system, &
+              file_coding_system_table, file_coding_type, locale_coding_system, is_coding_system, check_coding_system, &
               coding_system_base, coding_system_eol_type, coding_system_change_eol_conversion, &
               coding_system_change_text_conversion, coding_system_type, coding_system_priority_list, &
               set_coding_system_priority, coding_system_list_entry_type, define_coding_system_alias, &
@@ -880,7 +880,7 @@ module fortmacs
               set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system, &
               set_process_coding_system, process_coding_system
     public :: post_self_insert_hook, run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, &
-              timerp, timer_max_repeats
+              is_timer, timer_max_repeats
     public :: auto_revert_mode, auto_revert_tail_mode, global_auto_revert_mode, turn_on_auto_revert_mode, &
               turn_on_auto_revert_tail_mode, auto_revert_interval, auto_revert_stop_on_user_input, auto_revert_verbose, &
               auto_revert_mode_text, auto_revert_tail_mode_text, auto_revert_mode_hook, auto_revert_tail_mode_hook, &
@@ -955,7 +955,7 @@ module fortmacs
     public :: ibuffer_saved_filters, ibuffer_saved_filter_groups, ibuffer_filtering_table, ibuffer_filter_format_table, &
               ibuffer_save_with_custom, define_ibuffer_filter, ibuffer_filtering_qualifiers, &
               ibuffer_set_filtering_qualifiers, ibuffer_filter_groups, ibuffer_set_filter_groups, &
-              ibuffer_switch_to_saved_filter_groups, ibuffer_switch_to_saved_filters, ibuffer_included_in_filters_p, &
+              ibuffer_switch_to_saved_filter_groups, ibuffer_switch_to_saved_filters, is_ibuffer_included_in_filters, &
               ibuffer_filter_type, ibuffer_filter_node_type, ibuffer_saved_filters_type, &
               ibuffer_saved_filter_groups_type, ibuffer_filter_groups_type, ibuffer_filter_formats_type, &
               ibuffer_filter_def_type, ibuffer_filter_test_proc, ibuffer_and, ibuffer_or, ibuffer_not, ibuffer_saved, &

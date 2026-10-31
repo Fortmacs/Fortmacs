@@ -40,7 +40,7 @@ submodule(data_fm) data_buffer_fm
     use lread_fm, only: intern, sym
     use handle_fm, only: null_handle
     use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, left_margin, &
-                         auto_fill_function, auto_fill_proc, buffer_live_p, buffer_handle, transient_mark_mode
+                         auto_fill_function, auto_fill_proc, is_buffer_live, buffer_handle, transient_mark_mode
     use xdisp_fm, only: tab_width
     use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
                          indent_line_setting, indent_line_function_name, indent_line_function_named
@@ -1179,10 +1179,10 @@ contains
     end if
     end procedure kill_all_local_variables
 
-    module procedure local_variable_p
+    module procedure is_local_variable
     integer(int64) :: b, id
 
-    local_variable_p = .false.
+    is_local_variable = .false.
     call ensure_obarray()
     if (.not. symbolp(variable)) return
     id = xsymbol(variable)
@@ -1190,26 +1190,26 @@ contains
     if (present(buffer)) b = buffer
 
     if (kind_of(id) == K_SLOT) then
-        local_variable_p = .true.
+        is_local_variable = .true.
     else
-        local_variable_p = local_index(b, id) > 0
+        is_local_variable = local_index(b, id) > 0
     end if
-    end procedure local_variable_p
+    end procedure is_local_variable
 
-    module procedure automatically_local_p
-    automatically_local_p = .false.
-    if (symbolp(variable)) automatically_local_p = auto_local(xsymbol(variable))
-    end procedure automatically_local_p
+    module procedure is_automatically_local
+    is_automatically_local = .false.
+    if (symbolp(variable)) is_automatically_local = auto_local(xsymbol(variable))
+    end procedure is_automatically_local
 
-    module procedure forwarded_variable_p
-    forwarded_variable_p = .false.
-    if (symbolp(variable)) forwarded_variable_p = resolve(xsymbol(variable)) > 0
-    end procedure forwarded_variable_p
+    module procedure is_forwarded_variable
+    is_forwarded_variable = .false.
+    if (symbolp(variable)) is_forwarded_variable = resolve(xsymbol(variable)) > 0
+    end procedure is_forwarded_variable
 
-    module procedure local_variable_if_set_p
-    local_variable_if_set_p = local_variable_p(variable, buffer)
-    if (.not. local_variable_if_set_p .and. symbolp(variable)) local_variable_if_set_p = auto_local(xsymbol(variable))
-    end procedure local_variable_if_set_p
+    module procedure is_local_variable_if_set
+    is_local_variable_if_set = is_local_variable(variable, buffer)
+    if (.not. is_local_variable_if_set .and. symbolp(variable)) is_local_variable_if_set = auto_local(xsymbol(variable))
+    end procedure is_local_variable_if_set
 
     !> The default value of symbol ID.  Not a port.
     subroutine get_default(id, v, bound)
@@ -1258,7 +1258,7 @@ contains
     fn => s%value
     call ensure_obarray()
     id = xsymbol(sym(trim(s%name)))
-    if (.not. local_variable_p(sym(trim(s%name)))) return
+    if (.not. is_local_variable(sym(trim(s%name)))) return
     ! The default is saved as (0, the setting's index) while the current
     ! buffer has its own value.
     i = fn_index(0_int64, resolve(id), .false.)
@@ -1352,7 +1352,7 @@ contains
         return
     end if
 
-    if (.not. buffer_live_p(buffer_handle(buffer))) then
+    if (.not. is_buffer_live(buffer_handle(buffer))) then
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
         return
     end if

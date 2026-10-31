@@ -23,7 +23,6 @@ src/fns_fm.f90:member:lisp-helper
 src/fns_fm.f90:memq:lisp-helper
 src/fns_fm.f90:nth:lisp-helper
 src/fns_fm.f90:nthcdr:lisp-helper
-src/frame_fm.f90:frame_window_p:wrapper
 src/lisp_fm.f90:bufferp:wrapper
 src/lisp_fm.f90:consp:lisp-helper
 src/lisp_fm.f90:consp:wrapper

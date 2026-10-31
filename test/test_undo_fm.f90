@@ -31,7 +31,7 @@ module test_undo_fm
     use lisp_fm, only: nil
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
-                         buffer_modified_p, restore_buffer_modified_p, current_buffer
+                         is_buffer_modified, restore_buffer_modified, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, delete_region
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_command, this_command
@@ -173,11 +173,11 @@ contains
         call fresh(h)
         call insert("1", st)
         call undo_boundary()
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call insert("2", st)
         last_command = nil()
         call undo(nil(), st)
-        call buffer_modified_p(h, modified, st)
+        call is_buffer_modified(h, modified, st)
         call check(error,.not. modified, "unmodified")
         call kill_buffer(h, st)
     end subroutine test_buffer_modified
@@ -198,11 +198,11 @@ contains
         call set_buffer(buf, st)
         call insert("1", st)
         call undo_boundary()
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call insert("2", st)
         last_command = nil()
         call undo(nil(), st)
-        call buffer_modified_p(buf, modified, st)
+        call is_buffer_modified(buf, modified, st)
         call check(error,.not. modified, "unmodified")
         call kill_buffer(buf, st)
         call kill_buffer(h, st)

@@ -40,14 +40,14 @@ module novice_fm
                           buffer_substring
     use insdel_fm, only: insert
     use search_fm, only: search_forward, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
-    use fileio_fm, only: file_exists_p
+    use fileio_fm, only: file_exists
     use files_fm, only: find_file_noselect, save_buffer
     use config_fm, only: init_file_name
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use data_fm, only: symbol_name
     use keymap_fm, only: key_description
     use keyboard_fm, only: this_command_keys, disabled_command_hook
-    use callint_fm, only: call_interactively, commandp, find_command, command_type
+    use callint_fm, only: call_interactively, is_command, find_command, command_type
     use character_fm, only: CHAR_META
     use help_fm, only: substitute_command_keys, documentation_hook
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
@@ -175,7 +175,7 @@ contains
 
             if (allocated(user_init_file)) then
                 if (len(user_init_file) > 0) then
-                    call y_or_n_p("Enable command for future editing sessions also? ", enable_also, status)
+                    call read_y_or_n("Enable command for future editing sessions also? ", enable_also, status)
                     if (.not. status%ok()) return
                 end if
             end if
@@ -254,7 +254,7 @@ contains
         integer :: i, j
         logical :: saved_fold, builtin
 
-        if (.not. commandp(sym(command))) then
+        if (.not. is_command(sym(command))) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//command//format_message("'"))
             return
         end if
@@ -277,7 +277,7 @@ contains
             ! Started with -q, i.e. the file containing enabled/disabled
             ! commands hasn't been read.  Saving settings there would
             ! overwrite other settings.
-            if (file_exists_p(init_file_name())) then
+            if (file_exists(init_file_name())) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "Saving settings from ""fortmacs -q"" would overwrite existing customizations")
                 return
@@ -375,7 +375,7 @@ contains
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
 
-        call completing_read(prompt, completion_obarray_table(), name, status, commandp, &
+        call completing_read(prompt, completion_obarray_table(), name, status, is_command, &
                              require_match=REQUIRE_MATCH_T)
     end subroutine read_command
 

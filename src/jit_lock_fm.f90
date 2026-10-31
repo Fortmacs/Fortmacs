@@ -51,7 +51,7 @@ module jit_lock_fm
     private
 
     public :: syms_of_jit_lock, jit_lock_mode, jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_function, &
-              jit_lock_fontify_now, jit_lock_after_change, jit_lock_mode_p
+              jit_lock_fontify_now, jit_lock_after_change, is_jit_lock_mode
 
     !> Jit-lock asks to fontify chunks of at most this many characters at
     !> a time.
@@ -112,12 +112,12 @@ contains
 
     !> Whether Just-in-time Lock mode is on in the current buffer (the
     !> variable `jit_lock_mode').  Not a port.
-    logical function jit_lock_mode_p()
-        jit_lock_mode_p = .false.
+    logical function is_jit_lock_mode()
+        is_jit_lock_mode = .false.
         if (cur == 0) return
         if (.not. allocated(on)) return
-        jit_lock_mode_p = any(on == buffers(cur)%serial)
-    end function jit_lock_mode_p
+        is_jit_lock_mode = any(on == buffers(cur)%serial)
+    end function is_jit_lock_mode
 
     !> Record whether Just-in-time Lock mode is on in the current buffer.
     !> Not a port.
@@ -252,7 +252,7 @@ contains
         logical :: found
 
         status = status_type()
-        if (.not. jit_lock_mode_p()) return
+        if (.not. is_jit_lock_mode()) return
         ! No deferral.
         cend = min(point_max(), start + jit_lock_chunk_size)
         call next_single_property_change(start, sym("invisible"), vend, found, status, cend)
@@ -386,7 +386,7 @@ contains
         integer(int64) :: begv, zv, saved_start, saved_end
 
         status = status_type()
-        if (.not. jit_lock_mode_p()) return
+        if (.not. is_jit_lock_mode()) return
         saved_start = jit_lock_start
         saved_end = jit_lock_end
         jit_lock_start = start

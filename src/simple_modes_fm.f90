@@ -28,7 +28,7 @@ submodule(simple_fm) simple_modes_fm
     use subr_fm, only: run_mode_hooks
     use keymap_fm, only: keymap_set, define_key
     use modes_fm, only: major_modes, minor_modes
-    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, buffer_live_p, current_buffer
+    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, is_buffer_live, current_buffer
     use xdisp_fm, only: messages_buffer_mode_function, message_log_echo, MESSAGES_BUFFER_NAME
     use keyboard_fm, only: message_log_hook
     implicit none(type, external)
@@ -63,14 +63,14 @@ contains
 
     buffer = get_buffer(MESSAGES_BUFFER_NAME)
     status = status_type()
-    if (buffer_live_p(buffer)) return
+    if (is_buffer_live(buffer)) return
     old = current_buffer()
     call get_buffer_create(MESSAGES_BUFFER_NAME, buffer, status)
     if (.not. status%ok()) return
     call set_buffer(buffer, status)
     if (.not. status%ok()) return
     call messages_buffer_mode(status)
-    if (buffer_live_p(old)) call set_buffer(old, st)
+    if (is_buffer_live(old)) call set_buffer(old, st)
     end procedure messages_buffer
 
     !> Toggle Transient Mark mode.

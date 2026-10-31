@@ -2259,7 +2259,7 @@ contains
         end if
 
         ! Moving within an interval.
-        if (to == from .and. toprev == fromprev .and. interval_visible_p(to) .and. .not. have_overlays) then
+        if (to == from .and. toprev == fromprev .and. is_interval_visible(to) .and. .not. have_overlays) then
             call temp_set_point_both(buffers(cur), charpos, bytepos)
             return
         end if
@@ -2378,13 +2378,13 @@ contains
         end subroutine find_to
 
         !> INTERVAL_VISIBLE_P.
-        logical function interval_visible_p(k)
+        logical function is_interval_visible(k)
             integer(int64), intent(in) :: k
 
-            interval_visible_p = .false.
+            is_interval_visible = .false.
             if (k == 0) return
-            interval_visible_p = nilp(textget(buffers(cur)%text%intervals%runs(k)%plist, qsym("invisible")))
-        end function interval_visible_p
+            is_interval_visible = nilp(textget(buffers(cur)%text%intervals%runs(k)%plist, qsym("invisible")))
+        end function is_interval_visible
 
         !> intervals_equal on two intervals that may be null.
         logical function intervals_same(a, b)

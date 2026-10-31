@@ -47,11 +47,11 @@ module repeat_fm
     use keyboard_fm, only: real_this_command, last_command_event, last_prefix_arg, last_repeatable_command, &
                            num_input_keys, set_transient_map, exit_transient_map, pre_command_hook, post_command_hook, &
                            last_message
-    use keymap_fm, only: make_sparse_keymap, free_keymap, keymap_live_p, define_key, lookup_key, keymap_events, &
-                         access_keymap, copy_keymap, key_parse, key_description, parse_modifiers, keymapp
+    use keymap_fm, only: make_sparse_keymap, free_keymap, is_keymap_live, define_key, lookup_key, keymap_events, &
+                         access_keymap, copy_keymap, key_parse, key_description, parse_modifiers, is_keymap
     use character_fm, only: CHAR_MODIFIER_MASK
     use minibuf_fm, only: minibuf_level
-    use timer_fm, only: run_with_idle_timer, free_timer, timerp
+    use timer_fm, only: run_with_idle_timer, free_timer, is_timer
     use xdisp_fm, only: message, message_nolog
     use rmc_fm, only: rmc_choice_type, rmc_add_key_description
     use editfns_fm, only: char_before
@@ -265,7 +265,7 @@ contains
         if (.not. status%ok()) return
 
         if (.not. nilp(repeat_repeat_char)) then
-            if (keymap_live_p(final_key_map)) call free_keymap(final_key_map, st)
+            if (is_keymap_live(final_key_map)) call free_keymap(final_key_map, st)
             call make_sparse_keymap(final_key_map)
             key(1) = repeat_repeat_char
             call define_key(final_key_map, key, sym("repeat"), st)
@@ -374,7 +374,7 @@ contains
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
             if (.not. associated(p%run) .or. .not. p%interactive) cycle
-            if (.not. keymap_live_p(p%repeat_map)) cycle
+            if (.not. is_keymap_live(p%repeat_map)) cycle
             ncommands = ncommands + 1
             seen = .false.
 
@@ -422,12 +422,12 @@ contains
         p => command_of(this_command)
         q => command_of(real_this_command)
 
-        if (.not. keymap_live_p(map)) then
+        if (.not. is_keymap_live(map)) then
             if (associated(p)) map = p%repeat_map
-            if (.not. keymap_live_p(map) .and. associated(q)) map = q%repeat_map
+            if (.not. is_keymap_live(map) .and. associated(q)) map = q%repeat_map
         end if
 
-        if (keymap_live_p(repeat_in_progress)) then
+        if (is_keymap_live(repeat_in_progress)) then
             continues = .false.
             p => this_command_object()
 
@@ -474,7 +474,7 @@ contains
 
     !> Check if the last KEY is suitable for activating the repeating MAP.
     !> Port of repeat.el:repeat-check-key.
-    logical function repeat_check_key_p(key, map) result(ok)
+    logical function is_repeat_check_key(key, map) result(ok)
         type(value_type), intent(in) :: key
         type(handle_type), intent(in) :: map
         type(command_type), pointer :: p
@@ -504,7 +504,7 @@ contains
         keys(1) = event_basic_type(key)
         call lookup_key(make_keymap_ref(map), keys, binding, st)
         ok = st%ok() .and. .not. nilp(binding) .and. vtag(binding) /= V_INT
-    end function repeat_check_key_p
+    end function is_repeat_check_key
 
     !> Decide whether MAP can be used for the next command.  Port of
     !> repeat.el:repeat-check-map.
@@ -512,14 +512,14 @@ contains
         type(handle_type), intent(in) :: map
         type(command_type), pointer :: p
 
-        ok = keymap_live_p(map)
+        ok = is_keymap_live(map)
         if (.not. ok) return
         ok = minibuf_level < prev_mb_depth .or. value_eq(current_minibuffer_command, prev_mb_command)
         if (.not. ok) return
         p => this_command_object()
         ok = .false.
         if (associated(p)) ok = p%repeat_continue_all
-        if (.not. ok) ok = repeat_check_key_p(last_command_event, map)
+        if (.not. ok) ok = is_repeat_check_key(last_command_event, map)
     end function repeat_check_map
 
     !> Function run before commands to handle repeatable keys.  Port of
@@ -530,7 +530,7 @@ contains
 
         status = status_type()
         if (.not. (minor_modes%repeat_mode%enabled() .and. repeat_keep_prefix)) return
-        if (.not. keymap_live_p(repeat_in_progress)) return
+        if (.not. is_keymap_live(repeat_in_progress)) return
         ! The command's `current_prefix_arg' (a hook function sees nil).
         if (.not. nilp(prefix_arg) .or. nilp(hook_current_prefix_arg)) return
         map = repeat_get_map_sym()
@@ -553,7 +553,7 @@ contains
         real :: timeout
 
         status = status_type()
-        was_in_progress = keymap_live_p(repeat_in_progress)
+        was_in_progress = is_keymap_live(repeat_in_progress)
         map = repeat_get_map_sym()
         repeat_in_progress = null_handle()
 
@@ -562,7 +562,7 @@ contains
             active = map
 
             if (allocated(repeat_exit_key)) then
-                if (keymap_live_p(exit_key_map)) call free_keymap(exit_key_map, st)
+                if (is_keymap_live(exit_key_map)) call free_keymap(exit_key_map, st)
                 call copy_keymap(map, exit_key_map, st)
                 call key_parse(repeat_exit_key, key, st)
                 call define_key(exit_key_map, key, sym("ignore"), st)
@@ -592,7 +592,7 @@ contains
         repeat_map = null_handle()
         prev_mb_depth = minibuf_level
         prev_mb_command = current_minibuffer_command
-        if (was_in_progress .and. .not. keymap_live_p(repeat_in_progress)) call repeat_exit(st)
+        if (was_in_progress .and. .not. is_keymap_live(repeat_in_progress)) call repeat_exit(st)
     end subroutine repeat_post_hook
 
     !> Exit the repeating sequence.
@@ -610,7 +610,7 @@ contains
     !> Internal function to clean up previously set exit function and timer.
     !> Port of repeat.el:repeat--clear-prev.
     subroutine repeat_clear_prev()
-        if (timerp(repeat_exit_timer)) call free_timer(repeat_exit_timer)
+        if (is_timer(repeat_exit_timer)) call free_timer(repeat_exit_timer)
         repeat_exit_timer = null_handle()
 
         if (transient_exit_pending) then
@@ -654,7 +654,7 @@ contains
                 if (nilp(binding)) cycle
                 key = [pre, events(k)]
 
-                if (keymapp(binding)) then
+                if (is_keymap(binding)) then
                     call collect(keymap_of(binding), key)
                     cycle
                 end if
@@ -710,7 +710,7 @@ contains
         current = ""
         if (allocated(last_message)) current = last_message
 
-        if (keymap_live_p(keymap)) then
+        if (is_keymap_live(keymap)) then
             msg = repeat_echo_message_string(keymap)
 
             if (len(current) > 0) then

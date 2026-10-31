@@ -68,11 +68,11 @@ module rect_fm
     use keymap_fm, only: define_key, key_parse
     use buffer_fm, only: current_buffer, buffer_chars_modified_tick
     use character_fm, only: multibyte_chars_in_text
-    use editfns_fm, only: region_beginning_function, region_end_function, region_position_proc, eolp, mark_position
+    use editfns_fm, only: region_beginning_function, region_end_function, region_position_proc, is_eol, mark_position
     use cmds_fm, only: forward_char
     use simple_fm, only: region_extract_function, region_insert_function, region_extract_proc, region_insert_proc, &
                          REGION_EXTRACT_COPY, REGION_EXTRACT_BOUNDS, yank_undo_function, undo_start, undo_more, &
-                         pending_undo_list, define_yank_handler_function, deactivate_mark_hook, region_active_p, &
+                         pending_undo_list, define_yank_handler_function, deactivate_mark_hook, is_region_active, &
                          set_mark, exchange_point_and_mark
     use xdisp_fm, only: redisplay_highlight_region_function, redisplay_unhighlight_region_function, &
                         highlight_region_proc, unhighlight_region_proc
@@ -83,7 +83,7 @@ module rect_fm
     use marker_fm, only: copy_marker_at, free_marker, marker_position, char_to_byte
     use undo_fm, only: push_undo_entry
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, line_beginning_position, line_end_position, bolp, buffer_substring, &
+    use editfns_fm, only: point, goto_char, line_beginning_position, line_end_position, is_bol, buffer_substring, &
                           delete_region, delete_and_extract_region, region_beginning, region_end, char_after, &
                           interactive_region, char_before
     use cmds_fm, only: forward_line
@@ -98,7 +98,7 @@ module rect_fm
     implicit none(type, external)
     private
 
-    public :: apply_on_rectangle, rectangle_position_as_coordinates, rectangle_intersect_p, rectangle_dimensions, &
+    public :: apply_on_rectangle, rectangle_position_as_coordinates, is_rectangle_intersect, rectangle_dimensions, &
               delete_rectangle, delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, &
               kill_rectangle, copy_rectangle_as_kill, yank_rectangle, insert_rectangle, open_rectangle, &
               delete_whitespace_rectangle, string_rectangle, string_insert_rectangle, clear_rectangle, &
@@ -292,7 +292,7 @@ contains
             if (.not. status%ok()) exit
             final = point()
             if (forward_line(1_int64) /= 0) exit
-            if (.not. bolp()) exit
+            if (.not. is_bol()) exit
             call marker_position(endpt, endpos, st)
             if (point() > endpos) exit
         end do
@@ -325,12 +325,12 @@ contains
     !> SIZE1 and SIZE2 specify the dimensions of the first and second
     !> rectangles, as arrays of the form [WIDTH, HEIGHT].  Port of
     !> rect.el:rectangle-intersect-p.
-    pure logical function rectangle_intersect_p(pos1, size1, pos2, size2)
+    pure logical function is_rectangle_intersect(pos1, size1, pos2, size2)
         integer(int64), intent(in) :: pos1(2), size1(2), pos2(2), size2(2)
 
-        rectangle_intersect_p = .not. (pos1(1) + size1(1) <= pos2(1) .or. pos2(1) + size2(1) <= pos1(1) .or. &
-                                       pos1(2) + size1(2) <= pos2(2) .or. pos2(2) + size2(2) <= pos1(2))
-    end function rectangle_intersect_p
+        is_rectangle_intersect = .not. (pos1(1) + size1(1) <= pos2(1) .or. pos2(1) + size2(1) <= pos1(1) .or. &
+                                        pos1(2) + size1(2) <= pos2(2) .or. pos2(2) + size2(2) <= pos1(2))
+    end function is_rectangle_intersect
 
     !> Return the dimensions of the rectangle with corners at START and END.
     !> The returned values are WIDTH and HEIGHT.  Port of
@@ -676,7 +676,7 @@ contains
             if (k > 1) then
                 shortage = forward_line(1_int64)
 
-                if (.not. bolp()) then
+                if (.not. is_bol()) then
                     call insert(char(10), status)
                     if (.not. status%ok()) return
                 end if
@@ -1395,7 +1395,7 @@ contains
 
         call move_to_column(col, c)
 
-        if (c == col .and. .not. eolp()) then
+        if (c == col .and. .not. is_eol()) then
             if (point_kind) then
                 call clear_crutch(point_crutches, selected_window())
             else
@@ -1490,7 +1490,7 @@ contains
 
         call deactivate_mark_hook%add(rectangle_mark_mode_off)
 
-        if (.not. region_active_p()) then
+        if (.not. is_region_active()) then
             call push_mark(point(), .true., .true.)
             call message("Mark set (rectangle mode)")
         end if
@@ -2122,7 +2122,7 @@ contains
 
             nrol = [nrol, ol]
             if (forward_line(1_int64) /= 0) exit
-            if (.not. bolp()) exit
+            if (.not. is_bol()) exit
             if (point() > end_pt) exit
         end do
 

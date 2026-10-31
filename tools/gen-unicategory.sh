@@ -22,7 +22,7 @@
 # Upstream's unidata-gen.el writes the general-category property table
 # (lisp/international/uni-category.el) from UnicodeData.txt.  This script
 # writes it as sorted runs of characters of one category (character.c's
-# alphabeticp and friends use it), and separately the two sets
+# is_alphabetic and friends use it), and separately the two sets
 # characters.el needs: the cased letters (categories Lu, Ll and Lt),
 # which it gives word syntax, and the nonspacing marks (Mn), which it puts
 # in category ^ (combining).

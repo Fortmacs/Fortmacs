@@ -55,7 +55,7 @@ module ring_fm
         !> The size of the ring, the maximum number of elements it can contain.
         procedure :: size => ring_size
         !> Whether the ring is empty.
-        procedure :: empty_p => ring_empty_p
+        procedure :: empty_p => is_ring_empty
         !> Insert ITEM as the newest (last) item, dumping the oldest item if
         !> the ring is full.
         procedure :: insert => ring_insert
@@ -131,11 +131,11 @@ contains
 
     !> Return true if RING is empty; false otherwise.  Port of
     !> ring.el:ring-empty-p.
-    pure logical function ring_empty_p(self)
+    pure logical function is_ring_empty(self)
         class(ring_type), intent(in) :: self
 
-        ring_empty_p = self%length == 0
-    end function ring_empty_p
+        is_ring_empty = self%length == 0
+    end function is_ring_empty
 
     !> Return the size of RING, the maximum number of elements it can
     !> contain.  Port of ring.el:ring-size.

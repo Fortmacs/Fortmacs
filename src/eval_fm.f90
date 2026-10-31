@@ -247,7 +247,7 @@ module eval_fm
         !> Forget the current buffer's own functions.
         procedure :: kill_local => hook_kill_local
         !> Whether the current buffer has its own functions.
-        procedure :: local_p => hook_local_p
+        procedure :: local_p => is_hook_local
         !> Whether the hook's value in the current buffer is empty.
         procedure :: empty => hook_empty
         !> Make the hook's value in the current buffer empty.
@@ -981,11 +981,11 @@ contains
     end subroutine hook_kill_local
 
     ! Not a port.
-    logical function hook_local_p(self)
+    logical function is_hook_local(self)
         class(hook_base_type), intent(in) :: self
 
-        hook_local_p = local_index(self) > 0
-    end function hook_local_p
+        is_hook_local = local_index(self) > 0
+    end function is_hook_local
 
     !> Whether the hook's value in the current buffer is empty (upstream:
     !> nil): no functions, and for a buffer's own value no `t' either.

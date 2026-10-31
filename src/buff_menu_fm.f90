@@ -48,10 +48,10 @@ module buff_menu_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, buffer_live_p, buffer_handle, &
-                         buffer_list, frame_buffer_list, buffer_serial_live, kill_buffer, buffer_modified_p, &
-                         restore_buffer_modified_p
-    use editfns_fm, only: point, goto_char, point_min, point_max, eobp, bobp, buffer_size, following_char
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, buffer_handle, &
+                         buffer_list, frame_buffer_list, buffer_serial_live, kill_buffer, is_buffer_modified, &
+                         restore_buffer_modified
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_size, following_char
     use cmds_fm, only: forward_line, beginning_of_line
     use search_fm, only: re_search_forward
     use keyboard_fm, only: read_event
@@ -256,7 +256,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            if (buffer_live_p(buffer_handle(k))) h = buffer_handle(k)
+            if (is_buffer_live(buffer_handle(k))) h = buffer_handle(k)
             return
         end do
     end function id_buffer
@@ -280,7 +280,7 @@ contains
         longest = 0
 
         do k = 1, size(bufs)
-            if (buffer_live_p(bufs(k))) longest = max(longest, len(buffers(bufs(k)%index)%name))
+            if (is_buffer_live(bufs(k))) longest = max(longest, len(buffers(bufs(k)%index)%name))
         end do
 
         cols = 80
@@ -609,7 +609,7 @@ contains
         saved = point()
         call goto_char(point_min())
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             call unmark(mark, status)
             if (.not. status%ok()) exit
             shortage = forward_line()
@@ -650,7 +650,7 @@ contains
         status = status_type()
         shortage = forward_line(-1_int64)
 
-        do while (.not. has_id(tabulated_list_get_id()) .and. .not. bobp())
+        do while (.not. has_id(tabulated_list_get_id()) .and. .not. is_bob())
             shortage = forward_line(-1_int64)
         end do
 
@@ -689,7 +689,7 @@ contains
         buf = buffer_menu_buffer(st)
 
         if (buf%index /= 0) then
-            call buffer_modified_p(buf, modified, st)
+            call is_buffer_modified(buf, modified, st)
             if (modified .and. entry%cols(3)%text == " ") call set_col(3, "*", status)
         end if
     end subroutine unmark
@@ -819,7 +819,7 @@ contains
         old = current_buffer()
         call set_buffer(buf, status)
         if (.not. status%ok()) return
-        call restore_buffer_modified_p(modified)
+        call restore_buffer_modified(modified)
         call set_buffer(old, st)
 
         if (modified) then
@@ -852,7 +852,7 @@ contains
         saved = point()
         call buffer_menu_beginning()
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             buffer = id_buffer(tabulated_list_get_id())
             call tabulated_list_get_entry(entry, found)
 
@@ -880,7 +880,7 @@ contains
 
                 if (delete .and. buffer%index /= menu%index) then
                     call kill_buffer(buffer, st)
-                    killed = st%ok() .and. .not. buffer_live_p(buffer)
+                    killed = st%ok() .and. .not. is_buffer_live(buffer)
                     call set_buffer(menu, status)
                     if (.not. status%ok()) exit
                 end if
@@ -1271,7 +1271,7 @@ contains
         n = 0
 
         do j = 1, size(candidates)
-            if (.not. buffer_live_p(candidates(j))) cycle
+            if (.not. is_buffer_live(candidates(j))) cycle
             bi = candidates(j)%index
             call set_buffer(candidates(j), st)
             name = buffers(bi)%name
@@ -1317,7 +1317,7 @@ contains
 
                     e%cols(2)%text = " "
                     if (buffers(bi)%read_only) e%cols(2)%text = "%"
-                    call buffer_modified_p(candidates(j), modified, st)
+                    call is_buffer_modified(candidates(j), modified, st)
                     e%cols(3)%text = " "
                     if (modified) e%cols(3)%text = "*"
                     ! (Buffer-menu--pretty-name.)

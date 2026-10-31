@@ -68,7 +68,7 @@
 !>
 !> Sizes are pixels, as upstream's: on a terminal frame every glyph is
 !> one pixel (column) wide and every row one pixel (line) high, so pixels
-!> and cells coincide.  A window-system frame (frame_window_p: one with a
+!> and cells coincide.  A window-system frame (FRAME_WINDOW_P: one with a
 !> redisplay interface; so far only the tests' fake device) lays out text
 !> in the fonts of its faces (xdisp.c:gui_produce_glyphs): each character
 !> is one glyph as wide as the font says, a TAB a stretch glyph to the
@@ -98,9 +98,9 @@ module xdisp_fm
     use itree_fm, only: overlays_in, overlay_start, overlay_end, overlay_get
     use buffer_fm, only: cur, set_buffer_internal
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
-                         buf_fetch_byte, buf_next_char_len, buffer_modified_p, transient_mark_mode
+                         buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
-    use character_fm, only: char_byte8_p, char_to_byte8, string_char_and_length, multibyte_length, &
+    use character_fm, only: is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
                             byte8_to_char, multibyte_chars_in_text
     use dispextern_fm, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                              HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
@@ -108,11 +108,11 @@ module xdisp_fm
     use font_fm, only: font_type, font_metrics_type
     use xfaces_fm, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
                          TEXT_PROP_DISTANCE_LIMIT
-    use frame_fm, only: frame_type, selected_frame, selected_window, frame_window_p, frame_lines, frame_cols, window_pixel_left, &
+    use frame_fm, only: frame_type, selected_frame, selected_window, frame_lines, frame_cols, window_pixel_left, &
                         window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
     use window_fm, only: window_type, set_window_buffer, window_start, &
                          set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
-                         window_valid_p, make_window, resize_window_tree, window_leaves, same_window, &
+                         is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
@@ -121,9 +121,9 @@ module xdisp_fm
     use intervals_fm, only: textget
     use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer, value_eq
-    use coding_fm, only: coding_system_p, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
+    use coding_fm, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
                          buffer_file_coding_system
-    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, buffer_live_p, temp_set_point_both, BEG, BEG_BYTE
+    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, is_buffer_live, temp_set_point_both, BEG, BEG_BYTE
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
     use insdel_fm, only: insert_1_both, del_range_both, inhibit_modification_hooks
     use search_fm, only: scan_newline
@@ -444,12 +444,12 @@ contains
         rows = frame_lines(f)
         cols = frame_cols(f)
 
-        if (.not. window_valid_p(f%root_window)) then
+        if (.not. is_window_valid(f%root_window)) then
             call make_window(f%root_window)
             f%selected_window = f%root_window
         end if
 
-        if (.not. window_valid_p(f%minibuffer_window)) then
+        if (.not. is_window_valid(f%minibuffer_window)) then
             call make_window(f%minibuffer_window)
             windows(f%minibuffer_window%index)%mini = .true.
         end if
@@ -524,7 +524,7 @@ contains
             n = 2
             cells(1)%ch = iachar("^")
             cells(2)%ch = ieor(c, 64_int32)
-        else if (char_byte8_p(c)) then
+        else if (is_char_byte8(c)) then
             byte = char_to_byte8(c)
             n = 4
             cells(1)%ch = iachar("\")
@@ -651,7 +651,7 @@ contains
 
         g = glyph_type(face_id=DEFAULT_FACE_ID)
         g%ch = iachar("\")
-        if (frame_window_p(f)) call gui_produce_glyph(f, g, 0)
+        if (associated(f%rif)) call gui_produce_glyph(f, g, 0)
     end function continuation_glyph
 
     !> The width of the continuation glyph, which the text area leaves
@@ -677,7 +677,7 @@ contains
         integer :: id
 
         height = 1
-        if (.not. frame_window_p(f)) return
+        if (.not. associated(f%rif)) return
         height = f%line_height
         if (.not. allocated(f%faces) .or. .not. associated(f%font_driver)) return
         if (face_id > ubound(f%faces, 1)) return
@@ -973,7 +973,7 @@ contains
         type(handle_type) :: w
 
         w = displayed_window
-        if (.not. window_valid_p(w)) w = selected_window()
+        if (.not. is_window_valid(w)) w = selected_window()
     end function iterator_window
 
     !> Append to ITEMS the overlay string STRING: its text, and a stretch
@@ -1317,7 +1317,7 @@ contains
     !> the row, or the row's start) to N after it.  (The `cursor' property
     !> part of xdisp.c:set_cursor_from_row; other values than integers
     !> are Deferred.) Port of xdisp.c:set_cursor_from_row, in part.
-    logical function string_cursor_p(s, el, pt, bpos_max) result(here)
+    logical function is_string_cursor(s, el, pt, bpos_max) result(here)
         type(row_start_type), intent(in) :: s
         type(element_type), intent(in) :: el
         integer(int64), intent(in) :: pt, bpos_max
@@ -1329,7 +1329,7 @@ contains
             if (.not. fixnump(cprop)) return
             here = bpos_max <= pt .and. pt <= bpos_max + xfixnum(cprop)
         end associate
-    end function string_cursor_p
+    end function is_string_cursor
 
     !> Whether a glyph of element `el' from `s' shows the cursor of `pt':
     !> a buffer character at `pt'; the first glyph of a display string or
@@ -1424,7 +1424,7 @@ contains
         if (present(descent)) descent = 0
 
         if (faces) then
-            if (frame_window_p(f)) then
+            if (associated(f%rif)) then
                 call display_row_gui(bi, s, last_x, pt, ends, cursor_col, hpos, used, glyphs, rbeg, rend, f, asc, desc)
                 if (present(cursor_hpos)) cursor_hpos = hpos
                 if (present(ascent)) ascent = asc
@@ -1508,7 +1508,7 @@ contains
                 end if
             end if
 
-            if (string_cursor_p(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
+            if (is_string_cursor(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
                 cursor_col = col
                 cursor_by_prop = .true.
             end if
@@ -1677,7 +1677,7 @@ contains
                 cells(1:n)%face_id = char_face(f, el%c, string_face(f, s, el, face_id))
             end if
 
-            if (string_cursor_p(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
+            if (is_string_cursor(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
                 call set_cursor()
                 cursor_by_prop = .true.
             end if
@@ -1866,11 +1866,11 @@ contains
 
         id = face_id
 
-        ! hazard-ok(short-circuit): char_byte8_p() takes any character code.
-        if (c /= 9 .and. c /= 10 .and. (c < 32 .or. c == 127 .or. char_byte8_p(c))) then
+        ! hazard-ok(short-circuit): is_char_byte8() takes any character code.
+        if (c /= 9 .and. c /= 10 .and. (c < 32 .or. c == 127 .or. is_char_byte8(c))) then
             ! merge_escape_glyph_face.
             id = merge_faces(f, "escape_glyph", 0_int32, face_id)
-        else if (nonascii_blank_p(c)) then
+        else if (is_nonascii_blank(c)) then
             ! Merge `nobreak-space' into the current face.
             id = merge_faces(f, "nobreak_space", 0_int32, face_id)
         else if (c == int(z'AD', int32) .or. c == int(z'2010', int32) .or. c == int(z'2011', int32)) then
@@ -1882,13 +1882,13 @@ contains
     !> Whether C is a non-ASCII blank (Unicode general category Zs), as
     !> character.c:blankp tells for the characters `nobreak_char_display'
     !> highlights.  Not a port.
-    elemental logical function nonascii_blank_p(c)
+    elemental logical function is_nonascii_blank(c)
         integer(int32), intent(in) :: c
 
-        nonascii_blank_p = c == int(z'A0', int32) .or. c == int(z'1680', int32) .or. &
-                           (c >= int(z'2000', int32) .and. c <= int(z'200A', int32)) .or. &
-                           c == int(z'202F', int32) .or. c == int(z'205F', int32) .or. c == int(z'3000', int32)
-    end function nonascii_blank_p
+        is_nonascii_blank = c == int(z'A0', int32) .or. c == int(z'1680', int32) .or. &
+                            (c >= int(z'2000', int32) .and. c <= int(z'200A', int32)) .or. &
+                            c == int(z'202F', int32) .or. c == int(z'205F', int32) .or. c == int(z'3000', int32)
+    end function is_nonascii_blank
 
     !> The screen rows of the line starting at `bol' in buffer slot `bi',
     !> rows(1:nrows) where each starts, and `eol' where the line ends (its
@@ -1908,7 +1908,7 @@ contains
         logical :: gui
 
         gui = .false.
-        if (present(f)) gui = frame_window_p(f)
+        if (present(f)) gui = associated(f%rif)
         if (gui) allocate (scratch(last_x/max(1, f%smallest_char_width) + 4))
         allocate (rows(8))
         nrows = 0
@@ -2056,7 +2056,7 @@ contains
         if (present(cursor_hpos)) cursor_hpos = 1
         reached_end = .false.
         gui = .false.
-        if (present(f)) gui = frame_window_p(f)
+        if (present(f)) gui = associated(f%rif)
         rb = 0
         re = 0
 
@@ -2271,7 +2271,7 @@ contains
 
         call resolve_buffer(w%buffer, bi, status)
         if (.not. status%ok()) return
-        gui = frame_window_p(f)
+        gui = associated(f%rif)
         body = window_body_lines(w)
         w%header_line_height = 0
         width = window_text_cols(w)
@@ -2494,7 +2494,7 @@ contains
 
         if (.not. buffers(bi)%multibyte) then
             s = s//" "
-        else if (.not. coding_system_p(cs) .or. len(cs) == 0) then
+        else if (.not. is_coding_system(cs) .or. len(cs) == 0) then
             ! Not yet decided.
             s = s//"-"
         else
@@ -2792,7 +2792,7 @@ contains
         base = MODE_LINE_ACTIVE_FACE_ID
         if (present(face_id)) base = face_id
         gui = .false.
-        if (present(f)) gui = frame_window_p(f)
+        if (present(f)) gui = associated(f%rif)
         row = glyph_type()
         call decode_string(text, chars, nchars)
 
@@ -3228,8 +3228,8 @@ contains
         integer :: width, nmodes, ntext, k, offset, name_at, asc, desc, height
         integer(int32) :: face_id
 
-        call buffer_modified_p(w%buffer, modified, status)
-        gui = frame_window_p(f)
+        call is_buffer_modified(w%buffer, modified, status)
+        gui = associated(f%rif)
         width = window_text_cols(w)
         mule = mode_line_mule_info(bi, gui)
         call mode_line_modes_faces(bi, modes, spans, faces)
@@ -3335,7 +3335,7 @@ contains
         integer :: width, x, k, i, j, n, nchars, nglyphs, asc, desc, column
         logical :: gui
 
-        gui = frame_window_p(f)
+        gui = associated(f%rif)
         base = HEADER_LINE_INACTIVE_FACE_ID
         if (selected) base = HEADER_LINE_ACTIVE_FACE_ID
 
@@ -3547,7 +3547,7 @@ contains
         integer(int32), allocatable :: chars(:)
         integer :: nchars, i, x, n, k, cols, last_x
 
-        if (frame_window_p(f)) then
+        if (associated(f%rif)) then
             call display_echo_area_gui(f, endcol)
             return
         end if
@@ -3858,8 +3858,8 @@ contains
         if (len(text) == 0) then
             if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
             last_message = ""
-        else if (minibuffer_active_p()) then
-            if (bracketed_message_p(text)) then
+        else if (is_minibuffer_active()) then
+            if (is_bracketed_message(text)) then
                 set_minibuffer_message_text = text
             else
                 set_minibuffer_message_text = " ["//text//"]"
@@ -3892,7 +3892,7 @@ contains
         oldbuf = current_buffer()
         ! Ensure the Messages buffer exists, and switch to it.  If we
         ! created it, set the major-mode.
-        newbuffer = .not. buffer_live_p(get_buffer(MESSAGES_BUFFER_NAME))
+        newbuffer = .not. is_buffer_live(get_buffer(MESSAGES_BUFFER_NAME))
         call get_buffer_create(MESSAGES_BUFFER_NAME, buf, st)
         if (.not. st%ok()) return
         call set_buffer(buf, st)
@@ -3982,7 +3982,7 @@ contains
         call free_marker(oldpoint, st)
         call free_marker(oldbegv, st)
         call free_marker(oldzv, st)
-        if (buffer_live_p(oldbuf)) call set_buffer(oldbuf, st)
+        if (is_buffer_live(oldbuf)) call set_buffer(oldbuf, st)
     end subroutine message_dolog
 
     !> The number of times the line of the *Messages* buffer before the
@@ -4070,7 +4070,7 @@ contains
     end function chars_in_text
 
     !> Whether `text' matches "\` *\[.+\]\'".  Not a port.
-    pure logical function bracketed_message_p(text) result(p)
+    pure logical function is_bracketed_message(text) result(p)
         character(len=*), intent(in) :: text
         integer :: k
 
@@ -4079,20 +4079,20 @@ contains
         if (k == 0 .or. len(text) - k < 2) return
         if (text(k:k) /= "[" .or. text(len(text):len(text)) /= "]") return
         p = index(text(k + 1:len(text) - 1), achar(10)) == 0
-    end function bracketed_message_p
+    end function is_bracketed_message
 
     !> Whether the selected frame's minibuffer is active (the minibuffer
     !> window shows a minibuffer): minibuf.c:Factive_minibuffer_window.
     !> Port of minibuf.c:Factive_minibuffer_window, in part.
-    logical function minibuffer_active_p() result(p)
+    logical function is_minibuffer_active() result(p)
         integer(int64) :: bi
         type(status_type) :: status
 
         p = .false.
-        if (.not. window_valid_p(selected_frame%minibuffer_window)) return
+        if (.not. is_window_valid(selected_frame%minibuffer_window)) return
         call resolve_buffer(windows(selected_frame%minibuffer_window%index)%buffer, bi, status)
         p = status%ok()
-    end function minibuffer_active_p
+    end function is_minibuffer_active
 
     !> Redisplay the frame: each window with its mode line (the selected
     !> one showing the current buffer unless the minibuffer is selected),
@@ -4108,9 +4108,9 @@ contains
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
 
-        gui = frame_window_p(f)
+        gui = associated(f%rif)
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
-        if (.not. window_valid_p(f%root_window)) call init_frame_windows(f)
+        if (.not. is_window_valid(f%root_window)) call init_frame_windows(f)
         if (windows(f%root_window%index)%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
 
@@ -4245,7 +4245,7 @@ contains
             end do
         end if
 
-        call bidi_init_it(pos, bytepos, frame_window_p(selected_frame), itb)
+        call bidi_init_it(pos, bytepos, associated(selected_frame%rif), itb)
         itb%paragraph_dir = NEUTRAL_DIR
         call bidi_paragraph_init(NEUTRAL_DIR, itb, .true.)
         call bidi_unshelve_cache(itb_data, .false.)
@@ -4306,7 +4306,7 @@ contains
             if (from_pos >= end) return
             itb_data = bidi_shelve_cache()
             itb%paragraph_dir = NEUTRAL_DIR
-            call bidi_init_it(0_int64, 0_int64, frame_window_p(selected_frame), itb)
+            call bidi_init_it(0_int64, 0_int64, associated(selected_frame%rif), itb)
         else
             ! Nothing this fancy can happen in unibyte buffers, or in a
             ! buffer that disabled reordering, or if FROM is at EOB.
@@ -4329,7 +4329,7 @@ contains
             end if
 
             itb%paragraph_dir = NEUTRAL_DIR
-            call bidi_init_it(itb%charpos, itb%bytepos, frame_window_p(selected_frame), itb)
+            call bidi_init_it(itb%charpos, itb%bytepos, associated(selected_frame%rif), itb)
         end if
 
         bdir = L2R

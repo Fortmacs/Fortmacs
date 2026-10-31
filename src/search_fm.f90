@@ -49,7 +49,7 @@ module search_fm
     use handle_fm, only: handle_type
     use print_fm, only: fortran_string
     use data_fm, only: logical_setting
-    use character_fm, only: string_char_and_length, char_bytes, char_head_p
+    use character_fm, only: string_char_and_length, char_bytes, is_char_head
     use casetab_fm, only: case_canon
     use buffer_fm, only: buffers, cur, buf_prev_char_len, temp_set_point_both, buf_fetch_char, &
                          buf_next_char_len, current_buffer
@@ -63,7 +63,7 @@ module search_fm
               match_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
               looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
-              regexp_quote, match_in_string_p, syms_of_search, replace_match, match_data_translate, &
+              regexp_quote, is_match_in_string, syms_of_search, replace_match, match_data_translate, &
               save_search_regs, restore_search_regs, record_unwind_save_match_data, unwind_set_match_data, &
               begin_running_asynch_code, end_running_asynch_code, &
               fast_string_match, fast_looking_at
@@ -449,7 +449,7 @@ contains
         idx = 1
 
         do i = 1, off
-            if (char_head_p(ichar(str(i:i), int32))) idx = idx + 1
+            if (is_char_head(ichar(str(i:i), int32))) idx = idx + 1
         end do
     end function string_offset_to_index
 
@@ -821,11 +821,11 @@ contains
 
     !> Return true if REGEXP matches just one constant string.  Port of
     !> search.c:trivial_regexp_p.
-    pure logical function trivial_regexp_p(regexp)
+    pure logical function is_trivial_regexp(regexp)
         character(len=*), intent(in) :: regexp
         integer :: i
 
-        trivial_regexp_p = .false.
+        is_trivial_regexp = .false.
         i = 1
 
         do while (i <= len(regexp))
@@ -843,8 +843,8 @@ contains
             i = i + 1
         end do
 
-        trivial_regexp_p = .true.
-    end function trivial_regexp_p
+        is_trivial_regexp = .true.
+    end function is_trivial_regexp
 
     !> Search for the `n'th occurrence of STRING in the current buffer,
     !> starting at position `pos' and stopping at position `lim'; with
@@ -878,7 +878,7 @@ contains
             return
         end if
 
-        if (is_re .and. .not. (trivial_regexp_p(string) .and. .not. allocated(search_spaces_regexp))) then
+        if (is_re .and. .not. (is_trivial_regexp(string) .and. .not. allocated(search_spaces_regexp))) then
             np = search_buffer_re(string, pos, pos_byte, lim, lim_byte, n, fold, opt(posix), status)
             return
         end if
@@ -1298,9 +1298,9 @@ contains
     end function match_buffer
 
     !> Whether the last search was on a string.  Not a port.
-    logical function match_in_string_p()
-        match_in_string_p = last_search_in_string
-    end function match_in_string_p
+    logical function is_match_in_string()
+        is_match_in_string = last_search_in_string
+    end function is_match_in_string
 
     !> Return a regexp string which matches exactly STRING and nothing
     !> else.  Port of search.c:Fregexp_quote.

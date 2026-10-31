@@ -31,7 +31,7 @@ module test_compile_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
-                         buffer_live_p, set_buffer_read_only
+                         is_buffer_live, set_buffer_read_only
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point_max
     use keyboard_fm, only: last_message
@@ -124,7 +124,7 @@ contains
 
         text = ""
         buf = get_buffer("*compilation*")
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         old = buffers_current()
         call set_buffer(buf, st)
         text = buffer_string()

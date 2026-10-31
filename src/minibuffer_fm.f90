@@ -42,7 +42,7 @@ module minibuffer_fm
     use buffer_fm, only: buffers, cur, get_buffer, get_buffer_create, set_buffer, current_buffer, erase_buffer, &
                          set_buffer_read_only, buffer_list, bury_buffer_internal, deactivate_mark_variable
     use insdel_fm, only: del_range, insert
-    use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, keymap_live_p, &
+    use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, is_keymap_live, &
                          free_keymap
     use lisp_fm, only: value_type, nil, t_value, make_string, make_fixnum, list, list_elements, list_length, &
                        list_elt, fixnump, xfixnum, stringp, xstring, nilp, make_list, symbolp
@@ -50,9 +50,9 @@ module minibuffer_fm
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
     use frame_fm, only: selected_frame, frame_selected_window_ref
-    use window_fm, only: window_type, windows, set_window_start, window_live_p, same_window, get_buffer_window, &
+    use window_fm, only: window_type, windows, set_window_start, is_window_live, same_window, get_buffer_window, &
                          temp_buffer_window_show, fit_window_to_buffer, display_action_table_type, delete_window, &
-                         switch_to_prev_buffer, scroll_window, pos_visible_in_window_p, minibuffer_scroll_window, &
+                         switch_to_prev_buffer, scroll_window, is_pos_visible_in_window, minibuffer_scroll_window, &
                          display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, BK_BURY, &
                          DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM, &
                          recenter_top_bottom, scroll_up_command, &
@@ -60,22 +60,22 @@ module minibuffer_fm
     use callint_fm, only: current_prefix_arg
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
-    use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, string_lessp, yes_or_no_p
+    use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, is_string_less, read_yes_or_no
     use dired_fm, only: file_name_completion, file_name_all_completions
     use lread_fm, only: sym
     use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
                            minibuffer_message_timeout, last_message
-    use timer_fm, only: run_at_time, free_timer, timerp
-    use minibuf_fm, only: minibufferp, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
-                          minibuffer_innermost_command_loop_p, innermost_minibuffer_p, &
+    use timer_fm, only: run_at_time, free_timer, is_timer
+    use minibuf_fm, only: is_minibuffer, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
+                          is_minibuffer_innermost_command_loop, is_innermost_minibuffer, &
                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
                           completion_predicate, completion_function_table, try_completion, all_completions, &
                           test_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
                           COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
                           minibuffer_setup_function, minibuffer_setup_proc, history_added, minibuffer_default, &
                           minibuffer_string_type, quoting_table_call
-    use fileio_fm, only: file_name_absolute_p, expand_file_name, substitute_in_file_name, file_name_directory, &
-                         file_name_nondirectory, file_exists_p, file_name_as_directory, file_directory_p
+    use fileio_fm, only: is_file_name_absolute, expand_file_name, substitute_in_file_name, file_name_directory, &
+                         file_name_nondirectory, file_exists, file_name_as_directory, is_file_directory
     use subr_fm, only: add_to_history, history_delete_duplicates
     use files_fm, only: abbreviate_file_name
     use minibuf_table_fm, only: capf_data_type, COMPLETION_EXACT, COMPLETION_FINISHED, COMPLETION_UNKNOWN, &
@@ -83,7 +83,7 @@ module minibuffer_fm
     use eval_fm, only: capf_hook_type, capf_function, capf_entry_type
     use marker_fm, only: copy_marker_at, copy_marker, free_marker, marker_buffer, marker_position
     use keymap_fm, only: push_minor_mode_overriding_map, remove_minor_mode_overriding_map
-    use keyboard_fm, only: post_command_hook, unread_command_events_p, this_command_keys
+    use keyboard_fm, only: post_command_hook, has_unread_command_events, this_command_keys
     use window_fm, only: same_handle
     use editfns_fm, only: line_end_position
     use window_fm, only: set_window_point
@@ -420,13 +420,13 @@ contains
 
         status = status_type()
 
-        if (minibufferp()) then
-            if (.not. minibuffer_innermost_command_loop_p()) then
+        if (is_minibuffer()) then
+            if (.not. is_minibuffer_innermost_command_loop()) then
                 call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
                 return
             end if
 
-            if (.not. innermost_minibuffer_p()) then
+            if (.not. is_innermost_minibuffer()) then
                 call set_error(status, FM_GENERIC_ERROR, "Not in most nested minibuffer")
                 return
             end if
@@ -518,7 +518,7 @@ contains
             d = "~/"
         end if
 
-        if (.not. file_name_absolute_p(d)) then
+        if (.not. is_file_name_absolute(d)) then
             call expand_file_name(d, val, status)
             if (.not. status%ok()) return
             d = val
@@ -712,7 +712,7 @@ contains
         type(value_type), intent(in) :: elt
 
         directory_predicate = .false.
-        if (stringp(elt)) directory_predicate = file_directory_p(xstring(elt))
+        if (stringp(elt)) directory_predicate = is_file_directory(xstring(elt))
     end function directory_predicate
 
     !> The minibuffer-with-setup-hook function of `read_file_name': the
@@ -791,7 +791,7 @@ contains
     subroutine cmd_abort_minibuffers(status)
         type(status_type), intent(out) :: status
 
-        call abort_minibuffers(status, yes_or_no_p)
+        call abort_minibuffers(status, read_yes_or_no)
     end subroutine cmd_abort_minibuffers
 
     !> Transient minor mode used during `completion_in_region'.  Port of
@@ -915,7 +915,7 @@ contains
         commands%completion_in_region_mode%run => cmd_completion_in_region_mode
         call minor_modes%completion_in_region_mode%define("completion_in_region_mode", global=.true., &
                                                           body=completion_in_region_mode_body)
-        if (keymap_live_p(completion_in_region_mode_map)) call free_keymap(completion_in_region_mode_map, status)
+        if (is_keymap_live(completion_in_region_mode_map)) call free_keymap(completion_in_region_mode_map, status)
         call make_sparse_keymap(completion_in_region_mode_map)
         call bind(completion_in_region_mode_map, "M-?", "completion_help_at_point")
         call bind(completion_in_region_mode_map, "TAB", "completion_at_point")
@@ -923,14 +923,14 @@ contains
         call bind(minibuffer_local_map, "C-j", "exit_minibuffer")
         call bind(minibuffer_local_map, "RET", "exit_minibuffer")
         ! Rebuilding: drop the old maps.
-        if (keymap_live_p(minibuffer_local_completion_map)) call free_keymap(minibuffer_local_completion_map, status)
-        if (keymap_live_p(minibuffer_local_must_match_map)) call free_keymap(minibuffer_local_must_match_map, status)
+        if (is_keymap_live(minibuffer_local_completion_map)) call free_keymap(minibuffer_local_completion_map, status)
+        if (is_keymap_live(minibuffer_local_must_match_map)) call free_keymap(minibuffer_local_must_match_map, status)
 
-        if (keymap_live_p(minibuffer_local_filename_completion_map)) then
+        if (is_keymap_live(minibuffer_local_filename_completion_map)) then
             call free_keymap(minibuffer_local_filename_completion_map, status)
         end if
 
-        if (keymap_live_p(minibuffer_local_filename_must_match_map)) then
+        if (is_keymap_live(minibuffer_local_filename_must_match_map)) then
             call free_keymap(minibuffer_local_filename_must_match_map, status)
         end if
 
@@ -1107,7 +1107,7 @@ contains
         integer :: k
         type(status_type) :: st
 
-        if (.not. minibufferp()) then
+        if (.not. is_minibuffer()) then
             call message(msg)
             return
         end if
@@ -1131,7 +1131,7 @@ contains
     !> Remove the text `minibuffer_message' shows.  Port of
     !> minibuffer.el:minibuffer--delete-message-overlay.
     subroutine delete_message_overlay()
-        if (timerp(minibuffer_message_timer)) call free_timer(minibuffer_message_timer)
+        if (is_timer(minibuffer_message_timer)) call free_timer(minibuffer_message_timer)
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
     end subroutine delete_message_overlay
 
@@ -1216,14 +1216,14 @@ contains
 
     !> Return true if POS is in the current completion boundaries.
     !> Port of minibuffer.el:completion--in-boundaries-p.
-    logical function in_boundaries_p(string, suffix, pos)
+    logical function is_in_boundaries(string, suffix, pos)
         character(len=*), intent(in) :: string, suffix
         integer(int64), intent(in) :: pos
         integer(int64) :: bstart, bend
 
         call mb_boundaries(string, suffix, bstart, bend)
-        in_boundaries_p = bstart >= pos .and. pos >= schars(string) + bend
-    end function in_boundaries_p
+        is_in_boundaries = bstart >= pos .and. pos >= schars(string) + bend
+    end function is_in_boundaries
 
     !> Do the completion and return a summary of what happened.
     !> M = completion was performed, the text was Modified.
@@ -1296,8 +1296,8 @@ contains
             only_changed_boundaries = .false.
 
             if (.not. completed .and. comp_pos /= pos) then
-                only_changed_boundaries = .not. in_boundaries_p(substring(string, 0_int64, pos), &
-                                                                substring(string, pos), comp_pos)
+                only_changed_boundaries = .not. is_in_boundaries(substring(string, 0_int64, pos), &
+                                                                 substring(string, pos), comp_pos)
             end if
 
             e = end
@@ -1371,12 +1371,12 @@ contains
     !> Whether `c' has word syntax (ASCII letters and digits, and non-ASCII
     !> characters: the standard syntax table's main word characters).
     !> Not a port.
-    elemental logical function word_char_p(c)
+    elemental logical function is_word_char(c)
         integer(int32), intent(in) :: c
 
-        word_char_p = (c >= iachar("a") .and. c <= iachar("z")) .or. (c >= iachar("A") .and. c <= iachar("Z")) &
-                      .or. (c >= iachar("0") .and. c <= iachar("9")) .or. c >= 128
-    end function word_char_p
+        is_word_char = (c >= iachar("a") .and. c <= iachar("z")) .or. (c >= iachar("A") .and. c <= iachar("Z")) &
+                       .or. (c >= iachar("0") .and. c <= iachar("9")) .or. c >= 128
+    end function is_word_char
 
     !> Port of minibuffer.el:completion--try-word-completion (the cut
     !> after the first word only when there is no text after point).
@@ -1443,7 +1443,7 @@ contains
         do while (byte <= len(completion))
             call string_char_and_length(completion, byte, c, clen)
 
-            if (.not. word_char_p(c)) then
+            if (.not. is_word_char(c)) then
                 cutpos = k + 1
                 exit
             end if
@@ -1561,10 +1561,10 @@ contains
 
         ! If there's a fresh completion window with a live buffer, and this
         ! command is repeated, scroll that window.
-        if (window_live_p(minibuffer_scroll_window)) then
+        if (is_window_live(minibuffer_scroll_window)) then
             window = minibuffer_scroll_window
 
-            if (backtab_p()) then
+            if (is_backtab()) then
                 call reverse_scroll_completions(window)
             else
                 call scroll_completions(window)
@@ -1575,17 +1575,17 @@ contains
 
         bits = completion_do_completion(beg, end, .false., .false.)
         res = bits /= 0
-        if (.not. window_live_p(minibuffer_scroll_window)) call minor_modes%completion_in_region_mode%disable(st)
+        if (.not. is_window_live(minibuffer_scroll_window)) call minor_modes%completion_in_region_mode%disable(st)
 
     contains
 
         !> Whether the keys of this command are [backtab].
-        logical function backtab_p()
-            backtab_p = .false.
+        logical function is_backtab()
+            is_backtab = .false.
             if (.not. allocated(this_command_keys)) return
             if (size(this_command_keys) /= 1) return
-            backtab_p = value_eq(this_command_keys(1), sym("backtab"))
-        end function backtab_p
+            is_backtab = value_eq(this_command_keys(1), sym("backtab"))
+        end function is_backtab
     end function completion_in_region_1
 
     !> Reverse tab in the completion list WINDOW: if its beginning is in
@@ -1603,7 +1603,7 @@ contains
         begv = buffers(cur)%begv
         call set_buffer(old, status)
 
-        if (pos_visible_in_window_p(begv, window)) then
+        if (is_pos_visible_in_window(begv, window)) then
             call set_window_point(windows(window%index), zv, status)
         else
             call scroll_window(window, -1, status)
@@ -1635,7 +1635,7 @@ contains
         status = status_type()
         ! Don't pop down the completions in the middle of
         ! mouse-drag-region/mouse-set-point.
-        if (unread_command_events_p()) return
+        if (has_unread_command_events()) return
         stay = .false.
 
         if (cir_data) then
@@ -2026,7 +2026,7 @@ contains
         begv = buffers(cur)%begv
         call set_buffer(old, status)
 
-        if (pos_visible_in_window_p(zv, window)) then
+        if (is_pos_visible_in_window(zv, window)) then
             ! If end is in view, scroll up to the end.
             call set_window_start(windows(window%index), begv, status)
         else
@@ -2142,7 +2142,7 @@ contains
         end if
     end subroutine completions_fit_window_to_buffer
 
-    !> Sort `strings' as `string_lessp' does.  Not a port.
+    !> Sort `strings' as `is_string_less' does.  Not a port.
     subroutine sort_strings(strings)
         type(string_box), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
@@ -2153,7 +2153,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. string_lessp(make_string(tmp), make_string(strings(j)%s))) exit
+                if (.not. is_string_less(make_string(tmp), make_string(strings(j)%s))) exit
                 strings(j + 1)%s = strings(j)%s
                 j = j - 1
             end do
@@ -2244,7 +2244,7 @@ contains
 
         wwidth = 79
         window = get_buffer_window(current_buffer())
-        if (window_live_p(window)) wwidth = windows(window%index)%total_cols - 1
+        if (is_window_live(window)) wwidth = windows(window%index)%total_cols - 1
         call insert_strings_horizontal(boxes, wwidth)
     end subroutine completion_insert_strings
 
@@ -2314,7 +2314,7 @@ contains
         type(handle_type) :: window, buffer, b
 
         window = completions_visible()
-        if (.not. window_live_p(window)) return
+        if (.not. is_window_live(window)) return
         buffer = windows(window%index)%buffer
         call bury_buffer_internal(buffer)
 
@@ -2686,7 +2686,7 @@ contains
             if (present(pred)) then
                 if (pred(make_string(string))) result = t_value()
             else
-                if (file_exists_p(string)) result = t_value()
+                if (file_exists(string)) result = t_value()
             end if
         case default
             name = file_name_nondirectory(string)

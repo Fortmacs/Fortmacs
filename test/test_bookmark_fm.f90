@@ -33,7 +33,7 @@ module test_bookmark_fm
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer_create, &
-                         generate_new_buffer_name, restore_buffer_modified_p, get_buffer
+                         generate_new_buffer_name, restore_buffer_modified, get_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point_min, point_max, point
     use cmds_fm, only: forward_line, beginning_of_line, forward_char
@@ -42,7 +42,7 @@ module test_bookmark_fm
     use sysdep_fm, only: file_stat_type
     use files_fm, only: make_temp_file, delete_file, find_file_noselect, abbreviate_file_name
     use search_fm, only: string_match, looking_at, re_search_forward
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use window_fm, only: switch_to_buffer, window_configuration_type, current_window_configuration, same_handle, &
                          set_window_configuration
     use subr_fm, only: history_delete_duplicates
@@ -232,7 +232,7 @@ contains
         type(handle_type), intent(in) :: old
         type(status_type) :: st
 
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call kill_buffer(current_buffer(), st)
         call set_buffer(old, st)
     end subroutine done
@@ -642,7 +642,7 @@ contains
             call bookmark_set(st, "foo")
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit steps
-            call check(error, derived_mode_p("bookmark_edit_annotation_mode"), "in the annotation mode")
+            call check(error, is_derived_mode("bookmark_edit_annotation_mode"), "in the annotation mode")
             if (allocated(error)) exit steps
             ! Should return to the original buffer
             call bookmark_edit_annotation_confirm(st)

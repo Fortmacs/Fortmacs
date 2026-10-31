@@ -25,7 +25,7 @@
 !> variables.
 submodule(apropos_fm) apropos_print_fm
     use docstrings_fm, only: doc_entry_type, function_doc, variable_doc
-    use help_fns_fm, only: describe_function, describe_variable, function_known_p, variable_known_p
+    use help_fns_fm, only: describe_function, describe_variable, is_function_known, is_variable_known
     implicit none(type, external)
 
 contains
@@ -63,12 +63,12 @@ contains
             ok = found
             if (ok) ok = entry%user_option
         case (VAR_ANY)
-            ok = variable_known_p(name)
+            ok = is_variable_known(name)
         case default
             if (do_all) then
-                ok = function_known_p(name)
+                ok = is_function_known(name)
             else
-                ok = commandp(sym(name))
+                ok = is_command(sym(name))
             end if
         end select
 
@@ -79,7 +79,7 @@ contains
         items(n)%score = apropos_score_symbol(name, 3)
 
         if (var_kind == VAR_NONE) then
-            if (function_known_p(name)) then
+            if (is_function_known(name)) then
                 call function_doc(name, entry, found)
                 items(n)%fn_doc = "(not documented)"
 
@@ -124,7 +124,7 @@ contains
         has_f = .false.
         has_v = .false.
 
-        if (function_known_p(name)) then
+        if (is_function_known(name)) then
             call function_doc(name, entry, found)
 
             if (found) then
@@ -133,7 +133,7 @@ contains
             end if
         end if
 
-        if (variable_known_p(name)) then
+        if (is_variable_known(name)) then
             call variable_doc(name, entry, found)
 
             if (found) then
@@ -207,7 +207,7 @@ contains
         buf = get_buffer("*Apropos*")
         call window_leaves(selected_frame%root_window, leaves)
 
-        if (buffer_live_p(buf)) then
+        if (is_buffer_live(buf)) then
             do k = 1, size(leaves)
                 if (shows(leaves(k), buf)) return
             end do
@@ -306,7 +306,7 @@ contains
             button_end = nchars(text)
 
             ! Calculate key-bindings if we want them.
-            if (do_keys .and. commandp(sym(items(i)%name)) .and. items(i)%name /= "self_insert_command") then
+            if (do_keys .and. is_command(sym(items(i)%name)) .and. items(i)%name /= "self_insert_command") then
                 text = text//indent_to(current_column(text), 30, 1)
                 call where_is_internal(sym(items(i)%name), all)
 
@@ -329,7 +329,7 @@ contains
             text = text//LF
 
             if (allocated(items(i)%fn_doc)) then
-                if (commandp(sym(items(i)%name))) then
+                if (is_command(sym(items(i)%name))) then
                     label_type = "apropos_command"
                 else
                     label_type = "apropos_function"
@@ -350,7 +350,7 @@ contains
             end if
 
             ! Insert an excerpt of variable values.
-            if (variable_known_p(items(i)%name)) then
+            if (is_variable_known(items(i)%name)) then
                 call variable_doc(items(i)%name, entry, found)
 
                 if (found .and. allocated(entry%value)) then
@@ -433,7 +433,7 @@ contains
 
             buffers(cur)%read_only = .true.
             buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
-            if (buffer_live_p(old)) call set_buffer(old, st)
+            if (is_buffer_live(old)) call set_buffer(old, st)
         end subroutine mark_entries
     end subroutine apropos_print
 
@@ -454,7 +454,7 @@ contains
         end select
     end function type_label
 
-    !> Whether `a' sorts before `b': by name (string_lessp), or by score
+    !> Whether `a' sorts before `b': by name (is_string_less), or by score
     !> first when sorting by scores (only `apropos_documentation').
     !> Not a port.
     logical function item_less(a, b, by_score)

@@ -33,15 +33,15 @@ module test_dired_mode_fm
     use lread_fm, only: sym
     use textprop_fm, only: get_text_property
     use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, kill_buffer, current_buffer, &
-                         buffer_live_p, erase_buffer
+                         is_buffer_live, erase_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: point, point_min, goto_char, buffer_string, eobp, line_beginning_position, &
+    use editfns_fm, only: point, point_min, goto_char, buffer_string, is_eob, line_beginning_position, &
                           line_end_position, delete_region
     use cmds_fm, only: forward_line
     use keyboard_fm, only: unread_command_events, discard_input
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists_p, file_directory_p, &
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                          write_region, make_directory_internal
-    use files_fm, only: find_file_noselect, delete_directory, abbreviate_file_name, insert_directory_wildcard_in_dir_p, &
+    use files_fm, only: find_file_noselect, delete_directory, abbreviate_file_name, is_insert_directory_wildcard_in_dir, &
                         file_relative_name
     use dired_mode_fm, only: dired, dired_noselect, dired_get_filename, dired_goto_file, dired_get_marked_files, &
                              dired_string_type, dired_toggle_marks, dired_mark_files_regexp, &
@@ -107,7 +107,7 @@ contains
         buffers(cur)%directory = file_name_as_directory(emacs_wd)
         call show_alone()
         call kill_dired_buffers()
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call make_directory_internal(tdir(), st)
         dired_deletion_confirmer => always_yes
         dired_auto_revert_buffer = .false.
@@ -122,7 +122,7 @@ contains
         call kill_dired_buffers()
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         dired_deletion_confirmer => null()
     end subroutine teardown
 
@@ -364,7 +364,7 @@ contains
             call dired_do_flagged_delete(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error,.not. file_exists_p(tdir()//"a.txt"), "a.txt deleted")
+            call check(error,.not. file_exists(tdir()//"a.txt"), "a.txt deleted")
             if (allocated(error)) exit body
             call check(error, dired_goto_file(tdir()//"a.txt", st) == 0, "entry removed")
             if (allocated(error)) exit body
@@ -372,7 +372,7 @@ contains
             if (allocated(error)) exit body
             ! `dired_do_delete' with no marks deletes the file at point.
             call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
-            call check(error, st%ok() .and. .not. file_exists_p(tdir()//"b.txt"), format_error(st))
+            call check(error, st%ok() .and. .not. file_exists(tdir()//"b.txt"), format_error(st))
         end block body
 
         call teardown()
@@ -390,7 +390,7 @@ contains
             call dired_noselect(tdir(), buf, st)
             call set_buffer(buf, st)
             call dired_create_directory(tdir()//"new/deep", st)
-            call check(error, st%ok() .and. file_directory_p(tdir()//"new/deep"), format_error(st))
+            call check(error, st%ok() .and. is_file_directory(tdir()//"new/deep"), format_error(st))
             if (allocated(error)) exit body
             ! The topmost new directory is added to the listing.
             call check(error, dired_goto_file(tdir()//"new", st) > 0, "new listed")
@@ -502,9 +502,9 @@ contains
             if (allocated(error)) exit body
             call kbd_store_bytes("dxyes"//achar(13))
             call command_loop(st)
-            call check(error,.not. file_exists_p(tdir()//"a.txt"), last_message)
+            call check(error,.not. file_exists(tdir()//"a.txt"), last_message)
             if (allocated(error)) exit body
-            call check(error, file_exists_p(tdir()//"b.txt"), "b.txt kept")
+            call check(error, file_exists(tdir()//"b.txt"), "b.txt kept")
         end block body
 
         call teardown()
@@ -560,7 +560,7 @@ contains
             call set_buffer(dirbuf, st)
             call make_directory_internal(tdir()//"test-subdir", st)
             ! Point must be at end-of-buffer.
-            call check(error, eobp(), "at eob")
+            call check(error, is_eob(), "at eob")
             if (allocated(error)) exit body
             call dired(tdir(), st)
             ! Previous dired call shouldn't create a new buffer.
@@ -795,7 +795,7 @@ contains
         body: block
             call dired(tdir()//"bla", st)
             errbuf = get_buffer("*ls error*")
-            call check(error, buffer_live_p(errbuf), "*ls error* exists")
+            call check(error, is_buffer_live(errbuf), "*ls error* exists")
             if (allocated(error)) exit body
             call check(error,.not. (buffers(cur)%name == "bla"), "the buffer visiting bla is killed")
             if (allocated(error)) exit body
@@ -866,7 +866,7 @@ contains
             character(len=:), allocatable :: d, w
             logical :: found
 
-            found = insert_directory_wildcard_in_dir_p(path, d, w)
+            found = is_insert_directory_wildcard_in_dir(path, d, w)
 
             if (len(dir) == 0) then
                 call check(error,.not. found, path)

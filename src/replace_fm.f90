@@ -68,7 +68,7 @@ module replace_fm
     use data_fm, only: value_eq, symbol_value, set
     use buffer_fm, only: barf_if_buffer_read_only
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, buffer_substring, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
                           region_beginning, region_end
     use cmds_fm, only: forward_char
     use textprop_fm, only: text_property_not_all
@@ -85,11 +85,11 @@ module replace_fm
                        ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
                        ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
     use isearch_fm, only: search_upper_case, UPPER_CASE_NIL, search_whitespace_regexp, &
-                          isearch_no_upper_case_p, word_search_regexp
+                          is_isearch_no_upper_case, word_search_regexp
     use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input, minibuffer_string_type
     use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use simple_fm, only: push_mark, use_region_p, deactivate_mark
+    use simple_fm, only: push_mark, is_use_region, deactivate_mark
     use window_fm, only: recenter_top_bottom, scroll_up, scroll_down
     use help_fm, only: with_help_window
     use xdisp_fm, only: message
@@ -97,11 +97,11 @@ module replace_fm
     use handle_fm, only: null_handle
     use lisp_fm, only: t_value, consp, fixnump, xfixnum, make_fixnum, list
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, kill_buffer, &
-                         buffer_live_p, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
-                         restore_buffer_modified_p
+                         is_buffer_live, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
+                         restore_buffer_modified
     use marker_fm, only: copy_marker_at, marker_buffer
     use insdel_fm, only: insert, after_change_functions
-    use editfns_fm, only: bolp, eolp, line_beginning_position, line_end_position, delete_region
+    use editfns_fm, only: is_bol, is_eol, line_beginning_position, line_end_position, delete_region
     use cmds_fm, only: forward_line
     use indent_fm, only: current_column, move_to_column
     use textprop_fm, only: put_text_property, get_text_property, add_text_properties, add_face_text_property, &
@@ -120,14 +120,14 @@ module replace_fm
 
     use files_fm, only: kill_buffer_hook, revert_buffer_function
     use eval_fm, only: hook_type
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set, set_keymap_parent
     use text_mode_fm, only: text_mode_map
     use font_core_fm, only: font_lock_mode_enabled, turn_on_font_lock
     use font_lock_fm, only: font_lock_ensure
     use regexp_opt_fm, only: regexp_opt_depth
-    use xfaces_fm, only: face_differs_from_default_p
+    use xfaces_fm, only: is_face_differs_from_default
     use faces_fm, only: named_face_type, display_when, face_attrs, init_faces, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     implicit none(type, external)
@@ -600,14 +600,14 @@ contains
         list(n)%s = s
     end subroutine push_string
 
-    !> The region's text, if `use_region_p'.  Not a port.
+    !> The region's text, if `is_use_region'.  Not a port.
     subroutine region_text(text, found)
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
         integer(int64) :: b, e
         type(status_type) :: st
 
-        found = use_region_p()
+        found = is_use_region()
         text = ""
         if (.not. found) return
         call region_beginning(b, st)
@@ -1186,7 +1186,7 @@ contains
         fold = case_fold_search%value
 
         if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-            fold = isearch_no_upper_case_p(from_string, regexp_flag)
+            fold = is_isearch_no_upper_case(from_string, regexp_flag)
         end if
 
         nocasify = .not. (case_replace .and. fold)
@@ -1253,10 +1253,10 @@ contains
             if (have_limit) call marker_position(limit_marker, limit, st)
 
             if (back) then
-                if (bobp()) exit main
+                if (is_bob()) exit main
                 if (have_limit .and. point() <= limit) exit main
             else
-                if (eobp()) exit main
+                if (is_eob()) exit main
                 if (have_limit .and. point() >= limit) exit main
             end if
 
@@ -1624,7 +1624,7 @@ contains
                     call ding()
                     call sit_for(1000)
                 case (ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN)
-                    ! (commandp def t): (call-interactively def).
+                    ! (is_command def t): (call-interactively def).
                     if (def == ANSWER_SCROLL_UP) then
                         call scroll_up(nil(), status)
                     else
@@ -2049,7 +2049,7 @@ contains
         if (present(rstart) .and. present(rend)) then
             call goto_char(min(rstart, rend))
             call set_marker(end_marker, max(rstart, rend), st)
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(limit, st)
             call set_marker(end_marker, limit, st)
             call region_beginning(limit, st)
@@ -2061,7 +2061,7 @@ contains
         saved_fold = case_fold_search%value
 
         if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-            case_fold_search%value = isearch_no_upper_case_p(regexp, .true.)
+            case_fold_search%value = is_isearch_no_upper_case(regexp, .true.)
         end if
 
         call make_marker(opoint)
@@ -2116,7 +2116,7 @@ contains
         end if
 
         prompt = prompt//what
-        if (use_region_p()) prompt = prompt//" in region"
+        if (is_use_region()) prompt = prompt//" in region"
     end function command_prompt
 
     ! The interactive commands: read the arguments, then operate on the
@@ -2134,7 +2134,7 @@ contains
                                      counted, status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, st)
             call region_end(e, st)
             call perform_replace(from, to, query, regexp_flag, delimited, status, start=b, end=e, &
@@ -2181,7 +2181,7 @@ contains
                                   to, status, history=query_replace_to_history_variable, default=from)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, st)
             call region_end(e, st)
 
@@ -2257,7 +2257,7 @@ contains
         fold = case_fold_search%value
 
         if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-            fold = isearch_no_upper_case_p(regexp, .true.)
+            fold = is_isearch_no_upper_case(regexp, .true.)
         end if
     end function lines_case_fold
 
@@ -2305,13 +2305,13 @@ contains
             call goto_char(min(rstart, rend))
             opoint = point()
             call goto_char(max(rstart, rend))
-            if (.not. (bolp() .or. eobp())) shortage = forward_line(0_int64)
+            if (.not. (is_bol() .or. is_eob())) shortage = forward_line(0_int64)
             call set_marker(rend_m, point(), st)
             call goto_char(opoint)
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(pos, st)
             call goto_char(pos)
-            if (.not. (bolp() .or. eobp())) shortage = forward_line(0_int64)
+            if (.not. (is_bol() .or. is_eob())) shortage = forward_line(0_int64)
             call set_marker(rend_m, point(), st)
             call region_beginning(pos, st)
             call goto_char(pos)
@@ -2320,7 +2320,7 @@ contains
         end if
 
         opoint = point()
-        if (.not. bolp()) shortage = forward_line(1_int64)
+        if (.not. is_bol()) shortage = forward_line(1_int64)
         start = point()
         saved_fold = case_fold_search%value
         case_fold_search = lines_case_fold(regexp)
@@ -2402,7 +2402,7 @@ contains
         if (present(rstart) .and. present(rend)) then
             call goto_char(min(rstart, rend))
             call set_marker(rend_m, max(rstart, rend), st)
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(pos, st)
             call set_marker(rend_m, pos, st)
             call region_beginning(pos, st)
@@ -2631,7 +2631,7 @@ contains
                 call goto_char(rstart)
                 limit = point_max()
             end if
-        else if (inter .and. use_region_p()) then
+        else if (inter .and. is_use_region()) then
             call region_end(limit, st)
             call region_beginning(pos, st)
             call goto_char(pos)
@@ -2646,7 +2646,7 @@ contains
             call re_search_forward(regexp, found, status, bound=limit, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. found == 0) exit
             ! Ensure forward progress on zero-length matches like "^$".
-            if (match_beginning(0, st) == match_end(0, st) .and. .not. eobp()) call goto_char(point() + 1)
+            if (match_beginning(0, st) == match_end(0, st) .and. .not. is_eob()) call goto_char(point() + 1)
             count = count + 1
         end do
 
@@ -2704,7 +2704,7 @@ contains
         if (.not. create) return
 
         do k = 1, size(occur_buffers)
-            if (.not. buffer_live_p(occur_buffers(k)%buffer)) then
+            if (.not. is_buffer_live(occur_buffers(k)%buffer)) then
                 call occur_reset_entry(k)
                 occur_buffers(k)%buffer = h
                 return
@@ -2863,7 +2863,7 @@ contains
 
         status = status_type()
 
-        if (derived_mode_p(major_modes%occur_edit_mode)) then
+        if (is_derived_mode(major_modes%occur_edit_mode)) then
             call occur_mode(status)
             if (status%ok()) call message("Switching to Occur mode.")
         end if
@@ -2907,7 +2907,7 @@ contains
         marker = occur_buffers(k)%targets(idx)%beg(1)
         call marker_buffer(marker, buffer, st)
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "Buffer for this occurrence was killed")
         end if
     end subroutine occur_mode_find_occurrences
@@ -3148,7 +3148,7 @@ contains
         call get_text_property(line_beg, sym("occur_prefix"), prefix_beg, st)
         call get_text_property(end, sym("occur_prefix"), prefix_end, st)
 
-        if (nilp(prefix_beg) .or. .not. nilp(prefix_end) .or. .not. buffer_live_p(buf)) then
+        if (nilp(prefix_beg) .or. .not. nilp(prefix_end) .or. .not. is_buffer_live(buf)) then
             call goto_char(opoint)
             return
         end if
@@ -3437,7 +3437,7 @@ contains
         call occur_read_primary_args(regexp, has_nlines, nlines, has_collect, collect, status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, st)
             call region_end(e, st)
 
@@ -3653,7 +3653,7 @@ contains
             buf = get_buffer("*Occur*")
         end if
 
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         call set_buffer(buf, st)
         name = "*Occur: "
         k = occur_entry(buf, .false.)
@@ -3663,7 +3663,7 @@ contains
                 do i = 1, size(occur_buffers(k)%sources)
                     if (i > 1) name = name//"/"
 
-                    if (buffer_live_p(occur_buffers(k)%sources(i)%buffer)) then
+                    if (is_buffer_live(occur_buffers(k)%sources(i)%buffer)) then
                         name = name//buffers(occur_buffers(k)%sources(i)%buffer%index)%name
                     end if
                 end do
@@ -3736,7 +3736,7 @@ contains
         integer :: i
 
         do i = 1, size(sources)
-            live(i) = buffer_live_p(sources(i)%buffer)
+            live(i) = is_buffer_live(sources(i)%buffer)
         end do
 
         active = pack(sources, live)
@@ -3862,14 +3862,14 @@ contains
             fold = case_fold_search%value
 
             if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
-                fold = isearch_no_upper_case_p(regexp, .true.)
+                fold = is_isearch_no_upper_case(regexp, .true.)
             end if
 
             call set_buffer(occur_buf, st)
             saved_fold = .false.
 
             if (len(list_matching_lines_prefix_face) > 0) then
-                saved_fold = face_differs_from_default_p(list_matching_lines_prefix_face)
+                saved_fold = is_face_differs_from_default(list_matching_lines_prefix_face)
             end if
 
             if (saved_fold) then
@@ -3938,11 +3938,11 @@ contains
 
             next_error_last_buffer = occur_buf
             buffers(cur)%read_only = .true.
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call occur_hook%run(status)
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
 
     contains
 
@@ -4105,9 +4105,9 @@ contains
             if (count == 0) exit
 
             if (forwardp) then
-                if (eobp()) exit
+                if (is_eob()) exit
             else
-                if (bobp() .and. .not. moved) exit
+                if (is_bob() .and. .not. moved) exit
             end if
 
             if (forwardp) then
@@ -4163,7 +4163,7 @@ contains
 
         do s = 1, size(sources)
             src = sources(s)%buffer
-            if (.not. buffer_live_p(src)) cycle
+            if (.not. is_buffer_live(src)) cycle
             lines = 0
             matches = 0
             call set_buffer(out_buf, st)
@@ -4373,7 +4373,7 @@ contains
                     curr_line = curr_line + count_lines(begpt, endpt)
                     ! Add 1 for empty last match line since count-lines
                     ! returns one line less.
-                    if (bolp() .and. eolp()) curr_line = curr_line + 1
+                    if (is_bol() .and. is_eol()) curr_line = curr_line + 1
                     ! On to the next match...
                     shortage = forward_line(1_int64)
                 else

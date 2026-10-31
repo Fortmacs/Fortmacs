@@ -31,7 +31,7 @@ module test_autorevert_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
     use buffer_fm, only: buffers, cur, get_buffer, get_buffer_create, set_buffer, kill_buffer, current_buffer, &
-                         generate_new_buffer_name, buffer_live_p, restore_buffer_modified_p, erase_buffer
+                         generate_new_buffer_name, is_buffer_live, restore_buffer_modified, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
     use fileio_fm, only: write_region, set_file_times
@@ -106,9 +106,9 @@ contains
         character(len=*), intent(in) :: file
         type(status_type) :: st
 
-        if (buffer_live_p(buf)) then
+        if (is_buffer_live(buf)) then
             call set_buffer(buf, st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call kill_buffer(buf, st)
         end if
 
@@ -149,7 +149,7 @@ contains
 
         text = ""
         h = get_buffer("*Messages*")
-        if (.not. buffer_live_p(h)) return
+        if (.not. is_buffer_live(h)) return
         old = current_buffer()
         call set_buffer(h, st)
         text = buffer_string()
@@ -258,7 +258,7 @@ contains
             if (allocated(error)) exit body
             ! When the buffer is modified, it shall not be reverted.
             call capture_messages()
-            call restore_buffer_modified_p(.true.)
+            call restore_buffer_modified(.true.)
             call write_text_old("any text", tmpfile)
             ! Check, that the buffer hasn't been reverted.
             call wait_for_revert(buf)
@@ -348,7 +348,7 @@ contains
             if (allocated(error)) exit body
             call erase_buffer(st)
             call insert("modified text"//achar(10), st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             ! Modify file (appending "another text").
             call write_text_old("any textanother text", tmpfile)
             ! Check, that the buffer has been reverted.

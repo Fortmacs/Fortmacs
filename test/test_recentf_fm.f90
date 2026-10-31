@@ -31,7 +31,7 @@ module test_recentf_fm
     use files_fm, only: make_temp_file, delete_file
     use bindings_fm, only: init_bindings
     use recentf_fm, only: recentf_list, recentf_add_file, recentf_exclude, recentf_check_type, recentf_keep, &
-                          recentf_keep_default_predicate, recentf_exclude_file_by_extension_p, &
+                          recentf_keep_default_predicate, is_recentf_exclude_file_by_extension, &
                           recentf_exclude_ignored_extensions, recentf_remove_if_non_kept, recentf_cleanup, &
                           recentf_save_list, recentf_load_list, recentf_save_file, recentf_open_most_recent_file, &
                           recentf_show_messages
@@ -103,14 +103,14 @@ contains
 
         call start()
         recentf_exclude = [recentf_check_type(regexp="\.tmp\'"), &
-                           recentf_check_type(predicate=recentf_exclude_file_by_extension_p)]
+                           recentf_check_type(predicate=is_recentf_exclude_file_by_extension)]
         recentf_exclude_ignored_extensions = [character(len=32) :: ".o"]
         call recentf_add_file("/tmp/a.tmp")
         call recentf_add_file("/tmp/a.o")
         call recentf_add_file("/tmp/a.f90")
         call check(error, joined(), "/tmp/a.f90")
         if (allocated(error)) return
-        call check(error, recentf_exclude_file_by_extension_p("x.o") .and. .not. recentf_exclude_file_by_extension_p("x.f90"), &
+        call check(error, is_recentf_exclude_file_by_extension("x.o") .and. .not. is_recentf_exclude_file_by_extension("x.f90"), &
                    "by extension")
     end subroutine test_exclude
 

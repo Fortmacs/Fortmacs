@@ -38,7 +38,7 @@ module editfns_fm
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
     use handle_fm, only: handle_type
-    use character_fm, only: char_head_p, char_valid_p, char_string, &
+    use character_fm, only: is_char_head, is_char_valid, char_string, &
                             MAX_MULTIBYTE_LENGTH
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, BUF_BYTES_MAX, &
                          buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buf_byte_index, &
@@ -65,9 +65,9 @@ module editfns_fm
     public :: point_marker, point_min_marker, point_max_marker
     public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, check_mark, region_position_proc
     public :: position_bytes, byte_to_position
-    public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
+    public :: following_char, preceding_char, is_bob, is_eob, is_bol, is_eol, &
               char_after, char_before
-    public :: insert_char_n, narrow_to_region, widen, buffer_narrowed_p, current_time_string, validate_region, subst_char_in_region
+    public :: insert_char_n, narrow_to_region, widen, is_buffer_narrowed, current_time_string, validate_region, subst_char_in_region
     public :: buffer_substring, buffer_string, insert_buffer_substring, delete_region, &
               delete_and_extract_region
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
@@ -402,7 +402,7 @@ contains
         if (buffers(cur)%text%z /= buffers(cur)%text%z_byte) then
             ! Back up to the start of the character containing BYTEPOS.
             do while (pos_byte < buffers(cur)%text%z_byte)
-                if (char_head_p(buf_fetch_byte(buffers(cur), pos_byte))) exit
+                if (is_char_head(buf_fetch_byte(buffers(cur), pos_byte))) exit
                 pos_byte = pos_byte - 1
             end do
         end if
@@ -446,35 +446,35 @@ contains
     !> Return true if point is at the beginning of the buffer.
     !> If the buffer is narrowed, this means the beginning of the narrowed part.
     !> Port of editfns.c:Fbobp.
-    logical function bobp()
-        bobp = buffers(cur)%pt == buffers(cur)%begv
-    end function bobp
+    logical function is_bob()
+        is_bob = buffers(cur)%pt == buffers(cur)%begv
+    end function is_bob
 
     !> Return true if point is at the end of the buffer.
     !> If the buffer is narrowed, this means the end of the narrowed part.
     !> Port of editfns.c:Feobp.
-    logical function eobp()
-        eobp = buffers(cur)%pt == buffers(cur)%zv
-    end function eobp
+    logical function is_eob()
+        is_eob = buffers(cur)%pt == buffers(cur)%zv
+    end function is_eob
 
     !> Return true if point is at the beginning of a line.  Port of
     !> editfns.c:Fbolp.
-    logical function bolp()
+    logical function is_bol()
         associate (b => buffers(cur))
-            bolp = b%pt == b%begv
-            if (.not. bolp) bolp = buf_fetch_byte(b, b%pt_byte - 1) == 10
+            is_bol = b%pt == b%begv
+            if (.not. is_bol) is_bol = buf_fetch_byte(b, b%pt_byte - 1) == 10
         end associate
-    end function bolp
+    end function is_bol
 
     !> Return true if point is at the end of a line.
     !> `End of a line' includes point being at the end of the buffer.  Port of
     !> editfns.c:Feolp.
-    logical function eolp()
+    logical function is_eol()
         associate (b => buffers(cur))
-            eolp = b%pt == b%zv
-            if (.not. eolp) eolp = buf_fetch_byte(b, b%pt_byte) == 10
+            is_eol = b%pt == b%zv
+            if (.not. is_eol) is_eol = buf_fetch_byte(b, b%pt_byte) == 10
         end associate
-    end function eolp
+    end function is_eol
 
     !> Character at `pos' (default: point); `found' is false outside the
     !> accessible region.  Port of editfns.c:Fchar_after (integer POS).
@@ -540,7 +540,7 @@ contains
         integer(int32) :: clen
         integer(int64) :: n, chunk, reps
 
-        if (.not. char_valid_p(c)) then
+        if (.not. is_char_valid(c)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
             return
         end if
@@ -809,9 +809,9 @@ contains
 
     !> Return true if the current buffer is narrowed.  Port of
     !> subr.el:buffer-narrowed-p.
-    logical function buffer_narrowed_p()
-        buffer_narrowed_p = buffers(cur)%zv - buffers(cur)%begv /= buffers(cur)%text%z - BEG
-    end function buffer_narrowed_p
+    logical function is_buffer_narrowed()
+        is_buffer_narrowed = buffers(cur)%zv - buffers(cur)%begv /= buffers(cur)%text%z - BEG
+    end function is_buffer_narrowed
 
     !> Remove narrowing.  Port of editfns.c:Fwiden.
     subroutine widen()
@@ -890,7 +890,7 @@ contains
     !> using `string_make_multibyte' or `string_make_unibyte', which see.
     !> Port of editfns.c:Finsert_buffer_substring.
     recursive subroutine insert_buffer_substring(buffer, status, start, end)
-        use buffer_fm, only: set_buffer, buffer_live_p
+        use buffer_fm, only: set_buffer, is_buffer_live
         use insdel_fm, only: insert_from_buffer
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -901,7 +901,7 @@ contains
 
         status = status_type()
 
-        if (.not. buffer_live_p(buffer)) then
+        if (.not. is_buffer_live(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
             return
         end if
@@ -1240,12 +1240,12 @@ contains
         call validate_region(s, e, status)
         if (.not. status%ok()) return
 
-        if (.not. char_valid_p(fromchar)) then
+        if (.not. is_char_valid(fromchar)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(fromchar, int64)))
             return
         end if
 
-        if (.not. char_valid_p(tochar)) then
+        if (.not. is_char_valid(tochar)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(tochar, int64)))
             return
         end if

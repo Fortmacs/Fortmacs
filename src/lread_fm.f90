@@ -33,8 +33,8 @@ module lread_fm
     use lisp_fm, only: symbols, nsymbols, symbol_type, value_type, &
                        make_symbol_ref, nil, SYM_NIL, SYM_T
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use character_fm, only: string_char_and_length, char_string, char_hexdigit, byte8_to_char, char_byte8_p, &
-                            char_surrogate_p, MAX_MULTIBYTE_LENGTH, CHAR_SHIFT, CHAR_CTL, CHAR_META, &
+    use character_fm, only: string_char_and_length, char_string, char_hexdigit, byte8_to_char, is_char_byte8, &
+                            is_char_surrogate, MAX_MULTIBYTE_LENGTH, CHAR_SHIFT, CHAR_CTL, CHAR_META, &
                             CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_MODIFIER_MASK
     implicit none(type, external)
     private
@@ -498,7 +498,7 @@ contains
                     return
                 end if
 
-                if (char_surrogate_p(i)) then
+                if (is_char_surrogate(i)) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax: \N{"//text(pos:pos + n - 1)//"}")
                     return
                 end if

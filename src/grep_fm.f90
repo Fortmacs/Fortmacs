@@ -60,7 +60,7 @@ module grep_fm
     use data_fm, only: symbol_value, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, generate_new_buffer_name, &
-                         kill_buffer, buffer_modified_p, buffer_live_p, transient_mark_mode
+                         kill_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
     use marker_fm, only: copy_marker_at, free_marker, marker_position, set_marker
     use insdel_fm, only: insert, insert_before_markers
     use editfns_fm, only: point, point_min, point_max, goto_char, line_beginning_position, line_end_position, &
@@ -72,8 +72,8 @@ module grep_fm
                          string_match, looking_at, case_fold_search, string_index_to_offset, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string, shell_quote_argument, add_to_history, defvar_nil, find_tag_default, &
                        silent_modifications_type, silent_modifications_begin, silent_modifications_end
-    use fileio_fm, only: expand_file_name, file_name_as_directory, file_name_nondirectory, file_directory_p, &
-                         file_accessible_directory_p
+    use fileio_fm, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
+                         is_file_accessible_directory
     use files_fm, only: save_some_buffers, file_name_extension, wildcard_to_regexp, make_temp_file, delete_file
     use callproc_fm, only: call_process
     use simple_fm, only: read_shell_command, next_error_last_buffer, shell_command_switch
@@ -85,16 +85,16 @@ module grep_fm
     use minibuffer_fm, only: completing_read, read_directory_name, completion_file_name_table, &
                              read_file_name_completion_ignore_case
     use replace_fm, only: read_regexp, format_prompt
-    use isearch_fm, only: isearch_no_upper_case_p
+    use isearch_fm, only: is_isearch_no_upper_case
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keymap_fm, only: keymap_set, set_keymap_parent, make_sparse_keymap, current_local_map, use_local_map
     use text_mode_fm, only: text_mode_map
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use subr_fm, only: run_mode_hooks
     use insdel_fm, only: after_change_functions
     use data_fm, only: set
     use help_fm, only: substitute_command_keys
-    use buffer_fm, only: restore_buffer_modified_p
+    use buffer_fm, only: restore_buffer_modified
     use textprop_fm, only: text_property_not_all
     use replace_fm, only: occur_add_target, occur_after_change_function
     use modes_fm, only: major_modes
@@ -551,7 +551,7 @@ contains
         end do
 
         do k = 1, size(locals)
-            if (.not. buffer_live_p(locals(k)%buffer)) then
+            if (.not. is_buffer_live(locals(k)%buffer)) then
                 call reset_local(k)
                 locals(k)%buffer = h
                 return
@@ -1070,7 +1070,7 @@ contains
         ! This relies on the fact that `compilation_start' sets
         ! buffer-modified to false before running the command, so the
         ! buffer is still unmodified if there is no output.
-        call buffer_modified_p(current_buffer(), modified, st)
+        call is_buffer_modified(current_buffer(), modified, st)
 
         if (exit_status == 0 .and. modified) then
             k = local_entry()
@@ -1890,7 +1890,7 @@ contains
 
         status = status_type()
 
-        if (.not. derived_mode_p(major_modes%grep_mode)) then
+        if (.not. is_derived_mode(major_modes%grep_mode)) then
             call set_error(status, FM_GENERIC_ERROR, "Not a Grep buffer")
             return
         end if
@@ -1913,7 +1913,7 @@ contains
         buffers(cur)%mode_name = "Grep-Edit"
         ! buffer-enable-undo.
         buffers(cur)%undo_enabled = .true.
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
         call after_change_functions%add(occur_after_change_function, local=.true.)
         call run_mode_hooks(status, grep_edit_mode_hook)
@@ -1928,7 +1928,7 @@ contains
 
         status = status_type()
 
-        if (.not. derived_mode_p("grep_edit_mode")) then
+        if (.not. is_derived_mode("grep_edit_mode")) then
             call set_error(status, FM_GENERIC_ERROR, "Not a Grep-Edit buffer")
             return
         end if
@@ -2011,7 +2011,7 @@ contains
             end do
         end if
 
-        if (case_fold_search%value .and. isearch_no_upper_case_p(re, .true.)) call push("-i")
+        if (case_fold_search%value .and. is_isearch_no_upper_case(re, .true.)) call push("-i")
 
         if (grep_highlight_matches == GREP_ALWAYS) then
             call push("--color=always")
@@ -2422,7 +2422,7 @@ contains
             return
         end if
 
-        if (.not. file_accessible_directory_p(dir)) then
+        if (.not. is_file_accessible_directory(dir)) then
             call set_error(status, FM_USER_ERROR, "Unable to open directory: "//dir)
             return
         end if
@@ -2519,7 +2519,7 @@ contains
         logical, intent(in) :: had_dir
         character(len=:), allocatable, intent(in) :: saved_dir
 
-        if (.not. buffer_live_p(old)) return
+        if (.not. is_buffer_live(old)) return
 
         if (had_dir) then
             buffers(old%index)%directory = saved_dir
@@ -2665,7 +2665,7 @@ contains
             return
         end if
 
-        if (.not. file_accessible_directory_p(dir)) then
+        if (.not. is_file_accessible_directory(dir)) then
             call set_error(status, FM_USER_ERROR, "Unable to open directory: "//dir)
             return
         end if

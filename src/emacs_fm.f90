@@ -35,8 +35,8 @@ module emacs_fm
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer
     use editfns_fm, only: goto_char, point_min
     use cmds_fm, only: forward_line
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_name_absolute_p, &
-                         file_exists_p, file_executable_p, file_newer_than_file_p
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, is_file_name_absolute, &
+                         file_exists, is_file_executable, is_file_newer_than_file
     use files_fm, only: find_file_noselect
     use frame_fm, only: selected_frame
     use window_fm, only: delete_window_tree, delete_window_object, set_window_buffer_internal, switch_to_buffer, &
@@ -205,12 +205,12 @@ contains
     !> digits; `line' gets the first number and `column' the second (0
     !> if absent).
     !> Port of part of startup.el:command-line-1 (the +LINE:COLUMN argument).
-    logical function line_arg_p(s, line, column)
+    logical function is_line_arg(s, line, column)
         character(len=*), intent(in) :: s
         integer(int64), intent(out) :: line, column
         integer :: colon, stat
 
-        line_arg_p = .false.
+        is_line_arg = .false.
         line = 0
         column = 0
         if (len(s) < 2) return
@@ -224,11 +224,11 @@ contains
         end if
 
         read (s(2:colon - 1), *, iostat=stat) line
-        line_arg_p = stat == 0
+        is_line_arg = stat == 0
 
-        if (line_arg_p .and. colon <= len(s)) then
+        if (is_line_arg .and. colon <= len(s)) then
             read (s(colon + 1:), *, iostat=stat) column
-            line_arg_p = stat == 0
+            is_line_arg = stat == 0
         end if
 
     contains
@@ -238,7 +238,7 @@ contains
 
             all_digits = len(t) > 0 .and. verify(t, "0123456789") == 0
         end function all_digits
-    end function line_arg_p
+    end function is_line_arg
 
     !> Visit the files named in `args', then display them: the first in
     !> the selected window, a second in another window (the first
@@ -267,7 +267,7 @@ contains
             k = k + 1
             argi = args(k)%s
 
-            if (.not. just_files .and. line_arg_p(argi, n, c)) then
+            if (.not. just_files .and. is_line_arg(argi, n, c)) then
                 line = n
                 column = c
                 cycle
@@ -305,7 +305,7 @@ contains
             ! process-file-arg
             dir = file_name_as_directory(emacs_wd)
 
-            if (len(emacs_wd) == 0 .and. .not. file_name_absolute_p(argi)) then
+            if (len(emacs_wd) == 0 .and. .not. is_file_name_absolute(argi)) then
                 call message("Ignoring relative file name ("//argi//") due to unset default_directory")
                 cycle
             end if
@@ -371,7 +371,7 @@ contains
         type(handle_type) :: buf
         integer(int64) :: shortage, moved
 
-        if (file_name_absolute_p(name)) then
+        if (is_file_name_absolute(name)) then
             call find_file_noselect(name, buf, status)
         else
             call find_file_noselect(dir//name, buf, status)
@@ -875,7 +875,7 @@ contains
         if (.not. present(prefix) .and. installed) call run_user_build(args, reminder)
 
         if (present(prefix)) then
-            if (file_newer_than_file_p(init_file_name(), running_executable())) then
+            if (is_file_newer_than_file(init_file_name(), running_executable())) then
                 reminder = init_file_name()//" has changed; run fortmacs --recompile to use it"
             end if
         end if
@@ -1050,12 +1050,12 @@ contains
         build = current_build_name()
         init = init_file_name()
 
-        if (.not. file_executable_p(build)) then
-            if (file_exists_p(init)) reminder = init//" is not built yet; run fortmacs --recompile to use it"
+        if (.not. is_file_executable(build)) then
+            if (file_exists(init)) reminder = init//" is not built yet; run fortmacs --recompile to use it"
             return
         end if
 
-        if (file_newer_than_file_p(running_executable(), build)) then
+        if (is_file_newer_than_file(running_executable(), build)) then
             reminder = "Fortmacs was updated since "//init//" was built; run fortmacs --recompile"
             return
         end if

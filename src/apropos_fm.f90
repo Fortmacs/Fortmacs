@@ -45,14 +45,14 @@ module apropos_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, symbols, nsymbols, list_elements, make_string, xstring, stringp
     use lread_fm, only: sym
-    use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, buffer_live_p, get_buffer_create, &
+    use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, is_buffer_live, get_buffer_create, &
                          kill_buffer, generate_new_buffer_name
     use editfns_fm, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
     use insdel_fm, only: insert
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change
     use search_fm, only: string_match, regexp_quote, match_end
     use keymap_fm, only: key_description, where_is_internal, keymap_set, make_sparse_keymap
-    use callint_fm, only: commandp, current_prefix_arg, fboundp
+    use callint_fm, only: is_command, current_prefix_arg, fboundp
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use fill_fm, only: fill_region
@@ -505,12 +505,12 @@ contains
     end function symbols_name
 
     !> Whether the line at point starts with an entry's name.  Not a port.
-    logical function at_symbol_p()
+    logical function is_at_name()
         character(len=:), allocatable :: type, name
 
         call button_at(buffers(cur)%pt, type, name)
-        at_symbol_p = type == "apropos_symbol"
-    end function at_symbol_p
+        is_at_name = type == "apropos_symbol"
+    end function is_at_name
 
     !> Move cursor down to the next symbol in an `apropos_mode' buffer.
     !> Port of apropos.el:apropos-next-symbol.
@@ -521,7 +521,7 @@ contains
         status = status_type()
         shortage = forward_line(1_int64)
 
-        do while (.not. at_symbol_p() .and. buffers(cur)%pt < point_max())
+        do while (.not. is_at_name() .and. buffers(cur)%pt < point_max())
             shortage = forward_line(1_int64)
         end do
     end subroutine apropos_next_symbol
@@ -535,7 +535,7 @@ contains
         status = status_type()
         shortage = forward_line(-1_int64)
 
-        do while (.not. at_symbol_p() .and. buffers(cur)%pt > point_min())
+        do while (.not. is_at_name() .and. buffers(cur)%pt > point_min())
             shortage = forward_line(-1_int64)
         end do
     end subroutine apropos_previous_symbol

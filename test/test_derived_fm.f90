@@ -34,7 +34,7 @@ module test_derived_fm
     use eval_fm, only: hook_type
     use subr_fm, only: after_change_major_mode_hook
     use keymap_fm, only: current_local_map, keymap_parent, keymap_set, key_binding, key_parse
-    use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p
+    use derived_fm, only: major_mode_type, is_derived_mode, provided_mode_derived_p
     use modes_fm, only: major_modes
     use syntax_fm, only: syntax_table, standard_syntax_table, char_syntax
     use text_mode_fm, only: text_mode, syms_of_text_mode, text_mode_syntax_table, text_mode_variant, text_mode_hook
@@ -315,7 +315,7 @@ contains
         if (allocated(error)) return
         call check(error, char_syntax(iachar("'")) == "w", "' is a word constituent")
         if (allocated(error)) return
-        call check(error, derived_mode_p(major_modes%text_mode), "derived_mode_p")
+        call check(error, is_derived_mode(major_modes%text_mode), "is_derived_mode")
         if (allocated(error)) return
         call check(error, text_mode_variant%value .and. text_mode_variant%local_p(), "text_mode_variant")
         if (allocated(error)) return
@@ -360,9 +360,9 @@ contains
         if (allocated(error)) return
         call check(error, same(keymap_parent(child_mode_obj%map), major_modes%text_mode%map), "keymap parent")
         if (allocated(error)) return
-        call check(error, derived_mode_p(major_modes%text_mode), "derived from text-mode")
+        call check(error, is_derived_mode(major_modes%text_mode), "derived from text-mode")
         if (allocated(error)) return
-        call check(error, derived_mode_p("text_mode") .and. .not. derived_mode_p("prog_mode"), "by name")
+        call check(error, is_derived_mode("text_mode") .and. .not. is_derived_mode("prog_mode"), "by name")
         if (allocated(error)) return
         ! A key bound in text-mode-map is active in the child.
         call keymap_set(major_modes%text_mode%map, "C-c t", "forward_char", st)
@@ -491,7 +491,7 @@ contains
         call set_buffer(a, st)
         buffers(cur)%filename = "/tmp/foo.text"
         call normal_mode(st)
-        call check(error, derived_mode_p(major_modes%text_mode), "text-mode from the file name")
+        call check(error, is_derived_mode(major_modes%text_mode), "text-mode from the file name")
         if (allocated(error)) return
         call text_mode_hook%add(hook_text)
         trace = ""

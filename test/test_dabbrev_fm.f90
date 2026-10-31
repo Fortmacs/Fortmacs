@@ -34,8 +34,8 @@ module test_dabbrev_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, restore_buffer_modified_p, &
-                         get_buffer, buffer_live_p, buffer_list, buffers, resolve_buffer
+    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, restore_buffer_modified, &
+                         get_buffer, is_buffer_live, buffer_list, buffers, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, buffer_substring, point, point_min, point_max, pos_bol, pos_eol, &
                           narrow_to_region, region_beginning, region_end, delete_region
@@ -103,7 +103,7 @@ contains
             if (.not. st%ok()) cycle
             if (buffers(i)%name == "*scratch*" .or. index(buffers(i)%name, " *Minibuf-") == 1) cycle
             call set_buffer(all(k), st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call kill_buffer(all(k), st)
         end do
 
@@ -203,9 +203,9 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        if (.not. buffer_live_p(h)) return
+        if (.not. is_buffer_live(h)) return
         call set_buffer(h, st)
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call kill_buffer(h, st)
         call dabbrev_reset_global_variables()
     end subroutine done

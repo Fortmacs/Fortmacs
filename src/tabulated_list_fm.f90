@@ -52,17 +52,17 @@ module tabulated_list_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, buffer_serial_live, erase_buffer, restore_buffer_modified_p
+    use buffer_fm, only: buffers, cur, buffer_serial_live, erase_buffer, restore_buffer_modified
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, point_min, point_max, pos_bol, pos_eol, delete_region, eobp
+    use editfns_fm, only: point, goto_char, point_min, point_max, pos_bol, pos_eol, delete_region, is_eob
     use cmds_fm, only: forward_line, beginning_of_line, forward_char
     use indent_fm, only: current_column, move_to_column
     use textprop_fm, only: get_text_property, put_text_property, add_text_properties, next_single_property_change, &
                            previous_single_property_change, propertize
     use files_fm, only: revert_buffer_function
     use fill_fm, only: string_width
-    use frame_fm, only: selected_frame, frame_window_p
-    use derived_fm, only: derived_mode_p
+    use frame_fm, only: selected_frame
+    use derived_fm, only: is_derived_mode
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use mule_util_fm, only: truncate_string_to_width, truncate_string_to_width_propertized
     use faces_fm, only: named_face_type, face_attrs, display_when
@@ -731,7 +731,7 @@ contains
     function asc_indicator() result(s)
         character(len=:), allocatable :: s
 
-        if (frame_window_p(selected_frame)) then
+        if (associated(selected_frame%rif)) then
             s = tabulated_list_gui_sort_indicator_asc
         else
             s = tabulated_list_tty_sort_indicator_asc
@@ -742,7 +742,7 @@ contains
     function desc_indicator() result(s)
         character(len=:), allocatable :: s
 
-        if (frame_window_p(selected_frame)) then
+        if (associated(selected_frame%rif)) then
             s = tabulated_list_gui_sort_indicator_desc
         else
             s = tabulated_list_tty_sort_indicator_desc
@@ -764,7 +764,7 @@ contains
     recursive subroutine tabulated_list_revert(status)
         type(status_type), intent(out) :: status
 
-        if (.not. derived_mode_p("tabulated_list_mode")) then
+        if (.not. is_derived_mode("tabulated_list_mode")) then
             call set_error(status, FM_GENERIC_ERROR, "The current buffer is not in Tabulated List mode")
             return
         end if
@@ -962,7 +962,7 @@ contains
         if (upd .and. status%ok()) call delete_region(point(), point_max(), status)
         buffers(cur)%read_only = ro
         if (.not. status%ok()) return
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
 
         ! If REMEMBER_POS was specified, move to the "old" location.
         if (saved_pt > 0) then
@@ -1005,7 +1005,7 @@ contains
             end if
 
             ! If the buffer is empty, simply print each elt.
-            if (.not. upd .or. eobp()) then
+            if (.not. upd .or. is_eob()) then
                 call print_with_printer(i)
             else
                 do
@@ -1502,7 +1502,7 @@ contains
         integer :: k, i
 
         status = status_type()
-        if (len(name) == 0 .or. .not. derived_mode_p("tabulated_list_mode")) return
+        if (len(name) == 0 .or. .not. is_derived_mode("tabulated_list_mode")) return
         k = local_index(.true.)
 
         if (.not. locals(k)%original_order) then

@@ -36,7 +36,7 @@ module test_abbrev_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, make_fixnum
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur, buffer_name, &
-                         current_buffer, buffer_list, resolve_buffer, restore_buffer_modified_p
+                         current_buffer, buffer_list, resolve_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, point, point_min, point_max
     use search_fm, only: search_forward, SEARCH_NOERROR
@@ -52,7 +52,7 @@ module test_abbrev_fm
     use xdisp_fm, only: mode_line_modes
     use lread_fm, only: user_init_file
     use fileio_fm, only: expand_file_name, make_directory_internal, delete_file_internal, emacs_wd, init_fileio, &
-                         file_exists_p
+                         file_exists
     use files_fm, only: save_some_buffers
     use abbrev_fm, only: abbrev_table_type, abbrev_ref_type, global_abbrev_table, fundamental_mode_abbrev_table, &
                          abbrev_table_name_list, abbrev_mode, abbrev_all_caps, only_global_abbrevs, abbrevs_changed, &
@@ -559,7 +559,7 @@ contains
         ! Save
         abbrevs_changed = .true.
         call abbrev_possibly_save(.false., .true., result, st)
-        call check(error,.not. result .and. .not. abbrevs_changed .and. file_exists_p(abbrev_file_name), "save")
+        call check(error,.not. result .and. .not. abbrevs_changed .and. file_exists(abbrev_file_name), "save")
         if (allocated(error)) return
         ! Don't save
         abbrevs_changed = .true.
@@ -1022,7 +1022,7 @@ contains
             if (.not. st%ok()) cycle
             if (.not. allocated(buffers(i)%filename)) cycle
             call set_buffer(all(k), st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
         end do
 
         call set_buffer(h, st)
@@ -1039,7 +1039,7 @@ contains
         save_abbrevs = SAVE_ABBREVS_NEVER
         abbrevs_changed = .true.
         call save_some_buffers(.true., .false., st)
-        call check(error, abbrevs_changed .and. .not. file_exists_p(abbrev_file_name), "not saved")
+        call check(error, abbrevs_changed .and. .not. file_exists(abbrev_file_name), "not saved")
         save_abbrevs = SAVE_ABBREVS_ASK
         abbrevs_changed = .false.
         deallocate (abbrev_file_name)

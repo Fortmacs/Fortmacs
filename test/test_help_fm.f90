@@ -34,8 +34,8 @@ module test_help_fm
     use print_fm, only: fortran_repr
     use callint_fm, only: current_prefix_arg
     use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NEVER
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_modified_p, &
-                         auto_fill_function, buffer_live_p
+    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
+                         auto_fill_function, is_buffer_live
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string
@@ -157,7 +157,7 @@ contains
         name = buffers(windows(selected_frame%selected_window%index)%buffer%index)%name
     end function selected_buffer_name
 
-    !> Queue `keys` (a key_valid_p string) as input.
+    !> Queue `keys` (an is_key_valid string) as input.
     subroutine type_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
@@ -549,7 +549,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message == "Type C-x 1 to delete the help window.", last_message)
         if (allocated(error)) return
-        call buffer_modified_p(help, modified, st)
+        call is_buffer_modified(help, modified, st)
         call check(error,.not. modified, "*Help* is unmodified")
         if (allocated(error)) return
         ! q in the help window deletes it.
@@ -1115,7 +1115,7 @@ contains
 
         old = current_buffer()
         text = "(none)"
-        if (.not. buffer_live_p(get_buffer(name))) return
+        if (.not. is_buffer_live(get_buffer(name))) return
         call set_buffer(get_buffer(name), st)
         text = buffer_string()
         call set_buffer(old, st)

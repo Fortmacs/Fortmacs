@@ -19,9 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Questions (`read_key', `y_or_n_p', `read_number'),
+!> Questions (`read_key', `read_y_or_n', `read_number'),
 !> `add_to_history', and the match data helpers (`match_string',
-!> `string_match_p', `looking_at_p', `looking_back').
+!> `string_matches', `is_looking_at', `looking_back').
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
@@ -32,7 +32,7 @@ module subr_fm
     use data_fm, only: symbol_value, set, value_eq
     use fns_fm, only: get
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified, &
                          invisibility_entry_type
     use insdel_fm, only: inhibit_modification_hooks
     use keyboard_fm, only: read_event, discard_input, this_command_keys
@@ -40,19 +40,19 @@ module subr_fm
     use commands_fm, only: commands
     use callint_fm, only: prefix_arg
     use xdisp_fm, only: message, message_nolog, cursor_in_echo_area
-    use keymap_fm, only: define_key, current_global_map, key_description, make_sparse_keymap, keymap_live_p, &
+    use keymap_fm, only: define_key, current_global_map, key_description, make_sparse_keymap, is_keymap_live, &
                          key_parse, lookup_key
     use handle_fm, only: handle_type
     use search_fm, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
                          re_search_forward, SEARCH_MOVE, regexp_quote, &
-                         match_in_string_p, string_index_to_offset, SEARCH_NOERROR, match_data, &
+                         is_match_in_string, string_index_to_offset, SEARCH_NOERROR, match_data, &
                          set_match_data, match_data_translate, replace_match
     use syntax_fm, only: skip_syntax_backward
     use editfns_fm, only: buffer_substring, point, goto_char, point_min, point_max, narrow_to_region, widen
     implicit none(type, external)
     private
 
-    public :: read_key, y_or_n_p, query_replace_answer, add_to_history
+    public :: read_key, read_y_or_n, query_replace_answer, add_to_history
     public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_symbol, find_tag_default, &
               find_tag_default_as_regexp, find_tag_default_as_symbol_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
@@ -88,8 +88,8 @@ module subr_fm
     !> Normal hook run at the very end of major mode functions.  Port of
     !> subr.el after-change-major-mode-hook.
     type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after_change_major_mode_hook")
-    public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
-              match_substitute_replacement, subregexp_context_p
+    public :: match_string, match_string_no_properties, string_matches, is_looking_at, looking_back, &
+              match_substitute_replacement, is_subregexp_context
 
     !> Give KEY a global binding as COMMAND (a command name or any key
     !> definition).
@@ -151,7 +151,7 @@ module subr_fm
                           ANSWER_SCROLL_UP = 18, ANSWER_EXIT_PREFIX = 19, ANSWER_SCROLL_DOWN = 20, &
                           ANSWER_SCROLL_OTHER_WINDOW = 21, ANSWER_SCROLL_OTHER_WINDOW_DOWN = 22
 
-    !> Use `read_key' when reading answers to "y or n" questions by `y_or_n_p'.
+    !> Use `read_key' when reading answers to "y or n" questions by `read_y_or_n'.
     !> Otherwise, use the `read_from_minibuffer' to read the answers.
     !>
     !> When reading via the minibuffer, you can use the normal commands
@@ -160,11 +160,11 @@ module subr_fm
     !> to the minibuffer before entering the character.  This is not
     !> possible when using `read_key', but using `read_key' may be less
     !> confusing to some users.  Port of subr.el y-or-n-p-use-read-key.
-    logical, public :: y_or_n_p_use_read_key = .false.
+    logical, public :: read_y_or_n_use_read_key = .false.
 
-    !> Name of the history list to add `y_or_n_p' answers to (unallocated for
+    !> Name of the history list to add `read_y_or_n' answers to (unallocated for
     !> no history).  Port of subr.el y-or-n-p-history-variable.
-    character(len=:), allocatable, public :: y_or_n_p_history_variable
+    character(len=:), allocatable, public :: read_y_or_n_history_variable
 
     !> What `silent_modifications_begin' changed, for
     !> `silent_modifications_end' to restore (the bindings of
@@ -190,7 +190,7 @@ module subr_fm
         !> Ask user a "y or n" question.
         !> Return true (in ANSWER) if answer is "y" and false if it is "n".
         !>
-        !> PROMPT is the string to display to ask the question; `y_or_n_p'
+        !> PROMPT is the string to display to ask the question; `read_y_or_n'
         !> adds "(y or n) " to it.  If PROMPT is a non-empty string, and
         !> it ends with a non-space character, a space character will be
         !> appended to it.
@@ -210,16 +210,16 @@ module subr_fm
         !> and ask again.
         !>
         !> By default, this function uses the minibuffer to read the key.
-        !> If `y_or_n_p_use_read_key' is true, `read_key' is used
+        !> If `read_y_or_n_use_read_key' is true, `read_key' is used
         !> instead (which means that the user can't change buffers (and the
-        !> like) while `y_or_n_p' is running).  Port of subr.el:y-or-n-p
+        !> like) while `read_y_or_n' is running).  Port of subr.el:y-or-n-p
         !> (no help-form or dialog boxes).  (In subr_read_fm.)
-        recursive module subroutine y_or_n_p(prompt, answer, status)
+        recursive module subroutine read_y_or_n(prompt, answer, status)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             logical, intent(out) :: answer
             type(status_type), intent(out) :: status
-        end subroutine y_or_n_p
+        end subroutine read_y_or_n
 
         !> Register subr.el's commands (and keyboard.c's
         !> abort-recursive-edit).  (In subr_read_fm.)
@@ -631,7 +631,7 @@ contains
         type(status_type) :: st
 
         if (cur == 0) return
-        call buffer_modified_p(current_buffer(), s%modified, st)
+        call is_buffer_modified(current_buffer(), s%modified, st)
         s%undo_enabled = buffers(cur)%undo_enabled
         buffers(cur)%undo_enabled = .false.
         call symbol_value(sym("inhibit_read_only"), s%inhibit_read_only, st)
@@ -651,7 +651,7 @@ contains
         inhibit_modification_hooks = s%inhibit_modification_hooks
         call set(sym("inhibit_read_only"), s%inhibit_read_only, st)
         buffers(cur)%undo_enabled = s%undo_enabled
-        call restore_buffer_modified_p(s%modified)
+        call restore_buffer_modified(s%modified)
     end subroutine silent_modifications_end
 
     !> Read one key with `prompt' in the echo area and the cursor after it.
@@ -685,7 +685,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        if (keymap_live_p(query_replace_map)) return
+        if (is_keymap_live(query_replace_map)) return
         call make_sparse_keymap(query_replace_map)
 
         do k = 1, size(QRM_KEYS)
@@ -989,7 +989,7 @@ contains
     !> than POS, and known to be in a subregexp context.  (POS and START are
     !> 1-based character indices: the text before the character at POS
     !> is examined.)  Port of subr.el:subregexp-context-p.
-    recursive logical function subregexp_context_p(regexp, pos, status, start) result(context)
+    recursive logical function is_subregexp_context(regexp, pos, status, start) result(context)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
@@ -1006,26 +1006,26 @@ contains
                          status%detail == """Trailing backslash""")
         status = status_type()
         if (idx < 0) continue
-    end function subregexp_context_p
+    end function is_subregexp_context
 
-    !> Same as `string_match' except this function does not change the
-    !> match data.  Port of subr.el:string-match-p.
-    integer(int64) function string_match_p(regexp, string, status, start) result(idx)
+    !> Whether REGEXP matches STRING, as `string_match' finds; this function
+    !> does not change the match data.  Port of subr.el:string-match-p.
+    logical function string_matches(regexp, string, status, start) result(found)
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
 
-        idx = string_match(regexp, string, status, start, inhibit_modify=.true.)
-    end function string_match_p
+        found = string_match(regexp, string, status, start, inhibit_modify=.true.) > 0
+    end function string_matches
 
     !> Same as `looking_at' except this function does not change the match
     !> data.  Port of subr.el:looking-at-p.
-    logical function looking_at_p(regexp, status)
+    logical function is_looking_at(regexp, status)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
 
-        looking_at_p = looking_at(regexp, status, inhibit_modify=.true.)
-    end function looking_at_p
+        is_looking_at = looking_at(regexp, status, inhibit_modify=.true.)
+    end function is_looking_at
 
     !> Return true if text before point matches regular expression
     !> REGEXP.  Like `looking_at' except matches before point, and is

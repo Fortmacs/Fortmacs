@@ -52,14 +52,14 @@ submodule(ibuffer_fm) ibuf_ext_fm
     use simple_fm, only: call_shell_region, call_process_shell_command, shell_command_buffer_name, &
                          shell_command_dont_erase_buffer, kill_new, kill_append
     use keyboard_fm, only: last_command, post_command_hook
-    use dispnew_fm, only: frame_or_buffer_changed_p, frame_buffer_state_type
-    use minibuf_fm, only: read_from_minibuffer, minibufferp
+    use dispnew_fm, only: is_frame_or_buffer_changed, frame_buffer_state_type
+    use minibuf_fm, only: read_from_minibuffer, is_minibuffer
     use minibuffer_fm, only: completing_read, read_buffer, REQUIRE_MATCH_T
     use minibuf_table_fm, only: completion_table_type, TABLE_LIST
     use replace_fm, only: occur_read_primary_args, occur_1, occur_source_type, query_replace, query_replace_regexp, &
                           query_replace_read_args
     use search_fm, only: replace_match
-    use fileio_fm, only: file_exists_p, file_name_nondirectory, file_name_directory, write_region
+    use fileio_fm, only: file_exists, file_name_nondirectory, file_name_directory, write_region
     use files_fm, only: file_relative_name, make_temp_file, revert_buffer
     use subr_fm, only: shell_quote_argument
     use diff_fm, only: diff_check_labels, diff_sentinel, diff_command, diff_switches, diff_use_labels, DIFF_LABELS_YES
@@ -110,7 +110,7 @@ contains
     ! Visibility and groups
     ! ------------------------------------------------------------------
 
-    module procedure ibuffer_ext_visible_p
+    module procedure is_ibuffer_ext_visible
     type(ibuffer_filter_type), allocatable :: filters(:)
     integer :: k
 
@@ -131,10 +131,10 @@ contains
     end if
 
     filters = locals(k)%qualifiers
-    visible = ibuffer_included_in_filters_p(buf, filters, status)
+    visible = is_ibuffer_included_in_filters(buf, filters, status)
     if (.not. status%ok()) return
     if (.not. visible) visible = buf_matches_predicates(buf, ibuffer_always_show_predicates)
-    end procedure ibuffer_ext_visible_p
+    end procedure is_ibuffer_ext_visible
 
     module procedure ibuffer_generate_filter_groups
     type(ibuffer_filter_groups_type) :: groups
@@ -159,7 +159,7 @@ contains
     do g = 1, n
         do k = 1, size(bmarklist)
             if (of_group(k) /= 0) cycle
-            hit = ibuffer_included_in_filters_p(bmarklist(k)%buffer, groups%groups(g)%filters, status)
+            hit = is_ibuffer_included_in_filters(bmarklist(k)%buffer, groups%groups(g)%filters, status)
             if (.not. status%ok()) return
 
             if (hit) then
@@ -193,7 +193,7 @@ contains
     ! Filters
     ! ------------------------------------------------------------------
 
-    module procedure ibuffer_included_in_filters_p
+    module procedure is_ibuffer_included_in_filters
     type(status_type) :: st
     logical :: one
     integer :: j
@@ -203,7 +203,7 @@ contains
 
     ! (A filter will return false if it failed; all are tried.)
     do j = 1, size(filters)
-        one = ibuffer_included_in_filter_p(buf, filters(j), st)
+        one = is_ibuffer_included_in_filter(buf, filters(j), st)
 
         if (.not. st%ok()) then
             status = st
@@ -213,7 +213,7 @@ contains
 
         if (.not. one) included = .false.
     end do
-    end procedure ibuffer_included_in_filters_p
+    end procedure is_ibuffer_included_in_filters
 
     module procedure ibuffer_unary_operand
     integer :: n
@@ -228,7 +228,7 @@ contains
     end if
     end procedure ibuffer_unary_operand
 
-    module procedure ibuffer_included_in_filter_p
+    module procedure is_ibuffer_included_in_filter
     type(ibuffer_filter_type) :: inner
 
     status = status_type()
@@ -242,7 +242,7 @@ contains
 
         ! Allows (not (not ...)) etc, which may be overkill
         if (inner%nodes(1)%kind == IBUFFER_FILTER_NOT) then
-            included = ibuffer_included_in_filter_p(buf, ibuffer_unary_operand(inner), status)
+            included = is_ibuffer_included_in_filter(buf, ibuffer_unary_operand(inner), status)
         else
             included = .not. included_in_filter_p_1(buf, inner, status)
             if (.not. status%ok()) included = .false.
@@ -250,7 +250,7 @@ contains
     else
         included = included_in_filter_p_1(buf, filter, status)
     end if
-    end procedure ibuffer_included_in_filter_p
+    end procedure is_ibuffer_included_in_filter
 
     ! Port of ibuf-ext.el:ibuffer-included-in-filter-p-1.
     recursive logical function included_in_filter_p_1(buf, filter, status) result(included)
@@ -270,7 +270,7 @@ contains
             call operands(filter, parts)
 
             do j = 1, size(parts)
-                one = ibuffer_included_in_filter_p(buf, parts(j), status)
+                one = is_ibuffer_included_in_filter(buf, parts(j), status)
 
                 if (.not. status%ok()) then
                     included = .false.
@@ -284,7 +284,7 @@ contains
             included = .true.
 
             do j = 1, size(parts)
-                if (.not. ibuffer_included_in_filter_p(buf, parts(j), status)) then
+                if (.not. is_ibuffer_included_in_filter(buf, parts(j), status)) then
                     included = .false.
                     return
                 end if
@@ -301,10 +301,10 @@ contains
             end if
 
             saved = ibuffer_saved_filters%entries(i)%filters
-            included = ibuffer_included_in_filters_p(buf, saved, status)
+            included = is_ibuffer_included_in_filters(buf, saved, status)
         case (IBUFFER_FILTER_NOT)
-            ! (Only reached through `ibuffer_included_in_filter_p'.)
-            included = ibuffer_included_in_filter_p(buf, filter, status)
+            ! (Only reached through `is_ibuffer_included_in_filter'.)
+            included = is_ibuffer_included_in_filter(buf, filter, status)
         case default
             i = filter_index(filter%nodes(1)%name)
 
@@ -517,14 +517,14 @@ contains
 
         status = status_type()
 
-        if (.not. derived_mode_p("ibuffer_mode")) then
+        if (.not. is_derived_mode("ibuffer_mode")) then
             call set_error(status, FM_GENERIC_ERROR, "This buffer is not in Ibuffer mode")
             return
         end if
 
         if (enable) then
             ! Initialize state vector
-            changed = frame_or_buffer_changed_p(auto_buffers_changed)
+            changed = is_frame_or_buffer_changed(auto_buffers_changed)
             call post_command_hook%add(ibuffer_auto_update_changed)
         else
             call post_command_hook%remove(ibuffer_auto_update_changed)
@@ -548,20 +548,20 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. frame_or_buffer_changed_p(auto_buffers_changed)) return
+        if (.not. is_frame_or_buffer_changed(auto_buffers_changed)) return
         old = current_buffer()
         bufs = buffer_list()
 
         do k = 1, size(bufs)
-            if (.not. buffer_live_p(bufs(k))) cycle
+            if (.not. is_buffer_live(bufs(k))) cycle
             call set_buffer(bufs(k), st)
 
-            if (minor_modes%ibuffer_auto_mode%enabled() .and. derived_mode_p("ibuffer_mode")) then
+            if (minor_modes%ibuffer_auto_mode%enabled() .and. is_derived_mode("ibuffer_mode")) then
                 call ibuffer_update(st, .false., .true.)
             end if
         end do
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine ibuffer_auto_update_changed
 
     !> Toggle the display status of the filter group on this line.
@@ -716,7 +716,7 @@ contains
         n = 0
         call goto_char(point_min())
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             call next_single_property_change(point(), sym("ibuffer_filter_group_name"), pos, found, st)
             if (.not. found) exit
             call goto_char(pos)
@@ -783,7 +783,7 @@ contains
 
         status = status_type()
         buf = get_buffer(shell_command_buffer_name)
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         if (shell_command_dont_erase_buffer%value /= 0) return
         old = current_buffer()
         call set_buffer(buf, st)
@@ -911,12 +911,12 @@ contains
         if (mark == achar(0)) continue
         result = MAP_T
         file = ""
-        call buffer_modified_p(buf, modified, st)
+        call is_buffer_modified(buf, modified, st)
         if (.not. modified .and. allocated(buffers(cur)%filename)) file = buffers(cur)%filename
         call get_buffer_create(shell_command_buffer_name, out_buf, status)
         if (.not. status%ok()) return
 
-        if (len(file) == 0 .or. .not. file_exists_p(file)) then
+        if (len(file) == 0 .or. .not. file_exists(file)) then
             call make_temp_file(buffers(cur)%name(1:min(10, len(buffers(cur)%name))), file, status)
             if (.not. status%ok()) return
             call write_region(file, .false., status, message=msg)
@@ -1245,7 +1245,7 @@ contains
     end function downcased
 
     ! (string-lessp A B)  Not a port.
-    logical function string_lessp(a, b)
+    logical function is_string_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k, n
 
@@ -1253,13 +1253,13 @@ contains
 
         do k = 1, n
             if (a(k:k) /= b(k:k)) then
-                string_lessp = iachar(a(k:k)) < iachar(b(k:k))
+                is_string_less = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
 
-        string_lessp = len(a) < len(b)
-    end function string_lessp
+        is_string_less = len(a) < len(b)
+    end function is_string_less
 
     !> Sort the buffers by major modes.
     !> Ordering is lexicographic.  Port of ibuf-ext.el
@@ -1267,7 +1267,7 @@ contains
     recursive logical function sort_major_mode(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = string_lessp(downcased(major_mode_of(a)), downcased(major_mode_of(b)))
+        less = is_string_less(downcased(major_mode_of(a)), downcased(major_mode_of(b)))
     end function sort_major_mode
 
     !> Sort the buffers by their mode name.
@@ -1276,7 +1276,7 @@ contains
     recursive logical function sort_mode_name(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = string_lessp(downcased(mode_name_of(a)), downcased(mode_name_of(b)))
+        less = is_string_less(downcased(mode_name_of(a)), downcased(mode_name_of(b)))
     end function sort_mode_name
 
     !> Sort the buffers by their names.
@@ -1285,7 +1285,7 @@ contains
     recursive logical function sort_alphabetic(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = string_lessp(buffers(a%index)%name, buffers(b%index)%name)
+        less = is_string_less(buffers(a%index)%name, buffers(b%index)%name)
     end function sort_alphabetic
 
     !> Sort the buffers by their size.  Port of ibuf-ext.el
@@ -1317,7 +1317,7 @@ contains
     recursive logical function sort_filename_process(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = string_lessp(file_or_process(a), file_or_process(b))
+        less = is_string_less(file_or_process(a), file_or_process(b))
     end function sort_filename_process
 
     !> Sort the buffers by major modes.
@@ -1696,7 +1696,7 @@ contains
             call diff_check_labels()
 
             do k = 1, size(marked)
-                if (.not. buffer_live_p(marked(k))) then
+                if (.not. is_buffer_live(marked(k))) then
                     call set_error(status, FM_GENERIC_ERROR, "Buffer #<killed buffer> has been killed")
                     exit
                 end if
@@ -2161,7 +2161,7 @@ contains
         type(handle_type), intent(in) :: buf
         type(status_type) :: st
 
-        call buffer_modified_p(buf, is_modified, st)
+        call is_buffer_modified(buf, is_modified, st)
     end function is_modified
 
     !> Mark all modified buffers that have an associated file.  Port of
@@ -2202,7 +2202,7 @@ contains
 
         if (allocated(buffers(buf%index)%filename)) then
             if (len(buffers(buf%index)%filename) > 0) then
-                is_dissociated = .not. file_exists_p(buffers(buf%index)%filename)
+                is_dissociated = .not. file_exists(buffers(buf%index)%filename)
                 return
             end if
         end if
@@ -2212,7 +2212,7 @@ contains
         call set_buffer(buf, st)
         dir = dired_directory_of()
         call set_buffer(old, st)
-        if (len(dir) > 0) is_dissociated = .not. file_exists_p(file_name_directory(dir))
+        if (len(dir) > 0) is_dissociated = .not. file_exists(file_name_directory(dir))
     end function is_dissociated
 
     !> Mark buffers whose major mode is in variable
@@ -2607,7 +2607,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (qualifier%has_qualifier) continue
-        call buffer_modified_p(buf, included, status)
+        call is_buffer_modified(buf, included, status)
     end function filter_modified
 
     ! Port of ibuf-ext.el define-ibuffer-filter visiting-file.
@@ -2664,7 +2664,7 @@ contains
         old = current_buffer()
         call set_buffer(buf, st)
         included = qualifier%predicate(buf)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end function filter_predicate
 
     ! ------------------------------------------------------------------
@@ -2679,7 +2679,7 @@ contains
 
         status = status_type()
         if (buf%index == 0) return
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         call ibuffer_jump_to_buffer(buffers(buf%index)%name, status)
     end subroutine jump_back
 
@@ -3602,16 +3602,16 @@ contains
 
     ! Whether ELT is a symbol whose name ends in "_mode" (string-match
     ! "-mode\\'").  Not a port.
-    logical function mode_symbol_p(elt)
+    logical function is_mode_name(elt)
         type(value_type), intent(in) :: elt
         integer :: n
 
-        mode_symbol_p = .false.
+        is_mode_name = .false.
         if (.not. symbolp(elt)) return
         n = len(symbols(xsymbol(elt))%name)
         if (n < 5) return
-        mode_symbol_p = symbols(xsymbol(elt))%name(n - 4:n) == "_mode"
-    end function mode_symbol_p
+        is_mode_name = symbols(xsymbol(elt))%name(n - 4:n) == "_mode"
+    end function is_mode_name
 
     ! Read a comma separated list of mode names with PROMPT from TABLE
     ! (with PREDICATE if MODES_ONLY), offering DEFAULT.  Not a port.
@@ -3625,10 +3625,10 @@ contains
         integer :: j
 
         if (modes_only .and. len(default) > 0) then
-            call completing_read_multiple(prompt, table, results, status, predicate=mode_symbol_p, &
+            call completing_read_multiple(prompt, table, results, status, predicate=is_mode_name, &
                                           require_match=REQUIRE_MATCH_T, default=default)
         else if (modes_only) then
-            call completing_read_multiple(prompt, table, results, status, predicate=mode_symbol_p, &
+            call completing_read_multiple(prompt, table, results, status, predicate=is_mode_name, &
                                           require_match=REQUIRE_MATCH_T)
         else if (len(default) > 0) then
             call completing_read_multiple(prompt, table, results, status, require_match=REQUIRE_MATCH_T, &
@@ -3655,7 +3655,7 @@ contains
         buf = ibuffer_current_buffer(st)
 
         if (buf%index /= 0) then
-            if (buffer_live_p(buf)) default = major_mode_of(buf)
+            if (is_buffer_live(buf)) default = major_mode_of(buf)
         end if
     end function line_buffer_mode
 
@@ -4177,10 +4177,10 @@ contains
 
     ! Not a port.
     subroutine make_filter_group_map()
-        use keymap_fm, only: make_sparse_keymap, keymap_live_p, free_keymap
+        use keymap_fm, only: make_sparse_keymap, is_keymap_live, free_keymap
         type(status_type) :: st
 
-        if (keymap_live_p(ibuffer_mode_filter_group_map)) call free_keymap(ibuffer_mode_filter_group_map, st)
+        if (is_keymap_live(ibuffer_mode_filter_group_map)) call free_keymap(ibuffer_mode_filter_group_map, st)
         call make_sparse_keymap(ibuffer_mode_filter_group_map)
         call keymap_set(ibuffer_mode_filter_group_map, "RET", "ibuffer_toggle_filter_group", st)
     end subroutine make_filter_group_map

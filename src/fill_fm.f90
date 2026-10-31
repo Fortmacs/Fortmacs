@@ -38,12 +38,12 @@ module fill_fm
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name, logical_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
-                         buffer_modified_p, restore_buffer_modified_p, current_buffer, buffer_serial_live
+                         is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
     use character_fm, only: string_char_and_length
     use category_fm, only: char_has_category
     use charscript_fm, only: char_script, script_names
     use marker_fm, only: copy_marker_at, marker_position, free_marker
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, eolp, buffer_substring, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, buffer_substring, &
                           delete_region, char_after, char_before, line_beginning_position, line_end_position, &
                           subst_char_in_region, region_beginning, region_end, narrow_to_region, widen, &
                           point_marker
@@ -61,16 +61,16 @@ module fill_fm
     use paragraphs_fm, only: paragraph_start, sentence_end_double_space, sentence_end_without_period, &
                              sentence_end_without_space, sentence_end_regexp, forward_paragraph, &
                              init_paragraph_variables
-    use simple_fm, only: fill_prefix, use_region_p, mark
-    use minibuf_fm, only: minibufferp, minibuffer_prompt_end
+    use simple_fm, only: fill_prefix, is_use_region, mark
+    use minibuf_fm, only: is_minibuffer, minibuffer_prompt_end
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     implicit none(type, external)
     private
 
     public :: prefix_at_point, nchars
     public :: set_fill_prefix, current_fill_column, canonically_space_region, fill_common_string_prefix, &
-              fill_context_prefix, fill_single_word_nobreak_p, fill_french_nobreak_p, fill_polish_nobreak_p, &
-              fill_single_char_nobreak_p, fill_nobreak_p, fill_delete_prefix, fill_delete_newlines, &
+              fill_context_prefix, is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, &
+              is_fill_single_char_nobreak, is_fill_nobreak, fill_delete_prefix, fill_delete_newlines, &
               fill_move_to_break_point, fill_newline, fill_indent_to_left_margin, fill_region_as_paragraph, &
               fill_paragraph, fill_region, unfill_paragraph, current_justification, justify_current_line, &
               unjustify_current_line, unjustify_region, string_width, syms_of_fill, fill_comment_paragraph
@@ -223,9 +223,9 @@ module fill_fm
 
         !> Whether `fill_paragraph' can fill comments (step 3): a comment
         !> syntax ending at end of line.  (In fill_comment_fm.)  Not a port.
-        module logical function fill_comment_syntax_p()
+        module logical function is_fill_comment_syntax()
             implicit none(type, external)
-        end function fill_comment_syntax_p
+        end function is_fill_comment_syntax
 
         !> `comment_start_skip', "" for nil.  (In fill_comment_fm.)
         !> Not a port.
@@ -500,7 +500,7 @@ contains
         if (present(first_line_regexp)) flr = first_line_regexp
         opoint = point()
         call goto_char(from)
-        if (eolp()) shortage = forward_line(1_int64)
+        if (is_eol()) shortage = forward_line(1_int64)
         ! Move to the second line unless there is just one.
         call move_to_left_margin(st)
         call fill_match_adaptive_prefix(first_line_prefix, have_first)
@@ -560,7 +560,7 @@ contains
 
     !> Don't break a line after the first or before the last word of a sentence.
     !> Port of fill.el:fill-single-word-nobreak-p.
-    logical function fill_single_word_nobreak_p() result(nobreak)
+    logical function is_fill_single_word_nobreak() result(nobreak)
         type(status_type) :: st
         integer(int64) :: opoint, moved
 
@@ -576,7 +576,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end function fill_single_word_nobreak_p
+    end function is_fill_single_word_nobreak
 
     !> Return false if French style allows breaking the line at point.
     !> This is used in `fill_nobreak_predicate' to prevent breaking lines just
@@ -584,7 +584,7 @@ contains
     !> mark such as `?' or `:'.  It is common in French writing to put a space
     !> at such places, which would normally allow breaking the line at those
     !> places.  Port of fill.el:fill-french-nobreak-p.
-    logical function fill_french_nobreak_p() result(nobreak)
+    logical function is_fill_french_nobreak() result(nobreak)
         type(status_type) :: st
         integer(int64) :: opoint, moved
         integer(int32) :: c, d
@@ -595,7 +595,7 @@ contains
         opoint = point()
         moved = skip_chars_backward(" "//TAB, st)
 
-        if (.not. bolp()) then
+        if (.not. is_bol()) then
             call goto_char(point() - 1)
             nobreak = looking_at("[([{"//char(194)//char(171)//"]", st)
 
@@ -608,26 +608,26 @@ contains
         end if
 
         call goto_char(opoint)
-    end function fill_french_nobreak_p
+    end function is_fill_french_nobreak
 
     !> Return false if Polish style allows breaking the line at point.
     !> This function may be used in the `fill_nobreak_predicate' hook.
-    !> It is almost the same as `fill_single_char_nobreak_p', with the
+    !> It is almost the same as `is_fill_single_char_nobreak', with the
     !> exception that it does not require the one-letter word to be
     !> preceded by a space.  This blocks line-breaking in cases like
     !> "(a jednak)".  Port of fill.el:fill-polish-nobreak-p.
-    logical function fill_polish_nobreak_p() result(nobreak)
+    logical function is_fill_polish_nobreak() result(nobreak)
         nobreak = two_back_looking_at("[^[:alpha:]]\cl")
-    end function fill_polish_nobreak_p
+    end function is_fill_polish_nobreak
 
     !> Return true if a one-letter word is before point.
     !> This function is suitable for adding to the hook `fill_nobreak_predicate',
     !> to prevent the breaking of a line just after a one-letter word,
     !> which is an error according to some typographical conventions.
     !> Port of fill.el:fill-single-char-nobreak-p.
-    logical function fill_single_char_nobreak_p() result(nobreak)
+    logical function is_fill_single_char_nobreak() result(nobreak)
         nobreak = two_back_looking_at("[[:space:]][[:alpha:]]")
-    end function fill_single_char_nobreak_p
+    end function is_fill_single_char_nobreak
 
     ! (save-excursion (skip-chars-backward " \t") (backward-char 2)
     !                 (looking-at REGEXP)); at the start of the buffer
@@ -652,7 +652,7 @@ contains
     !> Return false if breaking the line at point is allowed.
     !> Can be customized with the variables `fill_nobreak_predicate'
     !> and `fill_nobreak_invisible'.  Port of fill.el:fill-nobreak-p.
-    logical function fill_nobreak_p() result(nobreak)
+    logical function is_fill_nobreak() result(nobreak)
         type(status_type) :: st
         integer(int64) :: opoint, moved
         integer(int32) :: c
@@ -660,7 +660,7 @@ contains
         integer :: k
 
         nobreak = .false.
-        if (bolp()) return
+        if (is_bol()) return
         opoint = point()
 
         ! Don't break after a period followed by just one space.  Move back
@@ -682,7 +682,7 @@ contains
         ! If this break point is at the end of the line, which can occur
         ! for auto-fill, don't consider the newline which follows as a
         ! reason to return t.
-        if (.not. eolp()) nobreak = looking_at(paragraph_start%value, st)
+        if (.not. is_eol()) nobreak = looking_at(paragraph_start%value, st)
         call goto_char(opoint)
         if (nobreak) return
 
@@ -694,7 +694,7 @@ contains
                 if (nobreak) return
             end do
         end if
-    end function fill_nobreak_p
+    end function is_fill_nobreak
 
     !> Delete the fill prefix from every line except the first.
     !> The first line may not even have a fill prefix.
@@ -945,7 +945,7 @@ contains
             ! change the following logic of original Emacs.  In case of
             ! \c|, the point is at the place where the break occurs.
             call goto_char(point() + 1)
-            if (.not. fill_nobreak_p()) exit
+            if (.not. is_fill_nobreak()) exit
             moved = skip_chars_backward(" "//TAB, st, linebeg)
         end do
 
@@ -965,7 +965,7 @@ contains
 
             do while (point() < to)
                 if (.not. first) then
-                    if (.not. fill_nobreak_p()) exit
+                    if (.not. is_fill_nobreak()) exit
                 end if
 
                 ! Find a breakable point while ignoring the following
@@ -1172,7 +1172,7 @@ contains
                 call marker_position(to_marker, to, st)
                 if (point() >= to) exit
 
-                if (.not. eolp()) then
+                if (.not. is_eol()) then
                     if (current_indentation() < current_left_margin()) call fill_indent_to_left_margin(status)
                 end if
 
@@ -1249,7 +1249,7 @@ contains
         ! Leave point after final newline.
         call marker_position(to_marker, to, st)
         call goto_char(to)
-        if (.not. eobp()) call goto_char(point() + 1)
+        if (.not. is_eob()) call goto_char(point() + 1)
         call free_marker(to_marker, st)
         ! Return the fill-prefix we used
         if (present(used)) used = prefix
@@ -1281,18 +1281,18 @@ contains
         type(status_type) :: st
 
         ! (with-buffer-unmodified-if-unchanged ...)
-        call buffer_modified_p(current_buffer(), modified, st)
+        call is_buffer_modified(current_buffer(), modified, st)
         if (.not. modified) before_text = whole_buffer_text()
         call fill_paragraph_1(status, justify, region, used)
 
         if (allocated(before_text) .and. cur > 0) then
-            call buffer_modified_p(current_buffer(), modified, st)
+            call is_buffer_modified(current_buffer(), modified, st)
 
             if (modified) then
                 after_text = whole_buffer_text()
 
                 if (after_text == before_text .and. len(after_text) == len(before_text)) then
-                    call restore_buffer_modified_p(.false.)
+                    call restore_buffer_modified(.false.)
                 end if
             end if
         end if
@@ -1370,7 +1370,7 @@ contains
         if (.not. in_fill_paragraph_function) then
             fn => fill_paragraph_function%get()
             in_minibuffer = .false.
-            if (.not. associated(fn) .and. minibufferp()) in_minibuffer = point_min() == 1
+            if (.not. associated(fn) .and. is_minibuffer()) in_minibuffer = point_min() == 1
 
             if (associated(fn) .or. in_minibuffer) then
                 ! If fill-paragraph-function is set, it probably takes care
@@ -1403,7 +1403,7 @@ contains
         ! 3. Try our syntax-aware filling code.
         if (fill_paragraph_handle_comment) then
             ! Our code only handles \n-terminated comments right now.
-            if (fill_comment_syntax_p()) then
+            if (is_fill_comment_syntax()) then
                 saved_handle = fill_paragraph_handle_comment
                 fill_paragraph_handle_comment = .false.
                 call fill_comment_paragraph(status, done, justify)
@@ -1602,7 +1602,7 @@ contains
         ! Make sure we're looking at paragraph body.
         moved = skip_chars_forward(" "//TAB, st)
         pos = point()
-        if (eobp() .and. .not. bobp()) pos = pos - 1
+        if (is_eob() .and. .not. is_bob()) pos = pos - 1
         call goto_char(opoint)
         call get_text_property(pos, sym("justification"), v, st)
         j = default_justification
@@ -1666,7 +1666,7 @@ contains
 
         ! Quick exit if it appears to be properly justified already or
         ! there is no text.
-        if (bolp() .or. ((how == JUSTIFY_FULL .or. how == JUSTIFY_RIGHT) .and. current_column() == fc)) then
+        if (is_bol() .or. ((how == JUSTIFY_FULL .or. how == JUSTIFY_RIGHT) .and. current_column() == fc)) then
             call finish()
             return
         end if
@@ -1869,7 +1869,7 @@ contains
             call goto_char(point_min())
         end if
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             call unjustify_current_line(status)
             if (.not. status%ok()) exit
             shortage = forward_line(1_int64)
@@ -1965,7 +1965,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
-        if (nilp(current_prefix_arg) .and. use_region_p()) then
+        if (nilp(current_prefix_arg) .and. is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
             call unfill_paragraph(0_int64, status, b, e)

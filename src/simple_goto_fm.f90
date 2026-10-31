@@ -31,7 +31,7 @@
 !> Deferred: `goto_line_history_local' (buffer-local minibuffer
 !> histories), `selective_display'.
 submodule(simple_fm) simple_goto_fm
-    use editfns_fm, only: point_min, widen, narrow_to_region, buffer_narrowed_p, interactive_region, region_beginning, &
+    use editfns_fm, only: point_min, widen, narrow_to_region, is_buffer_narrowed, interactive_region, region_beginning, &
                           region_end, inhibit_field_text_motion
     use buffer_fm, only: current_buffer
     use subr_fm, only: read_number
@@ -76,7 +76,7 @@ contains
 
         which = ""
 
-        if (buffer_narrowed_p()) then
+        if (is_buffer_narrowed()) then
             if (relative) then
                 which = " relative"
             else
@@ -84,7 +84,7 @@ contains
             end if
         end if
 
-        if (relative .or. .not. buffer_narrowed_p()) then
+        if (relative .or. .not. is_buffer_narrowed()) then
             current = line_number_at_pos()
         else
             begv = buffers(cur)%begv
@@ -133,7 +133,7 @@ contains
         end if
 
         ! Leave mark at previous position
-        if (.not. region_active_p()) call push_mark()
+        if (.not. is_region_active()) call push_mark()
     end if
 
     ! Move to the specified line number in that buffer.
@@ -145,7 +145,7 @@ contains
     pos = point()
     call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
 
-    if (.not. rel .and. buffer_narrowed_p() .and. widen_automatically) then
+    if (.not. rel .and. is_buffer_narrowed() .and. widen_automatically) then
         ! Position is outside narrowed part of buffer
         if (point_min() > pos .or. pos > point_max()) call widen()
     end if
@@ -334,7 +334,7 @@ contains
     function count_words_buffer_format() result(text)
         character(len=:), allocatable :: text
 
-        if (buffer_narrowed_p()) then
+        if (is_buffer_narrowed()) then
             text = count_words_format("Narrowed part of buffer", point_min(), point_max())
         else
             text = count_words_format("Buffer", point_min(), point_max())
@@ -379,7 +379,7 @@ contains
         status = status_type()
         totals = ""
 
-        if (.not. nilp(current_prefix_arg) .and. (use_region_p() .or. buffer_narrowed_p())) then
+        if (.not. nilp(current_prefix_arg) .and. (is_use_region() .or. is_buffer_narrowed())) then
             begv = buffers(cur)%begv
             zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
             call widen()
@@ -387,7 +387,7 @@ contains
             call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
         end if
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, status)
             if (status%ok()) call region_end(e, status)
             if (.not. status%ok()) return

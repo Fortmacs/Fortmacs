@@ -47,7 +47,7 @@ module cmds_fm
     use dispnew_fm, only: ding
     use syntax_fm, only: char_syntax_class, SWORD
     use editfns_fm, only: preceding_char
-    use abbrev_fm, only: abbrev_mode_p, expand_abbrev, abbrev_ref_type, abbrev_no_self_insert
+    use abbrev_fm, only: is_abbrev_mode, expand_abbrev, abbrev_ref_type, abbrev_no_self_insert
     implicit none(type, external)
     private
 
@@ -294,7 +294,7 @@ contains
         hairy = 0
         status = status_type()
 
-        if (abbrev_mode_p()) then
+        if (is_abbrev_mode()) then
             if (char_syntax_class(int(c)) /= SWORD .and. .not. buffers(cur)%read_only .and. &
                 buffers(cur)%pt > buffers(cur)%begv) then
                 if (char_syntax_class(int(preceding_char())) == SWORD) then
@@ -318,7 +318,7 @@ contains
         call insert_char_n(c, n, status)
         if (.not. status%ok()) return
 
-        if (auto_fill_char_p(c) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
+        if (is_auto_fill_char(c) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
             ! After inserting a newline, move to previous line and fill
             ! that.  Must have the newline in place already so filling and
             ! justification, if any, know where the end is going to be.
@@ -336,24 +336,24 @@ contains
 
     !> Whether `auto_fill_chars' contains `c' (space and
     !> newline when it is not a char-table).  Not a port.
-    logical function auto_fill_char_p(c)
+    logical function is_auto_fill_char(c)
         integer(int32), intent(in) :: c
         integer :: k
 
         if (.not. allocated(auto_fill_chars)) then
-            auto_fill_char_p = c == 32 .or. c == 10
+            is_auto_fill_char = c == 32 .or. c == 10
             return
         end if
 
-        auto_fill_char_p = .false.
+        is_auto_fill_char = .false.
 
         do k = 1, size(auto_fill_chars)
             if (c >= auto_fill_chars(k)%from .and. c <= auto_fill_chars(k)%to) then
-                auto_fill_char_p = .true.
+                is_auto_fill_char = .true.
                 return
             end if
         end do
-    end function auto_fill_char_p
+    end function is_auto_fill_char
 
     ! ------------------------------------------------------------------
     ! Commands (the interactive side of the DEFUNs)

@@ -55,23 +55,23 @@ module help_fns_fm
     use fill_fm, only: fill_region_as_paragraph
     use lread_fm, only: sym
     use data_fm, only: symbol_name
-    use callint_fm, only: command_defined_p, fboundp
+    use callint_fm, only: is_command_defined, fboundp
     use keymap_fm, only: key_description, where_is_internal, parse_modifiers
     use minibuf_fm, only: completion_obarray_table, completion_list_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use docstrings_fm, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
     use help_fm, only: substitute_command_keys, with_help_window, describe_function_1_hook, documentation_hook, &
                        make_separator_line
-    use data_fm, only: automatically_local_p
+    use data_fm, only: is_automatically_local
     use easy_mmode_fm, only: minor_mode_type, minor_mode_count, minor_mode_at
     use casefiddle_fm, only: capitalize_string
-    use callint_fm, only: commandp
+    use callint_fm, only: is_command
     implicit none(type, external)
     private
 
     public :: describe_function, describe_function_1, describe_variable, describe_variable_text, &
               syms_of_help_fns, describe_mode, describe_mode_text, describe_symbol, describe_symbol_text, &
-              function_known_p, variable_known_p
+              is_function_known, is_variable_known
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -88,33 +88,33 @@ contains
 
     !> Whether `name' is a function help knows: a documented one or a
     !> command.  Not a port.
-    logical function function_known_p(name)
+    logical function is_function_known(name)
         character(len=*), intent(in) :: name
         integer :: k
 
-        function_known_p = .true.
+        is_function_known = .true.
 
         do k = 1, size(function_names)
             if (trim(function_names(k)) == name) return
         end do
 
-        function_known_p = fboundp(sym(name))
-    end function function_known_p
+        is_function_known = fboundp(sym(name))
+    end function is_function_known
 
     !> Completion predicate for `describe_function'.  Not a port.
-    logical function function_symbol_p(elt)
+    logical function is_function_name(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
         type(status_type) :: status
 
         call symbol_name(elt, name, status)
-        function_symbol_p = status%ok()
-        if (function_symbol_p) function_symbol_p = function_known_p(name)
-    end function function_symbol_p
+        is_function_name = status%ok()
+        if (is_function_name) is_function_name = is_function_known(name)
+    end function is_function_name
 
     !> Whether event `ev' has no modifiers but shift: its
     !> `event_modifiers' are nil or (shift).  Not a port.
-    logical function unmodified_event_p(ev)
+    logical function is_unmodified_event(ev)
         type(value_type), intent(in) :: ev
         type(value_type) :: head
         character(len=:), allocatable :: base
@@ -123,7 +123,7 @@ contains
         head = ev
         ! A list (a character interval here): its car.
         if (vtag(ev) == V_LIST) head = list_elt(ev, 1_int64)
-        unmodified_event_p = .false.
+        is_unmodified_event = .false.
 
         if (fixnump(head)) then
             ! subr.el:event-modifiers for a character.
@@ -131,12 +131,12 @@ contains
             c = iand(xfixnum(head), not(M_MODS))
             if (iand(bits, not(M_SHIFT)) /= 0) return
             if (c < 32) return
-            unmodified_event_p = .true.
+            is_unmodified_event = .true.
         else if (symbolp(head)) then
             call parse_modifiers(head, bits, base)
-            unmodified_event_p = bits == 0 .or. bits == M_SHIFT
+            is_unmodified_event = bits == 0 .or. bits == M_SHIFT
         end if
-    end function unmodified_event_p
+    end function is_unmodified_event
 
     !> The key sequences in `keys' joined as "A, B and C".  Port of
     !> help-fns.el:help-fns--insert-bindings.
@@ -195,7 +195,7 @@ contains
         do k = 1, size(keys)
             call list_elements(keys(k), events)
             unmodified(k) = .false.
-            if (size(events) > 0) unmodified(k) = unmodified_event_p(events(1))
+            if (size(events) > 0) unmodified(k) = is_unmodified_event(events(1))
         end do
 
         nunmod = count(unmodified)
@@ -267,7 +267,7 @@ contains
         logical :: found, interactive, subroutine_p
 
         call function_doc(name, entry, found)
-        interactive = command_defined_p(sym(name))
+        interactive = is_command_defined(sym(name))
         if (found) interactive = interactive .or. entry%interactive
         subroutine_p = .true.
         if (found) subroutine_p = len(entry%fortran) == 0 .or. index(entry%fortran, "call ") == 1
@@ -369,7 +369,7 @@ contains
         ! (help-fns-describe-variable-functions), after an empty line.
         extra = ""
         ! help-fns--var-bufferlocal
-        if (automatically_local_p(sym(name))) extra = extra//"  Automatically becomes buffer-local when set."//LF
+        if (is_automatically_local(sym(name))) extra = extra//"  Automatically becomes buffer-local when set."//LF
         ! help-fns--customize-variable
         if (entry%user_option) extra = extra//"  You can customize this variable."//LF
         if (len(extra) > 0) text = text//LF//extra
@@ -395,7 +395,7 @@ contains
         character(len=:), allocatable :: name
 
         call completing_read("Describe function: ", completion_obarray_table("symbol-help"), name, status, &
-                             function_symbol_p, require_match=REQUIRE_MATCH_T)
+                             is_function_name, require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
 
         ! help-fns--describe-function-or-command-prompt (no function at
@@ -437,18 +437,18 @@ contains
 
     !> Whether `name' is a variable help knows (a documented one).
     !> Not a port.
-    logical function variable_known_p(name)
+    logical function is_variable_known(name)
         character(len=*), intent(in) :: name
         integer :: k
 
-        variable_known_p = .true.
+        is_variable_known = .true.
 
         do k = 1, size(variable_names)
             if (trim(variable_names(k)) == name) return
         end do
 
-        variable_known_p = .false.
-    end function variable_known_p
+        is_variable_known = .false.
+    end function is_variable_known
 
     !> Display documentation of current major mode and minor modes.
     !> The major mode description comes first, followed by the local
@@ -616,8 +616,8 @@ contains
         character(len=:), allocatable :: ftext, vtext
         logical :: is_function, is_variable, vfound
 
-        is_function = function_known_p(name)
-        is_variable = variable_known_p(name)
+        is_function = is_function_known(name)
+        is_variable = is_variable_known(name)
         found = is_function .or. is_variable
         text = ""
         if (is_function) call describe_function_1(name, ftext, name//" is ")
@@ -660,15 +660,15 @@ contains
 
     !> Completion predicate for `describe_symbol': a function or a
     !> variable.  Not a port.
-    logical function symbol_known_p(elt)
+    logical function is_name_known(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
         type(status_type) :: st
 
         call symbol_name(elt, name, st)
-        symbol_known_p = st%ok()
-        if (symbol_known_p) symbol_known_p = function_known_p(name) .or. variable_known_p(name)
-    end function symbol_known_p
+        is_name_known = st%ok()
+        if (is_name_known) is_name_known = is_function_known(name) .or. is_variable_known(name)
+    end function is_name_known
 
     !> Display the full documentation of SYMBOL (a name).
     !> Will show the info of SYMBOL as a function, variable, and/or face.
@@ -678,7 +678,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
-        call completing_read("Describe symbol: ", completion_obarray_table("symbol-help"), name, status, symbol_known_p, &
+        call completing_read("Describe symbol: ", completion_obarray_table("symbol-help"), name, status, is_name_known, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
 
@@ -698,7 +698,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
-        call completing_read("Describe command: ", completion_obarray_table("symbol-help"), name, status, commandp, &
+        call completing_read("Describe command: ", completion_obarray_table("symbol-help"), name, status, is_command, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
 

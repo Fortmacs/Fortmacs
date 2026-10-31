@@ -50,8 +50,8 @@ contains
         h = decoded(window)
         i = 0
 
-        if (.not. window_live_p(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
+        if (.not. is_window_live(h)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_live")
             return
         end if
 
@@ -70,8 +70,8 @@ contains
         h = decoded(window)
         i = 0
 
-        if (.not. window_valid_p(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
+        if (.not. is_window_valid(h)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_window_valid")
             return
         end if
 
@@ -113,7 +113,7 @@ contains
         end if
 
         status = status_type()
-        if (window_live_p(h)) b = windows(h%index)%buffer
+        if (is_window_live(h)) b = windows(h%index)%buffer
     end function window_buffer
 
     module function window_parent(window, status) result(p)
@@ -182,7 +182,7 @@ contains
         status = status_type()
 
         if (present(window)) then
-            if (.not. window_valid_p(window)) then
+            if (.not. is_window_valid(window)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "frame_live_p")
                 return
             end if
@@ -201,7 +201,7 @@ contains
         status = status_type()
 
         if (present(window)) then
-            if (.not. window_valid_p(window)) then
+            if (.not. is_window_valid(window)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "frame_live_p")
                 return
             end if
@@ -217,7 +217,7 @@ contains
         m = selected_frame%minibuffer_window
     end function minibuffer_window
 
-    module function window_minibuffer_p(window, status) result(p)
+    module function is_window_minibuffer(window, status) result(p)
         type(handle_type), intent(in), optional :: window
         type(status_type), intent(out) :: status
         logical :: p
@@ -226,7 +226,7 @@ contains
         p = .false.
         call decode_valid_window(window, i, status)
         if (status%ok()) p = windows(i)%mini
-    end function window_minibuffer_p
+    end function is_window_minibuffer
 
     module function minibuffer_selected_window() result(s)
         type(handle_type) :: s
@@ -235,7 +235,7 @@ contains
         call ensure_frame_windows()
 
         if (minib_level > 0 .and. selected_frame%minibuffer_selected) then
-            if (window_live_p(selected_frame%selected_window)) s = selected_frame%selected_window
+            if (is_window_live(selected_frame%selected_window)) s = selected_frame%selected_window
         end if
     end function minibuffer_selected_window
 
@@ -482,13 +482,13 @@ contains
     !> Whether WINDOW is a window to consider: live, and the minibuffer
     !> window only if MINI.  Port of window.c:candidate_window_p (one
     !> frame).
-    logical function candidate_window_p(window, mini) result(p)
+    logical function is_candidate_window(window, mini) result(p)
         type(handle_type), intent(in) :: window
         logical, intent(in) :: mini
 
-        p = window_live_p(window)
+        p = is_window_live(window)
         if (p .and. windows(window%index)%mini) p = mini
-    end function candidate_window_p
+    end function is_candidate_window
 
     !> The window after (NEXT_P) or before WINDOW in the cyclic order of
     !> the windows MINIBUF admits.  Port of window.c:next_window.
@@ -518,7 +518,7 @@ contains
             ! Forward from WINDOW to the end, then from the start up to it.
             if (at > 0) then
                 do k = at + 1, n
-                    if (candidate_window_p(list(k), mini)) then
+                    if (is_candidate_window(list(k), mini)) then
                         r = list(k)
                         return
                     end if
@@ -528,7 +528,7 @@ contains
             do k = 1, n
                 if (same_window(list(k), w)) exit
 
-                if (candidate_window_p(list(k), mini)) then
+                if (is_candidate_window(list(k), mini)) then
                     r = list(k)
                     return
                 end if
@@ -540,7 +540,7 @@ contains
             do k = 1, n
                 if (same_window(list(k), w)) then
                     if (candidate%index /= 0) exit
-                else if (candidate_window_p(list(k), mini)) then
+                else if (is_candidate_window(list(k), mini)) then
                     candidate = list(k)
                 end if
             end do
@@ -586,7 +586,7 @@ contains
         at = 0
 
         do k = 1, size(all)
-            if (candidate_window_p(all(k), mini)) then
+            if (is_candidate_window(all(k), mini)) then
                 n = n + 1
                 list(n) = all(k)
                 if (same_window(all(k), w)) at = n
@@ -720,7 +720,7 @@ contains
         ! Redisplay recomputes every window, so there is nothing to mark:
         ! only the value is left to compute.
         done = .true.
-        if (present(window)) done = window_live_p(window)
+        if (present(window)) done = is_window_live(window)
         if (.not. present(buffer)) return
         done = .false.
         call all_windows(list)

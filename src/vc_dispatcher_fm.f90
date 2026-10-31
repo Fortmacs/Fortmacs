@@ -44,13 +44,13 @@ module vc_dispatcher_fm
                        stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, kill_all_local_variables
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, buffer_live_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
                          erase_buffer, kill_buffer, get_file_buffer, buffer_list, resolve_buffer
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, buffer_substring, mark_position
     use insdel_fm, only: insert
     use marker_fm, only: marker_position, set_marker
     use search_fm, only: search_forward, SEARCH_NOERROR
-    use fileio_fm, only: expand_file_name, file_name_absolute_p, file_exists_p, file_directory_p
+    use fileio_fm, only: expand_file_name, is_file_name_absolute, file_exists, is_file_directory
     use files_fm, only: file_relative_name, revert_buffer, save_buffer
     use callproc_fm, only: call_process
     use process_fm, only: make_process, process_arg_type, get_buffer_process, delete_process, process_status, &
@@ -59,7 +59,7 @@ module vc_dispatcher_fm
     use window_fm, only: pop_to_buffer, shrink_window_if_larger_than_buffer
     use xdisp_fm, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
                         add_minor_mode_lighter
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use vc_hooks_fm, only: vc_string_type, vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
     use lisp_fm, only: command_proc
     use eval_fm, only: hook_type
@@ -496,9 +496,9 @@ contains
     !> Are we in a directory browser buffer?  Port of
     !> vc-dispatcher.el:vc-dispatcher-browsing.
     logical function vc_dispatcher_browsing() result(browsing)
-        use derived_fm, only: derived_mode_p
+        use derived_fm, only: is_derived_mode
 
-        browsing = derived_mode_p([character(len=13) :: "vc_dir_mode", "dired_mode", "diff_mode", "log_view_mode"])
+        browsing = is_derived_mode([character(len=13) :: "vc_dir_mode", "dired_mode", "diff_mode", "log_view_mode"])
     end function vc_dispatcher_browsing
 
     !> Set the current buffer's `vc_parent_buffer' to PARENT and its
@@ -533,7 +533,7 @@ contains
 
         status = status_type()
         buffer = process_buffer(proc)
-        if (.not. buffer_live_p(buffer)) return
+        if (.not. is_buffer_live(buffer)) return
         old = current_buffer()
         call set_buffer(buffer, st)
         opoint = point()
@@ -579,7 +579,7 @@ contains
 
         ! If we are refreshing an existing view,
         ! don't throw away where we really came from (bug#59457).
-        if (camefrom%index /= cur .and. buffer_live_p(camefrom)) then
+        if (camefrom%index /= cur .and. is_buffer_live(camefrom)) then
             call set_vc_parent_buffer(camefrom, " from "//buffers(camefrom%index)%name)
         end if
 
@@ -646,7 +646,7 @@ contains
             call run_action(action, p, status)
         else if (pstatus == "run") then
             buf = process_buffer(p)
-            if (buffer_live_p(buf)) call in_buffer_busy(buf)
+            if (is_buffer_live(buf)) call in_buffer_busy(buf)
             call queue_action(p, action)
         else
             call set_error(status, FM_GENERIC_ERROR, "Unexpected process state")
@@ -746,7 +746,7 @@ contains
         buf = process_buffer(proc)
         ! Impatient users sometime kill "slow" buffers; check liveness to
         ! avoid "error in process sentinel: Selecting deleted buffer".
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
         old = current_buffer()
         call set_buffer(buf, st)
         call clear_mode_line_process()
@@ -762,7 +762,7 @@ contains
             ! Each sentinel may move point and the next one should be run
             ! from that new position.
             call run_action(actions(j), proc, status)
-            if (.not. buffer_live_p(buf)) exit
+            if (.not. is_buffer_live(buf)) exit
             call set_buffer(buf, st)
             call set_marker(m, point(), st)
             call goto_char(min(opoint, point_max()))
@@ -1106,7 +1106,7 @@ contains
 
     !> Return true if POSN matches CONTEXT, false otherwise.  Port of
     !> vc-dispatcher.el:vc-context-matches-p.
-    logical function vc_context_matches_p(posn, context) result(r)
+    logical function vc_context_matches(posn, context) result(r)
         integer(int64), intent(in) :: posn
         type(vc_context_type), intent(in) :: context
         character(len=:), allocatable :: s
@@ -1120,7 +1120,7 @@ contains
         call buffer_substring(posn, endp, s, st)
         if (.not. st%ok()) return
         r = s == context%text .and. len(s) == len(context%text)
-    end function vc_context_matches_p
+    end function vc_context_matches
 
     !> Revert buffer keeping point and the mark where the user expects them.
     !> Try to be clever in the face of changes due to expanded VCS
@@ -1152,7 +1152,7 @@ contains
         call goto_char(min(max(saved, point_min()), point_max()))
 
         ! if necessary, restore point and mark
-        if (.not. vc_context_matches_p(point(), point_context)) then
+        if (.not. vc_context_matches(point(), point_context)) then
             newpos = vc_find_position_by_context(point_context)
             if (newpos /= 0) call goto_char(newpos)
         end if
@@ -1160,7 +1160,7 @@ contains
         if (mark_context%valid .and. buffers(cur)%mark_active) then
             m = mark_position()
 
-            if (.not. vc_context_matches_p(m, mark_context)) then
+            if (.not. vc_context_matches(m, mark_context)) then
                 newpos = vc_find_position_by_context(mark_context)
                 if (newpos /= 0) call set_mark_at(newpos)
             end if
@@ -1189,7 +1189,7 @@ contains
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        if (file_name_absolute_p(file)) then
+        if (is_file_name_absolute(file)) then
             name = file
         else
             call expand_file_name(file, name, st, root)
@@ -1220,7 +1220,7 @@ contains
 
         if (.not. k) then
             call kill_buffer(current_buffer(), status)
-        else if (file_exists_p(file)) then
+        else if (file_exists(file)) then
             if (present(reset_vc_info)) then
                 if (reset_vc_info) call vc_file_clearprops(file)
             end if
@@ -1249,7 +1249,7 @@ contains
         old = current_buffer()
 
         do k = 1, size(all)
-            if (.not. buffer_live_p(all(k))) cycle
+            if (.not. is_buffer_live(all(k))) cycle
             if (.not. allocated(buffers(all(k)%index)%filename)) cycle
             fname = buffers(all(k)%index)%filename
             if (index(fname, directory) /= 1) cycle
@@ -1258,7 +1258,7 @@ contains
             if (.not. status%ok()) exit
         end do
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine vc_resynch_buffers_in_directory
 
     !> If FILE is currently visited, resynch its buffer.
@@ -1293,7 +1293,7 @@ contains
             if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
                 call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
             end if
-        else if (file_directory_p(file)) then
+        else if (is_file_directory(file)) then
             call vc_resynch_buffers_in_directory(file, root, status, keep, noquery, reset_vc_info)
         else
             buffer = get_file_buffer(resynch_name(file, root))
@@ -1306,7 +1306,7 @@ contains
                     call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
                 end if
 
-                if (buffer_live_p(old)) call set_buffer(old, st)
+                if (is_buffer_live(old)) call set_buffer(old, st)
             end if
         end if
 
@@ -1339,7 +1339,7 @@ contains
 
         if (.not. need) then
             if (allocated(buffers(cur)%filename)) then
-                missing = .not. file_exists_p(buffers(cur)%filename)
+                missing = .not. file_exists(buffers(cur)%filename)
                 need = missing
             end if
         end if
@@ -1349,9 +1349,9 @@ contains
 
         if (.not. yes) then
             if (missing) then
-                call y_or_n_p("Buffer "//buffers(cur)%name//" is missing on disk; save it? ", yes, status)
+                call read_y_or_n("Buffer "//buffers(cur)%name//" is missing on disk; save it? ", yes, status)
             else
-                call y_or_n_p("Buffer "//buffers(cur)%name//" modified; save it? ", yes, status)
+                call read_y_or_n("Buffer "//buffers(cur)%name//" modified; save it? ", yes, status)
             end if
 
             if (.not. status%ok()) return

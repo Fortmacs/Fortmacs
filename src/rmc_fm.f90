@@ -38,7 +38,7 @@ module rmc_fm
     use keymap_fm, only: single_key_description
     use subr_fm, only: read_key, query_replace_answer, ANSWER_RECENTER, ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN, &
                        ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_EDIT
-    use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, window_live_p, &
+    use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, is_window_live, &
                          recenter, scroll_up_command, scroll_down_command
     use lisp_fm, only: make_keymap_ref, nilp, make_string, make_list, command_type
     use lread_fm, only: sym
@@ -181,7 +181,7 @@ contains
             end if
 
             if (rmc_shown) then
-                if (window_live_p(rmc_help_window)) call delete_window(rmc_help_window, st)
+                if (is_window_live(rmc_help_window)) call delete_window(rmc_help_window, st)
                 call kill_buffer(rmc_buf, st)
             end if
         end if
@@ -449,7 +449,7 @@ contains
         call set_buffer(previous, st)
 
         if (rmc_shown) then
-            if (window_live_p(rmc_help_window)) return
+            if (is_window_live(rmc_help_window)) return
         end if
 
         rmc_shown = .true.
@@ -476,7 +476,7 @@ contains
         type(window_type), pointer :: w
 
         columns = 80/25
-        if (.not. window_live_p(selected_window())) return
+        if (.not. is_window_live(selected_window())) return
         w => window_ref(selected_window())
         if (w%total_cols > 0) columns = max(1, w%total_cols/25)
     end function help_columns

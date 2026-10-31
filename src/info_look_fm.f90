@@ -37,7 +37,7 @@ module info_look_fm
     use lisp_fm, only: nilp, xsymbol, symbolp, symbols, value_type, make_string, make_list
     use casefiddle_fm, only: downcase_string
     use lread_fm, only: sym
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, buffer_live_p
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live
     use editfns_fm, only: point, point_min, goto_char, line_beginning_position, line_end_position
     use search_fm, only: looking_at, string_match, search_forward, re_search_forward, re_search_backward, &
                          match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR, &
@@ -45,7 +45,7 @@ module info_look_fm
     use subr_fm, only: match_string_no_properties
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_backward
     use textprop_fm, only: get_text_property
-    use itree_fm, only: make_overlay, move_overlay, overlay_put, overlayp
+    use itree_fm, only: make_overlay, move_overlay, overlay_put, is_overlay
     use data_fm, only: logical_setting, add_local_variables_killer
     use fileio_fm, only: file_name_nondirectory
     use derived_fm, only: major_mode_named, major_mode_type
@@ -1128,7 +1128,7 @@ contains
                 if (.not. st%ok()) cycle
                 call goto_char(match_beginning(0, st))
 
-                if (display_color_p() .and. len(info_lookup_highlight_face) > 0) then
+                if (is_display_color() .and. len(info_lookup_highlight_face) > 0) then
                     ! Search again for ITEM so that the first occurrence of
                     ! ITEM will be highlighted.
                     call re_search_forward(regexp_quote(entry_item), pos, st, noerror=SEARCH_NOERROR)
@@ -1137,7 +1137,7 @@ contains
                     if (matched) then
                         start = match_beginning(0, st)
 
-                        if (overlayp(highlight_overlay)) then
+                        if (is_overlay(highlight_overlay)) then
                             call move_overlay(highlight_overlay, start, match_end(0, st), st, current_buffer())
                         else
                             call make_overlay(highlight_overlay, start, match_end(0, st), st)
@@ -1165,9 +1165,9 @@ contains
     end subroutine info_lookup
 
     ! Whether the terminal can display colors (display-color-p).  Not a port.
-    logical function display_color_p()
-        display_color_p = selected_frame%tty%tn_max_colors > 0
-    end function display_color_p
+    logical function is_display_color()
+        is_display_color = selected_frame%tty%tn_max_colors > 0
+    end function is_display_color
 
     ! STR in lower case (downcase).  Not a port.
     function downcase(str) result(r)

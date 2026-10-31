@@ -594,18 +594,18 @@ contains
         type(value_type) :: front, rear, pleft, pright
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k, pos
-        logical :: eobp, problem
+        logical :: is_eob, problem
 
         plist = nil()
         if (iv%n == 0) return
         pos = position
-        eobp = .false.
+        is_eob = .false.
 
         ! If inserting at point-max of a buffer, that position will be out
         ! of range.
         if (pos >= interval_end(iv, iv%n)) then
             pos = interval_end(iv, iv%n)
-            eobp = .true.
+            is_eob = .true.
         end if
 
         k = find_interval(iv, pos)
@@ -614,7 +614,7 @@ contains
 
         ! If in middle of an interval which is not sticky either way, we
         ! must not just give its properties to the insertion.
-        if (.not. (pos == iv%runs(k)%position .or. eobp)) then
+        if (.not. (pos == iv%runs(k)%position .or. is_eob)) then
             rear = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
             front = textget(iv%runs(k)%plist, qsym("front_sticky"))
 
@@ -651,7 +651,7 @@ contains
             pright = iv%runs(k)%plist
         else
             ! Between intervals: check the stickiness of both of them.
-            if (eobp) then
+            if (is_eob) then
                 pleft = iv%runs(k)%plist
             else
                 if (k > 1) pleft = iv%runs(k - 1)%plist

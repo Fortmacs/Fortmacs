@@ -32,7 +32,7 @@ submodule(search_fm) search_regexp_fm
     use minibuf_fm, only: read_string
     use casefiddle_fm, only: upcase_string, upcase_initials_string, upcase_region, upcase_initials_region, &
                              case_symbols_as_words
-    use casetab_fm, only: lowercasep, uppercasep
+    use casetab_fm, only: is_lowercase, is_uppercase
     use syntax_fm, only: char_syntax_class, SWORD, SSYMBOL
     use insdel_fm, only: replace_range
     use editfns_fm, only: buffer_substring, goto_char
@@ -460,7 +460,7 @@ contains
             call string_char_and_length(buftext, i, c, clen)
             i = i + clen
 
-            if (lowercasep(c)) then
+            if (is_lowercase(c)) then
                 ! Cannot be all caps if any original char is lower case.
                 some_lowercase = .true.
 
@@ -469,7 +469,7 @@ contains
                 else
                     some_multiletter_word = .true.
                 end if
-            else if (uppercasep(c)) then
+            else if (is_uppercase(c)) then
                 some_uppercase = .true.
                 if (word_or_symbol(prevc)) some_multiletter_word = .true.
             else

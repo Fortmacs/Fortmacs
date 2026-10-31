@@ -33,10 +33,10 @@ module test_keymap_fm
     use fns_fm, only: value_equal
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use keymap_fm, only: copy_keymap, current_global_map, current_local_map, define_key, free_keymap, &
-                         key_binding, key_description, key_parse, keymap_full_p, keymap_live_p, &
-                         keymap_parent, keymap_prompt, keymapp, lookup_key, make_keymap, &
+                         key_binding, key_description, key_parse, is_keymap_full, is_keymap_live, &
+                         keymap_parent, keymap_prompt, is_keymap, lookup_key, make_keymap, &
                          make_sparse_keymap, push_key_description, set_keymap_parent, &
-                         single_key_description, use_local_map, key_valid_p, keymap_set, &
+                         single_key_description, use_local_map, is_key_valid, keymap_set, &
                          keymap_global_set, define_key_range, where_is_internal
     use subr_fm, only: global_set_key
     use keymap_fm, only: text_char_description, minor_mode_key_binding, current_minor_mode_maps, add_minor_mode_map
@@ -60,7 +60,7 @@ contains
 
         testsuite = [ &
                     new_unittest("keymap-make-keymap", test_make_keymap), &
-                    new_unittest("keymap-keymapp", test_keymapp), &
+                    new_unittest("keymap-keymapp", test_is_keymap), &
                     new_unittest("keymap-keymap-parent", test_keymap_parent), &
                     new_unittest("keymap-copy-keymap", test_copy_keymap), &
                     new_unittest("keymap-define-key/undefined", test_define_undefined), &
@@ -83,7 +83,7 @@ contains
                     new_unittest("keymap--key-description", test_key_description), &
                     new_unittest("keymap-key-binding", test_key_binding), &
                     new_unittest("keymap-free", test_free), &
-                    new_unittest("subr-test-key-valid-p", test_key_valid_p), &
+                    new_unittest("subr-test-key-valid-p", test_is_key_valid), &
                     new_unittest("keymap-set-consistency", test_keymap_set), &
                     new_unittest("keymap-global-set", test_keymap_global_set), &
                     new_unittest("keymap-text-char-description", test_text_char_description), &
@@ -139,7 +139,7 @@ contains
         call make_keymap(full)
         call make_sparse_keymap(sparse)
         call make_sparse_keymap(prompted, make_string("Prompt"))
-        call check(error, keymap_full_p(full) .and. .not. keymap_full_p(sparse), "full")
+        call check(error, is_keymap_full(full) .and. .not. is_keymap_full(sparse), "full")
         if (allocated(error)) return
         call check(error, nilp(keymap_prompt(full)), "no prompt")
         if (allocated(error)) return
@@ -149,24 +149,24 @@ contains
         call free(prompted)
     end subroutine test_make_keymap
 
-    subroutine test_keymapp(error)
+    subroutine test_is_keymap(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
 
         call make_keymap(a)
         call make_sparse_keymap(b)
-        call check(error, keymapp(ref(a)) .and. keymapp(ref(b)), "keymaps")
+        call check(error, is_keymap(ref(a)) .and. is_keymap(ref(b)), "keymaps")
         if (allocated(error)) return
-        call check(error,.not. keymapp(list(sym("foo"), sym("bar"))), "(foo bar)")
+        call check(error,.not. is_keymap(list(sym("foo"), sym("bar"))), "(foo bar)")
         if (allocated(error)) return
-        call check(error,.not. keymapp(nil()), "nil")
+        call check(error,.not. is_keymap(nil()), "nil")
         if (allocated(error)) return
-        call check(error, keymapp(list(ref(a), ref(b))), "composite")
+        call check(error, is_keymap(list(ref(a), ref(b))), "composite")
         call free(a)
         if (allocated(error)) return
-        call check(error,.not. keymapp(ref(a)), "freed keymap")
+        call check(error,.not. is_keymap(ref(a)), "freed keymap")
         call free(b)
-    end subroutine test_keymapp
+    end subroutine test_is_keymap
 
     subroutine test_keymap_parent(error)
         type(error_type), allocatable, intent(out) :: error
@@ -220,7 +220,7 @@ contains
         if (allocated(error)) return
         ! The copy owns its sub-keymap copy.
         call free(copy)
-        call check(error,.not. keymap_live_p(subcopy) .and. keymap_live_p(sub), "owned")
+        call check(error,.not. is_keymap_live(subcopy) .and. is_keymap_live(sub), "owned")
         call free(map)
     end subroutine test_copy_keymap
 
@@ -508,7 +508,7 @@ contains
         call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), sym("find_file")), "parent")
         if (allocated(error)) return
         v = lookup(ref(child), kbd("C-x"))
-        call check(error, vtag(v) == V_LIST .and. keymapp(v), "composite")
+        call check(error, vtag(v) == V_LIST .and. is_keymap(v), "composite")
         if (allocated(error)) return
         call define_key(child, kbd("C-x C-s"), nil(), st)
         call check(error, nilp(lookup(ref(child), kbd("C-x C-s"))), "nil shadows")
@@ -533,7 +533,7 @@ contains
         call check(error, value_eq(lookup(ref(map), kbd("ESC x")), &
                                    sym("execute_extended_command")), "ESC x")
         if (allocated(error)) return
-        call check(error, keymapp(lookup(ref(map), kbd("ESC"))), "ESC map")
+        call check(error, is_keymap(lookup(ref(map), kbd("ESC"))), "ESC map")
         if (allocated(error)) return
         key(1) = make_fixnum(27_int64)
         key(2) = make_fixnum(META + iachar("y"))
@@ -692,7 +692,7 @@ contains
         type(value_type) :: v
 
         global = current_global_map()
-        call check(error, keymap_live_p(global) .and. keymap_full_p(global), "global")
+        call check(error, is_keymap_live(global) .and. is_keymap_full(global), "global")
         if (allocated(error)) return
         call define_key(global, kbd("C-x C-f"), sym("find_file"), st)
         call define_key(global, kbd("C-f"), sym("forward_char"), st)
@@ -731,16 +731,16 @@ contains
         call define_key(map, kbd("C-c a"), sym("foo"), st)
         v = lookup(ref(map), kbd("C-c"))
         prefix = xhandle(v)
-        call check(error, keymap_live_p(prefix), "prefix live")
+        call check(error, is_keymap_live(prefix), "prefix live")
         if (allocated(error)) return
         call free_keymap(map, st)
-        call check(error, st%ok() .and. .not. keymap_live_p(prefix), "prefix freed")
+        call check(error, st%ok() .and. .not. is_keymap_live(prefix), "prefix freed")
         if (allocated(error)) return
         call free_keymap(map, st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "stale")
     end subroutine test_free
 
-    subroutine test_key_valid_p(error)
+    subroutine test_is_key_valid(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: n_tilde = char(195)//char(177), u_umlaut = char(195)//char(188)
         character(len=16), allocatable :: valid(:), invalid(:)
@@ -765,25 +765,25 @@ contains
                    "<C-M-down>", "M-C-a", "S-H-a", achar(9), "^M", achar(127), achar(0), &
                    "\177", "\000", "C-x \150", u_umlaut//u_umlaut//char(195)//char(182)//char(195)//char(182), &
                    "<s-return>", "<C-M-return>", "c-x", "C-xx", "M-xx", "M-x<TAB>"]
-        call check(error,.not. key_valid_p(""), "empty")
+        call check(error,.not. is_key_valid(""), "empty")
         if (allocated(error)) return
 
         do k = 1, size(valid)
-            call check(error, key_valid_p(trim(valid(k))), "valid: "//trim(valid(k)))
+            call check(error, is_key_valid(trim(valid(k))), "valid: "//trim(valid(k)))
             if (allocated(error)) return
         end do
 
         do k = 1, size(invalid)
             ! Trimming would lose the significant spaces of " X".
             if (k == 1) then
-                call check(error,.not. key_valid_p(" X"), "invalid:  X")
+                call check(error,.not. is_key_valid(" X"), "invalid:  X")
             else
-                call check(error,.not. key_valid_p(trim(invalid(k))), "invalid: "//trim(invalid(k)))
+                call check(error,.not. is_key_valid(trim(invalid(k))), "invalid: "//trim(invalid(k)))
             end if
 
             if (allocated(error)) return
         end do
-    end subroutine test_key_valid_p
+    end subroutine test_is_key_valid
 
     !> A string definition is a key to type: a keyboard macro, which is a
     !> list of events here.
@@ -804,7 +804,7 @@ contains
         call check(error, value_eq(lookup(ref(k), kbd("C-c b")), sym("backward_char")), "a command name")
         if (allocated(error)) return
         call keymap_set(k, "b", make_string("C-xx"), st)
-        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key_valid_p'"))
+        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
         call free(k)
     end subroutine test_keymap_set
 
@@ -822,7 +822,7 @@ contains
         call check(error, nilp(lookup(global, kbd("C-c x"))), "unbound with nil")
         if (allocated(error)) return
         call keymap_global_set("C-xx", "forward_char", st)
-        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key_valid_p'"))
+        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
         if (allocated(error)) return
         call global_set_key(kbd("C-c y"), "backward_char", st)
         call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), sym("backward_char")), &

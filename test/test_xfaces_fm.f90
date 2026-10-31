@@ -39,7 +39,7 @@ module test_xfaces_fm
     use termchar_fm, only: tty_display_info
     use tty_colors_fm, only: tty_color_clear, tty_register_colors
     use xfaces_fm, only: init_frame_faces, merge_face_ref, lookup_named_face, merge_faces, lookup_face, &
-                         face_at_buffer_position, tty_supports_face_attributes_p, frame_background_mode
+                         face_at_buffer_position, is_tty_supports_face_attributes, frame_background_mode
     implicit none(type, external)
     private
 
@@ -229,23 +229,23 @@ contains
         call init_tty_entry(selected_frame%tty, ti, "xterm", -1_int32, st)
         call init_frame_faces(selected_frame, "xterm")
         a%underline = .true.
-        call check(error, tty_supports_face_attributes_p(a), "xterm underlines")
+        call check(error, is_tty_supports_face_attributes(a), "xterm underlines")
         if (allocated(error)) return
         a = face_attributes_type()
         a%weight = "bold"
-        call check(error, tty_supports_face_attributes_p(a), "xterm bold")
+        call check(error, is_tty_supports_face_attributes(a), "xterm bold")
         if (allocated(error)) return
         a%family = "Monospace"
-        call check(error,.not. tty_supports_face_attributes_p(a), "no families")
+        call check(error,.not. is_tty_supports_face_attributes(a), "no families")
         if (allocated(error)) return
         a = face_attributes_type()
         a%weight = "normal"
-        call check(error,.not. tty_supports_face_attributes_p(a), "same as default")
+        call check(error,.not. is_tty_supports_face_attributes(a), "same as default")
         if (allocated(error)) return
         a = face_attributes_type()
         a%slant = "italic"
         if (allocated(selected_frame%tty%ts_enter_italic_mode)) deallocate (selected_frame%tty%ts_enter_italic_mode)
-        call check(error,.not. tty_supports_face_attributes_p(a), "no italic capability")
+        call check(error,.not. is_tty_supports_face_attributes(a), "no italic capability")
         selected_frame%tty = saved
         call init_frame_faces(selected_frame, "dumb")
     end subroutine test_supports

@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The minibuffer readers of subr.el (`read_number', `y_or_n_p',
+!> The minibuffer readers of subr.el (`read_number', `read_y_or_n',
 !> `read_char_from_minibuffer', `read_char_choice'): a
 !> submodule because minibuf_fm uses subr_fm.
 submodule(subr_fm) subr_read_fm
@@ -27,7 +27,7 @@ submodule(subr_fm) subr_read_fm
     use minibuf_fm, only: minibuffer_string_type
     use character_fm, only: string_char_and_length
     use, intrinsic :: iso_fortran_env, only: int32
-    use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, minibufferp
+    use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, is_minibuffer
     use minibuffer_fm, only: delete_minibuffer_contents, exit_minibuffer, minibuffer_message
     use keyboard_fm, only: sit_for, this_command, real_this_command, abort_recursive_edit, exit_recursive_edit, &
                            recursive_edit, top_level, lossage_size
@@ -42,14 +42,14 @@ submodule(subr_fm) subr_read_fm
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use keyboard_fm, only: last_command_event, last_command
     use keymap_fm, only: single_key_description
-    use buffer_fm, only: get_buffer, buffer_live_p, kill_buffer
+    use buffer_fm, only: get_buffer, is_buffer_live, kill_buffer
     use help_fm, only: with_output_to_temp_buffer, substitute_command_keys
     use rmc_fm, only: read_char_choice_use_read_key
     use error_fm, only: format_message, FM_GENERIC_ERROR
     implicit none(type, external)
 
-    !> y-or-n-p-map, made by `init_y_or_n_p_map'.
-    type(handle_type) :: y_or_n_p_map
+    !> y-or-n-p-map, made by `init_read_y_or_n_map'.
+    type(handle_type) :: read_y_or_n_map
 
     !> read-char-from-minibuffer-map, made by
     !> `init_read_char_from_minibuffer_map'.
@@ -353,7 +353,7 @@ contains
         ok = .true.
     end subroutine parse_digits
 
-    module procedure y_or_n_p
+    module procedure read_y_or_n
     character(len=:), allocatable :: padded, str
     type(value_type) :: key, saved_this, saved_real_this
     type(status_type) :: st
@@ -370,7 +370,7 @@ contains
 
     padded = padded//"(y or n) "
 
-    if (y_or_n_p_use_read_key) then
+    if (read_y_or_n_use_read_key) then
         def = ANSWER_RECENTER
 
         do
@@ -417,18 +417,18 @@ contains
 
         answer = def == ANSWER_ACT
     else
-        call init_y_or_n_p_map()
+        call init_read_y_or_n_map()
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
         ! Protect this-command, and preserve the actual command that
-        ! eventually called `y_or_n_p'.
+        ! eventually called `read_y_or_n'.
         saved_this = this_command
         saved_real_this = real_this_command
 
-        if (allocated(y_or_n_p_history_variable)) then
-            call read_from_minibuffer(padded, str, status, keymap=y_or_n_p_map, history=y_or_n_p_history_variable)
+        if (allocated(read_y_or_n_history_variable)) then
+            call read_from_minibuffer(padded, str, status, keymap=read_y_or_n_map, history=read_y_or_n_history_variable)
         else
-            call read_from_minibuffer(padded, str, status, keymap=y_or_n_p_map, history="t")
+            call read_from_minibuffer(padded, str, status, keymap=read_y_or_n_map, history="t")
         end if
 
         enable_recursive_minibuffers = saved_enable
@@ -443,18 +443,18 @@ contains
     else
         call message(padded//"n")
     end if
-    end procedure y_or_n_p
+    end procedure read_y_or_n
 
-    !> Make `y_or_n_p_map': y-or-n-p-map composed with `query_replace_map'
+    !> Make `read_y_or_n_map': y-or-n-p-map composed with `query_replace_map'
     !> and its command remappings, flattened, as keymap_fm has neither
     !> composed keymaps nor command remapping: each key of
     !> query-replace-map that minibuffer-local-map (its parent) doesn't
     !> bind gets the command its answer is remapped to (or the answer
     !> itself when it isn't), and keys that would run
-    !> `self_insert_command' run `y_or_n_p_insert_other'.  Port of
+    !> `self_insert_command' run `read_y_or_n_insert_other'.  Port of
     !> subr.el y-or-n-p-map (minibuffer-scroll-other-window and
     !> minibuffer-scroll-other-window-down are not ported: Deferred).
-    subroutine init_y_or_n_p_map()
+    subroutine init_read_y_or_n_map()
         type(value_type) :: key1(1)
         type(value_type), allocatable :: seq(:)
         type(value_type) :: b
@@ -462,17 +462,17 @@ contains
         integer :: k
         integer(int64) :: c
 
-        if (keymap_live_p(y_or_n_p_map)) return
+        if (is_keymap_live(read_y_or_n_map)) return
         call init_query_replace_map()
-        call make_sparse_keymap(y_or_n_p_map)
-        call set_keymap_parent(y_or_n_p_map, minibuffer_local_map, st)
+        call make_sparse_keymap(read_y_or_n_map)
+        call set_keymap_parent(read_y_or_n_map, minibuffer_local_map, st)
 
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
             if (.not. st%ok()) cycle
             call lookup_key(make_keymap_ref(minibuffer_local_map), seq, b, st)
             if (.not. nilp(b)) cycle
-            call define_key(y_or_n_p_map, seq, sym(remapped(trim(QRM_ANSWERS(k)))), st)
+            call define_key(read_y_or_n_map, seq, sym(remapped(trim(QRM_ANSWERS(k)))), st)
         end do
 
         ! [remap self-insert-command]
@@ -487,7 +487,7 @@ contains
             end if
 
             if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(y_or_n_p_map, key1, sym("y_or_n_p_insert_other"), st)
+                call define_key(read_y_or_n_map, key1, sym("read_y_or_n_insert_other"), st)
             end if
         end do
 
@@ -495,7 +495,7 @@ contains
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
         if (value_eq(b, sym("self_insert_command"))) then
-            call define_key_range(y_or_n_p_map, 128_int64, int(MAX_CHAR, int64), sym("y_or_n_p_insert_other"), st)
+            call define_key_range(read_y_or_n_map, 128_int64, int(MAX_CHAR, int64), sym("read_y_or_n_insert_other"), st)
         end if
 
     contains
@@ -506,11 +506,11 @@ contains
 
             select case (answer)
             case ("act", "act_and_show", "act_and_exit", "automatic")
-                cmd = "y_or_n_p_insert_y"
+                cmd = "read_y_or_n_insert_y"
             case ("skip")
-                cmd = "y_or_n_p_insert_n"
+                cmd = "read_y_or_n_insert_n"
             case ("backup", "undo", "undo_all", "edit", "edit_replacement", "delete_and_edit", "exit")
-                cmd = "y_or_n_p_insert_other"
+                cmd = "read_y_or_n_insert_other"
             case ("recenter")
                 cmd = "minibuffer_recenter_top_bottom"
             case ("scroll_up")
@@ -523,25 +523,25 @@ contains
                 cmd = answer
             end select
         end function remapped
-    end subroutine init_y_or_n_p_map
+    end subroutine init_read_y_or_n_map
 
-    !> Insert the answer "y" and exit the minibuffer of `y_or_n_p'.
+    !> Insert the answer "y" and exit the minibuffer of `read_y_or_n'.
     !> Discard all previous input before inserting and exiting the minibuffer.
     !> Port of subr.el:y-or-n-p-insert-y.
-    subroutine y_or_n_p_insert_y(status)
+    subroutine read_y_or_n_insert_y(status)
         type(status_type), intent(out) :: status
 
         call insert_answer("y", status)
-    end subroutine y_or_n_p_insert_y
+    end subroutine read_y_or_n_insert_y
 
-    !> Insert the answer "n" and exit the minibuffer of `y_or_n_p'.
+    !> Insert the answer "n" and exit the minibuffer of `read_y_or_n'.
     !> Discard all previous input before inserting and exiting the minibuffer.
     !> Port of subr.el:y-or-n-p-insert-n.
-    subroutine y_or_n_p_insert_n(status)
+    subroutine read_y_or_n_insert_n(status)
         type(status_type), intent(out) :: status
 
         call insert_answer("n", status)
-    end subroutine y_or_n_p_insert_n
+    end subroutine read_y_or_n_insert_n
 
     ! Not a port.
     subroutine insert_answer(text, status)
@@ -549,7 +549,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. minibufferp()) return
+        if (.not. is_minibuffer()) return
         call delete_minibuffer_contents(status)
         if (.not. status%ok()) return
         call insert(text, status)
@@ -557,22 +557,22 @@ contains
         call exit_minibuffer(status)
     end subroutine insert_answer
 
-    !> Handle inserting of other answers in the minibuffer of `y_or_n_p'.
+    !> Handle inserting of other answers in the minibuffer of `read_y_or_n'.
     !> Display an error on trying to insert a disallowed character.
     !> Also discard all previous input in the minibuffer.
     !> Port of subr.el:y-or-n-p-insert-other.
-    subroutine y_or_n_p_insert_other(status)
+    subroutine read_y_or_n_insert_other(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. minibufferp()) return
+        if (.not. is_minibuffer()) return
         call delete_minibuffer_contents(status)
         if (.not. status%ok()) return
         call ding()
         call discard_input()
         call minibuffer_message("Please answer y or n")
         call sit_for(2000)
-    end subroutine y_or_n_p_insert_other
+    end subroutine read_y_or_n_insert_other
 
     !> Ignore ARGUMENTS, do nothing, and return nil.
     !> This function accepts any number of arguments in ARGUMENTS.
@@ -638,9 +638,9 @@ contains
 
     commands%undefined%run => undefined
     commands%ignore%run => ignore
-    commands%y_or_n_p_insert_y%run => y_or_n_p_insert_y
-    commands%y_or_n_p_insert_n%run => y_or_n_p_insert_n
-    commands%y_or_n_p_insert_other%run => y_or_n_p_insert_other
+    commands%read_y_or_n_insert_y%run => read_y_or_n_insert_y
+    commands%read_y_or_n_insert_n%run => read_y_or_n_insert_n
+    commands%read_y_or_n_insert_other%run => read_y_or_n_insert_other
     commands%abort_recursive_edit%run => cmd_abort_recursive_edit
     commands%exit_recursive_edit%run => cmd_exit_recursive_edit
     commands%recursive_edit%run => cmd_recursive_edit
@@ -648,11 +648,11 @@ contains
     commands%lossage_size%run => cmd_lossage_size
     ! The map is made again on first use (its parent and the global map
     ! may have been rebuilt).
-    if (keymap_live_p(y_or_n_p_map)) call free_keymap(y_or_n_p_map, st)
+    if (is_keymap_live(read_y_or_n_map)) call free_keymap(read_y_or_n_map, st)
     commands%read_char_from_minibuffer_insert_char%run => read_char_from_minibuffer_insert_char
     commands%read_char_from_minibuffer_insert_other%run => read_char_from_minibuffer_insert_other
     commands%help_form_show%run => help_form_show
-    if (keymap_live_p(read_char_from_minibuffer_map)) call free_keymap(read_char_from_minibuffer_map, st)
+    if (is_keymap_live(read_char_from_minibuffer_map)) call free_keymap(read_char_from_minibuffer_map, st)
     end procedure syms_of_subr
 
     !> Make `read_char_from_minibuffer_map': minibuffer-local-map's keys,
@@ -662,7 +662,7 @@ contains
     subroutine init_read_char_from_minibuffer_map()
         type(status_type) :: st
 
-        if (keymap_live_p(read_char_from_minibuffer_map)) return
+        if (is_keymap_live(read_char_from_minibuffer_map)) return
         call make_sparse_keymap(read_char_from_minibuffer_map)
         call set_keymap_parent(read_char_from_minibuffer_map, minibuffer_local_map, st)
         call define_remap(read_char_from_minibuffer_map, "exit_minibuffer", "read_char_from_minibuffer_insert_other")
@@ -766,7 +766,7 @@ contains
         integer(int32) :: nbytes
 
         status = status_type()
-        if (.not. minibufferp()) return
+        if (.not. is_minibuffer()) return
         call delete_minibuffer_contents(status)
         if (.not. status%ok()) return
 
@@ -789,7 +789,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. minibufferp()) return
+        if (.not. is_minibuffer()) return
         call delete_minibuffer_contents(status)
         if (.not. status%ok()) return
         call ding()
@@ -877,7 +877,7 @@ contains
 
             if (show_help) then
                 helpbuf = get_buffer(" *Char Help*")
-                if (buffer_live_p(helpbuf)) call kill_buffer(helpbuf, st)
+                if (is_buffer_live(helpbuf)) call kill_buffer(helpbuf, st)
             end if
 
             if (.not. fixnump(key)) cycle

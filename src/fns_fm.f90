@@ -50,21 +50,21 @@ module fns_fm
 
     public :: value_predicate
     public :: value_equal, length, nth, nthcdr, memq, member
-    public :: string_lessp, string_greaterp, compare_strings, COMPARE_EQUAL, schars, substring
+    public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, schars, substring
 
     !> The value of `compare_strings' for strings that match (t).
     integer(int64), parameter :: COMPARE_EQUAL = 0
     public :: plist_get, plist_put, plist_member, get, put
-    public :: yes_or_no_p
+    public :: read_yes_or_no
 
-    !> True means `yes_or_no_p' accepts single-key answers "y" or "n".
-    !> When true, `yes_or_no_p' will use `y_or_n_p' to read the answer.
+    !> True means `read_yes_or_no' accepts single-key answers "y" or "n".
+    !> When true, `read_yes_or_no' will use `read_y_or_n' to read the answer.
     !> This means the user will be able to press just one key to answer, whereas
     !> by default the user needs to type the full "yes" or "no" response
     !> and then press RET.  Port of fns.c use-short-answers.
     logical, public :: use_short_answers = .false.
 
-    !> String to append when `yes_or_no_p' asks a question.
+    !> String to append when `read_yes_or_no' asks a question.
     !> For best results this should end in a space.  Port of fns.c
     !> yes-or-no-prompt.
     character(len=:), allocatable, public :: yes_or_no_prompt
@@ -73,7 +73,7 @@ module fns_fm
         !> Ask user a yes-or-no question.
         !> Return true if answer is yes, and false if the answer is no.
         !>
-        !> PROMPT is the string to display to ask the question; `yes_or_no_p'
+        !> PROMPT is the string to display to ask the question; `read_yes_or_no'
         !> appends `yes_or_no_prompt' (default "(yes or no) ") to it.  If
         !> PROMPT is a non-empty string, and it ends with a non-space character,
         !> a space character will be appended to it.
@@ -86,12 +86,12 @@ module fns_fm
         !> ignore the value of `yes_or_no_prompt').  Port of
         !> fns.c:Fyes_or_no_p (no dialog boxes).  (In submodule fns_ask_fm,
         !> as the minibuffer depends on this module.)
-        recursive module subroutine yes_or_no_p(prompt, answer, status)
+        recursive module subroutine read_yes_or_no(prompt, answer, status)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             logical, intent(out) :: answer
             type(status_type), intent(out) :: status
-        end subroutine yes_or_no_p
+        end subroutine read_yes_or_no
     end interface
 
 contains
@@ -289,14 +289,14 @@ contains
     !> Symbols stand for their names; anything else compares false (the
     !> predicate interface has no status).  Port of fns.c:Fstring_lessp
     !> (string_cmp).
-    logical function string_lessp(a, b)
+    logical function is_string_less(a, b)
         type(value_type), intent(in) :: a, b
         character(len=:), allocatable :: sa, sb
         logical :: oka, okb
         integer(int64) :: pa, pb
         integer(int32) :: ca, cb, na, nb
 
-        string_lessp = .false.
+        is_string_less = .false.
         call string_or_name(a, sa, oka)
         call string_or_name(b, sb, okb)
         if (.not. (oka .and. okb)) return
@@ -308,7 +308,7 @@ contains
             call string_char_and_length(sb, pb, cb, nb)
 
             if (ca /= cb) then
-                string_lessp = ca < cb
+                is_string_less = ca < cb
                 return
             end if
 
@@ -317,8 +317,8 @@ contains
         end do
 
         ! Equal up to the shorter length: the shorter one is less.
-        string_lessp = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
-    end function string_lessp
+        is_string_less = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
+    end function is_string_less
 
     !> Compare the contents of two strings.
     !> The arguments START1, END1, START2, and END2, if present, are
@@ -542,11 +542,11 @@ contains
     end subroutine string_chars
 
     !> Port of fns.c:Fstring_greaterp.
-    logical function string_greaterp(a, b)
+    logical function is_string_greater(a, b)
         type(value_type), intent(in) :: a, b
 
-        string_greaterp = string_lessp(b, a)
-    end function string_greaterp
+        is_string_greater = is_string_less(b, a)
+    end function is_string_greater
 
     !> Compare with `predicate', or `eq' by default.  Not a port.
     logical function matches(a, b, predicate)

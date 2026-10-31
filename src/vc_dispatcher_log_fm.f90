@@ -23,11 +23,11 @@
 !> submodule because they use log_edit_fm and vc_fm (`vc_root_dir'),
 !> which use vc_dispatcher_fm.
 submodule(vc_dispatcher_fm) vc_dispatcher_log_fm
-    use log_edit_fm, only: log_edit, log_edit_empty_buffer_p, log_edit_string_type, log_edit_diff_fileset, &
+    use log_edit_fm, only: log_edit, is_log_edit_empty_buffer, log_edit_string_type, log_edit_diff_fileset, &
                            log_edit_hook
     use vc_fm, only: vc_root_dir
     use window_fm, only: quit_windows_on
-    use buffer_fm, only: restore_buffer_modified_p
+    use buffer_fm, only: restore_buffer_modified
     use editfns_fm, only: buffer_string
     implicit none(type, external)
 
@@ -119,7 +119,7 @@ contains
     buffers(cur)%directory = buffers(parent%index)%directory
     ! Setup a new log message if the log buffer is "empty",
     ! or was previously used for a different set of files.
-    setup = log_edit_empty_buffer_p()
+    setup = is_log_edit_empty_buffer()
 
     if (.not. setup) then
         call vc_log_fileset(current, has)
@@ -138,7 +138,7 @@ contains
 
     if (.not. status%ok()) return
     ! (set-buffer-modified-p nil)
-    call restore_buffer_modified_p(.false.)
+    call restore_buffer_modified(.false.)
     if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
 
 contains
@@ -279,7 +279,7 @@ contains
     if (k > 0) log_locals(k)%has_operation = .false.
 
     ! Quit windows on logbuf.
-    if (buffer_live_p(logbuf)) then
+    if (is_buffer_live(logbuf)) then
         if (vc_delete_logbuf_window) then
             call quit_windows_on(logbuf, .true., st)
         else
@@ -288,7 +288,7 @@ contains
     end if
 
     ! Now make sure we see the expanded headers.
-    if (buffer_live_p(parent)) then
+    if (is_buffer_live(parent)) then
         old = current_buffer()
         call set_buffer(parent, status)
         if (.not. status%ok()) return
@@ -305,7 +305,7 @@ contains
 
         call vc_finish_logentry_hook%run(status)
         if (.not. status%ok()) return
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end if
     end procedure vc_finish_logentry
 end submodule vc_dispatcher_log_fm

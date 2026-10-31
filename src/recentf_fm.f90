@@ -55,12 +55,12 @@ module recentf_fm
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, run_with_idle_timer, free_timer, timerp
+    use timer_fm, only: run_with_timer, run_with_idle_timer, free_timer, is_timer
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, generate_new_buffer_name, &
                          kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
-    use fileio_fm, only: file_readable_p, expand_file_name, write_region, insert_file_contents, set_file_modes
+    use fileio_fm, only: is_file_readable, expand_file_name, write_region, insert_file_contents, set_file_modes
     use files_fm, only: find_file, find_file_hook, kill_buffer_hook, abbreviate_file_name, file_truename, &
                         file_name_extension
     use dired_fm, only: completion_ignored_extensions
@@ -77,8 +77,8 @@ module recentf_fm
     implicit none(type, external)
     private
 
-    public :: recentf_mode, recentf_enabled_p, recentf_exclude_file_by_extension_p, recentf_keep_default_predicate, &
-              recentf_add_file, recentf_remove_if_non_kept, recentf_include_p, recentf_keep_p, recentf_push, &
+    public :: recentf_mode, is_recentf_enabled, is_recentf_exclude_file_by_extension, recentf_keep_default_predicate, &
+              recentf_add_file, recentf_remove_if_non_kept, is_recentf_include, is_recentf_keep, recentf_push, &
               recentf_expand_file_name, recentf_apply_filename_handlers, recentf_open, recentf_open_most_recent_file, &
               recentf_save_list, recentf_load_list, recentf_cleanup, recentf_track_opened_file, &
               recentf_track_closed_file, abbreviate_file_name_handler, file_truename_handler, syms_of_recentf
@@ -163,9 +163,9 @@ module recentf_fm
 
     !> List of file-name extensions that `recentf' should ignore.
     !> This has effect only if the function
-    !> `recentf_exclude_file_by_extension_p' is in the list that is the
+    !> `is_recentf_exclude_file_by_extension' is in the list that is the
     !> value of `recentf_exclude'.  If this option is empty and
-    !> `recentf_exclude_file_by_extension_p' is a member of
+    !> `is_recentf_exclude_file_by_extension' is a member of
     !> `recentf_exclude', a file will be ignored if its extension is in
     !> `completion_ignored_extensions', which see.  Port of recentf.el
     !> recentf-exclude-ignored-extensions.
@@ -249,9 +249,9 @@ contains
 
     !> Return true if `recentf_mode' is currently enabled.  Port of
     !> recentf.el:recentf-enabled-p.
-    logical function recentf_enabled_p()
-        recentf_enabled_p = kill_emacs_hook%member(recentf_save_list_proc)
-    end function recentf_enabled_p
+    logical function is_recentf_enabled()
+        is_recentf_enabled = kill_emacs_hook%member(recentf_save_list_proc)
+    end function is_recentf_enabled
 
     !> Whether to ignore FILE_NAME due to its file-name extension.
     !> This predicate function is meant to be added to the list in
@@ -260,7 +260,7 @@ contains
     !> if that variable is empty, this function consults
     !> `completion_ignored_extensions' instead.  Port of
     !> recentf.el:recentf-exclude-file-by-extension-p.
-    logical function recentf_exclude_file_by_extension_p(file_name) result(ignored)
+    logical function is_recentf_exclude_file_by_extension(file_name) result(ignored)
         character(len=*), intent(in) :: file_name
         character(len=:), allocatable :: extension, dotted
         logical :: found
@@ -295,14 +295,14 @@ contains
             ends_with = len(suffix) > 0 .and. len(suffix) <= len(s)
             if (ends_with) ends_with = s(len(s) - len(suffix) + 1:) == suffix
         end function ends_with
-    end function recentf_exclude_file_by_extension_p
+    end function is_recentf_exclude_file_by_extension
 
     !> Return true if FILE should be kept in the recent list.  Port of
     !> recentf.el:recentf-keep-default-predicate (no remote files).
     logical function recentf_keep_default_predicate(file) result(keep)
         character(len=*), intent(in) :: file
 
-        keep = file_readable_p(file)
+        keep = is_file_readable(file)
     end function recentf_keep_default_predicate
 
     !> Return true if strings S1 and S2 have identical contents.  Port of
@@ -424,7 +424,7 @@ contains
     !> Return true if FILENAME should be included in the recent list.
     !> That is, if it doesn't match any of the `recentf_exclude' checks.
     !> Port of recentf.el:recentf-include-p.
-    logical function recentf_include_p(filename) result(keepit)
+    logical function is_recentf_include(filename) result(keepit)
         character(len=*), intent(in) :: filename
         integer :: k
 
@@ -437,12 +437,12 @@ contains
                 return
             end if
         end do
-    end function recentf_include_p
+    end function is_recentf_include
 
     !> Return true if FILENAME should be kept in the recent list.
     !> That is, if it matches any of the `recentf_keep' checks.  Port of
     !> recentf.el:recentf-keep-p.
-    logical function recentf_keep_p(filename) result(keepit)
+    logical function is_recentf_keep(filename) result(keepit)
         character(len=*), intent(in) :: filename
         integer :: k
 
@@ -457,7 +457,7 @@ contains
                 return
             end if
         end do
-    end function recentf_keep_p
+    end function is_recentf_keep
 
     !> Add or move FILENAME at the beginning of the recent list.
     !> Does nothing if the name satisfies any of the `recentf_exclude'
@@ -467,7 +467,7 @@ contains
         character(len=:), allocatable :: name
 
         name = recentf_expand_file_name(filename)
-        if (recentf_include_p(name)) call recentf_push(name)
+        if (is_recentf_include(name)) call recentf_push(name)
     end subroutine recentf_add_file
 
     !> Remove FILENAME from the recent list, if file is not kept.
@@ -479,7 +479,7 @@ contains
         integer :: k
 
         if (present(removed)) removed = .false.
-        if (recentf_keep_p(filename)) return
+        if (is_recentf_keep(filename)) return
         k = recentf_string_member(recentf_expand_file_name(filename))
         if (k == 0) return
         call delete_entry(k)
@@ -511,7 +511,7 @@ contains
     subroutine recentf_auto_cleanup_run()
         type(status_type) :: st
 
-        if (timerp(recentf_auto_cleanup_timer)) call free_timer(recentf_auto_cleanup_timer)
+        if (is_timer(recentf_auto_cleanup_timer)) call free_timer(recentf_auto_cleanup_timer)
         recentf_auto_cleanup_timer = handle_type()
         if (.not. minor_modes%recentf_mode%enabled()) return
 
@@ -612,7 +612,7 @@ contains
     !> Cancel `recentf_autosave_timer', if set.  Port of
     !> recentf.el:recentf--cancel-autosave-timer.
     subroutine recentf_cancel_autosave_timer()
-        if (timerp(recentf_autosave_timer)) call free_timer(recentf_autosave_timer)
+        if (is_timer(recentf_autosave_timer)) call free_timer(recentf_autosave_timer)
         recentf_autosave_timer = handle_type()
     end subroutine recentf_cancel_autosave_timer
 
@@ -623,7 +623,7 @@ contains
         type(status_type) :: st
 
         if (minor_modes%recentf_mode%enabled() .and. recentf_autosave_interval > 0 .and. &
-            .not. timerp(recentf_autosave_timer)) then
+            .not. is_timer(recentf_autosave_timer)) then
             call run_with_timer(recentf_autosave_timer, real(recentf_autosave_interval, real64), &
                                 recentf_save_list_proc, st, real(recentf_autosave_interval, real64))
         else
@@ -712,7 +712,7 @@ contains
         status = status_type()
         call expand_file_name(recentf_save_file, file, st)
         if (.not. st%ok()) file = recentf_save_file
-        if (.not. file_readable_p(file)) return
+        if (.not. is_file_readable(file)) return
         call file_text(file, text, status)
         if (.not. status%ok()) return
         call read_namelist(text, groups, status)
@@ -802,7 +802,7 @@ contains
                 end if
             end do
 
-            if (recentf_include_p(f) .and. recentf_keep_p(f) .and. .not. dup) then
+            if (is_recentf_include(f) .and. is_recentf_keep(f) .and. .not. dup) then
                 m = m + 1
                 newlist(m)%name = f
             else
@@ -852,7 +852,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (enable .and. recentf_enabled_p()) return
+        if (enable .and. is_recentf_enabled()) return
 
         if (enable) then
             call recentf_load_list(status)

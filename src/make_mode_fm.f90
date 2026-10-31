@@ -57,11 +57,11 @@ module make_mode_fm
                          set_buffer, current_buffer, erase_buffer, kill_buffer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use keymap_fm, only: keymap_set
-    use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, skip_chars_forward, &
+    use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, skip_chars_forward, &
                          skip_chars_backward
-    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, &
+    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, &
                           char_before, preceding_char, buffer_substring, line_beginning_position, line_end_position, &
                           delete_region, narrow_to_region, widen, buffer_size
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, self_insert_command
@@ -70,7 +70,7 @@ module make_mode_fm
     use indent_fm, only: current_column, indent_to, indent_line_function, indent_to_left_margin, indent_tabs_mode
     use search_fm, only: looking_at, re_search_forward, string_match, match_beginning, match_end, match_data, &
                          set_match_data, regexp_quote, SEARCH_NOERROR
-    use subr_fm, only: match_string_no_properties, y_or_n_p
+    use subr_fm, only: match_string_no_properties, read_y_or_n
     use simple_fm, only: delete_horizontal_space, count_lines, line_number_at_pos
     use textprop_fm, only: get_text_property, remove_text_properties
     use xdisp_fm, only: message, tab_width
@@ -79,7 +79,7 @@ module make_mode_fm
     use buffer_fm, only: fill_column
     use fill_fm, only: fill_paragraph, fill_paragraph_function
     use files_fm, only: write_file_functions, delete_file
-    use fileio_fm, only: file_directory_p, file_name_directory, write_region, make_temp_name
+    use fileio_fm, only: is_file_directory, file_name_directory, write_region, make_temp_name
     use dired_fm, only: file_name_all_completions
     use callproc_fm, only: call_process
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
@@ -424,7 +424,7 @@ contains
     subroutine syms_of_make_mode()
         type(status_type) :: st
 
-        if (syntax_table_live_p(makefile_mode_syntax_table)) return
+        if (is_syntax_table_live(makefile_mode_syntax_table)) return
         call forward_setting(makefile_target_colon)
         call forward_setting(makefile_macro_assign)
         call forward_setting(makefile_electric_keys)
@@ -1236,7 +1236,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(makefile_mode_syntax_table)) call syms_of_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call load_make_mode()
         call major_modes%makefile_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -1269,7 +1269,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(makefile_mode_syntax_table)) call syms_of_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call major_modes%makefile_automake_mode%begin(saved, status)
         if (.not. status%ok()) return
         call set_font_lock_defaults(makefile_automake_font_lock_keywords)
@@ -1282,7 +1282,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(makefile_mode_syntax_table)) call syms_of_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call major_modes%makefile_gmake_mode%begin(saved, status)
         if (.not. status%ok()) return
         call set_font_lock_defaults(makefile_gmake_font_lock_keywords)
@@ -1295,7 +1295,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(makefile_mode_syntax_table)) call syms_of_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call major_modes%makefile_makepp_mode%begin(saved, status)
         if (.not. status%ok()) return
         call makefile_rule_action_regex%set_local(makefile_makepp_rule_action_regex)
@@ -1309,7 +1309,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(makefile_mode_syntax_table)) call syms_of_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call major_modes%makefile_bsdmake_mode%begin(saved, status)
         if (.not. status%ok()) return
         call makefile_dependency_regex%set_local(makefile_bsdmake_dependency_regex)
@@ -1325,7 +1325,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(makefile_mode_syntax_table)) call syms_of_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call major_modes%makefile_imake_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! (setq-local syntax-propertize-function nil)
@@ -1382,7 +1382,7 @@ contains
         ! makefile-match-dependency done backwards:
         do
             moved = skip_chars_backward(makefile_dependency_skip%value, st)
-            if (bobp()) exit
+            if (is_bob()) exit
             is_equal = after_char() == iachar("=")
             call goto_char(point() - 1)
             if (is_equal) cycle
@@ -1431,7 +1431,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (bolp()) then
+        if (is_bol()) then
             call makefile_insert_special_target(status)
         else
             call self_insert_command(arg, event_char(), status)
@@ -1483,7 +1483,7 @@ contains
         call makefile_pickup_macros(status)
         if (.not. status%ok()) return
 
-        if (bolp()) then
+        if (is_bol()) then
             call call_interactively(sym("makefile_insert_macro"), status)
         else
             call self_insert_command(arg, event_char(), status)
@@ -1624,7 +1624,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (bolp()) then
+        if (is_bol()) then
             call call_interactively(sym("makefile_insert_target"), status)
         else
             call self_insert_command(arg, event_char(), status)
@@ -1677,7 +1677,7 @@ contains
                 end if
 
                 moved = skip_chars_forward(" "//TAB, st)
-                if (eolp()) exit
+                if (is_eol()) exit
                 if (after_char() == iachar(":")) exit
             end do
 
@@ -1774,7 +1774,7 @@ contains
 
         do k = 1, list_length(names)
             name = xstring(list_elt(names, k))
-            if (file_directory_p(name)) cycle
+            if (is_file_directory(name)) cycle
             if (string_match(makefile_ignored_files_in_pickup_regex, name, st) > 0) cycle
             if (makefile_remember_target(name)) call message("Picked up file """//name//""" as target")
         end do
@@ -1821,7 +1821,7 @@ contains
         end if
 
         call goto_char(beg)
-        at_bol = bolp()
+        at_bol = is_bol()
         call goto_char(opoint)
 
         if (do_macros) then
@@ -1939,7 +1939,7 @@ contains
         ! Don't modify blank lines at start of region.
         call goto_char(from)
 
-        do while (point() < mpos(endmark) .and. eolp())
+        do while (point() < mpos(endmark) .and. is_eol())
             moved = forward_line(1_int64)
         end do
 
@@ -2030,7 +2030,7 @@ contains
 
         status = status_type()
         call end_of_line()
-        if (bolp()) return
+        if (is_bol()) return
         call forward_char(status, -1_int64)
 
         if (looking_at("\\", status)) then
@@ -2081,8 +2081,8 @@ contains
                 call end_of_line(0_int64)
             end do
 
-            ! Maybe we hit bobp, in which case we are not at EOL.
-            if (eolp()) then
+            ! Maybe we hit is_bob, in which case we are not at EOL.
+            if (is_eol()) then
                 beginning = point() + 1
             else
                 beginning = point()
@@ -2090,7 +2090,7 @@ contains
 
             call end_of_line()
 
-            do while (preceding_char() == iachar("\") .and. .not. eobp())
+            do while (preceding_char() == iachar("\") .and. .not. is_eob())
                 call end_of_line(2_int64)
             end do
 
@@ -2168,7 +2168,7 @@ contains
         logical :: ok
         type(status_type) :: st
 
-        call y_or_n_p("Are you sure that the makefile being edited is consistent? ", ok, status)
+        call read_y_or_n("Are you sure that the makefile being edited is consistent? ", ok, status)
         if (.not. status%ok() .or. .not. ok) return
         ! The rest of this function operates on a temporary makefile, created by
         ! writing the current contents of the makefile buffer.
@@ -2230,7 +2230,7 @@ contains
     end subroutine makefile_create_up_to_date_overview
 
     ! (sort-lines nil (point-min) (point-max)): sort.el is not ported, the
-    ! lines are ordered as `string_lessp' orders them (sort-fold-case
+    ! lines are ordered as `is_string_less' orders them (sort-fold-case
     ! nil).
     ! Not a port.
     subroutine sort_lines_in_buffer(status)
@@ -2272,7 +2272,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. lessp(tmp%name, lines(j)%name)) exit
+                if (.not. is_less(tmp%name, lines(j)%name)) exit
                 lines(j + 1) = lines(j)
                 j = j - 1
             end do
@@ -2294,19 +2294,19 @@ contains
     contains
 
         ! string-lessp on UTF-8 bytes (the order of the characters).
-        logical function lessp(a, b)
+        logical function is_less(a, b)
             character(len=*), intent(in) :: a, b
             integer :: m
 
             do m = 1, min(len(a), len(b))
                 if (a(m:m) /= b(m:m)) then
-                    lessp = iachar(a(m:m)) < iachar(b(m:m))
+                    is_less = iachar(a(m:m)) < iachar(b(m:m))
                     return
                 end if
             end do
 
-            lessp = len(a) < len(b)
-        end function lessp
+            is_less = len(a) < len(b)
+        end function is_less
     end subroutine sort_lines_in_buffer
 
     !> Create a temporary file from the current makefile buffer.  Port of
@@ -2393,7 +2393,7 @@ contains
 
         status = status_type()
         done = .false.
-        if (.not. derived_mode_p("makefile_mode")) return
+        if (.not. is_derived_mode("makefile_mode")) return
         if (.not. makefile_cleanup_continuations%value .or. buffers(cur)%read_only) return
         opoint = point()
         call goto_char(point_min())
@@ -2442,13 +2442,13 @@ contains
 
         status = status_type()
         done = .false.
-        if (.not. derived_mode_p("makefile_mode")) return
+        if (.not. is_derived_mode("makefile_mode")) return
         opoint = point()
         call goto_char(point_min())
         call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
 
         if (st%ok() .and. found > 0) then
-            call y_or_n_p(prompt//itoa(count_lines(point_min(), point()))//".  Save anyway?", ok, status)
+            call read_y_or_n(prompt//itoa(count_lines(point_min(), point()))//".  Save anyway?", ok, status)
             done = .not. ok
         end if
 

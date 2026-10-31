@@ -45,7 +45,7 @@
 !> everywhere in Fortmacs), buffer-local values of
 !> `comment_region_function', `uncomment_region_function' and
 !> `comment_quote_nested_function' (one global value each),
-!> `use_hard_newlines', `comment_valid_prefix_p''s `string_width' of
+!> `use_hard_newlines', `is_comment_valid_prefix''s `string_width' of
 !> non-ASCII prefixes (counted as one column per character), and the
 !> obsolete aliases `indent_for_comment', `set_comment_column',
 !> `kill_comment' and `indent_new_comment_line' as commands of their own
@@ -66,7 +66,7 @@ module newcomment_fm
     use insdel_fm, only: insert, insert_before_markers
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: interactive_region, &
-                          point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
+                          point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
                           line_beginning_position, line_end_position, delete_region, buffer_substring, &
                           narrow_to_region, widen, region_beginning, region_end
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
@@ -83,7 +83,7 @@ module newcomment_fm
     use xdisp_fm, only: message, tab_width
     use minibuf_fm, only: read_string
     use fill_fm, only: adaptive_fill_mode
-    use simple_fm, only: newline, delete_horizontal_space, kill_region, use_region_p, back_to_indentation, &
+    use simple_fm, only: newline, delete_horizontal_space, kill_region, is_use_region, back_to_indentation, &
                          comment_line_break_function, fill_prefix, simple_count_lines => count_lines
     implicit none(type, external)
     private
@@ -94,8 +94,8 @@ module newcomment_fm
               comment_search_backward, comment_beginning, comment_forward, comment_enter_backward, &
               comment_indent_default, comment_choose_indent, comment_indent, comment_set_column, comment_kill, &
               comment_padright, comment_padleft, uncomment_region, uncomment_region_default, comment_region, &
-              comment_region_default, comment_box, comment_only_p, comment_or_uncomment_region, comment_dwim, &
-              comment_add_count, comment_indent_new_line, comment_line, comment_valid_prefix_p, &
+              comment_region_default, comment_box, is_comment_only, comment_or_uncomment_region, comment_dwim, &
+              comment_add_count, comment_indent_new_line, comment_line, is_comment_valid_prefix, &
               comment_quote_nested_default, comment_make_bol_ws
 
     !> `comment_use_syntax' values: nil, t and `undecided'.
@@ -169,7 +169,7 @@ module newcomment_fm
         !> The current buffer's function.
         procedure :: get => indent_function_get
         !> Whether the current buffer has its own function.
-        procedure :: local_p => indent_function_local_p
+        procedure :: local_p => is_indent_function_local
         !> Make the current buffer use the default function again.
         procedure :: kill_local => indent_function_kill_local
     end type comment_indent_function_type
@@ -496,7 +496,7 @@ contains
     end function indent_function_get
 
     ! Whether the current buffer has a local function.  Not a port.
-    logical function indent_function_local_p(self) result(local)
+    logical function is_indent_function_local(self) result(local)
         class(comment_indent_function_type), intent(in) :: self
         integer :: i
 
@@ -510,7 +510,7 @@ contains
                 return
             end if
         end do
-    end function indent_function_local_p
+    end function is_indent_function_local
 
     ! Forget the current buffer's local function.  Not a port.
     subroutine indent_function_kill_local(self)
@@ -860,7 +860,7 @@ contains
             call insert(cs//" hello "//ce, st)
             call goto_char(point_min())
             ok = forward_comment(1_int64)
-            if (ok) ok = eobp()
+            if (ok) ok = is_eob()
             call set_buffer(old, st)
             call kill_buffer(tmp, st)
 
@@ -1236,7 +1236,7 @@ contains
             if (fwd) then
                 is_cs = point() > pt
             else
-                is_cs = eobp()
+                is_cs = is_eob()
             end if
         end if
 
@@ -1295,7 +1295,7 @@ contains
         logical :: found
         type(status_type) :: st
 
-        if (bolp()) then
+        if (is_bol()) then
             ! comment-end = ""
             call goto_char(point() - 1)
             moved = skip_syntax_backward(" ")
@@ -1441,7 +1441,7 @@ contains
 
             ! Leave at least `comment-inline-offset' space after
             ! other nonwhite text on the line.
-            if (bolp()) then
+            if (is_bol()) then
                 min = 0
             else
                 min = comment_inline_offset%value + current_column()
@@ -1619,7 +1619,7 @@ contains
         ! If `indent' is nil and there's code before the comment, we can't
         ! use `indent-according-to-mode', so we default to comment-column.
         moved = skip_chars_backward(" "//TAB, st)
-        at_bol = bolp()
+        at_bol = is_bol()
         call goto_char(opoint)
 
         if (indent%kind == COMMENT_INDENT_NONE .and. .not. at_bol) then
@@ -1767,7 +1767,7 @@ contains
                 cs = point()
                 done = comment_forward(1_int64)
                 e = point()
-                if (bolp()) e = e - 1
+                if (is_bol()) e = e - 1
                 call kill_region(cs, e, status)
                 if (.not. status%ok()) return
                 call indent_according_to_mode(status)
@@ -2069,7 +2069,7 @@ contains
 
             if (.not. comment_forward(1_int64)) then
                 ! Allow non-terminated comments.
-                if (.not. eobp()) then
+                if (.not. is_eob()) then
                     call set_error(status, FM_GENERIC_ERROR, "Can't find the comment end")
                     exit
                 end if
@@ -2122,7 +2122,7 @@ contains
                 call delete_char(-numarg, status)
                 ok = .false.
 
-                if (.not. bobp()) then
+                if (.not. is_bob()) then
                     pos = point()
                     call goto_char(point_min())
                     ok = looking(cskip())
@@ -2155,14 +2155,14 @@ contains
             end if
 
             if (.not. looking("\("//LF//"\|\s-\)*\'")) then
-                if (bolp() .and. .not. bobp()) call goto_char(point() - 1)
+                if (is_bol() .and. .not. is_bob()) call goto_char(point() - 1)
 
                 if (.not. present(arg)) then
                     call delete_region(point(), point_max(), status)
                 else
                     moved = skip_syntax_forward(" ")
                     call delete_char(numarg, status)
-                    ok = eobp()
+                    ok = is_eob()
                     if (.not. ok) ok = looking(comment_end_skip%value)
                     ! If there's something left but it doesn't look like
                     ! a comment-end any more, just remove it.
@@ -2437,7 +2437,7 @@ contains
 
         ! If the end is not at the end of a line and the comment-end
         ! is implicit (i.e. a newline), explicitly insert a newline.
-        if (.not. (ce_sanitized .or. eolp())) then
+        if (.not. (ce_sanitized .or. is_eol())) then
             call insert(LF, status)
             if (.not. status%ok()) return
             call indent_according_to_mode(status)
@@ -2465,7 +2465,7 @@ contains
             if (.not. looking("[ "//TAB//"]*$")) min_indent = min(min_indent, current_indentation())
             call end_of_line(1_int64)
             max_indent = max(max_indent, current_column())
-            if (eobp()) exit
+            if (is_eob()) exit
             sh = forward_line(1_int64)
         end do
 
@@ -2501,7 +2501,7 @@ contains
                 cs = ccs
                 call end_of_line(1_int64)
 
-                if (eobp()) then
+                if (is_eob()) then
                     cce = ce
                     has_cce = has_ce .and. len(ce) > 0
                 end if
@@ -2514,7 +2514,7 @@ contains
             end if
 
             call end_of_line(1_int64)
-            if (eobp()) exit
+            if (is_eob()) exit
             sh = forward_line(1_int64)
         end do
 
@@ -2819,7 +2819,7 @@ contains
 
     !> Return true if the text between BEG and END is all comments.
     !> Port of newcomment.el:comment-only-p.
-    recursive logical function comment_only_p(beg, end) result(only)
+    recursive logical function is_comment_only(beg, end) result(only)
         integer(int64), intent(in) :: beg, end
         integer(int64) :: opoint
         logical :: done
@@ -2829,7 +2829,7 @@ contains
         done = comment_forward(point_max())
         only = end <= point()
         call goto_char(opoint)
-    end function comment_only_p
+    end function is_comment_only
 
     !> Call `comment_region', unless the region only consists of comments,
     !> in which case call `uncomment_region'.  If a prefix arg is given, it
@@ -2846,7 +2846,7 @@ contains
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
 
-        if (comment_only_p(beg, end)) then
+        if (is_comment_only(beg, end)) then
             call uncomment_region(beg, end, status, arg, universal)
         else
             call comment_region(beg, end, status, arg, universal)
@@ -2892,7 +2892,7 @@ contains
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_bounds(beg, end, status)
             if (.not. status%ok()) return
             call with_prefix(beg, end, status, comment_or_uncomment_region)
@@ -2972,7 +2972,7 @@ contains
     !> COMPOS is the position of the beginning of the comment we're in, or 0
     !> if we're not inside a comment.  Port of
     !> newcomment.el:comment-valid-prefix-p.
-    recursive logical function comment_valid_prefix_p(prefix, compos) result(valid)
+    recursive logical function is_comment_valid_prefix(prefix, compos) result(valid)
         character(len=*), intent(in) :: prefix
         integer(int64), intent(in) :: compos
         character(len=:), allocatable :: prefix_com, prefix_space, prefix_comstart
@@ -2996,7 +2996,7 @@ contains
         ! Accept any prefix if the current comment is not EOL-terminated.
         call goto_char(compos)
         done = comment_forward(1_int64)
-        valid = .not. bolp()
+        valid = .not. is_bol()
         call goto_char(opoint)
         if (valid) return
         ! Accept any prefix that starts with the same comment-start marker
@@ -3024,7 +3024,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end function comment_valid_prefix_p
+    end function is_comment_valid_prefix
 
     !> Break line at point and indent, continuing comment if within one.
     !> This indents the body of the continued comment
@@ -3107,7 +3107,7 @@ contains
         ! If there's an adaptive prefix, use it unless we're inside
         ! a comment and the prefix is not a comment starter.
         if (allocated(fill_prefix%value)) then
-            if (comment_valid_prefix_p(fill_prefix%value, compos)) then
+            if (is_comment_valid_prefix(fill_prefix%value, compos)) then
                 call indent_to_left_margin(status, noindent)
                 if (status%ok()) call insert(fill_prefix%value, status)
                 return
@@ -3163,7 +3163,7 @@ contains
         ! Important for modes like Python/Haskell where
         ! auto-indentation is unreliable.
         pt = skip_chars_backward(" "//TAB, st)
-        own_line = bolp()
+        own_line = is_bol()
         call goto_char(opoint)
         saved_column = comment_column%value
         saved_fn => comment_indent_function%get()
@@ -3266,7 +3266,7 @@ contains
         status = status_type()
         n = n_in
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_bounds(b, e, status)
             if (.not. status%ok()) return
             call goto_char(b)

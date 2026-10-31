@@ -42,7 +42,7 @@ module callint_fm
     implicit none(type, external)
     private
 
-    public :: command_proc, command_type, find_command, commandp, fboundp, command_defined_p, &
+    public :: command_proc, command_type, find_command, is_command, fboundp, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of
     public :: call_interactively, funcall, prefix_numeric_value
 
@@ -147,30 +147,30 @@ contains
 
     !> Whether symbol `v' names a defined command (a function with an
     !> interactive spec).  Not a port.
-    logical function command_defined_p(v)
+    logical function is_command_defined(v)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
 
         p => symbol_command(v)
-        command_defined_p = associated(p)
-        if (command_defined_p) command_defined_p = p%interactive
-    end function command_defined_p
+        is_command_defined = associated(p)
+        if (is_command_defined) is_command_defined = p%interactive
+    end function is_command_defined
 
     !> Whether `v' can be run as a command: a defined command, or a
     !> keyboard macro (a string or a list of events).  Port of
     !> eval.c:Fcommandp (for the kinds of commands that exist here).
-    logical function commandp(v)
+    logical function is_command(v)
         type(value_type), intent(in) :: v
 
         select case (vtag(v))
         case (V_STRING)
-            commandp = .true.
+            is_command = .true.
         case (V_LIST)
-            commandp = .true.
+            is_command = .true.
         case default
-            commandp = command_defined_p(v)
+            is_command = is_command_defined(v)
         end select
-    end function commandp
+    end function is_command
 
     !> Make the command named NAME disabled or not (its `disabled'
     !> property), for a name only known at run time; built-in commands
@@ -211,9 +211,9 @@ contains
 
         if (.not. associated(p)) then
             if (symbolp(cmd)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//symbols(xsymbol(cmd))%name)
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_command, "//symbols(xsymbol(cmd))%name)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_command")
             end if
 
             return

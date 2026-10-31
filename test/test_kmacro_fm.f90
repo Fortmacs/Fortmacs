@@ -715,7 +715,7 @@ contains
 
     !> The text of *Messages*.
     function messages_text() result(t)
-        use buffer_fm, only: get_buffer, buffer_live_p, set_buffer, current_buffer
+        use buffer_fm, only: get_buffer, is_buffer_live, set_buffer, current_buffer
         use editfns_fm, only: buffer_string
         character(len=:), allocatable :: t
         type(handle_type) :: old
@@ -723,7 +723,7 @@ contains
 
         old = current_buffer()
         t = ""
-        if (.not. buffer_live_p(get_buffer("*Messages*"))) return
+        if (.not. is_buffer_live(get_buffer("*Messages*"))) return
         call set_buffer(get_buffer("*Messages*"), st)
         t = buffer_string()
         call set_buffer(old, st)

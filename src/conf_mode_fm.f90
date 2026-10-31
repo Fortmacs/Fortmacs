@@ -54,15 +54,15 @@ module conf_mode_fm
     use keymap_fm, only: keymap_set
     use subr_fm, only: delaying_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, run_mode_hooks
     use syntax_fm, only: make_syntax_table, copy_syntax_table, modify_syntax_entry, syntax_table, set_syntax_table, &
-                         syntax_table_live_p, parse_expression_ignore_comments, forward_comment, scan_groups
-    use editfns_fm, only: point, point_min, point_max, goto_char, eobp, eolp, char_after, char_before, delete_region, &
+                         is_syntax_table_live, parse_expression_ignore_comments, forward_comment, scan_groups
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_eob, is_eol, char_after, char_before, delete_region, &
                           narrow_to_region, widen, region_beginning, region_end, line_end_position
     use cmds_fm, only: forward_line, forward_char, end_of_line
     use insdel_fm, only: insert
     use indent_fm, only: current_column, indent_to
     use search_fm, only: looking_at, re_search_forward, search_forward, string_match, match_beginning, match_end, &
                          set_match_data, regexp_quote, SEARCH_NOERROR
-    use simple_fm, only: use_region_p
+    use simple_fm, only: is_use_region
     use minibuf_fm, only: read_string
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                             font_lock_mode_enabled, FONT_LOCK_OVERRIDE_PREPEND
@@ -217,7 +217,7 @@ contains
     subroutine syms_of_conf_mode()
         type(status_type) :: st
 
-        if (syntax_table_live_p(conf_mode_syntax_table)) return
+        if (is_syntax_table_live(conf_mode_syntax_table)) return
         call forward_setting(conf_assignment_column)
         call forward_setting(conf_javaprop_assignment_column)
         call forward_setting(conf_colon_assignment_column)
@@ -478,7 +478,7 @@ contains
         zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
         narrowed = .false.
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, status)
             if (status%ok()) call region_end(e, status)
             if (.not. status%ok()) return
@@ -489,7 +489,7 @@ contains
 
         call goto_char(point_min())
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             ! go before comment if within
             cs = comment_beginning()
             if (cs > 0) call goto_char(cs)
@@ -499,7 +499,7 @@ contains
                 if (.not. moved) exit
             end do
 
-            if (.not. eobp()) then
+            if (.not. is_eob()) then
                 if (looking_at(conf_assignment_regexp%value, st)) then
                     b = match_beginning(1, st)
                     e = match_end(1, st)
@@ -514,7 +514,7 @@ contains
                             c = before_char()
                             if (conf_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
 
-                            if (conf_assignment_space%value .and. .not. eolp()) then
+                            if (conf_assignment_space%value .and. .not. is_eol()) then
                                 call insert(conf_assignment_sign%value//" ", status)
                             else
                                 call insert(conf_assignment_sign%value, status)
@@ -526,7 +526,7 @@ contains
                                 call insert(conf_assignment_sign%value, status)
                             end if
 
-                            if (status%ok() .and. .not. eolp()) then
+                            if (status%ok() .and. .not. is_eol()) then
                                 col = indent_to(-column, status)
 
                                 if (status%ok()) then
@@ -535,7 +535,7 @@ contains
                                 end if
                             end if
                         end if
-                    else if (.not. eolp()) then
+                    else if (.not. is_eol()) then
                         if (current_column() >= abs(column)) then
                             call insert(" ", status)
                         else
@@ -652,7 +652,7 @@ contains
         opoint = point()
         call goto_char(point_min())
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             moved = skip_blanks()
             c = after_char()
 
@@ -662,7 +662,7 @@ contains
                 win = win + 1
             else if (c == iachar("[")) then
                 continue ! nop
-            else if (eolp()) then
+            else if (is_eol()) then
                 continue ! nop
             else if (c == iachar("}")) then
                 continue ! nop
@@ -756,7 +756,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved, recursing
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
 
         ! Redirect to one of the submodes when called directly.  The file
         ! may have "mode: conf" in the local variable block, in which case
@@ -797,7 +797,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_unix_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")
@@ -822,7 +822,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_windows_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize(";")
@@ -846,7 +846,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_javaprop_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_javaprop_font_lock_keywords)
@@ -884,7 +884,7 @@ contains
         integer :: k
         type(status_type) :: st
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_space_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_space_font_lock_keywords)
@@ -1000,7 +1000,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_colon_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_colon_font_lock_keywords)
@@ -1025,7 +1025,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_ppd_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("*%")
@@ -1046,7 +1046,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_xdefaults_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("!")
@@ -1109,7 +1109,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_toml_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")
@@ -1137,7 +1137,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_desktop_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_desktop_font_lock_keywords)
@@ -1153,7 +1153,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_npmrc_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")

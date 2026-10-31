@@ -37,7 +37,7 @@ module test_replace_fm
     use lisp_fm, only: value_type, nil
     use lread_fm, only: sym
     use data_fm, only: set
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, buffer_live_p, buffers, cur
+    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, cur
     use error_fm, only: format_error
     use editfns_fm, only: point, point_min, line_end_position, buffer_substring
     use files_fm, only: revert_buffer
@@ -504,7 +504,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         occ = get_buffer("*Occur*")
-        call check(error, buffer_live_p(occ), "no *Occur*")
+        call check(error, is_buffer_live(occ), "no *Occur*")
         if (allocated(error)) return
         call set_buffer(occ, st)
         text = buffer_string()
@@ -662,7 +662,7 @@ contains
         call set_buffer(h, st)
         call occur("x", st)
         occ = get_buffer("*Occur*")
-        call check(error, buffer_live_p(occ), "*Occur*")
+        call check(error, is_buffer_live(occ), "*Occur*")
         if (allocated(error)) return
         call set_buffer(occ, st)
         call check(error, buffers(cur)%major_mode, "occur_mode")
@@ -699,7 +699,7 @@ contains
         call set_buffer(h, st)
         call occur("\([a-z]+\) x", st, collect="\1")
         occ = get_buffer("*Occur*")
-        call check(error, buffer_live_p(occ), "*Occur* (collect)")
+        call check(error, is_buffer_live(occ), "*Occur* (collect)")
         if (allocated(error)) return
         call set_buffer(occ, st)
         call check(error, buffer_string(), "two"//LF)

@@ -49,7 +49,7 @@ module test_indent_fm
     use data_fm, only: kill_local_variable
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
-    use simple_fm, only: region_active_p
+    use simple_fm, only: is_region_active
     use indent_fm, only: indent_line_function, indent_for_tab_command, indent_region_line_by_line
     implicit none(type, external)
     private
@@ -461,14 +461,14 @@ contains
         call key_parse("<right>", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, buffer_string() == "  a"//LF//"  b" .and. region_active_p() .and. &
+        call check(error, buffer_string() == "  a"//LF//"  b" .and. is_region_active() .and. &
                    last_message == "Type TAB, <left>, <right>, S-<left>, S-<right> to indent region interactively", &
                    buffer_string()//"|"//last_message)
         if (allocated(error)) return
         call key_parse("C-e", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error,.not. region_active_p() .and. last_message == "", "exit: "//last_message)
+        call check(error,.not. is_region_active() .and. last_message == "", "exit: "//last_message)
         if (allocated(error)) return
         ! The second <right> removed the undo boundary after the first:
         ! one undo takes back both.

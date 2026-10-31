@@ -40,7 +40,7 @@
 !> of no arguments), run_at_time's string times ("11:23pm", "2 hours
 !> 35 minutes"), encoded times and t (integral multiples of REPEAT,
 !> timer-next-integral-multiple-of-time), `with_timeout',
-!> `y_or_n_p_with_timeout', `timer_duration', `add_timeout' (obsolete),
+!> `read_y_or_n_with_timeout', `timer_duration', `add_timeout' (obsolete),
 !> keyboard.c's pending_funcalls, the timer-event-last debugging
 !> variables, and timers' interactive commands (`cancel_function_timers'
 !> is a function only).  The clock is monotonic, where upstream's
@@ -50,15 +50,15 @@ module timer_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use lisp_fm, only: command_proc
-    use buffer_fm, only: cur, set_buffer_internal, buffer_live_p, buffer_handle, deactivate_mark_variable
+    use buffer_fm, only: cur, set_buffer_internal, is_buffer_live, buffer_handle, deactivate_mark_variable
     implicit none(type, external)
     private
 
-    public :: timer_create, free_timer, timerp, timer_set_time, timer_set_idle_time, timer_inc_time, &
+    public :: timer_create, free_timer, is_timer, timer_set_time, timer_set_idle_time, timer_inc_time, &
               timer_set_function, timer_activate, timer_activate_when_idle, cancel_timer, cancel_function_timers, &
               timer_event_handler, run_at_time, run_with_timer, run_with_idle_timer, internal_timer_start_idle, &
               timer_start_idle, timer_stop_idle, timer_resume_idle, timer_check, current_idle_time, &
-              timer_triggered_p, timer_active_p, timer_idle_p
+              is_timer_triggered, is_timer_active, is_timer_idle
 
     !> Maximum number of times to repeat a timer, if many repeats are delayed.
     !> Timer invocations can be delayed because Emacs is suspended or busy,
@@ -166,7 +166,7 @@ contains
         type(handle_type), intent(in) :: timer
         type(status_type) :: st
 
-        if (.not. timerp(timer)) return
+        if (.not. is_timer(timer)) return
         call cancel_timer(timer)
         timers(timer%index)%fn => null()
         call table%release(timer, st)
@@ -174,11 +174,11 @@ contains
 
     !> Return true if TIMER is a timer.  Port of timer.el:timerp (a live
     !> timer handle).
-    logical function timerp(timer)
+    logical function is_timer(timer)
         type(handle_type), intent(in) :: timer
 
-        timerp = table%is_live(timer)
-    end function timerp
+        is_timer = table%is_live(timer)
+    end function is_timer
 
     !> Signal wrong-type-argument unless TIMER is a timer.  Port of
     !> timer.el:timer--check.
@@ -186,32 +186,32 @@ contains
         type(handle_type), intent(in) :: timer
         type(status_type), intent(out) :: status
 
-        if (.not. timerp(timer)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "timerp")
+        if (.not. is_timer(timer)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "is_timer")
     end subroutine timer_check_arg
 
     !> Whether TIMER is inactive (triggered): not waiting to be run.
     !> Not a port.
-    logical function timer_triggered_p(timer) result(p)
+    logical function is_timer_triggered(timer) result(p)
         type(handle_type), intent(in) :: timer
 
         p = .true.
-        if (timerp(timer)) p = timers(timer%index)%triggered
-    end function timer_triggered_p
+        if (is_timer(timer)) p = timers(timer%index)%triggered
+    end function is_timer_triggered
 
     !> Whether TIMER is on `timer_list' or `timer_idle_list'.  Not a port.
-    logical function timer_active_p(timer) result(p)
+    logical function is_timer_active(timer) result(p)
         type(handle_type), intent(in) :: timer
 
         p = position_in(timer_list, timer) > 0 .or. position_in(timer_idle_list, timer) > 0
-    end function timer_active_p
+    end function is_timer_active
 
     !> Whether TIMER is an idle timer (its idle-delay field).  Not a port.
-    logical function timer_idle_p(timer) result(p)
+    logical function is_timer_idle(timer) result(p)
         type(handle_type), intent(in) :: timer
 
         p = .false.
-        if (timerp(timer)) p = timers(timer%index)%idle
-    end function timer_idle_p
+        if (is_timer(timer)) p = timers(timer%index)%idle
+    end function is_timer_idle
 
     !> Set the trigger time of TIMER to TIME seconds from now.
     !> If optional third argument DELTA is a positive number, make the timer
@@ -277,7 +277,7 @@ contains
         type(handle_type), intent(in) :: timer
         real(real64), intent(in) :: secs
 
-        if (.not. timerp(timer)) return
+        if (.not. is_timer(timer)) return
         timers(timer%index)%time = timers(timer%index)%time + counts(secs)
     end subroutine timer_inc_time
 
@@ -321,7 +321,7 @@ contains
 
         status = status_type()
 
-        if (.not. timerp(timer)) then
+        if (.not. is_timer(timer)) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid or uninitialized timer")
             return
         end if
@@ -347,7 +347,7 @@ contains
             k = 1
 
             do while (k <= n)
-                if (.not. timer_time_less_p(list(k), timer)) exit
+                if (.not. is_timer_time_less(list(k), timer)) exit
                 k = k + 1
             end do
 
@@ -365,13 +365,13 @@ contains
 
     !> Say whether time value T1 is less than time value T2.  Port of
     !> timer.el:timer--time-less-p.
-    logical function timer_time_less_p(t1, t2)
+    logical function is_timer_time_less(t1, t2)
         type(handle_type), intent(in) :: t1, t2
 
-        timer_time_less_p = .false.
-        if (.not. timerp(t1) .or. .not. timerp(t2)) return
-        timer_time_less_p = timers(t1%index)%time < timers(t2%index)%time
-    end function timer_time_less_p
+        is_timer_time_less = .false.
+        if (.not. is_timer(t1) .or. .not. is_timer(t2)) return
+        is_timer_time_less = timers(t1%index)%time < timers(t2%index)%time
+    end function is_timer_time_less
 
     !> Insert TIMER into `timer_list'.
     !> If TRIGGERED_P is true, make TIMER inactive (put it on the list, but
@@ -504,7 +504,7 @@ contains
         logical :: retrigger, cell
         real(real64) :: repeats
 
-        if (.not. timerp(timer)) return
+        if (.not. is_timer(timer)) return
         retrigger = .false.
         ! Delete from queue.  Record the cons cell that was used.
         call cancel_timer_internal(timer, cell)
@@ -544,13 +544,13 @@ contains
         saved = null_handle()
         if (cur /= 0) saved = buffer_handle(cur)
         if (associated(fn)) call fn(st)
-        if (buffer_live_p(saved)) call set_buffer_internal(saved%index)
+        if (is_buffer_live(saved)) call set_buffer_internal(saved%index)
         if (.not. st%ok()) timer_error_message = "Error running timer: "//format_error(st)
 
         ! If the timer's been canceled, don't "retrigger" it since it
         ! might still be in the copy of timer-list kept by
         ! keyboard.c:timer_check (bug#14156).
-        if (retrigger .and. timerp(timer)) then
+        if (retrigger .and. is_timer(timer)) then
             if (position_in(timer_list, timer) > 0) timers(timer%index)%triggered = .false.
         end if
     end subroutine timer_event_handler
@@ -643,7 +643,7 @@ contains
         if (.not. allocated(timer_idle_list)) return
 
         do k = 1, size(timer_idle_list)
-            if (timerp(timer_idle_list(k))) timers(timer_idle_list(k)%index)%triggered = .false.
+            if (is_timer(timer_idle_list(k))) timers(timer_idle_list(k)%index)%triggered = .false.
         end do
     end subroutine internal_timer_start_idle
 
@@ -695,7 +695,7 @@ contains
         type(handle_type), intent(in) :: timer
 
         decodable = .false.
-        if (.not. timerp(timer)) return
+        if (.not. is_timer(timer)) return
         decodable = .not. timers(timer%index)%triggered
     end function decodable
 

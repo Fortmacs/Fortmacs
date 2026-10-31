@@ -34,11 +34,11 @@ module executable_fm
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, widen, narrow_to_region
     use search_fm, only: looking_at, string_match, match_beginning, match_end, replace_match, match_data, set_match_data
     use insdel_fm, only: insert
-    use fileio_fm, only: file_name_absolute_p, file_name_nondirectory, file_executable_p, set_file_modes, &
+    use fileio_fm, only: is_file_name_absolute, file_name_nondirectory, is_file_executable, set_file_modes, &
                          file_modes, default_file_modes
     use callproc_fm, only: locate_program
     use files_fm, only: after_save_hook
-    use subr_fm, only: y_or_n_p
+    use subr_fm, only: read_y_or_n
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use font_core_fm, only: font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_T
@@ -135,7 +135,7 @@ contains
         if (executable_chmod == EXECUTABLE_CHMOD_NIL) return
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%filename)) return
-        if (file_executable_p(buffers(cur)%filename)) return
+        if (is_file_executable(buffers(cur)%filename)) return
 
         if (executable_chmod < 0) then
             call set_file_modes(buffers(cur)%filename, int(-executable_chmod, int32), status)
@@ -168,7 +168,7 @@ contains
         if (present(insert_flag)) insert_it = insert_flag
         status = status_type()
 
-        if (file_name_absolute_p(interpreter_in)) then
+        if (is_file_name_absolute(interpreter_in)) then
             interpreter = interpreter_in
         else
             interpreter = executable_find(interpreter_in)
@@ -235,8 +235,8 @@ contains
                     ! (save-match-data (save-window-excursion ...)): make
                     ! buffer visible before question.
                     saved = match_data()
-                    call y_or_n_p(format_message("Replace magic number by `#!")//argument//format_message("'? "), &
-                                  ok, status)
+                    call read_y_or_n(format_message("Replace magic number by `#!")//argument//format_message("'? "), &
+                                     ok, status)
                     call set_match_data(saved)
 
                     if (.not. status%ok()) then

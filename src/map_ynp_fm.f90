@@ -19,12 +19,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `map_y_or_n_p': ask about each of a list of objects in turn.
+!> `map_read_y_or_n': ask about each of a list of objects in turn.
 !>
 !> Objects are numbered 1..n; the caller's prompter and actor procedures
 !> stand in for upstream's PROMPTER and ACTOR functions.  The answer is
 !> read in the minibuffer, or with `read_key' when
-!> `y_or_n_p_use_read_key' is set.  Not ported: ACTION-ALIST, dialog
+!> `read_y_or_n_use_read_key' is set.  Not ported: ACTION-ALIST, dialog
 !> boxes, NO-CURSOR-IN-ECHO-AREA, switch-frame events.
 !>
 !> `read_answer': a question with long answers or their one-character
@@ -38,7 +38,7 @@ module map_ynp_fm
     implicit none(type, external)
     private
 
-    public :: map_y_or_n_p, ynp_prompter, ynp_actor
+    public :: map_read_y_or_n, ynp_prompter, ynp_actor
     public :: YNP_SKIP, YNP_ASK, YNP_ACT
     public :: read_answer, read_answer_type
 
@@ -57,8 +57,8 @@ module map_ynp_fm
     !> `use_short_answers' is true.
     !>
     !> Note that this variable does not affect calls to the more
-    !> commonly-used `yes_or_no_p' function; it only affects calls to
-    !> the `read_answer' function.  To control whether `yes_or_no_p'
+    !> commonly-used `read_yes_or_no' function; it only affects calls to
+    !> the `read_answer' function.  To control whether `read_yes_or_no'
     !> requires a long or a short answer, see the `use_short_answers'
     !> variable.  Port of map-ynp.el read-answer-short
     !> (READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T or
@@ -105,7 +105,7 @@ module map_ynp_fm
         !> "object", "objects", "act on") name the objects and the action for
         !> the help.  `actions' is the number of actions taken.  Port of
         !> map-ynp.el:map-y-or-n-p.  (In map_ynp_ask_fm.)
-        module subroutine map_y_or_n_p(n, prompter, actor, actions, status, help_object, help_objects, help_action)
+        module subroutine map_read_y_or_n(n, prompter, actor, actions, status, help_object, help_objects, help_action)
             implicit none(type, external)
             integer, intent(in) :: n
             procedure(ynp_prompter) :: prompter
@@ -113,7 +113,7 @@ module map_ynp_fm
             integer, intent(out) :: actions
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: help_object, help_objects, help_action
-        end subroutine map_y_or_n_p
+        end subroutine map_read_y_or_n
 
         !> Read an answer either as a complete word or its character abbreviation.
         !> Ask user a question and accept an answer from the list of possible answers.
@@ -144,7 +144,7 @@ module map_ynp_fm
         end subroutine read_answer
     end interface
 
-    !> The minibuffer keymap of `map_y_or_n_p': each key of
+    !> The minibuffer keymap of `map_read_y_or_n': each key of
     !> query-replace-map runs the command that records it and exits
     !> (cmd-char upstream), keys that would self-insert say "Type C-h for
     !> help" (cmd-help).  Made on first use.

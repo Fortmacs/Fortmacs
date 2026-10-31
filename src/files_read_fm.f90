@@ -30,7 +30,7 @@ submodule(files_fm) files_read_fm
     use dired_fm, only: file_name_all_completions
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
     use search_fm, only: string_match, match_beginning
-    use fileio_fm, only: file_name_absolute_p
+    use fileio_fm, only: is_file_name_absolute
     use fns_fm, only: compare_strings, COMPARE_EQUAL
     implicit none(type, external)
 
@@ -47,7 +47,7 @@ contains
 
     status = status_type()
 
-    if (file_name_absolute_p(string)) then
+    if (is_file_name_absolute(string)) then
         ! FIXME: maybe we should use completion-file-name-table instead,
         ! tho at least for `load', the arg is passed through
         ! substitute-in-file-name for historical reasons.
@@ -99,7 +99,7 @@ contains
             dir = x
         end if
 
-        if (.not. file_directory_p(dir)) cycle
+        if (.not. is_file_directory(dir)) cycle
         call file_name_all_completions(string_file, dir, files, st)
 
         do k = 1, list_length(files)
@@ -226,7 +226,7 @@ contains
     ancestor = "."
     file_dir = file_name_as_directory(file)
 
-    do while (.not. (prefix_p(dir, file_dir) .or. prefix_p(dir, file)))
+    do while (.not. (is_prefix(dir, file_dir) .or. is_prefix(dir, file)))
         dir = file_name_directory(dir(1:len(dir) - 1))
 
         if (ancestor == ".") then
@@ -237,7 +237,7 @@ contains
     end do
 
     ! Now ancestor is empty, or .., or ../.., etc.
-    if (prefix_p(dir, file)) then
+    if (is_prefix(dir, file)) then
         ! We matched within FILENAME's directory part.  Add the rest of
         ! FILENAME onto ANCESTOR.
         rest = file(len(dir) + 1:)
@@ -256,18 +256,18 @@ contains
 contains
 
     !> subr.el:string-prefix-p.
-    logical function prefix_p(prefix, string)
+    logical function is_prefix(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
-        prefix_p = .false.
+        is_prefix = .false.
         if (len(string) < len(prefix)) return
 
         if (fold) then
-            prefix_p = compare_strings(prefix, string(1:len(prefix)), ignore_case=.true.) == COMPARE_EQUAL
+            is_prefix = compare_strings(prefix, string(1:len(prefix)), ignore_case=.true.) == COMPARE_EQUAL
         else
-            prefix_p = string(1:len(prefix)) == prefix
+            is_prefix = string(1:len(prefix)) == prefix
         end if
-    end function prefix_p
+    end function is_prefix
     end procedure file_relative_name
 
     recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
@@ -298,7 +298,7 @@ contains
 
         status = status_type()
 
-        if (.not. file_exists_p(filename)) then
+        if (.not. file_exists(filename)) then
             call set_error(status, FM_GENERIC_ERROR, filename//" does not exist")
             return
         end if

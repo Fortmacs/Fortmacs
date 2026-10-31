@@ -598,11 +598,11 @@ contains
     end subroutine optimize_pattern
 
     !> Port of minibuffer.el:completion-pcm--pattern-trivial-p.
-    logical function pattern_trivial_p(p)
+    logical function is_pattern_trivial(p)
         type(pat_elt), intent(in) :: p(:)
         integer :: k
 
-        pattern_trivial_p = .false.
+        is_pattern_trivial = .false.
         if (size(p) == 0) return
         if (p(1)%kind /= P_STRING) return
 
@@ -613,8 +613,8 @@ contains
             return
         end do
 
-        pattern_trivial_p = .true.
-    end function pattern_trivial_p
+        is_pattern_trivial = .true.
+    end function is_pattern_trivial
 
     !> The regexp matching a delimiter of partial-completion.  Port of
     !> minibuffer.el:completion-pcm--delim-re.
@@ -837,7 +837,7 @@ contains
 
         allocate (all(0))
 
-        if (pattern_trivial_p(pattern)) then
+        if (is_pattern_trivial(pattern)) then
             ! Minibuffer contains no delimiters -- simple case!
             call all_completions(prefix//pattern(1)%s, table, compl, status, pred)
             call to_boxes(compl, all)

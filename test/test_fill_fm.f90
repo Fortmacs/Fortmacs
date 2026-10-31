@@ -44,7 +44,7 @@ module test_fill_fm
     use paragraphs_fm, only: sentence_end_double_space
     use bindings_fm, only: init_bindings
     use fill_fm, only: fill_paragraph, fill_region, fill_region_as_paragraph, fill_separate_heterogeneous_words_with_space, &
-                       fill_nobreak_predicate, fill_polish_nobreak_p, set_fill_prefix, fill_context_prefix
+                       fill_nobreak_predicate, is_fill_polish_nobreak, set_fill_prefix, fill_context_prefix
     implicit none(type, external)
     private
 
@@ -119,7 +119,7 @@ contains
         call temp_buffer("Abc d efg (h ijk).", h)
         fill_column = 8
         allocate (fill_nobreak_predicate(1))
-        fill_nobreak_predicate(1)%fn => fill_polish_nobreak_p
+        fill_nobreak_predicate(1)%fn => is_fill_polish_nobreak
         call fill_paragraph(st)
         call check(error, buffer_string(), "Abc"//LF//"d efg"//LF//"(h ijk).")
         call leave(h)

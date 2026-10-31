@@ -48,11 +48,11 @@ module minibuf_fm
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
-                         erase_buffer, resolve_buffer, inhibit_read_only, buffer_live_p
+                         erase_buffer, resolve_buffer, inhibit_read_only, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: field_end, buffer_substring, goto_char
     use textprop_fm, only: add_text_properties, get_text_property
-    use keymap_fm, only: make_sparse_keymap, use_local_map, keymap_live_p
+    use keymap_fm, only: make_sparse_keymap, use_local_map, is_keymap_live
     use keyboard_fm, only: recursive_edit_1, throw_exit, throw_exit_string, command_loop_level, last_message, &
                            minibuf_level, barf_if_interaction_inhibited, safe_run_hooks
     use search_fm, only: fast_string_match
@@ -64,11 +64,11 @@ module minibuf_fm
     private
 
     public :: minibuf_level
-    public :: minibuffer_depth, minibuffer_prompt, is_minibuffer, live_minibuffer_p, nth_minibuffer, &
+    public :: minibuffer_depth, minibuffer_prompt, is_minibuffer_at_depth, is_live_minibuffer, nth_minibuffer, &
               run_exit_minibuf_hook, set_initial_minibuffer_mode, match_regexps, assoc_string
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
-              minibufferp, abort_minibuffers, init_minibuf, minibuffer_innermost_command_loop_p, &
-              innermost_minibuffer_p, minibuffer_depth_of, minibuffer_setup_proc
+              is_minibuffer, abort_minibuffers, init_minibuf, is_minibuffer_innermost_command_loop, &
+              is_innermost_minibuffer, minibuffer_depth_of, minibuffer_setup_proc
     public :: quoting_table_call, complete_with_action, completion_table_subvert, completion_table_with_predicate
     public :: try_completion, all_completions, test_completion, completion_list_table, &
               completion_obarray_table, completion_function_table, completion_predicate, &
@@ -205,7 +205,7 @@ contains
     !> minibuf.c:init_minibuf_once (upstream makes the map in
     !> keymap.c:syms_of_keymap).
     subroutine init_minibuf()
-        if (.not. keymap_live_p(minibuffer_local_map)) call make_sparse_keymap(minibuffer_local_map)
+        if (.not. is_keymap_live(minibuffer_local_map)) call make_sparse_keymap(minibuffer_local_map)
         minibuf_level = 0
     end subroutine init_minibuf
 
@@ -252,7 +252,7 @@ contains
 
     !> Whether `buf' (default: the current buffer) is a minibuffer; with
     !> LIVE, an active one.  Port of minibuf.c:Fminibufferp.
-    logical function minibufferp(buf, live)
+    logical function is_minibuffer(buf, live)
         type(handle_type), intent(in), optional :: buf
         logical, intent(in), optional :: live
         type(handle_type) :: b
@@ -266,22 +266,22 @@ contains
 
         if (present(live)) then
             if (live) then
-                minibufferp = live_minibuffer_p(b)
+                is_minibuffer = is_live_minibuffer(b)
                 return
             end if
         end if
 
-        minibufferp = .false.
+        is_minibuffer = .false.
         if (.not. allocated(minibuffers)) return
 
         do k = 1, size(minibuffers)
             if (minibuffers(k)%index == b%index .and. minibuffers(k)%generation == b%generation .and. &
                 b%index /= 0) then
-                minibufferp = .true.
+                is_minibuffer = .true.
                 return
             end if
         end do
-    end function minibufferp
+    end function is_minibuffer
 
     !> The depth of the active minibuffer `buf' (default: the current
     !> buffer), or 0 if it is not one.  Port of
@@ -311,24 +311,24 @@ contains
     !> Return true if BUFFER is a minibuffer at the current command loop level.
     !> BUFFER defaults to the current buffer.  Port of
     !> minibuf.c:Fminibuffer_innermost_command_loop_p.
-    logical function minibuffer_innermost_command_loop_p(buffer) result(innermost)
+    logical function is_minibuffer_innermost_command_loop(buffer) result(innermost)
         type(handle_type), intent(in), optional :: buffer
         integer :: depth
 
         depth = minibuffer_depth_of(buffer)
         innermost = depth > 0
         if (innermost) innermost = minibuffer_loop_levels(depth + 1) == command_loop_level
-    end function minibuffer_innermost_command_loop_p
+    end function is_minibuffer_innermost_command_loop
 
     !> Return true if BUFFER is the most nested active minibuffer.
     !> No recursive minibuffers are active if BUFFER is the minibuffer.
     !> BUFFER defaults to the current buffer.  Port of
     !> minibuf.c:Finnermost_minibuffer_p.
-    logical function innermost_minibuffer_p(buffer) result(innermost)
+    logical function is_innermost_minibuffer(buffer) result(innermost)
         type(handle_type), intent(in), optional :: buffer
 
         innermost = minibuffer_depth_of(buffer) == minibuf_level .and. minibuf_level > 0
-    end function innermost_minibuffer_p
+    end function is_innermost_minibuffer
 
     !> Where the prompt ends in the current minibuffer (point-min if the
     !> current buffer is not one).  Port of minibuf.c:Fminibuffer_prompt_end.
@@ -337,7 +337,7 @@ contains
         type(status_type) :: status
 
         pos = buffers(cur)%begv
-        if (.not. minibufferp()) return
+        if (.not. is_minibuffer()) return
         pos = field_end(buffers(cur)%begv, .false.)
 
         if (pos == buffers(cur)%zv) then
@@ -620,30 +620,30 @@ contains
 
     !> Whether BUF is the minibuffer of depth DEPTH.  Port of
     !> minibuf.c:is_minibuffer.
-    logical function is_minibuffer(depth, buf)
+    logical function is_minibuffer_at_depth(depth, buf)
         integer, intent(in) :: depth
         type(handle_type), intent(in) :: buf
         type(handle_type) :: m
 
         m = nth_minibuffer(depth)
-        is_minibuffer = m%index /= 0 .and. m%index == buf%index .and. m%generation == buf%generation
-    end function is_minibuffer
+        is_minibuffer_at_depth = m%index /= 0 .and. m%index == buf%index .and. m%generation == buf%generation
+    end function is_minibuffer_at_depth
 
     !> Whether BUFFER is an active minibuffer (" *Minibuf-0*" never is).
     !> Port of minibuf.c:live_minibuffer_p.
-    logical function live_minibuffer_p(buffer)
+    logical function is_live_minibuffer(buffer)
         type(handle_type), intent(in) :: buffer
         integer :: i
 
-        live_minibuffer_p = .false.
+        is_live_minibuffer = .false.
 
         do i = 1, minibuf_level
-            if (is_minibuffer(i, buffer)) then
-                live_minibuffer_p = .true.
+            if (is_minibuffer_at_depth(i, buffer)) then
+                is_live_minibuffer = .true.
                 return
             end if
         end do
-    end function live_minibuffer_p
+    end function is_live_minibuffer
 
     !> The minibuffer of depth DEPTH, or the null handle if it does not
     !> exist yet.  Port of minibuf.c:nth_minibuffer.
@@ -665,9 +665,9 @@ contains
         type(status_type) :: st
 
         saved = current_buffer()
-        if (buffer_live_p(minibuf)) call set_buffer(minibuf, st)
+        if (is_buffer_live(minibuf)) call set_buffer(minibuf, st)
         call safe_run_hooks(minibuffer_exit_hook)
-        if (buffer_live_p(saved)) call set_buffer(saved, st)
+        if (is_buffer_live(saved)) call set_buffer(saved, st)
     end subroutine run_exit_minibuf_hook
 
     !> Set up the minibuffer of depth 0 as minibuffer-inactive-mode would
@@ -685,7 +685,7 @@ contains
         saved = current_buffer()
         call set_buffer(minibuf, st)
         call kill_all_local_variables()
-        if (buffer_live_p(saved)) call set_buffer(saved, st)
+        if (is_buffer_live(saved)) call set_buffer(saved, st)
     end subroutine set_initial_minibuffer_mode
 
     !> Whether STRING matches all the regexps of `completion_regexp_list',
@@ -773,7 +773,7 @@ contains
     !> If we are not currently in the innermost minibuffer, prompt the user to
     !> confirm the aborting of the current minibuffer and all contained ones.
     !> Port of minibuf.c:Fabort_minibuffers (`ask' stands for
-    !> `yes_or_no_p', which this module cannot use).
+    !> `read_yes_or_no', which this module cannot use).
     recursive subroutine abort_minibuffers(status, ask)
         type(status_type), intent(out) :: status
         interface
@@ -797,7 +797,7 @@ contains
             return
         end if
 
-        if (.not. minibuffer_innermost_command_loop_p()) then
+        if (.not. is_minibuffer_innermost_command_loop()) then
             call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
             return
         end if
@@ -1233,7 +1233,7 @@ contains
             ! before the "/" or right after it (aka if this "/" is from
             ! qstring or from qsuffix), thus which usuffix to use is very
             ! unclear.
-            if (string_prefix_p(ustring, ufull)) then
+            if (is_string_prefix(ustring, ufull)) then
                 usuffix = substring(ufull, schars(ustring))
             else
                 usuffix = qsuffix
@@ -1298,13 +1298,13 @@ contains
     end subroutine inner_boundaries
 
     ! Whether PREFIX is a prefix of STRING (string-prefix-p).  Not a port.
-    logical function string_prefix_p(prefix, string)
+    logical function is_string_prefix(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
-        string_prefix_p = .false.
+        is_string_prefix = .false.
         if (len(prefix) > len(string)) return
-        string_prefix_p = string(1:len(prefix)) == prefix
-    end function string_prefix_p
+        is_string_prefix = string(1:len(prefix)) == prefix
+    end function is_string_prefix
 
     ! The longest common prefix of S1 and S2
     ! (fill-common-string-prefix).  Not a port.
@@ -1505,7 +1505,7 @@ contains
 
         status = status_type()
         result = nil()
-        has_str = prefix_p(s1, string, completion_ignore_case%value)
+        has_str = is_prefix(s1, string, completion_ignore_case%value)
         res = nil()
 
         if (has_str) then
@@ -1532,7 +1532,7 @@ contains
         if (nilp(res)) return
 
         if (stringp(res)) then
-            if (prefix_p(s2, xstring(res), completion_ignore_case%value)) then
+            if (is_prefix(s2, xstring(res), completion_ignore_case%value)) then
                 result = make_string(s1//substring(xstring(res), schars(s2)))
             end if
         else if (action == COMPLETE_ALL) then
@@ -1632,12 +1632,12 @@ contains
 
     ! Whether PREFIX is a prefix of STRING, ignoring case if IGNORE_CASE
     ! (string-prefix-p).  Not a port.
-    logical function prefix_p(prefix, string, ignore_case)
+    logical function is_prefix(prefix, string, ignore_case)
         character(len=*), intent(in) :: prefix, string
         logical, intent(in) :: ignore_case
 
-        prefix_p = .false.
+        is_prefix = .false.
         if (schars(prefix) > schars(string)) return
-        prefix_p = compare_strings(prefix, substring(string, 0_int64, schars(prefix)), ignore_case) == COMPARE_EQUAL
-    end function prefix_p
+        is_prefix = compare_strings(prefix, substring(string, 0_int64, schars(prefix)), ignore_case) == COMPARE_EQUAL
+    end function is_prefix
 end module minibuf_fm

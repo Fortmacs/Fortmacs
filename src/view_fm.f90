@@ -45,15 +45,15 @@ module view_fm
     use lread_fm, only: sym
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type, change_major_mode_hook
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_live_p, resolve_buffer, buffer_handle, &
-                         buffer_modified_p, kill_buffer, get_file_buffer
-    use editfns_fm, only: point, point_min, point_max, goto_char, eobp, line_end_position
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, resolve_buffer, buffer_handle, &
+                         is_buffer_modified, kill_buffer, get_file_buffer
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_eob, line_end_position
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use search_fm, only: re_search_forward, looking_at, SEARCH_NOERROR
-    use fileio_fm, only: file_exists_p, expand_file_name
+    use fileio_fm, only: file_exists, expand_file_name
     use files_fm, only: find_file_noselect, view_read_only
-    use window_fm, only: windows, window_live_p, window_leaves, window_body_lines, scroll_up_command, &
-                         scroll_down_command, recenter, pos_visible_in_window_p, quit_window, switch_to_buffer, &
+    use window_fm, only: windows, is_window_live, window_leaves, window_body_lines, scroll_up_command, &
+                         scroll_down_command, recenter, is_pos_visible_in_window, quit_window, switch_to_buffer, &
                          pop_to_buffer, display_action_table_type, next_screen_context_lines, scroll_error_top_bottom, &
                          other_buffer, same_handle, QR_NONE
     use frame_fm, only: selected_frame, selected_window
@@ -158,7 +158,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            serial_live = buffer_live_p(buffer_handle(k))
+            serial_live = is_buffer_live(buffer_handle(k))
             return
         end do
     end function serial_live
@@ -255,8 +255,8 @@ contains
         logical :: modified
 
         status = status_type()
-        if (.not. buffer_live_p(buf)) return
-        call buffer_modified_p(buf, modified, status)
+        if (.not. is_buffer_live(buf)) return
+        call is_buffer_modified(buf, modified, status)
         if (.not. status%ok()) return
         if (.not. modified) call kill_buffer(buf, status)
     end subroutine kill_buffer_if_not_modified
@@ -291,7 +291,7 @@ contains
 
         status = status_type()
 
-        if (.not. file_exists_p(file)) then
+        if (.not. file_exists(file)) then
             call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
             return
         end if
@@ -339,7 +339,7 @@ contains
 
         status = status_type()
 
-        if (.not. file_exists_p(file)) then
+        if (.not. file_exists(file)) then
             call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
             return
         end if
@@ -450,7 +450,7 @@ contains
         h = handle_type()
 
         do k = 1, size(buffers, kind=int64)
-            if (.not. buffer_live_p(buffer_handle(k))) cycle
+            if (.not. is_buffer_live(buffer_handle(k))) cycle
             if (.not. allocated(buffers(k)%name)) cycle
 
             if (buffers(k)%name == name .and. len(buffers(k)%name) == len(name)) then
@@ -741,7 +741,7 @@ contains
                 wins = buffer_window_list(current_buffer())
 
                 do k = 1, size(wins)
-                    if (window_live_p(wins(k))) call quit_window(.false., status, wins(k))
+                    if (is_window_live(wins(k))) call quit_window(.false., status, wins(k))
                     if (.not. status%ok()) return
                 end do
             else if (same_handle(window_buffer(selected_window()), current_buffer())) then
@@ -759,7 +759,7 @@ contains
         type(handle_type) :: buffer
 
         buffer = handle_type()
-        if (window_live_p(window)) buffer = windows(window%index)%buffer
+        if (is_window_live(window)) buffer = windows(window%index)%buffer
     end function window_buffer
 
     !> The windows of the selected frame showing BUFFER, the selected
@@ -921,7 +921,7 @@ contains
 
         view_window_size = 1
         w = selected_window()
-        if (window_live_p(w)) view_window_size = window_body_lines(windows(w%index))
+        if (is_window_live(w)) view_window_size = window_body_lines(windows(w%index))
     end function view_window_size
 
     !> Recenter point in window and redisplay normally.  Port of
@@ -1114,8 +1114,8 @@ contains
     !> deferred: false).
     logical function view_really_at_end()
         view_really_at_end = .false.
-        if (.not. (.not. scroll_error_top_bottom .or. eobp())) return
-        view_really_at_end = pos_visible_in_window_p(point_max(), selected_window())
+        if (.not. (.not. scroll_error_top_bottom .or. is_eob())) return
+        view_really_at_end = is_pos_visible_in_window(point_max(), selected_window())
     end function view_really_at_end
 
     !> Tell that we are at end of buffer.  Port of
@@ -1127,7 +1127,7 @@ contains
         call goto_char(point_max())
         w = selected_window()
         quit_restore = .false.
-        if (window_live_p(w)) quit_restore = windows(w%index)%quit_restore%kind /= QR_NONE
+        if (is_window_live(w)) quit_restore = windows(w%index)%quit_restore%kind /= QR_NONE
 
         if (quit_restore) then
             if (view_scroll_auto_exit) then
@@ -1148,7 +1148,7 @@ contains
         integer(int64) :: p
         logical :: visible
 
-        visible = pos_visible_in_window_p(point_max(), selected_window())
+        visible = is_pos_visible_in_window(point_max(), selected_window())
         p = point()
         call goto_char(point_max())
         call recenter(make_fixnum(-1_int64), .false., status)
@@ -1495,7 +1495,7 @@ contains
             if (forward_line(step) /= 0) exit
 
             ! (forward-line 1) returns 0 on moving within the last line.
-            if (eobp()) then
+            if (is_eob()) then
                 times = -1
             else
                 call re_search_forward(regexp, found, status, bound=line_end_position(), noerror=SEARCH_NOERROR)

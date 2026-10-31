@@ -51,7 +51,7 @@ module font_lock_fm
     use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list, make_string
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified
     use marker_fm, only: make_marker, free_marker, set_marker, marker_position
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region, line_beginning_position, &
                           line_end_position
@@ -62,12 +62,12 @@ module font_lock_fm
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change, &
                            remove_list_of_text_properties, text_property_any, text_property_not_all
     use syntax_fm, only: syntax_table, set_syntax_table, copy_syntax_table, modify_syntax_entry
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use faces_fm, only: init_faces, named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_CLASS_GRAYSCALE, &
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use font_core_fm, only: font_lock_defaults, font_lock_defaults_type, font_lock_keyword_type, &
                             font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
-                            font_lock_mode_internal_proc, font_lock_specified_p_proc, font_lock_initial_fontify_proc, &
+                            font_lock_mode_internal_proc, is_font_lock_specified_proc, font_lock_initial_fontify_proc, &
                             font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, &
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
                             font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current, &
@@ -78,7 +78,7 @@ module font_lock_fm
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
     use insdel_fm, only: after_change_functions
     use jit_lock_fm, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
-                           jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, jit_lock_mode_p
+                           jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, is_jit_lock_mode
     use textprop_fm, only: previous_single_property_change
     use error_fm, only: format_error
     use modes_fm, only: minor_modes
@@ -89,7 +89,7 @@ module font_lock_fm
     implicit none(type, external)
     private
     public :: font_lock_forget_defaults
-    public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
+    public :: syms_of_font_lock, is_font_lock_specified, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
               font_lock_flush, font_lock_ensure, font_lock_update, font_lock_default_fontify_region, &
               font_lock_default_unfontify_region, font_lock_fontify_keywords_region, font_lock_after_change_function, &
@@ -523,7 +523,7 @@ contains
     !> Return true if the current buffer is ready for fontification.
     !> The MODE argument, if true, means Font Lock mode is about to
     !> be enabled.  Port of font-lock.el:font-lock-specified-p.
-    logical function font_lock_specified_p(mode) result(p)
+    logical function is_font_lock_specified(mode) result(p)
         logical, intent(in) :: mode
         integer :: k
 
@@ -540,7 +540,7 @@ contains
         if (mode .and. locals(k)%set_defaults .and. allocated(locals(k)%major_mode)) then
             if (len(locals(k)%major_mode) > 0) p = locals(k)%major_mode /= major_mode_of_current()
         end if
-    end function font_lock_specified_p
+    end function is_font_lock_specified
 
     !> The first fontification after turning the mode on.  This must only
     !> be called after the mode hooks have been run.  Port of
@@ -550,7 +550,7 @@ contains
 
         status = status_type()
         if (.not. font_lock_mode_enabled()) return
-        if (.not. font_lock_specified_p(.true.)) return
+        if (.not. is_font_lock_specified(.true.)) return
         if (font_lock_fontified()) return
         call font_lock_fontify_buffer(status)
     end subroutine font_lock_initial_fontify
@@ -623,7 +623,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. jit_lock_mode_p()) return
+        if (.not. is_jit_lock_mode()) return
         call jit_lock_unregister(font_lock_fontify_region_function, status)
         ! Reset local vars to the non-jit-lock case.
         k = local_index(.false.)
@@ -747,7 +747,7 @@ contains
             if (len(locals(k)%major_mode) > 0) then
                 ! (derived-mode-p is true for the mode itself.)
                 if (locals(k)%major_mode == major_mode_of_current()) return
-                if (derived_mode_p(locals(k)%major_mode)) return
+                if (is_derived_mode(locals(k)%major_mode)) return
             end if
         end if
 
@@ -930,7 +930,7 @@ contains
             return
         end if
 
-        if (font_lock_mode_enabled() .and. .not. font_lock_specified_p(.false.)) then
+        if (font_lock_mode_enabled() .and. .not. is_font_lock_specified(.false.)) then
             ! The major mode has not set any keywords, so when we enabled
             ! font-lock-mode it only enabled the font-core.el part, not the
             ! font-lock-mode-internal.  Try again.
@@ -1066,7 +1066,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. font_lock_specified_p(.true.)) return
+        if (.not. is_font_lock_specified(.true.)) return
         call font_lock_set_defaults(status)
         if (.not. status%ok()) return
         b = point_min()
@@ -1972,7 +1972,7 @@ contains
         call forward_setting(font_lock_comment_start_skip)
         call forward_setting(font_lock_comment_end_skip)
         font_lock_mode_internal_proc => font_lock_mode_internal
-        font_lock_specified_p_proc => font_lock_specified_p
+        is_font_lock_specified_proc => is_font_lock_specified
         font_lock_initial_fontify_proc => font_lock_initial_fontify
 
         if (.not. associated(font_lock_syntactic_face_function)) then

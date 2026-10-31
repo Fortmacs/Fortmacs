@@ -29,7 +29,7 @@ module test_comint_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: nil
-    use buffer_fm, only: buffers, cur, set_buffer, kill_buffer, buffer_live_p
+    use buffer_fm, only: buffers, cur, set_buffer, kill_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, goto_char, buffer_string
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input
@@ -116,7 +116,7 @@ contains
         type(handle_type) :: proc
         type(status_type) :: st
 
-        if (.not. buffer_live_p(h)) return
+        if (.not. is_buffer_live(h)) return
         proc = get_buffer_process(h)
         if (proc%index /= 0) call delete_process(proc, st)
         call kill_buffer(h, st)

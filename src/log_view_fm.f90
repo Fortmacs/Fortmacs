@@ -50,10 +50,10 @@ module log_view_fm
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_serial_live, buffer_live_p, deactivate_mark_variable
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_serial_live, is_buffer_live, deactivate_mark_variable
     use commands_fm, only: commands
     use modes_fm, only: major_modes
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, line_beginning_position, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, line_beginning_position, &
                           delete_region, region_beginning, region_end
     use insdel_fm, only: insert
     use cmds_fm, only: forward_line
@@ -65,14 +65,14 @@ module log_view_fm
     use itree_fm, only: make_overlay, overlay_put, delete_overlay, overlay_get, overlay_end
     use easy_mmode_fm, only: easy_mmode_next, easy_mmode_prev
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use simple_fm, only: use_region_p, kill_new, line_number_at_pos, special_mode
+    use simple_fm, only: is_use_region, kill_new, line_number_at_pos, special_mode
     use syntax_fm, only: skip_syntax_backward
     use xdisp_fm, only: message
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_APPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight
     use keymap_fm, only: keymap_set
-    use fileio_fm, only: file_directory_p
+    use fileio_fm, only: is_file_directory
     use vc_hooks_fm, only: vc_string_type, vc_backends
     use vc_fm, only: vc_fileset_type, vc_diff_internal, vc_find_revision, vc_root_dir, vc_allow_async_diff
     implicit none(type, external)
@@ -80,7 +80,7 @@ module log_view_fm
 
     public :: log_view_entry_proc, log_view_mode, log_view_msg_next, log_view_msg_prev, log_view_file_next, &
               log_view_file_prev, log_view_goto_rev, log_view_msg_and_diff_next, log_view_msg_and_diff_prev, &
-              log_view_current_file, log_view_current_entry, log_view_inside_comment_p, log_view_current_tag, &
+              log_view_current_file, log_view_current_entry, is_log_view_inside_comment, log_view_current_tag, &
               log_view_toggle_mark_entry, log_view_mark_entry, log_view_unmark_entry, log_view_unmark_all_entries, &
               log_view_get_marked, log_view_toggle_entry_display, log_view_display_entry_and_diff, &
               log_view_beginning_of_subprogram, log_view_end_of_subprogram, log_view_find_revision, log_view_diff, &
@@ -589,7 +589,7 @@ contains
         do while (looping)
             call search_re_backward(re, p, st, noerror=SEARCH_MOVE)
             looping = .false.
-            if (p /= 0) looping = log_view_inside_comment_p(point())
+            if (p /= 0) looping = is_log_view_inside_comment(point())
         end do
 
         if (p /= 0) then
@@ -607,15 +607,15 @@ contains
 
     !> Return true if POS lies inside an expanded log entry.  Port of
     !> log-view.el:log-view-inside-comment-p.
-    logical function log_view_inside_comment_p(pos)
+    logical function is_log_view_inside_comment(pos)
         integer(int64), intent(in) :: pos
         type(value_type) :: v
         type(status_type) :: st
 
         call get_text_property(pos, sym("log_view_comment"), v, st)
-        log_view_inside_comment_p = .false.
-        if (st%ok()) log_view_inside_comment_p = value_eq(v, t_value())
-    end function log_view_inside_comment_p
+        is_log_view_inside_comment = .false.
+        if (st%ok()) is_log_view_inside_comment = value_eq(v, t_value())
+    end function is_log_view_inside_comment
 
     !> Return the revision tag (a string) of the Log View entry at POS.
     !> if POS is omitted, it defaults to point (HAS false for nil).
@@ -691,7 +691,7 @@ contains
             call goto_char(end)
             moved = skip_syntax_backward("^w")
 
-            if (bolp()) then
+            if (is_bol()) then
                 lastl = line_number_at_pos() - 1
             else
                 lastl = line_number_at_pos()
@@ -917,7 +917,7 @@ contains
             ! If the entry is expanded, collapse it.
             call next_single_property_change(beg, sym("log_view_comment"), pos, found, status)
             has = found
-            if (has) has = log_view_inside_comment_p(pos)
+            if (has) has = is_log_view_inside_comment(pos)
 
             if (.not. has) then
                 call set_error(status, FM_GENERIC_ERROR, "Broken markup in `log_view_toggle_entry_display'")
@@ -1033,7 +1033,7 @@ contains
                 call goto_char(point_min())
                 found = .false.
             else if (beg >= point()) then
-                if (.not. bobp()) then
+                if (.not. is_bob()) then
                     shortage = forward_line(-1_int64)
                     n = n + 1
                 end if
@@ -1062,7 +1062,7 @@ contains
             call search_re_forward(re, found, st, noerror=SEARCH_MOVE)
 
             if (found /= 0) then
-                if (.not. log_view_inside_comment_p(point())) then
+                if (.not. is_log_view_inside_comment(point())) then
                     looping = .false.
                     call goto_char(match_beginning(0, st))
                 end if
@@ -1071,7 +1071,7 @@ contains
                 ! `vc-print-log-setup-buttons'.
                 looping = .false.
                 shortage = forward_line(-1_int64)
-            else if (eobp()) then
+            else if (is_eob()) then
                 ! There are no buttons if we've turned on unlimited entries.
                 looping = .false.
             end if
@@ -1116,7 +1116,7 @@ contains
 
         if (.not. log_view_per_file_logs()) then
             several = size(fileset) > 1 .or. size(fileset) == 0
-            if (.not. several) several = file_directory_p(file)
+            if (.not. several) several = is_file_directory(file)
             if (several) call set_error(status, FM_USER_ERROR, &
                                         "Multiple files shown in this buffer, cannot use this command here")
         end if
@@ -1358,7 +1358,7 @@ contains
         beg = point()
         end = point()
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(beg, st)
             call region_end(end, st)
         end if
@@ -1372,7 +1372,7 @@ contains
         integer(int64) :: beg, end
         type(status_type) :: st
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(beg, st)
             call region_end(end, st)
             call mark_unmark(mark, count_arg(), status, beg, end)

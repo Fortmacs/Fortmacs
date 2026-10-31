@@ -39,7 +39,7 @@ module frame_fm
     use dispextern_fm, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_fm, only: font_driver_type
     use handle_fm, only: handle_type
-    use window_fm, only: window_type, window_ref, window_valid_p, make_window, windows, window_text_cols
+    use window_fm, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols
     implicit none(type, external)
     private
 
@@ -83,24 +83,17 @@ module frame_fm
     type(frame_type), target, public :: selected_frame
 
     public :: ensure_frame_windows, selected_window, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
-    public :: frame_window_p, frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
+    public :: frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
               window_pixel_height, window_body_pixel_width
 
 contains
-
-    !> Whether `f' is a window-system frame.  Port of frame.h:FRAME_WINDOW_P.
-    logical function frame_window_p(f)
-        type(frame_type), intent(in) :: f
-
-        frame_window_p = associated(f%rif)
-    end function frame_window_p
 
     !> The frame's height in lines (frame.h:FRAME_LINES): its terminal's
     !> on a terminal frame.  Port of frame.h:FRAME_LINES.
     integer function frame_lines(f)
         type(frame_type), intent(in) :: f
 
-        if (frame_window_p(f)) then
+        if (associated(f%rif)) then
             frame_lines = f%text_lines
         else
             frame_lines = f%tty%wcm%cm_rows
@@ -111,7 +104,7 @@ contains
     integer function frame_cols(f)
         type(frame_type), intent(in) :: f
 
-        if (frame_window_p(f)) then
+        if (associated(f%rif)) then
             frame_cols = f%text_cols
         else
             frame_cols = f%tty%wcm%cm_cols
@@ -163,7 +156,7 @@ contains
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
 
-        if (frame_window_p(f)) then
+        if (associated(f%rif)) then
             window_body_pixel_width = window_pixel_width(f, w)
         else
             window_body_pixel_width = window_text_cols(w)
@@ -175,16 +168,16 @@ contains
     !> xdisp_fm:init_frame_windows.  Port of window.c:init_window_once
     !> (the initial frame's windows).
     subroutine ensure_frame_windows()
-        if (.not. window_valid_p(selected_frame%root_window)) then
+        if (.not. is_window_valid(selected_frame%root_window)) then
             call make_window(selected_frame%root_window)
             selected_frame%selected_window = selected_frame%root_window
         end if
 
-        if (.not. window_valid_p(selected_frame%selected_window)) then
+        if (.not. is_window_valid(selected_frame%selected_window)) then
             selected_frame%selected_window = selected_frame%root_window
         end if
 
-        if (.not. window_valid_p(selected_frame%minibuffer_window)) then
+        if (.not. is_window_valid(selected_frame%minibuffer_window)) then
             call make_window(selected_frame%minibuffer_window)
             windows(selected_frame%minibuffer_window%index)%mini = .true.
         end if

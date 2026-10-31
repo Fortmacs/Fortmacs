@@ -32,7 +32,7 @@ module test_textprop_fm
     use data_fm, only: value_eq, set
     use fns_fm, only: value_equal, put
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, set_buffer, &
-                         current_buffer, buffer_live_p, set_buffer_read_only, &
+                         current_buffer, is_buffer_live, set_buffer_read_only, &
                          erase_buffer, inhibit_read_only, deactivate_mark_variable, UE_FIRST_CHANGE
     use undo_fm, only: undo_last_kind
     use insdel_fm, only: insert
@@ -99,7 +99,7 @@ contains
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 

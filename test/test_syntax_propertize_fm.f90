@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports test/lisp/emacs-lisp/syntax-tests.el (its one test), plus tests
-!> of `regexp_opt_depth', `subregexp_context_p', rules applying
+!> of `regexp_opt_depth', `is_subregexp_context', rules applying
 !> `syntax_table' properties that the scanner and the regexp matcher
 !> obey, the `syntax_ppss' cache and `syntax_propertize_wholelines'.
 module test_syntax_propertize_fm
@@ -39,7 +39,7 @@ module test_syntax_propertize_fm
     use bindings_fm, only: init_bindings
     use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, syntax_propertize__done, &
                          parse_expression_lookup_properties, forward_comment
-    use subr_fm, only: subregexp_context_p
+    use subr_fm, only: is_subregexp_context
     use regexp_opt_fm, only: regexp_opt_depth
     use syntax_propertize_fm, only: syntax_propertize_shift_groups_and_backrefs, syntax_propertize_function, &
                                     syntax_propertize_rules_type, syntax_propertize_rule_type, syntax_highlight_type, &
@@ -143,15 +143,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call check(error, subregexp_context_p("a\(b", 2_int64, st), "after a")
+        call check(error, is_subregexp_context("a\(b", 2_int64, st), "after a")
         if (allocated(error)) return
-        call check(error,.not. subregexp_context_p("a[b]", 3_int64, st), "in brackets")
+        call check(error,.not. is_subregexp_context("a[b]", 3_int64, st), "in brackets")
         if (allocated(error)) return
-        call check(error,.not. subregexp_context_p("a\{1,2\}", 5_int64, st), "in \{\}")
+        call check(error,.not. is_subregexp_context("a\{1,2\}", 5_int64, st), "in \{\}")
         if (allocated(error)) return
-        call check(error,.not. subregexp_context_p("a\b", 3_int64, st), "after \")
+        call check(error,.not. is_subregexp_context("a\b", 3_int64, st), "after \")
         if (allocated(error)) return
-        call check(error, subregexp_context_p("[a]b", 4_int64, st, 1_int64), "after brackets")
+        call check(error, is_subregexp_context("[a]b", 4_int64, st, 1_int64), "after brackets")
     end subroutine test_context
 
     ! `#' starts a comment and newline ends it, by properties only.

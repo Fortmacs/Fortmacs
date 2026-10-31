@@ -912,6 +912,9 @@ module commands_fm
         type(command_type) :: read_only_mode
         type(command_type) :: read_passwd_mode
         type(command_type) :: read_passwd_toggle_visibility
+        type(command_type) :: read_y_or_n_insert_n
+        type(command_type) :: read_y_or_n_insert_other
+        type(command_type) :: read_y_or_n_insert_y
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
@@ -1137,9 +1140,6 @@ module commands_fm
         type(command_type) :: window_configuration_to_register
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
-        type(command_type) :: y_or_n_p_insert_n
-        type(command_type) :: y_or_n_p_insert_other
-        type(command_type) :: y_or_n_p_insert_y
         type(command_type) :: yank
         type(command_type) :: yank_pop
         type(command_type) :: yank_rectangle
@@ -2030,6 +2030,9 @@ module commands_fm
                                                                   "read_only_mode", &
                                                                   "read_passwd_mode", &
                                                                   "read_passwd_toggle_visibility", &
+                                                                  "read_y_or_n_insert_n", &
+                                                                  "read_y_or_n_insert_other", &
+                                                                  "read_y_or_n_insert_y", &
                                                                   "recenter", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
@@ -2255,9 +2258,6 @@ module commands_fm
                                                                   "window_configuration_to_register", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
-                                                                  "y_or_n_p_insert_n", &
-                                                                  "y_or_n_p_insert_other", &
-                                                                  "y_or_n_p_insert_y", &
                                                                   "yank", &
                                                                   "yank_pop", &
                                                                   "yank_rectangle", &
@@ -4032,6 +4032,12 @@ contains
             p => commands%read_passwd_mode
         case ("read_passwd_toggle_visibility")
             p => commands%read_passwd_toggle_visibility
+        case ("read_y_or_n_insert_n")
+            p => commands%read_y_or_n_insert_n
+        case ("read_y_or_n_insert_other")
+            p => commands%read_y_or_n_insert_other
+        case ("read_y_or_n_insert_y")
+            p => commands%read_y_or_n_insert_y
         case ("recenter")
             p => commands%recenter
         case ("recenter_top_bottom")
@@ -4482,12 +4488,6 @@ contains
             p => commands%write_abbrev_file
         case ("write_file")
             p => commands%write_file
-        case ("y_or_n_p_insert_n")
-            p => commands%y_or_n_p_insert_n
-        case ("y_or_n_p_insert_other")
-            p => commands%y_or_n_p_insert_other
-        case ("y_or_n_p_insert_y")
-            p => commands%y_or_n_p_insert_y
         case ("yank")
             p => commands%yank
         case ("yank_pop")

@@ -29,16 +29,16 @@ submodule(abbrev_fm) abbrev_cmds_fm
     use lisp_fm, only: nilp
     use data_fm, only: add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, erase_buffer, kill_buffer, &
-                         restore_buffer_modified_p, generate_new_buffer_name
+                         restore_buffer_modified, generate_new_buffer_name
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, buffer_substring, delete_region, char_after, &
-                          line_beginning_position, region_beginning, region_end, eobp, point_marker
+                          line_beginning_position, region_beginning, region_end, is_eob, point_marker
     use insdel_fm, only: insert, replace_range
     use syntax_fm, only: forward_word, skip_syntax_forward, skip_syntax_backward, syntax_table, set_syntax_table, &
                          standard_syntax_table
     use search_fm, only: string_match, match_beginning, match_end, case_fold_search, search_forward, &
                          SEARCH_NOERROR, SEARCH_MOVE
-    use subr_fm, only: looking_back, y_or_n_p
+    use subr_fm, only: looking_back, read_y_or_n
     use casefiddle_fm, only: downcase_string, upcase_region, upcase_initials_region
     use cmds_fm, only: delete_char
     use indent_fm, only: indent_to
@@ -48,10 +48,10 @@ submodule(abbrev_fm) abbrev_cmds_fm
     use frame_fm, only: selected_frame
     use minibuf_fm, only: read_string
     use minibuffer_fm, only: read_file_name
-    use simple_fm, only: use_region_p, push_mark
+    use simple_fm, only: is_use_region, push_mark
     use window_fm, only: display_buffer, switch_to_buffer, same_handle
-    use fileio_fm, only: file_exists_p, file_name_directory, expand_file_name, insert_file_contents, write_region, &
-                         file_directory_p
+    use fileio_fm, only: file_exists, file_name_directory, expand_file_name, insert_file_contents, write_region, &
+                         is_file_directory
     use files_fm, only: make_directory, add_save_some_buffers_function
     use config_fm, only: init_file_name
     use lread_fm, only: user_init_file
@@ -94,19 +94,19 @@ contains
 
     !> Whether A sorts before B by character codes (string-lessp): a
     !> prefix sorts first.  UTF-8 keeps the order of the codes.  Not a port.
-    pure logical function string_lessp(a, b)
+    pure logical function is_string_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
 
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
-                string_lessp = ichar(a(k:k)) < ichar(b(k:k))
+                is_string_less = ichar(a(k:k)) < ichar(b(k:k))
                 return
             end if
         end do
 
-        string_lessp = len(a) < len(b)
-    end function string_lessp
+        is_string_less = len(a) < len(b)
+    end function is_string_less
 
     !> The index of the abbrev named NAME in TABLE (interned upstream), or 0.
     !> Not a port.
@@ -257,7 +257,7 @@ contains
     self%modiff = self%modiff + 1
     end procedure clear_abbrev_table
 
-    module procedure abbrev_table_empty_p
+    module procedure is_abbrev_table_empty
     integer :: k
     logical :: ignore
 
@@ -271,7 +271,7 @@ contains
         empty = .false.
         return
     end do
-    end procedure abbrev_table_empty_p
+    end procedure is_abbrev_table_empty
 
     module procedure abbrev_table_add_parent
     type(abbrev_table_ref_type), allocatable :: grown(:)
@@ -390,7 +390,7 @@ contains
             j = k - 1
 
             do while (j >= 1)
-                if (.not. string_lessp(table%abbrevs(x)%name, table%abbrevs(order(j))%name)) exit
+                if (.not. is_string_less(table%abbrevs(x)%name, table%abbrevs(order(j))%name)) exit
                 order(j + 1) = order(j)
                 j = j - 1
             end do
@@ -449,10 +449,10 @@ contains
     abbrev_no_self_insert = associated(abbrev%table%abbrevs(k)%hook) .and. abbrev%table%abbrevs(k)%no_self_insert
     end procedure abbrev_no_self_insert
 
-    module procedure abbrev_mode_p
-    abbrev_mode_p = .false.
-    if (associated(abbrev_mode)) abbrev_mode_p = abbrev_mode%value
-    end procedure abbrev_mode_p
+    module procedure is_abbrev_mode
+    is_abbrev_mode = .false.
+    if (associated(abbrev_mode)) is_abbrev_mode = abbrev_mode%value
+    end procedure is_abbrev_mode
 
     ! ------------------------------------------------------------------
     ! Looking up abbrevs
@@ -1102,7 +1102,7 @@ contains
     end if
 
     call goto_char(point_min())
-    call restore_buffer_modified_p(.false.)
+    call restore_buffer_modified(.false.)
     call set_buffer(old, st)
     end procedure prepare_abbrev_list_buffer
 
@@ -1180,7 +1180,7 @@ contains
         j = k - 1
 
         do while (j >= 1)
-            if (.not. string_lessp(trim(x%p%name), trim(sorted(j)%p%name))) exit
+            if (.not. is_string_less(trim(x%p%name), trim(sorted(j)%p%name))) exit
             sorted(j + 1) = sorted(j)
             j = j - 1
         end do
@@ -1207,7 +1207,7 @@ contains
     if (status%ok()) call erase_buffer(status)
     ! The init file, with the abbrevs replacing those written before at the
     ! end of `configure'.
-    if (status%ok() .and. file_exists_p(target_file)) call insert_file_contents(target_file, .false., inserted, status)
+    if (status%ok() .and. file_exists(target_file)) call insert_file_contents(target_file, .false., inserted, status)
 
     if (status%ok() .and. point_max() == point_min()) then
         ! A new init file.
@@ -1256,7 +1256,7 @@ contains
         dir = file_name_directory(target_file)
 
         if (len(dir) > 0) then
-            if (.not. file_directory_p(dir)) call make_directory(dir, status, parents=.true.)
+            if (.not. is_file_directory(dir)) call make_directory(dir, status, parents=.true.)
         end if
     end if
 
@@ -1287,7 +1287,7 @@ contains
     if (arg .or. save_abbrevs == SAVE_ABBREVS_SILENTLY) then
         save = .true.
     else
-        call y_or_n_p("Save abbrevs in "//abbrev_file()//"? ", save, status)
+        call read_y_or_n("Save abbrevs in "//abbrev_file()//"? ", save, status)
         if (.not. status%ok()) return
     end if
 
@@ -1341,7 +1341,7 @@ contains
     have_exp = .false.
     n = prefix_numeric_value(arg)
 
-    if ((nilp(arg) .and. use_region_p()) .or. n == 0) then
+    if ((nilp(arg) .and. is_use_region()) .or. n == 0) then
         call region_beginning(b, status)
         if (status%ok()) call region_end(e, status)
         if (status%ok()) call buffer_substring(b, e, exp, status)
@@ -1370,7 +1370,7 @@ contains
         call abbrev_expansion(name, old, table)
 
         if (allocated(old)) then
-            call y_or_n_p(name//" expands into """//old//"""; redefine? ", redefine, status)
+            call read_y_or_n(name//" expands into """//old//"""; redefine? ", redefine, status)
             if (.not. status%ok()) return
         end if
     end if
@@ -1417,7 +1417,7 @@ contains
     call abbrev_expansion(name, old, table)
 
     if (allocated(old)) then
-        call y_or_n_p(name//" expands into """//old//"""; redefine? ", define, status)
+        call read_y_or_n(name//" expands into """//old//"""; redefine? ", define, status)
         if (.not. status%ok()) return
     end if
 
@@ -1461,7 +1461,7 @@ contains
     call goto_char(start)
     lim = point_max() - end
 
-    do while (.not. eobp())
+    do while (.not. is_eob())
         call forward_word(1_int64)
         pnt = point()
         if (pnt > point_max() - lim) exit
@@ -1476,7 +1476,7 @@ contains
         if (allocated(exp)) then
             deallocate (exp)
             yes = .true.
-            if (query) call y_or_n_p(format_message("Expand `")//string//format_message("'? "), yes, status)
+            if (query) call read_y_or_n(format_message("Expand `")//string//format_message("'? "), yes, status)
             if (.not. status%ok()) exit
             if (yes) call expand_abbrev(status)
             if (.not. status%ok()) exit

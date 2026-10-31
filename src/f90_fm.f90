@@ -48,14 +48,14 @@ module f90_fm
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: set_transient_map, sit_for
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, barf_if_buffer_read_only, &
-                         fill_column, auto_fill_function, buffer_modified_p, restore_buffer_modified_p, erase_buffer
+                         fill_column, auto_fill_function, is_buffer_modified, restore_buffer_modified, erase_buffer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set, make_sparse_keymap, define_key
     use lread_fm, only: sym
-    use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, parse_partial_expression, &
+    use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, parse_partial_expression, &
                          parse_state_type, scan_groups, skip_chars_forward, skip_chars_backward, forward_word
-    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, &
+    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, &
                           char_after, char_before, delete_region, buffer_substring, line_beginning_position, &
                           line_end_position
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char, self_insert_command
@@ -314,7 +314,7 @@ contains
     subroutine syms_of_f90()
         type(status_type) :: st
 
-        if (syntax_table_live_p(f90_mode_syntax_table)) return
+        if (is_syntax_table_live(f90_mode_syntax_table)) return
         call forward_setting(f90_do_indent)
         call forward_setting(f90_if_indent)
         call forward_setting(f90_type_indent)
@@ -1500,7 +1500,7 @@ contains
         if (looking(regexp_quote(f90_comment_region%value))) return
         opoint = point()
         call skip_backward(" "//TAB)
-        at_bol = bolp()
+        at_bol = is_bol()
         call goto_char(opoint)
 
         if (looking(f90_indented_comment_re%value) .and. at_bol) then
@@ -1511,7 +1511,7 @@ contains
 
         call skip_backward(" "//TAB)
 
-        if (bolp()) then
+        if (is_bol()) then
             col = max(0_int64, comment_column%value)
         else
             col = max(1 + current_column(), comment_column%value)
@@ -1897,7 +1897,7 @@ contains
 
         do
             not_last_statement = forward_line(1_int64) == 0
-            if (not_last_statement) not_last_statement = .not. eobp()
+            if (not_last_statement) not_last_statement = .not. is_eob()
             if (.not. not_last_statement) exit
             if (.not. looking("[ "//TAB//"0-9]*\(!\|$\|#\)")) exit
         end do
@@ -3118,7 +3118,7 @@ contains
         opoint = point()
         moved = f90_next_statement()
 
-        if (bobp()) then
+        if (is_bob()) then
             end = point()
         else
             end = point() - 1
@@ -3452,7 +3452,7 @@ contains
 
         if (status%ok()) then
             call goto_char(point_min())
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
             call edit_abbrevs_mode(status)
         end if
 
@@ -3551,7 +3551,7 @@ contains
         keyword_re = "\("//f90_keywords_re//"\|"//f90_procedures_re//"\|"//f90_hpf_keywords_re//"\|"// &
                      f90_operators_re//"\)"
         ref_point = point_min()
-        call buffer_modified_p(current_buffer(), modified, st)
+        call is_buffer_modified(current_buffer(), modified, st)
         call goto_char(b)
 
         do
@@ -3596,7 +3596,7 @@ contains
             if (now /= saveword) modified = .true.
         end do
 
-        if (.not. modified) call restore_buffer_modified_p(.false.)
+        if (.not. modified) call restore_buffer_modified(.false.)
         call goto_char(mpos(opoint))
         call unmark(opoint)
         call unmark(endm)
@@ -3815,7 +3815,7 @@ contains
         type(font_lock_keywords_type) :: levels(5)
         logical :: saved
 
-        if (.not. syntax_table_live_p(f90_mode_syntax_table)) call syms_of_f90()
+        if (.not. is_syntax_table_live(f90_mode_syntax_table)) call syms_of_f90()
         call major_modes%f90_mode%begin(saved, status)
         if (.not. status%ok()) return
         call indent_line_function%set_local(f90_indent_line_function)

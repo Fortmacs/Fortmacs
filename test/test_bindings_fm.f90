@@ -36,7 +36,7 @@ module test_bindings_fm
     use keymap_fm, only: key_binding, key_parse
     use keyboard_fm, only: kbd_store_bytes, command_loop, command_loop_step, &
                            discard_input, last_message, last_command, ring_bell_hook
-    use callint_fm, only: prefix_arg, command_defined_p
+    use callint_fm, only: prefix_arg, is_command_defined
     use bindings_fm, only: init_bindings
     implicit none(type, external)
     private
@@ -326,7 +326,7 @@ contains
         end do
 
         do k = 1, size(names)
-            call check(error,.not. command_defined_p(sym(trim(names(k)))), trim(names(k))//" is a command")
+            call check(error,.not. is_command_defined(sym(trim(names(k)))), trim(names(k))//" is a command")
             if (allocated(error)) return
         end do
     end subroutine test_no_eval_keys

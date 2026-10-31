@@ -46,7 +46,7 @@ module electric_fm
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, barf_if_buffer_read_only
     use marker_fm, only: copy_marker_at, marker_position, free_marker
-    use editfns_fm, only: point, goto_char, bolp, eolp, char_before, line_beginning_position
+    use editfns_fm, only: point, goto_char, is_bol, is_eol, char_before, line_beginning_position
     use syntax_fm, only: skip_chars_backward
     use cmds_fm, only: post_self_insert_hook
     use keyboard_fm, only: last_command_event
@@ -58,7 +58,7 @@ module electric_fm
     private
 
     public :: syms_of_electric, electric_indent_mode, electric_indent_local_mode, electric_after_char_pos, &
-              electric_indent_can_reindent_p, electric_indent_post_self_insert_function, &
+              is_electric_indent_can_reindent, electric_indent_post_self_insert_function, &
               electric_indent_just_newline, electric_newline_and_maybe_indent
 
     !> Characters that should cause automatic reindentation.  Port of
@@ -106,7 +106,7 @@ contains
         call minor_modes%electric_indent_local_mode%define("electric_indent_local_mode", &
                                                            body=electric_indent_local_mode_body, &
                                                            hook=electric_indent_local_mode_hook, &
-                                                           getter=electric_indent_local_mode_p)
+                                                           getter=is_electric_indent_local_mode)
         commands%electric_indent_local_mode%run => electric_indent_local_mode
         commands%electric_indent_just_newline%run => electric_indent_just_newline
         commands%electric_newline_and_maybe_indent%run => electric_newline_and_maybe_indent
@@ -163,7 +163,7 @@ contains
 
     !> Return true if `electric_indent_mode' can performs reindentation.
     !> Port of electric.el:electric-indent-can-reindent-p.
-    logical function electric_indent_can_reindent_p() result(can)
+    logical function is_electric_indent_can_reindent() result(can)
         character(len=:), allocatable :: name
         integer :: k
 
@@ -174,7 +174,7 @@ contains
         do k = 1, size(electric_indent_functions_without_reindent)
             if (name == trim(electric_indent_functions_without_reindent(k))) can = .false.
         end do
-    end function electric_indent_can_reindent_p
+    end function is_electric_indent_can_reindent
 
     !> Function that `electric_indent_mode' adds to `post_self_insert_hook'.
     !> This indents if the hook `electric_indent_functions' returns true,
@@ -197,7 +197,7 @@ contains
         if (ev == 32 .or. ev == 9) then
             opoint = point()
             moved = skip_chars_backward(" "//achar(9), st)
-            go = .not. bolp()
+            go = .not. is_bol()
             call goto_char(opoint)
             if (.not. go) return
         end if
@@ -216,7 +216,7 @@ contains
             call copy_marker_at(pos - 1, before, .true., st)
             call copy_marker_at(point(), saved, .false., st)
 
-            if (electric_indent_can_reindent_p()) then
+            if (is_electric_indent_can_reindent()) then
                 ! Don't reindent the previous line if the indentation
                 ! function is not a real one.
                 call marker_position(before, bpos, st)
@@ -237,7 +237,7 @@ contains
             ! We were at EOL in marker `before' before the call to
             ! `indent_according_to_mode' but after we may not be
             ! (Bug#15767).
-            if (eolp()) call delete_horizontal_space(.true., status)
+            if (is_eol()) call delete_horizontal_space(.true., status)
             call restore()
             if (.not. status%ok()) return
         end if
@@ -369,9 +369,9 @@ contains
 
     !> The state of Electric Indent Local mode: `electric_indent_mode' in
     !> the current buffer.  Not a port.
-    logical function electric_indent_local_mode_p() result(on)
+    logical function is_electric_indent_local_mode() result(on)
         on = minor_modes%electric_indent_mode%state%value
-    end function electric_indent_local_mode_p
+    end function is_electric_indent_local_mode
 
     !> The body of Electric Indent Local mode with its new state VAL: the
     !> setter (setq-local electric-indent-mode VAL), then the body.  Port of

@@ -31,7 +31,7 @@ module regexp_opt_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use search_fm, only: regexp_quote, string_match, match_beginning, match_end, match_data, set_match_data
-    use subr_fm, only: subregexp_context_p
+    use subr_fm, only: is_subregexp_context
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     implicit none(type, external)
     private
@@ -86,9 +86,9 @@ contains
                 mb = match_beginning(0, status)
 
                 if (last > 0) then
-                    context = subregexp_context_p(regexp, mb, status, last)
+                    context = is_subregexp_context(regexp, mb, status, last)
                 else
-                    context = subregexp_context_p(regexp, mb, status)
+                    context = is_subregexp_context(regexp, mb, status)
                 end if
 
                 if (.not. status%ok()) exit

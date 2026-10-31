@@ -54,17 +54,17 @@ module isearch_fm
     use buffer_fm, only: buffers, cur, transient_mark_mode, buf_fetch_char
     use marker_fm, only: char_to_byte
     use syntax_fm, only: char_syntax, forward_word
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, eolp, pos_eol, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_eol, pos_eol, &
                           buffer_substring
     use cmds_fm, only: forward_char
     use search_fm, only: re_search_forward, re_search_backward, match_beginning, match_end, looking_at, &
                          string_match, regexp_quote, case_fold_search, search_spaces_regexp, SEARCH_NOERROR
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, define_key_range, key_parse, &
-                         lookup_key, keymap_live_p, free_keymap, overriding_terminal_local_map
+                         lookup_key, is_keymap_live, free_keymap, overriding_terminal_local_map
     use keyboard_fm, only: this_command, last_command, last_command_event, this_command_keys, &
-                           pre_command_hook, discard_input, input_pending_p, &
+                           pre_command_hook, discard_input, is_input_pending, &
                            read_event, sit_for
-    use callint_fm, only: commandp, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: is_command, current_prefix_arg, prefix_numeric_value
     use subr_fm, only: add_to_history, history_delete_duplicates, defvar_nil
     use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message, message_nolog
@@ -85,7 +85,7 @@ module isearch_fm
               isearch_ring_retreat, isearch_toggle_case_fold, isearch_edit_string, &
               isearch_message_prefix, syms_of_isearch, isearch_forward_regexp_command, &
               isearch_backward_regexp_command, isearch_toggle_regexp, isearch_toggle_lax_whitespace, &
-              isearch_no_upper_case_p, word_search_regexp, isearch_search_fun_default, set_isearch_wrapped
+              is_isearch_no_upper_case, word_search_regexp, isearch_search_fun_default, set_isearch_wrapped
     public :: isearch_search_proc, isearch_search_fun_proc, isearch_wrap_proc, isearch_pop_proc, &
               isearch_push_state_proc, isearch_filter_proc, isearch_message_proc, isearch_message_display, &
               set_isearch_barrier, set_isearch_opoint
@@ -504,7 +504,7 @@ contains
     !> If REGEXP-FLAG is true, disregard letters preceded by `\' (but
     !> not `\\') since they have special meaning in a regexp.  Port of
     !> isearch.el:isearch-no-upper-case-p.
-    logical function isearch_no_upper_case_p(string, regexp_flag) result(none)
+    logical function is_isearch_no_upper_case(string, regexp_flag) result(none)
         character(len=*), intent(in) :: string
         logical, intent(in) :: regexp_flag
         integer(int32), allocatable :: chars(:)
@@ -545,7 +545,7 @@ contains
                 end if
             end if
         end if
-    end function isearch_no_upper_case_p
+    end function is_isearch_no_upper_case
 
     !> Return a regexp which matches words, ignoring punctuation.
     !> Given STRING, a string of words separated by word delimiters,
@@ -928,7 +928,7 @@ contains
     !> Port of isearch.el:isearch-update (no slow-terminal window, hscroll
     !> or highlighting).
     subroutine isearch_update()
-        if (.not. input_pending_p()) call isearch_message_show()
+        if (.not. is_input_pending()) call isearch_message_show()
         isearch_adjusted = ADJUSTED_NIL
         isearch_yank_flag = .false.
     end subroutine isearch_update
@@ -1058,7 +1058,7 @@ contains
         if (allocated(this_command_keys)) then
             if (size(this_command_keys) > 0) then
                 call lookup_key(make_keymap_ref(isearch_mode_map), this_command_keys, binding, status)
-                if (status%ok() .and. .not. fixnump(binding) .and. commandp(binding)) return
+                if (status%ok() .and. .not. fixnump(binding) .and. is_command(binding)) return
             end if
         end if
 
@@ -1357,7 +1357,7 @@ contains
 
         if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
             isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, &
-                                             isearch_no_upper_case_p(isearch_string, isearch_regexp))
+                                             is_isearch_no_upper_case(isearch_string, isearch_regexp))
         end if
 
         saved_fold = case_fold_search%value
@@ -1386,7 +1386,7 @@ contains
                 retry = .false.
             else if (mb == me) then
                 ! Advance point on empty matches before retrying
-                if (merge(eobp(), bobp(), isearch_forward)) then
+                if (merge(is_eob(), is_bob(), isearch_forward)) then
                     retry = .false.
                     isearch_success = .false.
                 else
@@ -1521,7 +1521,7 @@ contains
             fold = isearch_case_fold_search /= CASE_FOLD_NIL
 
             if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
-                fold = isearch_no_upper_case_p(isearch_string, isearch_regexp)
+                fold = is_isearch_no_upper_case(isearch_string, isearch_regexp)
             end if
 
             if (reverse_match_here()) then
@@ -1531,7 +1531,7 @@ contains
 
                 if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
                     isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, &
-                                                     isearch_no_upper_case_p(isearch_string, isearch_regexp))
+                                                     is_isearch_no_upper_case(isearch_string, isearch_regexp))
                 end if
             else
                 ! Not regexp, not reverse, or no match at point.
@@ -1630,7 +1630,7 @@ contains
                 if (isearch_success .and. point() == isearch_other_end .and. .not. isearch_just_started) then
                     ! If repeating a search that found an empty string,
                     ! ensure we advance.
-                    if (merge(eobp(), bobp(), isearch_forward)) then
+                    if (merge(is_eob(), is_bob(), isearch_forward)) then
                         ! If there's nowhere to advance to, fail (and wrap
                         ! next time).
                         isearch_success = .false.
@@ -1731,7 +1731,7 @@ contains
             return
         end if
 
-        ! For the case when the match is at bobp, don't forward char in
+        ! For the case when the match is at is_bob, don't forward char in
         ! isearch-repeat.
         isearch_just_started = .true.
         call goto_char(point_min())
@@ -2000,7 +2000,7 @@ contains
                 end if
             end do
         else
-            call goto_char(pos_eol(merge(arg + 1, arg, eolp())))
+            call goto_char(pos_eol(merge(arg + 1, arg, is_eol())))
         end if
 
         isearch_yank_prev_point = point()
@@ -2725,7 +2725,7 @@ contains
         commands%isearch_yank_kill%run => cmd_isearch_yank_kill
         commands%isearch_yank_pop_only%run => cmd_isearch_yank_pop_only
         if (.not. allocated(search_whitespace_regexp)) search_whitespace_regexp = "[ "//achar(9)//"]+"
-        if (keymap_live_p(isearch_mode_map)) call free_keymap(isearch_mode_map, status)
+        if (is_keymap_live(isearch_mode_map)) call free_keymap(isearch_mode_map, status)
         call make_keymap(isearch_mode_map)
         ! Make all multibyte characters search for themselves.
         call define_key_range(isearch_mode_map, 256_int64, int(MAX_CHAR, int64), &

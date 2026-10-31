@@ -44,15 +44,15 @@ module files_fm
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
                          buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
-                         rename_buffer, restore_buffer_modified_p, buffer_live_p, buffer_handle, run_kill_buffer_hook
+                         rename_buffer, restore_buffer_modified, is_buffer_live, buffer_handle, run_kill_buffer_hook
     use fileio_fm, only: open_dribble_file
-    use fileio_fm, only: file_stat_type, expand_file_name, file_name_directory, directory_name_p, &
+    use fileio_fm, only: file_stat_type, expand_file_name, file_name_directory, is_directory_name, &
                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
-                         get_homedir, file_exists_p, file_readable_p, file_writable_p, &
-                         file_directory_p, file_accessible_directory_p, file_attributes, &
+                         get_homedir, file_exists, is_file_readable, is_file_writable, &
+                         is_file_directory, is_file_accessible_directory, file_attributes, &
                          file_modes, set_file_modes, rename_file, copy_file, &
                          insert_file_contents, write_region, verify_visited_file_modtime, &
-                         file_regular_p, file_symlink_p, user_uid, group_gid, &
+                         is_file_regular, is_file_symlink, user_uid, group_gid, &
                          make_directory_internal
     use keymap_fm, only: define_key
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -61,10 +61,10 @@ module files_fm
     use editfns_fm, only: point, goto_char, point_min, point_max, char_after, widen, narrow_to_region, &
                           format_message
     use insdel_fm, only: insert
-    use subr_fm, only: y_or_n_p
-    use fns_fm, only: yes_or_no_p
+    use subr_fm, only: read_y_or_n
+    use fns_fm, only: read_yes_or_no
     use derived_fm, only: major_mode_type, major_mode_named
-    use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
+    use map_ynp_fm, only: map_read_y_or_n, YNP_SKIP, YNP_ASK
     use window_fm, only: pop_to_buffer_same_window, switch_to_buffer_other_window
     use coding_fm, only: buffer_file_coding_system, last_coding_system_used
     use eval_fm, only: hook_type, until_success_hook_type
@@ -111,7 +111,7 @@ module files_fm
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
     public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
-              normal_backup_enable_predicate, file_ownership_preserved_p
+              normal_backup_enable_predicate, is_file_ownership_preserved
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
     public :: file_relative_name, locate_dominating_file, executable_find
     public :: set_visited_file_name, write_file
@@ -119,13 +119,13 @@ module files_fm
     public :: make_directory
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
     public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_pred
-    public :: find_file_other_window, backup_file_name_p, revert_buffer, revert_function_proc, find_directory_proc
-    public :: insert_directory, insert_directory_clean, insert_directory_wildcard_in_dir_p, file_truename, &
+    public :: find_file_other_window, is_backup_file_name, revert_buffer, revert_function_proc, find_directory_proc
+    public :: insert_directory, insert_directory_clean, is_insert_directory_wildcard_in_dir, file_truename, &
               delete_file, delete_directory, file_name_extension, file_name_sans_extension, wildcard_to_regexp, &
-              auto_save_file_name_p, &
+              is_auto_save_file_name, &
               file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
-              shell_quote_wildcard_pattern, string_prefix_p
-    public :: copy_directory, file_in_directory_p, file_equal_p, make_empty_file, file_modes_symbolic_to_number, &
+              shell_quote_wildcard_pattern, is_string_prefix
+    public :: copy_directory, is_file_in_directory, is_file_equal, make_empty_file, file_modes_symbolic_to_number, &
               file_modes_number_to_symbolic, find_file_read_only, find_file_read_only_other_window
 
     !> This option influences the handling of symbolic links in `copy_directory'.
@@ -173,21 +173,21 @@ module files_fm
         !> A directory is considered to be a "parent" of itself.
         !> DIR must be an existing directory, otherwise the function returns false.
         !> Port of files.el:file-in-directory-p.  (In files_copy_fm.)
-        module function file_in_directory_p(file, dir) result(inside)
+        module function is_file_in_directory(file, dir) result(inside)
             implicit none(type, external)
             character(len=*), intent(in) :: file, dir
             logical :: inside
-        end function file_in_directory_p
+        end function is_file_in_directory
 
         !> Return true if files FILE1 and FILE2 name the same file.
         !> If FILE1 or FILE2 does not exist, the return value is unspecified.
         !> Port of files.el:file-equal-p (the attributes compared are those
         !> `file_attributes' gives).  (In files_copy_fm.)
-        module function file_equal_p(file1, file2) result(same)
+        module function is_file_equal(file1, file2) result(same)
             implicit none(type, external)
             character(len=*), intent(in) :: file1, file2
             logical :: same
-        end function file_equal_p
+        end function is_file_equal
 
         !> Create an empty file FILENAME.
         !> Optional arg PARENTS, if true then creates parent dirs as needed.
@@ -367,7 +367,7 @@ module files_fm
         !> Leaves point after the inserted text.
         !> SWITCHES is a string of options.
         !> Optional third arg WILDCARD means treat FILE as shell wildcard.
-        !> Optional fourth arg FULL_DIRECTORY_P means file is a directory and
+        !> Optional fourth arg FULL_DIRECTORY means file is a directory and
         !> switches do not contain `d', so that a full listing is expected.
         !>
         !> This works by running a directory listing program
@@ -382,11 +382,11 @@ module files_fm
         !> SWITCHES a string; the output is decoded as UTF-8 by
         !> `call_process'; the shell is $SHELL or /bin/sh, as callproc.c
         !> sets `shell_file_name').  (In files_dir_fm.)
-        recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory_p)
+        recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory)
             implicit none(type, external)
             character(len=*), intent(in) :: file, switches
             type(status_type), intent(out) :: status
-            logical, intent(in), optional :: wildcard, full_directory_p
+            logical, intent(in), optional :: wildcard, full_directory
         end subroutine insert_directory
 
         !> After `ls' output inserted from BEG to point, read the positions of
@@ -409,12 +409,12 @@ module files_fm
         !> Valid wildcards are `*', `?', `[abc]' and `[a-z]'.  Port of
         !> files.el:insert-directory-wildcard-in-dir-p (the cons as
         !> DIRECTORY and WILDCARD).  (In files_dir_fm.)
-        module function insert_directory_wildcard_in_dir_p(dir, directory, wildcard) result(found)
+        module function is_insert_directory_wildcard_in_dir(dir, directory, wildcard) result(found)
             implicit none(type, external)
             character(len=*), intent(in) :: dir
             character(len=:), allocatable, intent(out), optional :: directory, wildcard
             logical :: found
-        end function insert_directory_wildcard_in_dir_p
+        end function is_insert_directory_wildcard_in_dir
 
         !> Return the truename of FILENAME.
         !> If FILENAME is not absolute, first expands it against `default_directory'.
@@ -528,11 +528,11 @@ module files_fm
         !> Return true if FILENAME can be yielded by `make_auto_save_file_name'.
         !> FILENAME should lack slashes.  Port of
         !> files.el:auto-save-file-name-p.  (In files_dir_fm.)
-        module function auto_save_file_name_p(filename) result(p)
+        module function is_auto_save_file_name(filename) result(p)
             implicit none(type, external)
             character(len=*), intent(in) :: filename
             logical :: p
-        end function auto_save_file_name_p
+        end function is_auto_save_file_name
 
         !> Produce a string showing FILE_SIZE in human-readable form.
         !>
@@ -603,12 +603,12 @@ module files_fm
         !> Return true if STRING begins with PREFIX (ignoring case with
         !> IGNORE_CASE).  Port of subr.el:string-prefix-p.  (In
         !> files_dir_fm.)
-        module function string_prefix_p(prefix, string, ignore_case) result(p)
+        module function is_string_prefix(prefix, string, ignore_case) result(p)
             implicit none(type, external)
             character(len=*), intent(in) :: prefix, string
             logical, intent(in), optional :: ignore_case
             logical :: p
-        end function string_prefix_p
+        end function is_string_prefix
 
         !> Replace current buffer text with the text of the visited file on disk.
         !> This undoes all changes since the file was visited or saved.
@@ -1034,7 +1034,7 @@ contains
         call expand_file_name(file, expanded, st)
         if (.not. st%ok()) return
         f = abbreviate_file_name(expanded)
-        if (.not. directory_name_p(f) .and. file_directory_p(f)) f = file_name_as_directory(f)
+        if (.not. is_directory_name(f) .and. is_file_directory(f)) f = file_name_as_directory(f)
         have_file = .true.
 
         do while (have_file .and. .not. found)
@@ -1044,7 +1044,7 @@ contains
             if (len(f) == 0) exit
             call expand_file_name(name, try, st, f)
 
-            if (st%ok() .and. file_exists_p(try)) then
+            if (st%ok() .and. file_exists(try)) then
                 found = .true.
                 root = f
             else
@@ -1130,7 +1130,7 @@ contains
     !> files.el:executable-find (`exec_path' is PATH; no REMOTE).
     subroutine executable_find(command, path)
         use env_fm, only: getenv
-        use fileio_fm, only: file_executable_p
+        use fileio_fm, only: is_file_executable
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: path
         character(len=:), allocatable :: dir, search, entry, candidate
@@ -1181,7 +1181,7 @@ contains
         logical function executable(name)
             character(len=*), intent(in) :: name
 
-            executable = file_executable_p(name) .and. .not. file_directory_p(name)
+            executable = is_file_executable(name) .and. .not. is_file_directory(name)
         end function executable
     end subroutine executable_find
 
@@ -1242,7 +1242,7 @@ contains
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
 
-        if (file_directory_p(absname)) then
+        if (is_file_directory(absname)) then
             ! find-directory-functions
             if (find_file_run_dired .and. associated(find_directory_functions)) then
                 call find_directory_functions(abbreviate_file_name(absname), buf, status)
@@ -1275,13 +1275,13 @@ contains
                 return
             end if
 
-            if (file_exists_p(absname)) then
+            if (file_exists(absname)) then
                 ! The file is there but couldn't be read.
                 call set_buffer(old, st)
                 call kill_buffer(buf, st)
                 buf = handle_type()
 
-                if (.not. file_readable_p(absname)) then
+                if (.not. is_file_readable(absname)) then
                     status = status_type()
                     call set_error(status, FM_FILE_ERROR, "File is not readable: "//absname)
                 end if
@@ -1311,24 +1311,24 @@ contains
         type(status_type) :: st
 
         file = buffers(cur)%filename
-        buffers(cur)%read_only = .not. file_writable_p(file)
+        buffers(cur)%read_only = .not. is_file_writable(file)
         msg = ""
 
-        if (error .and. file_exists_p(file)) then
+        if (error .and. file_exists(file)) then
             buffers(cur)%read_only = .true.
             msg = "File exists, but cannot be read"
-        else if (error .and. file_symlink_p(file)) then
+        else if (error .and. is_file_symlink(file)) then
             msg = "Symbolic link that points to nonexistent file"
         else if (.not. buffers(cur)%read_only) then
             if (error) msg = "(New file)"
         else if (.not. error) then
             msg = "Note: file is write protected"
-        else if (file_accessible_directory_p(buffers(cur)%directory)) then
+        else if (is_file_accessible_directory(buffers(cur)%directory)) then
             msg = "File not found and directory write-protected"
         else
             buffers(cur)%read_only = .false.
 
-            if (.not. file_directory_p(buffers(cur)%directory)) then
+            if (.not. is_file_directory(buffers(cur)%directory)) then
                 msg = "Use M-x make-directory RET RET to create the directory and its parents"
             end if
         end if
@@ -1339,7 +1339,7 @@ contains
         if (.not. buffers(cur)%read_only) then
             modes = file_modes(file)
 
-            if (backup_file_name_p(file) .or. (modes >= 0 .and. iand(modes, int(o'222', int32)) == 0)) then
+            if (is_backup_file_name(file) .or. (modes >= 0 .and. iand(modes, int(o'222', int32)) == 0)) then
                 call set_buffer_read_only(current_buffer(), .true., st)
             end if
         end if
@@ -1400,12 +1400,12 @@ contains
     !> This is a separate function so you can redefine it for customization.
     !> You may need to redefine `file_name_sans_versions' as well.  Port of
     !> files.el:backup-file-name-p.
-    pure logical function backup_file_name_p(file)
+    pure logical function is_backup_file_name(file)
         character(len=*), intent(in) :: file
 
-        backup_file_name_p = .false.
-        if (len(file) > 0) backup_file_name_p = file(len(file):len(file)) == "~"
-    end function backup_file_name_p
+        is_backup_file_name = .false.
+        if (len(file) > 0) is_backup_file_name = file(len(file):len(file)) == "~"
+    end function is_backup_file_name
 
     !> The backup name of `file': FILE~.  Port of
     !> files.el:make-backup-file-name (backup-directory-alist nil).
@@ -1461,7 +1461,7 @@ contains
     !> Whether deleting and rewriting `file' keeps its owner (and with
     !> `group', its group); true if it doesn't exist.
     !> Port of files.el:file-ownership-preserved-p.
-    logical function file_ownership_preserved_p(file, group)
+    logical function is_file_ownership_preserved(file, group)
         character(len=*), intent(in) :: file
         logical, intent(in) :: group
         type(file_stat_type) :: attr, parent
@@ -1469,9 +1469,9 @@ contains
         logical :: found
 
         call file_attributes(file, attr, found)
-        file_ownership_preserved_p = .true.
+        is_file_ownership_preserved = .true.
         if (.not. found) return
-        file_ownership_preserved_p = .false.
+        is_file_ownership_preserved = .false.
         if (attr%uid /= user_uid()) return
         if (group .and. attr%gid /= group_gid()) return
         dir = file_name_directory(file)
@@ -1482,8 +1482,8 @@ contains
         ! made in a setgid directory its group.
         if (.not. (parent%uid == user_uid() .or. iand(parent%mode, int(o'4000', int32)) == 0)) return
         if (group .and. parent%gid /= attr%gid) return
-        file_ownership_preserved_p = .true.
-    end function file_ownership_preserved_p
+        is_file_ownership_preserved = .true.
+    end function is_file_ownership_preserved
 
     !> Back up the current buffer's file before its first save, if
     !> appropriate, by renaming it to FILE~ or (to keep its owner, links
@@ -1507,13 +1507,13 @@ contains
         if (.not. normal_backup_enable_predicate(file)) return
         call file_attributes(file, attr, found)
         if (.not. found) return
-        if (.not. file_regular_p(file)) return
+        if (.not. is_file_regular(file)) return
         backupname = make_backup_file_name(file)
         modes = file_modes(file)
-        make_copy = file_symlink_p(file) .or. &
+        make_copy = is_file_symlink(file) .or. &
                     (modes >= 0 .and. iand(modes, int(o'6000', int32)) /= 0) .or. &
-                    .not. file_writable_p(file_name_directory(file)) .or. &
-                    .not. file_ownership_preserved_p(file, .true.)
+                    .not. is_file_writable(file_name_directory(file)) .or. &
+                    .not. is_file_ownership_preserved(file, .true.)
 
         if (make_copy) then
             ! backup-buffer-copy
@@ -1579,7 +1579,7 @@ contains
         modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
 
         if (.not. modified .and. allocated(buffers(cur)%filename)) then
-            modified = .not. file_exists_p(buffers(cur)%filename)
+            modified = .not. file_exists(buffers(cur)%filename)
         end if
 
         if (.not. modified) then
@@ -1590,9 +1590,9 @@ contains
         if (allocated(buffers(cur)%filename)) then
             file = buffers(cur)%filename
 
-            if (.not. verify_visited_file_modtime() .and. file_exists_p(file)) then
-                call yes_or_no_p(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
-                                 ok, status)
+            if (.not. verify_visited_file_modtime() .and. file_exists(file)) then
+                call read_yes_or_no(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
+                                    ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -1618,15 +1618,15 @@ contains
             if (.not. status%ok()) return
             file = dir
 
-            if (file_exists_p(file)) then
-                if (file_directory_p(file)) then
+            if (file_exists(file)) then
+                if (is_file_directory(file)) then
                     ! Signal an error if the user specified the name of an
                     ! existing directory.
                     call set_error(status, FM_GENERIC_ERROR, file//" is a directory")
                     return
                 end if
 
-                call y_or_n_p(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
+                call read_y_or_n(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -1652,9 +1652,9 @@ contains
             if (.not. status%ok()) return
             dir = file_name_directory(dir)
 
-            if (.not. file_exists_p(file) .and. .not. file_exists_p(dir)) then
-                call y_or_n_p(format_message("Directory `")//dir//format_message("' does not exist; create? "), &
-                              ok, status)
+            if (.not. file_exists(file) .and. .not. file_exists(dir)) then
+                call read_y_or_n(format_message("Directory `")//dir//format_message("' does not exist; create? "), &
+                                 ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -1669,9 +1669,9 @@ contains
             ! basic-save-buffer-2
             tempsetmodes = .false.
 
-            if (.not. file_writable_p(file)) then
-                if (.not. file_directory_p(dir)) then
-                    if (file_exists_p(dir)) then
+            if (.not. is_file_writable(file)) then
+                if (.not. is_file_directory(dir)) then
+                    if (file_exists(dir)) then
                         call set_error(status, FM_GENERIC_ERROR, dir//" is not a directory")
                     else
                         call set_error(status, FM_GENERIC_ERROR, dir//": No such directory")
@@ -1680,13 +1680,13 @@ contains
                     return
                 end if
 
-                if (.not. file_exists_p(file)) then
+                if (.not. file_exists(file)) then
                     call set_error(status, FM_GENERIC_ERROR, "Directory "//dir//" write-protected")
                     return
                 end if
 
-                call yes_or_no_p("File "//file_name_nondirectory(file)// &
-                                 " is write-protected; try to save anyway? ", ok, status)
+                call read_yes_or_no("File "//file_name_nondirectory(file)// &
+                                    " is write-protected; try to save anyway? ", ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -1704,7 +1704,7 @@ contains
             ! are restored below.
             if (tempsetmodes .and. setmodes < 0) then
                 setmodes = file_modes(file)
-                if (.not. file_writable_p(file)) call set_file_modes(file, ior(setmodes, int(o'200', int32)), st)
+                if (.not. is_file_writable(file)) call set_file_modes(file, ior(setmodes, int(o'200', int32)), st)
             end if
 
             call write_region(file, .true., status, message=wrote)
@@ -1738,7 +1738,7 @@ contains
         case (FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT_SAVE)
             add = .true.
         case default
-            call y_or_n_p("Buffer "//buffers(cur)%name//" does not end in newline.  Add one? ", add, status)
+            call read_y_or_n("Buffer "//buffers(cur)%name//" does not end in newline.  Add one? ", add, status)
             if (.not. status%ok()) return
         end select
 
@@ -1888,7 +1888,7 @@ contains
                 done = done + 1
             end do
         else
-            call map_y_or_n_p(int(n), save_prompter, save_actor, done, status, "buffer", "buffers", "save")
+            call map_read_y_or_n(int(n), save_prompter, save_actor, done, status, "buffer", "buffers", "save")
         end if
 
         deallocate (pending)
@@ -1953,7 +1953,7 @@ contains
         end if
 
         if (modified_file_buffers_exist()) then
-            call yes_or_no_p("Modified buffers exist; exit anyway? ", ok, status)
+            call read_yes_or_no("Modified buffers exist; exit anyway? ", ok, status)
             if (.not. status%ok() .or. .not. ok) return
         end if
 
@@ -2005,7 +2005,7 @@ contains
             cb = current_buffer()
 
             if (other%index /= 0 .and. other%index /= cb%index .and. query) then
-                call y_or_n_p("A buffer is visiting "//file//"; proceed? ", ok, status)
+                call read_y_or_n("A buffer is visiting "//file//"; proceed? ", ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -2033,7 +2033,7 @@ contains
         buffers(cur)%backed_up = .false.
         ! clear-visited-file-modtime
         if (.not. along) buffers(cur)%modtime_known = .false.
-        if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified_p(.true.)
+        if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified(.true.)
 
         ! Update the major mode, if the file name determines it; don't
         ! change the mode if it is special.  Errors are ignored.
@@ -2069,7 +2069,7 @@ contains
         if (len(file) > 0) then
             ! If arg is a directory name, use the default file name, but in
             ! that directory.
-            if (directory_name_p(file)) then
+            if (is_directory_name(file)) then
                 if (allocated(buffers(cur)%filename)) then
                     file = file//file_name_nondirectory(buffers(cur)%filename)
                 else
@@ -2077,8 +2077,8 @@ contains
                 end if
             end if
 
-            if (confirm .and. file_exists_p(file)) then
-                call y_or_n_p(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
+            if (confirm .and. file_exists(file)) then
+                call read_y_or_n(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -2091,11 +2091,11 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call restore_buffer_modified_p(.true.)
+        call restore_buffer_modified(.true.)
 
         ! Make the buffer writable if the file is.
         if (allocated(buffers(cur)%filename)) then
-            if (file_writable_p(buffers(cur)%filename)) buffers(cur)%read_only = .false.
+            if (is_file_writable(buffers(cur)%filename)) buffers(cur)%read_only = .false.
         end if
 
         call save_buffer(1_int64, .false., status)
@@ -2203,7 +2203,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            serial_live = buffer_live_p(buffer_handle(k))
+            serial_live = is_buffer_live(buffer_handle(k))
             return
         end do
     end function serial_live
@@ -2321,7 +2321,7 @@ contains
         stale = BUFFER_STALE_NO
         if (noconfirm) continue
         if (.not. allocated(buffers(cur)%filename)) return
-        if (.not. file_readable_p(buffers(cur)%filename)) return
+        if (.not. is_file_readable(buffers(cur)%filename)) return
         if (buffers(cur)%text%save_modiff < buffers(cur)%text%modiff) return
         if (.not. verify_visited_file_modtime()) stale = BUFFER_STALE_YES
     end function buffer_stale_default_function
@@ -2568,7 +2568,7 @@ contains
         call make_directory_internal(dir, status)
 
         if (.not. status%ok()) then
-            already = file_directory_p(dir)
+            already = is_file_directory(dir)
             if (already) status = status_type()
         end if
     end subroutine ensure_directory

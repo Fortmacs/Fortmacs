@@ -76,7 +76,7 @@ module abbrev_fm
               expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, abbrev_symbol, abbrev_expansion, &
               abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, insert_abbrev_table_description, &
               abbrev_table_symbols, abbrev_possibly_save, local_abbrev_table, set_local_abbrev_table, &
-              edit_abbrevs_mode, abbrev_mode_p, abbrev_no_self_insert, syms_of_abbrev
+              edit_abbrevs_mode, is_abbrev_mode, abbrev_no_self_insert, syms_of_abbrev
 
     !> The values of `save_abbrevs': never save, ask (t upstream) or save
     !> without asking (`silently').
@@ -164,8 +164,8 @@ module abbrev_fm
         procedure :: define_table => abbrev_table_define_table
         !> Undefine all abbrevs (`clear_abbrev_table').
         procedure :: clear => clear_abbrev_table
-        !> Whether there are no abbrevs (`abbrev_table_empty_p').
-        procedure :: empty => abbrev_table_empty_p
+        !> Whether there are no abbrevs (`is_abbrev_table_empty').
+        procedure :: empty => is_abbrev_table_empty
         !> Add a parent table.
         procedure :: add_parent => abbrev_table_add_parent
     end type abbrev_table_type
@@ -353,11 +353,11 @@ module abbrev_fm
         !> Return false if there are abbrev symbols in OBJECT.
         !> If IGNORE_SYSTEM is true, system definitions are ignored.  Port of
         !> abbrev.el:abbrev-table-empty-p.
-        module logical function abbrev_table_empty_p(self, ignore_system) result(empty)
+        module logical function is_abbrev_table_empty(self, ignore_system) result(empty)
             implicit none(type, external)
             class(abbrev_table_type), intent(in) :: self
             logical, intent(in), optional :: ignore_system
-        end function abbrev_table_empty_p
+        end function is_abbrev_table_empty
 
         !> Add PARENT to the tables from which the table inherits abbrevs
         !> (its `parents').  Not a port.
@@ -774,9 +774,9 @@ module abbrev_fm
 
         !> Whether Abbrev mode is on in the current buffer (BVAR
         !> abbrev_mode, for cmds.c's self-insert-command).  Not a port.
-        module logical function abbrev_mode_p()
+        module logical function is_abbrev_mode()
             implicit none(type, external)
-        end function abbrev_mode_p
+        end function is_abbrev_mode
 
         !> Define Abbrev mode, Edit-Abbrevs mode and the tables, and
         !> register the commands.  Not a port.

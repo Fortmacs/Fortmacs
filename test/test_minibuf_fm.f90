@@ -30,7 +30,7 @@ module test_minibuf_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR, FM_VOID_VARIABLE, FM_INHIBITED_INTERACTION
     use minibuf_fm, only: completion_regexp_list, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
-                          minibuffer_setup_function, minibufferp, assoc_string
+                          minibuffer_setup_function, is_minibuffer, assoc_string
     use keyboard_fm, only: inhibit_interaction
     use lisp_fm, only: list, vtag, V_LIST
     use handle_fm, only: handle_type
@@ -60,15 +60,15 @@ module test_minibuf_fm
                           try_completion, all_completions, test_completion, completion_ignore_case, &
                           completion_function_table, minibuffer_contents
     use minibuffer_fm, only: read_file_name
-    use fns_fm, only: yes_or_no_p, use_short_answers
-    use subr_fm, only: add_to_history, history_length, history_delete_duplicates, y_or_n_p, y_or_n_p_use_read_key, &
+    use fns_fm, only: read_yes_or_no, use_short_answers
+    use subr_fm, only: add_to_history, history_length, history_delete_duplicates, read_y_or_n, read_y_or_n_use_read_key, &
                        read_number
     use fns_fm, only: put
     use minibuf_fm, only: COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_fm, only: read_buffer, internal_complete_buffer, insert_default_directory, &
                              read_buffer_completion_ignore_case
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, write_region, &
-                         make_directory_internal, delete_file_internal, file_exists_p
+                         make_directory_internal, delete_file_internal, file_exists
     use files_fm, only: set_visited_file_name, write_file
     implicit none(type, external)
     private
@@ -120,8 +120,8 @@ contains
                     new_unittest("no-recursive-minibuffer", test_no_recursion), &
                     new_unittest("yes-or-no-p", test_yes_or_no), &
                     new_unittest("read-number", test_read_number), &
-                    new_unittest("y-or-n-p-minibuffer", test_y_or_n_p_minibuffer), &
-                    new_unittest("y-or-n-p-read-key", test_y_or_n_p_read_key), &
+                    new_unittest("y-or-n-p-minibuffer", test_read_y_or_n_minibuffer), &
+                    new_unittest("y-or-n-p-read-key", test_read_y_or_n_read_key), &
                     new_unittest("read-file-name", test_read_file_name), &
                     new_unittest("read-file-name-history", test_read_file_name_history), &
                     new_unittest("read-file-name-directory", test_read_file_name_directory), &
@@ -463,28 +463,28 @@ contains
 
         call fresh_scratch()
         call type_text("yes"//achar(13))
-        call yes_or_no_p("Really?", answer, st)
+        call read_yes_or_no("Really?", answer, st)
         call check(error, st%ok() .and. answer)
         if (allocated(error)) return
         call type_text("NO"//achar(13))
-        call yes_or_no_p("Really? ", answer, st)
+        call read_yes_or_no("Really? ", answer, st)
         call check(error, st%ok() .and. .not. answer)
         if (allocated(error)) return
         call type_keys("C-g")
-        call yes_or_no_p("Really? ", answer, st)
+        call read_yes_or_no("Really? ", answer, st)
         call check(error, st%code == FM_QUIT)
         if (allocated(error)) return
         ! use-short-answers
         use_short_answers = .true.
         call type_keys("y")
-        call yes_or_no_p("Really?", answer, st)
+        call read_yes_or_no("Really?", answer, st)
         use_short_answers = .false.
         call check(error, st%ok() .and. answer .and. last_message == "Really? (y or n) y", last_message)
     end subroutine test_yes_or_no
 
     !> y-or-n-p reads its answer in the minibuffer: other keys ask again
     !> with "Please answer y or n", RET exits with "no", C-g quits.
-    subroutine test_y_or_n_p_minibuffer(error)
+    subroutine test_read_y_or_n_minibuffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: answer
@@ -494,62 +494,62 @@ contains
         ! Another key: the answer is asked for again (and the input typed
         ! after it is discarded, so here input ends).
         call type_keys("x y")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%code == FM_QUIT, "input discarded")
         if (allocated(error)) return
         call check(error, last_minibuffer_message == " [Please answer y or n]", last_minibuffer_message)
         if (allocated(error)) return
         call type_keys("y")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%ok() .and. answer .and. last_message == "Go? (y or n) y", last_message)
         if (allocated(error)) return
         call type_keys("RET")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%ok() .and. .not. answer, "RET is no")
         if (allocated(error)) return
         call type_keys("SPC")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%ok() .and. answer, "SPC is yes")
         if (allocated(error)) return
         call type_keys("C-g")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%code == FM_QUIT, "C-g quits")
         if (allocated(error)) return
         call check(error, minibuf_level == 0 .and. buffers(cur)%name == "*scratch*", "back")
-    end subroutine test_y_or_n_p_minibuffer
+    end subroutine test_read_y_or_n_minibuffer
 
     !> y-or-n-p-use-read-key: one key in the echo area; ESC quits.
-    subroutine test_y_or_n_p_read_key(error)
+    subroutine test_read_y_or_n_read_key(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: answer
 
         call fresh_scratch()
-        y_or_n_p_use_read_key = .true.
+        read_y_or_n_use_read_key = .true.
         call type_keys("x n")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%code == FM_QUIT .and. last_message == "Please answer y or n.  Go? (y or n) ", &
                    last_message)
 
         if (allocated(error)) then
-            y_or_n_p_use_read_key = .false.
+            read_y_or_n_use_read_key = .false.
             return
         end if
 
         call type_keys("n")
-        call y_or_n_p("Go?", answer, st)
+        call read_y_or_n("Go?", answer, st)
         call check(error, st%ok() .and. .not. answer .and. last_message == "Go? (y or n) n", last_message)
 
         if (allocated(error)) then
-            y_or_n_p_use_read_key = .false.
+            read_y_or_n_use_read_key = .false.
             return
         end if
 
         call type_keys("ESC")
-        call y_or_n_p("Go?", answer, st)
-        y_or_n_p_use_read_key = .false.
+        call read_y_or_n("Go?", answer, st)
+        read_y_or_n_use_read_key = .false.
         call check(error, st%code == FM_QUIT, "ESC quits")
-    end subroutine test_y_or_n_p_read_key
+    end subroutine test_read_y_or_n_read_key
 
     !> read-number reads the answer as the Lisp reader does.
     subroutine test_read_number(error)
@@ -822,7 +822,7 @@ contains
         call set_buffer(buf, st)
         call insert("text", st)
         call write_file(dir//"w1.txt", .true., st)
-        call check(error, st%ok() .and. file_exists_p(dir//"w1.txt"), format_error(st))
+        call check(error, st%ok() .and. file_exists(dir//"w1.txt"), format_error(st))
         if (allocated(error)) return
         call check(error, buffers(cur)%name == "w1.txt" .and. buffers(cur)%filename == dir//"w1.txt", &
                    buffers(cur)%name)
@@ -1697,6 +1697,6 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        exit_hook_ran = minibufferp()
+        exit_hook_ran = is_minibuffer()
     end subroutine note_exit
 end module test_minibuf_fm

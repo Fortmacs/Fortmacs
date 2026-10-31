@@ -35,13 +35,13 @@ module test_itree_fm
     use lisp_fm, only: list, make_fixnum, t_value, nil
     use lread_fm, only: sym
     use data_fm, only: value_eq
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer, buffer_live_p
+    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer, is_buffer_live
     use insdel_fm, only: insert, del_range, replace_range
     use eval_fm, only: property_function_type
     use editfns_fm, only: goto_char
     use itree_fm, only: make_overlay, move_overlay, delete_overlay, free_overlay, overlay_start, overlay_end, &
                         overlay_buffer, overlay_get, overlay_put, overlays_at, overlays_in, next_overlay_change, &
-                        previous_overlay_change, overlayp, delete_all_overlays, overlay_lists, overlay_recenter
+                        previous_overlay_change, is_overlay, delete_all_overlays, overlay_lists, overlay_recenter
     use dispextern_fm, only: DEFAULT_FACE_ID
     use faces_fm, only: init_faces
     use frame_fm, only: frame_type
@@ -110,16 +110,16 @@ contains
         call check(error, value_eq(overlay_get(ov, "face"), sym("bold")), "overlay-put")
         if (allocated(error)) return
         call delete_overlay(ov)
-        call check(error, overlay_start(ov) == 0 .and. .not. buffer_live_p(overlay_buffer(ov)) .and. overlayp(ov), &
+        call check(error, overlay_start(ov) == 0 .and. .not. is_buffer_live(overlay_buffer(ov)) .and. is_overlay(ov), &
                    "deleted")
         if (allocated(error)) return
         call check(error, value_eq(overlay_get(ov, "face"), sym("bold")), "keeps its properties")
         if (allocated(error)) return
         call move_overlay(ov, 2_int64, 4_int64, st)
-        call check(error, overlay_start(ov) == 2 .and. overlay_end(ov) == 4 .and. buffer_live_p(overlay_buffer(ov)), &
+        call check(error, overlay_start(ov) == 2 .and. overlay_end(ov) == 4 .and. is_buffer_live(overlay_buffer(ov)), &
                    "moved back into the buffer")
         call free_overlay(ov)
-        call check(error,.not. overlayp(ov), "freed")
+        call check(error,.not. is_overlay(ov), "freed")
         call kill_buffer(h, st)
     end subroutine test_basics
 
@@ -234,7 +234,7 @@ contains
         call fresh(h, "0123456789")
         call make_overlay(a, 2_int64, 6_int64, st)
         call kill_buffer(h, st)
-        call check(error, overlayp(a) .and. overlay_start(a) == 0 .and. .not. buffer_live_p(overlay_buffer(a)), &
+        call check(error, is_overlay(a) .and. overlay_start(a) == 0 .and. .not. is_buffer_live(overlay_buffer(a)), &
                    "no buffer after kill-buffer")
         call free_overlay(a)
     end subroutine test_kill_buffer
@@ -535,7 +535,7 @@ contains
         all_overlays = size(vec) == 10
 
         do i = 1, size(vec)
-            all_overlays = all_overlays .and. overlayp(vec(i))
+            all_overlays = all_overlays .and. is_overlay(vec(i))
         end do
 
         do i = 1, 10

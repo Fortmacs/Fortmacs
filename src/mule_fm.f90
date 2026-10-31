@@ -62,24 +62,24 @@ module mule_fm
     use fns_fm, only: put
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg
-    use buffer_fm, only: buffers, cur, buf_bytes, BEG_BYTE, current_buffer, buffer_live_p, set_buffer, &
-                         restore_buffer_modified_p
+    use buffer_fm, only: buffers, cur, buf_bytes, BEG_BYTE, current_buffer, is_buffer_live, set_buffer, &
+                         restore_buffer_modified
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap
     use search_fm, only: string_match, match_beginning, match_end, case_fold_search
     use minibuf_fm, only: completion_list_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use coding_fm, only: syms_of_coding, buffer_file_coding_system, last_coding_system_used, &
                          coding_system_for_read, inhibit_eol_conversion, default_process_coding_system, &
-                         file_coding_system_table, coding_system_p, check_coding_system, coding_system_base, &
+                         file_coding_system_table, is_coding_system, check_coding_system, coding_system_base, &
                          coding_system_type, coding_system_eol_type, coding_system_subsidiaries, &
                          coding_system_change_eol_conversion, coding_system_change_text_conversion, &
                          coding_system_mnemonic, coding_system_doc_string, coding_system_aliases, coding_system_equal, &
                          coding_system_priority_list, set_coding_system_priority, coding_system_mime_charset, &
-                         coding_system_charset_list, coding_system_list, coding_system_prefer_utf_8_p, &
-                         coding_system_ascii_compatible_p, find_coding_systems_text, check_coding_systems_text, &
+                         coding_system_charset_list, coding_system_list, is_coding_system_prefer_utf_8, &
+                         is_coding_system_ascii_compatible, find_coding_systems_text, check_coding_systems_text, &
                          coding_system_list_entry_type, unencodable_type, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
     use fileio_fm, only: set_auto_coding_function, after_insert_file_set_coding, &
-                         select_safe_coding_system_function, file_name_match_p
+                         select_safe_coding_system_function, is_file_name_match
     use files_fm, only: revert_buffer
     use xdisp_fm, only: message
     use help_fm, only: with_help_window
@@ -303,7 +303,7 @@ contains
         if (.not. allocated(auto_coding_table)) return
 
         do k = 1, size(auto_coding_table)
-            if (file_name_match_p(auto_coding_table(k)%pattern, filename)) then
+            if (is_file_name_match(auto_coding_table(k)%pattern, filename)) then
                 coding = auto_coding_table(k)%coding
                 return
             end if
@@ -572,7 +572,7 @@ contains
         call find_auto_coding(filename, head, coding, source)
 
         if (len(coding) > 0) then
-            if (.not. coding_system_p(coding)) coding = ""
+            if (.not. is_coding_system(coding)) coding = ""
         end if
     end subroutine set_auto_coding
 
@@ -937,7 +937,7 @@ contains
         call buffer_file_coding_system%set_local(cs)
         k = explicit_index(.true.)
         explicit(k)%write = cs
-        if (.not. nomodify) call restore_buffer_modified_p(.true.)
+        if (.not. nomodify) call restore_buffer_modified(.true.)
     end subroutine set_buffer_file_coding_system
 
     recursive subroutine cmd_set_buffer_file_coding_system(status)
@@ -1164,7 +1164,7 @@ contains
             return
         end if
 
-        if (.not. coding_system_ascii_compatible_p(cs)) then
+        if (.not. is_coding_system_ascii_compatible(cs)) then
             call set_error(status, FM_GENERIC_ERROR, "Unsuitable coding system for keyboard: "//name)
             return
         end if
@@ -1309,7 +1309,7 @@ contains
         character(len=:), allocatable :: base, cs, t
         integer :: eol
 
-        if (len(coding_system) == 0 .or. .not. coding_system_p(coding_system)) then
+        if (len(coding_system) == 0 .or. .not. is_coding_system(coding_system)) then
             call set_error(status, FM_GENERIC_ERROR, &
                            format_message("Invalid coding system `")//coding_system//format_message("'"))
             return
@@ -1414,7 +1414,7 @@ contains
         call find_auto_coding(fname, text, auto_cs, source, multibyte=buffers(cur)%multibyte)
 
         if (len(auto_cs) > 0) then
-            if (.not. coding_system_p(auto_cs)) then
+            if (.not. is_coding_system(auto_cs)) then
                 if (source == ":coding") then
                     by = ":coding tag"
                 else
@@ -1586,7 +1586,7 @@ contains
         end if
 
         if (len(coding) > 0) then
-            if (coding_system_type(coding) == "undecided" .and. coding_system_prefer_utf_8_p(coding) &
+            if (coding_system_type(coding) == "undecided" .and. is_coding_system_prefer_utf_8(coding) &
                 .and. to - from < len(text, kind=int64)) then
                 coding = coding_system_change_text_conversion(coding, "utf-8")
             end if
@@ -1631,12 +1631,12 @@ contains
 
     ! Ask PROMPT, to be answered yes or no.  Not a port.
     subroutine yes_or_no_prompt(prompt, ok, status)
-        use fns_fm, only: yes_or_no_p
+        use fns_fm, only: read_yes_or_no
         character(len=*), intent(in) :: prompt
         logical, intent(out) :: ok
         type(status_type), intent(out) :: status
 
-        call yes_or_no_p(prompt, ok, status)
+        call read_yes_or_no(prompt, ok, status)
     end subroutine yes_or_no_prompt
 
     !> The text between FROM and TO of the current buffer.  Not a port.
@@ -1857,7 +1857,7 @@ contains
         call erase_buffer(status)
         call insert(text, status)
         call temp_buffer_window_show(buf, window, status)
-        if (buffer_live_p(previous)) call set_buffer(previous, st)
+        if (is_buffer_live(previous)) call set_buffer(previous, st)
     end subroutine show_warning
 
     ! Kill the "*Warning*" buffer, if any.  Not a port.
@@ -1867,7 +1867,7 @@ contains
         type(status_type) :: st
 
         buf = get_buffer("*Warning*")
-        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buf)) call kill_buffer(buf, st)
     end subroutine kill_warning
 
     ! N as a decimal string.  Not a port.

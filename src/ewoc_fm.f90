@@ -35,7 +35,7 @@ module ewoc_fm
     use lisp_fm, only: value_type, t_value, nil
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live
     use marker_fm, only: copy_marker_at, marker_position, set_marker, free_marker
     use editfns_fm, only: point, goto_char, delete_region
     use textprop_fm, only: put_text_property
@@ -382,7 +382,7 @@ contains
         type(handle_type), intent(in) :: old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine leave_buffer
 
     ! ------------------------------------------------------------------
@@ -1019,7 +1019,7 @@ contains
         buf = null_handle()
         i = slot(ewoc)
         if (i == 0) return
-        if (buffer_live_p(ewocs(i)%buffer)) buf = ewocs(i)%buffer
+        if (is_buffer_live(ewocs(i)%buffer)) buf = ewocs(i)%buffer
     end function ewoc_buffer
 
     !> Return the HEADER and FOOTER of EWOC.  Port of ewoc.el:ewoc-get-hf.

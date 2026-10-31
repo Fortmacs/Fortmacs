@@ -35,7 +35,7 @@ module test_info_fm
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
     use search_fm, only: search_forward, SEARCH_NOERROR
-    use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_exists_p, &
+    use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_exists, &
                          file_name_directory, file_name_nondirectory
     use files_fm, only: make_temp_file, delete_file
     use callproc_fm, only: call_process
@@ -629,7 +629,7 @@ contains
         command = "gzip -c "//command//"test.info > "//zipped
         call call_process("sh", result, st, args=list(make_string("-c"), make_string(command)))
 
-        if (.not. file_exists_p(zipped)) then
+        if (.not. file_exists(zipped)) then
             ! (No gzip: nothing to test.)
             return
         end if

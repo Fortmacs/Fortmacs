@@ -42,7 +42,7 @@ module test_simple_fm
     use bindings_fm, only: init_bindings
     use simple_fm, only: kill_ring, kill_new, kill_append, current_kill, kill_region, &
                          copy_region_as_kill, kill_line, kill_whole_line, yank, yank_pop, push_mark, &
-                         pop_to_mark_command, deactivate_mark, region_active_p, set_mark, &
+                         pop_to_mark_command, deactivate_mark, is_region_active, set_mark, &
                          exchange_point_and_mark, mark_whole_buffer, kill_ring_yank_pointer, &
                          delete_indentation, fill_prefix, transpose_chars, transpose_words, transpose_lines, &
                          delete_horizontal_space, just_one_space, fixup_whitespace, delete_blank_lines, &
@@ -411,7 +411,7 @@ contains
         call yank(nil(), st)
         call check(error, buffer_string() == "<second>" .and. point() == 8 .and. mark_position() == 2, "yank")
         if (allocated(error)) return
-        call check(error,.not. region_active_p(), "the mark is not activated")
+        call check(error,.not. is_region_active(), "the mark is not activated")
         if (allocated(error)) return
         last_command = sym("yank")
         call yank_pop(1_int64, st)
@@ -461,7 +461,7 @@ contains
         call check(error, point() == 6 .and. mark_position() == 4, "round again")
         if (allocated(error)) return
         call set_mark(0_int64)
-        call check(error, mark_position() == 0 .and. .not. region_active_p(), "no mark")
+        call check(error, mark_position() == 0 .and. .not. is_region_active(), "no mark")
         if (allocated(error)) return
         call pop_to_mark_command(st)
         call check(error, format_error(st), "No mark set in this buffer")
@@ -518,16 +518,16 @@ contains
         if (allocated(error)) return
         call kbd_store_bytes(achar(0)//achar(6))
         call command_loop(st)
-        call check(error, region_active_p(), "C-SPC C-f activates")
+        call check(error, is_region_active(), "C-SPC C-f activates")
         if (allocated(error)) return
         call kbd_store_bytes("x")
         call command_loop(st)
-        call check(error,.not. region_active_p(), "inserting deactivates")
+        call check(error,.not. is_region_active(), "inserting deactivates")
         if (allocated(error)) return
         ! C-SPC C-f C-g: quitting deactivates too.
         call kbd_store_bytes(achar(0)//achar(6)//achar(7))
         call command_loop(st)
-        call check(error,.not. region_active_p(), "C-g deactivates")
+        call check(error,.not. is_region_active(), "C-g deactivates")
         if (allocated(error)) return
         ! DEL with an active region deletes it.
         call kbd_store_bytes(achar(1)//achar(0)//achar(6)//achar(6)//achar(127))
@@ -537,7 +537,7 @@ contains
         ! C-SPC C-SPC: toggles the region.
         call kbd_store_bytes(achar(0)//achar(0))
         call command_loop(st)
-        call check(error,.not. region_active_p() .and. last_message == "Mark deactivated", last_message)
+        call check(error,.not. is_region_active() .and. last_message == "Mark deactivated", last_message)
         call kill_buffer(h, st)
     end subroutine test_keys
 

@@ -55,11 +55,11 @@ module ibuffer_fm
     use data_fm, only: add_local_variables_killer
     use modes_fm, only: major_modes, minor_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, buffer_live_p, &
-                         buffer_handle, buffer_list, buffer_serial_live, kill_buffer, buffer_modified_p, &
-                         restore_buffer_modified_p, erase_buffer
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
+                         buffer_handle, buffer_list, buffer_serial_live, kill_buffer, is_buffer_modified, &
+                         restore_buffer_modified, erase_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, point_min, point_max, eobp, bobp, pos_bol, pos_eol, delete_region, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_eob, is_bob, pos_bol, pos_eol, delete_region, &
                           buffer_size, buffer_substring, following_char, point_marker
     use marker_fm, only: marker_position, free_marker
     use cmds_fm, only: forward_line, beginning_of_line
@@ -79,18 +79,18 @@ module ibuffer_fm
     use mule_util_fm, only: truncate_string_to_width
     use shell_fm, only: list_buffers_directory
     use dired_mode_fm, only: dired_directory_of
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use process_fm, only: get_buffer_process, process_status, process_name
     use frame_fm, only: selected_frame, selected_window, frame_lines, frame_cols
     use window_fm, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
                          display_action_table_type, delete_other_windows, split_window, other_window, bury_buffer, &
-                         pop_to_buffer, select_window, get_buffer_window, fit_window_to_buffer, window_leaves, window_live_p, &
+                         pop_to_buffer, select_window, get_buffer_window, fit_window_to_buffer, window_leaves, is_window_live, &
                          window_configuration_type, current_window_configuration, set_window_configuration
     use view_fm, only: view_buffer
-    use subr_fm, only: y_or_n_p
-    use minibuf_fm, only: minibufferp
+    use subr_fm, only: read_y_or_n
+    use minibuf_fm, only: is_minibuffer
     use minibuffer_fm, only: read_file_name
-    use simple_fm, only: count_lines, use_region_p
+    use simple_fm, only: count_lines, is_use_region
     use keymap_fm, only: keymap_set
     use time_date_fm, only: seconds_to_string, SECONDS_TO_STRING_READABLE
     use sysdep_fm, only: emacs_clock_realtime
@@ -121,11 +121,11 @@ module ibuffer_fm
               ibuffer_visit_buffer, ibuffer_visit_buffer_other_window, ibuffer_visit_buffer_other_window_noselect, &
               ibuffer_visit_buffer_1_window, ibuffer_bury_buffer, ibuffer_do_view, ibuffer_do_view_horizontally, &
               ibuffer_find_file, ibuffer_do_save, ibuffer_do_toggle_modified, ibuffer_do_toggle_read_only, &
-              ibuffer_do_delete, ibuffer_do_kill_on_deletion_marks, ibuffer_recompile_formats, ibuffer_hidden_buffer_p, &
+              ibuffer_do_delete, ibuffer_do_kill_on_deletion_marks, ibuffer_recompile_formats, is_ibuffer_hidden_buffer, &
               ibuffer_operate, ibuffer_confirm_operation_on, ibuffer_buffer_file_name, ibuffer_save_marks_begin, &
               ibuffer_save_marks_end, ibuffer_state_type, syms_of_ibuffer
     public :: define_ibuffer_column, define_ibuffer_sorter, ibuffer_do_sort_by
-    public :: define_ibuffer_filter, ibuffer_included_in_filters_p, ibuffer_included_in_filter_p, ibuffer_unary_operand, &
+    public :: define_ibuffer_filter, is_ibuffer_included_in_filters, is_ibuffer_included_in_filter, ibuffer_unary_operand, &
               ibuffer_format_qualifier, ibuffer_push_filter, ibuffer_filter_disable, ibuffer_pop_filter, &
               ibuffer_decompose_filter, ibuffer_exchange_filters, ibuffer_negate_filter, ibuffer_or_filter, &
               ibuffer_and_filter, ibuffer_save_filters, ibuffer_delete_saved_filters, ibuffer_add_saved_filters, &
@@ -578,12 +578,12 @@ module ibuffer_fm
     interface
         !> Whether BUF should be shown (ibuffer-ext-visible-p).  (In
         !> ibuf_ext_fm.)  Port of ibuf-ext.el:ibuffer-ext-visible-p.
-        recursive module logical function ibuffer_ext_visible_p(buf, all, ibuffer_buf, status) result(visible)
+        recursive module logical function is_ibuffer_ext_visible(buf, all, ibuffer_buf, status) result(visible)
             implicit none(type, external)
             type(handle_type), intent(in) :: buf, ibuffer_buf
             logical, intent(in) :: all
             type(status_type), intent(out) :: status
-        end function ibuffer_ext_visible_p
+        end function is_ibuffer_ext_visible
 
         !> Divide BMARKLIST into the filter groups: their NAMES (in reverse
         !> order, as upstream returns them) and the buffers of each,
@@ -607,12 +607,12 @@ module ibuffer_fm
         !> with the same structure as `ibuffer_filtering_qualifiers'.
         !> Port of ibuf-ext.el:ibuffer-included-in-filters-p.  (In
         !> ibuf_ext_fm.)
-        recursive module logical function ibuffer_included_in_filters_p(buf, filters, status) result(included)
+        recursive module logical function is_ibuffer_included_in_filters(buf, filters, status) result(included)
             implicit none(type, external)
             type(handle_type), intent(in) :: buf
             type(ibuffer_filter_type), intent(in) :: filters(:)
             type(status_type), intent(out) :: status
-        end function ibuffer_included_in_filters_p
+        end function is_ibuffer_included_in_filters
 
         !> Return true if BUF pass FILTER.
         !>
@@ -620,12 +620,12 @@ module ibuffer_fm
         !> same structure as an element of the list
         !> `ibuffer_filtering_qualifiers'.  Port of
         !> ibuf-ext.el:ibuffer-included-in-filter-p.  (In ibuf_ext_fm.)
-        recursive module logical function ibuffer_included_in_filter_p(buf, filter, status) result(included)
+        recursive module logical function is_ibuffer_included_in_filter(buf, filter, status) result(included)
             implicit none(type, external)
             type(handle_type), intent(in) :: buf
             type(ibuffer_filter_type), intent(in) :: filter
             type(status_type), intent(out) :: status
-        end function ibuffer_included_in_filter_p
+        end function is_ibuffer_included_in_filter
 
         !> Extract operand from a unary compound FILTER specification
         !> (`ibuffer_not').  Port of ibuf-ext.el:ibuffer-unary-operand.  (In
@@ -1176,7 +1176,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            if (buffer_live_p(buffer_handle(k))) h = buffer_handle(k)
+            if (is_buffer_live(buffer_handle(k))) h = buffer_handle(k)
             return
         end do
     end function serial_buffer
@@ -1226,8 +1226,8 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. derived_mode_p("ibuffer_mode")) call set_error(status, FM_GENERIC_ERROR, &
-                                                                 "Assertion failed: (derived-mode-p 'ibuffer-mode)")
+        if (.not. is_derived_mode("ibuffer_mode")) call set_error(status, FM_GENERIC_ERROR, &
+                                                                  "Assertion failed: (derived-mode-p 'ibuffer-mode)")
     end subroutine assert_ibuffer_mode
 
     ! ------------------------------------------------------------------
@@ -1312,7 +1312,7 @@ contains
         logical :: hit
         integer :: k
 
-        do while (.not. eobp())
+        do while (.not. is_eob())
             hit = .false.
 
             do k = 1, nprops
@@ -1398,7 +1398,7 @@ contains
         props(2) = "ibuffer_filter_group_name"
         call beginning_of_line()
 
-        if (ibuffer_movement_cycle .and. (eobp() .or. has_prop(point(), "ibuffer_summary"))) then
+        if (ibuffer_movement_cycle .and. (is_eob() .or. has_prop(point(), "ibuffer_summary"))) then
             call goto_char(point_min())
         end if
 
@@ -1418,7 +1418,7 @@ contains
             do while (n > 0)
                 shortage = forward_line(1_int64)
 
-                if (ibuffer_movement_cycle .and. (eobp() .or. has_prop(point(), "ibuffer_summary"))) then
+                if (ibuffer_movement_cycle .and. (is_eob() .or. has_prop(point(), "ibuffer_summary"))) then
                     call goto_char(point_min())
                 end if
 
@@ -1567,7 +1567,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call delete_other_windows(selected_window(), status)
         if (.not. status%ok()) return
         call switch_to_buffer(buffers(marked(1)%index)%name, status)
@@ -1612,7 +1612,7 @@ contains
         if (selected_frame%selected_window%index == 0) return
 
         associate (w => windows(selected_frame%selected_window%index))
-            if (.not. buffer_live_p(w%buffer)) return
+            if (.not. is_buffer_live(w%buffer)) return
             if (.not. allocated(buffers(w%buffer%index)%major_mode)) return
             if (buffers(w%buffer%index)%major_mode /= "ibuffer_mode") return
         end associate
@@ -1647,7 +1647,7 @@ contains
         if (ibuffer_expert) return
 
         if (n == 1) then
-            call y_or_n_p("Really "//operation//" buffer "//trim(names(1))//"? ", answer, status)
+            call read_y_or_n("Really "//operation//" buffer "//trim(names(1))//"? ", answer, status)
             return
         end if
 
@@ -1672,7 +1672,7 @@ contains
             if (status%ok()) then
                 call fit_window_to_buffer(selected_window())
                 write (count, "(i0)") n
-                call y_or_n_p("Really "//operation//" "//trim(count)//" buffers? ", answer, status)
+                call read_y_or_n("Really "//operation//" "//trim(count)//" buffers? ", answer, status)
             end if
         end if
 
@@ -1974,7 +1974,7 @@ contains
 
         r = MAP_NIL
         before = .false.
-        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE) call buffer_modified_p(buf, before, ignore)
+        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE) call is_buffer_modified(buf, before, ignore)
 
         if (current_op%complex) then
             call current_op%body(buf, mark, r, st)
@@ -1984,7 +1984,7 @@ contains
             saved = point()
             call current_op%body(buf, mark, r, st)
 
-            if (buffer_live_p(buf)) then
+            if (is_buffer_live(buf)) then
                 call set_buffer(buf, ignore)
                 call goto_char(min(saved, point_max()))
             end if
@@ -1995,8 +1995,8 @@ contains
 
         if (.not. st%ok()) call message(format_message_of(st))
 
-        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE .and. buffer_live_p(buf)) then
-            call buffer_modified_p(buf, after, ignore)
+        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE .and. is_buffer_live(buf)) then
+            call is_buffer_modified(buf, after, ignore)
 
             if (before .neqv. after) then
                 k = ibuffer_local_index(.true.)
@@ -2040,7 +2040,7 @@ contains
 
         if (mark == achar(0)) continue
         result = MAP_T
-        call buffer_modified_p(buf, modified, status)
+        call is_buffer_modified(buf, modified, status)
         if (.not. status%ok() .or. .not. modified) return
         old = current_buffer()
 
@@ -2081,8 +2081,8 @@ contains
 
         if (mark == achar(0)) continue
         result = MAP_T
-        call buffer_modified_p(buf, modified, status)
-        call restore_buffer_modified_p(.not. modified)
+        call is_buffer_modified(buf, modified, status)
+        call restore_buffer_modified(.not. modified)
     end subroutine toggle_modified_body
 
     !> Toggle read only status in marked buffers.
@@ -2191,7 +2191,7 @@ contains
         call kill_buffer(buf, status)
         call set_buffer(old, st)
 
-        if (status%ok() .and. .not. buffer_live_p(buf)) then
+        if (status%ok() .and. .not. is_buffer_live(buf)) then
             result = MAP_KILL
         else
             result = MAP_NIL
@@ -2368,7 +2368,7 @@ contains
         type(status_type) :: st
 
         arg = prefix_numeric_value(current_prefix_arg)
-        has_region = use_region_p()
+        has_region = is_use_region()
         start = 0
         end = 0
 
@@ -2961,7 +2961,7 @@ contains
 
         call assert_ibuffer_mode(status)
         if (.not. status%ok()) return
-        if (eobp()) shortage = forward_line(-1_int64)
+        if (is_eob()) shortage = forward_line(-1_int64)
         call beginning_of_line()
         call current_format_entries(entries, status)
         if (.not. status%ok()) return
@@ -3056,12 +3056,12 @@ contains
         call ibuffer_forward_line(0_int64, .true.)
 
         do
-            if (eobp() .or. has_prop(point(), "ibuffer_summary")) exit
+            if (is_eob() .or. has_prop(point(), "ibuffer_summary")) exit
             call ibuffer_forward_line(0_int64, .true.)
-            if (eobp() .or. has_prop(point(), "ibuffer_summary")) exit
+            if (is_eob() .or. has_prop(point(), "ibuffer_summary")) exit
             buf = ibuffer_current_buffer(st)
 
-            if (buffer_live_p(buf)) then
+            if (is_buffer_live(buf)) then
                 in_group = .true.
                 if (present(group)) in_group = string_prop(point(), "ibuffer_filter_group") == group &
                                                .and. has_string_prop(point(), "ibuffer_filter_group")
@@ -3107,7 +3107,7 @@ contains
         k = ibuffer_local_index(.true.)
         if (minor_modes%ibuffer_auto_mode%enabled() .and. count > 1 .and. .not. ibuffer_expert) count = count - 1
         buffers(cur)%read_only = .true.
-        if (.not. nomod) call restore_buffer_modified_p(.false.)
+        if (.not. nomod) call restore_buffer_modified(.false.)
         call goto_char(point_min())
         call ibuffer_forward_line(0_int64)
         call ibuffer_forward_line(target_line_offset - 1)
@@ -3170,7 +3170,7 @@ contains
         type(ibuffer_state_type), allocatable :: grown(:)
 
         r = MAP_NIL
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
 
         if (map_nstates == size(map_states)) then
             allocate (grown(2*size(map_states)))
@@ -3272,7 +3272,7 @@ contains
             end if
 
             if (.not. keep) then
-                keep = ibuffer_ext_visible_p(bmarklist(k)%buffer, all, ibuffer_buf, status)
+                keep = is_ibuffer_ext_visible(bmarklist(k)%buffer, all, ibuffer_buf, status)
                 if (.not. status%ok()) return
             end if
 
@@ -3288,11 +3288,11 @@ contains
     !> The default member of `ibuffer_maybe_show_predicates'.
     !> True if BUF is not visiting a file and its name begins with a
     !> space.  Port of ibuffer.el:ibuffer-hidden-buffer-p.
-    recursive logical function ibuffer_hidden_buffer_p(buf) result(hidden)
+    recursive logical function is_ibuffer_hidden_buffer(buf) result(hidden)
         type(handle_type), intent(in) :: buf
 
         hidden = .false.
-        if (.not. buffer_live_p(buf)) return
+        if (.not. is_buffer_live(buf)) return
 
         associate (b => buffers(buf%index))
             if (len(b%name) == 0) return
@@ -3300,12 +3300,12 @@ contains
             hidden = .true.
             if (allocated(b%filename)) hidden = len(b%filename) == 0
         end associate
-    end function ibuffer_hidden_buffer_p
+    end function is_ibuffer_hidden_buffer
 
     ! ibuffer-hidden-buffer-p of the current buffer (a fontification
     ! form).  Not a port.
     recursive logical function hidden_current()
-        hidden_current = ibuffer_hidden_buffer_p(current_buffer())
+        hidden_current = is_ibuffer_hidden_buffer(current_buffer())
     end function hidden_current
 
     ! ------------------------------------------------------------------
@@ -3370,7 +3370,7 @@ contains
         logical :: modified
 
         if (mark == achar(0)) continue
-        call buffer_modified_p(buffer, modified, st)
+        call is_buffer_modified(buffer, modified, st)
 
         if (modified) then
             cell = text_cell(ibuffer_modified_char)
@@ -4214,7 +4214,7 @@ contains
         if (size(bufs) >= 2) then
             last = bufs(2)
 
-            if (ibuffer_always_show_last_buffer == IBUFFER_SHOW_LAST_NOMINI .and. minibufferp(bufs(2))) then
+            if (ibuffer_always_show_last_buffer == IBUFFER_SHOW_LAST_NOMINI .and. is_minibuffer(bufs(2))) then
                 last = null_handle()
                 if (size(bufs) >= 3) last = bufs(3)
             end if
@@ -4504,7 +4504,7 @@ contains
 
         buffers(cur)%read_only = .true.
         k = ibuffer_local_index(.true.)
-        call restore_buffer_modified_p(locals(k)%did_modification)
+        call restore_buffer_modified(locals(k)%did_modification)
         locals(k)%did_modification = .false.
         call goto_char(point_min())
         shortage = forward_line(orig)
@@ -4638,7 +4638,7 @@ contains
         window = get_buffer_window(buf)
         if (window%index /= 0) call select_window(window, st, norecord=.true.)
         call set_buffer(buf, st)
-        if (.not. derived_mode_p("ibuffer_mode")) call ibuffer_mode(status)
+        if (.not. is_derived_mode("ibuffer_mode")) call ibuffer_mode(status)
 
         if (status%ok()) then
             k = ibuffer_local_index(.true.)
@@ -4688,8 +4688,8 @@ contains
         end if
 
         ! (save-selected-window, with-current-buffer)
-        if (window_live_p(old_window)) call select_window(old_window, st, norecord=.true.)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine ibuffer
 
     recursive subroutine cmd_ibuffer(status)
@@ -4990,7 +4990,7 @@ contains
 
         ! Get rid of dead buffers
         do k = 1, size(saved_marks)
-            if (.not. buffer_live_p(saved_marks(k)%buffer)) cycle
+            if (.not. is_buffer_live(saved_marks(k)%buffer)) cycle
             n = n + 1
             live(n) = saved_marks(k)
         end do
@@ -5071,7 +5071,7 @@ contains
 
     ! Not a port.
     recursive logical function form_dired()
-        form_dired = derived_mode_p("dired_mode")
+        form_dired = is_derived_mode("dired_mode")
     end function form_dired
 
     ! (and (boundp 'emacs-lock-mode) emacs-lock-mode): emacs-lock.el is
@@ -5115,7 +5115,7 @@ contains
 
         if (.not. allocated(ibuffer_maybe_show_predicates)) then
             allocate (ibuffer_maybe_show_predicates(1))
-            ibuffer_maybe_show_predicates(1)%predicate => ibuffer_hidden_buffer_p
+            ibuffer_maybe_show_predicates(1)%predicate => is_ibuffer_hidden_buffer
         end if
 
         if (.not. allocated(ibuffer_help_buffer_modes)) then

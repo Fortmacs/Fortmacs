@@ -33,8 +33,8 @@ submodule(window_fm) window_scroll_fm
     use lisp_fm, only: nil, nilp, consp, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
-    use buffer_fm, only: cur, current_buffer, set_buffer, buffer_live_p, buffer_list
-    use editfns_fm, only: point, goto_char, eobp, bobp, point_min, point_max
+    use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, buffer_list
+    use editfns_fm, only: point, goto_char, is_eob, is_bob, point_min, point_max
     use cmds_fm, only: forward_line, beginning_of_line
     use xdisp_fm, only: truncate_partial_width_windows
     use indent_fm, only: vertical_motion, move_to_column
@@ -78,7 +78,7 @@ contains
     !> Whether point is in the `ht' screen lines from the start of `w'.
     !> Port of the use of window.c:Fpos_visible_in_window_p in
     !> window_scroll_line_based.
-    logical function point_visible_p(w, ht) result(visible)
+    logical function is_point_visible(w, ht) result(visible)
         type(window_type), intent(in) :: w
         integer, intent(in) :: ht
         integer(int64) :: opoint, start, moved
@@ -92,7 +92,7 @@ contains
         ! Short of the end: point is on the last line shown.
         visible = moved < ht .or. opoint < point()
         call goto_char(opoint)
-    end function point_visible_p
+    end function is_point_visible
 
     !> `next_screen_context_lines' within 0 to 1000000.  Port of
     !> window.c:sanitize_next_screen_context_lines.
@@ -123,7 +123,7 @@ contains
         opoint = point()
         startpos = window_start(w)
 
-        if (.not. point_visible_p(w, ht)) then
+        if (.not. is_point_visible(w, ht)) then
             call vertical_motion(-int(ht/2, int64), moved)
             startpos = point()
         end if
@@ -335,7 +335,7 @@ contains
             call scroll_down_command(nil(), status)
         else if (prefix_numeric_value(arg) < 0) then
             call scroll_down_command(make_fixnum(-prefix_numeric_value(arg)), status)
-        else if (eobp()) then
+        else if (is_eob()) then
             ! Signal error.
             call scroll_up(arg, status)
         else
@@ -370,7 +370,7 @@ contains
             call scroll_up_command(nil(), status)
         else if (prefix_numeric_value(arg) < 0) then
             call scroll_up_command(make_fixnum(-prefix_numeric_value(arg)), status)
-        else if (bobp()) then
+        else if (is_bob()) then
             ! Signal error.
             call scroll_down(arg, status)
         else
@@ -500,7 +500,7 @@ contains
         call move_to_window_line_top_bottom(current_prefix_arg, status)
     end subroutine cmd_move_to_window_line_top_bottom
 
-    module logical function pos_visible_in_window_p(pos, window) result(visible)
+    module logical function is_pos_visible_in_window(pos, window) result(visible)
         integer(int64), intent(in) :: pos
         type(handle_type), intent(in) :: window
         type(handle_type) :: old
@@ -509,7 +509,7 @@ contains
         integer :: ht
 
         visible = .false.
-        if (.not. window_live_p(window)) return
+        if (.not. is_window_live(window)) return
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
@@ -524,8 +524,8 @@ contains
             call goto_char(opoint)
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, status)
-    end function pos_visible_in_window_p
+        if (is_buffer_live(old)) call set_buffer(old, status)
+    end function is_pos_visible_in_window
 
     module subroutine scroll_window(window, direction, status)
         type(handle_type), intent(in) :: window
@@ -536,7 +536,7 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        if (.not. window_live_p(window)) return
+        if (.not. is_window_live(window)) return
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
@@ -544,7 +544,7 @@ contains
         call goto_char(window_point(w))
         call window_scroll(w, int(direction, int64), .true., status)
         call set_window_point(w, point(), st)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine scroll_window
 
     module subroutine other_window_for_scrolling(window, status)
@@ -565,7 +565,7 @@ contains
             end if
         end do
 
-        if (.not. window_live_p(window) .or. same_window(window, selected_frame%selected_window)) then
+        if (.not. is_window_live(window) .or. same_window(window, selected_frame%selected_window)) then
             call set_error(status, FM_GENERIC_ERROR, "There is no other window")
             window = null_handle()
         end if
@@ -600,8 +600,8 @@ contains
             call scroll_down_command(lines, status)
         end if
 
-        if (window_live_p(old_window)) call select_window(old_window, st, norecord=.true.)
-        if (buffer_live_p(old_buffer)) call set_buffer(old_buffer, st)
+        if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
+        if (is_buffer_live(old_buffer)) call set_buffer(old_buffer, st)
     end subroutine scroll_other
 
     recursive module subroutine scroll_other_window(lines, status)

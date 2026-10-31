@@ -36,7 +36,7 @@ module print_fm
     use buffer_fm, only: buffer_name, buffers
     use handle_fm, only: handle_type
     use marker_fm, only: markers, resolve_marker
-    use keymap_fm, only: keymap_live_p, keymap_full_p, keymap_own_prompt, keymap_parent, keymap_entries
+    use keymap_fm, only: is_keymap_live, is_keymap_full, keymap_own_prompt, keymap_parent, keymap_entries
     implicit none(type, external)
     private
 
@@ -90,7 +90,7 @@ contains
         case (V_MARKER)
             s = marker_repr(xhandle(object))
         case (V_KEYMAP)
-            if (keymap_live_p(xhandle(object)) .and. .not. keymap_full_p(xhandle(object))) then
+            if (is_keymap_live(xhandle(object)) .and. .not. is_keymap_full(xhandle(object))) then
                 s = "("//keymap_elements(xhandle(object))//")"
             else
                 s = "#<keymap>"
@@ -248,8 +248,8 @@ contains
         if (vtag(prompt) /= V_NIL) s = s//" "//prin1_to_string(prompt)
         parent = keymap_parent(km)
 
-        if (keymap_live_p(parent)) then
-            if (keymap_full_p(parent)) then
+        if (is_keymap_live(parent)) then
+            if (is_keymap_full(parent)) then
                 s = s//" . #<keymap>"
             else
                 s = s//" "//keymap_elements(parent)
@@ -272,7 +272,7 @@ contains
             inner = prin1_to_string(cdr)
             s = "("//car//" "//inner(2:)
         case (V_KEYMAP)
-            if (keymap_live_p(xhandle(cdr)) .and. .not. keymap_full_p(xhandle(cdr))) then
+            if (is_keymap_live(xhandle(cdr)) .and. .not. is_keymap_full(xhandle(cdr))) then
                 s = "("//car//" "//keymap_elements(xhandle(cdr))//")"
             else
                 s = "("//car//" . #<keymap>)"

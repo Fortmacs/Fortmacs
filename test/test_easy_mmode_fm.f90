@@ -36,7 +36,7 @@ module test_easy_mmode_fm
     use data_fm, only: symbol_value, value_eq
     use callint_fm, only: current_prefix_arg
     use keyboard_fm, only: last_message
-    use keymap_fm, only: keymap_set, key_binding, key_parse, keymap_live_p
+    use keymap_fm, only: keymap_set, key_binding, key_parse, is_keymap_live
     use xdisp_fm, only: mode_line_modes, mode_line_text
     use easy_mmode_fm, only: minor_mode_type, easy_mmode_pretty_mode_name
     use modes_fm, only: minor_modes
@@ -143,7 +143,7 @@ contains
         if (allocated(error)) return
         ! Without :keymap there is no MODE-map.
         call test_mode%define("easy-mmode-test-mode", "", body=test_body)
-        call check(error,.not. keymap_live_p(test_mode%map), "no keymap")
+        call check(error,.not. is_keymap_live(test_mode%map), "no keymap")
     end subroutine test_pretty_name
 
     !> A buffer-local mode: on in one buffer only, with its lighter and

@@ -399,20 +399,20 @@ module buffer_fm
         end subroutine syms_of_buffer
     end interface
 
-    public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
+    public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
               set_buffer_internal
     public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, &
               frame_seen_buffers, bury_buffer_internal, frames_discard_buffer
     public :: set_buffer, kill_buffer, erase_buffer
-    public :: buffer_modified_p, restore_buffer_modified_p, &
+    public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_chars_modified_tick
     public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
     public :: modiff_incr, buf_compute_unchanged
     public :: buf_byte_index, buf_fetch_byte, buf_fetch_char, &
               buf_next_char_len, buf_prev_char_len, buf_bytes
     public :: temp_set_point_both
-    public :: nsberror, buffer_enable_undo, set_buffer_modified_p, force_mode_line_update, buffer_file_name, &
+    public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
               set_buffer_if_live, run_buffer_list_update_hook, find_buffer, syms_of_buffer
     public :: buffer_serial_live
 
@@ -467,11 +467,11 @@ contains
     end subroutine resolve_buffer
 
     !> Port of buffer.c:Fbuffer_live_p.
-    logical function buffer_live_p(h)
+    logical function is_buffer_live(h)
         type(handle_type), intent(in) :: h
 
-        buffer_live_p = table%is_live(h)
-    end function buffer_live_p
+        is_buffer_live = table%is_live(h)
+    end function is_buffer_live
 
     !> Whether a live buffer has serial number SERIAL (for Fortran objects
     !> keeping per-buffer values by serial number).  Not a port.
@@ -484,7 +484,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            live = buffer_live_p(buffer_handle(k))
+            live = is_buffer_live(buffer_handle(k))
             return
         end do
     end function buffer_serial_live
@@ -1015,7 +1015,7 @@ contains
 
     !> Port of buffer.c:Fbuffer_modified_p (the `autosaved' state is not
     !> tracked yet).
-    subroutine buffer_modified_p(h, modified, status)
+    subroutine is_buffer_modified(h, modified, status)
         type(handle_type), intent(in) :: h
         logical, intent(out) :: modified
         type(status_type), intent(out) :: status
@@ -1025,12 +1025,12 @@ contains
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
         modified = buffers(i)%text%save_modiff < buffers(i)%text%modiff
-    end subroutine buffer_modified_p
+    end subroutine is_buffer_modified
 
     !> Mark the current buffer modified or unmodified.
     !> Port of buffer.c:Frestore_buffer_modified_p (also the behavior of
     !> Fset_buffer_modified_p, minus mode-line updates and file locks).
-    subroutine restore_buffer_modified_p(flag)
+    subroutine restore_buffer_modified(flag)
         logical, intent(in) :: flag
 
         if (cur == 0) return
@@ -1042,7 +1042,7 @@ contains
                 call modiff_incr(t%modiff, 1_int64, t%save_modiff)
             end if
         end associate
-    end subroutine restore_buffer_modified_p
+    end subroutine restore_buffer_modified
 
     !> Port of buffer.c:Fbuffer_modified_tick.
     subroutine buffer_modified_tick(h, tick, status)
@@ -1267,13 +1267,13 @@ contains
     !> the function's argument is true, but only if both `buffer_file_name'
     !> and `buffer_file_truename' are true.
     !> Port of buffer.c:Fset_buffer_modified_p (file locking is deferred,
-    !> as in `restore_buffer_modified_p').
-    subroutine set_buffer_modified_p(flag)
+    !> as in `restore_buffer_modified').
+    subroutine set_buffer_modified(flag)
         logical, intent(in) :: flag
 
-        call restore_buffer_modified_p(flag)
+        call restore_buffer_modified(flag)
         call force_mode_line_update(.false.)
-    end subroutine set_buffer_modified_p
+    end subroutine set_buffer_modified
 
     !> Force redisplay of the current buffer's mode line and header line.
     !> With optional true ALL, force redisplay of all mode lines, tab lines and

@@ -122,12 +122,12 @@ contains
         call goto_char(opoint)
         ! See whether the place we found is any good.
         call goto_char(fill_point)
-        no_good = bolp()
+        no_good = is_bol()
 
         if (.not. no_good) then
             ! There is no use breaking at end of line.
             moved = skip_chars_forward(" ", st)
-            no_good = eolp()
+            no_good = is_eol()
         end if
 
         call goto_char(opoint)
@@ -272,7 +272,7 @@ contains
     ! Set last-command-event to tell self-insert what to insert.
     call init_paragraph_variables()
     newline_was_page_start = .false.
-    if (bolp()) newline_was_page_start = looking_at(page_delimiter%value, st)
+    if (is_bol()) newline_was_page_start = looking_at(page_delimiter%value, st)
     newline_beforepos = point()
     saved_event = last_command_event
     last_command_event = make_fixnum(10_int64)
@@ -339,8 +339,8 @@ contains
     type(handle_type) :: loc
     type(status_type) :: st
 
-    do_fill_prefix = allocated(fill_prefix%value) .and. bolp()
-    do_left_margin = bolp()
+    do_fill_prefix = allocated(fill_prefix%value) .and. is_bol()
+    do_left_margin = is_bol()
     if (do_left_margin) do_left_margin = current_left_margin() > 0
     call point_marker(loc)
     ! Don't expand an abbrev before point.
@@ -360,7 +360,7 @@ contains
         k = n
 
         do while (k > 0)
-            if (bolp()) then
+            if (is_bol()) then
                 if (do_left_margin) col = indent_to(current_left_margin(), status)
                 if (do_fill_prefix .and. status%ok()) call insert(fill_prefix%value, status)
                 if (.not. status%ok()) exit

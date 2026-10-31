@@ -44,13 +44,13 @@ module vc_git_fm
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, nil, t_value, make_string, make_list, fixnump, xfixnum
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, kill_buffer, &
-                         generate_new_buffer_name, erase_buffer, buffer_live_p
-    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, bolp, bobp, pos_eol, &
+                         generate_new_buffer_name, erase_buffer, is_buffer_live
+    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, is_bol, is_bob, pos_eol, &
                           buffer_substring
     use cmds_fm, only: forward_line
     use search_fm, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
     use subr_fm, only: match_string
-    use fileio_fm, only: expand_file_name, file_directory_p, directory_name_p, file_exists_p
+    use fileio_fm, only: expand_file_name, is_file_directory, is_directory_name, file_exists
     use files_fm, only: file_relative_name, executable_find, revert_buffer_in_progress
     use callproc_fm, only: call_process
     use vc_hooks_fm, only: vc_backends, vc_string_type, vc_switches_type, register_vc_backend, vc_find_root, &
@@ -329,7 +329,7 @@ contains
         rootdir = .false.
 
         if (size(files) == 1) then
-            if (directory_name_p(files(1)%s)) then
+            if (is_directory_name(files(1)%s)) then
                 call vc_git_root(files(1)%s, root, found)
                 rootdir = found .and. root == files(1)%s
             end if
@@ -517,13 +517,13 @@ contains
 
     !> Check if the git db is empty (no commit done yet).  Port of
     !> vc-git.el:vc-git--empty-db-p.
-    logical function vc_git_empty_db_p() result(empty)
+    logical function is_vc_git_empty_db() result(empty)
         type(status_type) :: st
         integer :: code
 
         call vc_git_call(.false., "rev-parse", strings("--verify", "HEAD"), code, st)
         empty = code /= 0
-    end function vc_git_empty_db_p
+    end function is_vc_git_empty_db
 
     !> The version of Git, "0" if unknown.  Port of
     !> vc-git.el:vc-git--program-version (the parsing is
@@ -871,7 +871,7 @@ contains
         allocate (flist(0), dlist(0))
 
         do k = size(files), 1, -1
-            if (file_directory_p(files(k)%s)) then
+            if (is_file_directory(files(k)%s)) then
                 call push(dlist, files(k)%s)
             else
                 call push(flist, files(k)%s)
@@ -1036,7 +1036,7 @@ contains
 
             if (present(rev1)) then
                 r1 = rev1
-            else if (vc_git_empty_db_p()) then
+            else if (is_vc_git_empty_db()) then
                 ! If there aren't any commits yet then there is no HEAD.
                 ! So diff against the empty tree object.
                 r1 = vc_git_empty_tree
@@ -1156,12 +1156,12 @@ contains
 
             if (ok) then
                 call goto_char(point_max())
-                ok = bolp()
+                ok = is_bol()
             end if
 
             if (ok) then
                 shortage = forward_line(-1_int64)
-                ok = shortage == 0 .and. .not. bobp()
+                ok = shortage == 0 .and. .not. is_bob()
             end if
 
             if (ok) then
@@ -1239,7 +1239,7 @@ contains
 
         if (found) then
             shortage = forward_line(2_int64)
-            found = shortage == 1 .and. bolp()
+            found = shortage == 1 .and. is_bol()
         end if
 
         if (found) call buffer_substring(point_min(), point_max() - 1, sym, st)
@@ -1524,7 +1524,7 @@ contains
         use vc_dispatcher_fm, only: vc_setup_buffer
         use vc_fm, only: vc_log_view_type, VC_LOG_VIEW_WITH_DIFF
         use vc_hooks_fm, only: vc_log_limit_type, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
-        use fileio_fm, only: file_directory_p
+        use fileio_fm, only: is_file_directory
         use lisp_fm, only: value_type, t_value
         use lread_fm, only: sym
         use data_fm, only: symbol_value, set
@@ -1564,7 +1564,7 @@ contains
             ! "--follow" on directories or multiple files is broken
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=8756
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=16422
-            if (.not. file_directory_p(files(1)%s)) call push(flags, "--follow")
+            if (.not. is_file_directory(files(1)%s)) call push(flags, "--follow")
         end if
 
         if (shortlog) then
@@ -1725,7 +1725,7 @@ contains
     recursive subroutine vc_git_expanded_log_entry(revision, text, found)
         use search_fm, only: replace_match
         use cmds_fm, only: forward_line
-        use editfns_fm, only: eobp, buffer_string
+        use editfns_fm, only: is_eob, buffer_string
         character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
@@ -1744,7 +1744,7 @@ contains
         call vc_git_command(VC_OKSTATUS_NIL, none, flags, st, current=.true.)
         call goto_char(point_min())
 
-        if (.not. eobp()) then
+        if (.not. is_eob()) then
             ! Indent the expanded log entry.
             do
                 call re_search_forward("^  ", pos, st, noerror=SEARCH_NOERROR)
@@ -2096,7 +2096,7 @@ contains
         status = status_type()
         k = action%n
 
-        if (.not. buffer_live_p(action%buffer)) then
+        if (.not. is_buffer_live(action%buffer)) then
             dir_states(k)%live = .false.
             return
         end if
@@ -2117,7 +2117,7 @@ contains
 
         select case (dir_states(k)%stage)
         case (STAGE_UPDATE_INDEX)
-            if (vc_git_empty_db_p()) then
+            if (is_vc_git_empty_db()) then
                 next_stage = STAGE_LS_FILES_ADDED
             else
                 next_stage = STAGE_DIFF_INDEX
@@ -2586,15 +2586,15 @@ contains
         gitdir = vc_git_git_path()
         ! See contrib/completion/git-prompt.sh in git.git.
         call expand_file_name("rebase-merge", f, st, gitdir)
-        rebase = file_directory_p(f)
+        rebase = is_file_directory(f)
 
         if (.not. rebase) then
             call expand_file_name("rebase-apply/rebasing", f, st, gitdir)
-            rebase = file_exists_p(f)
+            rebase = file_exists(f)
         end if
 
         call expand_file_name("BISECT_START", f, st, gitdir)
-        bisect = file_exists_p(f)
+        bisect = file_exists(f)
 
         ! For now just a heading, key bindings can be added
         ! later for various bisect actions.

@@ -57,7 +57,7 @@ module smie_fm
     use buffer_fm, only: buffers, cur, buffer_serial_live, current_buffer, buffer_chars_modified_tick
     use lisp_fm, only: command_proc, fixnump, xfixnum
     use data_fm, only: add_local_variables_killer, function_setting_default
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, eolp, line_beginning_position, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                           line_end_position, buffer_substring, char_after, char_before
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, post_self_insert_hook
     use insdel_fm, only: insert
@@ -76,13 +76,13 @@ module smie_fm
     use simple_fm, only: newline, newline_and_indent, reindent_then_newline_and_indent, blink_matching_open, &
                          blink_matching_check_mismatch, blink_matching_check_proc, &
                          set_local_blink_matching_check_function, current_blink_matching_check_function, &
-                         blink_matching_check_function_local_p, kill_local_blink_matching_check_function, &
+                         is_blink_matching_check_function_local, kill_local_blink_matching_check_function, &
                          blink_matching_paren, BLINK_MATCHING_PAREN_NIL, normal_auto_fill_function, do_auto_fill, &
                          blink_matching_delay
     use newcomment_fm, only: comment_normalize_vars, comment_start_skip, comment_end_skip, comment_continue, &
                              comment_string_strip
     use paren_fm, only: show_paren_data_type, show_paren_data_proc, set_local_show_paren_data_function, &
-                        current_show_paren_data_function, show_paren_data_function_local_p, show_paren_data_function
+                        current_show_paren_data_function, is_show_paren_data_function_local, show_paren_data_function
     use prog_mode_fm, only: prog_first_column
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use keyboard_fm, only: last_command_event
@@ -97,16 +97,16 @@ module smie_fm
     public :: smie_default_forward_token, smie_default_backward_token, smie_next_expression, smie_backward_expression, &
               smie_forward_expression, smie_backward_expression_command, smie_forward_expression_command, smie_close_block, &
               smie_down_group, smie_blink_matching_check, smie_blink_matching_open, smie_forward_token, &
-              smie_backward_token, smie_grammar_token, smie_closer_p, smie_opener_p
-    public :: smie_rule_hanging_p, smie_rule_bolp, smie_indent_bolp_1, smie_indent_current_column, smie_rule_parent_p, &
-              smie_rule_next_p, smie_rule_prev_p, smie_rule_sibling_p, smie_rule_parent, smie_rule_separator, &
+              smie_backward_token, smie_grammar_token, is_smie_closer, is_smie_opener
+    public :: is_smie_rule_hanging, is_smie_rule_bol, smie_indent_is_bol_1, smie_indent_current_column, is_smie_rule_parent, &
+              is_smie_rule_next, is_smie_rule_prev, is_smie_rule_sibling, smie_rule_parent, smie_rule_separator, &
               smie_indent_offset, smie_indent_forward_token, smie_indent_backward_token, smie_indent_virtual, &
               smie_indent_calculate, smie_indent_line, smie_indent_keyword, smie_indent_fixindent, smie_indent_bob, &
               smie_indent_close, smie_indent_comment, smie_indent_comment_continue, smie_indent_comment_close, &
               smie_indent_comment_inside, smie_indent_inside_string, smie_indent_after_keyword, &
               smie_indent_empty_line, smie_indent_exps, smie_auto_fill, smie_setup, smie_next_indent_change, &
-              smie_parent, smie_parent_level, syms_of_smie, smie_default_hanging_eolp, smie_set_hanging_eolp_function, &
-              smie_indent_proc, smie_token_proc, smie_rules_proc, smie_hanging_eolp_proc
+              smie_parent, smie_parent_level, syms_of_smie, is_smie_default_hanging_eol, smie_set_is_hanging_eol_function, &
+              smie_indent_proc, smie_token_proc, smie_rules_proc, smie_is_hanging_eol_proc
 
     !> Precedence classes (ASSOCIATIVITY of a precs table).
     integer, parameter, public :: SMIE_LEFT = 1, SMIE_RIGHT = 2, SMIE_ASSOC = 3, SMIE_NONASSOC = 4
@@ -264,9 +264,9 @@ module smie_fm
 
         !> smie--hanging-eolp-function: move over what may follow a
         !> hanging token and tell whether the line ends there.  Not a port.
-        logical function smie_hanging_eolp_proc()
+        logical function smie_is_hanging_eol_proc()
             implicit none(type, external)
-        end function smie_hanging_eolp_proc
+        end function smie_is_hanging_eol_proc
 
         !> A function of `smie_indent_functions': the column point should
         !> be indented to, or nil, or `noindent'.  It shouldn't move point.
@@ -331,7 +331,7 @@ module smie_fm
         logical :: has_paren_data = .false., paren_data_local = .false.
         procedure(show_paren_data_proc), pointer, nopass :: paren_data => null()
         ! smie--hanging-eolp-function, when advised in the buffer.
-        procedure(smie_hanging_eolp_proc), pointer, nopass :: hanging_eolp => null()
+        procedure(smie_is_hanging_eol_proc), pointer, nopass :: is_hanging_eol => null()
     end type smie_local_type
 
     !> List of token parsing info.
@@ -1609,13 +1609,6 @@ contains
     ! Levels
     ! ------------------------------------------------------------------
 
-    ! Whether LEVEL is a number.  Not a port.
-    pure logical function numberp(level)
-        type(smie_level_type), intent(in) :: level
-
-        numberp = level%kind == SMIE_LEVEL_NUMBER
-    end function numberp
-
     ! (eq A B) of two levels.  Not a port.
     pure logical function level_eq(a, b)
         type(smie_level_type), intent(in) :: a, b
@@ -1708,59 +1701,59 @@ contains
     end function grammar
 
     ! Whether the current buffer has a `smie_closer_table'.  Not a port.
-    logical function closer_table_p()
+    logical function is_closer_table()
         integer :: k
         type(smie_grammar_type), pointer :: g
 
-        closer_table_p = .false.
+        is_closer_table = .false.
         k = local_index(.false.)
         if (k == 0) return
         if (.not. locals(k)%has_closer_table) return
         g => grammar()
-        closer_table_p = g%has_closer_table
-    end function closer_table_p
+        is_closer_table = g%has_closer_table
+    end function is_closer_table
 
     !> Whether TOKEN is a closer of `smie_closer_table' (rassoc).
     !> Not a port.
-    logical function smie_closer_p(token)
+    logical function is_smie_closer(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
 
-        smie_closer_p = .false.
-        if (.not. closer_table_p()) return
+        is_smie_closer = .false.
+        if (.not. is_closer_table()) return
         g => grammar()
-        smie_closer_p = member(token, g%closers)
-    end function smie_closer_p
+        is_smie_closer = member(token, g%closers)
+    end function is_smie_closer
 
     !> Whether TOKEN is an opener of `smie_closer_table' (assoc).
     !> Not a port.
-    logical function smie_opener_p(token)
+    logical function is_smie_opener(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
 
-        smie_opener_p = .false.
-        if (.not. closer_table_p()) return
+        is_smie_opener = .false.
+        if (.not. is_closer_table()) return
         g => grammar()
-        smie_opener_p = member(token, g%openers)
-    end function smie_opener_p
+        is_smie_opener = member(token, g%openers)
+    end function is_smie_opener
 
     ! Whether (OPENER . CLOSER) is in `smie_closer_table'.  Not a port.
-    logical function closer_pair_p(opener, closer)
+    logical function is_closer_pair(opener, closer)
         character(len=*), intent(in) :: opener, closer
         type(smie_grammar_type), pointer :: g
         integer :: i
 
-        closer_pair_p = .false.
-        if (.not. closer_table_p()) return
+        is_closer_pair = .false.
+        if (.not. is_closer_table()) return
         g => grammar()
 
         do i = 1, size(g%openers)
             if (str_eq(g%openers(i)%s, opener) .and. str_eq(g%closers(i)%s, closer)) then
-                closer_pair_p = .true.
+                is_closer_pair = .true.
                 return
             end if
         end do
-    end function closer_pair_p
+    end function is_closer_pair
 
     !> TOKEN's levels in the current buffer's grammar (assoc TOKEN
     !> smie-grammar); `null' if it has none.  Not a port.
@@ -1915,11 +1908,11 @@ contains
     ! by checking if the left-level is equal to the right level, we can
     ! figure out that it's an associative operator.  Port of
     ! smie.el:smie--associative-p.
-    pure logical function associative_p(left, right)
+    pure logical function is_associative(left, right)
         type(smie_level_type), intent(in) :: left, right
 
-        associative_p = level_eq(left, right)
-    end function associative_p
+        is_associative = level_eq(left, right)
+    end function is_associative
 
     ! Signal `scan_error' with MESSAGE, A and B.  Not a port.
     subroutine signal_scan_error(status, message, a, b)
@@ -2051,7 +2044,7 @@ contains
             else
                 call forw_back(toklevels, forw, back)
 
-                if (.not. numberp(back)) then
+                if (back%kind /= SMIE_LEVEL_NUMBER) then
                     ! A token like a paren-close.
                     call push_levels(toklevels%left, toklevels%right)
                 else
@@ -2062,7 +2055,7 @@ contains
                     end do
 
                     if (size(lfw) == 0) then
-                        if (half .and. numberp(forw)) then
+                        if (half .and. forw%kind == SMIE_LEVEL_NUMBER) then
                             call push_levels(toklevels%left, toklevels%right)
                         else
                             call bump(forw, tok, pos)
@@ -2081,8 +2074,8 @@ contains
                         if (size(lfw) > 0) then
                             ! Keep looking as long as we haven't matched the
                             ! topmost operator.
-                            if (numberp(forw)) call push_levels(toklevels%left, toklevels%right)
-                        else if (.not. numberp(forw)) then
+                            if (forw%kind == SMIE_LEVEL_NUMBER) call push_levels(toklevels%left, toklevels%right)
+                        else if (forw%kind /= SMIE_LEVEL_NUMBER) then
                             ! We matched the topmost operator.  If the new operator
                             ! is the last in the corresponding BNF rule, we're done.
                             ! It is the last element, let's stop here.
@@ -2091,7 +2084,7 @@ contains
                             res%pos = point()
                             res%token = tok
                             return
-                        else if (.not. associative_p(toklevels%left, toklevels%right)) then
+                        else if (.not. is_associative(toklevels%left, toklevels%right)) then
                             ! If the new operator is not the last in the BNF rule,
                             ! and is not associative, it's one of the inner operators
                             ! (like the "in" in "let .. in .. end"), so keep looking.
@@ -2153,7 +2146,7 @@ contains
         end subroutine pop_levels
 
         logical function top_forw_number()
-            top_forw_number = numberp(lfw(size(lfw)))
+            top_forw_number = lfw(size(lfw))%kind == SMIE_LEVEL_NUMBER
         end function top_forw_number
 
         integer function top_forw()
@@ -2169,9 +2162,9 @@ contains
             if (m == 0) return
 
             if (forward) then
-                associative_last = associative_p(last_bk(m), last_fw(m))
+                associative_last = is_associative(last_bk(m), last_fw(m))
             else
-                associative_last = associative_p(last_fw(m), last_bk(m))
+                associative_last = is_associative(last_fw(m), last_bk(m))
             end if
         end function associative_last
 
@@ -2196,7 +2189,7 @@ contains
 
             if (forward) then
                 call forward_expression(1_int64, st)
-            else if (bobp()) then
+            else if (is_bob()) then
                 ! Arguably backward-sexp should signal this error for us.
                 call signal_scan_error(st, "Beginning of buffer", point(), point())
             else
@@ -2300,9 +2293,9 @@ contains
             if (.not. status%ok()) exit
 
             if (forw) then
-                edge = eobp()
+                edge = is_eob()
             else
-                edge = bobp()
+                edge = is_bob()
             end if
 
             if (.not. res%null .and. res%level%kind /= SMIE_LEVEL_NIL .and. pos == point() .and. .not. edge) then
@@ -2426,7 +2419,7 @@ contains
         char_in = any(string_chars_of(s) == c)
     end function char_in
 
-    ! (save-excursion (skip-chars-backward " \t") (bolp)) and the like are
+    ! (save-excursion (skip-chars-backward " \t") (is_bol)) and the like are
     ! written out where used.
     !> Close the closest surrounding block.  Port of smie.el:smie-close-block.
     recursive subroutine smie_close_block(status)
@@ -2471,7 +2464,7 @@ contains
                 exit body
             end if
 
-            if (numberp(t%left)) then
+            if (t%left%kind == SMIE_LEVEL_NUMBER) then
                 call set_error(status, FM_GENERIC_ERROR, "Doesn't look like a block")
                 exit body
             end if
@@ -2490,7 +2483,7 @@ contains
                     if (any(seen == k)) cycle
                     seen = [seen, k]
 
-                    if (numberp(g%right(k))) then
+                    if (g%right(k)%kind == SMIE_LEVEL_NUMBER) then
                         levels = [levels, k]
                     else
                         call push_front(g%tokens(k)%s, found)
@@ -2511,7 +2504,7 @@ contains
         if (.not. status%ok()) return
         moved = skip_chars_backward(" "//achar(9), st)
         i = 0
-        if (.not. bolp()) i = 1
+        if (.not. is_bol()) i = 1
         call goto_char(here)
 
         if (i == 1) then
@@ -2523,7 +2516,7 @@ contains
         if (.not. status%ok()) return
         here = point()
         moved = skip_chars_forward(" "//achar(9), st)
-        matched = eolp()
+        matched = is_eol()
         call goto_char(here)
 
         if (matched) then
@@ -2540,7 +2533,7 @@ contains
             character(len=:), allocatable :: c
             integer :: m
 
-            if (.not. closer_table_p()) return
+            if (.not. is_closer_table()) return
 
             do m = 1, size(g%openers)
                 if (str_eq(g%openers(m)%s, o)) then
@@ -2620,9 +2613,9 @@ contains
                         if (.not. status%ok()) return
                         more = point() /= pos
                     end if
-                else if (.not. levels%null .and. .not. numberp(side(levels, 1 + offset))) then
+                else if (.not. levels%null .and. merge(levels%left%kind, levels%right%kind, offset == 0) /= SMIE_LEVEL_NUMBER) then
                     more = .false.
-                else if (.not. levels%null .and. .not. numberp(side(levels, 2 - offset))) then
+                else if (.not. levels%null .and. merge(levels%left%kind, levels%right%kind, offset == 1) /= SMIE_LEVEL_NUMBER) then
                     end_pos = point()
                     call goto_char(start)
                     call signal_scan_error(status, "Containing expression ends prematurely", pos, end_pos)
@@ -2635,20 +2628,6 @@ contains
             end do
         end do
     end subroutine smie_down_group
-
-    ! (nth N LEVELS) of (TOKEN LEFT RIGHT): 1 is LEFT, 2 is RIGHT.
-    ! Not a port.
-    function side(levels, n) result(l)
-        type(smie_toklevels_type), intent(in) :: levels
-        integer, intent(in) :: n
-        type(smie_level_type) :: l
-
-        if (n == 1) then
-            l = levels%left
-        else
-            l = levels%right
-        end if
-    end function side
 
     ! `smie_down_group' as a command ("p").
     recursive subroutine cmd_smie_down_group(status)
@@ -2687,7 +2666,7 @@ contains
 
         if (.not. allocated(ender)) then
             mismatch = blink_matching_check_mismatch(start, end)
-        else if (.not. smie_closer_p(ender)) then
+        else if (.not. is_smie_closer(ender)) then
             ! This is not one of the begin..end we know how to check.
             mismatch = blink_matching_check_mismatch(start, end)
         else if (start == 0) then
@@ -2696,7 +2675,7 @@ contains
             call goto_char(start)
             call smie_forward_token(starter, st)
             if (.not. allocated(starter)) starter = ""
-            mismatch = .not. closer_pair_p(starter, ender)
+            mismatch = .not. is_closer_pair(starter, ender)
         end if
 
         call goto_char(here)
@@ -2722,7 +2701,7 @@ contains
         lce = command_char()
         if (blink_matching_paren == BLINK_MATCHING_PAREN_NIL) return
         ! Optimization.
-        if (.not. closer_table_p()) return
+        if (.not. is_closer_table()) return
         ! Sanity check.
         ok = before_char() == lce
 
@@ -2756,7 +2735,7 @@ contains
             if (.not. status%ok()) exit body
             if (.not. allocated(token)) token = ""
 
-            if (point() == pos - 1 .and. char_count_of(token) == 1 .and. .not. smie_closer_p(token)) then
+            if (point() == pos - 1 .and. char_count_of(token) == 1 .and. .not. is_smie_closer(token)) then
                 ! The trigger char is itself a token but is not one of the
                 ! closers (e.g. ?\; in Octave mode), so go back to the
                 ! previous token.
@@ -2766,7 +2745,7 @@ contains
                 if (.not. allocated(token)) token = ""
             end if
 
-            if (.not. smie_closer_p(token)) exit body
+            if (.not. is_smie_closer(token)) exit body
             ! We're after a close token.  Let's still make sure we
             ! didn't skip a comment to find that token.
             call smie_forward_token(trig, status)
@@ -2794,7 +2773,7 @@ contains
                 t = smie_grammar_token(token)
 
                 if (.not. t%null) then
-                    if (numberp(t%right)) exit body
+                    if (t%right%kind == SMIE_LEVEL_NUMBER) exit body
                 end if
             end if
 
@@ -2802,7 +2781,7 @@ contains
             ! buffer-locally so that interactive calls to
             ! blink-matching-open work right, but let's not presume
             ! that's the case.
-            was_local = blink_matching_check_function_local_p()
+            was_local = is_blink_matching_check_function_local()
             saved => current_blink_matching_check_function()
             call set_local_blink_matching_check_function(smie_blink_matching_check)
             call blink_matching_open(status)
@@ -2849,7 +2828,7 @@ contains
         if (.not. allocated(btok)) btok = ""
         bend = point()
 
-        if (bend >= start .and. smie_closer_p(btok)) then
+        if (bend >= start .and. is_smie_closer(btok)) then
             ! Token before point is a closer?
             call smie_backward_token(ignored, status)
             if (.not. status%ok()) return
@@ -2861,7 +2840,7 @@ contains
                 end_pos = bend
                 call goto_char(bend)
             end if
-        else if (bend > start .and. smie_opener_p(btok)) then
+        else if (bend > start .and. is_smie_opener(btok)) then
             ! Token around point is an opener?
             call smie_backward_token(ignored, status)
             if (.not. status%ok()) return
@@ -2882,7 +2861,7 @@ contains
             if (aend < start) return
 
             ! Token after point is a closer?
-            if (smie_opener_p(atok)) then
+            if (is_smie_opener(atok)) then
                 call smie_backward_token(ignored, status)
                 if (.not. status%ok()) return
 
@@ -2916,7 +2895,7 @@ contains
         k = local_index(.true.)
         call buffer_chars_modified_tick(current_buffer(), tick, st)
 
-        if (closer_table_p()) then
+        if (is_closer_table()) then
             if (.not. (locals(k)%has_cache .and. locals(k)%cache_pos == point() .and. locals(k)%cache_tick == tick)) then
                 locals(k)%has_cache = .true.
                 locals(k)%cache_pos = point()
@@ -2937,9 +2916,9 @@ contains
 
                             if (.not. ht%null) then
                                 if (hopener) then
-                                    if (numberp(ht%left)) exit body
+                                    if (ht%left%kind == SMIE_LEVEL_NUMBER) exit body
                                 else
-                                    if (numberp(ht%right)) exit body
+                                    if (ht%right%kind == SMIE_LEVEL_NUMBER) exit body
                                 end if
                             end if
                         end if
@@ -2959,7 +2938,7 @@ contains
                                 call smie_backward_token(ignored, st)
                                 if (.not. st%ok()) exit body
                                 tfound = .true.
-                                if (allocated(sdata%token)) tmatch = closer_pair_p(htok, sdata%token)
+                                if (allocated(sdata%token)) tmatch = is_closer_pair(htok, sdata%token)
                                 tbeg = point()
                             end if
                         else
@@ -2974,7 +2953,7 @@ contains
 
                                 if (.not. ht%null .and. .not. tt%null) then
                                     ! Here is an inner.
-                                    if (numberp(ht%right) .and. level_eq(ht%right, tt%left)) then
+                                    if (ht%right%kind == SMIE_LEVEL_NUMBER .and. level_eq(ht%right, tt%left)) then
                                         call goto_char(sdata%pos)
                                         tbeg = point()
                                         call smie_forward_token(ignored, st)
@@ -2989,7 +2968,7 @@ contains
                                 call smie_forward_token(ignored, st)
                                 if (.not. st%ok()) exit body
                                 tfound = .true.
-                                if (.not. sdata%null .and. allocated(sdata%token)) tmatch = closer_pair_p(sdata%token, htok)
+                                if (.not. sdata%null .and. allocated(sdata%token)) tmatch = is_closer_pair(sdata%token, htok)
                                 tend = point()
                             end if
                         end if
@@ -3049,51 +3028,51 @@ contains
 
     ! (funcall smie--hanging-eolp-function): the buffer's advised one, or
     ! the default.  Not a port.
-    recursive logical function hanging_eolp()
+    recursive logical function is_hanging_eol()
         integer :: k
 
         k = local_index(.false.)
 
         if (k > 0) then
-            if (associated(locals(k)%hanging_eolp)) then
-                hanging_eolp = locals(k)%hanging_eolp()
+            if (associated(locals(k)%is_hanging_eol)) then
+                is_hanging_eol = locals(k)%is_hanging_eol()
                 return
             end if
         end if
 
-        hanging_eolp = smie_default_hanging_eolp()
-    end function hanging_eolp
+        is_hanging_eol = is_smie_default_hanging_eol()
+    end function is_hanging_eol
 
     !> The default smie--hanging-eolp-function: skip blanks; true at the
     !> end of a line (or a comment up to it).  (A quick hack upstream,
     !> undocumented there.) Port of the default value of smie.el's
     !> smie--hanging-eolp-function.
-    recursive logical function smie_default_hanging_eolp() result(eol)
+    recursive logical function is_smie_default_hanging_eol() result(eol)
         type(status_type) :: st
         integer(int64) :: moved
 
         moved = skip_chars_forward(" "//achar(9), st)
-        eol = eolp()
+        eol = is_eol()
         ! (looking-at comment-start-skip) ;(bug#16041).
         if (.not. eol) eol = forward_comment(point_max())
-    end function smie_default_hanging_eolp
+    end function is_smie_default_hanging_eol
 
     !> Advise smie--hanging-eolp-function in the current buffer with FN
     !> (add-function :around (local ...)): FN calls
-    !> `smie_default_hanging_eolp' for the original.  Not a port.
-    subroutine smie_set_hanging_eolp_function(fn)
-        procedure(smie_hanging_eolp_proc) :: fn
+    !> `is_smie_default_hanging_eol' for the original.  Not a port.
+    subroutine smie_set_is_hanging_eol_function(fn)
+        procedure(smie_is_hanging_eol_proc) :: fn
         integer :: k
 
         k = local_index(.true.)
-        if (k > 0) locals(k)%hanging_eolp => fn
-    end subroutine smie_set_hanging_eolp_function
+        if (k > 0) locals(k)%is_hanging_eol => fn
+    end subroutine smie_set_is_hanging_eol_function
 
     !> Return true if the current token is "hanging".
     !> A hanging keyword is one that's at the end of a line except it's not at
     !> the beginning of a line.  Port of smie.el:smie-indent--hanging-p
     !> (smie-rule-hanging-p).
-    recursive logical function smie_rule_hanging_p(status) result(hanging)
+    recursive logical function is_smie_rule_hanging(status) result(hanging)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: token
         integer(int64) :: here, lep
@@ -3101,7 +3080,7 @@ contains
 
         status = status_type()
         hanging = .false.
-        if (smie_rule_bolp()) return
+        if (is_smie_rule_bol()) return
         here = point()
         lep = line_end_position()
         call smie_forward_token(token, status)
@@ -3109,38 +3088,38 @@ contains
         if (status%ok()) then
             if (.not. allocated(token)) token = ""
             ! Could be an open-paren.
-            if (len(token) == 0 .and. .not. eobp()) call forward_char(status, 1_int64)
-            ok = hanging_eolp()
+            if (len(token) == 0 .and. .not. is_eob()) call forward_char(status, 1_int64)
+            ok = is_hanging_eol()
             hanging = lep <= point()
         end if
 
         call goto_char(here)
-    end function smie_rule_hanging_p
+    end function is_smie_rule_hanging
 
     !> Return true if the current token is the first on the line.  Port of
     !> smie.el:smie-indent--bolp (smie-rule-bolp).
-    recursive logical function smie_rule_bolp()
+    recursive logical function is_smie_rule_bol()
         integer(int64) :: here, moved
         type(status_type) :: st
 
         here = point()
         moved = skip_chars_backward(" "//achar(9), st)
-        smie_rule_bolp = bolp()
+        is_smie_rule_bol = is_bol()
         call goto_char(here)
-    end function smie_rule_bolp
+    end function is_smie_rule_bol
 
     !> Return true if the current token is the first on the line.
     !> Comments are treated as spaces.  Port of smie.el:smie-indent--bolp-1.
-    recursive logical function smie_indent_bolp_1()
+    recursive logical function smie_indent_is_bol_1()
         integer(int64) :: bol, here
         logical :: ok
 
         bol = line_beginning_position()
         here = point()
         ok = forward_comment(-point())
-        smie_indent_bolp_1 = point() <= bol
+        smie_indent_is_bol_1 = point() <= bol
         call goto_char(here)
-    end function smie_indent_bolp_1
+    end function smie_indent_is_bol_1
 
     !> Like `current_column', but if there's a comment before us, use that.
     !> Port of smie.el:smie-indent--current-column.
@@ -3185,7 +3164,7 @@ contains
 
             if (t%null) then
                 call goto_char(pos)
-            else if (.not. numberp(t%left)) then
+            else if (t%left%kind /= SMIE_LEVEL_NUMBER) then
                 call goto_char(pos)
             end if
 
@@ -3225,7 +3204,7 @@ contains
     !> array; trailing blanks are not part of the tokens).
     !> Only meaningful when called from within `smie_rules_function'.
     !> Port of smie.el:smie-rule-parent-p.
-    recursive logical function smie_rule_parent_p(parents, status) result(p)
+    recursive logical function is_smie_rule_parent(parents, status) result(p)
         character(len=*), intent(in) :: parents(:)
         type(status_type), intent(out) :: status
         type(smie_expression_type) :: parent
@@ -3234,7 +3213,7 @@ contains
         call smie_parent(parent, status)
         if (.not. status%ok()) return
         if (allocated(parent%token)) p = in_list(parent%token, parents)
-    end function smie_rule_parent_p
+    end function is_smie_rule_parent
 
     ! Whether S is one of the trimmed strings of LIST.  Not a port.
     pure logical function in_list(s, list)
@@ -3252,7 +3231,7 @@ contains
     !> Return true if the next token is among TOKENS.
     !> Only meaningful when called from within `smie_rules_function'.
     !> Port of smie.el:smie-rule-next-p.
-    recursive logical function smie_rule_next_p(tokens, status) result(p)
+    recursive logical function is_smie_rule_next(tokens, status) result(p)
         character(len=*), intent(in) :: tokens(:)
         type(status_type), intent(out) :: status
         type(smie_toklevels_type) :: next
@@ -3275,11 +3254,11 @@ contains
         end block body
 
         call goto_char(here)
-    end function smie_rule_next_p
+    end function is_smie_rule_next
 
     !> Return true if the previous token is among TOKENS.  Port of
     !> smie.el:smie-rule-prev-p.
-    recursive logical function smie_rule_prev_p(tokens, status) result(p)
+    recursive logical function is_smie_rule_prev(tokens, status) result(p)
         character(len=*), intent(in) :: tokens(:)
         type(status_type), intent(out) :: status
         type(smie_toklevels_type) :: prev
@@ -3290,12 +3269,12 @@ contains
         prev = smie_indent_backward_token(status)
         if (status%ok() .and. .not. prev%null) p = in_list(prev%token, tokens)
         call goto_char(here)
-    end function smie_rule_prev_p
+    end function is_smie_rule_prev
 
     !> Return true if the parent is actually a sibling.
     !> Only meaningful when called from within `smie_rules_function'.
     !> Port of smie.el:smie-rule-sibling-p.
-    recursive logical function smie_rule_sibling_p(status) result(p)
+    recursive logical function is_smie_rule_sibling(status) result(p)
         type(status_type), intent(out) :: status
         type(smie_level_type) :: level, left
         type(smie_toklevels_type) :: t
@@ -3311,7 +3290,7 @@ contains
         end if
 
         p = level_eq(level, left)
-    end function smie_rule_sibling_p
+    end function is_smie_rule_sibling
 
     !> Align with parent.
     !> If present, OFFSET should be an integer giving an additional offset to apply.
@@ -3382,7 +3361,7 @@ contains
 
         moved = skip_chars_forward(" ", status)
         afterpos = 0
-        if (.not. eolp()) afterpos = point()
+        if (.not. is_eol()) afterpos = point()
         call goto_char(here)
 
         ! This should always be true, unless
@@ -3416,8 +3395,8 @@ contains
 
         status = status_type()
 
-        if (method == SMIE_BEFORE .and. smie_rule_bolp()) then
-            sibling = smie_rule_sibling_p(status)
+        if (method == SMIE_BEFORE .and. is_smie_rule_bol()) then
+            sibling = is_smie_rule_sibling(status)
             if (.not. status%ok()) return
 
             if (.not. sibling) then
@@ -3439,7 +3418,7 @@ contains
             end if
         end if
 
-        if (method == SMIE_AFTER .and. smie_rule_bolp()) then
+        if (method == SMIE_AFTER .and. is_smie_rule_bol()) then
             r%kind = SMIE_RULE_OFFSET
             r%value = separator_outdent(status)
         end if
@@ -3514,7 +3493,7 @@ contains
                 end if
 
                 if (.not. virtual) then
-                    virtual = smie_rule_hanging_p(status)
+                    virtual = is_smie_rule_hanging(status)
                     if (.not. status%ok()) exit body
                 end if
 
@@ -3622,7 +3601,7 @@ contains
             return
         end if
 
-        if (eobp()) return
+        if (is_eob()) return
 
         if (allocated(tok)) then
             call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: "//prin1_string(tok))
@@ -3666,7 +3645,7 @@ contains
             end if
         else if (class == 7 .or. class == 15) then
             call backward_expression(1_int64, status)
-        else if (bobp()) then
+        else if (is_bob()) then
             continue
         else
             call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token")
@@ -3714,7 +3693,7 @@ contains
         status = status_type()
 
         ! Trust pre-existing indentation on other lines.
-        if (smie_rule_bolp()) then
+        if (is_smie_rule_bol()) then
             indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=int(current_column()))
         else
             indent = smie_indent_calculate(status)
@@ -3738,7 +3717,7 @@ contains
         character(len=:), allocatable :: start_skip, end_skip
 
         status = status_type()
-        if (.not. smie_rule_bolp()) return
+        if (.not. is_smie_rule_bol()) return
         here = point()
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
@@ -3764,7 +3743,7 @@ contains
         status = status_type()
         here = point()
         ok = forward_comment(-point())
-        if (bobp()) indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=prog_first_column())
+        if (is_bob()) indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=prog_first_column())
         call goto_char(here)
     end subroutine smie_indent_bob
 
@@ -3881,7 +3860,7 @@ contains
             if (toklevels%null) exit body
             tok = toklevels%token
 
-            if (.not. numberp(toklevels%left)) then
+            if (toklevels%left%kind /= SMIE_LEVEL_NUMBER) then
                 ! Different cases:
                 ! - smie-indent--bolp: "indent according to others".
                 ! - common hanging: "indent according to others".
@@ -3896,9 +3875,9 @@ contains
                 ! FIXME: we do the same if after a comment, since we may be trying
                 ! to compute the indentation of this comment and we shouldn't indent
                 ! based on the indentation of subsequent code.
-                if (smie_indent_bolp_1()) exit body
+                if (smie_indent_is_bol_1()) exit body
                 ! By default use point unless we're hanging.
-                ok = smie_rule_hanging_p(status)
+                ok = is_smie_rule_hanging(status)
                 if (.not. status%ok()) exit body
                 if (.not. ok) indent = column_of(current_column())
                 exit body
@@ -3943,12 +3922,12 @@ contains
 
             if (level_eq(plevel, toklevels%left)) then
                 ! We bumped into a same-level operator; align with it.
-                ok = smie_rule_bolp() .and. point() /= pos
+                ok = is_smie_rule_bol() .and. point() /= pos
 
                 if (ok) then
                     here = point()
                     call goto_char(parent%pos)
-                    ok = .not. smie_rule_bolp()
+                    ok = .not. is_smie_rule_bol()
                     call goto_char(here)
                 end if
 
@@ -3981,7 +3960,7 @@ contains
                     ! So as to align with the earliest appropriate place.
                     indent = smie_indent_virtual(status)
                 end if
-            else if (point() == pos .and. smie_rule_bolp()) then
+            else if (point() == pos .and. is_smie_rule_bol()) then
                 ! Since we started at BOL, we're not computing a virtual
                 ! indentation, and we're still at the starting point, so
                 ! we can't use `current-column' which would cause
@@ -4042,7 +4021,7 @@ contains
         ! Don't do it for virtual indentations.  We should normally never be "in
         ! front of a comment" when doing virtual-indentation anyway.  And if we are
         ! (as can happen in octave-mode), moving forward can lead to inf-loops.
-        if (.not. smie_rule_bolp()) return
+        if (.not. is_smie_rule_bol()) return
         pos = point()
 
         body: block
@@ -4069,8 +4048,8 @@ contains
             if (.not. status%ok()) exit body
             if (.not. allocated(next)) next = ""
             skip = .false.
-            if (len(next) == 0) skip = eobp() .or. syntax_code_after(point()) == 5
-            if (.not. skip) skip = smie_closer_p(next)
+            if (len(next) == 0) skip = is_eob() .or. syntax_code_after(point()) == 5
+            if (.not. skip) skip = is_smie_closer(next)
             call goto_char(at)
             if (skip) exit body
             ! FIXME: We assume here that smie-indent-calculate will compute the
@@ -4254,9 +4233,9 @@ contains
             ! 0 for infix, t for prefix, and use another rule
             ! for postfix.
             ! A closer.
-            if (.not. numberp(toklevel%right)) exit body
+            if (toklevel%right%kind /= SMIE_LEVEL_NUMBER) exit body
 
-            if (.not. numberp(toklevel%left) .or. smie_closer_p(toklevel%token)) then
+            if (toklevel%left%kind /= SMIE_LEVEL_NUMBER .or. is_smie_closer(toklevel%token)) then
                 ! An opener, or an inner.
                 v = smie_indent_virtual(status)
                 if (.not. status%ok()) exit body
@@ -4289,7 +4268,7 @@ contains
         type(smie_toklevels_type) :: t
 
         status = status_type()
-        if (.not. eolp()) return
+        if (.not. is_eol()) return
         ! FIXME: Should we default to ";"?
         call call_rules(SMIE_ELEM, "empty_line_token", r, status)
         if (.not. status%ok()) return
@@ -4327,7 +4306,7 @@ contains
                 if (.not. status%ok()) exit body
                 if (.not. (res%null .or. res%level%kind == SMIE_LEVEL_NIL)) exit
                 positions = [point(), positions]
-                if (smie_rule_bolp()) exit
+                if (is_smie_rule_bol()) exit
             end do
 
             ! Figure out if the atom we just skipped is an argument rather
@@ -4749,19 +4728,19 @@ contains
     end subroutine smie_paren_data_function
 
     ! string-lessp.  Not a port.
-    pure logical function string_lessp(a, b)
+    pure logical function is_string_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: i
 
         do i = 1, min(len(a), len(b))
             if (a(i:i) /= b(i:i)) then
-                string_lessp = ichar(a(i:i)) < ichar(b(i:i))
+                is_string_less = ichar(a(i:i)) < ichar(b(i:i))
                 return
             end if
         end do
 
-        string_lessp = len(a) < len(b)
-    end function string_lessp
+        is_string_less = len(a) < len(b)
+    end function is_string_less
 
     !> Setup SMIE navigation and indentation.
     !> GRAMMAR is a grammar table generated by `smie_prec2_to_grammar'.
@@ -4808,7 +4787,7 @@ contains
         ! (add-function :around (local 'show-paren-data-function) #'smie--matching-block-data)
         if (.not. locals(k)%has_paren_data) then
             locals(k)%has_paren_data = .true.
-            locals(k)%paren_data_local = show_paren_data_function_local_p()
+            locals(k)%paren_data_local = is_show_paren_data_function_local()
             locals(k)%paren_data => current_show_paren_data_function()
             call set_local_show_paren_data_function(smie_paren_data_function)
         end if
@@ -4819,7 +4798,7 @@ contains
 
         do i = 2, size(closers)
             do j = i, 2, -1
-                if (.not. string_lessp(closers(j)%s, closers(j - 1)%s)) exit
+                if (.not. is_string_less(closers(j)%s, closers(j - 1)%s)) exit
                 tmp = closers(j)
                 closers(j) = closers(j - 1)
                 closers(j - 1) = tmp

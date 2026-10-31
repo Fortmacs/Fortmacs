@@ -45,16 +45,16 @@ module window_fm
     public :: window_start, set_window_start, window_point, &
               set_window_point, window_body_lines, window_wants_header_line, free_window, free_prev_buffer, &
               free_quit_restore
-    public :: make_window, delete_window_object, window_ref, window_live_p, window_valid_p, same_window, same_handle, &
+    public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
-              pos_visible_in_window_p, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
+              is_pos_visible_in_window, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
               move_to_window_line_top_bottom, quit_window, quit_windows_on, syms_of_window
     public :: window_min_size
     public :: windowp, window_buffer, window_parent, window_top_child, window_left_child, window_next_sibling, &
-              window_prev_sibling, frame_root_window, frame_selected_window, minibuffer_window, window_minibuffer_p, &
+              window_prev_sibling, frame_root_window, frame_selected_window, minibuffer_window, is_window_minibuffer, &
               minibuffer_selected_window, window_total_height, window_total_width, window_left_column, window_top_line, &
               window_body_height, window_body_width, window_wants_mode_line, window_mode_line_height, &
               window_header_line_height, window_tab_line_height, window_hscroll, window_dedicated_p, &
@@ -465,11 +465,11 @@ module window_fm
         !> within the window's body lines from its start.  Port of
         !> window.c:Fpos_visible_in_window_p with PARTIALLY non-nil (line
         !> based, no vscroll).
-        module logical function pos_visible_in_window_p(pos, window) result(visible)
+        module logical function is_pos_visible_in_window(pos, window) result(visible)
             implicit none(type, external)
             integer(int64), intent(in) :: pos
             type(handle_type), intent(in) :: window
-        end function pos_visible_in_window_p
+        end function is_pos_visible_in_window
 
         !> Return "the other" window for "other window scroll" commands: a
         !> neighboring window on the selected frame.  Port of
@@ -1104,12 +1104,12 @@ module window_fm
         !> Return t if WINDOW is a minibuffer window.
         !> WINDOW must be a valid window and defaults to the selected one.
         !> Port of window.c:Fwindow_minibuffer_p.
-        module function window_minibuffer_p(window, status) result(p)
+        module function is_window_minibuffer(window, status) result(p)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
             type(status_type), intent(out) :: status
             logical :: p
-        end function window_minibuffer_p
+        end function is_window_minibuffer
 
         !> Return window selected just before minibuffer window was selected.
         !> Return nil if the selected window is not a minibuffer window.
@@ -1638,21 +1638,21 @@ contains
 
     !> Whether `h' is a valid window (live or internal).  Port of
     !> window.c:Fwindow_valid_p.
-    logical function window_valid_p(h)
+    logical function is_window_valid(h)
         type(handle_type), intent(in) :: h
 
-        window_valid_p = wtable%is_live(h)
-        if (window_valid_p) window_valid_p = .not. windows(h%index)%dead
-    end function window_valid_p
+        is_window_valid = wtable%is_live(h)
+        if (is_window_valid) is_window_valid = .not. windows(h%index)%dead
+    end function is_window_valid
 
     !> Whether `h' is a live window: one that shows a buffer (a leaf).
     !> Port of window.c:Fwindow_live_p.
-    logical function window_live_p(h)
+    logical function is_window_live(h)
         type(handle_type), intent(in) :: h
 
-        window_live_p = wtable%is_live(h)
-        if (window_live_p) window_live_p = windows(h%index)%child%index == 0 .and. .not. windows(h%index)%dead
-    end function window_live_p
+        is_window_live = wtable%is_live(h)
+        if (is_window_live) is_window_live = windows(h%index)%child%index == 0 .and. .not. windows(h%index)%dead
+    end function is_window_live
 
     !> Whether handles A and B name the same window.  Not a port.
     pure logical function same_window(a, b)

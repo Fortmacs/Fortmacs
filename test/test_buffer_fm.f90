@@ -31,11 +31,11 @@ module test_buffer_fm
                         FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use buffer_fm, only: barf_if_buffer_read_only, beg, buffer_chars_modified_tick, buffer_last_name, &
-                         buffer_live_p, buffer_modified_p, buffer_modified_tick, buffer_name, &
+                         is_buffer_live, is_buffer_modified, buffer_modified_tick, buffer_name, &
                          buffers, cur, current_buffer, generate_new_buffer_name, get_buffer, &
                          get_buffer_create, kill_buffer, modiff_incr, rename_buffer, resolve_buffer, &
-                         restore_buffer_modified_p, set_buffer, set_buffer_read_only, buffer_enable_undo, &
-                         set_buffer_modified_p, buffer_file_name, find_buffer, bury_buffer_internal, record_buffer
+                         restore_buffer_modified, set_buffer, set_buffer_read_only, buffer_enable_undo, &
+                         set_buffer_modified, buffer_file_name, find_buffer, bury_buffer_internal, record_buffer
     use eval_fm, only: buffer_list_update_hook
     use data_fm, only: set_default, setq_local
     use lisp_fm, only: make_fixnum
@@ -203,7 +203,7 @@ contains
         call kill_buffer(h, st)
         call check(error, st%ok(), "kill failed")
         if (allocated(error)) return
-        call check(error,.not. buffer_live_p(h), "killed buffer still live")
+        call check(error,.not. is_buffer_live(h), "killed buffer still live")
         if (allocated(error)) return
         call buffer_name(h, name, st)
         call check(error, st%code, FM_INVALID_HANDLE)
@@ -214,7 +214,7 @@ contains
         ! A new buffer may reuse the slot; the old handle stays dead.
         call make("tb-kill", again, error)
         if (allocated(error)) return
-        call check(error,.not. buffer_live_p(h), "stale handle revived")
+        call check(error,.not. is_buffer_live(h), "stale handle revived")
         call discard(again)
     end subroutine test_kill
 
@@ -237,13 +237,13 @@ contains
         if (allocated(error)) return
         call check(error, buffers(cur)%name(1:1) /= " ", "hidden buffer became current")
         if (allocated(error)) return
-        call check(error, buffer_live_p(current_buffer()), "current buffer not live")
+        call check(error, is_buffer_live(current_buffer()), "current buffer not live")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error, st%code, FM_INVALID_HANDLE)
         if (allocated(error)) return
         call check(error, st%detail, "Selecting deleted buffer")
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call discard(a)
         call discard(hidden)
     end subroutine test_kill_current
@@ -260,21 +260,21 @@ contains
         call make("tb-mod", h, error)
         if (allocated(error)) return
         call set_buffer(h, st)
-        call buffer_modified_p(h, m, st)
+        call is_buffer_modified(h, m, st)
         call check(error,.not. m, "new buffer modified")
         if (allocated(error)) return
         call insert("foo", st)
-        call buffer_modified_p(h, m, st)
+        call is_buffer_modified(h, m, st)
         call check(error, m, "insert did not modify")
         if (allocated(error)) return
-        call restore_buffer_modified_p(.false.)
-        call buffer_modified_p(h, m, st)
+        call restore_buffer_modified(.false.)
+        call is_buffer_modified(h, m, st)
         call check(error,.not. m, "restore nil did not clear")
         if (allocated(error)) return
-        call restore_buffer_modified_p(.true.)
-        call buffer_modified_p(h, m, st)
+        call restore_buffer_modified(.true.)
+        call is_buffer_modified(h, m, st)
         call check(error, m, "restore t did not set")
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call discard(h)
     end subroutine test_modified
 
@@ -302,7 +302,7 @@ contains
         call check(error, ticks, modt)
         if (allocated(error)) return
         call check(error, ticks > 1, "chars tick did not advance")
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call discard(h)
     end subroutine test_chars_ticks
 
@@ -340,7 +340,7 @@ contains
         call check(error, st%code, FM_BUFFER_READ_ONLY)
         if (allocated(error)) return
         call check(error, st%detail, "tb-ro")
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call discard(h)
     end subroutine test_read_only
 
@@ -378,7 +378,7 @@ contains
         call buffer_list_update_hook%remove(count_bluh)
         if (allocated(error)) return
         call check(error, bluh_runs == 2, "and by kill_buffer")
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine test_inhibit_buffer_hooks
 
     !> `rename_buffer', `bury_buffer_internal' and `record_buffer' run
@@ -401,11 +401,11 @@ contains
         call buffer_list_update_hook%remove(count_bluh)
         call discard(h)
         call check(error, bluh_runs == 3, "three runs")
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine test_buffer_list_update_hook
 
     !> `buffer_enable_undo' turns undo on again, with an empty undo list;
-    !> `set_buffer_modified_p' marks the buffer; `buffer_file_name' gives the
+    !> `set_buffer_modified' marks the buffer; `buffer_file_name' gives the
     !> visited file; `find_buffer' finds a buffer by a local value.
     !> Own test.
     subroutine test_buffer_subprograms(error)
@@ -426,12 +426,12 @@ contains
         call buffer_enable_undo(st, h)
         call check(error, buffers(i)%undo_enabled .and. buffers(i)%undo_count == 0, "undo enabled")
         if (allocated(error)) return
-        call set_buffer_modified_p(.true.)
-        call buffer_modified_p(h, modified, st)
+        call set_buffer_modified(.true.)
+        call is_buffer_modified(h, modified, st)
         call check(error, modified, "modified")
         if (allocated(error)) return
-        call set_buffer_modified_p(.false.)
-        call buffer_modified_p(h, modified, st)
+        call set_buffer_modified(.false.)
+        call is_buffer_modified(h, modified, st)
         call check(error,.not. modified, "unmodified")
         if (allocated(error)) return
         call buffer_file_name(name, found, st)
@@ -449,6 +449,6 @@ contains
         found_h = find_buffer(sym("find_buffer_test_var"), make_fixnum(7_int64))
         call check(error, found_h%index == 0, "no buffer with 7")
         call discard(h)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine test_buffer_subprograms
 end module test_buffer_fm

@@ -39,7 +39,7 @@ module test_data_buffer_fm
     use casefiddle_fm, only: case_symbols_as_words
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
                        make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
-                       local_variable_p, local_variable_if_set_p, default_value, set_default, &
+                       is_local_variable, is_local_variable_if_set, default_value, set_default, &
                        default_boundp, buffer_local_value, buffer_local_variables, setq_local
     use fns_fm, only: put
     implicit none(type, external)
@@ -179,12 +179,12 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call check(error, local_variable_if_set_p(sym("binding-test-always-local")), "local if set")
+        call check(error, is_local_variable_if_set(sym("binding-test-always-local")), "local if set")
         if (allocated(error)) return
-        call check(error,.not. local_variable_p(sym("binding-test-always-local")), "not yet local")
+        call check(error,.not. is_local_variable(sym("binding-test-always-local")), "not yet local")
         if (allocated(error)) return
         call set(sym("binding-test-always-local"), sym("in-a"), st)
-        call check(error, local_variable_p(sym("binding-test-always-local")), "local after set")
+        call check(error, is_local_variable(sym("binding-test-always-local")), "local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check_value(error, "binding-test-always-local", "always")
@@ -211,7 +211,7 @@ contains
         call set(sym("fill_column"), make_fixnum(50_int64), st)
         call check(error, fill_column%value == 50, "fill_column set")
         if (allocated(error)) return
-        call check(error, local_variable_p(sym("fill_column")), "fill-column local after set")
+        call check(error, is_local_variable(sym("fill_column")), "fill-column local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error, fill_column%value == saved, "default in B")
@@ -247,7 +247,7 @@ contains
         call set(sym("case_symbols_as_words"), t_value(), st)
         call check(error, st%ok() .and. case_symbols_as_words%value, "set in A")
         if (allocated(error)) return
-        call check(error, local_variable_p(sym("case_symbols_as_words")), "local after set")
+        call check(error, is_local_variable(sym("case_symbols_as_words")), "local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error,.not. case_symbols_as_words%value, "default in B")
@@ -317,7 +317,7 @@ contains
         if (.not. allocated(error)) call check(error, xstring(v) == "Fundamental", "mode_name")
         if (allocated(error)) return
         call kill_all_local_variables(.true.)
-        call check(error,.not. local_variable_p(sym("binding-test-permanent")), "permanent killed too")
+        call check(error,.not. is_local_variable(sym("binding-test-permanent")), "permanent killed too")
         call put(sym("binding-test-permanent"), sym("permanent_local"), nil(), st)
         call teardown(a, b)
     end subroutine test_kill_all

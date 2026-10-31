@@ -39,17 +39,17 @@ module easy_mmode_fm
     use eval_fm, only: hook_type
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use buffer_fm, only: buffers, cur, set_buffer_internal
-    use keymap_fm, only: make_sparse_keymap, keymap_live_p, add_minor_mode_map
+    use keymap_fm, only: make_sparse_keymap, is_keymap_live, add_minor_mode_map
     use keyboard_fm, only: last_message
     use xdisp_fm, only: message, add_minor_mode_lighter
     use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
     use error_fm, only: set_error, FM_USER_ERROR
     use lisp_fm, only: make_list, make_fixnum, list
     use buffer_fm, only: current_buffer
-    use editfns_fm, only: point, goto_char, widen, buffer_narrowed_p
+    use editfns_fm, only: point, goto_char, widen, is_buffer_narrowed
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, SEARCH_NOERROR
     use frame_fm, only: frame_selected_window_ref, selected_window
-    use window_fm, only: window_type, window_start, set_window_start, pos_visible_in_window_p, recenter
+    use window_fm, only: window_type, window_start, set_window_start, is_pos_visible_in_window, recenter
     implicit none(type, external)
     private
 
@@ -196,7 +196,7 @@ contains
         re_narrow = .false.
 
         if (present(narrowfun)) then
-            re_narrow = buffer_narrowed_p()
+            re_narrow = is_buffer_narrowed()
             call widen()
         end if
 
@@ -227,7 +227,7 @@ contains
                 call goto_char(saved)
                 if (endpt == 0) endpt = buffers(cur)%zv
 
-                if (.not. pos_visible_in_window_p(endpt, selected_window())) then
+                if (.not. is_pos_visible_in_window(endpt, selected_window())) then
                     ws = window_start(w)
                     call recenter(list(make_fixnum(0_int64)), .false., st)
                     ! recenter scrolled in the wrong direction!
@@ -276,7 +276,7 @@ contains
         re_narrow = .false.
 
         if (present(narrowfun)) then
-            re_narrow = buffer_narrowed_p()
+            re_narrow = is_buffer_narrowed()
             call widen()
         end if
 
@@ -574,7 +574,7 @@ contains
         if (len(self%lighter) > 0) call add_minor_mode_lighter(state_name(self), self%lighter)
 
         if (present(keymap)) then
-            if (keymap .and. .not. keymap_live_p(self%map)) then
+            if (keymap .and. .not. is_keymap_live(self%map)) then
                 call make_sparse_keymap(self%map)
                 call add_minor_mode_map(state_name(self), self%map)
             end if

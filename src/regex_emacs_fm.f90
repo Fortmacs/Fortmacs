@@ -42,13 +42,13 @@ module regex_emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_INVALID_REGEXP
     use print_fm, only: fortran_string
-    use character_fm, only: ascii_char_p, char_byte8_p, byte8_to_char, char_to_byte8, char_to_byte_safe, &
-                            char_byte8_head_p, char_leading_code, char_string, char_head_p, bytes_by_char_head, &
+    use character_fm, only: is_ascii_char, is_char_byte8, byte8_to_char, char_to_byte8, char_to_byte_safe, &
+                            is_char_byte8_head, char_leading_code, char_string, is_char_head, bytes_by_char_head, &
                             string_char_and_length, MAX_MULTIBYTE_LENGTH, MIN_MULTIBYTE_LEADING_CODE, &
-                            MAX_MULTIBYTE_LEADING_CODE, alphabeticp, alphanumericp, graphicp, printablep, blankp, &
+                            MAX_MULTIBYTE_LEADING_CODE, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank, &
                             char_hexdigit
-    use casetab_fm, only: case_canon, uppercasep, lowercasep
-    use syntax_fm, only: char_syntax_class, syntax_class_at, word_boundary_p, SWHITESPACE, SPUNCT, SWORD, SSYMBOL, SOPEN, &
+    use casetab_fm, only: case_canon, is_uppercase, is_lowercase
+    use syntax_fm, only: char_syntax_class, syntax_class_at, is_word_boundary, SWHITESPACE, SPUNCT, SWORD, SSYMBOL, SOPEN, &
                          SCLOSE, SQUOTE, SSTRING, SMATH, SESCAPE, SCHARQUOTE, SCOMMENT, SENDCOMMENT, SINHERIT, &
                          SCOMMENT_FENCE, SSTRING_FENCE
     use category_fm, only: char_has_category
@@ -242,7 +242,7 @@ contains
         dtemp = d - 1
 
         do while (dtemp > 0)
-            if (char_head_p(int(sbyte(s, dtemp), int32))) exit
+            if (is_char_head(int(sbyte(s, dtemp), int32))) exit
             dtemp = dtemp - 1
         end do
 
@@ -346,12 +346,12 @@ contains
 
     !> The charset at `p' has a range table (CHARSET_RANGE_TABLE_EXISTS_P).
     !> Port of regex-emacs.c:CHARSET_RANGE_TABLE_EXISTS_P.
-    pure logical function charset_range_table_exists_p(buf, p)
+    pure logical function charset_range_table_exists(buf, p)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
 
-        charset_range_table_exists_p = iand(buf(p + 1), 128) /= 0
-    end function charset_range_table_exists_p
+        charset_range_table_exists = iand(buf(p + 1), 128) /= 0
+    end function charset_range_table_exists
 
     !> Where the count of the range table of the charset at `p' is
     !> (CHARSET_RANGE_TABLE).  Port of regex-emacs.c:CHARSET_RANGE_TABLE.
@@ -425,7 +425,7 @@ contains
         if (c < 128) then
             isalnum = is_ascii_letter(c) .or. (c >= iachar("0") .and. c <= iachar("9"))
         else
-            isalnum = alphanumericp(c)
+            isalnum = is_alphanumeric(c)
         end if
     end function isalnum
 
@@ -436,7 +436,7 @@ contains
         if (c < 128) then
             isalpha = is_ascii_letter(c)
         else
-            isalpha = alphabeticp(c)
+            isalpha = is_alphabetic(c)
         end if
     end function isalpha
 
@@ -454,7 +454,7 @@ contains
         if (c < 128) then
             isblank = c == 32 .or. c == 9
         else
-            isblank = blankp(c)
+            isblank = is_blank(c)
         end if
     end function isblank
 
@@ -465,7 +465,7 @@ contains
         if (c < 256) then
             isgraph = c > 32 .and. .not. (c >= 127 .and. c <= 160)
         else
-            isgraph = graphicp(c)
+            isgraph = is_graphic(c)
         end if
     end function isgraph
 
@@ -476,7 +476,7 @@ contains
         if (c < 256) then
             isprint = c >= 32 .and. .not. (c >= 127 .and. c <= 159)
         else
-            isprint = printablep(c)
+            isprint = is_printable(c)
         end if
     end function isprint
 
@@ -597,7 +597,7 @@ contains
         case (RECC_GRAPH)
             re_iswctype = isgraph(ch)
         case (RECC_LOWER)
-            re_iswctype = lowercasep(ch)
+            re_iswctype = is_lowercase(ch)
         case (RECC_PRINT)
             re_iswctype = isprint(ch)
         case (RECC_PUNCT)
@@ -605,7 +605,7 @@ contains
         case (RECC_SPACE)
             re_iswctype = isspace(ch)
         case (RECC_UPPER)
-            re_iswctype = uppercasep(ch)
+            re_iswctype = is_uppercase(ch)
         case (RECC_XDIGIT)
             re_iswctype = char_hexdigit(ch) >= 0 .and. ch < 256
         case (RECC_ASCII)
@@ -792,7 +792,7 @@ contains
                 end if
             case (iachar("^"))
                 normal = p /= 2
-                if (normal) normal = .not. at_begline_loc_p(src, p)
+                if (normal) normal = .not. is_at_begline_loc(src, p)
 
                 if (.not. normal) then
                     ! Special case for compatibility: postfix ops after ^
@@ -802,7 +802,7 @@ contains
                 end if
             case (iachar("$"))
                 normal = p /= pend
-                if (normal) normal = .not. at_endline_loc_p(src, p, pend)
+                if (normal) normal = .not. is_at_endline_loc(src, p, pend)
 
                 if (.not. normal) then
                     laststart = b
@@ -1025,7 +1025,7 @@ contains
             do c0 = from, to
                 cc1 = tr(c0)
 
-                if (.not. ascii_char_p(cc1)) then
+                if (.not. is_ascii_char(cc1)) then
                     call set_range_table_work_area(cc1, cc1)
                     cc1 = char_to_byte_safe(cc1)
                     if (cc1 < 0) cc1 = c0
@@ -1247,7 +1247,7 @@ contains
                             c1 = tr(cc0)
                             if (c1 == cc0) cycle
 
-                            if (ascii_char_p(c1)) then
+                            if (is_ascii_char(c1)) then
                                 call set_list_bit(c1)
                             else
                                 c1 = char_to_byte_safe(c1)
@@ -1279,7 +1279,7 @@ contains
                     if (err /= REG_NOERROR) return
                     ! Treat the range from a multibyte character to
                     ! raw-byte character as empty.
-                    if (char_byte8_p(c1) .and. .not. ascii_char_p(c) .and. .not. char_byte8_p(c)) c = c1 + 1
+                    if (is_char_byte8(c1) .and. .not. is_ascii_char(c) .and. .not. is_char_byte8(c)) c = c1 + 1
                 else
                     ! Range from C to C.
                     c1 = c
@@ -1290,11 +1290,11 @@ contains
                         ch = min(127, c1)
                         call setup_ascii_range(c, ch)
                         c = ch + 1
-                        if (char_byte8_p(c1)) c = byte8_to_char(128)
+                        if (is_char_byte8(c1)) c = byte8_to_char(128)
                     end if
 
                     if (c <= c1) then
-                        if (char_byte8_p(c)) then
+                        if (is_char_byte8(c)) then
                             do cc0 = char_to_byte8(c), char_to_byte8(c1)
                                 call set_list_bit(cc0)
                             end do
@@ -1742,12 +1742,12 @@ contains
     !> P points just after a ^ in PATTERN.  Return true if that ^ comes
     !> after an alternative or a begin-subexpression.  Port of
     !> regex-emacs.c:at_begline_loc_p.
-    logical function at_begline_loc_p(pattern, p)
+    logical function is_at_begline_loc(pattern, p)
         character(len=*), intent(in) :: pattern
         integer(int64), intent(in) :: p
         integer(int64) :: prev, q
 
-        at_begline_loc_p = .false.
+        is_at_begline_loc = .false.
         prev = p - 2
 
         select case (pattern(prev:prev))
@@ -1776,19 +1776,19 @@ contains
             prev = prev - 1
         end do
 
-        at_begline_loc_p = mod(q - prev, 2_int64) == 1
-    end function at_begline_loc_p
+        is_at_begline_loc = mod(q - prev, 2_int64) == 1
+    end function is_at_begline_loc
 
-    !> The dual of at_begline_loc_p, for $.  Port of
+    !> The dual of is_at_begline_loc, for $.  Port of
     !> regex-emacs.c:at_endline_loc_p.
-    logical function at_endline_loc_p(pattern, p, pend)
+    logical function is_at_endline_loc(pattern, p, pend)
         character(len=*), intent(in) :: pattern
         integer(int64), intent(in) :: p, pend
 
-        at_endline_loc_p = .false.
+        is_at_endline_loc = .false.
         if (pattern(p:p) /= "\" .or. p + 1 >= pend) return
-        at_endline_loc_p = pattern(p + 1:p + 1) == ")" .or. pattern(p + 1:p + 1) == "|"
-    end function at_endline_loc_p
+        is_at_endline_loc = pattern(p + 1:p + 1) == ")" .or. pattern(p + 1:p + 1) == "|"
+    end function is_at_endline_loc
 
     !> If the operation at P matches one or more characters, the next
     !> operation, else -1.  Port of regex-emacs.c:skip_one_char.
@@ -1805,7 +1805,7 @@ contains
         case (EXACTN)
             q = q + buf(q) + 1
         case (CHARSET, CHARSET_NOT)
-            if (charset_range_table_exists_p(buf, p)) then
+            if (charset_range_table_exists(buf, p)) then
                 q = charset_range_table(buf, p)
                 mcnt = extract_number(buf, q)
                 q = q + 2 + mcnt*2*3
@@ -2043,7 +2043,7 @@ contains
                 fastmap(buf(p + 1)) = .true.
 
                 ! Cover the case of matching a raw char.
-                if (char_byte8_head_p(int(buf(p + 1), int32))) then
+                if (is_char_byte8_head(int(buf(p + 1), int32))) then
                     call pchar(buf, p + 1, c, length)
                     fastmap(char_to_byte8(c)) = .true.
                 end if
@@ -2078,7 +2078,7 @@ contains
                     end if
                 end do
 
-                if (inverted .or. (charset_range_table_exists_p(buf, p) .and. &
+                if (inverted .or. (charset_range_table_exists(buf, p) .and. &
                                    charset_range_table_bits(buf, p) /= 0)) then
                     ! Any leading code can possibly start a character which
                     ! doesn't match the specified set of characters; if we
@@ -2088,7 +2088,7 @@ contains
                         fastmap(MIN_MULTIBYTE_LEADING_CODE:MAX_MULTIBYTE_LEADING_CODE) = .true.
                         data%match_any_multibyte_characters = .true.
                     end if
-                else if (.not. inverted .and. charset_range_table_exists_p(buf, p) .and. &
+                else if (.not. inverted .and. charset_range_table_exists(buf, p) .and. &
                          .not. data%match_any_multibyte_characters) then
                     ! Set fastmap[I] to 1 where I is a leading code of each
                     ! multibyte character in the range table.
@@ -2192,7 +2192,7 @@ contains
         inverted = buf(p0) == CHARSET_NOT
         rtp = -1
 
-        if (charset_range_table_exists_p(buf, p0)) then
+        if (charset_range_table_exists(buf, p0)) then
             rtp = charset_range_table(buf, p0)
             count = extract_number(buf, rtp)
             rtp = rtp + 2
@@ -2255,11 +2255,11 @@ contains
             end if
 
             if (iand(class_bits, BIT_UPPER) /= 0) then
-                if (uppercasep(corig) .or. (canon .and. lowercasep(corig))) return
+                if (is_uppercase(corig) .or. (canon .and. is_lowercase(corig))) return
             end if
 
             if (iand(class_bits, BIT_LOWER) /= 0) then
-                if (lowercasep(corig) .or. (canon .and. uppercasep(corig))) return
+                if (is_lowercase(corig) .or. (canon .and. is_uppercase(corig))) return
             end if
 
             if (iand(class_bits, BIT_PUNCT) /= 0) then
@@ -2299,7 +2299,7 @@ contains
             if (c /= c1) excl = .true.
         else if (buf(p1) == CHARSET .or. buf(p1) == CHARSET_NOT) then
             q = p1
-            if (.not. execute_charset(buf, q, c, c, ascii_char_p(c), .false.)) excl = .true.
+            if (.not. execute_charset(buf, q, c, c, is_ascii_char(c), .false.)) excl = .true.
         else if (buf(p1) == ANYCHAR .and. c == 10) then
             excl = .true.
         end if
@@ -2315,7 +2315,7 @@ contains
         excl = .false.
         ! It is hard to list up all the character in charset P2 if it
         ! includes multibyte character.  Give up in such case.
-        if (charset_range_table_exists_p(buf, p2)) return
+        if (charset_range_table_exists(buf, p2)) return
 
         if (buf(p1) == CHARSET) then
             ! We win if the charset inside the loop has no overlap with
@@ -2423,7 +2423,7 @@ contains
 
     !> True if "p1 matches something" implies "p2 fails".  Port of
     !> regex-emacs.c:mutually_exclusive_p.
-    recursive logical function mutually_exclusive_p(bufp, p1, p2)
+    recursive logical function is_mutually_exclusive(bufp, p1, p2)
         type(re_pattern_buffer_type), intent(inout) :: bufp
         integer, intent(in) :: p1, p2
         type(visit_data_type) :: data
@@ -2431,8 +2431,8 @@ contains
         data%mode = VISIT_MUTEX
         data%p1 = p1
         data%unconstrained = .true.
-        mutually_exclusive_p = forall_firstchar(bufp, .true., p2, -1, data)
-    end function mutually_exclusive_p
+        is_mutually_exclusive = forall_firstchar(bufp, .true., p2, -1, data)
+    end function is_mutually_exclusive
 
     !> Using the compiled pattern, first try to match the subject starting
     !> at STARTPOS, then at STARTPOS + 1, and so on (back if RANGE is
@@ -2553,7 +2553,7 @@ contains
                 d = startpos
 
                 do while (d > 0 .and. startpos - d < MAX_MULTIBYTE_LENGTH - 1)
-                    if (char_head_p(int(sbyte(subj, d), int32))) exit
+                    if (is_char_head(int(sbyte(subj, d), int32))) exit
                     d = d - 1
                 end do
 
@@ -2839,7 +2839,7 @@ contains
                     p = p - 3
                     mcnt = extract_number(bufp%buffer, p2 - 2)
 
-                    if (mutually_exclusive_p(bufp, p1, p2)) then
+                    if (is_mutually_exclusive(bufp, p1, p2)) then
                         ! Use a fast 'on_failure_keep_string_jump' loop.
                         bufp%buffer(p3) = ON_FAILURE_KEEP_STRING_JUMP
                         call store_number(bufp%buffer, p2 - 2, mcnt + 3)
@@ -2908,7 +2908,7 @@ contains
                         if ((s1 == SWORD) .neqv. (s2 == SWORD)) then
                             inverted = .not. inverted
                         else if (s1 == SWORD) then
-                            if (word_boundary_p(c1, c2)) inverted = .not. inverted
+                            if (is_word_boundary(c1, c2)) inverted = .not. inverted
                         end if
                     end if
 
@@ -2931,7 +2931,7 @@ contains
                             s1 = subject_syntax(subj, d, -1_int64, c1)
 
                             if (s1 == SWORD) then
-                                if (.not. word_boundary_p(c1, c2)) do_fail = .true.
+                                if (.not. is_word_boundary(c1, c2)) do_fail = .true.
                             end if
                         end if
                     end if
@@ -2953,7 +2953,7 @@ contains
                             s2 = subject_syntax(subj, d, 0_int64, c2)
 
                             if (s2 == SWORD) then
-                                if (.not. word_boundary_p(c1, c2)) do_fail = .true.
+                                if (.not. is_word_boundary(c1, c2)) do_fail = .true.
                             end if
                         end if
                     end if

@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The body of `map_y_or_n_p': a submodule because the minibuffer and the
+!> The body of `map_read_y_or_n': a submodule because the minibuffer and the
 !> help window (which use files_fm, which uses map_ynp_fm) can't be used
 !> by the module.
 submodule(map_ynp_fm) map_ynp_ask_fm
@@ -29,9 +29,9 @@ submodule(map_ynp_fm) map_ynp_ask_fm
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_description, make_sparse_keymap, set_keymap_parent, define_key, define_key_range, &
-                         lookup_key, key_parse, keymap_live_p, current_global_map
+                         lookup_key, key_parse, is_keymap_live, current_global_map
     use keyboard_fm, only: this_command, real_this_command, this_command_keys, last_message, sit_for
-    use callint_fm, only: commandp, call_interactively
+    use callint_fm, only: is_command, call_interactively
     use character_fm, only: MAX_CHAR
     use, intrinsic :: iso_fortran_env, only: int32
     use xdisp_fm, only: message, message_nolog
@@ -46,7 +46,7 @@ submodule(map_ynp_fm) map_ynp_ask_fm
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use help_fm, only: with_help_window
     use subr_fm, only: read_key, query_replace_answer, query_replace_map, init_query_replace_map, QRM_KEYS, &
-                       y_or_n_p_use_read_key, y_or_n_p_history_variable, ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, &
+                       read_y_or_n_use_read_key, read_y_or_n_history_variable, ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, &
                        ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, ANSWER_QUIT, ANSWER_HELP
     implicit none(type, external)
 
@@ -65,7 +65,7 @@ contains
     !> "object", "objects", "act on") name the objects and the action for
     !> the help.  `actions' is the number of actions taken.  Port of
     !> map-ynp.el:map-y-or-n-p.
-    module subroutine map_y_or_n_p(n, prompter, actor, actions, status, help_object, help_objects, help_action)
+    module subroutine map_read_y_or_n(n, prompter, actor, actions, status, help_object, help_objects, help_action)
         integer, intent(in) :: n
         procedure(ynp_prompter) :: prompter
         procedure(ynp_actor) :: actor
@@ -111,7 +111,7 @@ contains
                 again = .false.
                 if (allocated(chars)) deallocate (chars)
 
-                if (y_or_n_p_use_read_key) then
+                if (read_y_or_n_use_read_key) then
                     ! Prompt in the echo area using `read_key'.
                     call read_key(full, key, status)
                     if (.not. status%ok()) exit objects_loop
@@ -132,9 +132,9 @@ contains
                     saved_enable = enable_recursive_minibuffers
                     enable_recursive_minibuffers = .true.
 
-                    if (allocated(y_or_n_p_history_variable)) then
+                    if (allocated(read_y_or_n_history_variable)) then
                         call read_from_minibuffer(full, str, status, keymap=ynp_remap, &
-                                                  history=y_or_n_p_history_variable)
+                                                  history=read_y_or_n_history_variable)
                     else
                         call read_from_minibuffer(full, str, status, keymap=ynp_remap, history="t")
                     end if
@@ -202,7 +202,7 @@ contains
                                           "or . (period) to "//action//" the current "//object//" and exit.", st)
                     again = .true.
                 case default
-                    if (symbolp(def) .and. .not. nilp(def) .and. commandp(def)) then
+                    if (symbolp(def) .and. .not. nilp(def) .and. is_command(def)) then
                         call call_interactively(def, status)
                         if (.not. status%ok()) exit objects_loop
                     else
@@ -233,7 +233,7 @@ contains
 
             is_quit = value_eq(ev, make_fixnum(7_int64))
         end function is_quit
-    end subroutine map_y_or_n_p
+    end subroutine map_read_y_or_n
 
     !> Make `ynp_remap' (the remap keymap of map-y-or-n-p's minibuffer
     !> path, flattened: keymap_fm has no command remapping).  Not a port.
@@ -245,10 +245,10 @@ contains
         integer :: k
         integer(int64) :: c
 
-        if (keymap_live_p(ynp_remap)) return
-        cmd_char = command_type("map_y_or_n_p__char", ynp_char)
+        if (is_keymap_live(ynp_remap)) return
+        cmd_char = command_type("map_read_y_or_n__char", ynp_char)
         call cmd_char%define()
-        cmd_help = command_type("map_y_or_n_p__help", ynp_help)
+        cmd_help = command_type("map_read_y_or_n__help", ynp_help)
         call cmd_help%define()
         call make_sparse_keymap(ynp_remap)
         call set_keymap_parent(ynp_remap, minibuffer_local_map, st)
@@ -260,7 +260,7 @@ contains
             if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
             if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(ynp_remap, key1, sym("map_y_or_n_p__help"), st)
+                call define_key(ynp_remap, key1, sym("map_read_y_or_n__help"), st)
             end if
         end do
 
@@ -268,12 +268,12 @@ contains
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
         if (value_eq(b, sym("self_insert_command"))) then
-            call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), sym("map_y_or_n_p__help"), st)
+            call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), sym("map_read_y_or_n__help"), st)
         end if
 
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
-            if (st%ok()) call define_key(ynp_remap, seq, sym("map_y_or_n_p__char"), st)
+            if (st%ok()) call define_key(ynp_remap, seq, sym("map_read_y_or_n__char"), st)
         end do
     end subroutine init_remap
 
@@ -360,7 +360,7 @@ contains
                 call cmd_answer_reject%define()
             end if
 
-            if (keymap_live_p(short_answer_map)) call free_keymap(short_answer_map, st)
+            if (is_keymap_live(short_answer_map)) call free_keymap(short_answer_map, st)
             call make_sparse_keymap(short_answer_map)
             call set_keymap_parent(short_answer_map, minibuffer_local_map, st)
 
@@ -384,7 +384,7 @@ contains
             if (short) then
                 call read_from_minibuffer(prompt, str, status, keymap=short_answer_map, history="read_char_history")
             else
-                call read_from_minibuffer(prompt, str, status, history="yes_or_no_p_history")
+                call read_from_minibuffer(prompt, str, status, history="read_yes_or_no_history")
             end if
 
             this_command = saved_this

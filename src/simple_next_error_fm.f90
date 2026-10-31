@@ -38,7 +38,7 @@
 !> selected window is kept), `next_error_this_buffer_no_select' and
 !> `previous_error_this_buffer_no_select', the repeat map.
 submodule(simple_fm) simple_next_error_fm
-    use buffer_fm, only: buffer_live_p, current_buffer, set_buffer, buffer_list
+    use buffer_fm, only: is_buffer_live, current_buffer, set_buffer, buffer_list
     use handle_fm, only: null_handle
     use data_fm, only: add_local_variables_killer
     use window_fm, only: select_window
@@ -113,8 +113,8 @@ contains
     if (k /= 0) has_next_error_function = associated(entries(k)%fn)
     end procedure has_next_error_function
 
-    recursive module logical function next_error_buffer_p(buffer, avoid_current, extra_test_inclusive, &
-                                                          extra_test_exclusive)
+    recursive module logical function is_next_error_buffer(buffer, avoid_current, extra_test_inclusive, &
+                                                           extra_test_exclusive)
         type(handle_type), intent(in) :: buffer
         logical, intent(in), optional :: avoid_current
         procedure(predicate_proc), optional :: extra_test_inclusive, extra_test_exclusive
@@ -124,24 +124,24 @@ contains
 
         avoid = .false.
         if (present(avoid_current)) avoid = avoid_current
-        next_error_buffer_p = .false.
+        is_next_error_buffer = .false.
         ! First make sure it's live.
-        if (.not. buffer_live_p(buffer)) return
+        if (.not. is_buffer_live(buffer)) return
         if (avoid .and. same_buffer(buffer, current_buffer())) return
         old = current_buffer()
         call set_buffer(buffer, st)
 
         if (has_next_error_function(cur)) then
             ! This is the normal test.  Optionally reject some buffers.
-            next_error_buffer_p = .true.
-            if (present(extra_test_exclusive)) next_error_buffer_p = extra_test_exclusive()
+            is_next_error_buffer = .true.
+            if (present(extra_test_exclusive)) is_next_error_buffer = extra_test_exclusive()
         else
             ! Optionally accept some other buffers.
-            if (present(extra_test_inclusive)) next_error_buffer_p = extra_test_inclusive()
+            if (present(extra_test_inclusive)) is_next_error_buffer = extra_test_inclusive()
         end if
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
-    end function next_error_buffer_p
+        if (is_buffer_live(old)) call set_buffer(old, st)
+    end function is_next_error_buffer
 
     ! Not a port.
     logical function same_buffer(a, b)
@@ -167,13 +167,13 @@ contains
         ! 1. If a customizable function returns a buffer, use it (its
         ! default, ignore, returns none).
         ! 2. If next-error-last-buffer is an acceptable buffer, use that.
-        if (next_error_buffer_p(next_error_last_buffer, avoid, extra_test_inclusive, extra_test_exclusive)) then
+        if (is_next_error_buffer(next_error_last_buffer, avoid, extra_test_inclusive, extra_test_exclusive)) then
             buffer = next_error_last_buffer
             return
         end if
 
         ! 3. If the current buffer is acceptable, choose it.
-        if (next_error_buffer_p(current_buffer(), avoid, extra_test_inclusive, extra_test_exclusive)) then
+        if (is_next_error_buffer(current_buffer(), avoid, extra_test_inclusive, extra_test_exclusive)) then
             buffer = current_buffer()
             return
         end if
@@ -182,7 +182,7 @@ contains
         all = buffer_list()
 
         do k = 1, size(all)
-            if (next_error_buffer_p(all(k), avoid, extra_test_inclusive, extra_test_exclusive)) then
+            if (is_next_error_buffer(all(k), avoid, extra_test_inclusive, extra_test_exclusive)) then
                 buffer = all(k)
                 return
             end if
@@ -191,7 +191,7 @@ contains
         ! 5. Use the current buffer as a last resort if it qualifies, even
         ! despite AVOID-CURRENT.
         if (avoid) then
-            if (next_error_buffer_p(current_buffer(), .false., extra_test_inclusive, extra_test_exclusive)) then
+            if (is_next_error_buffer(current_buffer(), .false., extra_test_inclusive, extra_test_exclusive)) then
                 call message("This is the only buffer with error message locations")
                 buffer = current_buffer()
                 return

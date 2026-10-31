@@ -59,14 +59,14 @@ module help_fm
     use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, keymap_ref_p, xhandle, list_elements, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name
-    use keymap_fm, only: make_sparse_keymap, keymap_live_p, free_keymap, keymap_set, define_key, key_parse, &
-                         key_valid_p, key_description, where_is_internal, lookup_key, current_active_maps, &
+    use keymap_fm, only: make_sparse_keymap, is_keymap_live, free_keymap, keymap_set, define_key, key_parse, &
+                         is_key_valid, key_description, where_is_internal, lookup_key, current_active_maps, &
                          overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
     use derived_fm, only: major_mode_type, major_mode_named
     use keyboard_fm, only: read_key_sequence_vs
-    use callint_fm, only: commandp
+    use callint_fm, only: is_command
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
-                         restore_buffer_modified_p, buffers, cur, buffer_live_p
+                         restore_buffer_modified, buffers, cur, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, widen
     use marker_fm, only: set_marker
@@ -75,10 +75,10 @@ module help_fm
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use help_mode_fm, only: help_mode, help_mode_map, init_help_mode
     use frame_fm, only: selected_frame, selected_window
-    use window_fm, only: windows, window_live_p, same_window, window_leaves, temp_buffer_window_show, &
-                         pos_visible_in_window_p, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
+    use window_fm, only: windows, is_window_live, same_window, window_leaves, temp_buffer_window_show, &
+                         is_pos_visible_in_window, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
                          minibuffer_scroll_window
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use lisp_fm, only: t_value, make_fixnum, make_list, stringp, xstring, vtag, V_LIST, list_elt, xfixnum
     use keymap_fm, only: accessible_keymaps, map_keymap_items, current_minor_maps, key_list_type, current_local_map, &
                          set_keymap_parent, single_key_description
@@ -89,7 +89,7 @@ module help_fm
     use window_fm, only: set_window_point, pop_to_buffer, scroll_up, scroll_down, window_configuration_type, &
                          current_window_configuration, set_window_configuration, free_window_configuration, &
                          window_text_cols
-    use callint_fm, only: command_defined_p, call_interactively
+    use callint_fm, only: is_command_defined, call_interactively
     use data_fm, only: default_value
     use fns_fm, only: value_equal
     use print_fm, only: fortran_repr
@@ -223,7 +223,7 @@ contains
         do k = 1, size(named_keymaps)
             if (named_keymaps(k)%name == name) then
                 map = named_keymaps(k)%map
-                found = keymap_live_p(map)
+                found = is_keymap_live(map)
                 return
             end if
         end do
@@ -340,7 +340,7 @@ contains
                     j = index(string(i + 2:), "'")
 
                     if (j > 0) then
-                        if (literal_key_p(string(i + 2:i + j))) then
+                        if (is_literal_key(string(i + 2:i + j))) then
                             out = out//string(i + 2:i + j)
                             i = i + 2 + j
                             cycle
@@ -415,15 +415,15 @@ contains
 
     !> Whether \`KEY' in a docstring shows KEY: a valid key sequence, a
     !> mouse button or "M-x COMMAND".  Not a port.
-    logical function literal_key_p(key)
+    logical function is_literal_key(key)
         character(len=*), intent(in) :: key
 
-        literal_key_p = .false.
+        is_literal_key = .false.
         if (len(key) == 0) return
-        literal_key_p = key_valid_p(key)
-        if (len(key) >= 7) literal_key_p = literal_key_p .or. (key(1:6) == "mouse-" .and. verify(key(7:7), "123456789") == 0)
-        if (len(key) > 4) literal_key_p = literal_key_p .or. key(1:4) == "M-x "
-    end function literal_key_p
+        is_literal_key = is_key_valid(key)
+        if (len(key) >= 7) is_literal_key = is_literal_key .or. (key(1:6) == "mouse-" .and. verify(key(7:7), "123456789") == 0)
+        if (len(key) > 4) is_literal_key = is_literal_key .or. key(1:4) == "M-x "
+    end function is_literal_key
 
     !> Length of the UTF-8 sequence that starts with byte `b'.  Not a port.
     integer function utf8_length(b)
@@ -461,7 +461,7 @@ contains
         call set_buffer(buf, status)
         if (.not. status%ok()) return
 
-        if (.not. derived_mode_p(["help_mode"])) then
+        if (.not. is_derived_mode(["help_mode"])) then
             call help_mode(status)
             if (.not. status%ok()) return
         end if
@@ -485,7 +485,7 @@ contains
         call temp_buffer_window_show(buf, window, status)
         if (.not. status%ok()) return
         call help_window_setup(window)
-        if (buffer_live_p(previous)) call set_buffer(previous, st)
+        if (is_buffer_live(previous)) call set_buffer(previous, st)
     end subroutine with_help_window
 
     !> Show TEXT in buffer BUFNAME: the buffer is erased and put in Help
@@ -525,14 +525,14 @@ contains
         if (.not. status%ok()) return
         ! temp_output_buffer_show
         if (allocated(old_dir)) buffers(cur)%directory = old_dir
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call widen()
         call goto_char(buffers(cur)%begv)
-        if (buffer_live_p(previous)) call set_buffer(previous, st)
+        if (is_buffer_live(previous)) call set_buffer(previous, st)
         call display_buffer(buf, window, status)
         if (.not. status%ok()) return
 
-        if (window_live_p(window)) then
+        if (is_window_live(window)) then
             minibuffer_scroll_window = window
             windows(window%index)%hscroll = 0
             if (windows(window%index)%start%index /= 0) call set_marker(windows(window%index)%start, 1_int64, st, buf)
@@ -567,9 +567,9 @@ contains
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, st)
         zv = buffers(cur)%zv
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
 
-        if (pos_visible_in_window_p(zv, window)) then
+        if (is_pos_visible_in_window(zv, window)) then
             ! Buffer end is at least partially visible, no need to talk
             ! about scrolling.
             scroll_part = "."
@@ -592,7 +592,7 @@ contains
         integer :: help_setup, nwindows
         type(handle_type), allocatable :: leaves(:)
 
-        if (.not. window_live_p(window)) return
+        if (.not. is_window_live(window)) return
         help_setup = windows(window%index)%quit_restore%kind
         call window_leaves(selected_frame%root_window, leaves)
         nwindows = size(leaves)
@@ -698,7 +698,7 @@ contains
         if (.not. found) return
 
         ! Look into these advertised symbols first.
-        if (keymap_live_p(overriding_terminal_local_map)) then
+        if (is_keymap_live(overriding_terminal_local_map)) then
             if (same_map(map, overriding_terminal_local_map)) then
                 name = "overriding_terminal_local_map"
                 return
@@ -757,12 +757,12 @@ contains
 
     !> Whether `defn' leaves a key undefined: nil, a number (a key too
     !> long) or `undefined'.  Port of help.el:help--binding-undefined-p.
-    logical function binding_undefined_p(defn)
+    logical function is_binding_undefined(defn)
         type(value_type), intent(in) :: defn
 
-        binding_undefined_p = nilp(defn) .or. fixnump(defn)
-        if (.not. binding_undefined_p .and. symbolp(defn)) binding_undefined_p = value_eq(defn, sym("undefined"))
-    end function binding_undefined_p
+        is_binding_undefined = nilp(defn) .or. fixnump(defn)
+        if (.not. is_binding_undefined .and. symbolp(defn)) is_binding_undefined = value_eq(defn, sym("undefined"))
+    end function is_binding_undefined
 
     !> Display documentation of the function invoked by KEY_LIST.
     !> Interactively, this command can't describe prefix commands, but
@@ -781,7 +781,7 @@ contains
         if (.not. ok) return
         desc = key_description(keys)
 
-        if (binding_undefined_p(binding)) then
+        if (is_binding_undefined(binding)) then
             call message(desc//" is undefined")
             return
         end if
@@ -813,7 +813,7 @@ contains
         if (.not. ok) return
         desc = key_description(keys)
 
-        if (binding_undefined_p(binding)) then
+        if (is_binding_undefined(binding)) then
             call message(desc//" is undefined")
         else if (symbolp(binding)) then
             call symbol_name(binding, name, status)
@@ -833,7 +833,7 @@ contains
         type(value_type), allocatable :: seqs(:), events(:)
         integer :: k
 
-        call completing_read("Where is command: ", completion_obarray_table(), name, status, commandp, &
+        call completing_read("Where is command: ", completion_obarray_table(), name, status, is_command, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
 
@@ -893,8 +893,8 @@ contains
         call display_buffer(buf, win, status)
         ! If the buffer is already displayed, we need to forcibly set the
         ! window point to scroll to the end of the buffer.
-        if (status%ok() .and. window_live_p(win)) call set_window_point(windows(win%index), pt, st)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (status%ok() .and. is_window_live(win)) call set_window_point(windows(win%index), pt, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine view_echo_area_messages
 
     !> Display last few input keystrokes and the commands run.
@@ -1310,7 +1310,7 @@ contains
                 if (len_trim(keys(k)) == 0) then
                     ! (string-match "\`C-\w\'" name)
                     text = text//name
-                else if (command_defined_p(sym(name))) then
+                else if (is_command_defined(sym(name))) then
                     text = text//"\["//name//"]"
                 else
                     text = text//trim(keys(k))
@@ -1370,7 +1370,7 @@ contains
         ch = make_fixnum(iachar("?", int64))
         saved_override = overriding_terminal_local_map
 
-        do while (help_screen_key_p(ch, keys))
+        do while (is_help_screen_key(ch, keys))
             st = status_type()
 
             if (event_is(ch, 22_int64) .or. event_is(ch, 32_int64) .or. event_named(ch, "next") .or. &
@@ -1386,7 +1386,7 @@ contains
                 call scroll_down(make_fixnum(1_int64), st)
             end if
 
-            if (pos_visible_in_window_p(buffers(cur)%zv, selected_window())) then
+            if (is_pos_visible_in_window(buffers(cur)%zv, selected_window())) then
                 prompt = "Type one of listed options: "
             else
                 prompt = "Type one of listed options, or <PageDown>/<PageUp>/SPC/DEL to scroll: "
@@ -1439,7 +1439,7 @@ contains
     !> Whether event `ch' keeps the help screen reading keys: the help
     !> character, the `help_event_list' events (<help>, <f1>, ?) and the
     !> scrolling keys.  Not a port.
-    logical function help_screen_key_p(ch, keys) result(p)
+    logical function is_help_screen_key(ch, keys) result(p)
         type(value_type), intent(in) :: ch
         type(value_type), allocatable, intent(in) :: keys(:)
         integer :: k
@@ -1460,7 +1460,7 @@ contains
                 if (event_is(keys(1), 27_int64) .and. event_is(keys(2), iachar("v", int64))) p = .true.
             end if
         end if
-    end function help_screen_key_p
+    end function is_help_screen_key
 
     ! Not a port.
     logical function event_is(ev, c)
@@ -1525,11 +1525,11 @@ contains
         text = ""
         allocate (shadow(0), none(0))
 
-        if (keymap_live_p(key_translation_map)) then
+        if (is_keymap_live(key_translation_map)) then
             call describe_map_tree(key_translation_map, .false., none, "Key translations", .true., text)
         end if
 
-        if (keymap_live_p(overriding_terminal_local_map)) then
+        if (is_keymap_live(overriding_terminal_local_map)) then
             call describe_map_tree(overriding_terminal_local_map, .true., shadow, FF//LF//"Overriding Bindings", &
                                    .false., text)
             call push_shadow(shadow, overriding_terminal_local_map)
@@ -1545,7 +1545,7 @@ contains
 
             local = current_local_map()
 
-            if (keymap_live_p(local)) then
+            if (is_keymap_live(local)) then
                 major = "fundamental_mode"
                 if (allocated(buffers(cur)%major_mode)) major = buffers(cur)%major_mode
                 call describe_map_tree(local, .true., shadow, FF//LF//LQUOTE//major//RQUOTE//" Major Mode Bindings", &
@@ -1558,13 +1558,13 @@ contains
                                mention_shadow=.true.)
 
         ! Print the function-key-map translations under this prefix.
-        if (keymap_live_p(local_function_key_map)) then
+        if (is_keymap_live(local_function_key_map)) then
             call describe_map_tree(local_function_key_map, .false., none, FF//LF//"Function key map translations", &
                                    .true., text)
         end if
 
         ! Print the input-decode-map translations under this prefix.
-        if (keymap_live_p(input_decode_map)) then
+        if (is_keymap_live(input_decode_map)) then
             call describe_map_tree(input_decode_map, .false., none, FF//LF//"Input decoding map translations", &
                                    .true., text)
         end if
@@ -1757,7 +1757,7 @@ contains
             if (.not. (symbolp(ev(i)) .or. fixnump(ev(i)))) cycle
             ! Don't show undefined commands or suppressed commands.
             if (nilp(def(i))) cycle
-            if (partial .and. suppressed_p(def(i))) cycle
+            if (partial .and. is_suppressed(def(i))) cycle
 
             ! Don't show a command that isn't really visible because a
             ! local definition of the same key shadows it.
@@ -1890,11 +1890,11 @@ contains
 
     !> Whether `def' has a `suppress_keymap' property: `undefined'
     !> (subr.el puts it there).  Not a port.
-    logical function suppressed_p(def)
+    logical function is_suppressed(def)
         type(value_type), intent(in) :: def
 
-        suppressed_p = value_eq(def, sym("undefined"))
-    end function suppressed_p
+        is_suppressed = value_eq(def, sym("undefined"))
+    end function is_suppressed
 
     !> The description of the definition DEFINITION, as describe-map
     !> shows it: a translation as its key description, a keyboard macro,
@@ -1979,14 +1979,14 @@ contains
         else if (symbolp(a) .and. symbolp(b)) then
             call symbol_name(a, na, st)
             call symbol_name(b, nb, st)
-            map_less = string_version_lessp(na, nb)
+            map_less = is_string_version_less(na, nb)
         end if
     end function map_less
 
     !> Return true if S1 is less than S2, as version strings: sequences of
     !> digits compare as numbers.  Port of fns.c:Fstring_version_lessp
     !> (filevercmp's ordering of digit runs, by bytes otherwise).
-    logical function string_version_lessp(s1, s2) result(less)
+    logical function is_string_version_less(s1, s2) result(less)
         character(len=*), intent(in) :: s1, s2
         integer :: i1, i2, e1, e2, cmp
 
@@ -2034,7 +2034,7 @@ contains
                 i2 = i2 + 1
             end if
         end do
-    end function string_version_lessp
+    end function is_string_version_less
 
     ! Not a port.
     logical function is_digit(c)
@@ -2115,7 +2115,7 @@ contains
             definition = rd(k)
             if (nilp(definition)) cycle
             ! Don't mention suppressed commands.
-            if (partial .and. suppressed_p(definition)) cycle
+            if (partial .and. is_suppressed(definition)) cycle
             kludge(1) = make_fixnum(rf(k))
             ! If this binding is shadowed by some other map, ignore it.
             this_shadowed = .false.
@@ -2282,7 +2282,7 @@ contains
 
         w = 80
         sw = selected_window()
-        if (window_live_p(sw)) w = window_text_cols(windows(sw%index))
+        if (is_window_live(sw)) w = window_text_cols(windows(sw%index))
     end function window_body_cols
 
     !> Make `help_map' and put it on C-h, <help> and <f1> in `global_map'; name
@@ -2292,7 +2292,7 @@ contains
         type(status_type) :: status
         type(value_type), allocatable :: key(:)
 
-        if (keymap_live_p(help_map)) call free_keymap(help_map, status)
+        if (is_keymap_live(help_map)) call free_keymap(help_map, status)
         call make_sparse_keymap(help_map)
         call keymap_set(help_map, "C-h", "help_for_help", status)
         call keymap_set(help_map, "<help>", "help_for_help", status)

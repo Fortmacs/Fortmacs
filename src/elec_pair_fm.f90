@@ -49,9 +49,9 @@ module elec_pair_fm
     use commands_fm, only: commands
     use eval_fm, only: hook_type, hook_current_prefix_arg
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p, &
+    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified, &
                          barf_if_buffer_read_only
-    use editfns_fm, only: point, point_min, point_max, goto_char, bobp, char_after, char_before, delete_region, &
+    use editfns_fm, only: point, point_min, point_max, goto_char, is_bob, char_after, char_before, delete_region, &
                           buffer_substring, line_beginning_position
     use insdel_fm, only: insert
     use cmds_fm, only: post_self_insert_hook, self_insert_command, delete_char, forward_char
@@ -60,7 +60,7 @@ module elec_pair_fm
                          scan_expressions, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
                          forward_comment, ST_STRING_STYLE
     use subr_fm, only: looking_back
-    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, use_region_p, mark, newline, &
+    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, is_use_region, mark, newline, &
                          backward_delete_char_untabify
     use modes_fm, only: minor_modes
     use electric_fm, only: electric_after_char_pos
@@ -292,7 +292,7 @@ contains
         call minor_modes%electric_pair_local_mode%define("electric_pair_local_mode", &
                                                          body=electric_pair_local_mode_body, &
                                                          hook=electric_pair_local_mode_hook, &
-                                                         getter=electric_pair_local_mode_p)
+                                                         getter=is_electric_pair_local_mode)
         commands%electric_pair_local_mode%run => electric_pair_local_mode
         commands%electric_pair_delete_pair%run => cmd_electric_pair_delete_pair
         ! (?\" . ?\") and electric-quote-chars' single and double quotes.
@@ -497,7 +497,7 @@ contains
         logical :: pre_t
 
         opoint = point()
-        pre_t = bobp()
+        pre_t = is_bob()
         pre_string_or_comment = 0
 
         if (.not. pre_t) then
@@ -767,7 +767,7 @@ contains
 
     !> Return true if there are unbalanced strings started by CHAR.  Port of
     !> elec-pair.el:electric-pair--unbalanced-strings-p.
-    logical function unbalanced_strings_p(char)
+    logical function is_unbalanced_strings(char)
         integer, intent(in) :: char
         type(parse_state_type) :: selector_ppss, relevant_ppss
         integer(int64) :: opoint, moved
@@ -787,21 +787,21 @@ contains
         end if
 
         call goto_char(opoint)
-        unbalanced_strings_p = relevant_ppss%instring == ST_STRING_STYLE .or. relevant_ppss%instring == char
-    end function unbalanced_strings_p
+        is_unbalanced_strings = relevant_ppss%instring == ST_STRING_STYLE .or. relevant_ppss%instring == char
+    end function is_unbalanced_strings
 
     !> Return true if point is inside a string started by CHAR.
     !>
     !> A comments text is parsed with `electric_pair_text_syntax_table'.
     !> Also consider strings within comments, but not strings within
     !> strings.  Port of elec-pair.el:electric-pair--inside-string-p.
-    logical function inside_string_p(char)
+    logical function is_inside_string(char)
         integer, intent(in) :: char
         type(parse_state_type) :: ppss
 
         call electric_pair_syntax_ppss(ppss, point(), comments_only=.true.)
-        inside_string_p = ppss%instring == ST_STRING_STYLE .or. ppss%instring == char
-    end function inside_string_p
+        is_inside_string = ppss%instring == ST_STRING_STYLE .or. ppss%instring == char
+    end function is_inside_string
 
     !> Return true if auto-pairing of CHAR unbalances delimiters.
     !>
@@ -824,7 +824,7 @@ contains
         if (.not. info%found) return
         opoint = point()
         beg = opoint - psi_num()
-        call buffer_modified_p(current_buffer(), modified, st)
+        call is_buffer_modified(current_buffer(), modified, st)
         undo_enabled = buffers(cur)%undo_enabled
         buffers(cur)%undo_enabled = .false.
         call buffer_substring(beg, opoint, text, st)
@@ -839,13 +839,13 @@ contains
                 inhibit = outermost%pair == info%pair
             end if
         else if (info%syntax == iachar('"')) then
-            inhibit = unbalanced_strings_p(char)
+            inhibit = is_unbalanced_strings(char)
         end if
 
         call goto_char(beg)
         call insert(text, st)
         buffers(cur)%undo_enabled = undo_enabled
-        call restore_buffer_modified_p(modified)
+        call restore_buffer_modified(modified)
         call goto_char(opoint)
     end function electric_pair_inhibit_if_helps_balance
 
@@ -875,7 +875,7 @@ contains
                 skip = outermost%pair /= info%pair
             end if
         else if (info%syntax == iachar('"')) then
-            skip = inside_string_p(char)
+            skip = is_inside_string(char)
         end if
 
         do k = 1, num
@@ -939,7 +939,7 @@ contains
     !>
     !> The decision is taken by order of preference:
     !>
-    !> * According to `use_region_p'.  If this returns true this
+    !> * According to `is_use_region'.  If this returns true this
     !>   function will unconditionally "wrap" the region in the
     !>   corresponding delimiter for C;
     !>
@@ -976,7 +976,7 @@ contains
         if (pos == 0) return
         if (num == 0) return
 
-        if (is_any(syntax, '()"$') .and. use_region_p()) then
+        if (is_any(syntax, '()"$') .and. is_use_region()) then
             ! Wrap a pair around the active region.
             call mark(m, st)
 
@@ -1218,9 +1218,9 @@ contains
 
     !> The state of Electric Pair Local mode: `electric_pair_mode' in the
     !> current buffer.  Not a port.
-    logical function electric_pair_local_mode_p() result(on)
+    logical function is_electric_pair_local_mode() result(on)
         on = minor_modes%electric_pair_mode%state%value
-    end function electric_pair_local_mode_p
+    end function is_electric_pair_local_mode
 
     !> The body of Electric Pair Local mode with its new state VAL: the
     !> setter (setq-local electric-pair-mode VAL), then the body.  Port of

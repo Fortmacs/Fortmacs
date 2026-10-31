@@ -71,7 +71,7 @@ module data_fm
         procedure :: kill_local => setting_kill_local
         !> Whether the current buffer has its own value.  Port of
         !> data.c:Flocal_variable_p.
-        procedure :: local_p => setting_local_p
+        procedure :: local_p => is_setting_local
         !> Start giving the current buffer its own value.
         procedure :: make_local => setting_make_local
     end type setting_type
@@ -156,7 +156,7 @@ module data_fm
     public :: value_eq, car, cdr, car_safe, cdr_safe
     public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
     public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
-              local_variable_p, local_variable_if_set_p, automatically_local_p, forwarded_variable_p, default_value, &
+              is_local_variable, is_local_variable_if_set, is_automatically_local, is_forwarded_variable, default_value, &
               function_setting_default, &
               set_default, default_boundp, buffer_local_value, buffer_local_variables, setq_local
 
@@ -271,11 +271,11 @@ module data_fm
         !> Non-nil if VARIABLE has a local binding in buffer BUFFER (the
         !> slot number; the current buffer if absent).  Port of
         !> data.c:Flocal_variable_p.  (In data_buffer_fm.)
-        module logical function local_variable_p(variable, buffer)
+        module logical function is_local_variable(variable, buffer)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
             integer(int64), intent(in), optional :: buffer
-        end function local_variable_p
+        end function is_local_variable
 
         !> Non-nil if VARIABLE is local in buffer BUFFER when set there.
         !> BUFFER defaults to the current buffer.
@@ -284,28 +284,28 @@ module data_fm
         !> value in BUFFER, or if VARIABLE is automatically buffer-local (see
         !> `make_variable_buffer_local').  Port of
         !> data.c:Flocal_variable_if_set_p.  (In data_buffer_fm.)
-        module logical function local_variable_if_set_p(variable, buffer)
+        module logical function is_local_variable_if_set(variable, buffer)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
             integer(int64), intent(in), optional :: buffer
-        end function local_variable_if_set_p
+        end function is_local_variable_if_set
 
         !> Whether VARIABLE is automatically buffer-local: it gets a local
         !> value in any buffer where it is set (`make_variable_buffer_local').
         !> (Ours; data.c's SYMBOL_LOCALIZED with local_if_set.)  (In
         !> data_buffer_fm.)  Not a port.
-        module logical function automatically_local_p(variable)
+        module logical function is_automatically_local(variable)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
-        end function automatically_local_p
+        end function is_automatically_local
 
         !> Whether VARIABLE is forwarded to a Fortran setting, so its
         !> buffer-local values are those of the setting object.  (Ours;
         !> data.c's SYMBOL_FORWARDED.)  (In data_buffer_fm.)  Not a port.
-        module logical function forwarded_variable_p(variable)
+        module logical function is_forwarded_variable(variable)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
-        end function forwarded_variable_p
+        end function is_forwarded_variable
 
         !> The default value of the forwarded function setting S (its value
         !> in buffers without their own), in FN.  Not a port: what
@@ -469,11 +469,11 @@ contains
     end subroutine setting_kill_local
 
     ! Not a port.
-    logical function setting_local_p(self)
+    logical function is_setting_local(self)
         class(setting_type), intent(in) :: self
 
-        setting_local_p = local_variable_p(sym(trim(self%name)))
-    end function setting_local_p
+        is_setting_local = is_local_variable(sym(trim(self%name)))
+    end function is_setting_local
 
     !> Forget an exact Lisp value and voidness: the Fortran value is the
     !> value now.  Not a port.

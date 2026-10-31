@@ -34,7 +34,7 @@ submodule(vc_fm) vc_log_fm
     use vc_dispatcher_fm, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
     use lisp_fm, only: t_value, nilp
     use callint_fm, only: current_prefix_arg
-    use fileio_fm, only: file_directory_p
+    use fileio_fm, only: is_file_directory
     implicit none(type, external)
 
 contains
@@ -53,7 +53,7 @@ contains
     dir_present = .false.
 
     do k = 1, size(files)
-        if (file_directory_p(files(k)%s)) dir_present = .true.
+        if (is_file_directory(files(k)%s)) dir_present = .true.
     end do
 
     if (dir_present) then
@@ -177,7 +177,7 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        if (.not. buffer_live_p(action%buffer)) return
+        if (.not. is_buffer_live(action%buffer)) return
         old = current_buffer()
         call set_buffer(action%buffer, st)
         call symbol_value(sym("inhibit_read_only"), saved, st)
@@ -192,10 +192,10 @@ contains
             vc_sentinel_movepoint = point()
         end if
 
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call vc_log_finish_functions%run(status)
         call set(sym("inhibit_read_only"), saved, st)
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine log_finish
 
     ! The `revert_buffer_function' of a log buffer: show the log again.
@@ -274,7 +274,7 @@ contains
     call vc_print_log_internal(fs%backend, fs%files, rev, status, len(rev) > 0, lim, the_type)
     vc_log_short_style = saved_style
 
-    if (buffer_live_p(old)) then
+    if (is_buffer_live(old)) then
         call set_buffer(old, st)
         buffers(cur)%directory = saved_dir
         call set_buffer(get_buffer("*vc-change-log*"), st)

@@ -28,16 +28,16 @@ module test_fileio_fm
                         FM_FILE_MISSING, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, &
-                         buffer_modified_p, current_buffer
+                         is_buffer_modified, current_buffer
     use insdel_fm, only: insert, after_change_functions
     use editfns_fm, only: point, buffer_string, goto_char
     use sysdep_fm, only: sys_setenv, sys_unsetenv, passwd_name_of_user, passwd_home_of_user
     use fileio_fm, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
-                         file_executable_p, file_newer_than_file_p, &
-                         make_symbolic_link, file_symlink_p, &
-                         directory_file_name, directory_name_p, file_name_absolute_p, &
-                         expand_file_name, get_homedir, init_fileio, emacs_wd, file_exists_p, &
-                         file_readable_p, file_writable_p, file_directory_p, file_modes, &
+                         is_file_executable, is_file_newer_than_file, &
+                         make_symbolic_link, is_file_symlink, &
+                         directory_file_name, is_directory_name, is_file_name_absolute, &
+                         expand_file_name, get_homedir, init_fileio, emacs_wd, file_exists, &
+                         is_file_readable, is_file_writable, is_file_directory, file_modes, &
                          set_file_modes, insert_file_contents, write_region, &
                          verify_visited_file_modtime, make_directory_internal, &
                          delete_directory_internal, delete_file_internal, rename_file, copy_file, &
@@ -63,7 +63,7 @@ contains
                     new_unittest("directory-file-name", test_directory_file_name), &
                     new_unittest("file-name-as-directory", test_file_name_as_directory), &
                     new_unittest("file-name-parts", test_file_name_parts), &
-                    new_unittest("file-name-absolute-p", test_file_name_absolute_p), &
+                    new_unittest("file-name-absolute-p", test_is_file_name_absolute), &
                     new_unittest("expand-file-name", test_expand_file_name), &
                     new_unittest("expand-file-name-tilde", test_expand_tilde), &
                     new_unittest("relative-HOME", test_relative_home), &
@@ -170,12 +170,12 @@ contains
         if (allocated(error)) return
         call check(error, file_name_nondirectory("libc.so") == "libc.so")
         if (allocated(error)) return
-        call check(error, directory_name_p("/a/") .and. .not. directory_name_p("/a") .and. &
-                   .not. directory_name_p(""))
+        call check(error, is_directory_name("/a/") .and. .not. is_directory_name("/a") .and. &
+                   .not. is_directory_name(""))
     end subroutine test_file_name_parts
 
     ! fileio-tests--file-name-absolute-p
-    subroutine test_file_name_absolute_p(error)
+    subroutine test_is_file_name_absolute(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=6), parameter :: suffixes(7) = [character(len=6) :: &
                                                       "", "/", "//", "/foo", "/foo/", "/foo//", "/foo/b"]
@@ -187,25 +187,25 @@ contains
 
         do i = 1, size(suffixes)
             if (len_trim(suffixes(i)) > 0) then
-                call check(error, file_name_absolute_p(trim(suffixes(i))), trim(suffixes(i)))
+                call check(error, is_file_name_absolute(trim(suffixes(i))), trim(suffixes(i)))
                 if (allocated(error)) return
             end if
 
-            call check(error, file_name_absolute_p("~"//trim(suffixes(i))), "~"//trim(suffixes(i)))
+            call check(error, is_file_name_absolute("~"//trim(suffixes(i))), "~"//trim(suffixes(i)))
             if (allocated(error)) return
 
             if (found) then
-                call check(error, file_name_absolute_p("~"//me//trim(suffixes(i))), "~"//me//trim(suffixes(i)))
+                call check(error, is_file_name_absolute("~"//me//trim(suffixes(i))), "~"//me//trim(suffixes(i)))
                 if (allocated(error)) return
             end if
 
-            call check(error,.not. file_name_absolute_p("~nosuchuser"//trim(suffixes(i))), &
+            call check(error,.not. is_file_name_absolute("~nosuchuser"//trim(suffixes(i))), &
                        "~nosuchuser"//trim(suffixes(i)))
             if (allocated(error)) return
         end do
 
-        call check(error,.not. file_name_absolute_p("foo") .and. .not. file_name_absolute_p(""))
-    end subroutine test_file_name_absolute_p
+        call check(error,.not. is_file_name_absolute("foo") .and. .not. is_file_name_absolute(""))
+    end subroutine test_is_file_name_absolute
 
     !> expand(name, dir) == want.
     subroutine check_expand(error, name, dir, want)
@@ -363,11 +363,11 @@ contains
         call setup(buf)
         buffers(cur)%directory = "some/relative/name"
         call expand_file_name("foo", name, st)
-        call check(error, st%ok() .and. file_name_absolute_p(name), name)
+        call check(error, st%ok() .and. is_file_name_absolute(name), name)
         if (allocated(error)) return
         buffers(cur)%directory = "~foo"
         call expand_file_name("bar", name, st)
-        call check(error, file_name_absolute_p(name) .and. name(1:1) /= "~", name)
+        call check(error, is_file_name_absolute(name) .and. name(1:1) /= "~", name)
         call teardown(buf)
     end subroutine test_relative_default_directory
 
@@ -408,7 +408,7 @@ contains
         if (allocated(error)) return
         call check(error, buffers(cur)%filename == file_name_as_directory(emacs_wd)//testdir//"/f1")
         if (allocated(error)) return
-        call buffer_modified_p(current_buffer(), modified, st)
+        call is_buffer_modified(current_buffer(), modified, st)
         call check(error,.not. modified, "visiting write leaves the buffer unmodified")
         if (allocated(error)) return
         ! Insert it twice into another buffer: point stays before the text.
@@ -549,34 +549,34 @@ contains
         call setup(buf)
         call insert("p", st)
         call write_region(testdir//"/f6", .false., st)
-        call check(error, file_exists_p(testdir//"/f6") .and. file_readable_p(testdir//"/f6"))
+        call check(error, file_exists(testdir//"/f6") .and. is_file_readable(testdir//"/f6"))
         if (allocated(error)) return
-        call check(error, file_writable_p(testdir//"/f6") .and. file_writable_p(testdir//"/new"), "writable")
+        call check(error, is_file_writable(testdir//"/f6") .and. is_file_writable(testdir//"/new"), "writable")
         if (allocated(error)) return
-        call check(error, file_directory_p(testdir) .and. .not. file_directory_p(testdir//"/f6"))
+        call check(error, is_file_directory(testdir) .and. .not. is_file_directory(testdir//"/f6"))
         if (allocated(error)) return
-        call check(error,.not. file_exists_p(testdir//"/missing"))
+        call check(error,.not. file_exists(testdir//"/missing"))
         if (allocated(error)) return
-        call check(error,.not. file_writable_p(testdir//"/nodir/x"), "no such directory")
+        call check(error,.not. is_file_writable(testdir//"/nodir/x"), "no such directory")
         if (allocated(error)) return
         call set_file_modes(testdir//"/f6", int(o'640', int32), st)
         call check(error, st%ok() .and. file_modes(testdir//"/f6") == int(o'640', int32))
         if (allocated(error)) return
         call check(error, file_modes(testdir//"/missing") == -1)
         if (allocated(error)) return
-        call check(error,.not. file_executable_p(testdir//"/f6"), "not executable")
+        call check(error,.not. is_file_executable(testdir//"/f6"), "not executable")
         if (allocated(error)) return
         call set_file_modes(testdir//"/f6", int(o'750', int32), st)
-        call check(error, file_executable_p(testdir//"/f6") .and. file_executable_p(testdir), "executable")
+        call check(error, is_file_executable(testdir//"/f6") .and. is_file_executable(testdir), "executable")
         if (allocated(error)) return
         ! file-newer-than-file-p: a missing file is older than any other.
-        call check(error, file_newer_than_file_p(testdir//"/f6", testdir//"/missing") .and. &
-                   .not. file_newer_than_file_p(testdir//"/missing", testdir//"/f6") .and. &
-                   .not. file_newer_than_file_p(testdir//"/f6", testdir//"/f6"), "file-newer-than-file-p")
+        call check(error, is_file_newer_than_file(testdir//"/f6", testdir//"/missing") .and. &
+                   .not. is_file_newer_than_file(testdir//"/missing", testdir//"/f6") .and. &
+                   .not. is_file_newer_than_file(testdir//"/f6", testdir//"/f6"), "file-newer-than-file-p")
         if (allocated(error)) return
         ! make-symbolic-link: once, then again only when allowed.
         call make_symbolic_link("f6", testdir//"/link", st)
-        call check(error, st%ok() .and. file_symlink_p(testdir//"/link"), "symbolic link")
+        call check(error, st%ok() .and. is_file_symlink(testdir//"/link"), "symbolic link")
         if (allocated(error)) return
         call make_symbolic_link("f6", testdir//"/link", st)
         call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. condition_matches(st%code, FM_FILE_ERROR), &
@@ -587,7 +587,7 @@ contains
         if (allocated(error)) return
         call delete_file_internal(testdir//"/link", st)
         call make_directory_internal(testdir//"/sub", st)
-        call check(error, st%ok() .and. file_directory_p(testdir//"/sub/"))
+        call check(error, st%ok() .and. is_file_directory(testdir//"/sub/"))
         if (allocated(error)) return
         call make_directory_internal(testdir//"/sub", st)
         call check(error, condition_matches(st%code, FM_FILE_ERROR), "already exists")
@@ -596,7 +596,7 @@ contains
                    .and. index(format_error(st), testdir//"/sub") > 0, format_error(st))
         if (allocated(error)) return
         call delete_directory_internal(testdir//"/sub", st)
-        call check(error, st%ok() .and. .not. file_exists_p(testdir//"/sub"))
+        call check(error, st%ok() .and. .not. file_exists(testdir//"/sub"))
         call teardown(buf)
     end subroutine test_predicates
 
@@ -614,7 +614,7 @@ contains
         call check(error, st%ok() .and. file_modes(testdir//"/f2") == int(o'600', int32), "copy keeps modes")
         if (allocated(error)) return
         call rename_file(testdir//"/f2", testdir//"/f3", st)
-        call check(error, st%ok() .and. .not. file_exists_p(testdir//"/f2") .and. file_exists_p(testdir//"/f3"))
+        call check(error, st%ok() .and. .not. file_exists(testdir//"/f2") .and. file_exists(testdir//"/f3"))
         if (allocated(error)) return
         call teardown(buf)
         call new_buffer(buf)

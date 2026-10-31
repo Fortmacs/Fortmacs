@@ -139,7 +139,8 @@ function rename(tok, n, i, j, len, key, out, seg, done, lp, sn) {
                 out = out (i > 1 ? "_" : "") seg
                 i += len
                 done = 1
-            } else if (key in fn_names) {
+            } else if ((key in fn_names) && !(seg !~ /[a-z]/ && key ~ /p$/)) {
+                # (An upper-case predicate name is a C macro: CHAR_HEAD_P.)
                 out = out (i > 1 ? "_" : "") casefix(seg, fn_names[key])
                 if (i == 1) fn_first = 1
                 i += len
@@ -193,7 +194,7 @@ function mark_literals(line, i, j, p, rest, off) {
 # Whether the word TOK, between BEFORE and AFTER, is an upstream name.
 function protected(before, after, tok) {
     # Hyphenated: forward-sexp, auto-mode-alist.
-    if (before ~ /[A-Za-z0-9]-$/ || after ~ /^-[A-Za-z]/) return 1
+    if (before ~ /[A-Za-z0-9]-+$/ || after ~ /^-[A-Za-z]/) return 1
     # A citation: lisp.el:beginning-of-defun, syntax.c:scan_lists.
     if (before ~ /[A-Za-z0-9]\.(el|c|h):$/) return 1
     # A C function, variable or symbol: Fscan_lists, Vauto_mode_alist.

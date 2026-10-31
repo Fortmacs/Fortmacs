@@ -33,7 +33,7 @@ module test_insdel_fm
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, &
-                         set_buffer, current_buffer, buffer_live_p, buf_bytes, &
+                         set_buffer, current_buffer, is_buffer_live, buf_bytes, &
                          temp_set_point_both, set_buffer_read_only, buf_fetch_char
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos
     use insdel_fm, only: del_range, del_range_1, del_range_byte, insert, insert_char, make_gap, &
@@ -117,7 +117,7 @@ contains
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 
