@@ -297,10 +297,10 @@ module dabbrev_fm
     ! The buffer we found the expansion last time.
     type(handle_type) :: last_buffer_found
 
-    ! If not CASE_PATTERN_NIL, the function to use when copying
+    ! If not CASE_PATTERN_NONE, the function to use when copying
     ! successive words: upcase or downcase.
-    integer, parameter :: CASE_PATTERN_NIL = 0, CASE_PATTERN_UPCASE = 1, CASE_PATTERN_DOWNCASE = 2
-    integer :: last_case_pattern = CASE_PATTERN_NIL
+    integer, parameter :: CASE_PATTERN_NONE = 0, CASE_PATTERN_UPCASE = 1, CASE_PATTERN_DOWNCASE = 2
+    integer :: last_case_pattern = CASE_PATTERN_NONE
 
     ! Same as dabbrev_check_other_buffers, but is set for every expand.
     integer :: check_other_buffers = DABBREV_ON
@@ -1430,7 +1430,7 @@ contains
         ! record if we upcased or downcased the first word,
         ! in order to do likewise for subsequent words.
         if (record_case_pattern) then
-            last_case_pattern = CASE_PATTERN_NIL
+            last_case_pattern = CASE_PATTERN_NONE
 
             if (use_case_replace) then
                 if (same_string(abbrev, upcase_string(abbrev))) then

@@ -64,7 +64,7 @@ module view_fm
     use dispnew_fm, only: ding
     use simple_fm, only: push_mark, pop_mark, mark
     use minibuf_fm, only: read_string
-    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_T
+    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_fm, only: substitute_command_keys, register_keymap_name
     use print_fm, only: fortran_string
     use derived_fm, only: major_mode_type, major_mode_named
@@ -322,7 +322,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
-        call read_file_name("View file: ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("View file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call view_file(file, status)
     end subroutine cmd_view_file
@@ -377,7 +377,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
-        call read_file_name("In other window view file: ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("In other window view file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call view_file_other_window(file, status)
     end subroutine cmd_view_file_other_window
@@ -432,9 +432,9 @@ contains
         if (.not. st%ok()) b = 0
 
         if (b > 0) then
-            call read_buffer("View buffer: ", name, status, def=buffers(b)%name, require_match=REQUIRE_MATCH_T)
+            call read_buffer("View buffer: ", name, status, def=buffers(b)%name, require_match=REQUIRE_MATCH_YES)
         else
-            call read_buffer("View buffer: ", name, status, require_match=REQUIRE_MATCH_T)
+            call read_buffer("View buffer: ", name, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -512,9 +512,9 @@ contains
 
         if (b > 0) then
             call read_buffer("In other window view buffer: ", name, status, def=buffers(b)%name, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         else
-            call read_buffer("In other window view buffer: ", name, status, require_match=REQUIRE_MATCH_T)
+            call read_buffer("In other window view buffer: ", name, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return

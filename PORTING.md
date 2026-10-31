@@ -559,10 +559,13 @@ no rename is added without that.  The confirmed renames:
 | Lisp term | Fortran name | Examples |
 |---|---|---|
 | defun (a top-level definition) | subprogram | `beginning_of_subprogram`, `mark_subprogram`, `subprogram_prompt_regexp`, `open_paren_in_column_0_is_subprogram_start`, `add_log_current_subprogram`, `f90_beginning_of_subprogram`; `f90_subprogram_start` and `f90_subprogram_end` (f90_fm's adapters to `beginning_of_subprogram_function` and `end_of_subprogram_function`, whose plain renames would be the f90.el commands they adapt) |
-| sexp (a balanced expression) | expression | `forward_expression`, `kill_expression`, `parse_partial_expression`, `scan_expressions`, `parse_expression_ignore_comments`, `halfexpression`, `expression_flag` |
+| sexp (a balanced expression) | expression | `forward_expression`, `kill_expression`, `parse_partial_expression`, `scan_expressions`, `parse_expression_ignore_comments`, `halfexpression`, `expression_flag` (and the analogous `cmd_`, `test_` and `_1` forms of the renamed names) |
 | list, as a parenthesised group (these names only) | group | `forward_group`, `backward_group`, `up_group`, `down_group`, `backward_up_group`, `kill_backward_up_group`, their `*_group_function` variables, `scan_groups`, `smie_down_group` |
 | alist (an association list) | table | `auto_mode_table`, `bookmark_table`, `file_coding_system_table`, `table_push`; `compilation_error_regexp_table` (all known formats) and `compilation_error_regexp_names` (the enabled ones); `abbrev_minor_mode_tables` (not ..._table_table), `syntax_modifications` (font-lock-defaults' SYNTAX-ALIST, not `syntax_table`), `display_action_table_type` (not `display_table_type`, a display table); in buffer_fm, buffer_ops_fm and process_fm, Vbuffer_alist and Vprocess_alist are `buffer_order`/`buffer_order_count` and `process_order`/`process_order_count` (the modules already have a `table`) |
 | module lisp_cmds_fm (lisp.el) | expression_motion_fm | src/expression_motion_fm.f90, `syms_of_expression_motion` |
+| a predicate (`*-p`, `*p`) | `is_*` or `has_*`, a logical function | `is_region_active`, `is_derived_mode`, `is_process_live`, `is_bob`, `has_overlay_strings`; a verb phrase where it reads so: `file_exists`, `string_matches` (logical, no longer the match position); `set_buffer_modified`, `restore_buffer_modified`; a predicate that only wrapped an intrinsic or a tag test is gone (`frame_window_p` is `associated(f%rif)`) |
+| y-or-n-p, yes-or-no-p (prompts) | `read_y_or_n`, `read_yes_or_no` | `read_y_or_n_map`, `read_y_or_n_use_read_key`, `map_read_y_or_n`, `read_yes_or_no_history` |
+| `*_NIL`, `*_T` named constants | the meaning: `_NO`/`_YES` for plain off/on, `_ALWAYS` for always, else the meaning itself | `COMPILATION_SCROLL_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_ALWAYS`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names, "A1") |
 
 Citations keep upstream names, so they still point at the exact upstream
 definition: "Port of lisp.el:beginning-of-defun", "Port of
@@ -601,9 +604,6 @@ named with it.
 
 **PR 2: wording and names.**
 
-- A1: the `*_NIL`/`*_T` constants take meaningful names, such as
-  `COMPILATION_SCROLL_NO`, `COMPILATION_SCROLL_YES` and
-  `COMPILATION_SCROLL_FIRST_ERROR`; all 63 are drafted for review first.
 - A2: wrong-type messages use the Fortran declaration ("Wrong type
   argument: expected character(len=*)").
 - A3: the messages "Variable has no value", "Function is not defined",
@@ -638,9 +638,6 @@ named with it.
   becomes an integer setting with named constants; a function setting
   resolves names to procedure pointers when set (an unknown name is
   "Function is not defined"); other mismatches are a wrong-type error.
-- B1: every `*_p` becomes an `is_*` or `has_*` logical function; the
-  prompts become `read_yes_or_no` and `read_y_or_n`; logical user options
-  named `*_p` are asked about separately.
 - B2: symbol becomes name (the object sense) or identifier (the
   syntax-class sense).
 - B3: `_vector` is dropped for plural names, and help says "array".
@@ -655,6 +652,8 @@ named with it.
 - B8: a condition-case handler is "a check of the status", a throw to X
   is "return to X with a status", and a catch is "the caller that checks
   the status".
+- Completion help says "COLLECTION is an array of strings, a table of
+  (string, value) entries, or a completion function".
 - C2a/d: `nil()` becomes `value_type()`, and `nilp(v)` becomes
   `.not. allocated(v%a)`, the intrinsic itself with no helper; the
   `V_NIL` tag follows.
@@ -668,6 +667,32 @@ named with it.
 - C2c: flat lists become plain Fortran arrays used with the intrinsics
   (`size`, `findloc`, `any`, `pack`, array sections); `value_type` lists
   remain only for truly nested data.
+- A6b: a setting with two states is a `logical` (.true./.false.); one
+  with more states is an integer setting with named constants named for
+  their meaning, never `_NIL`, `_T`, `_TRUE` or `_FALSE`.
+- C3: the name table holds only names that exist at run time;
+  compile-time things are reached only through their typed objects;
+  `intern` becomes `add_name`, `intern_soft` `find_name`, and
+  `symbol_type` `name_entry_type`; plain IF (no Fortran 2023 conditional
+  expressions: gfortran 13, -std=f2018).
+- C4: `put`, `get` and the `plist_*` procedures are removed:
+  `history_length` becomes a component of the history objects, and text
+  properties an array of `text_property_type` (name, value) searched with
+  `findloc`.
+- C5-1: the `defvar_nil` histories become typed history objects
+  (`type(history_type) :: bookmark_history`, with `%length` per C4).
+- C5-2: `setq_local` is removed in favor of the setting's `%set_local()`.
+- C5-3: `boundp`, `fboundp` and `makunbound` become direct components
+  and `associated()`; `keywordp` is dropped.
+- C5-4: `funcall`, `funcall_noargs` and `apply` are removed: procedure
+  pointers are called directly, and a name given at run time is resolved
+  once to a pointer.
+- C5-5: `cons_repr` and `cons_arg` are removed: each pair-shaped value is
+  a derived type with named components; there is no generic "pair".
+- C5-6: `register_value_type` becomes `register_contents_type`.
+- C5-7: `command_type%interactive` becomes `is_command`.
+- C5-8: tools/gen-docstrings.sh's lisp-name field becomes help-name
+  (variable `hname`), and its interactive column `command`.
 
 **PR 3: module suffix and module names.**
 
@@ -677,9 +702,8 @@ named with it.
   `hooks_fm`, `lread_fm` `names_fm`; `print_fm` stays; `syms_of_X`
   becomes `init_X`.
 
-Still to be confirmed with the owner: C3, C4 and C5 from the
-scan of Lisp terms.  Already settled and kept as they are: hook and the
-`_hook` suffix, and the names of the Lisp language modes.
+Already settled and kept as they are: hook and the `_hook` suffix, and
+the names of the Lisp language modes.
 
 **A new upstream version** (31.2, 32.0) or a branch written before an
 entry: port or merge as usual, run `tools/fortran-names.sh` (on the new

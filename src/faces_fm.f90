@@ -58,7 +58,7 @@ module faces_fm
 
     !> States of a face attribute: unspecified, nil, t (true), a color,
     !> a property list, a list (of face names), a value (number).
-    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_NIL = 1, FACE_T = 2, FACE_COLOR = 3, &
+    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_OFF = 1, FACE_ON = 2, FACE_COLOR = 3, &
                                   FACE_PLIST = 4, FACE_LIST = 5, FACE_VALUE = 6
 
     !> Underline styles (`:style' in an underline property list).
@@ -484,9 +484,9 @@ contains
         logical, intent(in) :: value
 
         if (value) then
-            self%state = FACE_T
+            self%state = FACE_ON
         else
-            self%state = FACE_NIL
+            self%state = FACE_OFF
         end if
     end subroutine flag_from_logical
 
@@ -507,9 +507,9 @@ contains
         self%position = .false.
 
         if (value) then
-            self%state = FACE_T
+            self%state = FACE_ON
         else
-            self%state = FACE_NIL
+            self%state = FACE_OFF
         end if
     end subroutine line_from_logical
 
@@ -545,7 +545,7 @@ contains
         if (value) then
             self%state = FACE_VALUE
         else
-            self%state = FACE_NIL
+            self%state = FACE_OFF
         end if
     end subroutine box_from_logical
 
@@ -601,7 +601,7 @@ contains
         if (allocated(self%names)) deallocate (self%names)
 
         if (len_trim(name) == 0) then
-            self%state = FACE_NIL
+            self%state = FACE_OFF
             return
         end if
 
@@ -619,7 +619,7 @@ contains
         if (allocated(self%names)) deallocate (self%names)
 
         if (size(names) == 0) then
-            self%state = FACE_NIL
+            self%state = FACE_OFF
             return
         end if
 

@@ -37,7 +37,7 @@ module test_simple_electric_fm
     use frame_fm, only: selected_window_ref
     use window_fm, only: set_window_start
     use simple_fm, only: fundamental_mode, blink_matching_check_mismatch, blink_matching_paren, &
-                         BLINK_MATCHING_PAREN_NIL, BLINK_MATCHING_PAREN_T, newline_and_indent, &
+                         BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, newline_and_indent, &
                          backward_delete_char_untabify, backward_delete_char_untabify_method, &
                          UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_UNTABIFY
     use modes_fm, only: minor_modes
@@ -124,10 +124,10 @@ contains
         call check(error, last_message, "")
         call kill_buffer(h, st)
         if (allocated(error)) return
-        blink_matching_paren = BLINK_MATCHING_PAREN_NIL
+        blink_matching_paren = BLINK_MATCHING_PAREN_NO
         call fresh(h, "(foo")
         call keys("]")
-        blink_matching_paren = BLINK_MATCHING_PAREN_T
+        blink_matching_paren = BLINK_MATCHING_PAREN_YES
         call check(error, last_message, "")
         call kill_buffer(h, st)
     end subroutine test_messages

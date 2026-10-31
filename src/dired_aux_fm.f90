@@ -70,7 +70,7 @@ submodule(dired_mode_fm) dired_aux_fm
     use keyboard_fm, only: sit_for
     use print_fm, only: fortran_repr
     use diff_fm, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
-    use minibuffer_fm, only: REQUIRE_MATCH_T
+    use minibuffer_fm, only: REQUIRE_MATCH_YES
     use editfns_fm, only: mark_position
     use buffer_fm, only: transient_mark_mode
     use files_fm, only: file_name_sans_versions
@@ -808,7 +808,7 @@ contains
 
     !> Read a file name for a marked-files command, perhaps popping up the
     !> list of marked files.  ARG is the prefix arg and indicates whether
-    !> the files came from marks (DIRED_ARG_NIL) or a repeat factor.
+    !> the files came from marks (DIRED_ARG_NONE) or a repeat factor.
     !> DEFAULT is the default value to return if the user just hits RET.
     !> Port of dired-aux.el:dired-mark-read-file-name.
     recursive subroutine dired_mark_read_file_name(prompt, dir, op_symbol, arg_kind, arg_n, files, result, status, &
@@ -897,7 +897,7 @@ contains
         ! Pass t for DISTINGUISH-ONE-MARKED so that a single file which
         ! is marked pops up a window.  That will help the user see
         ! it isn't the current line file.
-        call dired_get_marked_files(files, status, DIRED_LOCALP_T, arg_kind, arg_n, distinguish_one_marked=.true., &
+        call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE, arg_kind, arg_n, distinguish_one_marked=.true., &
                                     one_marked=one_marked, error="")
         if (.not. status%ok()) return
         pop_prompt = operation_string(op_symbol)//" "//dired_marker_prompt(arg_kind, arg_n, files)//"? "
@@ -1096,10 +1096,10 @@ contains
         logical :: found, have_default, used_default, failed
         integer :: n
 
-        call dired_get_marked_files(files, status, DIRED_LOCALP_T, arg_kind, arg_n, error="")
+        call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE, arg_kind, arg_n, error="")
         if (.not. status%ok()) return
         ! The source of default file attributes is the file at point.
-        call dired_get_filename(default_file, found, st, DIRED_LOCALP_T, .true.)
+        call dired_get_filename(default_file, found, st, DIRED_LOCALP_RELATIVE, .true.)
         have_default = .false.
 
         if (st%ok() .and. found) then
@@ -1178,10 +1178,10 @@ contains
     logical :: found, have_default, used_default, have_num
     integer :: k
 
-    call dired_get_marked_files(files, status, DIRED_LOCALP_T, arg_kind, arg_n, error="")
+    call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE, arg_kind, arg_n, error="")
     if (.not. status%ok()) return
     ! The source of default file attributes is the file at point.
-    call dired_get_filename(default_file, found, st, DIRED_LOCALP_T, .true.)
+    call dired_get_filename(default_file, found, st, DIRED_LOCALP_RELATIVE, .true.)
     have_default = .false.
 
     if (st%ok() .and. found) then
@@ -1411,7 +1411,7 @@ contains
     status = status_type()
     n = 0
 
-    if (arg_kind /= DIRED_ARG_NIL) then
+    if (arg_kind /= DIRED_ARG_NONE) then
         if (len(dired_get_subdir()) > 0) then
             call dired_kill_subdir(status)
         else
@@ -1494,7 +1494,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (nilp(current_prefix_arg)) then
-            call dired_do_kill_lines(DIRED_ARG_NIL, 0_int64, status)
+            call dired_do_kill_lines(DIRED_ARG_NONE, 0_int64, status)
         else
             call dired_do_kill_lines(DIRED_ARG_INTEGER, prefix_numeric_value(current_prefix_arg), status)
         end if
@@ -2257,7 +2257,7 @@ contains
         logical :: answer
 
         status = status_type()
-        if (dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_NIL) return
+        if (dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_NEVER) return
         if (file_exists(dir)) return
         answer = dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_ALWAYS
 
@@ -2821,7 +2821,7 @@ contains
 
         ! non-dired buffer may want to profit from this function, e.g.
         ! vm-uudecode
-        if (dired_dwim_target /= DIRED_DWIM_TARGET_NIL) then
+        if (dired_dwim_target /= DIRED_DWIM_TARGET_NO) then
             call dired_dwim_target_directories(dirs)
             if (size(dirs) > 0) dir = dirs(1)%s
         end if
@@ -3331,7 +3331,7 @@ contains
         whole_name = prefix_numeric_value(current_prefix_arg) == 0 .and. .not. nilp(current_prefix_arg)
 
         if (whole_name) then
-            arg_kind = DIRED_ARG_NIL
+            arg_kind = DIRED_ARG_NONE
             arg_n = 0
             abs = "Abs. "
         else
@@ -3678,7 +3678,7 @@ contains
         character(len=:), allocatable :: file
         logical :: found
 
-        call dired_get_filename(file, found, status, DIRED_LOCALP_T)
+        call dired_get_filename(file, found, status, DIRED_LOCALP_RELATIVE)
         if (.not. status%ok()) return
 
         if (.not. found) then
@@ -3716,7 +3716,7 @@ contains
         type(diff_operand_type) :: a, b
         type(status_type) :: st
 
-        call dired_get_filename(current, found, status, DIRED_LOCALP_T)
+        call dired_get_filename(current, found, status, DIRED_LOCALP_RELATIVE)
         if (.not. status%ok()) return
 
         if (.not. found) then
@@ -3739,7 +3739,7 @@ contains
         if (transient_mark_mode%value .and. buffers(cur)%mark_active .and. m /= 0) then
             opoint = point()
             call goto_char(m)
-            call dired_get_filename(file_at_mark, found, st, DIRED_LOCALP_T, no_error_if_not_filep=.true.)
+            call dired_get_filename(file_at_mark, found, st, DIRED_LOCALP_RELATIVE, no_error_if_not_filep=.true.)
             if (.not. found) file_at_mark = ""
             call goto_char(opoint)
         end if
@@ -3786,9 +3786,9 @@ contains
         if (len(target_dir) == 0) target_dir = aux_default_directory()
 
         if (have_default) then
-            call read_file_name(prompt, file, status, dir=target_dir, default_filename=default, mustmatch=REQUIRE_MATCH_T)
+            call read_file_name(prompt, file, status, dir=target_dir, default_filename=default, mustmatch=REQUIRE_MATCH_YES)
         else
-            call read_file_name(prompt, file, status, dir=target_dir, mustmatch=REQUIRE_MATCH_T)
+            call read_file_name(prompt, file, status, dir=target_dir, mustmatch=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -4160,7 +4160,7 @@ contains
         arg_n = 0
 
         if (nilp(current_prefix_arg)) then
-            arg_kind = DIRED_ARG_NIL
+            arg_kind = DIRED_ARG_NONE
         else if (consp(current_prefix_arg)) then
             arg_kind = DIRED_ARG_OTHER
         else

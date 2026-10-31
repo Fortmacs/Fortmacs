@@ -108,7 +108,7 @@ module minibuffer_fm
     !> Values of REQUIRE_MATCH for `completing_read', also those of
     !> `minibuffer_completion_confirm': nil, t, `confirm',
     !> `confirm_after_completion' and any other non-nil value.
-    integer, parameter, public :: REQUIRE_MATCH_NIL = 0, REQUIRE_MATCH_T = 1, REQUIRE_MATCH_CONFIRM = 2, &
+    integer, parameter, public :: REQUIRE_MATCH_NO = 0, REQUIRE_MATCH_YES = 1, REQUIRE_MATCH_CONFIRM = 2, &
                                   REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION = 3, REQUIRE_MATCH_OTHER = 4
 
     !> Kinds of `completion_try_completion' result: nil, t, and (STRING .
@@ -133,7 +133,7 @@ module minibuffer_fm
     !> The predicate of `minibuffer_completion_table' (null for none).
     procedure(completion_predicate), pointer, public :: minibuffer_completion_predicate => null()
     !> minibuffer.el minibuffer-completion-confirm (a REQUIRE_MATCH_ value).
-    integer, public :: minibuffer_completion_confirm = REQUIRE_MATCH_NIL
+    integer, public :: minibuffer_completion_confirm = REQUIRE_MATCH_NO
 
     !> Whether the minibuffer is completing a file name.  Port of
     !> minibuffer.el minibuffer-completing-file-name.
@@ -469,8 +469,8 @@ contains
     !> contents, or if `insert_default_directory' is false.)
     !>
     !> Fourth arg MUSTMATCH can take the following values:
-    !> - REQUIRE_MATCH_NIL means that the user can exit with any input.
-    !> - REQUIRE_MATCH_T means that the user is not allowed to exit unless
+    !> - REQUIRE_MATCH_NO means that the user can exit with any input.
+    !> - REQUIRE_MATCH_YES means that the user is not allowed to exit unless
     !>   the input is (or completes to) an existing file.
     !> - REQUIRE_MATCH_CONFIRM means that the user can exit with any input,
     !>   but she needs to confirm her choice if the input is not an
@@ -480,7 +480,7 @@ contains
     !>   called `minibuffer_complete' right before
     !>   `minibuffer_complete_and_exit' and the input is not an existing
     !>   file.
-    !> - REQUIRE_MATCH_OTHER behaves like REQUIRE_MATCH_T except that
+    !> - REQUIRE_MATCH_OTHER behaves like REQUIRE_MATCH_YES except that
     !>   typing RET does not exit if it does non-null completion.
     !>
     !> Fifth arg INITIAL specifies text to start with.  It will be
@@ -558,7 +558,7 @@ contains
         end if
 
         have_insdef = insert_default_directory .or. present(initial)
-        match = REQUIRE_MATCH_NIL
+        match = REQUIRE_MATCH_NO
         if (present(mustmatch)) match = mustmatch
         ! The minibuffer's default-directory: DIR as a directory name.
         call expand_file_name(d, expanded, status)
@@ -1976,7 +1976,7 @@ contains
         case (1, 3)
             call exit_function(status)
         case (7)
-            if (minibuffer_completion_confirm == REQUIRE_MATCH_NIL) then
+            if (minibuffer_completion_confirm == REQUIRE_MATCH_NO) then
                 call exit_function(status)
             else
                 call minibuffer_message("Confirm")
@@ -2359,7 +2359,7 @@ contains
         logical :: saved_ignore_case, had_except
         integer :: match
 
-        match = REQUIRE_MATCH_NIL
+        match = REQUIRE_MATCH_NO
         if (present(require_match)) match = require_match
         had_except = allocated(rbts_except)
         if (had_except) call move_alloc(rbts_except, saved_except)
@@ -2548,10 +2548,10 @@ contains
     !> completion to a subset of COLLECTION.
     !>
     !> REQUIRE_MATCH can take the following values:
-    !> - REQUIRE_MATCH_T means that the user is not allowed to exit unless
+    !> - REQUIRE_MATCH_YES means that the user is not allowed to exit unless
     !>   the input is (or completes to) an element of COLLECTION or is
     !>   null.
-    !> - REQUIRE_MATCH_NIL means that the user can exit with any input.
+    !> - REQUIRE_MATCH_NO means that the user can exit with any input.
     !> - REQUIRE_MATCH_CONFIRM means that the user can exit with any
     !>   input, but she needs to confirm her choice if the input is not an
     !>   element of COLLECTION.
@@ -2590,10 +2590,10 @@ contains
         integer :: saved_confirm, match
 
         if (present(used_default)) used_default = .false.
-        match = REQUIRE_MATCH_NIL
+        match = REQUIRE_MATCH_NO
         if (present(require_match)) match = require_match
 
-        if (match /= REQUIRE_MATCH_NIL) then
+        if (match /= REQUIRE_MATCH_NO) then
             keymap = minibuffer_local_must_match_map
             if (minibuffer_completing_file_name) keymap = minibuffer_local_filename_must_match_map
         else
@@ -2609,7 +2609,7 @@ contains
         minibuffer_completion_predicate => null()
         if (present(predicate)) minibuffer_completion_predicate => predicate
         minibuffer_completion_confirm = match
-        if (match == REQUIRE_MATCH_T) minibuffer_completion_confirm = REQUIRE_MATCH_NIL
+        if (match == REQUIRE_MATCH_YES) minibuffer_completion_confirm = REQUIRE_MATCH_NO
         ! (setq-local completion-ignore-case c-i-c) runs first, then the
         ! functions of enclosing minibuffer-with-setup-hook forms.
         crd_ignore_case = completion_ignore_case%value

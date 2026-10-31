@@ -77,7 +77,7 @@ module smie_fm
                          blink_matching_check_mismatch, blink_matching_check_proc, &
                          set_local_blink_matching_check_function, current_blink_matching_check_function, &
                          is_blink_matching_check_function_local, kill_local_blink_matching_check_function, &
-                         blink_matching_paren, BLINK_MATCHING_PAREN_NIL, normal_auto_fill_function, do_auto_fill, &
+                         blink_matching_paren, BLINK_MATCHING_PAREN_NO, normal_auto_fill_function, do_auto_fill, &
                          blink_matching_delay
     use newcomment_fm, only: comment_normalize_vars, comment_start_skip, comment_end_skip, comment_continue, &
                              comment_string_strip
@@ -120,15 +120,15 @@ module smie_fm
                                   SMIE_CLOSE_ALL = 5
     !> Kinds of a precedence level: a number, a list (the token does not
     !> bind on that side), nil and t.
-    integer, parameter, public :: SMIE_LEVEL_NIL = 0, SMIE_LEVEL_NUMBER = 1, SMIE_LEVEL_LIST = 2, SMIE_LEVEL_T = 3
+    integer, parameter, public :: SMIE_LEVEL_NONE = 0, SMIE_LEVEL_NUMBER = 1, SMIE_LEVEL_LIST = 2, SMIE_LEVEL_PAREN = 3
     !> Kinds of a `smie_rules_function' answer: nil, an OFFSET, (column .
     !> COLUMN), a token (for empty_line_token) and t (for SMIE_LIST_INTRO
     !> and SMIE_CLOSE_ALL).
-    integer, parameter, public :: SMIE_NIL = 0, SMIE_RULE_OFFSET = 1, SMIE_RULE_COLUMN = 2, SMIE_RULE_TOKEN = 3, &
-                                  SMIE_RULE_T = 4
+    integer, parameter, public :: SMIE_RULE_NONE = 0, SMIE_RULE_OFFSET = 1, SMIE_RULE_COLUMN = 2, SMIE_RULE_TOKEN = 3, &
+                                  SMIE_RULE_YES = 4
     !> Kinds of an indentation (an indentation function's value): nil, a
     !> column, `noindent'.
-    integer, parameter, public :: SMIE_INDENT_NIL = 0, SMIE_INDENT_COLUMN = 1, SMIE_INDENT_NOINDENT = 2
+    integer, parameter, public :: SMIE_INDENT_NONE = 0, SMIE_INDENT_COLUMN = 1, SMIE_INDENT_NOINDENT = 2
 
     !> A string of a list.
     type, public :: smie_string_type
@@ -194,7 +194,7 @@ module smie_fm
     !> A precedence level.  Two list levels are the same (eq) only if
     !> they are the same level of the same token (`id').
     type, public :: smie_level_type
-        integer :: kind = SMIE_LEVEL_NIL
+        integer :: kind = SMIE_LEVEL_NONE
         integer :: value = 0
         integer :: id = 0
     end type smie_level_type
@@ -226,17 +226,17 @@ module smie_fm
         type(smie_level_type) :: left, right
     end type smie_toklevels_type
 
-    !> What a `smie_rules_function' returns (`kind' one of SMIE_NIL,
-    !> SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_TOKEN, SMIE_RULE_T).
+    !> What a `smie_rules_function' returns (`kind' one of SMIE_RULE_NONE,
+    !> SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_TOKEN, SMIE_RULE_YES).
     type, public :: smie_rule_result_type
-        integer :: kind = SMIE_NIL
+        integer :: kind = SMIE_RULE_NONE
         integer :: value = 0
         character(len=:), allocatable :: token
     end type smie_rule_result_type
 
     !> An indentation: nil, a column or `noindent'.
     type, public :: smie_indent_type
-        integer :: kind = SMIE_INDENT_NIL
+        integer :: kind = SMIE_INDENT_NONE
         integer :: column = 0
     end type smie_indent_type
 
@@ -1632,7 +1632,7 @@ contains
         type(smie_level_type) :: l
 
         l = level
-        if (l%kind == SMIE_LEVEL_NIL) l%kind = SMIE_LEVEL_T
+        if (l%kind == SMIE_LEVEL_NONE) l%kind = SMIE_LEVEL_PAREN
     end function level_or_t
 
     ! ------------------------------------------------------------------
@@ -2017,7 +2017,7 @@ contains
 
                         call goto_char(pos)
                         res%null = .false.
-                        res%level%kind = SMIE_LEVEL_T
+                        res%level%kind = SMIE_LEVEL_PAREN
                         res%pos = epos
 
                         if (point() /= epos) then
@@ -2036,7 +2036,7 @@ contains
                     if (pos == point()) then
                         ! We did not move, so let's abort the loop.
                         res%null = .false.
-                        res%level%kind = SMIE_LEVEL_T
+                        res%level%kind = SMIE_LEVEL_PAREN
                         res%pos = point()
                         return
                     end if
@@ -2298,7 +2298,7 @@ contains
                 edge = is_bob()
             end if
 
-            if (.not. res%null .and. res%level%kind /= SMIE_LEVEL_NIL .and. pos == point() .and. .not. edge) then
+            if (.not. res%null .and. res%level%kind /= SMIE_LEVEL_NONE .and. pos == point() .and. .not. edge) then
                 call signal_scan_error(status, "Containing expression ends prematurely", res%pos, res%pos)
                 exit
             end if
@@ -2699,7 +2699,7 @@ contains
         ! Position after the close token.
         pos = point()
         lce = command_char()
-        if (blink_matching_paren == BLINK_MATCHING_PAREN_NIL) return
+        if (blink_matching_paren == BLINK_MATCHING_PAREN_NO) return
         ! Optimization.
         if (.not. is_closer_table()) return
         ! Sanity check.
@@ -2934,7 +2934,7 @@ contains
                             if (.not. st%ok()) exit body
                             tend = point()
 
-                            if (sdata%null .or. sdata%level%kind == SMIE_LEVEL_NIL) then
+                            if (sdata%null .or. sdata%level%kind == SMIE_LEVEL_NONE) then
                                 call smie_backward_token(ignored, st)
                                 if (.not. st%ok()) exit body
                                 tfound = .true.
@@ -2946,7 +2946,7 @@ contains
                             call smie_backward_expression(sdata, st, halfexpression=.true.)
                             if (.not. st%ok()) exit body
 
-                            if (.not. sdata%null .and. sdata%level%kind /= SMIE_LEVEL_NIL) then
+                            if (.not. sdata%null .and. sdata%level%kind /= SMIE_LEVEL_NONE) then
                                 ht = smie_grammar_token(htok)
                                 tt%null = .true.
                                 if (allocated(sdata%token)) tt = smie_grammar_token(sdata%token)
@@ -3436,12 +3436,12 @@ contains
         call call_rules(SMIE_ELEM, elem, r, status)
         if (.not. status%ok()) return
 
-        if (r%kind == SMIE_NIL .and. elem /= "basic") then
+        if (r%kind == SMIE_RULE_NONE .and. elem /= "basic") then
             call call_rules(SMIE_ELEM, "basic", r, status)
             if (.not. status%ok()) return
         end if
 
-        if (r%kind /= SMIE_NIL) n = r%value
+        if (r%kind /= SMIE_RULE_NONE) n = r%value
     end function smie_indent_offset
 
     ! smie-indent--rule: compute indentation column according to
@@ -3469,7 +3469,7 @@ contains
             if (.not. status%ok()) exit body
 
             select case (offset%kind)
-            case (SMIE_NIL)
+            case (SMIE_RULE_NONE)
                 continue
             case (SMIE_RULE_COLUMN)
                 indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=offset%value)
@@ -3489,7 +3489,7 @@ contains
                 virtual = .false.
 
                 if (present(parent)) then
-                    if (.not. parent%null) virtual = parent%level%kind == SMIE_LEVEL_NIL
+                    if (.not. parent%null) virtual = parent%level%kind == SMIE_LEVEL_NONE
                 end if
 
                 if (.not. virtual) then
@@ -3766,7 +3766,7 @@ contains
             call indent_rule_1(SMIE_CLOSE_ALL, substring(point(), point() + 1), r, status, after=1 + point())
             if (.not. status%ok()) exit body
 
-            if (r%kind /= SMIE_NIL) then
+            if (r%kind /= SMIE_RULE_NONE) then
                 do while (skip_syntax_forward(")") /= 0)
                     moved = skip_chars_forward(" "//achar(9), status)
                 end do
@@ -3868,7 +3868,7 @@ contains
                 ! - if-after-else: "indent-like parent".
                 ! - middle-of-line: "trust current position".
                 indent = indent_rule(SMIE_BEFORE, tok, status)
-                if (.not. status%ok() .or. indent%kind /= SMIE_INDENT_NIL) exit body
+                if (.not. status%ok() .or. indent%kind /= SMIE_INDENT_NONE) exit body
                 ! I.e. non-virtual indent.
                 ! For an open-paren-like thingy at BOL, always indent only
                 ! based on other rules (typically smie-indent-after-keyword).
@@ -3917,7 +3917,7 @@ contains
             end if
 
             call goto_char(here)
-            if (.not. status%ok() .or. indent%kind /= SMIE_INDENT_NIL) exit body
+            if (.not. status%ok() .or. indent%kind /= SMIE_INDENT_NONE) exit body
             plevel = merge_level(parent)
 
             if (level_eq(plevel, toklevels%left)) then
@@ -3967,7 +3967,7 @@ contains
                 ! indentation to depend on itself and we can't use
                 ! smie-indent-virtual since that would be an inf-loop.
                 continue
-            else if (plevel%kind /= SMIE_LEVEL_NIL) then
+            else if (plevel%kind /= SMIE_LEVEL_NONE) then
                 ! In indent-keyword, if we're indenting `then' wrt `if', we
                 ! want to use indent-virtual rather than use just
                 ! current-column, so that we can apply the (:before . "if")
@@ -4228,7 +4228,7 @@ contains
             toklevel = smie_indent_backward_token(status)
             if (.not. status%ok() .or. toklevel%null) exit body
             indent = indent_rule(SMIE_AFTER, toklevel%token, status, after=pos, base_pos=point())
-            if (.not. status%ok() .or. indent%kind /= SMIE_INDENT_NIL) exit body
+            if (.not. status%ok() .or. indent%kind /= SMIE_INDENT_NONE) exit body
             ! The default indentation after a keyword/operator is
             ! 0 for infix, t for prefix, and use another rule
             ! for postfix.
@@ -4304,7 +4304,7 @@ contains
             do
                 call smie_backward_expression(res, status)
                 if (.not. status%ok()) exit body
-                if (.not. (res%null .or. res%level%kind == SMIE_LEVEL_NIL)) exit
+                if (.not. (res%null .or. res%level%kind == SMIE_LEVEL_NONE)) exit
                 positions = [point(), positions]
                 if (is_smie_rule_bol()) exit
             end do
@@ -4314,7 +4314,7 @@ contains
             inner = point()
             call smie_backward_expression(res, status)
             if (.not. status%ok()) exit body
-            arg = res%null .or. res%level%kind == SMIE_LEVEL_NIL
+            arg = res%null .or. res%level%kind == SMIE_LEVEL_NONE
 
             if (.not. arg) then
                 call smie_backward_token(tok, status)
@@ -4322,7 +4322,7 @@ contains
                 if (.not. allocated(tok)) tok = ""
                 call call_rules(SMIE_LIST_INTRO, tok, r, status)
                 if (.not. status%ok()) exit body
-                arg = r%kind /= SMIE_NIL
+                arg = r%kind /= SMIE_RULE_NONE
             end if
 
             call goto_char(inner)
@@ -4527,7 +4527,7 @@ contains
             if (.not. associated(fns(i)%fn)) cycle
             call fns(i)%fn(indent, status)
             if (.not. status%ok()) return
-            if (indent%kind /= SMIE_INDENT_NIL) return
+            if (indent%kind /= SMIE_INDENT_NONE) return
         end do
     end function smie_indent_calculate
 
@@ -4556,7 +4556,7 @@ contains
             ! (with-demoted-errors "SMIE Error: %S" ...)
             call message("SMIE Error: "//format_error(st))
             indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=0)
-        else if (indent%kind == SMIE_INDENT_NIL) then
+        else if (indent%kind == SMIE_INDENT_NONE) then
             indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=0)
         end if
 

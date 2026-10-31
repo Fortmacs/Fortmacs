@@ -29,6 +29,8 @@
 # other upstream names are kept (see the table's header).  Running it
 # again changes nothing.  Afterwards run the generators (tools/gen-*.sh)
 # and tools/check.sh --fix: generated files and line lengths follow.
+# A Fortran line the renames push past 132 columns is reported as
+# FILE:LINE (fprettify does not split it), and the exit status is 3.
 #
 # Use it on this tree when the table gains an entry, on a branch written
 # before an entry (after merging main), and on code freshly ported from a
@@ -74,6 +76,7 @@ trap 'rm -f "$tmp" "$tmp.paths"' EXIT
 list_files "$@" >"$tmp.paths"
 nrenamed=0
 nchanged=0
+nlong=0
 
 while IFS= read -r f; do
     new=$(printf '%s\n' "$f" | awk -v mode=path -v table="$table" -f "$lib" -f "$engine" -)
@@ -96,6 +99,18 @@ while IFS= read -r f; do
         awk -v mode=apply -v table="$table" -f "$lib" -f "$engine" "$f" >"$tmp"
         if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
             "$f" "$tmp"; then
+            # Lines the renames pushed past 132 columns (fortitude S001).
+            case $f in
+            *.f90)
+                long=$(awk -v f="$f" 'NR == FNR { n[FNR] = length($0); next }
+                    length($0) > 132 && n[FNR] <= 132 { print f ":" FNR ": longer than 132 columns; split it" }' \
+                    "$f" "$tmp")
+                if [ -n "$long" ]; then
+                    printf 'fortran-names.sh: %s\n' "$long" >&2
+                    nlong=$((nlong + $(printf '%s\n' "$long" | wc -l)))
+                fi
+                ;;
+            esac
             cat "$tmp" >"$f"
             nchanged=$((nchanged + 1))
         fi
@@ -103,3 +118,7 @@ while IFS= read -r f; do
 done <"$tmp.paths"
 
 echo "fortran-names.sh: $nrenamed file(s) renamed, $nchanged changed"
+if [ "$nlong" -gt 0 ]; then
+    echo "fortran-names.sh: $nlong line(s) now longer than 132 columns" >&2
+    exit 3
+fi

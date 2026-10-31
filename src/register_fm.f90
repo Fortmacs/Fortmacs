@@ -81,7 +81,7 @@ module register_fm
                          delete_window, is_window_live, window_leaves, windows, same_window, window_text_cols
     use fileio_fm, only: expand_file_name
     use files_fm, only: find_file
-    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_T
+    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_fm, only: with_output_to_temp_buffer
     use xdisp_fm, only: message
     use rect_fm, only: rectangle_line_type, extract_rectangle, delete_extract_rectangle, insert_rectangle
@@ -1390,7 +1390,7 @@ contains
         status = status_type()
 
         if (prefix_given()) then
-            call read_buffer("Store reference to buffer", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_T)
+            call read_buffer("Store reference to buffer", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_YES)
             if (.not. status%ok()) return
             buffer = get_buffer(name)
         else

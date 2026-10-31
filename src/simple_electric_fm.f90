@@ -127,7 +127,7 @@ contains
     procedure(blink_matching_check_proc), pointer :: check
 
     status = status_type()
-    if (is_bob() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NIL) return
+    if (is_bob() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NO) return
     oldpos = point()
     ! (save-excursion (save-restriction ...))
     savedb = buffers(cur)%begv

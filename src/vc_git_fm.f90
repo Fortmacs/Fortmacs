@@ -56,12 +56,12 @@ module vc_git_fm
     use vc_hooks_fm, only: vc_backends, vc_string_type, vc_switches_type, register_vc_backend, vc_find_root, &
                            vc_state, vc_mode_line_state, vc_working_revision, vc_file_get_git_symbolic_ref, &
                            vc_file_set_git_symbolic_ref, vc_display_status, vc_use_short_revision, &
-                           VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_T, VC_SWITCHES_NIL, VC_SWITCHES_LIST, &
+                           VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_NONE, VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_LIST, &
                            VC_UP_TO_DATE, VC_EDITED, &
                            VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, &
-                           VC_MODEL_IMPLICIT, VC_STATE_NIL, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
+                           VC_MODEL_IMPLICIT, VC_STATE_UNKNOWN, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
                            vc_dir_update_proc
-    use vc_dispatcher_fm, only: vc_do_command, VC_OKSTATUS_NIL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
+    use vc_dispatcher_fm, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
     use ewoc_fm, only: ewoc_part_type
     use vc_fm, only: vc_switches
     use eval_fm, only: hook_type
@@ -84,7 +84,7 @@ module vc_git_fm
     !> String or list of strings specifying switches for Git diff under VC.
     !> If nil, use the value of `vc_diff_switches'.  If t, use no switches.
     !> Port of vc-git.el vc-git-diff-switches.
-    type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_T)
+    type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_NONE)
 
     !> Name of the Git executable (excluding any arguments).  Port of
     !> vc-git.el vc-git-program.
@@ -144,7 +144,7 @@ module vc_git_fm
     type(handle_type), public :: vc_git_log_view_mode_map
 
     ! The stages of `vc_git_dir_status_files'.
-    integer, parameter :: STAGE_NIL = 0, STAGE_UPDATE_INDEX = 1, STAGE_LS_FILES_ADDED = 2, &
+    integer, parameter :: STAGE_DONE = 0, STAGE_UPDATE_INDEX = 1, STAGE_LS_FILES_ADDED = 2, &
                           STAGE_LS_FILES_UP_TO_DATE = 3, STAGE_LS_FILES_CONFLICT = 4, STAGE_LS_FILES_MISSING = 5, &
                           STAGE_LS_FILES_UNKNOWN = 6, STAGE_LS_FILES_IGNORED = 7, STAGE_DIFF_INDEX = 8
 
@@ -960,7 +960,7 @@ contains
         else
             call vc_git_command(0, strings(file), strings("reset", "-q", "--"), status)
             if (.not. status%ok()) return
-            call vc_git_command(VC_OKSTATUS_NIL, strings(file), strings("checkout", "-q", "--"), status)
+            call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, strings(file), strings("checkout", "-q", "--"), status)
         end if
     end subroutine vc_git_revert
 
@@ -972,7 +972,7 @@ contains
 
         call vc_git_command(0, files, strings("reset", "-q", "--"), status)
         if (.not. status%ok()) return
-        call vc_git_command(VC_OKSTATUS_NIL, files, strings("checkout", "-q", "--"), status)
+        call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, files, strings("checkout", "-q", "--"), status)
     end subroutine vc_git_revert_files
 
     !> Delete FILE with `git rm'.  Port of vc-git.el:vc-git-delete-file.
@@ -1045,7 +1045,7 @@ contains
             end if
         end if
 
-        if (vc_git_diff_switches%kind == VC_SWITCHES_NIL) then
+        if (vc_git_diff_switches%kind == VC_SWITCHES_UNSPECIFIED) then
             call set_error(status, FM_GENERIC_ERROR, "vc_git_diff with git difftool is not ported yet")
             return
         end if
@@ -1086,7 +1086,7 @@ contains
         allocate (table(0))
         call push(table, "HEAD")
         call temp_begin(old, tmp)
-        call vc_git_command(VC_OKSTATUS_NIL, none, strings("for-each-ref", "--format=%(refname)"), st, current=.true.)
+        call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("for-each-ref", "--format=%(refname)"), st, current=.true.)
         call goto_char(point_min())
 
         if (vc_git_revision_complete_only_branches) then
@@ -1741,7 +1741,7 @@ contains
         flags = strings("log", revision, "-1", "--no-color")
         call append_switches(flags, vc_git_log_switches)
         call push(flags, "--")
-        call vc_git_command(VC_OKSTATUS_NIL, none, flags, st, current=.true.)
+        call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, flags, st, current=.true.)
         call goto_char(point_min())
 
         if (.not. is_eob()) then
@@ -1896,13 +1896,13 @@ contains
     !> entry of state STATE, or an empty string if none.  Port of
     !> vc-git.el:vc-git-rename-as-string.
     function vc_git_rename_as_string(state, extra) result(str)
-        use vc_hooks_fm, only: VC_RENAME_NIL, VC_RENAME_COPY
+        use vc_hooks_fm, only: VC_RENAME_NONE, VC_RENAME_COPY
         integer, intent(in) :: state
         type(vc_dir_entry_type), intent(in) :: extra
         character(len=:), allocatable :: str
 
         str = ""
-        if (.not. extra%has_extra .or. extra%rename_state == VC_RENAME_NIL) return
+        if (.not. extra%has_extra .or. extra%rename_state == VC_RENAME_NONE) return
 
         if (extra%rename_state == VC_RENAME_COPY) then
             str = "   (copied from "
@@ -2002,7 +2002,7 @@ contains
         call insert_with_face(type_str, type_face)
 
         if (isdir) then
-            call insert_with_face(vc_git_rename_as_string(VC_STATE_NIL, info%entry), "font_lock_comment_face")
+            call insert_with_face(vc_git_rename_as_string(VC_STATE_UNKNOWN, info%entry), "font_lock_comment_face")
         else
             call insert_with_face(vc_git_rename_as_string(state, info%entry), "font_lock_comment_face")
         end if
@@ -2054,7 +2054,7 @@ contains
     ! (vc-git-create-extra-fileinfo OLD-PERM NEW-PERM RENAME-STATE ORIG-NAME).
     ! Not a port.
     function extra_fileinfo(old_perm, new_perm, rename_state, orig_name) result(info)
-        use vc_hooks_fm, only: VC_RENAME_NIL
+        use vc_hooks_fm, only: VC_RENAME_NONE
         integer, intent(in) :: old_perm, new_perm
         integer, intent(in), optional :: rename_state
         character(len=*), intent(in), optional :: orig_name
@@ -2063,7 +2063,7 @@ contains
         info%has_extra = .true.
         info%old_perm = old_perm
         info%new_perm = new_perm
-        info%rename_state = VC_RENAME_NIL
+        info%rename_state = VC_RENAME_NONE
         if (present(rename_state)) info%rename_state = rename_state
         if (present(orig_name)) info%orig_name = orig_name
     end function extra_fileinfo
@@ -2105,7 +2105,7 @@ contains
         call set_buffer(action%buffer, st)
         files = dir_states(k)%files
         had_files = size(files) > 0
-        next_stage = STAGE_NIL
+        next_stage = STAGE_DONE
         ! First stage is always update-index.
         !   After that, if no commits yet, ls-files-added.
         !   Otherwise (there are commits), diff-index then ls-files-missing.
@@ -2236,13 +2236,13 @@ contains
 
         ! If we had files but now we don't, it's time to stop.
         if (had_files) then
-            if (size(dir_states(k)%files) == 0) next_stage = STAGE_NIL
+            if (size(dir_states(k)%files) == 0) next_stage = STAGE_DONE
         end if
 
         dir_states(k)%stage = next_stage
         dir_states(k)%files = files
 
-        if (next_stage /= STAGE_NIL) then
+        if (next_stage /= STAGE_DONE) then
             call vc_git_dir_status_goto_stage(k, status)
             call set_buffer(old, st)
         else

@@ -144,7 +144,7 @@ module fortmacs
                        justify_current_line, canonically_space_region, current_fill_column, current_justification, &
                        is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, &
                        is_fill_single_char_nobreak, fill_nobreak_predicate_type, JUSTIFY_NONE, JUSTIFY_LEFT, &
-                       JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T
+                       JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_CURRENT
     use simple_fm, only: back_to_indentation, do_auto_fill, default_indent_new_line
     use subr_fm, only: read_number
     use replace_fm, only: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, &
@@ -206,7 +206,7 @@ module fortmacs
                             font_lock_global_modes_type, font_lock_mode_hook, global_font_lock_mode_hook, &
                             turn_on_font_lock, font_lock_keyword_type, font_lock_highlight_type, &
                             font_lock_match_highlight_type, font_lock_keywords_type, font_lock_syntax_entry_type, &
-                            FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_KEEP, &
+                            FONT_LOCK_OVERRIDE_NO, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_KEEP, &
                             FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, font_lock_matcher_proc, &
                             font_lock_face_proc, font_lock_form_proc
     use font_lock_fm, only: font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_verbose, &
@@ -218,7 +218,7 @@ module fortmacs
     use xdisp_fm, only: fontification_functions
     use eval_fm, only: position_hook_type, position_function
     use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, &
-                          UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+                          UPPER_CASE_NO, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS
     use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
     use syntax_fm, only: words_include_escapes
     use search_fm, only: search_spaces_regexp
@@ -266,7 +266,7 @@ module fortmacs
     use syntax_fm, only: parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
                          open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss
     use syntax_fm, only: forward_comment, scan_groups, scan_expressions, parse_partial_expression, parse_state_type, &
-                         ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
+                         ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NO, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
     use expression_motion_fm, only: forward_expression_function, forward_expression, backward_expression, forward_group, &
                                     backward_group, down_group, up_group, &
                                     backward_up_group, kill_expression, backward_kill_expression, mark_expression
@@ -280,11 +280,11 @@ module fortmacs
     ! Dired.
     use dired_mode_fm, only: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
                              dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, &
-                             dired_listing_switches, dired_use_ls_dired, DIRED_USE_LS_DIRED_NIL, DIRED_USE_LS_DIRED_T, &
+                             dired_listing_switches, dired_use_ls_dired, DIRED_USE_LS_DIRED_NO, DIRED_USE_LS_DIRED_YES, &
                              DIRED_USE_LS_DIRED_UNSPECIFIED, dired_ls_f_marks_symlinks, dired_trivial_filenames, &
-                             dired_free_space, DIRED_FREE_SPACE_NIL, DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, &
-                             dired_mark_region, DIRED_MARK_REGION_NIL, DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, &
-                             dired_movement_style, DIRED_MOVEMENT_STYLE_NIL, DIRED_MOVEMENT_STYLE_CYCLE, &
+                             dired_free_space, DIRED_FREE_SPACE_NONE, DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, &
+                             dired_mark_region, DIRED_MARK_REGION_NO, DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, &
+                             dired_movement_style, DIRED_MOVEMENT_STYLE_PLAIN, DIRED_MOVEMENT_STYLE_CYCLE, &
                              DIRED_MOVEMENT_STYLE_BOUNDED, DIRED_MOVEMENT_STYLE_CYCLE_FILES, &
                              DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_auto_revert_buffer, dired_check_symlinks, &
                              dired_recursive_deletes, DIRED_RECURSIVE_NEVER, DIRED_RECURSIVE_ALWAYS, DIRED_RECURSIVE_TOP, &
@@ -299,9 +299,9 @@ module fortmacs
     use dired_mode_fm, only: dired_chown_program, dired_touch_program, DIRED_KEEP_MARKER, dired_keep_marker_rename, &
                              dired_keep_marker_copy, dired_keep_marker_hardlink, dired_keep_marker_symlink, &
                              dired_keep_marker_relsymlink, dired_copy_preserve_time, dired_copy_dereference, &
-                             dired_recursive_copies, dired_dwim_target, DIRED_DWIM_TARGET_NIL, DIRED_DWIM_TARGET_NEXT, &
+                             dired_recursive_copies, dired_dwim_target, DIRED_DWIM_TARGET_NO, DIRED_DWIM_TARGET_NEXT, &
                              DIRED_DWIM_TARGET_NEXT_VISIBLE, DIRED_DWIM_TARGET_RECENT, dired_create_destination_dirs, &
-                             DIRED_CREATE_DESTINATION_DIRS_NIL, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
+                             DIRED_CREATE_DESTINATION_DIRS_NEVER, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
                              DIRED_CREATE_DESTINATION_DIRS_ASK, dired_create_destination_dirs_on_trailing_dirsep, &
                              dired_do_revert_buffer, dired_create_empty_file_in_current_directory, &
                              dired_compress_file_default_suffix, dired_compress_directory_default_suffix, &
@@ -329,7 +329,7 @@ module fortmacs
     use compile_fm, only: compile, recompile, compilation_start, compilation_mode, kill_compilation, &
                           compile_command, compilation_read_command, compilation_ask_about_save, &
                           compilation_always_kill, compilation_disable_input, compilation_scroll_output, &
-                          COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
+                          COMPILATION_SCROLL_NO, COMPILATION_SCROLL_YES, COMPILATION_SCROLL_FIRST_ERROR, &
                           compilation_filter_hook, compilation_filter_start, compilation_mode_hook, &
                           compilation_mode_map, compilation_directory
     use compile_fm, only: compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
@@ -341,7 +341,7 @@ module fortmacs
                           compilation_transform_file_match_table, compilation_error_screen_columns, &
                           compilation_first_column, compilation_skip_threshold, compilation_skip_visited, &
                           compilation_skip_to_next_location, compilation_search_all_directories, &
-                          compilation_context_lines, COMPILATION_CONTEXT_NIL, COMPILATION_CONTEXT_T, &
+                          compilation_context_lines, COMPILATION_CONTEXT_TOP, COMPILATION_CONTEXT_NO_SCROLL, &
                           compilation_message_face, compilation_error_face, compilation_warning_face, &
                           compilation_info_face, compilation_line_face, compilation_column_face, &
                           compilation_enter_directory_face, compilation_leave_directory_face, &
@@ -349,10 +349,14 @@ module fortmacs
                           compilation_next_error, compilation_previous_error, compilation_next_file, &
                           compilation_previous_file
     use grep_fm, only: grep, grep_find, lgrep, rgrep, zrgrep, grep_mode, grep_compute_defaults, grep_apply_setting, &
-                       GREP_NIL, GREP_T, GREP_AUTO_DETECT, GREP_ALWAYS, GREP_AUTO, GREP_FIND_USE_XARGS_NIL, &
+                       GREP_USE_NULL_DEVICE_NO, GREP_USE_NULL_DEVICE_YES, GREP_USE_NULL_DEVICE_AUTO_DETECT, &
+                       GREP_USE_NULL_FILENAME_SEPARATOR_NO, GREP_USE_NULL_FILENAME_SEPARATOR_YES, &
+                       GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_YES, &
+                       GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, GREP_HIGHLIGHT_MATCHES_ALWAYS, GREP_HIGHLIGHT_MATCHES_AUTO, &
+                       GREP_FIND_USE_XARGS_UNKNOWN, &
                        GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS, GREP_FIND_USE_XARGS_GNU, &
-                       GREP_FIND_USE_XARGS_GNU_SORT, GREP_FIND_USE_XARGS_OTHER, GREP_SAVE_BUFFERS_NIL, &
-                       GREP_SAVE_BUFFERS_T, GREP_SAVE_BUFFERS_ASK, grep_files_alias_type, grep_ignore_type, &
+                       GREP_FIND_USE_XARGS_GNU_SORT, GREP_FIND_USE_XARGS_OTHER, GREP_SAVE_BUFFERS_NO, &
+                       GREP_SAVE_BUFFERS_YES, GREP_SAVE_BUFFERS_ASK, grep_files_alias_type, grep_ignore_type, &
                        grep_ignore_predicate, grep_read_files_proc, grep_save_buffers_proc, grep_highlight_matches, &
                        grep_match_regexp, grep_scroll_output, grep_command, grep_command_position, grep_template, &
                        grep_use_null_device, grep_use_null_filename_separator, grep_find_command, &
@@ -365,8 +369,8 @@ module fortmacs
                          comint_exec, comint_send_input, comint_send_string, comint_prompt_regexp, &
                          comint_prompt_read_only, comint_highlight_input, comint_input_ignoredups, &
                          comint_input_ring_file_name, comint_pager, comint_input_ring_file_prefix, &
-                         comint_move_point_for_output, comint_move_point_for_matching_input, COMINT_MOVE_NIL, &
-                         COMINT_MOVE_T, COMINT_MOVE_ALL, COMINT_MOVE_THIS, COMINT_MOVE_OTHERS, &
+                         comint_move_point_for_output, comint_move_point_for_matching_input, COMINT_MOVE_NO, &
+                         COMINT_MOVE_YES, COMINT_MOVE_ALL, COMINT_MOVE_THIS, COMINT_MOVE_OTHERS, &
                          COMINT_MATCHING_AFTER_INPUT, COMINT_MATCHING_END_OF_LINE, comint_scroll_show_maximum_output, &
                          comint_buffer_maximum_size, comint_input_ring_size, comint_input_ring_separator, &
                          comint_input_history_ignore, comint_process_echoes, comint_eol_on_send, &
@@ -375,15 +379,15 @@ module fortmacs
                          comint_preoutput_filter_functions, comint_input_filter_functions, comint_mode_map, &
                          comint_truncate_buffer, &
                          comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, comint_show_maximum_output, &
-                         comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, &
-                         COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, COMINT_SCROLL_ON_INPUT_NIL, &
-                         COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, COMINT_SCROLL_ON_INPUT_THIS, &
-                         comint_insert_previous_argument_from_end, comint_history_isearch, COMINT_HISTORY_ISEARCH_NIL, &
-                         COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, comint_password_prompt_regexp, &
+                         comint_input_autoexpand, COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, &
+                         COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, COMINT_SCROLL_ON_INPUT_NO, &
+                         COMINT_SCROLL_ON_INPUT_YES, COMINT_SCROLL_ON_INPUT_ALL, COMINT_SCROLL_ON_INPUT_THIS, &
+                         comint_insert_previous_argument_from_end, comint_history_isearch, COMINT_HISTORY_ISEARCH_NO, &
+                         COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_ALWAYS, comint_password_prompt_regexp, &
                          comint_password_prompt_max_length
     use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents
-    use ansi_color_fm, only: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NIL, &
-                             ANSI_COLOR_FILTER, ANSI_COLOR_T, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, &
+    use ansi_color_fm, only: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, &
+                             ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, &
                              ansi_color_normal_colors_vector, ansi_color_bright_colors_vector, &
                              ansi_color_apply_face_function, ansi_color_face_proc, ansi_color_compilation_filter, &
                              ansi_color_process_output
@@ -443,7 +447,7 @@ module fortmacs
     use callproc_fm, only: shell_file_name
     use simple_fm, only: shell_command, shell_command_on_region, read_shell_command, display_message_or_buffer, &
                          shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &
-                         shell_command_dont_erase_buffer, shell_command_buffer_name, DONT_ERASE_NIL, DONT_ERASE_ERASE, &
+                         shell_command_dont_erase_buffer, shell_command_buffer_name, DONT_ERASE_NO, DONT_ERASE_ERASE, &
                          DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
     use help_fns_fm, only: describe_mode, describe_symbol
     use help_fm, only: describe_bindings, view_lossage, view_echo_area_messages
@@ -469,7 +473,7 @@ module fortmacs
                             save_place_abbreviate_file_names, save_place_save_skipped, save_place_skip_check_regexp, &
                             save_place_ignore_files_regexp, save_place_autosave_interval, &
                             save_place_after_find_file_hook, save_place_mode_hook, save_place_local_mode_hook, &
-                            save_place_version_control, SAVE_PLACE_VERSION_CONTROL_T, SAVE_PLACE_VERSION_CONTROL_NIL, &
+                            save_place_version_control, SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
                             SAVE_PLACE_VERSION_CONTROL_NEVER, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
     use recentf_fm, only: recentf_mode, recentf_open, recentf_open_most_recent_file, recentf_save_list, recentf_cleanup, &
                           recentf_file_type, recentf_list, recentf_check_type, recentf_filename_handler_type, &
@@ -480,13 +484,13 @@ module fortmacs
                           recentf_autosave_interval, recentf_mode_hook, recentf_mode_map, recentf_keep_default_predicate, &
                           abbreviate_file_name_handler, file_truename_handler
     use bookmark_fm, only: bookmark_type, bookmark_inhibit_context_function_type, bookmark_use_annotations, &
-                           bookmark_save_flag, BOOKMARK_SAVE_FLAG_NIL, BOOKMARK_SAVE_FLAG_T, bookmark_default_file, &
-                           bookmark_watch_bookmark_file, BOOKMARK_WATCH_BOOKMARK_FILE_NIL, &
-                           BOOKMARK_WATCH_BOOKMARK_FILE_T, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, &
-                           bookmark_version_control, BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL, &
+                           bookmark_save_flag, BOOKMARK_SAVE_FLAG_NEVER, BOOKMARK_SAVE_FLAG_ON_EXIT, bookmark_default_file, &
+                           bookmark_watch_bookmark_file, BOOKMARK_WATCH_BOOKMARK_FILE_NO, &
+                           BOOKMARK_WATCH_BOOKMARK_FILE_ASK, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, &
+                           bookmark_version_control, BOOKMARK_VERSION_CONTROL_NUMBERED, BOOKMARK_VERSION_CONTROL_EXISTING, &
                            BOOKMARK_VERSION_CONTROL_NEVER, BOOKMARK_VERSION_CONTROL_NOSPECIAL, &
-                           bookmark_completion_ignore_case, bookmark_sort_flag, BOOKMARK_SORT_FLAG_NIL, &
-                           BOOKMARK_SORT_FLAG_T, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_menu_confirm_deletion, &
+                           bookmark_completion_ignore_case, bookmark_sort_flag, BOOKMARK_SORT_FLAG_CREATED, &
+                           BOOKMARK_SORT_FLAG_ALPHABETICAL, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_menu_confirm_deletion, &
                            bookmark_automatically_show_annotations, bookmark_fringe_mark, bookmark_map, &
                            bookmark_search_size, bookmark_make_record_function, bookmark_inhibit_context_functions, &
                            bookmark_edit_annotation_text_func, bookmark_edit_annotation_mode_map, &
@@ -503,10 +507,10 @@ module fortmacs
                        info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, &
                        info_selection_hook, info_url_table, info_url_type, info_suffix_list, info_suffix_type, &
                        info_streamline_headings, info_heading_type, info_mode_map, info_mode_syntax_table, &
-                       info_fontify_maximum_menu_size, INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, &
-                       INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, info_use_header_line, &
+                       info_fontify_maximum_menu_size, INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE, &
+                       INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED, info_fontify_visited_nodes, info_use_header_line, &
                        info_isearch_search, &
-                       info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, INFO_HIDE_NOTE_REFERENCES_T, &
+                       info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, INFO_HIDE_NOTE_REFERENCES_SEE, &
                        INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
                        info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
                        info_file_list_for_emacs, info_file_prefix_type
@@ -524,7 +528,7 @@ module fortmacs
                           ibuffer_deletion_char, ibuffer_expert, ibuffer_view_ibuffer, &
                           ibuffer_always_show_last_buffer, IBUFFER_SHOW_LAST_NEVER, IBUFFER_SHOW_LAST_ALWAYS, &
                           IBUFFER_SHOW_LAST_NOMINI, ibuffer_jump_offer_only_visible_buffers, ibuffer_use_header_line, &
-                          IBUFFER_HEADER_LINE_NIL, IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, &
+                          IBUFFER_HEADER_LINE_NO, IBUFFER_HEADER_LINE_FILTERS, IBUFFER_HEADER_LINE_TITLE, &
                           ibuffer_default_directory, ibuffer_help_buffer_modes, ibuffer_compressed_file_name_regexp, &
                           ibuffer_hook, ibuffer_mode_hook, ibuffer_marked_face, ibuffer_deletion_face, &
                           ibuffer_title_face, ibuffer_filter_group_name_face, ibuffer_directory_abbrev_table, &
@@ -574,12 +578,12 @@ module fortmacs
                         SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH, show_paren_data_function, show_paren_data_type, &
                         show_paren_data_proc, show_paren_default, show_paren_predicate, show_paren_predicate_proc, &
                         show_paren_default_predicate, show_paren_mode_hook, show_paren_local_mode_hook
-    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, BLINK_MATCHING_PAREN_T, &
+    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, &
                          BLINK_MATCHING_PAREN_JUMP, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_on_screen, &
                          blink_matching_paren_distance, blink_matching_delay, blink_matching_paren_dont_ignore_comments, &
                          blink_matching_check_function, blink_matching_check_proc, blink_matching_check_mismatch, &
                          blink_paren_function, blink_matching_open, newline_and_indent, backward_delete_char_untabify, &
-                         backward_delete_char_untabify_method, UNTABIFY_METHOD_NIL, UNTABIFY_METHOD_UNTABIFY, &
+                         backward_delete_char_untabify_method, UNTABIFY_METHOD_NONE, UNTABIFY_METHOD_UNTABIFY, &
                          UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_ALL
     use electric_fm, only: electric_indent_mode, electric_indent_local_mode, electric_indent_chars, &
                            electric_indent_inhibit, electric_indent_functions_without_reindent, &
@@ -590,7 +594,7 @@ module fortmacs
                             electric_pair_char_proc, electric_pair_default_skip_self, electric_pair_default_inhibit, &
                             electric_pair_conservative_inhibit, electric_pair_preserve_balance, &
                             electric_pair_open_newline_between_pairs, electric_pair_skip_whitespace, &
-                            ELECTRIC_PAIR_SKIP_WHITESPACE_NIL, ELECTRIC_PAIR_SKIP_WHITESPACE_T, &
+                            ELECTRIC_PAIR_SKIP_WHITESPACE_NO, ELECTRIC_PAIR_SKIP_WHITESPACE_YES, &
                             ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, electric_pair_skip_whitespace_chars, &
                             electric_pair_skip_whitespace_function, electric_pair_text_syntax_table, &
                             electric_pair_string_bound_function, electric_pair_position_proc, electric_pair_mode_hook, &
@@ -601,10 +605,10 @@ module fortmacs
                              comment_quote_nested, comment_quote_nested_function, comment_continue, comment_add, &
                              comment_style, comment_padding, comment_inline_offset, comment_multi_line, &
                              comment_empty_lines, comment_setup_function, comment_auto_fill_only_comments, &
-                             COMMENT_USE_SYNTAX_NIL, COMMENT_USE_SYNTAX_T, COMMENT_USE_SYNTAX_UNDECIDED, &
+                             COMMENT_USE_SYNTAX_NO, COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED, &
                              COMMENT_STYLE_PLAIN, COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, &
                              COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
-                             COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NIL, COMMENT_EMPTY_LINES_T, &
+                             COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NO, COMMENT_EMPTY_LINES_ALWAYS, &
                              COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
     use conf_mode_fm, only: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
                             conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
@@ -631,8 +635,8 @@ module fortmacs
                       f90_critical_indent, f90_continuation_indent, f90_comment_region, f90_indented_comment_re, &
                       f90_directive_comment_re, f90_beginning_ampersand, f90_smart_end, f90_smart_end_names, &
                       f90_break_delimiters, f90_break_before_delimiters, f90_auto_keyword_case, f90_leave_line_no, &
-                      f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NIL, &
-                      F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
+                      f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NO, &
+                      F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NONE, F90_KEYWORD_CASE_DOWNCASE_WORD, &
                       F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
     use smie_fm, only: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions
     use sh_script_fm, only: sh_ancestor_table, sh_alias_table, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
@@ -648,13 +652,13 @@ module fortmacs
                             sh_backslash_align, sh_indent_supported, sh_make_vars_local, sh_indent_after_continuation, &
                             sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
                             sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
-                            SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
+                            SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NO, &
+                            SH_CONTINUATION_DEEPER, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
                             sh_style_type, sh_var_list
     use executable_fm, only: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
                              executable_prefix_env, executable_chmod, executable_self_display, &
                              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
-                             EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
+                             EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, EXECUTABLE_CHMOD_NONE
     use files_fm, only: before_save_hook, after_save_hook, write_file_functions
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment
     implicit none(type, external)
@@ -672,10 +676,10 @@ module fortmacs
               PROCESS_CONNECTION_PTY, shell_file_name, shell_command, shell_command_on_region, read_shell_command, &
               display_message_or_buffer, shell_command_switch, shell_command_default_error_buffer, &
               shell_command_prompt_show_cwd, shell_command_dont_erase_buffer, shell_command_buffer_name, &
-              DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, &
+              DONT_ERASE_NO, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, &
               num_processors, compile, recompile, compilation_start, compilation_mode, kill_compilation, compile_command, &
               compilation_read_command, compilation_ask_about_save, compilation_always_kill, compilation_disable_input, &
-              compilation_scroll_output, COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
+              compilation_scroll_output, COMPILATION_SCROLL_NO, COMPILATION_SCROLL_YES, COMPILATION_SCROLL_FIRST_ERROR, &
               compilation_filter_hook, compilation_filter_start, compilation_mode_hook, compilation_mode_map, &
               compilation_directory, comint_inhibit_carriage_motion
     public :: compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
@@ -685,8 +689,8 @@ module fortmacs
               compilation_error_regexp_names, compilation_error_case_fold_search, compilation_directory_matcher, &
               compilation_transform_file_match_table, compilation_error_screen_columns, compilation_first_column, &
               compilation_skip_threshold, compilation_skip_visited, compilation_skip_to_next_location, &
-              compilation_search_all_directories, compilation_context_lines, COMPILATION_CONTEXT_NIL, &
-              COMPILATION_CONTEXT_T, compilation_message_face, compilation_error_face, compilation_warning_face, &
+              compilation_search_all_directories, compilation_context_lines, COMPILATION_CONTEXT_TOP, &
+              COMPILATION_CONTEXT_NO_SCROLL, compilation_message_face, compilation_error_face, compilation_warning_face, &
               compilation_info_face, compilation_line_face, compilation_column_face, compilation_enter_directory_face, &
               compilation_leave_directory_face, &
               compilation_minor_mode, &
@@ -695,7 +699,7 @@ module fortmacs
     public :: comint_mode, make_comint, make_comint_in_buffer, comint_run, comint_exec, comint_send_input, &
               comint_send_string, comint_prompt_regexp, comint_prompt_read_only, comint_highlight_input, &
               comint_input_ignoredups, comint_input_ring_file_name, comint_pager, comint_input_ring_file_prefix, &
-              comint_move_point_for_output, comint_move_point_for_matching_input, COMINT_MOVE_NIL, COMINT_MOVE_T, &
+              comint_move_point_for_output, comint_move_point_for_matching_input, COMINT_MOVE_NO, COMINT_MOVE_YES, &
               COMINT_MOVE_ALL, COMINT_MOVE_THIS, COMINT_MOVE_OTHERS, COMINT_MATCHING_AFTER_INPUT, &
               COMINT_MATCHING_END_OF_LINE, comint_scroll_show_maximum_output, comint_buffer_maximum_size, &
               comint_input_ring_size, comint_input_ring_separator, comint_input_history_ignore, comint_process_echoes, &
@@ -703,15 +707,15 @@ module fortmacs
               comint_mode_hook, comint_exec_hook, comint_output_filter_functions, comint_preoutput_filter_functions, &
               comint_input_filter_functions, comint_mode_map, &
               comint_truncate_buffer, comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, &
-              comint_show_maximum_output, comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, &
+              comint_show_maximum_output, comint_input_autoexpand, COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, &
               COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
-              COMINT_SCROLL_ON_INPUT_NIL, COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, &
+              COMINT_SCROLL_ON_INPUT_NO, COMINT_SCROLL_ON_INPUT_YES, COMINT_SCROLL_ON_INPUT_ALL, &
               COMINT_SCROLL_ON_INPUT_THIS, comint_insert_previous_argument_from_end, comint_history_isearch, &
-              COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, &
+              COMINT_HISTORY_ISEARCH_NO, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_ALWAYS, &
               comint_password_prompt_regexp, comint_password_prompt_max_length
     public :: password_word_equivalents, password_colon_equivalents, read_hide_char
-    public :: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NIL, ANSI_COLOR_FILTER, &
-              ANSI_COLOR_T, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, ansi_color_normal_colors_vector, &
+    public :: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, ANSI_COLOR_FILTER, &
+              ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, ansi_color_normal_colors_vector, &
               ansi_color_bright_colors_vector, ansi_color_apply_face_function, ansi_color_face_proc, &
               ansi_color_compilation_filter, ansi_color_process_output
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
@@ -767,7 +771,7 @@ module fortmacs
               transpose_sentences, transpose_paragraphs, delete_horizontal_space, delete_all_space, just_one_space, &
               fixup_whitespace, delete_blank_lines, delete_indentation, skip_chars_forward, skip_chars_backward, &
               skip_syntax_forward, skip_syntax_backward, forward_comment, scan_groups, scan_expressions, &
-              parse_partial_expression, parse_state_type, ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, &
+              parse_partial_expression, parse_state_type, ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NO, &
               COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE, forward_expression, backward_expression, forward_group, &
               backward_group, &
               down_group, up_group, backward_up_group, kill_expression, backward_kill_expression, mark_expression, enable_command, &
@@ -779,7 +783,7 @@ module fortmacs
               justify_current_line, canonically_space_region, current_fill_column, current_justification, &
               is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, is_fill_single_char_nobreak, &
               fill_nobreak_predicate_type, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, &
-              JUSTIFY_T, back_to_indentation, do_auto_fill, default_indent_new_line, read_number
+              JUSTIFY_CURRENT, back_to_indentation, do_auto_fill, default_indent_new_line, read_number
     public :: count_lines, line_number_at_pos, apply_on_rectangle, rectangle_line_action, rectangle_line_type, &
               rectangle_position_as_coordinates, is_rectangle_intersect, rectangle_dimensions, delete_rectangle, &
               delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, kill_rectangle, &
@@ -801,8 +805,8 @@ module fortmacs
               truncate_partial_width_windows, enable_recursive_minibuffers, history_add_new_input, insert_default_directory, &
               inhibit_field_text_motion, visible_bell, transient_mark_mode, mark_even_if_inactive, kill_ring_max, &
               mark_ring_max, kill_whole_line_option, delete_active_region, kill_read_only_ok, case_fold_search, &
-              search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, UPPER_CASE_NIL, &
-              UPPER_CASE_T, UPPER_CASE_NOT_YANKS, next_screen_context_lines, scroll_error_top_bottom, &
+              search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, UPPER_CASE_NO, &
+              UPPER_CASE_YES, UPPER_CASE_NOT_YANKS, next_screen_context_lines, scroll_error_top_bottom, &
               completion_ignore_case, completion_auto_help, completion_show_inline_help, completion_fail_discreetly, &
               suggest_key_bindings, completion_ignored_extensions, words_include_escapes, search_spaces_regexp, &
               regexp_search_ring_max, search_whitespace_regexp, isearch_lax_whitespace, &
@@ -833,7 +837,7 @@ module fortmacs
     public :: font_lock_defaults, font_lock_defaults_setting, font_lock_global_modes, font_lock_global_modes_type, &
               font_lock_mode_hook, global_font_lock_mode_hook, turn_on_font_lock, font_lock_keyword_type, &
               font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
-              font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_KEEP, &
+              font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_NO, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_KEEP, &
               FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, font_lock_matcher_proc, font_lock_face_proc, &
               font_lock_form_proc, font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_verbose, &
               font_lock_dont_widen, font_lock_support_mode, FONT_LOCK_SUPPORT_NONE, FONT_LOCK_SUPPORT_JIT_LOCK, &
@@ -895,7 +899,7 @@ module fortmacs
               save_place_forget_unreadable_files_option, save_place_abbreviate_file_names, save_place_save_skipped, &
               save_place_skip_check_regexp, save_place_ignore_files_regexp, save_place_autosave_interval, &
               save_place_after_find_file_hook, save_place_mode_hook, save_place_local_mode_hook, &
-              save_place_version_control, SAVE_PLACE_VERSION_CONTROL_T, SAVE_PLACE_VERSION_CONTROL_NIL, &
+              save_place_version_control, SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
               SAVE_PLACE_VERSION_CONTROL_NEVER, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
     public :: recentf_mode, recentf_open, recentf_open_most_recent_file, recentf_save_list, recentf_cleanup, &
               recentf_file_type, recentf_list, recentf_check_type, recentf_filename_handler_type, RECENTF_NO_LIMIT, &
@@ -905,11 +909,11 @@ module fortmacs
               recentf_filename_handlers, recentf_show_messages, recentf_autosave_interval, recentf_mode_hook, &
               recentf_mode_map, recentf_keep_default_predicate, abbreviate_file_name_handler, file_truename_handler
     public :: bookmark_type, bookmark_inhibit_context_function_type, bookmark_use_annotations, bookmark_save_flag, &
-              BOOKMARK_SAVE_FLAG_NIL, BOOKMARK_SAVE_FLAG_T, bookmark_default_file, bookmark_watch_bookmark_file, &
-              BOOKMARK_WATCH_BOOKMARK_FILE_NIL, BOOKMARK_WATCH_BOOKMARK_FILE_T, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, &
-              bookmark_version_control, BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL, &
+              BOOKMARK_SAVE_FLAG_NEVER, BOOKMARK_SAVE_FLAG_ON_EXIT, bookmark_default_file, bookmark_watch_bookmark_file, &
+              BOOKMARK_WATCH_BOOKMARK_FILE_NO, BOOKMARK_WATCH_BOOKMARK_FILE_ASK, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, &
+              bookmark_version_control, BOOKMARK_VERSION_CONTROL_NUMBERED, BOOKMARK_VERSION_CONTROL_EXISTING, &
               BOOKMARK_VERSION_CONTROL_NEVER, BOOKMARK_VERSION_CONTROL_NOSPECIAL, bookmark_completion_ignore_case, &
-              bookmark_sort_flag, BOOKMARK_SORT_FLAG_NIL, BOOKMARK_SORT_FLAG_T, BOOKMARK_SORT_FLAG_LAST_MODIFIED, &
+              bookmark_sort_flag, BOOKMARK_SORT_FLAG_CREATED, BOOKMARK_SORT_FLAG_ALPHABETICAL, BOOKMARK_SORT_FLAG_LAST_MODIFIED, &
               bookmark_menu_confirm_deletion, bookmark_automatically_show_annotations, bookmark_fringe_mark, &
               bookmark_map, bookmark_search_size, bookmark_make_record_function, bookmark_inhibit_context_functions, &
               bookmark_edit_annotation_text_func, bookmark_edit_annotation_mode_map, bookmark_edit_annotation_mode_hook, &
@@ -923,10 +927,10 @@ module fortmacs
               info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, info_selection_hook, &
               info_url_table, info_url_type, info_suffix_list, info_suffix_type, info_streamline_headings, &
               info_heading_type, info_mode_map, info_mode_syntax_table, info_fontify_maximum_menu_size, &
-              INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, &
+              INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE, INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED, info_fontify_visited_nodes, &
               info_isearch_search, &
-              info_use_header_line, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, &
-              INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
+              info_use_header_line, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, &
+              INFO_HIDE_NOTE_REFERENCES_SEE, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
               info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
               info_file_list_for_emacs, info_file_prefix_type
     public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_table, &
@@ -940,8 +944,8 @@ module fortmacs
               ibuffer_modified_char, ibuffer_read_only_char, ibuffer_marked_char, ibuffer_locked_char, &
               ibuffer_deletion_char, ibuffer_expert, ibuffer_view_ibuffer, ibuffer_always_show_last_buffer, &
               IBUFFER_SHOW_LAST_NEVER, IBUFFER_SHOW_LAST_ALWAYS, IBUFFER_SHOW_LAST_NOMINI, &
-              ibuffer_jump_offer_only_visible_buffers, ibuffer_use_header_line, IBUFFER_HEADER_LINE_NIL, &
-              IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, ibuffer_default_directory, ibuffer_help_buffer_modes, &
+              ibuffer_jump_offer_only_visible_buffers, ibuffer_use_header_line, IBUFFER_HEADER_LINE_NO, &
+              IBUFFER_HEADER_LINE_FILTERS, IBUFFER_HEADER_LINE_TITLE, ibuffer_default_directory, ibuffer_help_buffer_modes, &
               ibuffer_compressed_file_name_regexp, ibuffer_hook, ibuffer_mode_hook, ibuffer_marked_face, &
               ibuffer_deletion_face, ibuffer_title_face, ibuffer_filter_group_name_face, &
               ibuffer_directory_abbrev_table, ibuffer_never_show_predicates, ibuffer_always_show_predicates, &
@@ -982,12 +986,12 @@ module fortmacs
               SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH, show_paren_data_function, show_paren_data_type, &
               show_paren_data_proc, show_paren_default, show_paren_predicate, show_paren_predicate_proc, &
               show_paren_default_predicate, show_paren_mode_hook, show_paren_local_mode_hook
-    public :: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, BLINK_MATCHING_PAREN_T, BLINK_MATCHING_PAREN_JUMP, &
+    public :: blink_matching_paren, BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, BLINK_MATCHING_PAREN_JUMP, &
               BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_on_screen, blink_matching_paren_distance, &
               blink_matching_delay, blink_matching_paren_dont_ignore_comments, blink_matching_check_function, &
               blink_matching_check_proc, blink_matching_check_mismatch, blink_paren_function, blink_matching_open, &
               newline_and_indent, backward_delete_char_untabify, backward_delete_char_untabify_method, &
-              UNTABIFY_METHOD_NIL, UNTABIFY_METHOD_UNTABIFY, UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_ALL
+              UNTABIFY_METHOD_NONE, UNTABIFY_METHOD_UNTABIFY, UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_ALL
     public :: electric_indent_mode, electric_indent_local_mode, electric_indent_chars, electric_indent_inhibit, &
               electric_indent_functions_without_reindent, electric_indent_mode_hook, electric_indent_local_mode_hook, &
               electric_indent_just_newline, electric_newline_and_maybe_indent, electric_pair_mode, &
@@ -995,16 +999,16 @@ module fortmacs
               electric_pair_skip_self, electric_pair_inhibit_predicate, electric_pair_char_proc, &
               electric_pair_default_skip_self, electric_pair_default_inhibit, electric_pair_conservative_inhibit, &
               electric_pair_preserve_balance, electric_pair_open_newline_between_pairs, electric_pair_skip_whitespace, &
-              ELECTRIC_PAIR_SKIP_WHITESPACE_NIL, ELECTRIC_PAIR_SKIP_WHITESPACE_T, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, &
+              ELECTRIC_PAIR_SKIP_WHITESPACE_NO, ELECTRIC_PAIR_SKIP_WHITESPACE_YES, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, &
               electric_pair_skip_whitespace_chars, electric_pair_skip_whitespace_function, &
               electric_pair_text_syntax_table, electric_pair_string_bound_function, electric_pair_position_proc, &
               electric_pair_mode_hook, electric_pair_local_mode_hook, electric_pair_delete_pair
     public :: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
               dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, dired_listing_switches, &
-              dired_use_ls_dired, DIRED_USE_LS_DIRED_NIL, DIRED_USE_LS_DIRED_T, DIRED_USE_LS_DIRED_UNSPECIFIED, &
-              dired_ls_f_marks_symlinks, dired_trivial_filenames, dired_free_space, DIRED_FREE_SPACE_NIL, &
-              DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, dired_mark_region, DIRED_MARK_REGION_NIL, &
-              DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, dired_movement_style, DIRED_MOVEMENT_STYLE_NIL, &
+              dired_use_ls_dired, DIRED_USE_LS_DIRED_NO, DIRED_USE_LS_DIRED_YES, DIRED_USE_LS_DIRED_UNSPECIFIED, &
+              dired_ls_f_marks_symlinks, dired_trivial_filenames, dired_free_space, DIRED_FREE_SPACE_NONE, &
+              DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, dired_mark_region, DIRED_MARK_REGION_NO, &
+              DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, dired_movement_style, DIRED_MOVEMENT_STYLE_PLAIN, &
               DIRED_MOVEMENT_STYLE_CYCLE, DIRED_MOVEMENT_STYLE_BOUNDED, DIRED_MOVEMENT_STYLE_CYCLE_FILES, &
               DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_auto_revert_buffer, dired_check_symlinks, &
               dired_recursive_deletes, DIRED_RECURSIVE_NEVER, DIRED_RECURSIVE_ALWAYS, DIRED_RECURSIVE_TOP, &
@@ -1017,8 +1021,8 @@ module fortmacs
     public :: dired_chown_program, dired_touch_program, DIRED_KEEP_MARKER, dired_keep_marker_rename, &
               dired_keep_marker_copy, dired_keep_marker_hardlink, dired_keep_marker_symlink, dired_keep_marker_relsymlink, &
               dired_copy_preserve_time, dired_copy_dereference, dired_recursive_copies, dired_dwim_target, &
-              DIRED_DWIM_TARGET_NIL, DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, DIRED_DWIM_TARGET_RECENT, &
-              dired_create_destination_dirs, DIRED_CREATE_DESTINATION_DIRS_NIL, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
+              DIRED_DWIM_TARGET_NO, DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, DIRED_DWIM_TARGET_RECENT, &
+              dired_create_destination_dirs, DIRED_CREATE_DESTINATION_DIRS_NEVER, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
               DIRED_CREATE_DESTINATION_DIRS_ASK, dired_create_destination_dirs_on_trailing_dirsep, &
               dired_do_revert_buffer, dired_create_empty_file_in_current_directory, &
               dired_compress_file_default_suffix, dired_compress_directory_default_suffix, dired_compress_suffix_type, &
@@ -1036,10 +1040,10 @@ module fortmacs
               comment_quote_nested, comment_quote_nested_function, comment_continue, comment_add, &
               comment_style, comment_padding, comment_inline_offset, comment_multi_line, &
               comment_empty_lines, comment_setup_function, comment_auto_fill_only_comments, &
-              COMMENT_USE_SYNTAX_NIL, COMMENT_USE_SYNTAX_T, COMMENT_USE_SYNTAX_UNDECIDED, &
+              COMMENT_USE_SYNTAX_NO, COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED, &
               COMMENT_STYLE_PLAIN, COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, &
               COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
-              COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NIL, COMMENT_EMPTY_LINES_T, &
+              COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NO, COMMENT_EMPTY_LINES_ALWAYS, &
               COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
     public :: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
               conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
@@ -1066,8 +1070,8 @@ module fortmacs
               f90_critical_indent, f90_continuation_indent, f90_comment_region, f90_indented_comment_re, &
               f90_directive_comment_re, f90_beginning_ampersand, f90_smart_end, f90_smart_end_names, &
               f90_break_delimiters, f90_break_before_delimiters, f90_auto_keyword_case, f90_leave_line_no, &
-              f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NIL, &
-              F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
+              f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NO, &
+              F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NONE, F90_KEYWORD_CASE_DOWNCASE_WORD, &
               F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
     public :: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions, forward_expression_function
     public :: sh_ancestor_table, sh_alias_table, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
@@ -1083,13 +1087,13 @@ module fortmacs
               sh_backslash_align, sh_indent_supported, sh_make_vars_local, sh_indent_after_continuation, &
               sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
               sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
-              SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
+              SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NO, &
+              SH_CONTINUATION_DEEPER, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
               sh_style_type, sh_var_list
     public :: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
               executable_prefix_env, executable_chmod, executable_self_display, &
               executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
-              EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
+              EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, EXECUTABLE_CHMOD_NONE
     public :: before_save_hook, after_save_hook, write_file_functions
     public :: fill_paragraph_function, fill_paragraph_handle_comment
     public :: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, help_event_list, &

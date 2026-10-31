@@ -49,7 +49,7 @@ module test_minibuf_fm
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text, &
                            ring_bell_hook
     use keymap_fm, only: current_global_map
-    use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_T, &
+    use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_YES, &
                              last_minibuffer_message
     use dired_fm, only: file_name_completion, file_name_all_completions
     use frame_fm, only: selected_frame, frame_selected_window_ref
@@ -670,7 +670,7 @@ contains
         buffers(cur)%directory = "/"
         insert_default_directory = .false.
         call type_keys("o n TAB RET")
-        call read_file_name("File: ", name, st, dir=dir, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("File: ", name, st, dir=dir, mustmatch=REQUIRE_MATCH_YES)
         insert_default_directory = .true.
         call check(error, st%ok() .and. name == "only-file.txt", name)
         if (allocated(error)) return
@@ -1340,18 +1340,18 @@ contains
         foo = strings([character(len=6) :: "foobar", "foobaz"])
         ! TAB completes as far as possible.
         call type_keys("f TAB <f9> r RET")
-        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_T)
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_YES)
         call check(error, recorded(1)%contents == "fooba" .and. answer == "foobar", answer)
         if (allocated(error)) return
         ! RET completes first when that makes the input a match.
         nrecorded = 0
         call type_keys("foobaz RET")
-        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_T)
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_YES)
         call check(error, answer == "foobaz", answer)
         if (allocated(error)) return
         ! No match: RET doesn't exit.
         call type_keys("x RET <f9> C-g")
-        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_T)
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_YES)
         call check(error, st%code == FM_QUIT .and. recorded(1)%s == " [No match]", recorded(1)%s)
         if (allocated(error)) return
         ! Without REQUIRE-MATCH, RET takes any input; empty gives the default.

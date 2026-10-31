@@ -35,7 +35,7 @@ module test_simple_shell_fm
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
     use simple_fm, only: shell_command, shell_command_on_region, shell_command_dont_erase_buffer, push_mark, &
-                         deactivate_mark, shell_command_buffer_name, DONT_ERASE_NIL, DONT_ERASE_ERASE, &
+                         deactivate_mark, shell_command_buffer_name, DONT_ERASE_NO, DONT_ERASE_ERASE, &
                          DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
     use window_fm, only: get_buffer_window
     implicit none(type, external)
@@ -43,7 +43,7 @@ module test_simple_shell_fm
 
     public :: collect_simple_shell_fm
 
-    integer, parameter :: SAVE_POS(5) = [DONT_ERASE_ERASE, DONT_ERASE_NIL, DONT_ERASE_BEG_LAST_OUT, &
+    integer, parameter :: SAVE_POS(5) = [DONT_ERASE_ERASE, DONT_ERASE_NO, DONT_ERASE_BEG_LAST_OUT, &
                                          DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT]
 
 contains
@@ -147,7 +147,7 @@ contains
                 else
                     if (SAVE_POS(k) == DONT_ERASE_ERASE) then
                         expected = str
-                    else if (SAVE_POS(k) == DONT_ERASE_NIL) then
+                    else if (SAVE_POS(k) == DONT_ERASE_NO) then
                         if (output_is_current) then
                             expected = str//str
                         else
@@ -167,7 +167,7 @@ contains
             if (allocated(error)) exit
         end do
 
-        shell_command_dont_erase_buffer = DONT_ERASE_NIL
+        shell_command_dont_erase_buffer = DONT_ERASE_NO
         call kill_buffer(caller, st)
         if (is_buffer_live(output)) call kill_buffer(output, st)
     end subroutine with_dont_erase_buffer

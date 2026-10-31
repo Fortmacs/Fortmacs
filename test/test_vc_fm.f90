@@ -51,7 +51,7 @@ module test_vc_fm
     use bindings_fm, only: init_bindings
     use vc_hooks_fm, only: vc_string_type, vc_backend, vc_registered, vc_state, vc_working_revision, &
                            vc_checkout_model, vc_file_clearprops, vc_backends, vc_backend_named, vc_clear_context, &
-                           vc_handled_backends, VC_STATE_NIL, VC_UNREGISTERED, VC_ADDED, VC_UP_TO_DATE, VC_EDITED, &
+                           vc_handled_backends, VC_STATE_UNKNOWN, VC_UNREGISTERED, VC_ADDED, VC_UP_TO_DATE, VC_EDITED, &
                            VC_MODEL_IMPLICIT
     use vc_dispatcher_fm, only: vc_do_command, vc_exec_after, vc_action_type, VC_DEST_CURRENT, VC_DEST_DISCARD, &
                                 VC_OKSTATUS_ASYNC
@@ -597,25 +597,25 @@ contains
         body: block
             tmp_name = tdir()//"foo"
             ! Check state of a nonexistent file.
-            call check(error, vc_state(tmp_name) == VC_STATE_NIL, "nonexistent")
+            call check(error, vc_state(tmp_name) == VC_STATE_UNKNOWN, "nonexistent")
             if (allocated(error)) exit body
             ! Write a new file.  Check state.
             call write_file(tmp_name, "foo")
             s = vc_state(tmp_name, git_b())
-            call check(error, s == VC_STATE_NIL .or. s == VC_UNREGISTERED, "new file")
+            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_UNREGISTERED, "new file")
             if (allocated(error)) exit body
             ! Register a file.  Check state.
             fs%backend = git_b()
             fs%files = strings("foo")
             call vc_register(st, fs)
             s = vc_state(tmp_name)
-            call check(error, s == VC_STATE_NIL .or. s == VC_ADDED .or. s == VC_UP_TO_DATE, "registered")
+            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_ADDED .or. s == VC_UP_TO_DATE, "registered")
             if (allocated(error)) exit body
             ! Unregister the file.  Check state.
             call vc_backends(git_b())%unregister(tmp_name, st)
             call vc_file_clearprops(tmp_name)
             s = vc_state(tmp_name, git_b())
-            call check(error, s == VC_STATE_NIL .or. s == VC_UNREGISTERED, "unregistered")
+            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_UNREGISTERED, "unregistered")
         end block body
 
         call teardown(h)

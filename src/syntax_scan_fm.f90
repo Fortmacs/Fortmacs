@@ -619,7 +619,7 @@ contains
             do
                 call internalize_parse_state(state)
                 call scan_expressions_forward(state, subprogram_start, subprogram_start_byte, comment_end, -huge(0_int64) - 1, &
-                                              .false., COMMENTSTOP_NIL)
+                                              .false., COMMENTSTOP_NO)
                 subprogram_start = comment_end
 
                 if (.not. adjusted) then
@@ -1901,7 +1901,7 @@ contains
     ! We won't reach this depth.
     target = -huge(0_int64) - 1
     if (present(targetdepth)) target = targetdepth
-    stop_at_comments = COMMENTSTOP_NIL
+    stop_at_comments = COMMENTSTOP_NO
     if (present(commentstop)) stop_at_comments = commentstop
     status = status_type()
     allocate (state%open_parens(0))

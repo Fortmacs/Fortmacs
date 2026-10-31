@@ -50,7 +50,7 @@ module novice_fm
     use callint_fm, only: call_interactively, is_command, find_command, command_type
     use character_fm, only: CHAR_META
     use help_fm, only: substitute_command_keys, documentation_hook
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use minibuf_fm, only: completion_obarray_table
     use rmc_fm, only: rmc_choice_type, read_multiple_choice
     implicit none(type, external)
@@ -376,7 +376,7 @@ contains
         type(status_type), intent(out) :: status
 
         call completing_read(prompt, completion_obarray_table(), name, status, is_command, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
     end subroutine read_command
 
     recursive subroutine cmd_enable_command(status)

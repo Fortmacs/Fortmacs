@@ -60,7 +60,7 @@ module elec_pair_fm
                          scan_expressions, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
                          forward_comment, ST_STRING_STYLE
     use subr_fm, only: looking_back
-    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, is_use_region, mark, newline, &
+    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NO, is_use_region, mark, newline, &
                          backward_delete_char_untabify
     use modes_fm, only: minor_modes
     use electric_fm, only: electric_after_char_pos
@@ -106,7 +106,7 @@ module elec_pair_fm
     integer, parameter, public :: SYNTAX_STR = -2
 
     !> Values of `electric_pair_skip_whitespace'.
-    integer, parameter, public :: ELECTRIC_PAIR_SKIP_WHITESPACE_NIL = 0, ELECTRIC_PAIR_SKIP_WHITESPACE_T = 1, &
+    integer, parameter, public :: ELECTRIC_PAIR_SKIP_WHITESPACE_NO = 0, ELECTRIC_PAIR_SKIP_WHITESPACE_YES = 1, &
                                   ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP = 2
 
     abstract interface
@@ -213,19 +213,19 @@ module elec_pair_fm
     logical, public :: electric_pair_open_newline_between_pairs = .true.
 
     !> Whether typing a closing delimiter moves point over whitespace.
-    !> If `ELECTRIC_PAIR_SKIP_WHITESPACE_T' and point is separated from a
+    !> If `ELECTRIC_PAIR_SKIP_WHITESPACE_YES' and point is separated from a
     !> closing delimiter only by whitespace, then typing a closing delimiter
     !> of the same type does not insert that character but instead moves
     !> point to immediately after the already present closing delimiter.  If
     !> the value of this variable is `ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP',
     !> then the whitespace moved over is deleted.  If the value is
-    !> `ELECTRIC_PAIR_SKIP_WHITESPACE_NIL', typing a closing delimiter simply
+    !> `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', typing a closing delimiter simply
     !> inserts it at point.
     !>
     !> The specific kind of whitespace skipped is given by the variable
     !> `electric_pair_skip_whitespace_chars'.  Port of elec-pair.el
     !> electric-pair-skip-whitespace (no function form).
-    integer, public :: electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_T
+    integer, public :: electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_YES
 
     !> Whitespace characters considered by `electric_pair_skip_whitespace'.
     !> Port of elec-pair.el electric-pair-skip-whitespace-chars.
@@ -233,7 +233,7 @@ module elec_pair_fm
 
     !> Function to use to move point forward over whitespace.
     !> Before attempting a skip, if `electric_pair_skip_whitespace' is
-    !> not `ELECTRIC_PAIR_SKIP_WHITESPACE_NIL', this function is called.  It
+    !> not `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', this function is called.  It
     !> moves point to a new buffer position, presumably skipping only
     !> whitespace in between.  Port of elec-pair.el
     !> electric-pair-skip-whitespace-function (one global value).
@@ -583,7 +583,7 @@ contains
         saved_blink = blink_matching_paren
         saved_mode = minor_modes%electric_pair_mode%state%value
         last_command_event = make_fixnum(int(char, int64))
-        blink_matching_paren = BLINK_MATCHING_PAREN_NIL
+        blink_matching_paren = BLINK_MATCHING_PAREN_NO
         minor_modes%electric_pair_mode%state%value = .false.
         call self_insert_command(times, int(char, int64), status)
         last_command_event = saved_event
@@ -1014,7 +1014,7 @@ contains
         end if
 
         ! Skip self.
-        skip_whitespace_info = ELECTRIC_PAIR_SKIP_WHITESPACE_NIL
+        skip_whitespace_info = ELECTRIC_PAIR_SKIP_WHITESPACE_NO
 
         if (is_any(syntax, ')"$')) then
             ok = info%unconditional
@@ -1031,7 +1031,7 @@ contains
 
                 if (.not. (info%unconditional .and. syntax == iachar('"'))) then
                     skip_whitespace_info = electric_pair_skip_whitespace
-                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NIL .and. &
+                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NO .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
                 end if
 
@@ -1041,7 +1041,7 @@ contains
                 if (skip) then
                     ! This is too late: rather than insert&delete we'd want
                     ! to only skip (or insert in overwrite mode).
-                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NIL .and. &
+                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NO .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
 
                     if (skip_whitespace_info == ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP) then

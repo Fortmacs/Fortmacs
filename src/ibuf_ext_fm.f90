@@ -54,7 +54,7 @@ submodule(ibuffer_fm) ibuf_ext_fm
     use keyboard_fm, only: last_command, post_command_hook
     use dispnew_fm, only: is_frame_or_buffer_changed, frame_buffer_state_type
     use minibuf_fm, only: read_from_minibuffer, is_minibuffer
-    use minibuffer_fm, only: completing_read, read_buffer, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, read_buffer, REQUIRE_MATCH_YES
     use minibuf_table_fm, only: completion_table_type, TABLE_LIST
     use replace_fm, only: occur_read_primary_args, occur_1, occur_source_type, query_replace, query_replace_regexp, &
                           query_replace_read_args
@@ -801,7 +801,7 @@ contains
         op_command = command
         op%opstring = "Shell command executed on"
         op%before => maybe_erase_shell_cmd_output
-        op%modifier_p = IBUFFER_MODIFIER_NIL
+        op%modifier_p = IBUFFER_MODIFIER_NEVER
         op%body => shell_command_pipe_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_shell_command_pipe
@@ -825,7 +825,7 @@ contains
         type(status_type) :: st
 
         if (mark == achar(0) .or. buf%index < 0) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         here = current_buffer()
         call get_buffer_create(shell_command_buffer_name, out_buf, status)
         if (.not. status%ok()) return
@@ -846,7 +846,7 @@ contains
         op%opstring = "Buffer contents replaced in"
         op%active_opstring = "replace buffer contents in"
         op%dangerous = .true.
-        op%modifier_p = IBUFFER_MODIFIER_T
+        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
         op%body => shell_command_pipe_replace_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_shell_command_pipe_replace
@@ -869,7 +869,7 @@ contains
         type(value_type) :: exit_value
 
         if (mark == achar(0)) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         call call_shell_region(point_min(), point_max(), op_command, .true., exit_value, status, "", buf)
     end subroutine shell_command_pipe_replace_body
 
@@ -883,7 +883,7 @@ contains
         op_command = command
         op%opstring = "Shell command executed on"
         op%before => maybe_erase_shell_cmd_output
-        op%modifier_p = IBUFFER_MODIFIER_NIL
+        op%modifier_p = IBUFFER_MODIFIER_NEVER
         op%body => shell_command_file_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_shell_command_file
@@ -909,7 +909,7 @@ contains
         logical :: modified
 
         if (mark == achar(0)) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         file = ""
         call is_buffer_modified(buf, modified, st)
         if (.not. modified .and. allocated(buffers(cur)%filename)) file = buffers(cur)%filename
@@ -938,7 +938,7 @@ contains
         type(ibuffer_op_type) :: op
 
         op%opstring = "renamed"
-        op%modifier_p = IBUFFER_MODIFIER_T
+        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
         op%body => rename_uniquely_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_rename_uniquely
@@ -951,7 +951,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (mark == achar(0) .or. buf%index < 0) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         status = status_type()
         call rename_uniquely()
     end subroutine rename_uniquely_body
@@ -978,7 +978,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (mark == achar(0) .or. buf%index < 0) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         call revert_buffer(status, ignore_auto=.true., noconfirm=.true.)
     end subroutine revert_body
 
@@ -1022,7 +1022,7 @@ contains
         logical :: saved_fold
 
         if (mark == achar(0)) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         call current_window_configuration(config)
         call switch_to_buffer(buffers(buf%index)%name, status)
 
@@ -1121,7 +1121,7 @@ contains
         logical :: saved_fold
 
         if (mark == achar(0)) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         call current_window_configuration(config)
         call switch_to_buffer(buffers(buf%index)%name, status)
 
@@ -1516,7 +1516,7 @@ contains
         character, intent(in) :: mark
 
         if (buf%index < 0 .or. mark == achar(0)) continue
-        r = MAP_KILL
+        r = IBUFFER_OP_KILL
     end function kill_line
 
     !> Move point to the buffer whose name is NAME.
@@ -1597,9 +1597,9 @@ contains
 
             table%kind = TABLE_LIST
             table%list = make_list(names)
-            call completing_read("Jump to buffer: ", table, name, status, require_match=REQUIRE_MATCH_T)
+            call completing_read("Jump to buffer: ", table, name, status, require_match=REQUIRE_MATCH_YES)
         else
-            call read_buffer("Jump to buffer: ", name, status, require_match=REQUIRE_MATCH_T)
+            call read_buffer("Jump to buffer: ", name, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -1921,12 +1921,12 @@ contains
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
 
-        r = MAP_NIL
+        r = IBUFFER_OP_SKIPPED
         if (mark == achar(0)) continue
 
         if (mark_on_fn(buf)) then
             call ibuffer_set_mark_1(map_mark)
-            r = MAP_T
+            r = IBUFFER_OP_DONE
         end if
     end function mark_if
 
@@ -2140,9 +2140,9 @@ contains
 
         if (len(default) > 0) then
             prompt = "Mark by major mode (default "//default//"): "
-            call completing_read(prompt, table, mode, status, require_match=REQUIRE_MATCH_T, default=default)
+            call completing_read(prompt, table, mode, status, require_match=REQUIRE_MATCH_YES, default=default)
         else
-            call completing_read("Mark by major mode: ", table, mode, status, require_match=REQUIRE_MATCH_T)
+            call completing_read("Mark by major mode: ", table, mode, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         if (status%ok()) call ibuffer_mark_by_mode(mode, status)
@@ -2355,7 +2355,7 @@ contains
 
         map_nstates = map_nstates + 1
         map_states(map_nstates)%buffer = buf
-        r = MAP_T
+        r = IBUFFER_OP_DONE
     end function push_buffer
 
     recursive subroutine cmd_ibuffer_do_occur(status)
@@ -2957,7 +2957,7 @@ contains
             return
         end if
 
-        call completing_read(prompt, names_table(saved_filter_names()), name, status, require_match=REQUIRE_MATCH_T)
+        call completing_read(prompt, names_table(saved_filter_names()), name, status, require_match=REQUIRE_MATCH_YES)
     end subroutine read_saved_filter_name
 
     module procedure ibuffer_save_filters
@@ -3167,7 +3167,7 @@ contains
             names(n)%s = trim(locals(k)%hidden_groups(j))
         end do
 
-        call completing_read(msg, names_table(names(1:n)), name, status, require_match=REQUIRE_MATCH_T)
+        call completing_read(msg, names_table(names(1:n)), name, status, require_match=REQUIRE_MATCH_YES)
     end subroutine read_filter_group_name
 
     module procedure ibuffer_decompose_filter_group
@@ -3369,7 +3369,7 @@ contains
         end if
 
         call completing_read("Delete saved filter group: ", names_table(saved_group_names()), name, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (status%ok()) call ibuffer_delete_saved_filter_groups(name, status)
     end subroutine cmd_ibuffer_delete_saved_filter_groups
 
@@ -3406,7 +3406,7 @@ contains
             name = ibuffer_saved_filter_groups%entries(1)%name
         else
             call completing_read("Switch to saved filter group: ", names_table(saved_group_names()), name, status, &
-                                 require_match=REQUIRE_MATCH_T)
+                                 require_match=REQUIRE_MATCH_YES)
             if (.not. status%ok()) return
         end if
 
@@ -3626,15 +3626,15 @@ contains
 
         if (modes_only .and. len(default) > 0) then
             call completing_read_multiple(prompt, table, results, status, predicate=is_mode_name, &
-                                          require_match=REQUIRE_MATCH_T, default=default)
+                                          require_match=REQUIRE_MATCH_YES, default=default)
         else if (modes_only) then
             call completing_read_multiple(prompt, table, results, status, predicate=is_mode_name, &
-                                          require_match=REQUIRE_MATCH_T)
+                                          require_match=REQUIRE_MATCH_YES)
         else if (len(default) > 0) then
-            call completing_read_multiple(prompt, table, results, status, require_match=REQUIRE_MATCH_T, &
+            call completing_read_multiple(prompt, table, results, status, require_match=REQUIRE_MATCH_YES, &
                                           default=default)
         else
-            call completing_read_multiple(prompt, table, results, status, require_match=REQUIRE_MATCH_T)
+            call completing_read_multiple(prompt, table, results, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -3851,7 +3851,7 @@ contains
             names(j)%s = trim(ibuffer_filtering_table(j)%description)
         end do
 
-        call completing_read("Filter by: ", names_table(names), match, status, require_match=REQUIRE_MATCH_T)
+        call completing_read("Filter by: ", names_table(names), match, status, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         i = 0
 
@@ -3945,7 +3945,7 @@ contains
         type(status_type) :: st
 
         files(1) = ibuffer_filename(".*")
-        call ibuffer(status, other_window_p=.true., name="*Ibuffer-bs*", qualifiers=files, shrink=IBUFFER_SHRINK_T)
+        call ibuffer(status, other_window_p=.true., name="*Ibuffer-bs*", qualifiers=files, shrink=IBUFFER_SHRINK_YES)
         if (.not. status%ok()) return
         call keymap_set(current_local_map(), "a", "ibuffer_bs_toggle_all", st)
     end subroutine ibuffer_bs_show

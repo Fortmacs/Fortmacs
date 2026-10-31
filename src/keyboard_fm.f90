@@ -372,14 +372,14 @@ module keyboard_fm
     !> macros.c:executing_kbd_macro_iterations.
     integer(int64), public, protected :: executing_kbd_macro_iterations = 0
     !> Values of `defining_kbd_macro': nil, t and `append'.
-    integer, parameter, public :: DEFINING_KBD_MACRO_NIL = 0, DEFINING_KBD_MACRO_T = 1, DEFINING_KBD_MACRO_APPEND = 2
+    integer, parameter, public :: DEFINING_KBD_MACRO_NO = 0, DEFINING_KBD_MACRO_YES = 1, DEFINING_KBD_MACRO_APPEND = 2
 
-    !> Not `DEFINING_KBD_MACRO_NIL' while a keyboard macro is being defined.
+    !> Not `DEFINING_KBD_MACRO_NO' while a keyboard macro is being defined.
     !> Don't set this!
     !> The value is `DEFINING_KBD_MACRO_APPEND' while appending to the
     !> definition of an existing macro.  Port of macros.c defining-kbd-macro
-    !> (DEFINING_KBD_MACRO_NIL for nil, DEFINING_KBD_MACRO_T for t).
-    integer, public :: defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+    !> (DEFINING_KBD_MACRO_NO for nil, DEFINING_KBD_MACRO_YES for t).
+    integer, public :: defining_kbd_macro = DEFINING_KBD_MACRO_NO
 
     !> Last kbd macro defined, as an array of events; not allocated if none
     !> defined.  Port of macros.c last-kbd-macro (a vector: no string
@@ -646,7 +646,7 @@ contains
     !> Whether a keyboard macro is being defined (`defining_kbd_macro' is
     !> not nil).  Not a port.
     logical function is_defining_kbd_macro()
-        is_defining_kbd_macro = defining_kbd_macro /= DEFINING_KBD_MACRO_NIL
+        is_defining_kbd_macro = defining_kbd_macro /= DEFINING_KBD_MACRO_NO
     end function is_defining_kbd_macro
 
     ! ------------------------------------------------------------------
@@ -877,7 +877,7 @@ contains
     !> Also end any kbd macro being defined.  Port of
     !> keyboard.c:Fdiscard_input.
     subroutine discard_input()
-        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL) then
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
             ! Discard the last command from the macro.
             call cancel_kbd_macro_events()
             call finish_kbd_macro()
@@ -2257,7 +2257,7 @@ contains
         end if
 
         ! Install chars successfully executed in kbd macro.
-        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. nilp(prefix_arg)) call finalize_kbd_macro_chars()
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. nilp(prefix_arg)) call finalize_kbd_macro_chars()
         done = eof
     end subroutine command_loop_step
 

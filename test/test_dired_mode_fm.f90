@@ -51,7 +51,7 @@ module test_dired_mode_fm
                              dired_sort_toggle, dired_unmark_all_files, dired_mark_1, dired_insert_directory, &
                              dired_deletion_confirmer, dired_auto_revert_buffer, dired_always_read_filesystem, &
                              dired_free_space, DIRED_FREE_SPACE_SEPARATE, &
-                             DIRED_LOCALP_NIL, DIRED_LOCALP_T, DIRED_LOCALP_NO_DIR, DIRED_ARG_NIL
+                             DIRED_LOCALP_ABSOLUTE, DIRED_LOCALP_RELATIVE, DIRED_LOCALP_NO_DIR, DIRED_ARG_NONE
     implicit none(type, external)
     private
 
@@ -283,7 +283,7 @@ contains
             call dired_get_filename(file, found, st)
             call check(error, found .and. file == tdir()//"c.el", file)
             if (allocated(error)) exit body
-            call dired_get_filename(file, found, st, DIRED_LOCALP_T)
+            call dired_get_filename(file, found, st, DIRED_LOCALP_RELATIVE)
             call check(error, found .and. file == "c.el", file)
             if (allocated(error)) exit body
             ! A second `dired' of the same directory reuses the buffer.
@@ -371,7 +371,7 @@ contains
             call check(error, dired_goto_file(tdir()//"b.txt", st) > 0, "b.txt still listed")
             if (allocated(error)) exit body
             ! `dired_do_delete' with no marks deletes the file at point.
-            call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
+            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
             call check(error, st%ok() .and. .not. file_exists(tdir()//"b.txt"), format_error(st))
         end block body
 
@@ -680,7 +680,7 @@ contains
                        "same line")
             if (allocated(error)) exit body
             ! After revert, the point must be in 'subdir' line.
-            call dired_get_filename(file, found, st, DIRED_LOCALP_T, .true.)
+            call dired_get_filename(file, found, st, DIRED_LOCALP_RELATIVE, .true.)
             call check(error, found .and. file == "subdir", file)
         end block body
 
@@ -747,7 +747,7 @@ contains
             ! If just empty dirs we shouldn't be prompted.
             call bug27940_tree(.true.)
             call type_keys("x")
-            call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
+            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, marked_count() == 0, "all dirs deleted")
@@ -756,25 +756,25 @@ contains
             ! Answer yes (each time).
             call bug27940_tree(.false.)
             call type_keys(repeat("yes"//achar(13), 5))
-            call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
+            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
             call check(error, marked_count() == 0, "yes: all dirs deleted")
             if (allocated(error)) exit body
             ! Answer no.
             call bug27940_tree(.false.)
             call type_keys(repeat("no"//achar(13), 5))
-            call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
+            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
             call check(error, marked_count() == 5, "no: just the empty dirs deleted")
             if (allocated(error)) exit body
             ! Answer all.
             call bug27940_tree(.false.)
             call type_keys("all"//achar(13))
-            call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
+            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
             call check(error, marked_count() == 0, "all: all dirs deleted")
             if (allocated(error)) exit body
             ! Answer quit.
             call bug27940_tree(.false.)
             call type_keys("quit"//achar(13))
-            call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
+            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
             call check(error, marked_count() == 6, "quit: all empty dirs but zeta-empty-dir deleted")
         end block body
 

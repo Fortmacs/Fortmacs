@@ -41,7 +41,7 @@ module regexp_opt_fm
     !> PAREN of `regexp_opt': nil (a shy group if a postfix operator
     !> needs one), t (a group), `words' (\<\( ... \)\>) and `symbols'
     !> (\_<\( ... \)\_>).
-    integer, parameter, public :: REGEXP_OPT_NIL = 0, REGEXP_OPT_T = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_SYMBOLS = 3
+    integer, parameter, public :: REGEXP_OPT_SHY = 0, REGEXP_OPT_GROUP = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_SYMBOLS = 3
 
     !> A regexp that never matches anything.  Port of subr.el
     !> regexp-unmatchable.
@@ -127,10 +127,10 @@ contains
     !> REGEXP_OPT_SYMBOLS
     !>     the resulting regexp is surrounded by \_<\( and \)\_>.
     !>
-    !> REGEXP_OPT_T
+    !> REGEXP_OPT_GROUP
     !>     the resulting regexp is surrounded by \( and \).
     !>
-    !> REGEXP_OPT_NIL (the default)
+    !> REGEXP_OPT_SHY (the default)
     !>     the resulting regexp is surrounded by \(?: and \), if it is
     !>     necessary to ensure that a postfix operator appended to it will
     !>     apply to the whole expression.
@@ -148,13 +148,13 @@ contains
         integer :: p
         logical :: has_open
 
-        p = REGEXP_OPT_NIL
+        p = REGEXP_OPT_SHY
         if (present(paren)) p = paren
         has_open = .true.
 
         if (present(open)) then
             op = open
-        else if (p /= REGEXP_OPT_NIL) then
+        else if (p /= REGEXP_OPT_SHY) then
             op = "\("
         else
             has_open = .false.

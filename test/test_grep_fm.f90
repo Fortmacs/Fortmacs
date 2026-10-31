@@ -51,8 +51,8 @@ module test_grep_fm
                           compilation_message_info_type, compilation_message_counts
     use grep_fm, only: grep_change_to_grep_edit_mode, grep_edit_save_changes
     use grep_fm, only: grep, grep_mode, grep_compute_defaults, rgrep_default_command, grep_expand_template, &
-                       grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_NIL, GREP_ALWAYS, &
-                       GREP_AUTO
+      grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
+                       GREP_HIGHLIGHT_MATCHES_AUTO
     use simple_fm, only: next_error
     implicit none(type, external)
     private
@@ -275,7 +275,7 @@ contains
         saved_fold = case_fold_search%value
         saved_highlight = grep_highlight_matches
         case_fold_search = .true.
-        grep_highlight_matches = GREP_NIL
+        grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_NO
         call check(error, grep_expand_template("grep <X> <C> -nH <R> <F>", "foo", "*.c", excl=" --exclude=x"), &
                    "grep  --exclude=x -i -nH foo *.c")
 
@@ -285,13 +285,13 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            grep_highlight_matches = GREP_ALWAYS
+            grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_ALWAYS
             call check(error, grep_expand_template("find <D> <X> -type f <F> -exec grep <C> <R> {} +", "x", "-name y", &
                                                    "/tmp/"), "find /tmp/  -type f -name y -exec grep --color=always -i x {} +")
         end if
 
         if (.not. allocated(error)) then
-            grep_highlight_matches = GREP_AUTO
+            grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO
             call check(error, grep_expand_template("grep <C> <R>", "x", more_opts=[character(len=4) :: "-w"]), &
                        "grep --color=auto -i -w x")
         end if

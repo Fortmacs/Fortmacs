@@ -70,7 +70,7 @@ module recentf_fm
     use keyboard_fm, only: kill_emacs_hook
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use minibuf_table_fm, only: completion_table_type, TABLE_LIST
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use easy_mmode_fm, only: mode_called_interactively
     use xdisp_fm, only: message
     use namelist_fm, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, NAMELIST_STRING
@@ -548,7 +548,7 @@ contains
         table%kind = TABLE_LIST
         table%list = make_list(names)
         table%category = "recentf"
-        call completing_read("Open recent file: ", table, file, status, require_match=REQUIRE_MATCH_T)
+        call completing_read("Open recent file: ", table, file, status, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call recentf_menu_action(file, status)
     end subroutine recentf_open

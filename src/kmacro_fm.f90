@@ -63,7 +63,7 @@ module kmacro_fm
     use buffer_fm, only: is_buffer_live, buffers
     use marker_fm, only: marker_position
     use insdel_fm, only: insert
-    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
+    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
                            is_executing_kbd_macro, start_kbd_macro, end_kbd_macro, execute_kbd_macro, this_command, &
                            real_this_command, last_command, this_command_keys, last_input_event, last_message, &
                            read_event, unread_command_events, set_transient_map, redisplay_hook, is_defining_kbd_macro, &
@@ -99,8 +99,10 @@ module kmacro_fm
     !> PRED: =, < and >.
     integer, parameter, public :: KMACRO_PRED_EQUAL = 0, KMACRO_PRED_LESS = 1, KMACRO_PRED_GREATER = 2
 
-    !> Values of `kmacro_call_macro''s NO_REPEAT: nil, t and `repeating'.
-    integer, parameter, public :: KMACRO_NO_REPEAT_NIL = 0, KMACRO_NO_REPEAT_T = 1, KMACRO_NO_REPEAT_REPEATING = 2
+    !> Values of `kmacro_call_macro''s REPEAT: offer to repeat the macro with the
+    !> last key (upstream NO-REPEAT nil), don't (NO-REPEAT t), or called from
+    !> the repeat (`repeating').
+    integer, parameter, public :: KMACRO_REPEAT_YES = 0, KMACRO_REPEAT_NO = 1, KMACRO_REPEAT_REPEATING = 2
 
     !> Keyboard macro: its KEYS, COUNTER and FORMAT (upstream's `kmacro'
     !> oclosure).  ID tells macros apart, as the identity of the
@@ -1133,11 +1135,11 @@ contains
     !> command.  See `kmacro_call_repeat_key' and `kmacro_call_repeat_with_arg'
     !> for details on how to adjust or disable this behavior.  Port of
     !> kmacro.el:kmacro-call-macro (ARG is the prefix argument, raw or
-    !> numeric; NO_REPEAT one of the KMACRO_NO_REPEAT_ values).
-    recursive subroutine kmacro_call_macro(arg, status, no_repeat, end_macro, macro)
+    !> numeric; REPEAT one of the KMACRO_REPEAT_ values).
+    recursive subroutine kmacro_call_macro(arg, status, repeat, end_macro, macro)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: no_repeat
+        integer, intent(in), optional :: repeat
         logical, intent(in), optional :: end_macro
         type(value_type), intent(in), optional :: macro(:)
         type(value_type), allocatable :: saved(:), events(:), m(:)
@@ -1148,15 +1150,15 @@ contains
         integer :: nr
 
         status = status_type()
-        nr = KMACRO_NO_REPEAT_NIL
-        if (present(no_repeat)) nr = no_repeat
+        nr = KMACRO_REPEAT_YES
+        if (present(repeat)) nr = repeat
         ending = .false.
         if (present(end_macro)) ending = end_macro
         repeat_key = nil()
 
-        if (nr == KMACRO_NO_REPEAT_REPEATING) then
+        if (nr == KMACRO_REPEAT_REPEATING) then
             repeat_key = last_input_event
-        else if (nr == KMACRO_NO_REPEAT_NIL .and. allocated(this_command_keys)) then
+        else if (nr == KMACRO_REPEAT_YES .and. allocated(this_command_keys)) then
             if (size(this_command_keys) > 1) repeat_key = last_input_event
         end if
 
@@ -1308,14 +1310,14 @@ contains
     !> With numeric prefix ARG, repeat macro that many times.
     !> With \[universal_argument], call second macro in macro ring.  Port of
     !> kmacro.el:kmacro-end-or-call-macro.
-    recursive subroutine kmacro_end_or_call_macro(arg, status, no_repeat)
+    recursive subroutine kmacro_end_or_call_macro(arg, status, repeat)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: no_repeat
+        integer, intent(in), optional :: repeat
         integer :: nr
 
-        nr = KMACRO_NO_REPEAT_NIL
-        if (present(no_repeat)) nr = no_repeat
+        nr = KMACRO_REPEAT_YES
+        if (present(repeat)) nr = repeat
         status = status_type()
 
         if (is_defining_kbd_macro()) then
@@ -1343,7 +1345,7 @@ contains
         logical :: found
 
         call kmacro_get_repeat_prefix(keys, found)
-        call kmacro_end_or_call_macro(arg, status, KMACRO_NO_REPEAT_T)
+        call kmacro_end_or_call_macro(arg, status, KMACRO_REPEAT_NO)
         if (.not. status%ok()) return
         if (found) call kmacro_repeat_on_last_key(keys, status)
     end subroutine kmacro_end_or_call_macro_repeat
@@ -1352,10 +1354,10 @@ contains
     !> With numeric prefix ARG, repeat macro that many times.
     !> Zero argument means repeat until there is an error.  Port of
     !> kmacro.el:kmacro-end-and-call-macro (no mouse EVENT).
-    recursive subroutine kmacro_end_and_call_macro(arg, status, no_repeat)
+    recursive subroutine kmacro_end_and_call_macro(arg, status, repeat)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: no_repeat
+        integer, intent(in), optional :: repeat
 
         status = status_type()
 
@@ -1364,7 +1366,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call kmacro_call_macro(arg, status, no_repeat)
+        call kmacro_call_macro(arg, status, repeat)
     end subroutine kmacro_end_and_call_macro
 
     ! ------------------------------------------------------------------
@@ -1546,9 +1548,9 @@ contains
 
         if (repeat_has_macro) then
             m = repeat_macro
-            call kmacro_call_macro(ra, status, KMACRO_NO_REPEAT_REPEATING, .false., m)
+            call kmacro_call_macro(ra, status, KMACRO_REPEAT_REPEATING, .false., m)
         else
-            call kmacro_call_macro(ra, status, KMACRO_NO_REPEAT_REPEATING, .false.)
+            call kmacro_call_macro(ra, status, KMACRO_REPEAT_REPEATING, .false.)
         end if
     end subroutine cmd_kmacro_call_macro_repeat
 

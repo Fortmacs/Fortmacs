@@ -45,7 +45,7 @@ module crm_fm
     use minibuffer_fm, only: completing_read, completion_table_with_context, completion_in_region, &
                              minibuffer_completion_help, completion_complete_and_exit, completion_do_completion, &
                              minibuffer_completion_table, minibuffer_completion_predicate, exit_minibuffer, &
-                             minibuffer_local_completion_map, minibuffer_local_must_match_map, REQUIRE_MATCH_NIL
+                             minibuffer_local_completion_map, minibuffer_local_must_match_map, REQUIRE_MATCH_NO
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     implicit none(type, external)
     private
@@ -292,12 +292,12 @@ contains
         character(len=:), allocatable :: input
         integer :: match
 
-        match = REQUIRE_MATCH_NIL
+        match = REQUIRE_MATCH_NO
         if (present(require_match)) match = require_match
         saved_table = crm_completion_table
         saved_map = crm_map
 
-        if (match /= REQUIRE_MATCH_NIL) then
+        if (match /= REQUIRE_MATCH_NO) then
             crm_map = crm_local_must_match_map
         else
             crm_map = crm_local_completion_map

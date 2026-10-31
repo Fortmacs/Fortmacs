@@ -42,8 +42,8 @@ module test_dired_aux_fm
                              dired_deletion_confirmer, dired_auto_revert_buffer, dired_mark_files_regexp, &
                              dired_copy_file_recursive, dired_rename_file, dired_do_create_files, dired_copy_file, &
                              dired_create_empty_file, dired_unmark_all_files, dired_create_destination_dirs, &
-                             DIRED_CREATE_DESTINATION_DIRS_NIL, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
-                             DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NIL, DIRED_LOCALP_NO_DIR, &
+                             DIRED_CREATE_DESTINATION_DIRS_NEVER, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
+                             DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NONE, DIRED_LOCALP_NO_DIR, &
                              dired_file_creator_proc
     implicit none(type, external)
     private
@@ -108,7 +108,7 @@ contains
         call make_file("b.txt", "beta")
         call make_directory_internal(tdir()//"sub", st)
         dired_auto_revert_buffer = .false.
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
+        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
     end subroutine setup
 
     !> Remove the test directory and the buffers showing it.
@@ -123,7 +123,7 @@ contains
         call show_alone()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         dired_deletion_confirmer => null()
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
+        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
     end subroutine teardown
 
     !> Kill every Dired buffer of the test directory and its subdirectories.
@@ -245,7 +245,7 @@ contains
             if (allocated(error)) exit body
             ! `dired_create_destination_dirs' set to nil.
             call reset()
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
+            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
             call dired_copy_file_recursive(from, to_cp, .false., st)
             call check(error,.not. st%ok(), "nil: copy fails")
             if (allocated(error)) exit body
@@ -307,7 +307,7 @@ contains
             ! (dired-mark-read-file-name gives the deleted target directory)
             call kbd_store_bytes(achar(1)//achar(11)//tdir()//"target-dir"//CR)
             creator => dired_copy_file
-            call dired_do_create_files("copy", creator, DIRED_CREATOR_COPY, "Copy", DIRED_ARG_NIL, 0_int64, "C", st)
+            call dired_do_create_files("copy", creator, DIRED_CREATOR_COPY, "Copy", DIRED_ARG_NONE, 0_int64, "C", st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, file_exists(tdir()//"target-dir/bug30624_file1") .and. &

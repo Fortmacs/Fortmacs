@@ -47,7 +47,7 @@ module diff_fm
     use callint_fm, only: current_prefix_arg
     use subr_fm, only: shell_quote_argument
     use minibuf_fm, only: read_string
-    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_T
+    use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use fileio_fm, only: expand_file_name, file_exists, file_name_directory, file_name_nondirectory, write_region
     use files_fm, only: make_temp_file, file_newest_backup, is_backup_file_name, file_name_sans_versions, &
                         delete_file, revert_buffer_function, temporary_file_directory
@@ -705,12 +705,12 @@ contains
         if (allocated(buffers(cur)%filename)) then
             if (file_exists(buffers(cur)%filename)) then
                 call read_file_name("Diff new file (default "//file_name_nondirectory(buffers(cur)%filename)//"): ", &
-                                    newf, status, default_filename=buffers(cur)%filename, mustmatch=REQUIRE_MATCH_T)
+                                    newf, status, default_filename=buffers(cur)%filename, mustmatch=REQUIRE_MATCH_YES)
             else
-                call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_T)
+                call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_YES)
             end if
         else
-            call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_T)
+            call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -719,10 +719,10 @@ contains
 
         if (found) then
             call read_file_name("Diff original file (default "//file_name_nondirectory(backup)//"): ", oldf, status, &
-                                dir=file_name_directory(backup), default_filename=backup, mustmatch=REQUIRE_MATCH_T)
+                                dir=file_name_directory(backup), default_filename=backup, mustmatch=REQUIRE_MATCH_YES)
         else
             call read_file_name("Diff original file: ", oldf, status, dir=file_name_directory(newf), &
-                                mustmatch=REQUIRE_MATCH_T)
+                                mustmatch=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
@@ -743,7 +743,7 @@ contains
         character(len=:), allocatable :: file, sw
         logical :: given
 
-        call read_file_name("Diff (file with backup): ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("Diff (file with backup): ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call read_diff_switches(sw, given, status)
         if (.not. status%ok()) return
@@ -760,7 +760,7 @@ contains
         character(len=:), allocatable :: name
 
         ! (interactive "bBuffer: ")
-        call read_buffer("Buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_T)
+        call read_buffer("Buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call diff_buffer_with_file(status, get_buffer(name))
     end subroutine cmd_diff_buffer_with_file
@@ -774,14 +774,14 @@ contains
         logical :: given
 
         call read_buffer("Diff new buffer (default "//buffers(cur)%name//"): ", newb, status, def=buffers(cur)%name, &
-                         require_match=REQUIRE_MATCH_T)
+                         require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         ob = other_buffer(current_buffer(), .true.)
         call resolve_buffer(ob, bi, st)
         other = ""
         if (st%ok()) other = buffers(bi)%name
         call read_buffer("Diff original buffer (default "//other//"): ", oldb, status, def=other, &
-                         require_match=REQUIRE_MATCH_T)
+                         require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call read_diff_switches(sw, given, status)
         if (.not. status%ok()) return

@@ -60,11 +60,11 @@ module info_look_fm
     use frame_fm, only: selected_window, selected_frame
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers
     use minibuf_table_fm, only: completion_list_table
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use info_fm, only: info, info_mode, info_goto_node, info_follow_nearest_node, info_find_file, info_current_file, &
                        info_current_node, info_history_variable, set_info_history_variable, info_history_entry_type, &
                        info_history_list, info_node_ref_type, info_fontify_maximum_menu_size, &
-                       INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+                       INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
     implicit none(type, external)
     private
 
@@ -163,14 +163,14 @@ module info_look_fm
 
     ! Whether a mode's cache is initialized: nil, t, or 0 (initialized
     ! but void).
-    integer, parameter :: INIT_NIL = 0, INIT_T = 1, INIT_VOID = 2
+    integer, parameter :: INIT_PENDING = 0, INIT_DONE = 1, INIT_VOID = 2
 
     ! The cached data of a mode (HELP-MODE INITIALIZED COMPLETIONS
     ! REFER-MODES).
     type :: mode_cache_type
         character(len=:), allocatable :: topic
         type(help_mode_type) :: mode
-        integer :: initialized = INIT_NIL
+        integer :: initialized = INIT_PENDING
         type(completion_type), allocatable :: completions(:)
         type(help_mode_type), allocatable :: refer_modes(:)
     end type mode_cache_type
@@ -531,7 +531,7 @@ contains
         integer :: k
 
         k = mode_cache(topic, mode)
-        initialized = INIT_NIL
+        initialized = INIT_PENDING
         if (k > 0) initialized = info_lookup_cache(k)%initialized
     end function initialized
 
@@ -543,7 +543,7 @@ contains
         type(completion_type), allocatable, intent(out) :: completions(:)
         integer :: k, init
 
-        if (initialized(topic, mode) == INIT_NIL) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INIT_PENDING) init = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
 
         if (k > 0) then
@@ -565,7 +565,7 @@ contains
         type(help_mode_type), allocatable, intent(out) :: modes(:)
         integer :: k, init, i, n
 
-        if (initialized(topic, mode) == INIT_NIL) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INIT_PENDING) init = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
         n = 0
 
@@ -893,7 +893,7 @@ contains
 
         names = make_list(elems)
         call completing_read("Major mode whose manuals to search for this "//topic//": ", &
-                             completion_list_table(names), input, status, require_match=REQUIRE_MATCH_T, &
+                             completion_list_table(names), input, status, require_match=REQUIRE_MATCH_YES, &
                              history="info_lookup_history")
         if (.not. status%ok()) return
         mi = 0
@@ -1087,7 +1087,7 @@ contains
                 ! Don't need Index menu fontifications here, and they slow
                 ! down the lookup.
                 saved_size = info_fontify_maximum_menu_size
-                info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+                info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
 
                 if (allocated(info_history_list)) then
                     saved_list = info_history_list
@@ -1190,7 +1190,7 @@ contains
         integer :: i, k, n, sub
 
         init = initialized(topic, mode)
-        if (init /= INIT_NIL) return
+        if (init /= INIT_PENDING) return
         init = INIT_VOID
         allocate (refer(0), completions(0))
 
@@ -1207,9 +1207,9 @@ contains
             call other_modes_of(topic, mode, others)
 
             do i = 1, size(others)
-                if (initialized(topic, others(i)) == INIT_NIL) sub = info_lookup_setup_mode(topic, others(i))
+                if (initialized(topic, others(i)) == INIT_PENDING) sub = info_lookup_setup_mode(topic, others(i))
 
-                if (initialized(topic, others(i)) == INIT_T) then
+                if (initialized(topic, others(i)) == INIT_DONE) then
                     n = size(refer)
                     allocate (tmp(n + 1))
                     tmp(1:n) = refer
@@ -1235,7 +1235,7 @@ contains
                 call move_alloc(joined, completions)
             end do
 
-            init = INIT_T
+            init = INIT_DONE
         end if
 
         if (allocated(info_history_list)) deallocate (info_history_list)
@@ -1284,7 +1284,7 @@ contains
         ignore = ignore_case_of(topic, mode)
         doc_found = .false.
         saved_size = info_fontify_maximum_menu_size
-        info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+        info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
         old = current_buffer()
         call get_buffer_create(" temp-info-look", buffer, st)
         call set_buffer(buffer, st)

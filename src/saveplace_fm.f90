@@ -106,18 +106,18 @@ module saveplace_fm
 
     !> Values of `save_place_version_control': t, nil, `never' and
     !> `nospecial'.
-    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_T = 1, SAVE_PLACE_VERSION_CONTROL_NIL = 0, &
+    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_NUMBERED = 1, SAVE_PLACE_VERSION_CONTROL_EXISTING = 0, &
                                   SAVE_PLACE_VERSION_CONTROL_NEVER = 2, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL = 3
 
     !> Controls whether to make numbered backups of master `save_place'
-    !> file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_T,
+    !> file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_NUMBERED,
     !> _NIL, _NEVER, and _NOSPECIAL.  The first three have the same
     !> meaning that they do for the variable `version_control', and the
     !> final value _NOSPECIAL means just use the value of
     !> `version_control'.  Port of saveplace.el save-place-version-control
     !> (as upstream, writing the file with `write_region' makes no
     !> backups).
-    integer, public :: save_place_version_control = SAVE_PLACE_VERSION_CONTROL_NIL
+    integer, public :: save_place_version_control = SAVE_PLACE_VERSION_CONTROL_EXISTING
 
     !> True means that the `save_place_file' has been loaded.  Port of
     !> saveplace.el save-place-loaded.

@@ -294,7 +294,7 @@ contains
         if (.not. status%ok()) return
 
         do k = 1, size(fileset)
-            call vc_resynch_buffer(fileset(k)%s, buffers(cur)%directory, status, keep=.true., noquery=VC_NOQUERY_T)
+            call vc_resynch_buffer(fileset(k)%s, buffers(cur)%directory, status, keep=.true., noquery=VC_NOQUERY_YES)
             if (.not. status%ok()) return
         end do
 

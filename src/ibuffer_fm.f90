@@ -100,8 +100,8 @@ module ibuffer_fm
                             ibuffer_op_type, ibuffer_show_predicate_type, ibuffer_fontification_type, &
                             ibuffer_directory_abbrev_type, ibuffer_column_proc, ibuffer_summarizer_proc, &
                             ibuffer_sorter_proc, ibuffer_form_proc, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, &
-                            IBUFFER_ALIGN_RIGHT, IBUFFER_OP_NIL, IBUFFER_OP_T, IBUFFER_OP_KILL, IBUFFER_MODIFIER_NIL, &
-                            IBUFFER_MODIFIER_T, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN, ibuffer_filter_type, &
+                            IBUFFER_ALIGN_RIGHT, IBUFFER_OP_SKIPPED, IBUFFER_OP_DONE, IBUFFER_OP_KILL, IBUFFER_MODIFIER_NEVER, &
+                            IBUFFER_MODIFIER_ALWAYS, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN, ibuffer_filter_type, &
                             ibuffer_saved_filters_type, ibuffer_saved_filter_type, ibuffer_filter_groups_type, &
                             ibuffer_saved_filter_groups_type, ibuffer_filter_def_type, ibuffer_filter_formats_type, &
                             ibuffer_filter_format_type, ibuffer_or, ibuffer_and, ibuffer_not, ibuffer_major_mode, &
@@ -151,14 +151,13 @@ module ibuffer_fm
     integer, parameter, public :: IBUFFER_SHOW_LAST_NEVER = 0, IBUFFER_SHOW_LAST_ALWAYS = 1, &
                                   IBUFFER_SHOW_LAST_NOMINI = 2
     !> The values of `ibuffer_use_header_line'.
-    integer, parameter, public :: IBUFFER_HEADER_LINE_NIL = 0, IBUFFER_HEADER_LINE_T = 1, &
+    integer, parameter, public :: IBUFFER_HEADER_LINE_NO = 0, IBUFFER_HEADER_LINE_FILTERS = 1, &
                                   IBUFFER_HEADER_LINE_TITLE = 2
     !> The values of the SHRINK argument of `ibuffer'
     !> (`ibuffer-shrink-to-minimum-size').
-    integer, parameter, public :: IBUFFER_SHRINK_NIL = 0, IBUFFER_SHRINK_T = 1, IBUFFER_SHRINK_ONEWINDOW = 2
+    integer, parameter, public :: IBUFFER_SHRINK_NO = 0, IBUFFER_SHRINK_YES = 1, IBUFFER_SHRINK_ONEWINDOW = 2
 
     ! What a mapping function returns for a buffer (`ibuffer_map_lines').
-    integer, parameter :: MAP_NIL = IBUFFER_OP_NIL, MAP_T = IBUFFER_OP_T, MAP_KILL = IBUFFER_OP_KILL
 
     !> A list of ways to display buffer lines.
     !>
@@ -327,12 +326,12 @@ module ibuffer_fm
     !> ibuffer.el ibuffer-jump-offer-only-visible-buffers.
     logical, public :: ibuffer_jump_offer_only_visible_buffers = .false.
 
-    !> If not IBUFFER_HEADER_LINE_NIL, display a header line.
-    !> If the variable's value is IBUFFER_HEADER_LINE_T, the header line
+    !> If not IBUFFER_HEADER_LINE_NO, display a header line.
+    !> If the variable's value is IBUFFER_HEADER_LINE_FILTERS, the header line
     !> displays the current filters.  For IBUFFER_HEADER_LINE_TITLE,
     !> display the column titles.  Port of ibuffer.el
     !> ibuffer-use-header-line.
-    integer, public :: ibuffer_use_header_line = IBUFFER_HEADER_LINE_T
+    integer, public :: ibuffer_use_header_line = IBUFFER_HEADER_LINE_FILTERS
 
     !> The default directory to use for a new Ibuffer buffer.
     !> If unallocated, inherit the directory of the buffer in which
@@ -519,7 +518,7 @@ module ibuffer_fm
         character(len=:), allocatable :: sorting_mode, last_sorting_mode
         logical :: sorting_reversep = .false.
         ! ibuffer-shrink-to-minimum-size.
-        integer :: shrink = IBUFFER_SHRINK_NIL
+        integer :: shrink = IBUFFER_SHRINK_NO
         ! ibuffer-display-maybe-show-predicates.
         logical :: display_maybe_show_predicates = .false.
         ! ibuffer-current-format (0-based; -1 for nil).
@@ -1722,7 +1721,7 @@ contains
         character, intent(in) :: mark
         character(len=256), allocatable :: grown(:)
 
-        r = MAP_NIL
+        r = IBUFFER_OP_SKIPPED
         if (mark /= map_mark) return
 
         if (map_nnames == size(map_names)) then
@@ -1779,8 +1778,8 @@ contains
         character, intent(in) :: mark
 
         if (buf%index < 0) continue
-        r = MAP_NIL
-        if (mark /= " ") r = MAP_T
+        r = IBUFFER_OP_SKIPPED
+        if (mark /= " ") r = IBUFFER_OP_DONE
     end function any_marked
 
     ! Not a port (a lambda of ibuffer.el).
@@ -1789,8 +1788,8 @@ contains
         character, intent(in) :: mark
 
         if (buf%index < 0) continue
-        r = MAP_NIL
-        if (mark == map_mark) r = MAP_T
+        r = IBUFFER_OP_SKIPPED
+        if (mark == map_mark) r = IBUFFER_OP_DONE
     end function mark_is
 
     ! ibuffer-map-deletion-lines.  Port of
@@ -1944,7 +1943,7 @@ contains
         current_op = saved_op
         if (.not. status%ok()) return
         k = ibuffer_local_index(.true.)
-        if (op%modifier_p == IBUFFER_MODIFIER_T) locals(k)%did_modification = .true.
+        if (op%modifier_p == IBUFFER_MODIFIER_ALWAYS) locals(k)%did_modification = .true.
 
         if (associated(op%after)) then
             call op%after(status)
@@ -1972,7 +1971,7 @@ contains
         integer(int64) :: saved
         integer :: k
 
-        r = MAP_NIL
+        r = IBUFFER_OP_SKIPPED
         before = .false.
         if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE) call is_buffer_modified(buf, before, ignore)
 
@@ -1990,7 +1989,7 @@ contains
             end if
 
             call set_buffer(old, ignore)
-            r = MAP_T
+            r = IBUFFER_OP_DONE
         end if
 
         if (.not. st%ok()) call message(format_message_of(st))
@@ -2039,7 +2038,7 @@ contains
         logical :: modified
 
         if (mark == achar(0)) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         call is_buffer_modified(buf, modified, status)
         if (.not. status%ok() .or. .not. modified) return
         old = current_buffer()
@@ -2065,7 +2064,7 @@ contains
         type(ibuffer_op_type) :: op
 
         op%opstring = "(un)marked as modified"
-        op%modifier_p = IBUFFER_MODIFIER_T
+        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
         op%body => toggle_modified_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_toggle_modified
@@ -2080,7 +2079,7 @@ contains
         logical :: modified
 
         if (mark == achar(0)) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
         call is_buffer_modified(buf, modified, status)
         call restore_buffer_modified(.not. modified)
     end subroutine toggle_modified_body
@@ -2098,7 +2097,7 @@ contains
         read_only_arg = huge(0_int64)
         if (present(arg)) read_only_arg = arg
         op%opstring = "toggled read only status in"
-        op%modifier_p = IBUFFER_MODIFIER_T
+        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
         op%body => toggle_read_only_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_toggle_read_only
@@ -2125,7 +2124,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (mark == achar(0) .or. buf%index < 0) continue
-        result = MAP_T
+        result = IBUFFER_OP_DONE
 
         if (read_only_arg == huge(0_int64)) then
             call minor_modes%read_only_mode%toggle(status)
@@ -2155,7 +2154,7 @@ contains
         op%active_opstring = "kill"
         op%dangerous = .true.
         op%complex = .true.
-        op%modifier_p = IBUFFER_MODIFIER_T
+        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
         op%body => kill_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_delete
@@ -2171,7 +2170,7 @@ contains
         op%dangerous = .true.
         op%complex = .true.
         op%deletion = .true.
-        op%modifier_p = IBUFFER_MODIFIER_T
+        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
         op%body => kill_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_kill_on_deletion_marks
@@ -2192,9 +2191,9 @@ contains
         call set_buffer(old, st)
 
         if (status%ok() .and. .not. is_buffer_live(buf)) then
-            result = MAP_KILL
+            result = IBUFFER_OP_KILL
         else
-            result = MAP_NIL
+            result = IBUFFER_OP_SKIPPED
         end if
     end subroutine kill_body
 
@@ -2243,7 +2242,7 @@ contains
 
         if (buf%index < 0) continue
         if (mark /= " ") call ibuffer_set_mark_1(" ")
-        r = MAP_T
+        r = IBUFFER_OP_DONE
     end function unmark_any
 
     !> Remove all marks from all marked buffers in Ibuffer.  Port of
@@ -2299,13 +2298,13 @@ contains
         character, intent(in) :: mark
 
         if (buf%index < 0) continue
-        r = MAP_NIL
+        r = IBUFFER_OP_SKIPPED
 
         if (mark == ibuffer_marked_char) then
             call ibuffer_set_mark_1(" ")
         else if (mark == " ") then
             call ibuffer_set_mark_1(ibuffer_marked_char)
-            r = MAP_T
+            r = IBUFFER_OP_DONE
         end if
     end function toggle_mark
 
@@ -2351,11 +2350,11 @@ contains
         type(status_type) :: st
 
         if (buf%index < 0) continue
-        r = MAP_NIL
+        r = IBUFFER_OP_SKIPPED
 
         if (mark == map_mark) then
             call ibuffer_set_mark(map_new, st)
-            r = MAP_T
+            r = IBUFFER_OP_DONE
         end if
     end function change_mark
 
@@ -2568,7 +2567,7 @@ contains
 
         if (buf%index < 0 .or. mark == achar(0)) continue
         call ibuffer_set_mark_1(map_mark)
-        r = MAP_T
+        r = IBUFFER_OP_DONE
     end function mark_always
 
     !> Set the mark of the buffer on the current line to MARK, and
@@ -2977,7 +2976,7 @@ contains
         buffers(cur)%read_only = ro
         m = saved
         call goto_char(m)
-        if (shrink_of() /= IBUFFER_SHRINK_NIL) call ibuffer_shrink_to_fit()
+        if (shrink_of() /= IBUFFER_SHRINK_NO) call ibuffer_shrink_to_fit()
     end subroutine ibuffer_redisplay_current
 
     ! Not a port.
@@ -3011,7 +3010,7 @@ contains
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mk
 
-        r = MAP_NIL
+        r = IBUFFER_OP_SKIPPED
         if (mk == on_mark_mark) r = on_mark_fn(buf, on_mark_mark)
     end function on_mark
 
@@ -3074,11 +3073,11 @@ contains
                     call free_marker(m, st)
                     call goto_char(saved)
                 else
-                    result = MAP_NIL
+                    result = IBUFFER_OP_SKIPPED
                 end if
             else
                 ! Kill the line if the buffer is dead
-                result = MAP_KILL
+                result = IBUFFER_OP_KILL
             end if
 
             ! A given mapping function should return:
@@ -3088,9 +3087,9 @@ contains
             total = total + 1
 
             select case (result)
-            case (MAP_NIL)
+            case (IBUFFER_OP_SKIPPED)
                 shortage = forward_line(1_int64)
-            case (MAP_KILL)
+            case (IBUFFER_OP_KILL)
                 call delete_region(pos_bol(), min(point_max(), pos_eol() + 1), st)
                 count = count + 1
                 if (total < orig_target_line) target_line_offset = target_line_offset - 1
@@ -3169,7 +3168,7 @@ contains
         character, intent(in) :: mark
         type(ibuffer_state_type), allocatable :: grown(:)
 
-        r = MAP_NIL
+        r = IBUFFER_OP_SKIPPED
         if (.not. is_buffer_live(buf)) return
 
         if (map_nstates == size(map_states)) then
@@ -4239,7 +4238,7 @@ contains
 
         if (locals(k)%shrink == IBUFFER_SHRINK_ONEWINDOW) then
             call ibuffer_shrink_to_fit(.true.)
-        else if (locals(k)%shrink /= IBUFFER_SHRINK_NIL) then
+        else if (locals(k)%shrink /= IBUFFER_SHRINK_NO) then
             call ibuffer_shrink_to_fit()
         end if
 
@@ -4252,7 +4251,7 @@ contains
             call buffers(cur)%header_line_format%clear()
             k = ibuffer_local_index(.true.)
 
-            if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_NIL .and. size(locals(k)%qualifiers) > 0) then
+            if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_NO .and. size(locals(k)%qualifiers) > 0) then
                 call buffers(cur)%header_line_format%add("")
             end if
         end if
@@ -4644,7 +4643,7 @@ contains
             k = ibuffer_local_index(.true.)
 
             if (present(shrink)) then
-                if (shrink /= IBUFFER_SHRINK_NIL) locals(k)%shrink = shrink
+                if (shrink /= IBUFFER_SHRINK_NO) locals(k)%shrink = shrink
             end if
 
             if (present(qualifiers)) then
@@ -4946,7 +4945,7 @@ contains
         call init_local(k)
         locals(k)%sorting_mode = ibuffer_default_sorting_mode
         locals(k)%sorting_reversep = ibuffer_default_sorting_reversep
-        if (ibuffer_default_shrink_to_minimum_size) locals(k)%shrink = IBUFFER_SHRINK_T
+        if (ibuffer_default_shrink_to_minimum_size) locals(k)%shrink = IBUFFER_SHRINK_YES
         locals(k)%display_maybe_show_predicates = ibuffer_default_display_maybe_show_predicates
         call ibuffer_update_format(st)
         call update_mode_line_process()

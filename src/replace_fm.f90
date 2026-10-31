@@ -84,7 +84,7 @@ module replace_fm
                        ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
                        ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
                        ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
-    use isearch_fm, only: search_upper_case, UPPER_CASE_NIL, search_whitespace_regexp, &
+    use isearch_fm, only: search_upper_case, UPPER_CASE_NO, search_whitespace_regexp, &
                           is_isearch_no_upper_case, word_search_regexp
     use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input, minibuffer_string_type
     use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit
@@ -116,7 +116,7 @@ module replace_fm
                          display_action_table_type
     use frame_fm, only: selected_frame
     use help_fm, only: substitute_command_keys
-    use minibuffer_fm, only: read_buffer, REQUIRE_MATCH_T
+    use minibuffer_fm, only: read_buffer, REQUIRE_MATCH_YES
 
     use files_fm, only: kill_buffer_hook, revert_buffer_function
     use eval_fm, only: hook_type
@@ -246,7 +246,7 @@ module replace_fm
 
     ! The values of perform-replace's match-again: nil, t (a match is
     ! possible at point) and match data.
-    integer, parameter :: AGAIN_NIL = 0, AGAIN_T = 1, AGAIN_DATA = 2
+    integer, parameter :: AGAIN_NO = 0, AGAIN_AT_POINT = 1, AGAIN_DATA = 2
 
     ! An element of perform-replace's stack, (POINT REPLACED MATCH-DATA
     ! SEARCH-STR NEXT-REPLACE NEXT-REPLACEMENT MATCH-AGAIN), as
@@ -256,7 +256,7 @@ module replace_fm
         logical :: replaced = .false.
         integer(int64), allocatable :: data(:)
         character(len=:), allocatable :: search_str, next_replace, next_replacement
-        integer :: again = AGAIN_NIL
+        integer :: again = AGAIN_NO
         integer(int64), allocatable :: again_match(:)
     end type stack_entry_type
 
@@ -1185,7 +1185,7 @@ contains
         if (present(result)) result = .false.
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
             fold = is_isearch_no_upper_case(from_string, regexp_flag)
         end if
 
@@ -1199,7 +1199,7 @@ contains
         update_stack = .true.
         replace_count = 0
         skip_read_only_count = 0
-        again = AGAIN_T
+        again = AGAIN_AT_POINT
         allocate (again_match(0), real_data(0))
         unread = .false.
 
@@ -1273,7 +1273,7 @@ contains
 
                 real_data = again_match
                 found = .true.
-            case (AGAIN_T)
+            case (AGAIN_AT_POINT)
                 ! MATCH-AGAIN non-nil means accept an adjacent match.
                 found = replace_search(from_string, merge(limit, 0_int64, have_limit), regexp_flag, &
                                        delimited_flag, fold, status, back)
@@ -1315,11 +1315,11 @@ contains
             ! the next match now, since the replacement for this match may
             ! affect whether the next match is adjacent to this one.  If
             ! that match is empty, don't use it.
-            again = AGAIN_NIL
+            again = AGAIN_NO
 
             if (nonempty_match) then
                 if (.not. regexp_flag) then
-                    again = AGAIN_T
+                    again = AGAIN_AT_POINT
                 else
                     if (back) then
                         matched = looking_back(from_string, st)
@@ -1580,7 +1580,7 @@ contains
                     ! Before we make the replacement, decide whether the
                     ! search string can match again just after this match.
                     if (regexp_flag .and. nonempty_match) then
-                        again = AGAIN_NIL
+                        again = AGAIN_NO
 
                         if (looking_at(from_string, st)) then
                             again = AGAIN_DATA
@@ -1748,8 +1748,8 @@ contains
     !> search string as the string to replace.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not UPPER_CASE_NIL) and FROM_STRING has no
-    !> uppercase letters; if `search_upper_case' is UPPER_CASE_NIL, then whether
+    !> and `search_upper_case' are true (not UPPER_CASE_NO) and FROM_STRING has no
+    !> uppercase letters; if `search_upper_case' is UPPER_CASE_NO, then whether
     !> matching ignores case depends on `case_fold_search' regardless
     !> of whether there are uppercase letters in FROM_STRING.
     !> Replacement transfers the case pattern of the old text to the
@@ -1798,8 +1798,8 @@ contains
     !> use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not UPPER_CASE_NIL) and REGEXP has no uppercase
-    !> letters; if `search_upper_case' is UPPER_CASE_NIL, then whether matching
+    !> and `search_upper_case' are true (not UPPER_CASE_NO) and REGEXP has no uppercase
+    !> letters; if `search_upper_case' is UPPER_CASE_NO, then whether matching
     !> ignores case depends on `case_fold_search' regardless of whether
     !> there are uppercase letters in REGEXP.
     !> Replacement transfers the case pattern of the old text to the new
@@ -2060,7 +2060,7 @@ contains
 
         saved_fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
             case_fold_search%value = is_isearch_no_upper_case(regexp, .true.)
         end if
 
@@ -2256,7 +2256,7 @@ contains
 
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
             fold = is_isearch_no_upper_case(regexp, .true.)
         end if
     end function lines_case_fold
@@ -3504,12 +3504,12 @@ contains
         integer(int64) :: nlines
         integer :: i
 
-        call read_buffer("First buffer to search: ", name, status, buffers(cur)%name, REQUIRE_MATCH_T)
+        call read_buffer("First buffer to search: ", name, status, buffers(cur)%name, REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         names = [character(len=64) :: name]
 
         do
-            call read_buffer("Next buffer to search (RET to end): ", name, status, require_match=REQUIRE_MATCH_T)
+            call read_buffer("Next buffer to search (RET to end): ", name, status, require_match=REQUIRE_MATCH_YES)
             if (.not. status%ok()) return
             if (len(name) == 0) exit
             dup = .false.
@@ -3861,7 +3861,7 @@ contains
             call set_buffer(old, st)
             fold = case_fold_search%value
 
-            if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
+            if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NO) then
                 fold = is_isearch_no_upper_case(regexp, .true.)
             end if
 

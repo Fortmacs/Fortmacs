@@ -235,12 +235,12 @@ module ansi_color_fm
 
     !> Values of `ansi_color_for_comint_mode' and
     !> `ansi_color_for_compilation_mode'.
-    integer, parameter, public :: ANSI_COLOR_NIL = 0, ANSI_COLOR_FILTER = 1, ANSI_COLOR_T = 2
+    integer, parameter, public :: ANSI_COLOR_NO = 0, ANSI_COLOR_FILTER = 1, ANSI_COLOR_YES = 2
 
     !> Determines what to do with comint output.
-    !> If ANSI_COLOR_NIL, do nothing.
+    !> If ANSI_COLOR_NO, do nothing.
     !> If ANSI_COLOR_FILTER, then filter all SGR control sequences.
-    !> If anything else (such as ANSI_COLOR_T), then translate SGR
+    !> If anything else (such as ANSI_COLOR_YES), then translate SGR
     !> control sequences into text properties.
     !>
     !> In order for this to have any effect, `ansi_color_process_output'
@@ -253,15 +253,15 @@ module ansi_color_fm
     !> \[ansi_color_for_comint_mode_filter]
     !> Port of ansi-color.el ansi-color-for-comint-mode.
     type(integer_setting), public :: ansi_color_for_comint_mode = integer_setting(name="ansi_color_for_comint_mode", &
-                                                                                  value=ANSI_COLOR_T)
+                                                                                  value=ANSI_COLOR_YES)
 
     !> Determines what to do with compilation output.
-    !> If ANSI_COLOR_NIL, do nothing.
+    !> If ANSI_COLOR_NO, do nothing.
     !>
     !> If ANSI_COLOR_FILTER, then filter all ANSI graphical control
     !> sequences.
     !>
-    !> If anything else (such as ANSI_COLOR_T), then translate ANSI
+    !> If anything else (such as ANSI_COLOR_YES), then translate ANSI
     !> graphical control sequences into text properties.
     !>
     !> In order for this to have any effect,
@@ -269,7 +269,7 @@ module ansi_color_fm
     !> `compilation_filter_hook'.  Port of ansi-color.el
     !> ansi-color-for-compilation-mode.
     type(integer_setting), public :: ansi_color_for_compilation_mode = &
-                                     integer_setting(name="ansi_color_for_compilation_mode", value=ANSI_COLOR_T)
+                                     integer_setting(name="ansi_color_for_compilation_mode", value=ANSI_COLOR_YES)
 
     ! A buffer's own `ansi_color_apply_face_function'.
     type :: face_function_entry_type
@@ -432,22 +432,22 @@ contains
     ! Convenience functions for comint modes (eg. shell-mode)
     ! ------------------------------------------------------------------
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_T.  Port of
+    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_YES.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-on.
     subroutine ansi_color_for_comint_mode_on(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_T
+        ansi_color_for_comint_mode = ANSI_COLOR_YES
     end subroutine ansi_color_for_comint_mode_on
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_NIL.  Port of
+    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_NO.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-off.
     subroutine ansi_color_for_comint_mode_off(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_NIL
+        ansi_color_for_comint_mode = ANSI_COLOR_NO
     end subroutine ansi_color_for_comint_mode_off
 
     !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_FILTER.  Port of
@@ -492,7 +492,7 @@ contains
         end if
 
         select case (int(ansi_color_for_comint_mode%value))
-        case (ANSI_COLOR_NIL)
+        case (ANSI_COLOR_NO)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(start, end)
         case default
@@ -514,7 +514,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
 
         select case (int(ansi_color_for_compilation_mode%value))
-        case (ANSI_COLOR_NIL)
+        case (ANSI_COLOR_NO)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(compilation_filter_start, point())
         case default

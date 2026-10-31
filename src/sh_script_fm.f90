@@ -89,10 +89,10 @@ module sh_script_fm
     use frame_fm, only: frame_selected_window_ref
     use files_fm, only: auto_mode_interpreter_regexp
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
-                            font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_T
+                            font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_YES
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_flush, font_lock_set_defaults, &
                             font_lock_forget_defaults
-    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
+    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use expression_motion_fm, only: forward_expression_default_function
     use newcomment_fm, only: comment_start, comment_start_skip
     use paragraphs_fm, only: paragraph_start, paragraph_separate, page_delimiter
@@ -105,7 +105,7 @@ module sh_script_fm
     use eval_fm, only: capf_hook_type, capf_entry_type
     use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL, COMPLETE_BOUNDARIES, completion_predicate
     use minibuf_fm, only: complete_with_action, read_from_minibuffer
-    use minibuffer_fm, only: completion_at_point_functions, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completion_at_point_functions, REQUIRE_MATCH_YES
     use files_fm, only: locate_file_completion_table
     use expression_motion_fm, only: subprogram_prompt_regexp
     use subr_fm, only: read_y_or_n
@@ -130,8 +130,8 @@ module sh_script_fm
                        is_smie_rule_parent, is_smie_rule_prev, is_smie_rule_hanging, is_smie_rule_bol, smie_rule_parent, &
                        smie_rule_separator, smie_indent_virtual, smie_indent_calculate, smie_indent_keyword, &
                        smie_indent_functions, smie_set_is_hanging_eol_function, is_smie_default_hanging_eol, &
-                       SMIE_ASSOC, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_LEVEL_NUMBER, SMIE_NIL, &
-                       SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_T, SMIE_INDENT_COLUMN, SMIE_INDENT_NIL
+                       SMIE_ASSOC, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_LEVEL_NUMBER, SMIE_RULE_NONE, &
+                       SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_YES, SMIE_INDENT_COLUMN, SMIE_INDENT_NONE
     use sysdep_fm, only: sys_string_type, emacs_environment
     implicit none(type, external)
     private
@@ -157,7 +157,7 @@ module sh_script_fm
                                   SH_MINUS_MINUS = -1000004, SH_STAR = -1000005, SH_SLASH = -1000006
 
     !> Values of `sh_indent_after_continuation': nil, t and `always'.
-    integer, parameter, public :: SH_CONTINUATION_NIL = 0, SH_CONTINUATION_T = 1, SH_CONTINUATION_ALWAYS = 2
+    integer, parameter, public :: SH_CONTINUATION_NO = 0, SH_CONTINUATION_DEEPER = 1, SH_CONTINUATION_ALWAYS = 2
 
     !> A string of a list.
     type, public :: sh_string_type
@@ -614,11 +614,11 @@ module sh_script_fm
     !>    done
     !>
     !> With `SH_CONTINUATION_ALWAYS' you get the former behavior whereas with
-    !> `SH_CONTINUATION_NIL' you get the latter.  With `SH_CONTINUATION_T', you
+    !> `SH_CONTINUATION_NO' you get the latter.  With `SH_CONTINUATION_DEEPER', you
     !> get the latter as long as that would indent the continuation line
     !> deeper than the initial line.  Port of sh-script.el
     !> sh-indent-after-continuation.
-    integer, public :: sh_indent_after_continuation = SH_CONTINUATION_T
+    integer, public :: sh_indent_after_continuation = SH_CONTINUATION_DEEPER
 
     !> The SMIE grammar of sh.  Port of sh-script.el sh-smie-sh-grammar.
     type(smie_grammar_type), target, public :: sh_smie_sh_grammar
@@ -1087,7 +1087,7 @@ contains
         k1(1) = font_lock_keyword("\$#?\([[:alpha:]_][[:alnum:]_]*\|[0-9]+\)", face=VA, subexp=1)
         call sh_font_lock_keywords_var%add("es", k1, "executable_font_lock_keywords")
         call sh_font_lock_keywords_var%add("rc", none, "es")
-        h1(1) = h(1, "sh_quoted_exec", FONT_LOCK_OVERRIDE_T)
+        h1(1) = h(1, "sh_quoted_exec", FONT_LOCK_OVERRIDE_YES)
         k1(1) = font_lock_keyword("\$(\([^)"//LF//"]+\)", highlights=h1)
         call sh_font_lock_keywords_var%add("bash", k1, "sh")
         ! Variable names.
@@ -1110,7 +1110,7 @@ contains
         k2(2) = font_lock_keyword("%{?\([!?]*[[:alpha:]_][[:alnum:]_]*\|[0-9]+\|[%*#]\*?\|!?-[[:alpha:]]\*?\)", &
                                   face=VA, subexp=1)
         call sh_font_lock_keywords_var%add("rpm", k2, "rpm2")
-        h1(1) = h(1, "font_lock_doc_face", FONT_LOCK_OVERRIDE_T)
+        h1(1) = h(1, "font_lock_doc_face", FONT_LOCK_OVERRIDE_YES)
         k2(1) = font_lock_keyword("^Summary:\(.*\)$", highlights=h1)
         h2(1) = h(1, VA)
         h2(2) = h(3, ST, lax=.true.)
@@ -1181,14 +1181,14 @@ contains
 
         with_builtins = .false.
         if (present(builtins)) with_builtins = builtins
-        re = "\([;(){}`|&]\|^\)[ "//TAB//"]*\(\("//regexp_opt(strings_of(sh_leading_keywords), REGEXP_OPT_T)// &
-             "[ "//TAB//"]+\)?"//regexp_opt(leading_and_other(), REGEXP_OPT_T)
+        re = "\([;(){}`|&]\|^\)[ "//TAB//"]*\(\("//regexp_opt(strings_of(sh_leading_keywords), REGEXP_OPT_GROUP)// &
+             "[ "//TAB//"]+\)?"//regexp_opt(leading_and_other(), REGEXP_OPT_GROUP)
         allocate (keywords(0))
 
         if (with_builtins) then
             h2(1) = h(2, "font_lock_keyword_face", lax=.true.)
             h2(2) = h(6, "font_lock_builtin_face")
-            one(1) = font_lock_keyword(re//"[ "//TAB//"]+\)?"//regexp_opt(strings_of(sh_builtins), REGEXP_OPT_T)//"\>", &
+            one(1) = font_lock_keyword(re//"[ "//TAB//"]+\)?"//regexp_opt(strings_of(sh_builtins), REGEXP_OPT_GROUP)//"\>", &
                                        highlights=h2)
             call append_keywords(keywords, one)
             call sh_font_lock_keywords_var_2%get(more)
@@ -2650,7 +2650,7 @@ contains
         here = point()
         continued = .false.
 
-        if (sh_indent_after_continuation /= SH_CONTINUATION_NIL) then
+        if (sh_indent_after_continuation /= SH_CONTINUATION_NO) then
             moved = skip_chars_backward(" "//TAB, status)
             continued = is_sh_smie_looking_back_at_continuation()
             call goto_char(here)
@@ -2675,7 +2675,7 @@ contains
 
         ! Just make sure a line-continuation is indented deeper.
         saved = sh_indent_after_continuation
-        sh_indent_after_continuation = SH_CONTINUATION_NIL
+        sh_indent_after_continuation = SH_CONTINUATION_NO
         indent = smie_indent_calculate(status)
         sh_indent_after_continuation = saved
         call goto_char(here)
@@ -3101,7 +3101,7 @@ contains
             ! rule we have is the :list-intro hack, which we use here to align "cmd"
             ! with "(exp)", which is rarely the right thing to do, but is better
             ! than nothing.
-            if (arg == "for" .or. arg == "if" .or. arg == "while") result%kind = SMIE_RULE_T
+            if (arg == "for" .or. arg == "if" .or. arg == "while") result%kind = SMIE_RULE_YES
         case default
         end select
         ! sh-indent-after-switch: handled implicitly by the default { rule.
@@ -4790,7 +4790,7 @@ contains
         end do
 
         table%list = make_list(names)
-        call completing_read("Which style to use for this buffer? ", table, name, status, require_match=REQUIRE_MATCH_T)
+        call completing_read("Which style to use for this buffer? ", table, name, status, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call sh_load_style(name, status)
     end subroutine cmd_sh_load_style

@@ -60,7 +60,13 @@ if check "$work"/*.f90 >/dev/null; then
     echo "test-fortran-names.sh: the check finds nothing in the old names" >&2
     exit 1
 fi
-(cd "$work" && "$root/tools/fortran-names.sh" ./*) >/dev/null
+# The first run reports the line it pushes past 132 columns, with status 3.
+status=0
+report=$( (cd "$work" && "$root/tools/fortran-names.sh" ./*) 2>&1 >/dev/null) || status=$?
+if [ "$status" -ne 3 ] || ! printf '%s\n' "$report" | grep -q 'expression_motion_fm.f90:28: longer than 132 columns'; then
+    echo "test-fortran-names.sh: tools/fortran-names.sh did not report the long line (status $status)" >&2
+    exit 1
+fi
 if ! same "$work" "$fixture/expected"; then
     echo "test-fortran-names.sh: tools/fortran-names.sh differs from $fixture/expected" >&2
     exit 1

@@ -310,7 +310,7 @@ contains
         if (read_answer_short == READ_ANSWER_SHORT_AUTO) then
             short = use_short_answers
         else
-            short = read_answer_short == READ_ANSWER_SHORT_T
+            short = read_answer_short == READ_ANSWER_SHORT_YES
         end if
 
         has_help = .false.

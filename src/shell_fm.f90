@@ -111,7 +111,7 @@ module shell_fm
                          comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
                          comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
                          comint_completion_addsuffix, comint_input_autoexpand, COMINT_AUTOEXPAND_HISTORY, &
-                         COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, &
+                         COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, &
                          comint_completion_fignore, comint_line_beginning_position
     use pcomplete_fm, only: pcomplete_match, pcomplete_thrown, pcomplete_here, pcomplete_entries, pcomplete_ignore, &
                             pcomplete_completions_at_point, pcomplete_parse_arguments_function, &
@@ -122,7 +122,7 @@ module shell_fm
 
     !> The values of `shell_input_autoexpand' (those of
     !> `comint_input_autoexpand').
-    public :: COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
+    public :: COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
     public :: shell_command_completion, shell_environment_variable_completion
     public :: shell, shell_mode, shell_command_mode, syms_of_shell, shell_get_old_input, shell_directory_tracker, &
               shell_unquote_argument, shell__unquote_argument, shell_parse_pcomplete_arguments, &
@@ -332,7 +332,7 @@ module shell_fm
     type(logical_setting), public :: shell_completion_execonly = &
                                      logical_setting(name="shell_completion_execonly", value=.true.)
 
-    !> If not COMINT_AUTOEXPAND_NIL, expand input command history
+    !> If not COMINT_AUTOEXPAND_NO, expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlit).
     !>

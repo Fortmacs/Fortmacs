@@ -44,7 +44,7 @@ contains
 
     status = status_type()
 
-    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL) then
+    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
         call set_error(status, FM_GENERIC_ERROR, "Already defining kbd macro")
         return
     end if
@@ -85,11 +85,11 @@ contains
         call message("Appending to kbd macro...")
     end if
 
-    defining_kbd_macro = DEFINING_KBD_MACRO_T
+    defining_kbd_macro = DEFINING_KBD_MACRO_YES
     end procedure start_kbd_macro
 
     module procedure finish_kbd_macro
-    defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+    defining_kbd_macro = DEFINING_KBD_MACRO_NO
     if (allocated(last_kbd_macro)) deallocate (last_kbd_macro)
     allocate (last_kbd_macro(kbd_macro_end))
     if (kbd_macro_end > 0) last_kbd_macro = kbd_macro_buffer(1:kbd_macro_end)
@@ -101,7 +101,7 @@ contains
 
     status = status_type()
 
-    if (defining_kbd_macro == DEFINING_KBD_MACRO_NIL) then
+    if (defining_kbd_macro == DEFINING_KBD_MACRO_NO) then
         call set_error(status, FM_GENERIC_ERROR, "Not defining kbd macro")
         return
     end if
@@ -129,7 +129,7 @@ contains
     module procedure store_kbd_macro_char
     type(value_type), allocatable :: grown(:)
 
-    if (defining_kbd_macro == DEFINING_KBD_MACRO_NIL) return
+    if (defining_kbd_macro == DEFINING_KBD_MACRO_NO) return
     if (.not. allocated(kbd_macro_buffer)) allocate (kbd_macro_buffer(30))
 
     if (kbd_macro_ptr == size(kbd_macro_buffer, kind=int64)) then
@@ -169,7 +169,7 @@ contains
         real_this_command = nil()
     end if
 
-    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL) then
+    if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
         call set_error(status, FM_GENERIC_ERROR, "Can't execute anonymous macro while defining one")
         return
     else if (.not. allocated(last_kbd_macro)) then

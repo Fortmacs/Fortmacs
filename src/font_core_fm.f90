@@ -71,7 +71,7 @@ module font_core_fm
     !> an existing face (nil), override it (t), keep it and add only where
     !> there is none (`keep'), merge before it (`prepend') or after it
     !> (`append').
-    integer, parameter, public :: FONT_LOCK_OVERRIDE_NIL = 0, FONT_LOCK_OVERRIDE_T = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
+    integer, parameter, public :: FONT_LOCK_OVERRIDE_NO = 0, FONT_LOCK_OVERRIDE_YES = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
                                   FONT_LOCK_OVERRIDE_PREPEND = 3, FONT_LOCK_OVERRIDE_APPEND = 4
 
     abstract interface
@@ -141,7 +141,7 @@ module font_core_fm
         integer :: subexp = 0
         character(len=:), allocatable :: face
         procedure(font_lock_face_proc), pointer, nopass :: face_function => null()
-        integer :: override = FONT_LOCK_OVERRIDE_NIL
+        integer :: override = FONT_LOCK_OVERRIDE_NO
         logical :: laxmatch = .false.
         character(len=64), allocatable :: true_properties(:)
         character(len=64), allocatable :: nil_properties(:)

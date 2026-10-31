@@ -83,10 +83,10 @@ module make_mode_fm
     use dired_fm, only: file_name_all_completions
     use callproc_fm, only: call_process
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                            font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_PREPEND, &
+                            font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND, &
                             FONT_LOCK_OVERRIDE_APPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
+    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use newcomment_fm, only: comment_start, comment_end, comment_start_skip
     use abbrev_fm, only: abbrev_table_type
     use dabbrev_fm, only: dabbrev_abbrev_skip_leading_regexp
@@ -779,9 +779,9 @@ contains
             if (present(dash)) d = dash
 
             if (d) then
-                re = string_replace("-", "[_-]", regexp_opt(keywords, REGEXP_OPT_T))
+                re = string_replace("-", "[_-]", regexp_opt(keywords, REGEXP_OPT_GROUP))
             else
-                re = regexp_opt(keywords, REGEXP_OPT_T)
+                re = regexp_opt(keywords, REGEXP_OPT_GROUP)
             end if
 
             h2(1) = h(1, "font_lock_keyword_face")
@@ -802,7 +802,7 @@ contains
             call push(font_lock_keyword("^[ "//TAB//"]+$", face="makefile_space"))
             ! Highlight shell comments that Make treats as commands,
             ! since these can fool people.
-            h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_T)
+            h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_YES)
             call push(font_lock_keyword("^"//TAB//"+#", highlights=h1))
             ! Highlight spaces that precede tabs.
             ! They can make a tab fail to be effective.
@@ -839,7 +839,7 @@ contains
                                        VA = "font_lock_variable_name_face", TY = "font_lock_type_face", &
                                        PERL = "makefile_makepp_perl", SH = "makefile_shell", TG = "makefile_targets"
         integer, parameter :: PREPEND = FONT_LOCK_OVERRIDE_PREPEND, APPEND = FONT_LOCK_OVERRIDE_APPEND, &
-                              T = FONT_LOCK_OVERRIDE_T
+                              T = FONT_LOCK_OVERRIDE_YES
         type(font_lock_keyword_type) :: extra(16)
         type(font_lock_keyword_type), allocatable :: base(:)
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3), a(1)

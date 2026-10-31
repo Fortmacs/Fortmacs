@@ -317,10 +317,10 @@ contains
 
     if (present(default_value)) then
         call completing_read(prompt, completion_list_table(make_list(names)), name, status, &
-                             require_match=REQUIRE_MATCH_T, history="custom_variable_history", default=default_value)
+                             require_match=REQUIRE_MATCH_YES, history="custom_variable_history", default=default_value)
     else
         call completing_read(prompt, completion_list_table(make_list(names)), name, status, &
-                             require_match=REQUIRE_MATCH_T, history="custom_variable_history")
+                             require_match=REQUIRE_MATCH_YES, history="custom_variable_history")
     end if
     end procedure read_variable
 
@@ -345,7 +345,7 @@ contains
     end do
 
     call completing_read("Set variable: ", completion_list_table(make_list(names(1:n))), name, status, &
-                         require_match=REQUIRE_MATCH_T, history="custom_variable_history")
+                         require_match=REQUIRE_MATCH_YES, history="custom_variable_history")
     if (.not. status%ok()) return
 
     if (len(name) == 0) then

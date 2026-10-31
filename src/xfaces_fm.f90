@@ -59,7 +59,7 @@ module xfaces_fm
     use faces_fm, only: face_attributes_type, named_face_type, face_named, faces_equal, face_weight_numeric, &
                         face_slant_numeric, set_frame_display, face_spec_recalc_all, &
                         display_supports_face_attributes_p, default, &
-                        FACE_UNSPECIFIED, FACE_NIL, FACE_T, FACE_COLOR, FACE_PLIST, FACE_LIST, FACE_VALUE, &
+                        FACE_UNSPECIFIED, FACE_OFF, FACE_ON, FACE_COLOR, FACE_PLIST, FACE_LIST, FACE_VALUE, &
                         FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, FACE_STYLE_DOTS, &
                         FACE_STYLE_DASHES, FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
@@ -308,15 +308,15 @@ contains
         ! Map face attributes to TTY appearances.
         if (face_weight_numeric(attrs%weight) > 100) face%tty_bold_p = .true.
         if (face_slant_numeric(attrs%slant) /= 100) face%tty_italic_p = .true.
-        if (attrs%inverse_video%state /= FACE_NIL) face%tty_reverse_p = .true.
-        if (attrs%strike_through%state /= FACE_NIL) face%tty_strike_through_p = .true.
+        if (attrs%inverse_video%state /= FACE_OFF) face%tty_reverse_p = .true.
+        if (attrs%strike_through%state /= FACE_OFF) face%tty_strike_through_p = .true.
 
         ! Text underline.
         select case (attrs%underline%state)
-        case (FACE_NIL)
+        case (FACE_OFF)
             face%underline = FACE_NO_UNDERLINE
             face%underline_color = 0
-        case (FACE_T)
+        case (FACE_ON)
             face%underline = FACE_UNDERLINE_SINGLE
             face%underline_color = 0
         case (FACE_COLOR)
@@ -565,9 +565,9 @@ contains
 
         if (extend_only) then
             ! Filter, but specified; or unspecified, but inherited.
-            if (face%lface%extend%state /= FACE_T) then
+            if (face%lface%extend%state /= FACE_ON) then
                 if (face%lface%inherit%state /= FACE_LIST) return
-                if (face_inherited_extend(face%lface, depth + 1) /= FACE_T) return
+                if (face_inherited_extend(face%lface, depth + 1) /= FACE_ON) return
             end if
         end if
 
@@ -756,7 +756,7 @@ contains
                     return
                 end if
 
-                if (scratch%extend%state /= FACE_T) return
+                if (scratch%extend%state /= FACE_ON) return
             end if
         end if
 

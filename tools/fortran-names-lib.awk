@@ -198,7 +198,7 @@ function protected(before, after, tok) {
     # A citation: lisp.el:beginning-of-defun, syntax.c:scan_lists.
     if (before ~ /[A-Za-z0-9]\.(el|c|h):$/) return 1
     # A C function, variable or symbol: Fscan_lists, Vauto_mode_alist.
-    if (tok ~ /^[FVQ][a-z0-9]*_/) return 1
+    if (tok ~ /^[FVQ][a-z][a-z0-9]*_/) return 1
     # Marked: upstream's `scan_lists'.
     if (tolower(before) ~ /(^|[^a-z])upstream('s)? [`'"]?$/) return 1
     return 0

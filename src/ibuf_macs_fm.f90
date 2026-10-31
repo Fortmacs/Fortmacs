@@ -62,12 +62,12 @@ module ibuf_macs_fm
     !> What an operation's body returns for a buffer: it chose not to
     !> affect the buffer (nil), it did (t), or the buffer's line should be
     !> removed from the list (`kill').
-    integer, parameter, public :: IBUFFER_OP_NIL = 0, IBUFFER_OP_T = 1, IBUFFER_OP_KILL = 2
+    integer, parameter, public :: IBUFFER_OP_SKIPPED = 0, IBUFFER_OP_DONE = 1, IBUFFER_OP_KILL = 2
 
     !> The MODIFIER_P of an operation: it never modifies buffers (nil), it
     !> always does (t), or compare the buffers' modification flags
     !> (:maybe).
-    integer, parameter, public :: IBUFFER_MODIFIER_NIL = 0, IBUFFER_MODIFIER_T = 1, IBUFFER_MODIFIER_MAYBE = 2
+    integer, parameter, public :: IBUFFER_MODIFIER_NEVER = 0, IBUFFER_MODIFIER_ALWAYS = 1, IBUFFER_MODIFIER_MAYBE = 2
 
     !> The longest name of a column, a sorting method or a mode, and of a
     !> literal string in a format.
@@ -236,7 +236,7 @@ module ibuf_macs_fm
     !> ibuf-macs.el:define-ibuffer-op.
     type, public :: ibuffer_op_type
         logical :: deletion = .false.
-        integer :: modifier_p = IBUFFER_MODIFIER_NIL
+        integer :: modifier_p = IBUFFER_MODIFIER_NEVER
         logical :: dangerous = .false.
         character(len=IBUFFER_TEXT_LEN) :: opstring = "operated on"
         character(len=IBUFFER_TEXT_LEN) :: active_opstring = "Operate on"

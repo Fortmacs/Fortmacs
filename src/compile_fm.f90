@@ -138,7 +138,7 @@ module compile_fm
     use comint_fm, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                            FONT_LOCK_OVERRIDE_T
+                            FONT_LOCK_OVERRIDE_YES
     use font_lock_fm, only: font_lock_append_text_property, font_lock_add_keywords, font_lock_flush
     implicit none(type, external)
     private
@@ -324,7 +324,7 @@ module compile_fm
                                      logical_setting(name="compilation_disable_input", value=.false.)
 
     !> Values of `compilation_scroll_output'.
-    integer, parameter, public :: COMPILATION_SCROLL_NIL = 0, COMPILATION_SCROLL_T = 1, &
+    integer, parameter, public :: COMPILATION_SCROLL_NO = 0, COMPILATION_SCROLL_YES = 1, &
                                   COMPILATION_SCROLL_FIRST_ERROR = 2
 
     !> True to scroll the *compilation* buffer window as output appears.
@@ -335,10 +335,10 @@ module compile_fm
     !>
     !> COMPILATION_SCROLL_FIRST_ERROR stops scrolling at the first error,
     !> and leaves point on its location in the *compilation* buffer.  Port of
-    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NIL is nil,
-    !> COMPILATION_SCROLL_T t, COMPILATION_SCROLL_FIRST_ERROR `first-error').
+    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NO is nil,
+    !> COMPILATION_SCROLL_YES t, COMPILATION_SCROLL_FIRST_ERROR `first-error').
     type(integer_setting), public :: compilation_scroll_output = &
-                                     integer_setting(name="compilation_scroll_output", value=COMPILATION_SCROLL_NIL)
+                                     integer_setting(name="compilation_scroll_output", value=COMPILATION_SCROLL_NO)
 
     !> Hook run after `compilation_filter' has inserted a string into the
     !> buffer.  It is called with the variable `compilation_filter_start'
@@ -532,19 +532,19 @@ module compile_fm
                                      logical_setting(name="compilation_search_all_directories", value=.true.)
 
     !> Values of `compilation_context_lines' other than a number of lines.
-    integer, parameter, public :: COMPILATION_CONTEXT_NIL = -1, COMPILATION_CONTEXT_T = -2
+    integer, parameter, public :: COMPILATION_CONTEXT_TOP = -1, COMPILATION_CONTEXT_NO_SCROLL = -2
 
     !> Display this many lines of leading context before the current
-    !> message.  If COMPILATION_CONTEXT_NIL or COMPILATION_CONTEXT_T, and
+    !> message.  If COMPILATION_CONTEXT_TOP or COMPILATION_CONTEXT_NO_SCROLL, and
     !> the left fringe is displayed, don't scroll the compilation output
     !> window; an arrow in the left fringe points to the current message.
-    !> With no left fringe, if COMPILATION_CONTEXT_NIL, the message scrolls
+    !> With no left fringe, if COMPILATION_CONTEXT_TOP, the message scrolls
     !> to the top of the window; there is no arrow.  If
-    !> COMPILATION_CONTEXT_T, don't scroll the compilation output window at
+    !> COMPILATION_CONTEXT_NO_SCROLL, don't scroll the compilation output window at
     !> all; an arrow before column zero points to the current message.
     !> Port of compile.el compilation-context-lines.
     type(integer_setting), public :: compilation_context_lines = &
-                                     integer_setting(name="compilation_context_lines", value=COMPILATION_CONTEXT_NIL)
+                                     integer_setting(name="compilation_context_lines", value=COMPILATION_CONTEXT_TOP)
 
     !> Face name to use for whole messages.
     !> Faces `compilation_error_face', `compilation_warning_face',
@@ -3676,7 +3676,7 @@ contains
             call compilation_beginning_of_line(1 - compilation_context_lines%value)
             call set_window_start(windows(w%index), point(), st)
             call goto_char(opoint)
-        else if (compilation_context_lines%value == COMPILATION_CONTEXT_NIL) then
+        else if (compilation_context_lines%value == COMPILATION_CONTEXT_TOP) then
             ! There is no left fringe.
             call goto_char(pos)
             moved = forward_line(0_int64)
@@ -4086,7 +4086,7 @@ contains
 
         if (present(override)) then
             if (override) then
-                h%match%override = FONT_LOCK_OVERRIDE_T
+                h%match%override = FONT_LOCK_OVERRIDE_YES
                 h%match%laxmatch = .true.
             end if
         end if
@@ -4540,7 +4540,7 @@ contains
         call restore_buffer_modified(.false.)
         ! Pop up the compilation buffer.
         call display_buffer(outbuf, outwin, st)
-        scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_NIL
+        scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_NO
         k = current_entry()
         compilation_buffers(k)%has_arguments = .true.
         compilation_buffers(k)%command = command

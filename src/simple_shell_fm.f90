@@ -139,7 +139,7 @@ contains
             if (.not. output_to_current_buffer) pos = point_max()
         case (DONT_ERASE_ERASE)
             call erase_buffer(st)
-        case (DONT_ERASE_NIL)
+        case (DONT_ERASE_NO)
             if (.not. output_to_current_buffer) call erase_buffer(st)
         case default
         end select
@@ -168,7 +168,7 @@ contains
         integer(int64) :: pos, pmax
         integer :: k
 
-        if (shell_command_dont_erase_buffer%value == DONT_ERASE_NIL) return
+        if (shell_command_dont_erase_buffer%value == DONT_ERASE_NO) return
         pos = 0
 
         if (allocated(shell_command_saved_pos)) then
@@ -269,7 +269,7 @@ contains
     !> to put the output in some other buffer.  If OUTPUT_BUFFER is a
     !> buffer or buffer name, erase that buffer and insert the output
     !> there; a value of `shell_command_dont_erase_buffer' other than
-    !> DONT_ERASE_NIL or DONT_ERASE_ERASE prevents the buffer from being
+    !> DONT_ERASE_NO or DONT_ERASE_ERASE prevents the buffer from being
     !> erased.  If INSERT_HERE is true (which happens
     !> interactively when the prefix argument is given), insert the output
     !> in current buffer after point leaving mark after it.  This cannot be
@@ -861,7 +861,7 @@ contains
     !> Optional OUTPUT_BUFFER (or OUTPUT_BUFFER_NAME) specifies where to
     !> put the command's output: erase that buffer and insert the output
     !> there; a value of `shell_command_dont_erase_buffer' other than
-    !> DONT_ERASE_NIL or DONT_ERASE_ERASE prevents erasing the buffer.  If absent, use the buffer specified by
+    !> DONT_ERASE_NO or DONT_ERASE_ERASE prevents erasing the buffer.  If absent, use the buffer specified by
     !> `shell_command_buffer_name'.  A true INSERT_HERE means to insert the
     !> output in the current buffer after START.
     !>
@@ -939,7 +939,7 @@ contains
         use_current = same_buffer(buffer, current_buffer())
 
         if (use_current) then
-            use_current = shell_command_dont_erase_buffer%value == DONT_ERASE_NIL .or. &
+            use_current = shell_command_dont_erase_buffer%value == DONT_ERASE_NO .or. &
                           shell_command_dont_erase_buffer%value == DONT_ERASE_ERASE
 
             if (.not. use_current) then

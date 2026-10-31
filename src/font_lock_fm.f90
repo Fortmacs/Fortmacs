@@ -68,7 +68,7 @@ module font_lock_fm
     use font_core_fm, only: font_lock_defaults, font_lock_defaults_type, font_lock_keyword_type, &
                             font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
                             font_lock_mode_internal_proc, is_font_lock_specified_proc, font_lock_initial_fontify_proc, &
-                            font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, &
+                            font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NO, FONT_LOCK_OVERRIDE_YES, &
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
                             font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current, &
                             font_lock_properties_proc
@@ -325,7 +325,7 @@ contains
 
     !> A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face
     !> FACE (or the face FACE_FUNCTION names), combined with existing
-    !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),
+    !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NO by default),
     !> LAXMATCH if SUBEXP need not match.  Not a port.
     function font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties, nil_properties, &
                                  display, properties_function) result(h)
@@ -1622,17 +1622,17 @@ contains
         val = nil()
         if (len(face) > 0) val = sym(face)
 
-        if (nilp(val) .and. highlight%override /= FONT_LOCK_OVERRIDE_T) then
+        if (nilp(val) .and. highlight%override /= FONT_LOCK_OVERRIDE_YES) then
             ! If `val' is nil, don't do anything.
             return
         end if
 
         select case (highlight%override)
-        case (FONT_LOCK_OVERRIDE_NIL)
+        case (FONT_LOCK_OVERRIDE_NO)
             ! Cannot override existing fontification.
             call text_property_not_all(start, end, sym("face"), nil(), pos, found, status)
             if (.not. found .and. status%ok()) call put_text_property(start, end, sym("face"), val, status)
-        case (FONT_LOCK_OVERRIDE_T)
+        case (FONT_LOCK_OVERRIDE_YES)
             ! Override existing fontification.
             call put_text_property(start, end, sym("face"), val, status)
         case (FONT_LOCK_OVERRIDE_PREPEND)

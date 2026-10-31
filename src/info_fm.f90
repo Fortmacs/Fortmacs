@@ -127,7 +127,7 @@ module info_fm
                           completion_table_type, completion_list_table, completion_function_table, &
                           completion_predicate, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
                           COMPLETE_TEST, COMPLETE_BOUNDARIES
-    use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_YES
     use text_mode_fm, only: text_mode_syntax_table, text_mode_abbrev_table, syms_of_text_mode
     use shell_fm, only: list_buffers_directory
     use help_fm, only: substitute_command_keys, documentation_hook
@@ -516,11 +516,11 @@ module info_fm
     character(len=*), parameter, public :: INFO_MENU_ENTRY_NAME_RE = "\(?:[^:]\|:[^:,.;() "//TAB//LF//"]\)*"
 
     !> Values of `info_fontify_maximum_menu_size' other than a number.
-    integer, parameter, public :: INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL = -1, INFO_FONTIFY_MAXIMUM_MENU_SIZE_T = -2
+    integer, parameter, public :: INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE = -1, INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED = -2
 
     !> Maximum size of menu to fontify if `font_lock_mode' is true.
-    !> Set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL to disable node
-    !> fontification; set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_T for no
+    !> Set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE to disable node
+    !> fontification; set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED for no
     !> limit.  Port of info.el Info-fontify-maximum-menu-size.
     integer, public :: info_fontify_maximum_menu_size = 400000
 
@@ -536,19 +536,19 @@ module info_fm
                                      logical_setting(name="info_use_header_line", value=.true.)
 
     !> Values of `info_hide_note_references'.
-    integer, parameter, public :: INFO_HIDE_NOTE_REFERENCES_NIL = 0, INFO_HIDE_NOTE_REFERENCES_T = 1, &
+    integer, parameter, public :: INFO_HIDE_NOTE_REFERENCES_NO = 0, INFO_HIDE_NOTE_REFERENCES_SEE = 1, &
                                   INFO_HIDE_NOTE_REFERENCES_HIDE = 2, INFO_HIDE_NOTE_REFERENCES_TAG = 3
 
     !> If true, hide the tag and section reference in *note and * menu
-    !> items.  If the value is INFO_HIDE_NOTE_REFERENCES_T, the default,
+    !> items.  If the value is INFO_HIDE_NOTE_REFERENCES_SEE, the default,
     !> replace "*note" with "see".  If the value is
     !> INFO_HIDE_NOTE_REFERENCES_HIDE, remove "*note" without replacing it
     !> with anything.  If the value is INFO_HIDE_NOTE_REFERENCES_TAG, the
-    !> reference section is still shown.  INFO_HIDE_NOTE_REFERENCES_NIL
+    !> reference section is still shown.  INFO_HIDE_NOTE_REFERENCES_NO
     !> completely disables this feature, leaving the original "*note"
     !> visible.  (`info_refill_paragraphs' is Deferred.)  Port of info.el
     !> Info-hide-note-references.
-    integer, public :: info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_T
+    integer, public :: info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_SEE
 
     !> Depth of breadcrumbs to display.  0 means do not display
     !> breadcrumbs.  Port of info.el Info-breadcrumbs-depth.
@@ -2158,7 +2158,7 @@ contains
             buffer = "*info*<"//trim(buf)//">"
             has_buffer = .true.
         else
-            call read_file_name("Info file name: ", file, status, mustmatch=REQUIRE_MATCH_T)
+            call read_file_name("Info file name: ", file, status, mustmatch=REQUIRE_MATCH_YES)
             if (.not. status%ok()) return
             has_file = .true.
         end if
@@ -2407,7 +2407,7 @@ contains
             call build_node_completions(completions, status)
             if (.not. status%ok()) return
             call completing_read("Node name: ", completion_list_table(strings_value(completions)), node, status, &
-                                 require_match=REQUIRE_MATCH_T, initial="Top")
+                                 require_match=REQUIRE_MATCH_YES, initial="Top")
             if (.not. status%ok()) return
             call info_on_current_buffer(status, node)
         else
@@ -3782,7 +3782,7 @@ contains
             allocate (locals(k)%history_forward(0))
         end block k_forward
 
-        if (info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL) call info_fontify_node()
+        if (info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE) call info_fontify_node()
         call update_header_line()
         call list_buffers_directory%set_local(node_description(current_file_or_empty()))
         call display_images_node()
@@ -4215,7 +4215,7 @@ contains
         do
             completion_ignore_case%value = .true.
             call completing_read(prompt, completion_function_table(read_node_name_1), nodename, status, &
-                                 require_match=REQUIRE_MATCH_T, history="info_minibuf_history", default=default)
+                                 require_match=REQUIRE_MATCH_YES, history="info_minibuf_history", default=default)
             completion_ignore_case%value = saved_ignore
             if (.not. status%ok()) return
             if (len(nodename) > 0) exit
@@ -4826,10 +4826,10 @@ contains
         if (has_default) then
             call completing_read(format_prompt("Follow reference named", default), &
                                  completion_list_table(strings_value(completions)), input, status, &
-                                 require_match=REQUIRE_MATCH_T)
+                                 require_match=REQUIRE_MATCH_YES)
         else
             call completing_read("Follow reference named: ", completion_list_table(strings_value(completions)), &
-                                 input, status, require_match=REQUIRE_MATCH_T)
+                                 input, status, require_match=REQUIRE_MATCH_YES)
         end if
 
         completion_ignore_case%value = saved_ignore
@@ -5100,10 +5100,10 @@ contains
 
             if (has_default) then
                 call completing_read(format_prompt("Menu item", default), completion_function_table(complete_menu_item), &
-                                     item, status, require_match=REQUIRE_MATCH_T, default=default)
+                                     item, status, require_match=REQUIRE_MATCH_YES, default=default)
             else
                 call completing_read("Menu item: ", completion_function_table(complete_menu_item), item, status, &
-                                     require_match=REQUIRE_MATCH_T)
+                                     require_match=REQUIRE_MATCH_YES)
             end if
 
             completion_ignore_case%value = saved_ignore
@@ -7779,7 +7779,7 @@ contains
         current_node = info_current_node()
         current_file = info_current_file()
         saved_size = info_fontify_maximum_menu_size
-        info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+        info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
         call info_directory(st)
 
         ! current-node and current-file are nil when they invoke
@@ -8123,7 +8123,7 @@ contains
         character(len=:), allocatable :: name
 
         call completing_read("Find documentation for command: ", completion_obarray_table(), name, status, &
-                             is_command, require_match=REQUIRE_MATCH_T)
+                             is_command, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call info_goto_emacs_command_node(name, status)
     end subroutine cmd_info_goto_emacs_command_node
@@ -8156,7 +8156,7 @@ contains
 
             if (inter .and. name == "execute_extended_command") then
                 call completing_read("Find documentation for command: ", completion_obarray_table(), name, status, &
-                                     is_command, require_match=REQUIRE_MATCH_T)
+                                     is_command, require_match=REQUIRE_MATCH_YES)
                 if (.not. status%ok()) return
             end if
 
@@ -8367,7 +8367,7 @@ contains
         call info_manual_names(.not. nilp(current_prefix_arg), names)
         call info_filter_manual_names(names, filtered)
         call completing_read("Manual name: ", completion_list_table(strings_value(filtered)), manual, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call info_display_manual(manual, status)
     end subroutine cmd_info_display_manual
@@ -8922,9 +8922,9 @@ contains
         ! visited nodes need to be re-fontified
         fontify_visited_p = .false.
 
-        if (info_fontify_visited_nodes%value .and. info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL) then
+        if (info_fontify_visited_nodes%value .and. info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE) then
             ! Don't take time to refontify visited nodes in huge nodes
-            fontify_visited_p = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_T .or. &
+            fontify_visited_p = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED .or. &
                                 point_max() - point_min() < info_fontify_maximum_menu_size
         end if
 
@@ -8934,7 +8934,7 @@ contains
         manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
 
         if (lower(manual) == "texinfo" .and. current_node_or_empty() == "Cross Reference Commands") then
-            hide = INFO_HIDE_NOTE_REFERENCES_NIL
+            hide = INFO_HIDE_NOTE_REFERENCES_NO
         end if
 
         ! Fontify header line
@@ -9068,8 +9068,8 @@ contains
 
         if (ok) then
             ! Don't take time to annotate huge menus
-            ok = info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
-            if (ok) ok = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_T .or. &
+            ok = info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
+            if (ok) ok = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED .or. &
                          point_max() - point() < info_fontify_maximum_menu_size
         end if
 
@@ -9224,7 +9224,7 @@ contains
             if (m(5, 1) > 0) m5 = text(m(5, 1), m(5, 2))
 
             if (not_fontified_p) then
-                if (hide /= INFO_HIDE_NOTE_REFERENCES_NIL) then
+                if (hide /= INFO_HIDE_NOTE_REFERENCES_NO) then
                     other_tag = achar(0)
 
                     if (hide /= INFO_HIDE_NOTE_REFERENCES_HIDE .and. line_number_at_pos() > 4) then
@@ -9334,7 +9334,7 @@ contains
             call goto_char(p0)
 
             if (not_fontified_p) then
-                if (hide == INFO_HIDE_NOTE_REFERENCES_T .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE) then
+                if (hide == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE) then
                     call put_text_property(m(3, 1), m(3, 2), sym("invisible"), t_value(), st)
                     call put_text_property(m(3, 1), m(3, 2), sym("front_sticky"), nil(), st)
                     call put_text_property(m(3, 1), m(3, 2), sym("rear_nonsticky"), t_value(), st)
@@ -9414,7 +9414,7 @@ contains
                 call put_text_property(m(1, 1), m(1, 2), sym("font_lock_face"), symbol_value_of("info_xref"), st)
             end if
 
-            if (not_fontified_p .and. (hide == INFO_HIDE_NOTE_REFERENCES_T .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE)) then
+            if (not_fontified_p .and. (hide == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE)) then
                 if (.not. info_index_node()) then
                     call put_text_property(m(2, 1), m(6, 2) - 1, sym("invisible"), t_value(), st)
 

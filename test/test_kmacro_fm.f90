@@ -34,7 +34,7 @@ module test_kmacro_fm
     use keymap_fm, only: key_parse, key_binding
     use callint_fm, only: current_prefix_arg, prefix_arg
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message, unread_command_events, &
-                           defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
+                           defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
                            this_command_keys, last_input_event, store_kbd_macro_event, finalize_kbd_macro_chars, &
                            kbd_macro_termination_hook, last_command, store_event
     use bindings_fm, only: init_bindings
@@ -50,7 +50,7 @@ module test_kmacro_fm
                          kmacro_initial_counter_value, kmacro_counter_format, kmacro_default_counter_format, &
                          kmacro_counter_format_start, kmacro_counter_value_start, kmacro_last_counter, &
                          kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_CALL_REPEAT_DISABLED, &
-                         KMACRO_CALL_REPEAT_LAST_KEY, KMACRO_NO_REPEAT_T
+                         KMACRO_CALL_REPEAT_LAST_KEY, KMACRO_REPEAT_NO
     implicit none(type, external)
     private
 
@@ -110,7 +110,7 @@ contains
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
         call show_alone()
-        defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+        defining_kbd_macro = DEFINING_KBD_MACRO_NO
         call discard_input()
         prefix_arg = nil()
         current_prefix_arg = nil()
@@ -326,11 +326,11 @@ contains
 
         call fresh(h)
         call kmacro_start_macro(nil(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
+        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "recording")
         if (allocated(error)) return
         call kmacro_start_macro(nil(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
+        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "still recording")
         if (allocated(error)) return
         call check(error, last_message, "Already defining keyboard macro.")
@@ -367,7 +367,7 @@ contains
 
         call fresh(h)
         call kmacro_start_macro_or_insert_counter(nil(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL, "recording")
+        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO, "recording")
         if (allocated(error)) return
         ! Call it again and it should insert the counter.
         call kmacro_start_macro_or_insert_counter(nil(), st)
@@ -378,7 +378,7 @@ contains
         current_prefix_arg = make_fixnum(3_int64)
         call kmacro_end_or_call_macro(make_fixnum(3_int64), st)
         current_prefix_arg = nil()
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "finished")
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "finished")
         if (allocated(error)) return
         call check(error, text(), "0hellohello", "the definition repeated")
         if (allocated(error)) return
@@ -549,7 +549,7 @@ contains
         call check(error, format_error(st), "No kbd macro has been defined")
         if (allocated(error)) return
         ! Check that it stopped defining and that no macro was recorded.
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "no macro")
         if (allocated(error)) return
         ! Now try it while not recording, but first record a non-nil macro.
@@ -634,7 +634,7 @@ contains
         call check(error, last_message, "Macro: bb")
         if (allocated(error)) return
         ! Execute the current macro and check arguments.
-        call kmacro_call_macro(make_fixnum(2_int64), st, KMACRO_NO_REPEAT_T)
+        call kmacro_call_macro(make_fixnum(2_int64), st, KMACRO_REPEAT_NO)
         call check(error, text(), "bbbb")
         if (allocated(error)) return
         ! Cycle the ring the other way; #5 expected.
@@ -747,7 +747,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message, "Keyboard macro defined")
         if (allocated(error)) return
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "no longer defining")
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "no longer defining")
         if (allocated(error)) return
         call type_events(kbd("C-x e"))
         call check(error, text(), "abab")
@@ -805,7 +805,7 @@ contains
         call fresh(h)
         call type_events(kbd("C-x ( a C-x )"))
         call type_events(kbd("C-x ( b C-g"))
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "not defining")
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "not defining")
         if (allocated(error)) return
         call check(error, last_macro_is(chars("a")), "previous macro")
         if (allocated(error)) return
@@ -824,7 +824,7 @@ contains
 
         call fresh(h)
         call type_events(kbd("C-x ( b C-a C-b"))
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "not defining")
+        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "not defining")
         if (allocated(error)) return
         call check(error, last_macro_is(kbd("b C-a")), "macro b C-a")
         if (allocated(error)) return

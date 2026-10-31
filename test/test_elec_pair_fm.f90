@@ -52,7 +52,7 @@ module test_elec_pair_fm
     use bindings_fm, only: init_bindings
     use elec_pair_fm, only: electric_pair_syntax_info, electric_pair_info_type, electric_pair_delete_pair, &
                             electric_pair_skip_whitespace, electric_pair_pairs, electric_pair_type, &
-                            ELECTRIC_PAIR_SKIP_WHITESPACE_T, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
+                            ELECTRIC_PAIR_SKIP_WHITESPACE_YES, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
     use lisp_fm, only: command_proc
     use test_support, only: show_alone
     implicit none(type, external)
@@ -401,7 +401,7 @@ contains
 
         if (bind) then
             saved_skip_whitespace = electric_pair_skip_whitespace
-            electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_T
+            electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_YES
         else
             electric_pair_skip_whitespace = saved_skip_whitespace
         end if

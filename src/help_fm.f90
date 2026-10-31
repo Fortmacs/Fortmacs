@@ -72,7 +72,7 @@ module help_fm
     use marker_fm, only: set_marker
     use xdisp_fm, only: message
     use minibuf_fm, only: completion_obarray_table, minibuffer_local_map
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use help_mode_fm, only: help_mode, help_mode_map, init_help_mode
     use frame_fm, only: selected_frame, selected_window
     use window_fm, only: windows, is_window_live, same_window, window_leaves, temp_buffer_window_show, &
@@ -834,7 +834,7 @@ contains
         integer :: k
 
         call completing_read("Where is command: ", completion_obarray_table(), name, status, is_command, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         if (len(name) == 0) then

@@ -40,7 +40,7 @@ module test_comint_fm
     use comint_fm, only: make_comint, comint_send_input, comint_arguments, comint_input_ring_item, &
                          comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol, &
                          comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
-                         COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, comint_within_quotes, &
+                         COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, comint_within_quotes, &
                          comint_password_prompt_regexp, comint_send_invisible, set_comint_password_function, &
                          comint_password_proc
     use search_fm, only: string_match
@@ -258,7 +258,7 @@ contains
         call wait_for("three"//new_line("a")//"echo one two three"//new_line("a"))
         call goto_char(point_max())
         pm = point_max()
-        call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_T)
+        call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_ON_COMPLETION)
         ! !!:2 is the second argument of the previous input.
         call insert("!!:2", st)
         done = comint_replace_by_expanded_history(st)

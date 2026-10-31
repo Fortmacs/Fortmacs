@@ -79,7 +79,7 @@ module fill_fm
     !> Justification styles: the values of `default_justification' (and
     !> `none'), and t for "as `current_justification' says".
     integer, parameter, public :: JUSTIFY_NONE = 0, JUSTIFY_LEFT = 1, JUSTIFY_RIGHT = 2, JUSTIFY_FULL = 3, &
-                                  JUSTIFY_CENTER = 4, JUSTIFY_T = 5
+                                  JUSTIFY_CENTER = 4, JUSTIFY_CURRENT = 5
 
     !> True means put two spaces after a colon when filling.  Port of
     !> fill.el colon-double-space.
@@ -1055,7 +1055,7 @@ contains
     !> the `current_justification' function, but with a prefix arg, it
     !> does full justification instead.
     !>
-    !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current_justification')
+    !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_CURRENT for `current_justification')
     !> can specify any type of justification; see `default_justification'
     !> for the possible values.
     !> Optional fourth arg NOSQUEEZE true means not to make spaces
@@ -1071,7 +1071,7 @@ contains
     !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region-as-paragraph-default (with
-    !> fill-region-as-paragraph; JUSTIFY nil is JUSTIFY_T, as the
+    !> fill-region-as-paragraph; JUSTIFY nil is JUSTIFY_CURRENT, as the
     !> `current_justification' default).
     recursive subroutine fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, &
                                                   used, have_used)
@@ -1095,7 +1095,7 @@ contains
         status = status_type()
         if (present(have_used)) have_used = .false.
         if (present(used)) used = ""
-        how = JUSTIFY_T
+        how = JUSTIFY_CURRENT
         if (present(justify)) how = justify
         squeeze_none = .false.
         if (present(nosqueeze)) squeeze_none = nosqueeze
@@ -1143,7 +1143,7 @@ contains
             return
         end if
 
-        if (how == JUSTIFY_T) how = current_justification()
+        if (how == JUSTIFY_CURRENT) how = current_justification()
         ! Don't let Adaptive Fill mode alter the fill prefix permanently.
         have_prefix = allocated(fill_prefix%value)
         prefix = ""
@@ -1270,7 +1270,7 @@ contains
     !> call `fill_region' to fill each of the paragraphs in the active
     !> region, instead of just filling the current paragraph.  Port of
     !> fill.el:fill-paragraph (no fill-paragraph-function or comments;
-    !> JUSTIFY is a JUSTIFY_ constant, JUSTIFY_T for nil).
+    !> JUSTIFY is a JUSTIFY_ constant, JUSTIFY_CURRENT for nil).
     recursive subroutine fill_paragraph(status, justify, region, used)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: justify
@@ -1348,7 +1348,7 @@ contains
 
         call init_fill_variables()
         status = status_type()
-        how = JUSTIFY_T
+        how = JUSTIFY_CURRENT
         if (present(justify)) how = justify
         pfx = ""
 
@@ -1516,7 +1516,7 @@ contains
     !>
     !> Noninteractively, the third argument JUSTIFY specifies which
     !> kind of justification to do: JUSTIFY_FULL, JUSTIFY_LEFT, JUSTIFY_RIGHT,
-    !> JUSTIFY_CENTER, or JUSTIFY_NONE.  A value of JUSTIFY_T (or absent) means handle each
+    !> JUSTIFY_CENTER, or JUSTIFY_NONE.  A value of JUSTIFY_CURRENT (or absent) means handle each
     !> paragraph as specified by its text properties.
     !>
     !> The fourth arg NOSQUEEZE true means to leave whitespace other
@@ -1528,7 +1528,7 @@ contains
     !>
     !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
-    !> fill.el:fill-region (JUSTIFY_T for nil).
+    !> fill.el:fill-region (JUSTIFY_CURRENT for nil).
     recursive subroutine fill_region(from, to, status, justify, nosqueeze, to_eop, used)
         integer(int64), intent(in) :: from, to
         type(status_type), intent(out) :: status
@@ -1543,7 +1543,7 @@ contains
         logical :: sq
 
         status = status_type()
-        how = JUSTIFY_T
+        how = JUSTIFY_CURRENT
         if (present(justify)) how = justify
         sq = .false.
         if (present(nosqueeze)) sq = nosqueeze
@@ -1631,7 +1631,7 @@ contains
     !> Optional first argument HOW specifies alternate type of justification:
     !> it can be JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, or JUSTIFY_NONE; for their
     !> meaning, see `default_justification'.
-    !> If HOW is JUSTIFY_T, will justify however the `current_justification' function says to.
+    !> If HOW is JUSTIFY_CURRENT, will justify however the `current_justification' function says to.
     !> If HOW is absent, full justification is done by default.
     !> Second arg EOP true means that this is the last line of the paragraph, so
     !> it will not be stretched by full justification.
@@ -1651,7 +1651,7 @@ contains
         status = status_type()
         how = JUSTIFY_FULL
         if (present(how_in)) how = how_in
-        if (how == JUSTIFY_T) how = current_justification()
+        if (how == JUSTIFY_CURRENT) how = current_justification()
         is_eop = .false.
         if (present(eop)) is_eop = eop
         no_squeeze = .false.
@@ -1906,7 +1906,7 @@ contains
 
     ! Not a port.
     integer function prefix_justify() result(how)
-        how = JUSTIFY_T
+        how = JUSTIFY_CURRENT
         if (.not. nilp(current_prefix_arg)) how = JUSTIFY_FULL
     end function prefix_justify
 

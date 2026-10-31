@@ -49,7 +49,7 @@ module rmc_fm
     use keyboard_fm, only: recursive_edit, this_command, real_this_command, last_command_event, sit_for
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, &
                           completion_list_table
-    use minibuffer_fm, only: exit_minibuffer, minibuffer_message, completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: exit_minibuffer, minibuffer_message, completing_read, REQUIRE_MATCH_YES
     use frame_fm, only: selected_frame, selected_window
     use dispnew_fm, only: ding
     use xdisp_fm, only: message
@@ -411,7 +411,7 @@ contains
 
         full = full//") "
         call completing_read(full, completion_list_table(make_list(names)), result, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         do k = 1, size(choices)

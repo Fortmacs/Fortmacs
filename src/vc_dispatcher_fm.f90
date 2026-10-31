@@ -74,17 +74,17 @@ module vc_dispatcher_fm
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
               set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, &
               vc_set_mode_line_busy_indicator
-    public :: VC_OKSTATUS_NIL, VC_OKSTATUS_T, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
-              VC_NOQUERY_NIL, VC_NOQUERY_T, VC_NOQUERY_UNLESS_MODIFIED
+    public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
+              VC_NOQUERY_NO, VC_NOQUERY_YES, VC_NOQUERY_UNLESS_MODIFIED
 
     !> Values of `vc_command_messages' (nil, t, `log').
-    integer, parameter, public :: VC_COMMAND_MESSAGES_NIL = 0, VC_COMMAND_MESSAGES_T = 1, VC_COMMAND_MESSAGES_LOG = 2
+    integer, parameter, public :: VC_COMMAND_MESSAGES_NO = 0, VC_COMMAND_MESSAGES_YES = 1, VC_COMMAND_MESSAGES_LOG = 2
 
     !> If true, display and log messages about running back-end commands.
     !> If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are
     !> logged in the *Messages* buffer, but not displayed.  Port of
     !> vc-dispatcher.el vc-command-messages.
-    integer, public :: vc_command_messages = VC_COMMAND_MESSAGES_NIL
+    integer, public :: vc_command_messages = VC_COMMAND_MESSAGES_NO
 
     !> If true, treat user as expert; suppress yes-no prompts on some things.
     !> Port of vc-dispatcher.el vc-suppress-confirm.
@@ -103,19 +103,19 @@ module vc_dispatcher_fm
     !> `vc_do_command' OKSTATUS values besides a maximum exit status:
     !> nil (an error only if the command is killed by a signal), t
     !> (never an error) and `async' (don't wait for the process).
-    integer, parameter :: VC_OKSTATUS_NIL = -1, VC_OKSTATUS_T = -2, VC_OKSTATUS_ASYNC = -3
+    integer, parameter :: VC_OKSTATUS_UNLESS_SIGNAL = -1, VC_OKSTATUS_ANY = -2, VC_OKSTATUS_ASYNC = -3
 
     !> `vc_do_command' destinations besides a buffer: nil (discard the
     !> output) and t (the current buffer).
     integer, parameter :: VC_DEST_DISCARD = 0, VC_DEST_CURRENT = 1
 
     !> `vc_resynch_buffer' NOQUERY values: nil, t and `unless-modified'.
-    integer, parameter :: VC_NOQUERY_NIL = 0, VC_NOQUERY_T = 1, VC_NOQUERY_UNLESS_MODIFIED = 2
+    integer, parameter :: VC_NOQUERY_NO = 0, VC_NOQUERY_YES = 1, VC_NOQUERY_UNLESS_MODIFIED = 2
 
     !> Code run after a command's process is done (the closure CODE of
     !> `vc_exec_after'): its procedure, given the action itself and so the
     !> buffers and strings it captured, and OKSTATUS (a maximum exit
-    !> status, or VC_OKSTATUS_NIL for none).
+    !> status, or VC_OKSTATUS_UNLESS_SIGNAL for none).
     type :: vc_action_type
         procedure(vc_action_proc), pointer, nopass :: run => null()
         type(handle_type) :: buffer, buffer2
@@ -123,7 +123,7 @@ module vc_dispatcher_fm
         type(vc_string_type), allocatable :: files(:)
         integer :: n = 0
         logical :: flag = .false.
-        integer :: okstatus = VC_OKSTATUS_NIL
+        integer :: okstatus = VC_OKSTATUS_UNLESS_SIGNAL
     end type vc_action_type
 
     abstract interface
@@ -603,7 +603,7 @@ contains
 
     !> Execute ACTION when PROC, or the current buffer's process, is done.
     !>
-    !> ACTION's OKSTATUS, if not VC_OKSTATUS_NIL, is a non-negative integer.
+    !> ACTION's OKSTATUS, if not VC_OKSTATUS_UNLESS_SIGNAL, is a non-negative integer.
     !> Run ACTION only if PROC (or, if PROC is absent, the current buffer's
     !> process) exits normally (i.e. does not die to a signal) with exit
     !> status not exceeding OKSTATUS.
@@ -675,7 +675,7 @@ contains
         status = status_type()
         if (.not. associated(action%run)) return
 
-        if (action%okstatus /= VC_OKSTATUS_NIL .and. p%index /= 0) then
+        if (action%okstatus /= VC_OKSTATUS_UNLESS_SIGNAL .and. p%index /= 0) then
             if (process_status(p) /= "exit") return
             if (action%okstatus < process_exit_status(p)) return
         end if
@@ -818,7 +818,7 @@ contains
     subroutine vc_command_message(text)
         character(len=*), intent(in) :: text
 
-        if (vc_command_messages /= VC_COMMAND_MESSAGES_NIL) call message(text)
+        if (vc_command_messages /= VC_COMMAND_MESSAGES_NO) call message(text)
     end subroutine vc_command_message
 
     !> Execute an inferior command, notifying user and checking for errors.
@@ -836,9 +836,9 @@ contains
     !> determines when to signal an error instead of giving a numeric exit
     !> status as EXIT_STATUS (or a signal description).  OKSTATUS an integer
     !> means to signal an error if the command's exit status exceeds that
-    !> value or the command is killed by a signal, VC_OKSTATUS_NIL means to
+    !> value or the command is killed by a signal, VC_OKSTATUS_UNLESS_SIGNAL means to
     !> signal an error only if the command is killed by a signal, and
-    !> VC_OKSTATUS_T means never to signal an error.
+    !> VC_OKSTATUS_ANY means never to signal an error.
     !>
     !> FILES are the working files (none to execute commands that don't
     !> expect a file name or set of files).  FLAGS are inserted into the
@@ -987,8 +987,8 @@ contains
                 if (fixnump(result)) code = int(xfixnum(result))
                 if (present(exit_status)) exit_status = code
 
-                if (okstatus /= VC_OKSTATUS_T .and. (.not. fixnump(result) .or. &
-                                                     (okstatus >= 0 .and. okstatus < code))) then
+                if (okstatus /= VC_OKSTATUS_ANY .and. (.not. fixnump(result) .or. &
+                                                       (okstatus >= 0 .and. okstatus < code))) then
                     if (buffers(cur)%name(1:min(1, len(buffers(cur)%name))) /= " ") then
                         call pop_to_buffer(current_buffer(), st)
                         call goto_char(point_min())
@@ -1263,8 +1263,8 @@ contains
 
     !> If FILE is currently visited, resynch its buffer.
     !> If NOQUERY is VC_NOQUERY_UNLESS_MODIFIED then silently skip reverting or
-    !> unvisiting if the buffer is modified.  VC_NOQUERY_T inhibits
-    !> getting confirmation before reverting.  NOQUERY should be VC_NOQUERY_T
+    !> unvisiting if the buffer is modified.  VC_NOQUERY_YES inhibits
+    !> getting confirmation before reverting.  NOQUERY should be VC_NOQUERY_YES
     !> only if it is known that the only
     !> difference between the buffer and the file is due to modifications by
     !> the dispatcher client code, rather than user editing.  ROOT is
@@ -1281,7 +1281,7 @@ contains
         logical :: here
 
         status = status_type()
-        nq = VC_NOQUERY_NIL
+        nq = VC_NOQUERY_NO
         if (present(noquery)) nq = noquery
         here = .false.
 
@@ -1291,7 +1291,7 @@ contains
 
         if (here) then
             if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
-                call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+                call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NO, reset_vc_info)
             end if
         else if (is_file_directory(file)) then
             call vc_resynch_buffers_in_directory(file, root, status, keep, noquery, reset_vc_info)
@@ -1303,7 +1303,7 @@ contains
                 call set_buffer(buffer, st)
 
                 if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
-                    call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+                    call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NO, reset_vc_info)
                 end if
 
                 if (is_buffer_live(old)) call set_buffer(old, st)

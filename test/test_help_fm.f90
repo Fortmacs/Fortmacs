@@ -44,7 +44,7 @@ module test_help_fm
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
-    use isearch_fm, only: search_upper_case, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use isearch_fm, only: search_upper_case, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS
     use simple_fm, only: fill_prefix, do_auto_fill
     use help_fm, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                        make_separator_line, register_keymap_name
@@ -378,10 +378,10 @@ contains
         if (allocated(error)) return
         ! An original value of 20 characters or more starts on the next
         ! line.
-        search_upper_case = UPPER_CASE_T
+        search_upper_case = UPPER_CASE_YES
         call describe_variable_text("search_upper_case", text, found)
         search_upper_case = UPPER_CASE_NOT_YANKS
-        call check(error, index(text, "Its value is UPPER_CASE_T"//LF// &
+        call check(error, index(text, "Its value is UPPER_CASE_YES"//LF// &
                                 "Original value was "//LF//"UPPER_CASE_NOT_YANKS"//LF) > 0, text)
         if (allocated(error)) return
         ! A value fits on the "Its value is" line when it is shorter than
@@ -503,7 +503,7 @@ contains
         if (allocated(error)) return
         call check(error, fortran_repr(make_string('say "hi"')) == '"say ""hi"""', fortran_repr(make_string('say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(sym("UPPER_CASE_T")) == "UPPER_CASE_T")
+        call check(error, fortran_repr(sym("UPPER_CASE_YES")) == "UPPER_CASE_YES")
         if (allocated(error)) return
         elems(1) = make_fixnum(1_int64)
         elems(2) = make_string("a")

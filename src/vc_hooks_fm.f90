@@ -78,12 +78,12 @@ module vc_hooks_fm
     !> The kinds of a switches option (vc-diff-switches and the like):
     !> nil (unspecified: try the next option), t (no switches at all), or
     !> a list of strings (a string is a list of one).
-    integer, parameter, public :: VC_SWITCHES_NIL = 0, VC_SWITCHES_T = 1, VC_SWITCHES_LIST = 2
+    integer, parameter, public :: VC_SWITCHES_UNSPECIFIED = 0, VC_SWITCHES_NONE = 1, VC_SWITCHES_LIST = 2
 
     !> The value of a switches option: its kind and, for
     !> VC_SWITCHES_LIST, the switches.
     type, public :: vc_switches_type
-        integer :: kind = VC_SWITCHES_NIL
+        integer :: kind = VC_SWITCHES_UNSPECIFIED
         type(vc_string_type), allocatable :: list(:)
     end type vc_switches_type
 
@@ -116,26 +116,26 @@ module vc_hooks_fm
     logical, public :: vc_make_backup_files = .false.
 
     !> Values of `vc_follow_symlinks' (nil, t, `ask').
-    integer, parameter, public :: VC_FOLLOW_SYMLINKS_NIL = 0, VC_FOLLOW_SYMLINKS_T = 1, VC_FOLLOW_SYMLINKS_ASK = 2
+    integer, parameter, public :: VC_FOLLOW_SYMLINKS_NO = 0, VC_FOLLOW_SYMLINKS_YES = 1, VC_FOLLOW_SYMLINKS_ASK = 2
 
     !> What to do if visiting a symbolic link to a file under version control.
     !> Editing such a file through the link bypasses the version control system,
     !> which is dangerous and probably not what you want.
     !>
-    !> If this variable is VC_FOLLOW_SYMLINKS_T, VC follows the link and visits the real file,
+    !> If this variable is VC_FOLLOW_SYMLINKS_YES, VC follows the link and visits the real file,
     !> telling you about it in the echo area.  If it is VC_FOLLOW_SYMLINKS_ASK, VC asks for
-    !> confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NIL, the link is
+    !> confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NO, the link is
     !> visited and a warning displayed.  Port of vc-hooks.el vc-follow-symlinks.
     integer, public :: vc_follow_symlinks = VC_FOLLOW_SYMLINKS_ASK
 
     !> Values of `vc_display_status' (nil, t, `no-backend').
-    integer, parameter, public :: VC_DISPLAY_STATUS_NIL = 0, VC_DISPLAY_STATUS_T = 1, VC_DISPLAY_STATUS_NO_BACKEND = 2
+    integer, parameter, public :: VC_DISPLAY_STATUS_NO = 0, VC_DISPLAY_STATUS_YES = 1, VC_DISPLAY_STATUS_NO_BACKEND = 2
 
     !> If true, display revision number and lock status in mode line.
     !> If false, only the backend name is displayed.  When the value
     !> is VC_DISPLAY_STATUS_NO_BACKEND, then no backend name is displayed before the
     !> revision number and lock status.  Port of vc-hooks.el vc-display-status.
-    integer, public :: vc_display_status = VC_DISPLAY_STATUS_T
+    integer, public :: vc_display_status = VC_DISPLAY_STATUS_YES
 
     !> If true, identify work files by searching for version headers.
     !> Port of vc-hooks.el vc-consult-headers.
@@ -169,14 +169,14 @@ module vc_hooks_fm
     !> `vc_state_locker' gives), `needs-update', `needs-merge',
     !> `unlocked-changes', `added', `removed', `conflict', `missing',
     !> `ignored' and `unregistered'.
-    integer, parameter, public :: VC_STATE_NIL = 0, VC_UP_TO_DATE = 1, VC_EDITED = 2, VC_LOCKED = 3, &
+    integer, parameter, public :: VC_STATE_UNKNOWN = 0, VC_UP_TO_DATE = 1, VC_EDITED = 2, VC_LOCKED = 3, &
                                   VC_NEEDS_UPDATE = 4, VC_NEEDS_MERGE = 5, VC_UNLOCKED_CHANGES = 6, VC_ADDED = 7, &
                                   VC_REMOVED = 8, VC_CONFLICT = 9, VC_MISSING = 10, VC_IGNORED = 11, &
                                   VC_UNREGISTERED = 12
 
     !> The checkout models of `vc_checkout_model': unknown (nil),
     !> `implicit', `locking' and `announce'.
-    integer, parameter, public :: VC_MODEL_NIL = 0, VC_MODEL_IMPLICIT = 1, VC_MODEL_LOCKING = 2, VC_MODEL_ANNOUNCE = 3
+    integer, parameter, public :: VC_MODEL_UNKNOWN = 0, VC_MODEL_IMPLICIT = 1, VC_MODEL_LOCKING = 2, VC_MODEL_ANNOUNCE = 3
 
     ! ------------------------------------------------------------------
     ! Backends
@@ -195,7 +195,7 @@ module vc_hooks_fm
 
     !> Rename states of a file's backend-specific information: none, a copy
     !> and a rename.
-    integer, parameter, public :: VC_RENAME_NIL = 0, VC_RENAME_COPY = 1, VC_RENAME_RENAME = 2
+    integer, parameter, public :: VC_RENAME_NONE = 0, VC_RENAME_COPY = 1, VC_RENAME_RENAME = 2
 
     !> One (FILE STATE EXTRA) entry of a backend's `dir_status_files': the
     !> file's name relative to the directory, its state, and the
@@ -206,7 +206,7 @@ module vc_hooks_fm
         integer :: state = 0
         logical :: has_extra = .false.
         integer :: old_perm = 0, new_perm = 0
-        integer :: rename_state = VC_RENAME_NIL
+        integer :: rename_state = VC_RENAME_NONE
         character(len=:), allocatable :: orig_name
     end type vc_dir_entry_type
 
@@ -530,7 +530,7 @@ module vc_hooks_fm
         character(len=:), allocatable :: file
         logical :: set(NPROPS) = .false.
         integer :: backend = 0
-        integer :: state = VC_STATE_NIL
+        integer :: state = VC_STATE_UNKNOWN
         character(len=:), allocatable :: locker
         character(len=:), allocatable :: working_revision
         integer(int64) :: checkout_sec = 0
@@ -768,7 +768,7 @@ contains
     end function vc_file_get_backend
 
     !> Set per-file VC property `vc-state' for FILE to STATE (LOCKER for
-    !> VC_LOCKED; VC_STATE_NIL for nil).  Port of
+    !> VC_LOCKED; VC_STATE_UNKNOWN for nil).  Port of
     !> vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_state(file, state, locker)
         character(len=*), intent(in) :: file
@@ -779,7 +779,7 @@ contains
         call touch(VC_PROP_STATE)
         k = prop_index(file, .true.)
         props(k)%state = state
-        props(k)%set(VC_PROP_STATE) = state /= VC_STATE_NIL
+        props(k)%set(VC_PROP_STATE) = state /= VC_STATE_UNKNOWN
 
         if (present(locker)) then
             props(k)%locker = locker
@@ -788,7 +788,7 @@ contains
         end if
     end subroutine vc_file_set_state
 
-    !> Get per-file VC property `vc-state' for FILE (VC_STATE_NIL for
+    !> Get per-file VC property `vc-state' for FILE (VC_STATE_UNKNOWN for
     !> nil), and with LOCKER the user of VC_LOCKED.  Port of
     !> vc-hooks.el:vc-file-getprop.
     integer function vc_file_get_state(file, locker) result(state)
@@ -796,7 +796,7 @@ contains
         character(len=:), allocatable, intent(out), optional :: locker
         integer :: k
 
-        state = VC_STATE_NIL
+        state = VC_STATE_UNKNOWN
         if (present(locker)) locker = ""
         k = prop_index(file, .false.)
         if (k == 0) return
@@ -1010,7 +1010,7 @@ contains
     !> Indicate how FILES are checked out.
     !>
     !> If FILES are not registered, this function always returns
-    !> VC_MODEL_NIL.  For registered files, the possible values are:
+    !> VC_MODEL_UNKNOWN.  For registered files, the possible values are:
     !>
     !>   VC_MODEL_IMPLICIT   FILES are always writable, and checked out `implicitly'
     !>               when the user saves the first changes to the file.
@@ -1027,14 +1027,14 @@ contains
         integer, intent(in) :: b
         type(vc_string_type), intent(in) :: files(:)
 
-        model = VC_MODEL_NIL
+        model = VC_MODEL_UNKNOWN
         if (b <= 0) return
         if (associated(vc_backends(b)%checkout_model)) model = vc_backends(b)%checkout_model(files)
     end function vc_checkout_model
 
     !> Return the version control state of FILE.
     !>
-    !> A return of VC_STATE_NIL from this function means we have no information on the
+    !> A return of VC_STATE_UNKNOWN from this function means we have no information on the
     !> status of this file.  Otherwise, the value returned is one of:
     !>
     !>   VC_UP_TO_DATE       The working file is unmodified with respect to the
@@ -1084,7 +1084,7 @@ contains
     !>                      indicating the version-control system is ignoring it,
     !>                      Note: This property is not set reliably (some VCSes
     !>                      don't have useful directory-status commands) so assume
-    !>                      that any file with vc_state VC_STATE_NIL might be ignorable
+    !>                      that any file with vc_state VC_STATE_UNKNOWN might be ignorable
     !>                      without VC knowing it.
     !>
     !>   VC_UNREGISTERED     The file is not under version control.
@@ -1102,7 +1102,7 @@ contains
             state = vc_file_get_state(file)
         end if
 
-        if (state /= VC_STATE_NIL) return
+        if (state /= VC_STATE_UNKNOWN) return
         if (len(file) == 0) return
         b = 0
         if (present(backend)) b = backend
@@ -1118,7 +1118,7 @@ contains
         character(len=*), intent(in) :: file
         integer, intent(in) :: b
 
-        state = VC_STATE_NIL
+        state = VC_STATE_UNKNOWN
         if (associated(vc_backends(b)%state)) state = vc_backends(b)%state(file)
         call vc_file_set_state(file, state)
     end function vc_state_refresh
@@ -1440,11 +1440,11 @@ contains
             end if
 
             state = vc_state_refresh(file, b)
-            if (state /= VC_STATE_NIL) call vc_mode_line(file, b)
+            if (state /= VC_STATE_UNKNOWN) call vc_mode_line(file, b)
         else if (vc_file_get_state(file) == VC_UP_TO_DATE) then
             ! If we saved an unlocked file on a locking based VCS, that
             ! file is not longer up-to-date.
-            call vc_file_set_state(file, VC_STATE_NIL)
+            call vc_file_set_state(file, VC_STATE_UNKNOWN)
         end if
 
         ! Resynch *vc-dir* buffers, if any are present.
@@ -1495,7 +1495,7 @@ contains
 
         if (b == 0) then
             if (allocated(buffers(cur)%vc_mode)) deallocate (buffers(cur)%vc_mode)
-        else if (vc_display_status == VC_DISPLAY_STATUS_NIL) then
+        else if (vc_display_status == VC_DISPLAY_STATUS_NO) then
             buffers(cur)%vc_mode = " "//vc_backend_name(b)
         else
             if (associated(vc_backends(b)%mode_line_string)) then
@@ -1676,7 +1676,7 @@ contains
         if (truename /= buffers(cur)%filename) link_type = vc_backend(truename)
         if (link_type == 0) return
 
-        if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NIL) then
+        if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NO) then
             call message("Warning: symbolic link to "//vc_backend_name(link_type)//"-controlled source file")
         else if (vc_follow_symlinks /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
             call vc_follow_link()

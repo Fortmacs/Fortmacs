@@ -1583,7 +1583,7 @@ contains
     !> true means to prefer returning nil than to prompt the user.
     !> Port of diff-mode.el:diff-find-file-name (no cvs-pcl-cvs).
     recursive subroutine diff_find_file_name(file, found, status, old, noprompt)
-        use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_T
+        use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NO, REQUIRE_MATCH_YES
         character(len=:), allocatable, intent(out) :: file
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -1719,7 +1719,7 @@ contains
             call expand_file_name(prompt_file, newfile, st)
             call done()
             call read_file_name("Use file "//newfile//": ", answer, status, dir=file_name_directory(newfile), &
-                                default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NIL, REQUIRE_MATCH_T, creation), &
+                                default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NO, REQUIRE_MATCH_YES, creation), &
                                 initial=file_name_nondirectory(newfile))
             if (.not. status%ok()) return
             if (.not. creation .or. file_exists(answer)) call remember(entry_index(), fs, answer)

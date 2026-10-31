@@ -70,7 +70,7 @@ module vc_dir_fm
                        ewoc_set_hf_parts
     use vc_hooks_fm, only: vc_string_type, vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, vc_dir_buffers, &
                            vc_dir_resynch_file, vc_state, vc_state_name, vc_backend_name, vc_file_set_backend, &
-                           VC_STATE_NIL, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
+                           VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
                            VC_MISSING, VC_CONFLICT, VC_NEEDS_UPDATE, VC_UNLOCKED_CHANGES, VC_BACKEND_NONE
     use vc_dispatcher_fm, only: vc_setup_buffer, set_vc_parent_buffer, vc_parent_buffer, vc_set_mode_line_busy_indicator
     use vc_fm, only: vc_fileset_type, vc_responsible_backend, vc_root_dir, vc_only_files_state_and_model, vc_ignore, &
@@ -92,10 +92,10 @@ module vc_dir_fm
               insert_with_face
 
     !> Values of `vc_dir_allow_mass_mark_changes'.
-    integer, parameter, public :: VC_DIR_MASS_MARK_NIL = 0, VC_DIR_MASS_MARK_ASK = 1, VC_DIR_MASS_MARK_T = 2
+    integer, parameter, public :: VC_DIR_MASS_MARK_NO = 0, VC_DIR_MASS_MARK_ASK = 1, VC_DIR_MASS_MARK_ALWAYS = 2
 
     !> Values of `vc_dir_auto_hide_up_to_date'.
-    integer, parameter, public :: VC_DIR_AUTO_HIDE_NIL = 0, VC_DIR_AUTO_HIDE_T = 1, VC_DIR_AUTO_HIDE_REVERT = 2
+    integer, parameter, public :: VC_DIR_AUTO_HIDE_NO = 0, VC_DIR_AUTO_HIDE_YES = 1, VC_DIR_AUTO_HIDE_REVERT = 2
 
     !> Normal hook run by `vc_dir_mode'.
     !> See `run_mode_hooks'.  Port of vc-dir.el vc-dir-mode-hook.
@@ -121,18 +121,18 @@ module vc_dir_fm
     !> unmarked too, Fortmacs will prompt you to confirm that you do mean
     !> for the other items to be marked or unmarked.
     !>
-    !> If this variable is VC_DIR_MASS_MARK_NIL, the commands will refuse to
+    !> If this variable is VC_DIR_MASS_MARK_NO, the commands will refuse to
     !> do anything if they would need to mark or unmark other entries too.
-    !> If this variable is VC_DIR_MASS_MARK_T, the commands will always
+    !> If this variable is VC_DIR_MASS_MARK_ALWAYS, the commands will always
     !> proceed to mark and unmark other entries, without asking.  Port of
     !> vc-dir.el vc-dir-allow-mass-mark-changes.
     integer, public :: vc_dir_allow_mass_mark_changes = VC_DIR_MASS_MARK_ASK
 
     !> Whether VC-Dir auto-removes `up-to-date'/`ignored' files from display.
     !>
-    !> If the value is VC_DIR_AUTO_HIDE_NIL, files shown in the VC-Dir buffer
+    !> If the value is VC_DIR_AUTO_HIDE_NO, files shown in the VC-Dir buffer
     !> will remain on display if they become `up-to-date' or `ignored'.
-    !> If the value is VC_DIR_AUTO_HIDE_T, files are automatically removed
+    !> If the value is VC_DIR_AUTO_HIDE_YES, files are automatically removed
     !> from display when they become `up-to-date' or `ignored'.
     !> If the value is VC_DIR_AUTO_HIDE_REVERT, any displayed files that
     !> are `up-to-date' or `ignored' are removed from display
@@ -147,7 +147,7 @@ module vc_dir_fm
     !> You can still use `vc_dir_show_fileentry' to manually add an entry for
     !> an `up-to-date' or `ignored' file.  Port of vc-dir.el
     !> vc-dir-auto-hide-up-to-date.
-    integer, public :: vc_dir_auto_hide_up_to_date = VC_DIR_AUTO_HIDE_NIL
+    integer, public :: vc_dir_auto_hide_up_to_date = VC_DIR_AUTO_HIDE_NO
 
     !> If true, first offer to save relevant buffers when refreshing VC-Dir.
     !> Port of vc-dir.el vc-dir-save-some-buffers-on-revert.
@@ -459,7 +459,7 @@ contains
     ! `vc_dir_mark_unmark').  Not a port.
     integer function mass_mark()
         mass_mark = vc_dir_allow_mass_mark_changes
-        if (mass_mark_bound_nil) mass_mark = VC_DIR_MASS_MARK_NIL
+        if (mass_mark_bound_nil) mass_mark = VC_DIR_MASS_MARK_NO
     end function mass_mark
 
     ! ------------------------------------------------------------------
@@ -660,8 +660,8 @@ contains
                 else if (nodefile == entryfile) then
                     id = did(node)
 
-                    if (entries(k)%state == VC_STATE_NIL .or. &
-                        (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NIL .and. &
+                    if (entries(k)%state == VC_STATE_UNKNOWN .or. &
+                        (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NO .and. &
                          vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_REVERT .and. &
                          up_to_date_state(entries(k)%state))) then
                         to_remove = [node, to_remove]
@@ -1026,7 +1026,7 @@ contains
             ! are already marked.  Although the user's intent is clear, by
             ! default we still ask them before unmarking in order to avoid
             ! accidental erasure of complex patterns of marks.
-            yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+            yes = mass_mark() /= VC_DIR_MASS_MARK_NO
 
             if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
                 call read_y_or_n("Replace marks on subitems with marking `"//name//"' itself?", yes, status)
@@ -1050,7 +1050,7 @@ contains
                 ! The user seems to want to mark an entry whose directory is
                 ! already marked.  As the file is already implicitly marked for
                 ! most VCS, they may not really intend this.
-                yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+                yes = mass_mark() /= VC_DIR_MASS_MARK_NO
 
                 if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
                     call read_y_or_n("`"//name//"' is already marked; unmark it?", yes, status)
@@ -1337,7 +1337,7 @@ contains
             if (parent /= 0) call vc_dir_children(parent, .false., all_children)
 
             if (parent /= 0 .and. size(all_children) > 0) then
-                yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+                yes = mass_mark() /= VC_DIR_MASS_MARK_NO
 
                 if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
                     call read_y_or_n("Replace mark on `"//infos(id)%entry%name// &
@@ -1367,7 +1367,7 @@ contains
                 ! Offer to unmark those.
                 call vc_dir_children(crt, .true., children)
 
-                if (size(children) > 0 .and. mass_mark() /= VC_DIR_MASS_MARK_NIL) then
+                if (size(children) > 0 .and. mass_mark() /= VC_DIR_MASS_MARK_NO) then
                     yes = .true.
 
                     if (mass_mark() == VC_DIR_MASS_MARK_ASK) then
@@ -1824,7 +1824,7 @@ contains
         ! Ensure we return a nil state if the file does not exist and is
         ! not tracked so that it disappears from VC-Dir (bug#81191).
         if (entry%state == VC_UP_TO_DATE .and. .not. file_exists(fname)) then
-            entry%state = VC_STATE_NIL
+            entry%state = VC_STATE_UNKNOWN
             entry%has_extra = .false.
         end if
     end subroutine vc_dir_recompute_file_state
@@ -1928,7 +1928,7 @@ contains
                 if (.not. st%ok()) truedir = ddir
                 call vc_dir_recompute_file_state(file, truedir, complete_state(1))
                 call vc_dir_update(complete_state, status_buf, &
-                                   complete_state(1)%state == VC_STATE_NIL .or. &
+                                   complete_state(1)%state == VC_STATE_UNKNOWN .or. &
                                    complete_state(1)%state == VC_UP_TO_DATE)
             end if
         end do
@@ -2107,7 +2107,7 @@ contains
         ! next time.
         ! FIXME: There should be a more elegant way to do this.
         if (allocated(infos(data)%directory) .and. infos(data)%entry%state == VC_UP_TO_DATE) then
-            infos(data)%entry%state = VC_STATE_NIL
+            infos(data)%entry%state = VC_STATE_UNKNOWN
         end if
 
         not_needs_update = .not. infos(data)%needs_update
@@ -2172,7 +2172,7 @@ contains
         if (ignore_auto .and. noconfirm .and. .false.) return
         call vc_dir_refresh(status)
         if (.not. status%ok()) return
-        if (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NIL) call vc_dir_hide_state()
+        if (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NO) call vc_dir_hide_state()
     end subroutine vc_dir_revert_buffer_function
 
     ! The update function of `vc_dir_refresh'.  Not a port.
@@ -2621,7 +2621,7 @@ contains
 
     recursive subroutine cmd_vc_dir(status)
         use minibuffer_fm, only: read_file_name
-        use minibuffer_fm, only: REQUIRE_MATCH_T
+        use minibuffer_fm, only: REQUIRE_MATCH_YES
         use vc_hooks_fm, only: vc_backend_named
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root, dir, truename, name
@@ -2636,7 +2636,7 @@ contains
         ! therefore it makes sense to always do that.
         ! Otherwise if you do C-x v d -> C-x C-f -> C-x v d
         ! you may get a new *vc-dir* buffer, different from the original
-        call read_file_name("VC status for directory: ", dir, status, dir=root, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("VC status for directory: ", dir, status, dir=root, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call file_truename(dir, truename, status)
         if (.not. status%ok()) return
@@ -2655,7 +2655,7 @@ contains
     ! Not a port.
     recursive subroutine read_backend(name, status)
         use minibuf_fm, only: completion_list_table
-        use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+        use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
         use lisp_fm, only: make_string, make_list
         use vc_hooks_fm, only: vc_handled_backends
         character(len=:), allocatable, intent(out) :: name
@@ -2670,7 +2670,7 @@ contains
         end do
 
         call completing_read("Use VC backend: ", completion_list_table(make_list(names)), name, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
     end subroutine read_backend
 
     recursive subroutine cmd_vc_dir_next_line(status)
@@ -2749,11 +2749,11 @@ contains
 
     recursive subroutine cmd_vc_dir_show_fileentry(status)
         use minibuffer_fm, only: read_file_name
-        use minibuffer_fm, only: REQUIRE_MATCH_T
+        use minibuffer_fm, only: REQUIRE_MATCH_YES
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
-        call read_file_name("Show file: ", file, status, mustmatch=REQUIRE_MATCH_T)
+        call read_file_name("Show file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (status%ok()) call vc_dir_show_fileentry(file)
     end subroutine cmd_vc_dir_show_fileentry
 

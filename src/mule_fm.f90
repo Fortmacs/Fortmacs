@@ -67,7 +67,7 @@ module mule_fm
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap
     use search_fm, only: string_match, match_beginning, match_end, case_fold_search
     use minibuf_fm, only: completion_list_table
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use coding_fm, only: syms_of_coding, buffer_file_coding_system, last_coding_system_used, &
                          coding_system_for_read, inhibit_eol_conversion, default_process_coding_system, &
                          file_coding_system_table, is_coding_system, check_coding_system, coding_system_base, &
@@ -788,7 +788,7 @@ contains
         type(status_type), intent(out) :: status
 
         call completing_read(prompt, completion_list_table(coding_system_table()), coding, status, &
-                             require_match=REQUIRE_MATCH_T, history="coding_system_history", &
+                             require_match=REQUIRE_MATCH_YES, history="coding_system_history", &
                              default=default_coding_system)
         if (.not. status%ok()) coding = ""
     end subroutine read_coding_system
@@ -876,7 +876,7 @@ contains
 
         call completing_read(format_prompt("Coding system for saving file", default), &
                              completion_list_table(coding_system_table()), coding, status, &
-                             require_match=REQUIRE_MATCH_T, history="coding_system_history", default=default)
+                             require_match=REQUIRE_MATCH_YES, history="coding_system_history", default=default)
         if (.not. status%ok()) coding = ""
     end subroutine read_buffer_file_coding_system
 
@@ -1346,7 +1346,7 @@ contains
 
         do
             call completing_read("Coding system: ", completion_list_table(coding_system_table()), cs, status, &
-                                 require_match=REQUIRE_MATCH_T, history="coding_system_history")
+                                 require_match=REQUIRE_MATCH_YES, history="coding_system_history")
             if (.not. status%ok()) return
             if (len(cs) > 0) exit
         end do

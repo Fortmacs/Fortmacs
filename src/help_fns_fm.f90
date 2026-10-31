@@ -58,7 +58,7 @@ module help_fns_fm
     use callint_fm, only: is_command_defined, fboundp
     use keymap_fm, only: key_description, where_is_internal, parse_modifiers
     use minibuf_fm, only: completion_obarray_table, completion_list_table
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use docstrings_fm, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
     use help_fm, only: substitute_command_keys, with_help_window, describe_function_1_hook, documentation_hook, &
                        make_separator_line
@@ -395,7 +395,7 @@ contains
         character(len=:), allocatable :: name
 
         call completing_read("Describe function: ", completion_obarray_table("symbol-help"), name, status, &
-                             is_function_name, require_match=REQUIRE_MATCH_T)
+                             is_function_name, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         ! help-fns--describe-function-or-command-prompt (no function at
@@ -423,7 +423,7 @@ contains
         end do
 
         call completing_read("Describe variable: ", completion_list_table(make_list(names), "symbol-help"), name, status, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         ! (No variable at point yet.)
@@ -679,7 +679,7 @@ contains
         character(len=:), allocatable :: name
 
         call completing_read("Describe symbol: ", completion_obarray_table("symbol-help"), name, status, is_name_known, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         if (len(name) == 0) then
@@ -699,7 +699,7 @@ contains
         character(len=:), allocatable :: name
 
         call completing_read("Describe command: ", completion_obarray_table("symbol-help"), name, status, is_command, &
-                             require_match=REQUIRE_MATCH_T)
+                             require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 
         if (len(name) == 0) then

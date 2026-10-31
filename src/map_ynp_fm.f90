@@ -48,11 +48,11 @@ module map_ynp_fm
     integer, parameter :: YNP_SKIP = 0, YNP_ASK = 1, YNP_ACT = 2
 
     !> Values of `read_answer_short' (upstream nil, t and `auto').
-    integer, parameter, public :: READ_ANSWER_SHORT_NIL = 0, READ_ANSWER_SHORT_T = 1, READ_ANSWER_SHORT_AUTO = 2
+    integer, parameter, public :: READ_ANSWER_SHORT_NO = 0, READ_ANSWER_SHORT_YES = 1, READ_ANSWER_SHORT_AUTO = 2
 
     !> Whether the `read_answer' function accepts single-character answers.
-    !> If READ_ANSWER_SHORT_T, accept short (single key-press) answers to the
-    !> question.  If READ_ANSWER_SHORT_NIL, require long answers.  If
+    !> If READ_ANSWER_SHORT_YES, accept short (single key-press) answers to the
+    !> question.  If READ_ANSWER_SHORT_NO, require long answers.  If
     !> READ_ANSWER_SHORT_AUTO, accept short answers if
     !> `use_short_answers' is true.
     !>
@@ -61,7 +61,7 @@ module map_ynp_fm
     !> the `read_answer' function.  To control whether `read_yes_or_no'
     !> requires a long or a short answer, see the `use_short_answers'
     !> variable.  Port of map-ynp.el read-answer-short
-    !> (READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T or
+    !> (READ_ANSWER_SHORT_NO, READ_ANSWER_SHORT_YES or
     !> READ_ANSWER_SHORT_AUTO).
     integer, public :: read_answer_short = READ_ANSWER_SHORT_AUTO
 

@@ -22,13 +22,13 @@
 !> depends on files_fm, which a module cannot.
 submodule(files_fm) files_read_fm
     use modes_fm, only: minor_modes
-    use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
+    use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NO, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
                              read_file_name_completion_ignore_case, read_file_name_internal, completion_table_with_context
     use minibuf_fm, only: all_completions
     use minibuf_table_fm, only: completion_table_type, COMPLETE_BOUNDARIES
     use lisp_fm, only: list, make_list, list_length, list_elt, xstring, make_string
     use dired_fm, only: file_name_all_completions
-    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
+    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use search_fm, only: string_match, match_beginning
     use fileio_fm, only: is_file_name_absolute
     use fns_fm, only: compare_strings, COMPARE_EQUAL
@@ -79,7 +79,7 @@ contains
     ! it's the only remaining element in the list, in which case we do
     ! list "foo", "foo.elc" and "foo.el").
     allocate (names(0), fullnames(0))
-    sufre = regexp_opt(suffixes, REGEXP_OPT_T)//"\'"
+    sufre = regexp_opt(suffixes, REGEXP_OPT_GROUP)//"\'"
     string_dir = file_name_directory(string)
     string_file = file_name_nondirectory(string)
 
@@ -279,7 +279,7 @@ contains
         logical, intent(in), optional :: confirm_nonexistent
         integer :: mustmatch
 
-        mustmatch = REQUIRE_MATCH_NIL
+        mustmatch = REQUIRE_MATCH_NO
 
         if (present(confirm_nonexistent)) then
             if (confirm_nonexistent) mustmatch = REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION

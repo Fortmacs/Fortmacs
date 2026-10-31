@@ -122,7 +122,7 @@ module dired_mode_fm
     use modes_fm, only: major_modes
     use faces_fm, only: named_face_type, face_attrs, display_when, FACE_CLASS_COLOR
     use font_core_fm, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_defaults, &
-                            FONT_LOCK_OVERRIDE_NIL
+                            FONT_LOCK_OVERRIDE_NO
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     implicit none(type, external)
     private
@@ -175,18 +175,18 @@ module dired_mode_fm
     character(len=:), allocatable, public :: dired_listing_switches
 
     !> Values of `dired_use_ls_dired' (upstream nil, t and `unspecified').
-    integer, parameter, public :: DIRED_USE_LS_DIRED_NIL = 0, DIRED_USE_LS_DIRED_T = 1, &
+    integer, parameter, public :: DIRED_USE_LS_DIRED_NO = 0, DIRED_USE_LS_DIRED_YES = 1, &
                                   DIRED_USE_LS_DIRED_UNSPECIFIED = 2
 
-    !> DIRED_USE_LS_DIRED_T means Dired should pass the "--dired" option to "ls".
-    !> If DIRED_USE_LS_DIRED_NIL, don't pass "--dired" to "ls".
+    !> DIRED_USE_LS_DIRED_YES means Dired should pass the "--dired" option to "ls".
+    !> If DIRED_USE_LS_DIRED_NO, don't pass "--dired" to "ls".
     !> The special value DIRED_USE_LS_DIRED_UNSPECIFIED means to check whether
     !> `insert_directory_program' supports the "--dired" option, and save
     !> the result in this variable.
     !> This is performed the first time `dired_insert_directory'
     !> invokes `insert_directory_program'.
     !>
-    !> Note that if you set this option to DIRED_USE_LS_DIRED_NIL, either through choice or
+    !> Note that if you set this option to DIRED_USE_LS_DIRED_NO, either through choice or
     !> because your "ls" program does not support "--dired", Dired
     !> will fail to parse some "unusual" file names, e.g. those with leading
     !> spaces.  You might want to install ls from GNU Coreutils, which does
@@ -214,11 +214,11 @@ module dired_mode_fm
     character(len=:), allocatable, public :: dired_trivial_filenames
 
     !> Values of `dired_free_space' (upstream nil, `separate' and `first').
-    integer, parameter, public :: DIRED_FREE_SPACE_NIL = 0, DIRED_FREE_SPACE_SEPARATE = 1, &
+    integer, parameter, public :: DIRED_FREE_SPACE_NONE = 0, DIRED_FREE_SPACE_SEPARATE = 1, &
                                   DIRED_FREE_SPACE_FIRST = 2
 
     !> Whether and how to display the disk space usage info in Dired buffers.
-    !> If DIRED_FREE_SPACE_NIL, don't display.
+    !> If DIRED_FREE_SPACE_NONE, don't display.
     !> If DIRED_FREE_SPACE_SEPARATE, display on a separate line, and include both the used
     !> and the free disk space.
     !> If DIRED_FREE_SPACE_FIRST, the default, display only the free disk space on the first
@@ -228,11 +228,11 @@ module dired_mode_fm
     integer, public :: dired_free_space = DIRED_FREE_SPACE_FIRST
 
     !> Values of `dired_mark_region' (upstream nil, `file' and `line').
-    integer, parameter, public :: DIRED_MARK_REGION_NIL = 0, DIRED_MARK_REGION_FILE = 1, DIRED_MARK_REGION_LINE = 2
+    integer, parameter, public :: DIRED_MARK_REGION_NO = 0, DIRED_MARK_REGION_FILE = 1, DIRED_MARK_REGION_LINE = 2
 
     !> Defines what commands that mark files do with the active region.
     !>
-    !> When DIRED_MARK_REGION_NIL, marking commands don't operate on all files in the
+    !> When DIRED_MARK_REGION_NO, marking commands don't operate on all files in the
     !> active region.  They process their prefix arguments as usual.
     !>
     !> When the value of this option is another one, then all Dired commands
@@ -254,16 +254,16 @@ module dired_mode_fm
 
     !> Values of `dired_movement_style' (upstream nil, `cycle', `bounded',
     !> `cycle-files' and `bounded-files').
-    integer, parameter, public :: DIRED_MOVEMENT_STYLE_NIL = 0, DIRED_MOVEMENT_STYLE_CYCLE = 1, &
+    integer, parameter, public :: DIRED_MOVEMENT_STYLE_PLAIN = 0, DIRED_MOVEMENT_STYLE_CYCLE = 1, &
                                   DIRED_MOVEMENT_STYLE_BOUNDED = 2, DIRED_MOVEMENT_STYLE_CYCLE_FILES = 3, &
                                   DIRED_MOVEMENT_STYLE_BOUNDED_FILES = 4
 
-    !> A value other than DIRED_MOVEMENT_STYLE_NIL means point skips empty
+    !> A value other than DIRED_MOVEMENT_STYLE_PLAIN means point skips empty
     !> lines when moving in Dired buffers.
     !> This affects only `dired_next_line', `dired_previous_line',
     !> `dired_next_dirline', `dired_prev_dirline'.
     !>
-    !> Possible values other than DIRED_MOVEMENT_STYLE_NIL:
+    !> Possible values other than DIRED_MOVEMENT_STYLE_PLAIN:
     !>  * DIRED_MOVEMENT_STYLE_CYCLE:  when moving from the last/first visible line, cycle back
     !>              to the first/last visible line.
     !>  * DIRED_MOVEMENT_STYLE_BOUNDED: don't move up/down if the current line is the
@@ -273,7 +273,7 @@ module dired_mode_fm
     !>  * DIRED_MOVEMENT_STYLE_BOUNDED_FILES: like DIRED_MOVEMENT_STYLE_BOUNDED
     !>    but moves only between file lines.
     !> Port of dired.el dired-movement-style.
-    integer, public :: dired_movement_style = DIRED_MOVEMENT_STYLE_NIL
+    integer, public :: dired_movement_style = DIRED_MOVEMENT_STYLE_PLAIN
 
     !> Automatically revert Dired buffers on revisiting their directory.
     !> If true, revisiting an existing Dired buffer always reverts it.
@@ -445,7 +445,7 @@ module dired_mode_fm
     !> Values of `dired_dwim_target' (upstream nil, t or
     !> dired-dwim-target-next, dired-dwim-target-next-visible and
     !> dired-dwim-target-recent).
-    integer, parameter, public :: DIRED_DWIM_TARGET_NIL = 0, DIRED_DWIM_TARGET_NEXT = 1, &
+    integer, parameter, public :: DIRED_DWIM_TARGET_NO = 0, DIRED_DWIM_TARGET_NEXT = 1, &
                                   DIRED_DWIM_TARGET_NEXT_VISIBLE = 2, DIRED_DWIM_TARGET_RECENT = 3
 
     !> If set, Dired tries to guess a default target directory.
@@ -461,21 +461,21 @@ module dired_mode_fm
     !> The target is used in the prompt for file copy, rename etc.
     !> Port of dired.el dired-dwim-target (a function as the value is
     !> deferred).
-    integer, public :: dired_dwim_target = DIRED_DWIM_TARGET_NIL
+    integer, public :: dired_dwim_target = DIRED_DWIM_TARGET_NO
 
     !> Values of `dired_create_destination_dirs' (upstream nil, `always'
     !> and `ask').
-    integer, parameter, public :: DIRED_CREATE_DESTINATION_DIRS_NIL = 0, DIRED_CREATE_DESTINATION_DIRS_ALWAYS = 1, &
+    integer, parameter, public :: DIRED_CREATE_DESTINATION_DIRS_NEVER = 0, DIRED_CREATE_DESTINATION_DIRS_ALWAYS = 1, &
                                   DIRED_CREATE_DESTINATION_DIRS_ASK = 2
 
     !> Whether Dired should create destination dirs when copying/moving files.
-    !> If DIRED_CREATE_DESTINATION_DIRS_NIL, don't create non-existent destination directories.
+    !> If DIRED_CREATE_DESTINATION_DIRS_NEVER, don't create non-existent destination directories.
     !> If DIRED_CREATE_DESTINATION_DIRS_ASK, ask the user whether to create them.
     !> If DIRED_CREATE_DESTINATION_DIRS_ALWAYS, create them without asking.
     !>
     !> Also see `dired_create_destination_dirs_on_trailing_dirsep'.
     !> Port of dired-aux.el dired-create-destination-dirs.
-    integer, public :: dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
+    integer, public :: dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
 
     !> If true, consider a file name ending in a slash as a directory to create.
     !>
@@ -748,14 +748,14 @@ module dired_mode_fm
 
     !> Values of the LOCALP argument of `dired_get_filename' (upstream nil,
     !> t, `no-dir' and `verbatim').
-    integer, parameter, public :: DIRED_LOCALP_NIL = 0, DIRED_LOCALP_T = 1, DIRED_LOCALP_NO_DIR = 2, &
+    integer, parameter, public :: DIRED_LOCALP_ABSOLUTE = 0, DIRED_LOCALP_RELATIVE = 1, DIRED_LOCALP_NO_DIR = 2, &
                                   DIRED_LOCALP_VERBATIM = 3
 
     !> Kinds of the ARG of `dired_map_over_marks' and the commands on
-    !> marked files: DIRED_ARG_NIL (the marked files), DIRED_ARG_INTEGER
+    !> marked files: DIRED_ARG_NONE (the marked files), DIRED_ARG_INTEGER
     !> with a number N (the next N files), DIRED_ARG_MARKED (only marked
     !> files) or DIRED_ARG_OTHER (the current file).
-    integer, parameter, public :: DIRED_ARG_NIL = 0, DIRED_ARG_INTEGER = 1, DIRED_ARG_MARKED = 2, DIRED_ARG_OTHER = 3
+    integer, parameter, public :: DIRED_ARG_NONE = 0, DIRED_ARG_INTEGER = 1, DIRED_ARG_MARKED = 2, DIRED_ARG_OTHER = 3
 
     !> A string (a file name).
     type, public :: dired_string_type
@@ -822,7 +822,7 @@ module dired_mode_fm
     logical, allocatable :: map_found(:)
     type(handle_type), allocatable :: map_markers(:)
     integer :: map_n = 0
-    integer :: map_localp = DIRED_LOCALP_NIL
+    integer :: map_localp = DIRED_LOCALP_ABSOLUTE
     logical :: map_no_error = .false.
 
     !> The regexp `dired_mark_files_regexp' and its siblings test.
@@ -1871,16 +1871,16 @@ contains
         ! style, in particular via the environment variable QUOTING_STYLE.
         if (dired_use_ls_dired == DIRED_USE_LS_DIRED_UNSPECIFIED) then
             if (dired_check_use_ls_dired()) then
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_T
+                dired_use_ls_dired = DIRED_USE_LS_DIRED_YES
             else
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_NIL
+                dired_use_ls_dired = DIRED_USE_LS_DIRED_NO
                 call message(format_message("ls does not support --dired -N; see `dired_use_ls_dired' "// &
                                             "for more details."))
             end if
 
-            use_ls_dired = dired_use_ls_dired == DIRED_USE_LS_DIRED_T
+            use_ls_dired = dired_use_ls_dired == DIRED_USE_LS_DIRED_YES
         else
-            use_ls_dired = dired_use_ls_dired /= DIRED_USE_LS_DIRED_NIL
+            use_ls_dired = dired_use_ls_dired /= DIRED_USE_LS_DIRED_NO
         end if
 
         if (use_ls_dired) switches = "--dired -N "//switches
@@ -2081,7 +2081,7 @@ contains
             return
         end if
 
-        if (dired_free_space == DIRED_FREE_SPACE_NIL .or. dired_free_space == DIRED_FREE_SPACE_FIRST) then
+        if (dired_free_space == DIRED_FREE_SPACE_NONE .or. dired_free_space == DIRED_FREE_SPACE_FIRST) then
             call delete_region(mbeg(0), bol(2_int64), status)
         else
             ! Replace "total" with "total used in directory" to avoid
@@ -2946,7 +2946,7 @@ contains
     !> Value returned normally includes the directory name.
     !> LOCALP with value DIRED_LOCALP_NO_DIR means don't include directory
     !> name in result.  A value of DIRED_LOCALP_VERBATIM means to return
-    !> the name exactly as it occurs in the buffer, and DIRED_LOCALP_T
+    !> the name exactly as it occurs in the buffer, and DIRED_LOCALP_RELATIVE
     !> means construct name relative to `default_directory', which still
     !> may contain slashes if in a subdirectory.
     !> NO_ERROR_IF_NOT_FILEP means treat `.' and `..' as regular filenames
@@ -2965,7 +2965,7 @@ contains
         logical :: noerr, saved_fold, already_absolute, verbatim
         type(status_type) :: st
 
-        lp = DIRED_LOCALP_NIL
+        lp = DIRED_LOCALP_ABSOLUTE
         if (present(localp)) lp = localp
         noerr = .false.
         if (present(no_error_if_not_filep)) noerr = no_error_if_not_filep
@@ -3053,7 +3053,7 @@ contains
         else if (lp == DIRED_LOCALP_NO_DIR) then
             return
         else
-            dir = dired_current_directory(status, lp == DIRED_LOCALP_T)
+            dir = dired_current_directory(status, lp == DIRED_LOCALP_RELATIVE)
 
             if (.not. status%ok()) then
                 found = .false.
@@ -4145,7 +4145,7 @@ contains
         else
             call goto_char(opoint)
 
-            if (dired_movement_style == DIRED_MOVEMENT_STYLE_NIL) then
+            if (dired_movement_style == DIRED_MOVEMENT_STYLE_PLAIN) then
                 call set_error(status, FM_GENERIC_ERROR, "No more subdirectories")
             end if
         end if
@@ -4265,7 +4265,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (dired_movement_style /= DIRED_MOVEMENT_STYLE_NIL) then
+        if (dired_movement_style /= DIRED_MOVEMENT_STYLE_PLAIN) then
             call dired_move_to_next_line(arg, 1, status)
         else
             call dired_trivial_next_line(arg, status)
@@ -4295,7 +4295,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (dired_movement_style /= DIRED_MOVEMENT_STYLE_NIL) then
+        if (dired_movement_style /= DIRED_MOVEMENT_STYLE_PLAIN) then
             call dired_move_to_next_line(arg, 2, status)
         else
             call dired_trivial_next_dirline(arg, status)
@@ -4567,7 +4567,7 @@ contains
         arg_n = 0
 
         if (nilp(current_prefix_arg)) then
-            arg_kind = DIRED_ARG_NIL
+            arg_kind = DIRED_ARG_NONE
         else if (consp(current_prefix_arg)) then
             arg_kind = DIRED_ARG_OTHER
         else
@@ -4794,7 +4794,7 @@ contains
     !>   is the first marked file.
     !> Values returned are normally absolute file names.
     !> LOCALP is as in `dired_get_filename'.
-    !> ARG_KIND and ARG_N, if not DIRED_ARG_NIL, specify files near point
+    !> ARG_KIND and ARG_N, if not DIRED_ARG_NONE, specify files near point
     !>  to return instead of marked files.  They usually come from the
     !>  prefix argument of the caller.
     !>   If ARG is an integer, return the next ARG files (previous if ARG is
@@ -4802,7 +4802,7 @@ contains
     !>   If ARG is DIRED_ARG_MARKED, return only marked files; return none
     !>    if none are marked.
     !>   If ARG is DIRED_ARG_OTHER, return the current file name.
-    !>   If no files are marked, and ARG is DIRED_ARG_NIL, also return the
+    !>   If no files are marked, and ARG is DIRED_ARG_NONE, also return the
     !>   current file name.
     !>
     !> If DISTINGUISH_ONE_MARKED is true, then if we find just one marked
@@ -4825,7 +4825,7 @@ contains
         integer(int64) :: opoint
         logical :: found, upward, distinguish
 
-        kind = DIRED_ARG_NIL
+        kind = DIRED_ARG_NONE
         if (present(arg_kind)) kind = arg_kind
         num = 0
         if (present(arg_n)) num = arg_n
@@ -4833,7 +4833,7 @@ contains
         if (present(distinguish_one_marked)) distinguish = distinguish_one_marked
         if (present(one_marked)) one_marked = .false.
         call reset_results()
-        map_localp = DIRED_LOCALP_NIL
+        map_localp = DIRED_LOCALP_ABSOLUTE
         if (present(localp)) map_localp = localp
         map_no_error = .true.
         opoint = point()
@@ -4861,7 +4861,7 @@ contains
             end do
         end if
 
-        if (distinguish .and. found .and. kind == DIRED_ARG_NIL .and. map_n == 1 .and. present(one_marked)) then
+        if (distinguish .and. found .and. kind == DIRED_ARG_NONE .and. map_n == 1 .and. present(one_marked)) then
             one_marked = n == 1
         end if
 
@@ -4885,7 +4885,7 @@ contains
         type(status_type) :: st
 
         use_region = .false.
-        if (dired_mark_region == DIRED_MARK_REGION_NIL) return
+        if (dired_mark_region == DIRED_MARK_REGION_NO) return
         if (.not. is_region_active()) return
         call region_beginning(b, st)
         call region_end(e, st)
@@ -5299,7 +5299,7 @@ contains
         ! empty line
         if (is_eol()) return
         if (is_dired_hidden()) return
-        call dired_get_filename(fn, found, st, DIRED_LOCALP_T, .true.)
+        call dired_get_filename(fn, found, st, DIRED_LOCALP_RELATIVE, .true.)
         if (.not. found) return
         p = string_matches(mark_regexp, fn)
     end function is_regexp_file
@@ -5344,9 +5344,9 @@ contains
             ! Add more suggestions into the default list
             allocate (defaults(1))
             defaults(1)%s = ""
-            call dired_get_filename(fn, found, st, DIRED_LOCALP_T, .true.)
+            call dired_get_filename(fn, found, st, DIRED_LOCALP_RELATIVE, .true.)
             if (found) call add_default(fn)
-            call dired_get_filename(fn, found, st, DIRED_LOCALP_NIL, .true.)
+            call dired_get_filename(fn, found, st, DIRED_LOCALP_ABSOLUTE, .true.)
 
             if (found) then
                 call file_name_extension(fn, ext, found, period=.true.)
@@ -5412,7 +5412,7 @@ contains
         ! empty line
         if (is_eol()) return
         if (is_dired_hidden()) return
-        call dired_get_filename(fn, found, st, DIRED_LOCALP_NIL, .true.)
+        call dired_get_filename(fn, found, st, DIRED_LOCALP_ABSOLUTE, .true.)
         if (.not. found) return
         if (.not. is_file_readable(fn) .or. is_file_directory(fn)) return
         prebuf = get_file_buffer(expand(fn))
@@ -5611,7 +5611,7 @@ contains
         if (.not. p) return
         p = .not. is_looking_at(dired_re_dir)
         if (.not. p) return
-        call dired_get_filename(fn, found, st, DIRED_LOCALP_T, .true.)
+        call dired_get_filename(fn, found, st, DIRED_LOCALP_RELATIVE, .true.)
         p = .false.
         if (found) p = is_auto_save_file_name(file_name_nondirectory(fn))
     end function is_auto_save_line
@@ -5645,7 +5645,7 @@ contains
         if (.not. p) return
         p = .not. is_looking_at(dired_re_dir)
         if (.not. p) return
-        call dired_get_filename(fn, found, st, DIRED_LOCALP_T, .true.)
+        call dired_get_filename(fn, found, st, DIRED_LOCALP_RELATIVE, .true.)
         p = .false.
         if (found) p = is_backup_file_name(fn)
     end function is_backup_line
@@ -5794,7 +5794,7 @@ contains
 
             if (ask) then
                 found_pos = point()
-                call dired_get_filename(file, file_found, st, DIRED_LOCALP_T, .true.)
+                call dired_get_filename(file, file_found, st, DIRED_LOCALP_RELATIVE, .true.)
                 call goto_char(found_pos)
                 if (.not. (st%ok() .and. file_found)) cycle
                 call dired_query(query, format_message("Unmark file `")//file//format_message("'? "), answer, status, &
@@ -6070,8 +6070,8 @@ contains
 
         if (found) then
             call reset_results()
-            call dired_map_over_marks(collect_filename_and_marker, DIRED_ARG_NIL, 0_int64, status, found, upward)
-            if (status%ok()) call dired_internal_do_deletions(DIRED_ARG_NIL, 0_int64, upward, status)
+            call dired_map_over_marks(collect_filename_and_marker, DIRED_ARG_NONE, 0_int64, status, found, upward)
+            if (status%ok()) call dired_internal_do_deletions(DIRED_ARG_NONE, 0_int64, upward, status)
             call free_map_markers()
         else if (.not. quiet) then
             call message("(No deletions requested)")
@@ -6644,7 +6644,7 @@ contains
         else if (nilp(current_prefix_arg)) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_NO_DIR)
         else if (consp(current_prefix_arg)) then
-            call dired_get_marked_files(files, status, DIRED_LOCALP_T)
+            call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE)
         else if (prefix_n() == 0) then
             call dired_get_marked_files(files, status)
         else if (prefix_n() == 1 .and. fixnump(current_prefix_arg)) then

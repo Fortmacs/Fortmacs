@@ -153,7 +153,7 @@ module syntax_fm
     !> COMMENTSTOP of `parse_partial_expression': nil, non-nil (stop after the
     !> start of a comment) and the symbol `syntax-table' (stop after the
     !> start or end of a comment or a string).
-    integer, parameter, public :: COMMENTSTOP_NIL = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
+    integer, parameter, public :: COMMENTSTOP_NO = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
 
     !> The state of a parse by `parse_partial_expression', the list upstream
     !> returns.  Its components are the list's elements:

@@ -66,7 +66,7 @@ contains
     if (shortlog) the_type = VC_LOG_VIEW_SHORT
 
     if (present(type)) then
-        if (type /= VC_LOG_VIEW_NIL) the_type = type
+        if (type /= VC_LOG_VIEW_NONE) the_type = type
     end if
 
     call vc_log_internal_common(backend, "*vc-change-log*", files, the_type, shortlog, working_revision, is_start, &
@@ -268,7 +268,7 @@ contains
     with_diff = lim%kind == VC_LIMIT_NUMBER .and. lim%n == 1 .and. len(rev) > 0
     saved_style = vc_log_short_style
     if (with_diff) vc_log_short_style = vc_log_short_style_type(directory=.false., file=.false.)
-    the_type = VC_LOG_VIEW_NIL
+    the_type = VC_LOG_VIEW_NONE
     if (with_diff) the_type = VC_LOG_VIEW_WITH_DIFF
     old = current_buffer()
     call vc_print_log_internal(fs%backend, fs%files, rev, status, len(rev) > 0, lim, the_type)

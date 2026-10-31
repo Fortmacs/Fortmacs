@@ -92,12 +92,12 @@ module isearch_fm
 
     !> Values of `isearch_case_fold_search': nil, t, and `yes' (set by
     !> M-c: fold even when the string has upper-case letters).
-    integer, parameter, public :: CASE_FOLD_NIL = 0, CASE_FOLD_T = 1, CASE_FOLD_YES = 2
+    integer, parameter, public :: CASE_FOLD_NO = 0, CASE_FOLD_YES = 1, CASE_FOLD_FORCED = 2
 
     !> Values of `search_upper_case': nil, t and `not_yanks'.
-    integer, parameter, public :: UPPER_CASE_NIL = 0, UPPER_CASE_T = 1, UPPER_CASE_NOT_YANKS = 2
+    integer, parameter, public :: UPPER_CASE_NO = 0, UPPER_CASE_YES = 1, UPPER_CASE_NOT_YANKS = 2
 
-    !> If not UPPER_CASE_NIL, upper case chars disable case fold searching.
+    !> If not UPPER_CASE_NO, upper case chars disable case fold searching.
     !> That is, upper and lower case chars must match exactly.
     !> This applies no matter where the chars come from, but does not
     !> apply to chars in regexps that are prefixed with `\'.
@@ -184,11 +184,11 @@ module isearch_fm
     integer(int64), public, protected :: isearch_other_end = 0, isearch_opoint = 0, isearch_barrier = 0
     !> Whether the search ignores case (isearch-case-fold-search; a CASE_FOLD_
     !> value).
-    integer, public, protected :: isearch_case_fold_search = CASE_FOLD_T
-    integer :: isearch_last_case_fold_search = CASE_FOLD_T
+    integer, public, protected :: isearch_case_fold_search = CASE_FOLD_YES
+    integer :: isearch_last_case_fold_search = CASE_FOLD_YES
     !> isearch-adjusted: nil, t (shows "pending"), or a toggle.
-    integer, parameter :: ADJUSTED_NIL = 0, ADJUSTED_T = 1, ADJUSTED_TOGGLE = 2
-    integer :: isearch_adjusted = ADJUSTED_NIL
+    integer, parameter :: ADJUSTED_NO = 0, ADJUSTED_PENDING = 1, ADJUSTED_TOGGLE = 2
+    integer :: isearch_adjusted = ADJUSTED_NO
     logical :: isearch_yank_flag = .false.
     logical :: isearch_just_started = .false.
     !> Whether the search is nonincremental (isearch-nonincremental).
@@ -267,7 +267,7 @@ module isearch_fm
         character(len=:), allocatable :: string, message, error
         integer(int64) :: point = 0, other_end = 0, barrier = 0
         logical :: success = .true., forward = .true., wrapped = .false.
-        integer :: case_fold = CASE_FOLD_T
+        integer :: case_fold = CASE_FOLD_YES
         !> The function restoring the mode-specific state, and that state.
         procedure(isearch_pop_proc), pointer, nopass :: pop_fun => null()
         character(len=:), allocatable :: pop_data
@@ -880,14 +880,14 @@ contains
         isearch_forward = forward
         isearch_regexp = flag(regexp)
         isearch_last_case_fold_search = isearch_case_fold_search
-        isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, case_fold_search%value)
+        isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, case_fold_search%value)
         isearch_string = ""
         isearch_message = ""
         ncmds = 0
         isearch_success = .true.
         isearch_wrapped = .false.
         isearch_barrier = point()
-        isearch_adjusted = ADJUSTED_NIL
+        isearch_adjusted = ADJUSTED_NO
         isearch_yank_flag = .false.
         if (allocated(isearch_error)) deallocate (isearch_error)
         isearch_other_end = 0
@@ -929,7 +929,7 @@ contains
     !> or highlighting).
     subroutine isearch_update()
         if (.not. is_input_pending()) call isearch_message_show()
-        isearch_adjusted = ADJUSTED_NIL
+        isearch_adjusted = ADJUSTED_NO
         isearch_yank_flag = .false.
     end subroutine isearch_update
 
@@ -1193,7 +1193,7 @@ contains
 
         m = ""
         if (.not. isearch_success) m = "failing "
-        if (isearch_adjusted == ADJUSTED_T) m = m//"pending "
+        if (isearch_adjusted == ADJUSTED_PENDING) m = m//"pending "
 
         if (isearch_wrapped) then
             if (isearch_forward) then
@@ -1211,7 +1211,7 @@ contains
                 if (b%begv /= 1 .or. b%zv /= b%text%z) m = m//"narrowed "
             end associate
 
-            if (isearch_case_fold_search == CASE_FOLD_NIL) m = m//"case-sensitive "
+            if (isearch_case_fold_search == CASE_FOLD_NO) m = m//"case-sensitive "
         end if
 
         ! isearch--describe-regexp-mode.
@@ -1355,13 +1355,13 @@ contains
         logical :: saved_fold, found, retry
         integer(int64) :: mb, me
 
-        if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
-            isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, &
+        if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= UPPER_CASE_NO) then
+            isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                              is_isearch_no_upper_case(isearch_string, isearch_regexp))
         end if
 
         saved_fold = case_fold_search%value
-        case_fold_search = isearch_case_fold_search /= CASE_FOLD_NIL
+        case_fold_search = isearch_case_fold_search /= CASE_FOLD_NO
         if (allocated(isearch_error)) deallocate (isearch_error)
         mb = 0
         me = 0
@@ -1518,9 +1518,9 @@ contains
             ! many more chars to be matched, in the string following point.
             ! Allow all those possibilities without moving point as long as
             ! the match does not extend past search origin.
-            fold = isearch_case_fold_search /= CASE_FOLD_NIL
+            fold = isearch_case_fold_search /= CASE_FOLD_NO
 
-            if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
+            if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= UPPER_CASE_NO) then
                 fold = is_isearch_no_upper_case(isearch_string, isearch_regexp)
             end if
 
@@ -1529,8 +1529,8 @@ contains
                 if (allocated(isearch_error)) deallocate (isearch_error)
                 isearch_other_end = mend
 
-                if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
-                    isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, &
+                if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= UPPER_CASE_NO) then
+                    isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                                      is_isearch_no_upper_case(isearch_string, isearch_regexp))
                 end if
             else
@@ -1538,7 +1538,7 @@ contains
                 ! Do the following before moving point.
                 call isearch_message_show(ellipsis=.true.)
 
-                if (isearch_other_end /= 0 .and. isearch_adjusted == ADJUSTED_NIL) then
+                if (isearch_other_end /= 0 .and. isearch_adjusted == ADJUSTED_NO) then
                     if (isearch_forward) then
                         call goto_char(isearch_other_end)
                     else
@@ -1557,7 +1557,7 @@ contains
 
         logical function reverse_match_here()
             reverse_match_here = .false.
-            if (isearch_forward .or. isearch_adjusted /= ADJUSTED_NIL) return
+            if (isearch_forward .or. isearch_adjusted /= ADJUSTED_NO) return
             if (.not. looking_at_string(isearch_string, fold, mend)) return
             reverse_match_here = isearch_yank_flag .or. mend <= min(isearch_opoint, isearch_barrier)
         end function reverse_match_here
@@ -1902,7 +1902,7 @@ contains
 
         if (flag(to_barrier)) then
             call goto_char(isearch_barrier)
-            isearch_adjusted = ADJUSTED_T
+            isearch_adjusted = ADJUSTED_PENDING
             return
         end if
 
@@ -1951,7 +1951,7 @@ contains
             call goto_char(min(last_other_end, isearch_barrier))
         end if
 
-        isearch_adjusted = ADJUSTED_T
+        isearch_adjusted = ADJUSTED_PENDING
     end subroutine isearch_fallback
 
     !> Pull STRING into search string.  Port of
@@ -1963,7 +1963,7 @@ contains
         s = string
 
         ! Downcase the string if not supposed to case-fold yanked strings.
-        if (isearch_case_fold_search /= CASE_FOLD_NIL .and. search_upper_case == UPPER_CASE_NOT_YANKS) then
+        if (isearch_case_fold_search /= CASE_FOLD_NO .and. search_upper_case == UPPER_CASE_NOT_YANKS) then
             s = downcase_string(s)
         end if
 
@@ -2098,11 +2098,11 @@ contains
     subroutine isearch_toggle_case_fold()
         if (.not. isearch_active) call isearch_mode(.true.)
 
-        if (isearch_case_fold_search /= CASE_FOLD_NIL) then
-            isearch_case_fold_search = CASE_FOLD_NIL
+        if (isearch_case_fold_search /= CASE_FOLD_NO) then
+            isearch_case_fold_search = CASE_FOLD_NO
             call isearch_momentary_message("case sensitive")
         else
-            isearch_case_fold_search = CASE_FOLD_YES
+            isearch_case_fold_search = CASE_FOLD_FORCED
             call isearch_momentary_message("case insensitive")
         end if
 
