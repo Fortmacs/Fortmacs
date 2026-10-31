@@ -93,6 +93,11 @@ otherwise:
 
 - Names use underscores: `M-x find_file`, `C-h v fill_column`,
   `text_mode_hook`. Keys and mode-line text are unchanged.
+- Fortmacs leans Fortran-first rather than Lisp-first: Lisp terms like
+  defun, sexp and alist become subprogram, expression and table <!-- fortran-names: keep -->
+  (`C-M-f` is `forward_expression` and `auto-mode-alist` is
+  `auto_mode_table`). PORTING.md, "Fortran names for Lisp terms", lists
+  them.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
   `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
   configuration means rebuilding.
