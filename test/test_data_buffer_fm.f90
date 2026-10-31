@@ -42,6 +42,7 @@ module test_data_buffer_fm
                        is_local_variable, is_local_variable_if_set, default_value, set_default, &
                        default_boundp, buffer_local_value, buffer_local_variables, setq_local
     use fns_fm, only: put
+    use simple_fm, only: syms_of_simple
     implicit none(type, external)
     private
 
@@ -64,7 +65,7 @@ contains
                     new_unittest("kill-all-local-variables", test_kill_all), &
                     new_unittest("buffer-local-variables", test_buffer_local_variables), &
                     new_unittest("kill-buffer-restores-defaults", test_kill_current), &
-                    new_unittest("forwarded-exact-values", test_exact), &
+                    new_unittest("forwarded-value-types", test_exact), &
                     new_unittest("makunbound-forwarded", test_makunbound_forwarded) &
                     ]
     end subroutine collect_data_buffer_fm
@@ -268,6 +269,7 @@ contains
         type(status_type) :: st
         type(value_type) :: v
 
+        call syms_of_simple()
         call setup(error, a, b)
         if (allocated(error)) return
         call set(sym("auto_fill_function"), sym("do_auto_fill"), st)
@@ -282,13 +284,16 @@ contains
         call set_buffer(a, st)
         call check(error, associated(auto_fill_function%value), "on again in A")
         if (allocated(error)) return
-        ! Any value is kept; calling it then fails as upstream.
+        ! A name is resolved when it is set: an undefined one is a
+        ! void-function error condition, and the value stays.
         call set(sym("auto_fill_function"), sym("no-such-function"), st)
-        call symbol_value(sym("auto_fill_function"), v, st)
-        call check(error, value_eq(v, sym("no-such-function")), "kept exactly")
+        call check(error, st%code == FM_VOID_FUNCTION, "void-function when set")
         if (allocated(error)) return
-        call auto_fill_function%value(st)
-        call check(error, st%code == FM_VOID_FUNCTION, "void-function when called")
+        call symbol_value(sym("auto_fill_function"), v, st)
+        call check(error, value_eq(v, sym("do_auto_fill")), "value unchanged")
+        if (allocated(error)) return
+        call set(sym("auto_fill_function"), make_fixnum(1_int64), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "a number is the wrong type")
         call teardown(a, b)
         if (allocated(error)) return
         call check(error,.not. associated(auto_fill_function%value), "off after killing A")
@@ -367,23 +372,27 @@ contains
         type(value_type) :: v
         logical :: saved
 
+        ! A logical setting holds .true. or .false.: any allocated value is
+        ! .true. (A8: no exact value is kept).
         saved = case_fold_search%value
         call set_default(sym("case_fold_search"), sym("data-test"), st)
         call symbol_value(sym("case_fold_search"), v, st)
-        call check(error, value_eq(v, sym("data-test")) .and. case_fold_search%value, "symbol kept, true in Fortran")
+        call check(error, value_eq(v, t_value()) .and. case_fold_search%value, "true")
         if (allocated(error)) return
         case_fold_search = saved
         call symbol_value(sym("case_fold_search"), v, st)
         call check(error, value_eq(v, t_value()) .eqv. saved, "Fortran assignment wins")
         if (allocated(error)) return
+        ! An integer setting holds integers only.
         call set_default(sym("fill_column"), value_type(), st)
-        call check(error, st%ok(), "fill-column may be nil")
-        if (allocated(error)) return
-        call symbol_value(sym("fill_column"), v, st)
-        call check(error,.not. allocated(v%a), "nil kept")
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: unallocated is the wrong type")
         if (allocated(error)) return
         call set_default(sym("fill_column"), make_string("x"), st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer")
+        if (allocated(error)) return
+        ! A string setting holds a string or no string.
+        call set_default(sym("fill_prefix"), sym("data-test"), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-prefix: a name is the wrong type")
         fill_column = 70
     end subroutine test_exact
 

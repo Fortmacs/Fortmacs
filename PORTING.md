@@ -574,6 +574,7 @@ no rename is added without that.  The confirmed renames:
 | funcall, funcall_nil, apply | the procedure pointer called directly | `call find_function(v, fn, status)` resolves a run-time name once, then `call fn%run(status)`; set_auto_mode resolves the mode with `find_command`; the undefined-key command is keyboard_fm's `undefined_function` pointer, which subr_fm sets; grep's and log-view's internal `apply` are `set_defaults` and `toggle_entry` |
 | fboundp, keywordp | `associated(find_command(name))`; the name's first character | no wrapper |
 | cons (printing a keymap entry), a cons argument | `keymap_entry_repr(event, binding)`; newcomment's `universal_arg` | named for what they hold |
+| the exact Lisp value of a setting (`setting_type%exact`) | removed (A8) | a logical setting holds `.true.` or `.false.` (any allocated value is `.true.`); an integer or string setting given another value is a `wrong-type-argument` error condition (also for unallocated, which upstream allows in fill-column); a function setting resolves the name when it is set (an undefined name is `void-function`, "Function is not defined") and keeps the resolved command (`%command`) for the name it reads back as; an unknown require-final-newline value is `FINAL_NEWLINE_ASK` |
 | symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGEXP_OPT_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
@@ -712,10 +713,6 @@ named with it.
   pointers compared with `associated()`; `prefix_arg` becomes a
   `prefix_arg_type` (a kind, `PREFIX_NONE`, `PREFIX_NUMBER`, `PREFIX_RAW`
   or `PREFIX_MINUS`, and a value); events become an `event_type`.
-- A8: `setting_type%exact` is removed: a setting with several states
-  becomes an integer setting with named constants; a function setting
-  resolves names to procedure pointers when set (an unknown name is
-  "Function is not defined"); other mismatches are a wrong-type error.
 - Completion help says "COLLECTION is an array of strings, a table of
   (string, value) entries, or a completion function".
 - C2b: a value's type is tested with the language construct on the flat

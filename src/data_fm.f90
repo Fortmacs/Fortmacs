@@ -36,12 +36,12 @@
 module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
-                        FM_VOID_VARIABLE, FM_SETTING_CONSTANT
+                        FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION
     use lisp_fm, only: list, list_elt, list_tail, symbols, &
                        v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, V_NAME, v_syntax_table, v_window, value_type, &
                        vtag, xsymbol, V_STRING
     use lread_fm, only: ensure_obarray, sym
-    use lisp_fm, only: command_proc
+    use lisp_fm, only: command_proc, command_type
     implicit none(type, external)
     private
 
@@ -58,11 +58,6 @@ module data_fm
     type, abstract, public :: setting_type
         !> The variable's name, as the help commands show it.
         character(len=48) :: name = ""
-        !> The exact value last given through the variable's name (as
-        !> `set_variable' does) when the Fortran value can't hold it, such
-        !> as a symbol in a logical setting; cleared by any assignment.
-        type(value_type) :: exact
-        logical :: has_exact = .false.
         !> Void (`makunbound'); cleared by any assignment.
         logical :: void = .false.
     contains
@@ -114,6 +109,9 @@ module data_fm
     !> `value'.
     type, extends(setting_type), public :: function_setting
         procedure(command_proc), pointer, nopass :: value => null()
+        !> The command a name given at run time resolved to (the value
+        !> then reads back as its name); null otherwise.
+        type(command_type), pointer :: command => null()
     contains
         generic :: set_local => set_local_function
         procedure, private :: set_local_function => function_set_local
@@ -475,14 +473,11 @@ contains
         is_setting_local = is_local_variable(sym(trim(self%name)))
     end function is_setting_local
 
-    !> Forget an exact Lisp value and voidness: the Fortran value is the
-    !> value now.  Not a port.
+    !> Forget voidness: the Fortran value is the value now.  Not a port.
     subroutine settled(self)
         class(setting_type), intent(inout) :: self
 
-        self%has_exact = .false.
         self%void = .false.
-        self%exact = value_type()
     end subroutine settled
 
     ! Not a port.
@@ -531,8 +526,6 @@ contains
 
         call self%make_local()
         self%value = v%value
-        self%exact = v%exact
-        self%has_exact = v%has_exact
         self%void = .false.
     end subroutine integer_set_local_setting
 
@@ -589,6 +582,7 @@ contains
 
         call self%make_local()
         self%value => v
+        self%command => null()
         call settled(self)
     end subroutine function_set_local
 

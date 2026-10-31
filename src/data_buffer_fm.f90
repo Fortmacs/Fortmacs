@@ -45,7 +45,7 @@ submodule(data_fm) data_buffer_fm
     use xdisp_fm, only: tab_width
     use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
                          indent_line_setting, indent_line_function_name, indent_line_function_named
-    use callint_fm, only: find_command, command_type, find_function, command_name_of
+    use callint_fm, only: find_command, command_name_of
     use lisp_fm, only: command_proc
     use search_fm, only: case_fold_search
     use minibuf_fm, only: completion_ignore_case
@@ -255,17 +255,6 @@ contains
         end if
     end function indent_line_value
 
-    !> auto-fill-function set to a function that has no Fortran
-    !> procedure of this kind: call it by name.  Not a port.
-    subroutine auto_fill_by_name(status)
-        type(status_type), intent(out) :: status
-        type(command_type), pointer :: fn
-
-        call find_function(auto_fill_function%exact, fn, status)
-        if (.not. status%ok()) return
-        call fn%run(status)
-    end subroutine auto_fill_by_name
-
     ! Not a port.
     function bool_value(b) result(v)
         logical, intent(in) :: b
@@ -278,8 +267,9 @@ contains
         end if
     end function bool_value
 
-    !> The value of setting S given its Fortran value as FORTRAN: the exact
-    !> value if one is kept, unbound if void.  Not a port.
+    !> The value of setting S given its Fortran value as FORTRAN (for a
+    !> function setting set by name, that name); unbound if void.
+    !> Not a port.
     subroutine setting_value(s, fortran, v, bound)
         class(setting_type), intent(in) :: s
         type(value_type), intent(in) :: fortran
@@ -287,28 +277,20 @@ contains
         logical, intent(out) :: bound
 
         bound = .not. s%void
+        v = fortran
 
-        if (s%has_exact) then
-            v = s%exact
-        else
-            v = fortran
-        end if
+        select type (s)
+        type is (function_setting)
+            if (associated(s%command)) v = sym(s%command%name)
+        type is (indent_line_setting)
+            if (associated(s%command)) v = sym(s%command%name)
+        end select
     end subroutine setting_value
 
-    !> Keep V as the exact value of S (its Fortran value can't hold it).
-    !> Not a port.
-    subroutine keep_exact(s, v)
-        class(setting_type), intent(inout) :: s
-        type(value_type), intent(in) :: v
-
-        s%exact = v
-        s%has_exact = .true.
-        s%void = .false.
-    end subroutine keep_exact
-
-    !> Set integer setting S to V.  With INTEGERP (a DEFVAR_PER_BUFFER with
-    !> predicate `integerp'), a V that is not empty must be an integer; otherwise any
-    !> value is kept.  Not a port.
+    !> Set integer setting S to V, which must be an integer (a
+    !> `wrong-type-argument' error condition occurs otherwise).  INTEGERP
+    !> (a DEFVAR_PER_BUFFER with predicate `integerp') no longer changes
+    !> that.  Not a port.
     subroutine set_integer(s, v, integerp, status)
         type(integer_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -319,34 +301,27 @@ contains
 
         if (vtag(v) == V_INTEGER) then
             s = xfixnum(v)
-        else if (integerp .and. allocated(v%a)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         else
-            call keep_exact(s, v)
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         end if
     end subroutine set_integer
 
-    !> Set logical setting S to V (any value; the Fortran value is whether
-    !> it is not empty).  Not a port.
-    subroutine set_logical(s, v)
-        type(logical_setting), intent(inout) :: s
-        type(value_type), intent(in) :: v
-
-        s = allocated(v%a)
-        if (.not. (.not. allocated(v%a) .or. value_eq(v, t_value()))) call keep_exact(s, v)
-    end subroutine set_logical
-
-    !> Set string setting S to V (any value; the Fortran value is nil
-    !> unless it is a string).  Not a port.
-    subroutine set_string(s, v)
+    !> Set string setting S to V, a string or unallocated (no string); a
+    !> `wrong-type-argument' error condition occurs for another value.
+    !> Not a port.
+    subroutine set_string(s, v, status)
         type(string_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
+        type(status_type), intent(out) :: status
+
+        status = status_type()
 
         if (vtag(v) == V_STRING) then
             s = xstring(v)
-        else
+        else if (.not. allocated(v%a)) then
             call s%clear()
-            if (allocated(v%a)) call keep_exact(s, v)
+        else
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
         end if
     end subroutine set_string
 
@@ -491,11 +466,11 @@ contains
             type is (integer_setting)
                 call set_integer(p, v, .false., status)
             type is (logical_setting)
-                call set_logical(p, v)
+                p = allocated(v%a)
             type is (string_setting)
-                call set_string(p, v)
+                call set_string(p, v, status)
             type is (function_setting)
-                call set_auto_fill(p, v)
+                call set_auto_fill(p, v, status)
             class default
             end select
 
@@ -504,7 +479,7 @@ contains
 
         if (k > NFWD) then
             m => minor_mode_at(k - NFWD)
-            call set_logical(m%state, v)
+            m%state = allocated(v%a)
             return
         end if
 
@@ -520,31 +495,31 @@ contains
         case ("completion_ignore_case")
             completion_ignore_case = allocated(v%a)
         case ("case_fold_search")
-            call set_logical(case_fold_search, v)
+            case_fold_search = allocated(v%a)
         case ("fill_prefix")
-            call set_string(fill_prefix, v)
+            call set_string(fill_prefix, v, status)
         case ("paragraph_start")
-            call set_string(paragraph_start, v)
+            call set_string(paragraph_start, v, status)
         case ("paragraph_separate")
-            call set_string(paragraph_separate, v)
+            call set_string(paragraph_separate, v, status)
         case ("sentence_end")
-            call set_string(sentence_end, v)
+            call set_string(sentence_end, v, status)
         case ("sentence_end_double_space")
-            call set_logical(sentence_end_double_space, v)
+            sentence_end_double_space = allocated(v%a)
         case ("adaptive_fill_mode")
-            call set_logical(adaptive_fill_mode, v)
+            adaptive_fill_mode = allocated(v%a)
         case ("auto_fill_inhibit_regexp")
-            call set_string(auto_fill_inhibit_regexp, v)
+            call set_string(auto_fill_inhibit_regexp, v, status)
         case ("standard_indent")
             call set_integer(standard_indent, v, .false., status)
         case ("auto_fill_function")
-            call set_auto_fill(auto_fill_function, v)
+            call set_auto_fill(auto_fill_function, v, status)
         case ("indent_line_function")
-            call set_indent_line(indent_line_function, v)
+            call set_indent_line(indent_line_function, v, status)
         case ("transient_mark_mode")
-            call set_logical(transient_mark_mode, v)
+            transient_mark_mode = allocated(v%a)
         case ("electric_indent_inhibit")
-            call set_logical(electric_indent_inhibit, v)
+            electric_indent_inhibit = allocated(v%a)
         case ("major_mode")
             if (cur == 0) return
 
@@ -566,7 +541,7 @@ contains
         case ("buffer_read_only")
             if (cur > 0) buffers(cur)%read_only = allocated(v%a)
         case ("text_mode_variant")
-            call set_logical(text_mode_variant, v)
+            text_mode_variant = allocated(v%a)
         case ("parse_expression_ignore_comments")
             parse_expression_ignore_comments = allocated(v%a)
         case ("case_identifiers_as_words")
@@ -584,48 +559,75 @@ contains
         end select
     end subroutine fwd_set
 
-    !> auto-fill-function := V: the procedure of the function V names, or
-    !> a call by name.  Not a port.
-    subroutine set_auto_fill(s, v)
+    !> auto-fill-function := V: the procedure of the function V names,
+    !> resolved now; a `void-function' error condition occurs for a name
+    !> that is not defined, and `wrong-type-argument' for another value.
+    !> Not a port.
+    subroutine set_auto_fill(s, v, status)
         type(function_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
+        type(status_type), intent(out) :: status
         type(command_type), pointer :: c
+
+        status = status_type()
 
         if (.not. allocated(v%a)) then
             s%value => null()
+            s%command => null()
             call settle(s)
             return
         end if
 
-        c => null()
-        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) c => find_command(symbols(xsymbol(v))%name)
-
-        if (associated(c)) then
-            s%value => c%run
-            call settle(s)
-        else
-            s%value => auto_fill_by_name
-            call keep_exact(s, v)
+        if (vtag(v) /= V_NAME) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
+            return
         end if
+
+        c => find_command(symbols(xsymbol(v))%name)
+
+        if (.not. associated(c)) then
+            call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(v))%name)
+            return
+        end if
+
+        s%value => c%run
+        ! The name the value reads back as.
+        s%command => c
+        call settle(s)
     end subroutine set_auto_fill
 
-    !> indent-line-function := V.  Not a port.
-    subroutine set_indent_line(s, v)
+    !> indent-line-function := V, the name of an indent-line function, or
+    !> of a command (called by `indent_line_by_name'), resolved now; a
+    !> `void-function' error condition occurs for a name that is not
+    !> defined, and `wrong-type-argument' for another value.  Not a port.
+    subroutine set_indent_line(s, v, status)
         type(indent_line_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
+        type(status_type), intent(out) :: status
+        type(command_type), pointer :: c
 
-        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then
-            call indent_line_function_named(symbols(xsymbol(v))%name, s%value)
+        status = status_type()
 
-            if (len(indent_line_function_name(s%value)) > 0) then
-                call settle(s)
-                return
-            end if
-        else
-            call indent_line_function_named("", s%value)
+        if (vtag(v) /= V_NAME) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
+            return
         end if
 
-        call keep_exact(s, v)
+        call indent_line_function_named(symbols(xsymbol(v))%name, s%value)
+        s%command => null()
+
+        if (len(indent_line_function_name(s%value)) == 0) then
+            c => find_command(symbols(xsymbol(v))%name)
+
+            if (.not. associated(c)) then
+                call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(v))%name)
+                return
+            end if
+
+            s%command => c
+        end if
+
+        call settle(s)
     end subroutine set_indent_line
 
     !> The value of a require-final-newline setting N: nil, t, `visit',
@@ -663,17 +665,14 @@ contains
             s = FINAL_NEWLINE_VISIT_SAVE
         else
             s = FINAL_NEWLINE_ASK
-            call keep_exact(s, v)
         end if
     end subroutine set_final_newline
 
-    !> Forget S's exact value and voidness.  Not a port.
+    !> Forget S's voidness.  Not a port.
     subroutine settle(s)
         class(setting_type), intent(inout) :: s
 
-        s%has_exact = .false.
         s%void = .false.
-        s%exact = value_type()
     end subroutine settle
 
     !> makunbound on forwarded variable K: Fset with Qunbound, which
@@ -1314,14 +1313,14 @@ contains
     case (K_SLOT)
         ! The defaults of per-buffer slots are fixed.
     case (K_AUTO_FILL)
-        call set_auto_fill(default_procs%auto_fill, v)
+        call set_auto_fill(default_procs%auto_fill, v, status)
     case (K_INDENT_LINE)
-        call set_indent_line(default_procs%indent_line, v)
+        call set_indent_line(default_procs%indent_line, v, status)
     case (K_FUNCTION)
         block
             integer :: i
             i = fn_index(0_int64, resolve(id), .true.)
-            call set_auto_fill(fn_store(i)%s, v)
+            call set_auto_fill(fn_store(i)%s, v, status)
         end block
     case (0)
         symbols(id)%default_val = v

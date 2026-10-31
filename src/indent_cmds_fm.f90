@@ -126,12 +126,10 @@ contains
     recursive subroutine indent_line_by_name(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
-        type(command_type), pointer :: fn
 
         noindent = .false.
-        call find_function(indent_line_function%exact, fn, status)
-        if (.not. status%ok()) return
-        call fn%run(status)
+        status = status_type()
+        if (associated(indent_line_function%command)) call indent_line_function%command%run(status)
     end subroutine indent_line_by_name
 
     ! Whether the indent-line-function is one of

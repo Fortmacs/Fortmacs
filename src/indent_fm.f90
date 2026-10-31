@@ -34,7 +34,7 @@ module indent_fm
     use category_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
+    use lisp_fm, only: value_type, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY, command_type
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
@@ -115,6 +115,9 @@ module indent_fm
     !> default, `indent_relative'.  Assign with `=>' to `value'.
     type, extends(setting_type), public :: indent_line_setting
         procedure(indent_line_proc), pointer, nopass :: value => null()
+        !> The command a name given at run time resolved to, when `value'
+        !> calls it (`indent_line_by_name'); null otherwise.
+        type(command_type), pointer :: command => null()
     contains
         generic :: set_local => set_local_indent_line
         procedure, private :: set_local_indent_line => indent_line_set_local
@@ -540,7 +543,7 @@ contains
 
         call self%make_local()
         self%value => v
-        self%has_exact = .false.
+        self%command => null()
         self%void = .false.
     end subroutine indent_line_set_local
 
