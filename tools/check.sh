@@ -169,6 +169,11 @@ if $style; then
         exit 1
     fi
 
+    # Lisp candidates (PORTING.md, "Fortran-first decision guide"): Lisp
+    # vocabulary in the lines this branch adds.  It only warns.
+    tools/lisp-candidates.sh
+    tools/test-lisp-candidates.sh
+
     fortitude check $DIRS
 fi
 
