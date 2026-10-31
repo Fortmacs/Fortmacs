@@ -656,6 +656,13 @@ named with it.
 - C2a/d: `nil()` becomes `value_type()`, and `nilp(v)` becomes
   `.not. allocated(v%a)`, the intrinsic itself with no helper; the
   `V_NIL` tag follows.
+- C2b: a value's type is tested with the language construct on the flat
+  tagged `value_type`, as json-fortran does: `select case (v%a(1)%tag)`
+  or `if (v%a(1)%tag == V_INTEGER)`; components are read directly
+  (`v%a(1)%i`, `v%a(1)%s`); the tags become `V_NULL`, `V_INTEGER`,
+  `V_NAME`, `V_STRING` and `V_ARRAY` (`V_BUFFER` and the like stay); no
+  `is_integer`, `xfixnum` or `integer_of` helpers.  Why not `select type`:
+  see the design decision "Values stay a flat array of tagged nodes".
 - C2c: flat lists become plain Fortran arrays used with the intrinsics
   (`size`, `findloc`, `any`, `pack`, array sections); `value_type` lists
   remain only for truly nested data.
@@ -668,7 +675,7 @@ named with it.
   `hooks_fm`, `lread_fm` `names_fm`; `print_fm` stays; `syms_of_X`
   becomes `init_X`.
 
-Still to be confirmed with the owner: C2b, C3, C4 and C5 from the
+Still to be confirmed with the owner: C3, C4 and C5 from the
 scan of Lisp terms.  Already settled and kept as they are: hook and the
 `_hook` suffix, and the names of the Lisp language modes.
 
@@ -699,13 +706,15 @@ tools/intrinsics.awk, run by tools/check.sh, reports two patterns:
 - **wrapper**: a function or subroutine whose executable part is one
   statement assigning one intrinsic (or `.not.` of one) applied to its
   dummy arguments, such as `is_null = .not. allocated(v%a)` or
-  `n = size(x, kind=int64)`;
+  `n = size(x, kind=int64)`, or that only tests a value's tag or reads
+  its component (`is_integer = v%a(1)%tag == V_INTEGER`,
+  `integer_of = v%a(1)%i`);
 - **lisp-helper**: a procedure named after a Lisp helper: `nilp`,
   `consp`, `car`, `cdr`, `car_safe`, `cdr_safe`, `nth`, `nthcdr`, `memq`,
   `member`, `length`, `fixnump`, `make_fixnum`, `xfixnum`, `nil`,
-  `t_value`.
+  `t_value`, `is_integer`, `integer_of`.
 
-The code of 2026-10-31 has 42 such findings (15 wrappers, 27 Lisp helper
+The code of 2026-10-31 has 51 such findings (24 wrappers, 27 Lisp helper
 names), listed as FILE:NAME:RULE in tools/intrinsics-baseline; PR 2
 removes them.  The check fails on a finding the baseline does not list and
 on a baseline line that no longer occurs, so the baseline only shrinks.
@@ -946,6 +955,18 @@ it, otherwise into this checklist.
   applied by a script (tools/fortran-names.sh) and enforced by
   tools/check.sh; citations keep upstream names.  See "Fortran names for
   Lisp terms".
+
+- **Values stay a flat array of tagged nodes (2026-10-31, decided by the
+  owner).**  A dynamically typed value (`value_type`) is tested with
+  `select case` on its tag, not with `select type` on a `class(*)` or a
+  polymorphic tree.  A spike on gfortran 13.3, the minimum Fortmacs
+  supports, showed that recursive allocatable components are still
+  copied shallowly by intrinsic assignment (changing a copy changed the
+  original), followed by invalid reads and a segmentation fault under
+  valgrind; gfortran 13 also rejects a `class(*)` component in a
+  structure constructor ("Cannot convert CHARACTER(3) to CLASS(*)").
+  Fortmacs targets gfortran only, so values stay a flat array of tagged
+  nodes read with the language constructs (C2b).
 
 - **Ibuffer filters as nested function calls (2026-10-29, chosen with the user).**
   A filter specification (`(and (derived-mode . text-mode) (not (starred-name)))`)

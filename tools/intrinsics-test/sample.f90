@@ -46,6 +46,20 @@ contains
         trimmed_length = len(trim(s))
     end function trimmed_length
 
+    !> A thin wrapper of a value's tag: test `v%a(1)%tag' directly.
+    elemental logical function is_integer(v)
+        type(value_type), intent(in) :: v
+
+        is_integer = v%a(1)%tag == V_INTEGER
+    end function is_integer
+
+    !> A thin wrapper of a value's component: read `v%a(1)%i' directly.
+    elemental integer(int64) function value_integer(v)
+        type(value_type), intent(in) :: v
+
+        value_integer = v%a(1)%i
+    end function value_integer
+
     !> A Lisp helper name, excused by the fixture's baseline.
     logical function memq(x, list)
         integer, intent(in) :: x, list(:)

@@ -1,5 +1,8 @@
 sample.f90:15: intrinsics: wrapper: is_null (only `allocated')
 sample.f90:22: intrinsics: wrapper: count_of (only `size')
-sample.f90:50: intrinsics: wrapper: memq (only `any')
-sample.f90:57: intrinsics: lisp-helper: car
+sample.f90:50: intrinsics: lisp-helper: is_integer
+sample.f90:50: intrinsics: wrapper: is_integer (only a value's tag or component)
+sample.f90:57: intrinsics: wrapper: value_integer (only a value's tag or component)
+sample.f90:64: intrinsics: wrapper: memq (only `any')
+sample.f90:71: intrinsics: lisp-helper: car
 baseline: intrinsics: baseline entry no longer occurs: sample.f90:gone:wrapper (remove it)

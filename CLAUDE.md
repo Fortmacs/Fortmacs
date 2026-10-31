@@ -48,6 +48,6 @@ Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+,
 - Errors: return a status/error type; no `stop` outside main. This replaces Emacs's signal/throw.
 - Naming: one module per upstream file, named after it with an `_fm` suffix (buffer.c → buffer_fm, simple.el → simple_fm); file names match (buffer_fm.f90, test_buffer_fm.f90). Modules that port nothing take the suffix too (config_fm), except the user-facing API module `fortmacs`. Use a submodule when a module would otherwise form a cycle.
 - Text: buffers store UTF-8 bytes (Emacs internal encoding); track char and byte positions separately (PT/PT_BYTE). Positions are 1-based, as in Emacs.
-- Tooling: gfortran ≥ 13; debug profile `-std=f2018 -Wall -Wextra -fcheck=all -g`.
+- Tooling: gfortran only (≥ 13), no second compiler; debug profile `-std=f2018 -Wall -Wextra -fcheck=all -g`.
 
 See PORTING.md for the roadmap, the status of each module, conventions learned while porting, design decisions; the session log is in docs/log.

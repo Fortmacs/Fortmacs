@@ -28,10 +28,14 @@
 #   wrapper      a function or subroutine whose executable part is one
 #                statement that assigns one intrinsic (or `.not.' of one)
 #                applied to its dummy arguments: `is_null = .not.
-#                allocated(v%a)', `n = size(x)'.  Write the intrinsic.
+#                allocated(v%a)', `n = size(x)'; or that only tests a
+#                value's tag or reads its component: `is_integer =
+#                v%a(1)%tag == V_INTEGER', `integer_of = v%a(1)%i'.  Write
+#                the intrinsic, or the test or read itself.
 #   lisp-helper  a procedure named after a Lisp helper (nilp, consp, car,
 #                cdr, car_safe, cdr_safe, nth, nthcdr, memq, member,
-#                length, fixnump, make_fixnum, xfixnum, nil, t_value).
+#                length, fixnump, make_fixnum, xfixnum, nil, t_value,
+#                is_integer, integer_of).
 #
 # The baseline file lists the findings of today's code as FILE:NAME:RULE
 # lines (they go in a later PR); one listed is not reported, and a listed
@@ -101,6 +105,13 @@ function judge(stmt, lhs, rest, intr, args, ok, tok, t) {
     rest = substr(stmt, RLENGTH + 1)
     if (lhs != tolower(pres[depth]) && !((depth, lhs) in dummy)) return
     sub(/^\.not\.[ \t]*/, "", rest)
+    # A tag test or a component read of a value: `stringp = vtag(v) ==
+    # V_STRING', `xfixnum = v%a(1)%i'.
+    if (rest ~ /^(vtag[ \t]*\([a-z_][a-z0-9_]*\)|[a-z_][a-z0-9_]*%a\(1\)%tag)[ \t]*(==|\/=)[ \t]*v_[a-z0-9_]+[ \t]*$/ ||
+        rest ~ /^[a-z_][a-z0-9_]*%a\(1\)%[a-z_][a-z0-9_]*[ \t]*$/) {
+        finding(pline[depth], "wrapper", pname[depth], " (only a value's tag or component)")
+        return
+    }
     if (!match(rest, /^[a-z_][a-z0-9_]*[ \t]*\(/)) return
     intr = rest
     sub(/[ \t]*\(.*/, "", intr)
@@ -131,7 +142,7 @@ BEGIN {
               "is_iostat_end is_iostat_eor huge tiny kind bit_size new_line lge lgt lle llt", w, " ")
     for (i = 1; i <= n; i++) intrinsic[w[i]] = 1
     n = split("nilp consp car cdr car_safe cdr_safe nth nthcdr memq member length fixnump " \
-              "make_fixnum xfixnum nil t_value", w, " ")
+              "make_fixnum xfixnum nil t_value is_integer integer_of", w, " ")
     for (i = 1; i <= n; i++) lisp[w[i]] = 1
     n = split("int8 int16 int32 int64 real32 real64 real128 c_int c_long c_char", w, " ")
     for (i = 1; i <= n; i++) kinds[w[i]] = 1
@@ -214,7 +225,8 @@ l ~ /^end[ \t]*(function|subroutine|procedure)/ {
 depth > 0 && l ~ /^contains$/ { judge(); next }
 
 # Declarations.
-depth > 0 && !pexec[depth] && l ~ /^(implicit|use[ \t,]|import|integer|logical|real|complex|character|type[ \t]*\(|class[ \t]*\(|procedure[ \t]*\(|external|intrinsic|dimension|parameter|save|data[ \t]|optional|intent|allocatable|pointer|target|value|contiguous|volatile|asynchronous|enum|enumerator|end[ \t]*enum)/ { next }
+depth > 0 && !pexec[depth] && (l ~ /^(implicit|use|import|integer|logical|real|complex|character|external|intrinsic|dimension|parameter|save|data|optional|intent|allocatable|pointer|target|value|contiguous|volatile|asynchronous|enum|enumerator)([^a-z0-9_]|$)/ || \
+                                  l ~ /^(type|class|procedure)[ \t]*\(/ || l ~ /^end[ \t]*enum/) { next }
 
 depth > 0 && !pdone[depth] {
     pexec[depth] = 1
