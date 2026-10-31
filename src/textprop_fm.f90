@@ -33,7 +33,7 @@
 !> add-face-text-property, stickiness for insert-and-inherit, and
 !> `text_property_default_nonsticky' as a (buffer-local) variable: its
 !> standard value is built in, as the value model has no dotted pairs
-!> for its alist.
+!> for its table.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &

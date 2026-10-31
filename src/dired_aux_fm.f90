@@ -468,11 +468,11 @@ contains
         d = file_name_as_directory(dir)
         k = aux_local_index()
         if (k == 0) return
-        if (.not. allocated(locals(k)%subdir_alist)) return
+        if (.not. allocated(locals(k)%subdir_table)) return
 
-        do i = 1, size(locals(k)%subdir_alist)
-            if (locals(k)%subdir_alist(i)%dir == d) then
-                call goto_char(aux_mpos(locals(k)%subdir_alist(i)%marker))
+        do i = 1, size(locals(k)%subdir_table)
+            if (locals(k)%subdir_table(i)%dir == d) then
+                call goto_char(aux_mpos(locals(k)%subdir_table(i)%marker))
                 ! dired-subdir-hidden-p and dired-add-entry depend on point
                 ! being at \n after this function succeeds.
                 call end_of_line()
@@ -514,21 +514,21 @@ contains
 
         if (k > 0) then
             n = 0
-            allocate (kept(size(locals(k)%subdir_alist)))
+            allocate (kept(size(locals(k)%subdir_table)))
 
-            do i = 1, size(locals(k)%subdir_alist)
-                if (locals(k)%subdir_alist(i)%dir == cur_dir) then
-                    call aux_release_marker(locals(k)%subdir_alist(i)%marker)
+            do i = 1, size(locals(k)%subdir_table)
+                if (locals(k)%subdir_table(i)%dir == cur_dir) then
+                    call aux_release_marker(locals(k)%subdir_table(i)%marker)
                     cur_dir = char(0)
                 else
                     n = n + 1
-                    kept(n) = locals(k)%subdir_alist(i)
+                    kept(n) = locals(k)%subdir_table(i)
                 end if
             end do
 
-            deallocate (locals(k)%subdir_alist)
-            allocate (locals(k)%subdir_alist(n))
-            locals(k)%subdir_alist(:) = kept(1:n)
+            deallocate (locals(k)%subdir_table)
+            allocate (locals(k)%subdir_table(n))
+            locals(k)%subdir_table(:) = kept(1:n)
         end if
 
         call restore_buffer_modified_p(modflag)
@@ -640,7 +640,7 @@ contains
         end interface
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window, owindow, old
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: name
         integer :: saved_dedicated, k, nfiles
@@ -671,9 +671,9 @@ contains
         saved_dedicated = display_buffer_mark_dedicated
         display_buffer_mark_dedicated = DEDICATED_WEAK
         pop_up_files = files
-        alist%window_height => fit_window
-        alist%body_function => insert_marked_files
-        call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_BELOW_SELECTED], alist)
+        table%window_height => fit_window
+        table%body_function => insert_marked_files
+        call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_BELOW_SELECTED], table)
         display_buffer_mark_dedicated = saved_dedicated
         call set_buffer(old, st)
         if (.not. status%ok()) return
@@ -1656,19 +1656,19 @@ contains
     if (file_directory_p(file)) then
         suffix = dired_compress_directory_default_suffix
         if (len(suffix) == 0) suffix = ".tar.gz"
-        k = rule_for(dired_compress_files_alist, suffix)
+        k = rule_for(dired_compress_files_table, suffix)
 
         if (k == 0) then
             call set_error(status, FM_USER_ERROR, format_message("No compression rule found for "// &
                                                                  "`dired_compress_directory_default_suffix' ")//suffix// &
-                           format_message(", see `dired_compress_files_alist' for the supported suffixes list"))
+                           format_message(", see `dired_compress_files_table' for the supported suffixes list"))
             return
         end if
 
         out_name = file//suffix
         dir_saved = aux_default_directory()
         buffers(cur)%directory = file_name_directory(file)
-        call dired_shell_command(replace_io(dired_compress_files_alist(k)%command, &
+        call dired_shell_command(replace_io(dired_compress_files_table(k)%command, &
                                             shell_quote_argument(file_name_nondirectory(file)), &
                                             shell_quote_argument(out_name)), res, status)
         buffers(cur)%directory = dir_saved
@@ -1686,11 +1686,11 @@ contains
     suffix = dired_compress_file_default_suffix
     if (len(suffix) == 0) suffix = ".gz"
     out_name = file//suffix
-    k = rule_for(dired_compress_file_alist, suffix)
+    k = rule_for(dired_compress_file_table, suffix)
 
     if (k == 0) then
         call set_error(status, FM_USER_ERROR, "No compression rule found for suffix "//dired_compress_file_default_suffix// &
-                       format_message(", see `dired_compress_file_alist' for the supported suffixes list"))
+                       format_message(", see `dired_compress_file_table' for the supported suffixes list"))
         return
     end if
 
@@ -1702,7 +1702,7 @@ contains
         if (.not. answer) return
     end if
 
-    call dired_shell_command(replace_io(dired_compress_file_alist(k)%command, shell_quote_argument(file), &
+    call dired_shell_command(replace_io(dired_compress_file_table(k)%command, shell_quote_argument(file), &
                                         shell_quote_argument(out_name)), res, status)
 
     if (.not. status%ok()) then
@@ -1747,17 +1747,17 @@ contains
         end if
     end subroutine compress_with_compress
 
-    !> The first rule of ALIST whose regexp matches SUFFIX (0 if none).
-    integer function rule_for(alist, suffix) result(r)
-        type(dired_compress_rule_type), intent(in) :: alist(:)
+    !> The first rule of TABLE whose regexp matches SUFFIX (0 if none).
+    integer function rule_for(table, suffix) result(r)
+        type(dired_compress_rule_type), intent(in) :: table(:)
         character(len=*), intent(in) :: suffix
         type(status_type) :: s
         integer :: j
 
         r = 0
 
-        do j = 1, size(alist)
-            if (string_match(alist(j)%regexp, suffix, s, inhibit_modify=.true.) > 0) then
+        do j = 1, size(table)
+            if (string_match(table(j)%regexp, suffix, s, inhibit_modify=.true.) > 0) then
                 r = j
                 return
             end if
@@ -2047,8 +2047,8 @@ contains
     out_file = aux_expand(input)
     rule = 0
 
-    do k = 1, size(dired_compress_files_alist)
-        if (string_match(dired_compress_files_alist(k)%regexp, out_file, st) > 0) then
+    do k = 1, size(dired_compress_files_table)
+        if (string_match(dired_compress_files_table(k)%regexp, out_file, st) > 0) then
             rule = k
             exit
         end if
@@ -2056,7 +2056,7 @@ contains
 
     if (rule == 0) then
         call set_error(status, FM_GENERIC_ERROR, "No compression rule found for "//out_file// &
-                       format_message(", see `dired_compress_files_alist'"))
+                       format_message(", see `dired_compress_files_table'"))
         return
     end if
 
@@ -2077,7 +2077,7 @@ contains
         ins = ins//shell_quote_argument(file_relative_name(in_files(k)%s))
     end do
 
-    call format_spec_io(dired_compress_files_alist(rule)%command, shell_quote_argument(out_file), ins, command, status)
+    call format_spec_io(dired_compress_files_table(rule)%command, shell_quote_argument(out_file), ins, command, status)
     if (.not. status%ok()) return
     call dired_shell_command(command, res, status)
     if (.not. status%ok()) return
@@ -2094,7 +2094,7 @@ contains
     !> Compress selected files and directories to an archive.
     !> Prompt for the archive file name.
     !> Choose the archiving command based on the archive file-name extension
-    !> and `dired_compress_files_alist'.  Port of
+    !> and `dired_compress_files_table'.  Port of
     !> dired-aux.el:dired-do-compress-to (interactive).
     recursive subroutine cmd_dired_do_compress_to(status)
         type(status_type), intent(out) :: status
@@ -2436,7 +2436,7 @@ contains
         call set_buffer(old, st)
     end subroutine dired_rename_subdir
 
-    !> Rename DIR to TO in headerlines and `dired_subdir_alist', if DIR or
+    !> Rename DIR to TO in headerlines and `dired_subdir_table', if DIR or
     !> one of its subdirectories is expanded in this buffer.  Port of
     !> dired-aux.el:dired-rename-subdir-1.
     recursive subroutine dired_rename_subdir_1(dir, to, status)
@@ -2451,10 +2451,10 @@ contains
         k = aux_local_index()
 
         if (k > 0) then
-            if (allocated(locals(k)%subdir_alist)) then
-                do i = 1, size(locals(k)%subdir_alist)
+            if (allocated(locals(k)%subdir_table)) then
+                do i = 1, size(locals(k)%subdir_table)
                     ! ELT's subdir is affected by the rename
-                    if (dired_in_this_tree_p(locals(k)%subdir_alist(i)%dir, expanded_dir)) then
+                    if (dired_in_this_tree_p(locals(k)%subdir_table(i)%dir, expanded_dir)) then
                         call dired_rename_subdir_2(i, dir, to, status)
                         if (.not. status%ok()) return
                     end if
@@ -2496,10 +2496,10 @@ contains
         if (.not. st%ok()) full = name
     end function aux_expand_in
 
-    !> Update the headerline and `dired_subdir_alist' element I of the
+    !> Update the headerline and `dired_subdir_table' element I of the
     !> directory to reflect the moving of DIR to TO.  Thus, the element
     !> describes either DIR itself or a subdir of DIR.  Port of
-    !> dired-aux.el:dired-rename-subdir-2 (no `dired_switches_alist').
+    !> dired-aux.el:dired-rename-subdir-2 (no `dired_switches_table').
     recursive subroutine dired_rename_subdir_2(i, dir, to, status)
         integer, intent(in) :: i
         character(len=*), intent(in) :: dir, to
@@ -2515,13 +2515,13 @@ contains
         opoint = point()
         regexp = regexp_quote(directory_file_name(dir))
         newtext = directory_file_name(to)
-        elt_dir = locals(k)%subdir_alist(i)%dir
+        elt_dir = locals(k)%subdir_table(i)%dir
         call aux_inhibit_read_only_begin(saved_ro)
-        call goto_char(aux_mpos(locals(k)%subdir_alist(i)%marker))
+        call goto_char(aux_mpos(locals(k)%subdir_table(i)%marker))
 
         ! Update subdir headerline in buffer
         if (.not. looking_at("^. \(.+\)\(:\)"//LF, st)) then
-            call set_error(status, FM_GENERIC_ERROR, dir//" not found where expected - dired_subdir_alist broken?")
+            call set_error(status, FM_GENERIC_ERROR, dir//" not found where expected - dired_subdir_table broken?")
         else
             b1 = match_beginning(1, st)
             e1 = match_end(1, st)
@@ -2540,7 +2540,7 @@ contains
         call goto_char(opoint)
         if (.not. status%ok()) return
         ! Update buffer-local dired-subdir-alist
-        locals(k)%subdir_alist(i)%dir = dired_normalize_subdir(replace_all(elt_dir, directory_file_name(dir), newtext))
+        locals(k)%subdir_table(i)%dir = dired_normalize_subdir(replace_all(elt_dir, directory_file_name(dir), newtext))
     end subroutine dired_rename_subdir_2
 
     !> Default is to create files with the same names as the originals.
@@ -3616,8 +3616,8 @@ contains
         k = aux_local_index()
 
         if (k > 0) then
-            if (allocated(locals(k)%subdir_alist)) then
-                if (size(locals(k)%subdir_alist) > 1) shown = dired_goto_subdir(file) /= 0
+            if (allocated(locals(k)%subdir_table)) then
+                if (size(locals(k)%subdir_table) > 1) shown = dired_goto_subdir(file) /= 0
             end if
         end if
 
@@ -3696,7 +3696,7 @@ contains
     !> not by Dired's m command.)
     !> If the file at point has a backup file, use that as the default FILE.
     !> If the file at point is a backup file, use its original, if that exists
-    !> and can be found.  Note that customizations of `backup_directory_alist'
+    !> and can be found.  Note that customizations of `backup_directory_table'
     !> and `make_backup_file_name_function' change where this function searches
     !> for the backup file, and affect its ability to find the original of a
     !> backup file.
@@ -3905,19 +3905,19 @@ contains
         call move_alloc(grown, dired_compress_file_suffixes)
     end subroutine add_compress_suffix
 
-    !> Add a rule (REGEXP . COMMAND) to ALIST.  Not a port.
-    subroutine add_compress_rule(alist, regexp, command)
-        type(dired_compress_rule_type), allocatable, intent(inout) :: alist(:)
+    !> Add a rule (REGEXP . COMMAND) to TABLE.  Not a port.
+    subroutine add_compress_rule(table, regexp, command)
+        type(dired_compress_rule_type), allocatable, intent(inout) :: table(:)
         character(len=*), intent(in) :: regexp, command
         type(dired_compress_rule_type), allocatable :: grown(:)
         integer :: n
 
-        n = size(alist)
+        n = size(table)
         allocate (grown(n + 1))
-        grown(1:n) = alist
+        grown(1:n) = table
         grown(n + 1)%regexp = regexp
         grown(n + 1)%command = command
-        call move_alloc(grown, alist)
+        call move_alloc(grown, table)
     end subroutine add_compress_rule
 
     !> Give the dired-aux.el options that are not set yet their standard
@@ -3967,24 +3967,24 @@ contains
             call add_compress_suffix("\.tar\'", ".tgz", "")
         end if
 
-        if (.not. allocated(dired_compress_file_alist)) then
-            allocate (dired_compress_file_alist(0))
-            call add_compress_rule(dired_compress_file_alist, "\.gz\'", "gzip -9f %i")
-            call add_compress_rule(dired_compress_file_alist, "\.bz2\'", "bzip2 -9f %i")
-            call add_compress_rule(dired_compress_file_alist, "\.xz\'", "xz -9f %i")
-            call add_compress_rule(dired_compress_file_alist, "\.zst\'", "zstd -qf -19 --rm -o %o %i")
+        if (.not. allocated(dired_compress_file_table)) then
+            allocate (dired_compress_file_table(0))
+            call add_compress_rule(dired_compress_file_table, "\.gz\'", "gzip -9f %i")
+            call add_compress_rule(dired_compress_file_table, "\.bz2\'", "bzip2 -9f %i")
+            call add_compress_rule(dired_compress_file_table, "\.xz\'", "xz -9f %i")
+            call add_compress_rule(dired_compress_file_table, "\.zst\'", "zstd -qf -19 --rm -o %o %i")
         end if
 
-        if (.not. allocated(dired_compress_files_alist)) then
-            allocate (dired_compress_files_alist(0))
-            call add_compress_rule(dired_compress_files_alist, "\.tar\.gz\'", "tar -cf - %i | gzip -c9 > %o")
-            call add_compress_rule(dired_compress_files_alist, "\.tar\.bz2\'", "tar -cf - %i | bzip2 -c9 > %o")
-            call add_compress_rule(dired_compress_files_alist, "\.tar\.xz\'", "tar -cf - %i | xz -c9 > %o")
-            call add_compress_rule(dired_compress_files_alist, "\.tar\.zst\'", "tar -cf - %i | zstd -19 -o %o")
-            call add_compress_rule(dired_compress_files_alist, "\.tar\.lz\'", "tar -cf - %i | lzip -c9 > %o")
-            call add_compress_rule(dired_compress_files_alist, "\.tar\.lzo\'", "tar -cf - %i | lzop -c9 > %o")
-            call add_compress_rule(dired_compress_files_alist, "\.zip\'", "zip %o -r --filesync %i")
-            call add_compress_rule(dired_compress_files_alist, "\.pax\'", "pax -wf %o %i")
+        if (.not. allocated(dired_compress_files_table)) then
+            allocate (dired_compress_files_table(0))
+            call add_compress_rule(dired_compress_files_table, "\.tar\.gz\'", "tar -cf - %i | gzip -c9 > %o")
+            call add_compress_rule(dired_compress_files_table, "\.tar\.bz2\'", "tar -cf - %i | bzip2 -c9 > %o")
+            call add_compress_rule(dired_compress_files_table, "\.tar\.xz\'", "tar -cf - %i | xz -c9 > %o")
+            call add_compress_rule(dired_compress_files_table, "\.tar\.zst\'", "tar -cf - %i | zstd -19 -o %o")
+            call add_compress_rule(dired_compress_files_table, "\.tar\.lz\'", "tar -cf - %i | lzip -c9 > %o")
+            call add_compress_rule(dired_compress_files_table, "\.tar\.lzo\'", "tar -cf - %i | lzop -c9 > %o")
+            call add_compress_rule(dired_compress_files_table, "\.zip\'", "zip %o -r --filesync %i")
+            call add_compress_rule(dired_compress_files_table, "\.pax\'", "pax -wf %o %i")
         end if
     end subroutine init_dired_aux_options
 

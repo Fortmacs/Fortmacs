@@ -651,7 +651,7 @@ contains
     end subroutine test_functions
 
     !> `coding:' tags in the -*- line and the local variables list, the
-    !> BOM regexps, and the file names of `auto_coding_alist'.
+    !> BOM regexps, and the file names of `auto_coding_table'.
     subroutine test_auto_coding(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: coding, source

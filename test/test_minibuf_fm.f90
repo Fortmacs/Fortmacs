@@ -1,7 +1,7 @@
 ! test_minibuf_fm.f90 -- tests for the minibuffer (minibuf_fm,
 ! minibuffer_fm, minibuffer history in simple_fm, yes-or-no-p, fields).
 ! Ports GNU Emacs 31.1 test/src/minibuf-tests.el in part; only the
-! completion tests on lists and alists of strings and symbols.
+! completion tests on lists and tables of strings and symbols.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -21,7 +21,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Ports the minibuf-tests.el completion tests for lists and alists of
+!> Ports the minibuf-tests.el completion tests for lists and tables of
 !> strings and symbols (not obarrays of their own, hash tables or
 !> completion-regexp-list); the rest are own tests.
 module test_minibuf_fm
@@ -135,26 +135,26 @@ contains
                     new_unittest("try-completion-string-list-predicate", test_try_string_list_pred), &
                     new_unittest("try-completion-symbol-list", test_try_symbol_list), &
                     new_unittest("try-completion-symbol-list-predicate", test_try_symbol_list_pred), &
-                    new_unittest("try-completion-symbol-alist", test_try_symbol_alist), &
-                    new_unittest("try-completion-symbol-alist-predicate", test_try_symbol_alist_pred), &
-                    new_unittest("try-completion-string-alist", test_try_string_alist), &
-                    new_unittest("try-completion-string-alist-predicate", test_try_string_alist_pred), &
+                    new_unittest("try-completion-symbol-alist", test_try_symbol_table), &
+                    new_unittest("try-completion-symbol-alist-predicate", test_try_symbol_table_pred), &
+                    new_unittest("try-completion-string-alist", test_try_string_table), &
+                    new_unittest("try-completion-string-alist-predicate", test_try_string_table_pred), &
                     new_unittest("all-completions-string-list", test_all_string_list), &
                     new_unittest("all-completions-string-list-predicate", test_all_string_list_pred), &
                     new_unittest("all-completions-symbol-list", test_all_symbol_list), &
                     new_unittest("all-completions-symbol-list-predicate", test_all_symbol_list_pred), &
-                    new_unittest("all-completions-symbol-alist", test_all_symbol_alist), &
-                    new_unittest("all-completions-symbol-alist-predicate", test_all_symbol_alist_pred), &
-                    new_unittest("all-completions-string-alist", test_all_string_alist), &
-                    new_unittest("all-completions-string-alist-predicate", test_all_string_alist_pred), &
+                    new_unittest("all-completions-symbol-alist", test_all_symbol_table), &
+                    new_unittest("all-completions-symbol-alist-predicate", test_all_symbol_table_pred), &
+                    new_unittest("all-completions-string-alist", test_all_string_table), &
+                    new_unittest("all-completions-string-alist-predicate", test_all_string_table_pred), &
                     new_unittest("test-completion-string-list", test_test_string_list), &
                     new_unittest("test-completion-string-list-predicate", test_test_string_list_pred), &
                     new_unittest("test-completion-symbol-list", test_test_symbol_list), &
                     new_unittest("test-completion-symbol-list-predicate", test_test_symbol_list_pred), &
-                    new_unittest("test-completion-symbol-alist", test_test_symbol_alist), &
-                    new_unittest("test-completion-symbol-alist-predicate", test_test_symbol_alist_pred), &
-                    new_unittest("test-completion-string-alist", test_test_string_alist), &
-                    new_unittest("test-completion-string-alist-predicate", test_test_string_alist_pred), &
+                    new_unittest("test-completion-symbol-alist", test_test_symbol_table), &
+                    new_unittest("test-completion-symbol-alist-predicate", test_test_symbol_table_pred), &
+                    new_unittest("test-completion-string-alist", test_test_string_table), &
+                    new_unittest("test-completion-string-alist-predicate", test_test_string_table_pred), &
                     new_unittest("try-completion-string-list-completion-regexp", test_try_regexp_1), &
                     new_unittest("all-completions-string-list-completion-regexp", test_all_regexp_1), &
                     new_unittest("test-completion-string-list-completion-regexp", test_test_regexp_1), &
@@ -844,7 +844,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The test strings as a collection of kind `kind`: 1 a string list, 2
-    !> a symbol list, 3 a symbol alist, 4 a string alist.
+    !> a symbol list, 3 a symbol table, 4 a string table.
     function collection(kind, strings) result(table)
         integer, intent(in) :: kind
         character(len=*), intent(in) :: strings(:)
@@ -1058,29 +1058,29 @@ contains
         call check_try(error, 2, .true.)
     end subroutine test_try_symbol_list_pred
 
-    subroutine test_try_symbol_alist(error)
+    subroutine test_try_symbol_table(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 3, .false.)
-    end subroutine test_try_symbol_alist
+    end subroutine test_try_symbol_table
 
-    subroutine test_try_symbol_alist_pred(error)
+    subroutine test_try_symbol_table_pred(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 3, .true.)
-    end subroutine test_try_symbol_alist_pred
+    end subroutine test_try_symbol_table_pred
 
-    subroutine test_try_string_alist(error)
+    subroutine test_try_string_table(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 4, .false.)
-    end subroutine test_try_string_alist
+    end subroutine test_try_string_table
 
-    subroutine test_try_string_alist_pred(error)
+    subroutine test_try_string_table_pred(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 4, .true.)
-    end subroutine test_try_string_alist_pred
+    end subroutine test_try_string_table_pred
 
     subroutine test_all_string_list(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1106,29 +1106,29 @@ contains
         call check_all(error, 2, .true.)
     end subroutine test_all_symbol_list_pred
 
-    subroutine test_all_symbol_alist(error)
+    subroutine test_all_symbol_table(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 3, .false.)
-    end subroutine test_all_symbol_alist
+    end subroutine test_all_symbol_table
 
-    subroutine test_all_symbol_alist_pred(error)
+    subroutine test_all_symbol_table_pred(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 3, .true.)
-    end subroutine test_all_symbol_alist_pred
+    end subroutine test_all_symbol_table_pred
 
-    subroutine test_all_string_alist(error)
+    subroutine test_all_string_table(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 4, .false.)
-    end subroutine test_all_string_alist
+    end subroutine test_all_string_table
 
-    subroutine test_all_string_alist_pred(error)
+    subroutine test_all_string_table_pred(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 4, .true.)
-    end subroutine test_all_string_alist_pred
+    end subroutine test_all_string_table_pred
 
     subroutine test_test_string_list(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1154,29 +1154,29 @@ contains
         call check_test(error, 2, .true.)
     end subroutine test_test_symbol_list_pred
 
-    subroutine test_test_symbol_alist(error)
+    subroutine test_test_symbol_table(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 3, .false.)
-    end subroutine test_test_symbol_alist
+    end subroutine test_test_symbol_table
 
-    subroutine test_test_symbol_alist_pred(error)
+    subroutine test_test_symbol_table_pred(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 3, .true.)
-    end subroutine test_test_symbol_alist_pred
+    end subroutine test_test_symbol_table_pred
 
-    subroutine test_test_string_alist(error)
+    subroutine test_test_string_table(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 4, .false.)
-    end subroutine test_test_string_alist
+    end subroutine test_test_string_table
 
-    subroutine test_test_string_alist_pred(error)
+    subroutine test_test_string_table_pred(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 4, .true.)
-    end subroutine test_test_string_alist_pred
+    end subroutine test_test_string_table_pred
 
     !> The global obarray as a collection (upstream's tests make their own
     !> obarrays): names with a prefix no other symbol has.

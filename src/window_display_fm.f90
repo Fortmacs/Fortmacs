@@ -32,8 +32,8 @@
 !> sensibly, use a window that showed the buffer before, or else use
 !> some other window.
 !>
-!> Deferred: `display_buffer_alist', `display_buffer_base_action' and the
-!> action alist entries other than `inhibit_same_window', other frames
+!> Deferred: `display_buffer_table', `display_buffer_base_action' and the
+!> action table entries other than `inhibit_same_window', other frames
 !> and tabs (`pop_up_frames', `display_buffer_pop_up_frame'), side and
 !> atomic windows, `window_size_fixed', frame buffer predicates,
 !> `switch_to_prev_buffer_skip' and `switch_to_prev_buffer_skip_regexp'
@@ -1372,13 +1372,13 @@ contains
     !> already (`reuse'), QR_WINDOW when it is new.  Unless it shows
     !> BUFFER already or is reused, WINDOW is dedicated as
     !> `display_buffer_mark_dedicated' says; a new window gets the height
-    !> ALIST's `window_height' function gives it.  Return WINDOW if BUFFER
+    !> TABLE's `window_height' function gives it.  Return WINDOW if BUFFER
     !> and WINDOW are live.  Port of window.el:window--display-buffer.
-    function window_display_buffer(buffer, h, type, status, alist) result(window)
+    function window_display_buffer(buffer, h, type, status, table) result(window)
         type(handle_type), intent(in) :: buffer, h
         integer, intent(in) :: type
         type(status_type), intent(out) :: status
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(handle_type) :: window
 
         status = status_type()
@@ -1403,24 +1403,24 @@ contains
             if (allocated(windows(h%index)%prev_buffers)) call clear_prev_buffers(h)
         end if
 
-        if (associated(alist%body_function)) call run_body_function(alist, h)
+        if (associated(table%body_function)) call run_body_function(table, h)
 
         ! A window that never showed another buffer but BUFFER ever since
         ! it was created on an existing frame: adjust its height if asked
         ! for.
         if (type == QR_WINDOW .or. (windows(h%index)%quit_restore%kind == QR_SAME .and. &
                                     windows(h%index)%quit_restore%what == QR_WINDOW)) then
-            if (associated(alist%window_height)) call alist%window_height(h)
+            if (associated(table%window_height)) call table%window_height(h)
         end if
 
         window = h
     end function window_display_buffer
 
-    !> Call the `body_function' of ALIST with window H, with
+    !> Call the `body_function' of TABLE with window H, with
     !> `inhibit_read_only' and `inhibit_modification_hooks' true.
     !> Not a port.
-    subroutine run_body_function(alist, h)
-        type(display_alist_type), intent(in) :: alist
+    subroutine run_body_function(table, h)
+        type(display_alist_type), intent(in) :: table
         type(handle_type), intent(in) :: h
         type(value_type) :: saved
         type(status_type) :: st
@@ -1430,7 +1430,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
         saved_hooks = inhibit_modification_hooks%value
         inhibit_modification_hooks = .true.
-        call alist%body_function(h)
+        call table%body_function(h)
         inhibit_modification_hooks = saved_hooks
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine run_body_function
@@ -1451,9 +1451,9 @@ contains
     !> Display BUFFER in the selected window, unless INHIBIT_SAME_WINDOW,
     !> the selected window is a minibuffer window or it is dedicated.
     !> Port of window.el:display-buffer-same-window.
-    function display_buffer_same_window(buffer, alist, status) result(window)
+    function display_buffer_same_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
@@ -1461,19 +1461,19 @@ contains
         window = null_handle()
         sw = selected_window()
 
-        if (alist%inhibit_same_window .or. windows(sw%index)%mini .or. windows(sw%index)%dedicated /= DEDICATED_NONE) then
+        if (table%inhibit_same_window .or. windows(sw%index)%mini .or. windows(sw%index)%dedicated /= DEDICATED_NONE) then
             return
         end if
 
-        window = window_display_buffer(buffer, sw, QR_OTHER, status, alist)
+        window = window_display_buffer(buffer, sw, QR_OTHER, status, table)
     end function display_buffer_same_window
 
     !> Return a window that is already displaying BUFFER, preferably the
     !> selected one (unless INHIBIT_SAME_WINDOW).  Port of
     !> window.el:display-buffer-reuse-window.
-    function display_buffer_reuse_window(buffer, alist, status) result(window)
+    function display_buffer_reuse_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         type(handle_type), allocatable :: list(:)
@@ -1485,13 +1485,13 @@ contains
 
         ! Avoid calling 'get-buffer-window-list' if the selected window
         ! already shows BUFFER and can be used.
-        if (same_handle(windows(sw%index)%buffer, buffer) .and. .not. alist%inhibit_same_window) then
+        if (same_handle(windows(sw%index)%buffer, buffer) .and. .not. table%inhibit_same_window) then
             window = sw
         else
             list = window_list_from()
 
             do k = 1, size(list)
-                if (alist%inhibit_same_window .and. same_handle(list(k), sw)) cycle
+                if (table%inhibit_same_window .and. same_handle(list(k), sw)) cycle
 
                 if (same_handle(windows(list(k)%index)%buffer, buffer)) then
                     window = list(k)
@@ -1500,15 +1500,15 @@ contains
             end do
         end if
 
-        if (window_live_p(window)) window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+        if (window_live_p(window)) window = window_display_buffer(buffer, window, QR_OTHER, status, table)
     end function display_buffer_reuse_window
 
     !> Display BUFFER by popping up a new window: split the largest or
     !> the least recently used window.  Port of
     !> window.el:display-buffer-pop-up-window.
-    function display_buffer_pop_up_window(buffer, alist, status) result(window)
+    function display_buffer_pop_up_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
@@ -1518,7 +1518,7 @@ contains
         if (.not. window_live_p(window)) window = try_to_split_window(get_lru_window(.true., .false.))
 
         if (window_live_p(window)) then
-            window = window_display_buffer(buffer, window, QR_WINDOW, status, alist)
+            window = window_display_buffer(buffer, window, QR_WINDOW, status, table)
         else
             window = null_handle()
         end if
@@ -1529,9 +1529,9 @@ contains
     !> INHIBIT_SAME_WINDOW).  A dedicated window is not usable.  Port of
     !> window.el:display-buffer-in-previous-window (no `previous_window'
     !> entry).
-    function display_buffer_in_previous_window(buffer, alist, status) result(window)
+    function display_buffer_in_previous_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, best, second_best, sw
         type(handle_type), allocatable :: list(:)
@@ -1549,7 +1549,7 @@ contains
             if (windows(list(k)%index)%dedicated /= DEDICATED_NONE) cycle
 
             if (same_handle(list(k), sw)) then
-                if (.not. alist%inhibit_same_window) second_best = list(k)
+                if (.not. table%inhibit_same_window) second_best = list(k)
             else
                 best = list(k)
                 exit
@@ -1557,9 +1557,9 @@ contains
         end do
 
         if (window_live_p(best)) then
-            window = window_display_buffer(buffer, best, QR_OTHER, status, alist)
+            window = window_display_buffer(buffer, best, QR_OTHER, status, table)
         else if (window_live_p(second_best)) then
-            window = window_display_buffer(buffer, second_best, QR_OTHER, status, alist)
+            window = window_display_buffer(buffer, second_best, QR_OTHER, status, table)
         end if
     end function display_buffer_in_previous_window
 
@@ -1619,9 +1619,9 @@ contains
     !> Display BUFFER in an existing window: the least recently used one,
     !> or one already showing BUFFER, or the largest one.  Port of
     !> window.el:display-buffer-use-some-window (`some_window' nil).
-    function display_buffer_use_some_window(buffer, alist, status) result(window)
+    function display_buffer_use_some_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         integer :: delta
@@ -1629,14 +1629,14 @@ contains
         status = status_type()
         sw = selected_window()
         ! Reuse an existing window.
-        window = display_buffer_lru_window(alist%inhibit_same_window)
+        window = display_buffer_lru_window(table%inhibit_same_window)
 
         if (.not. window_live_p(window)) then
             window = get_buffer_window(buffer)
-            if (alist%inhibit_same_window .and. same_handle(window, sw)) window = null_handle()
+            if (table%inhibit_same_window .and. same_handle(window, sw)) window = null_handle()
         end if
 
-        if (.not. window_live_p(window)) window = get_largest_window(.false., alist%inhibit_same_window)
+        if (.not. window_live_p(window)) window = get_largest_window(.false., table%inhibit_same_window)
 
         if (.not. window_live_p(window)) then
             window = null_handle()
@@ -1653,7 +1653,7 @@ contains
             end if
         end associate
 
-        window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+        window = window_display_buffer(buffer, window, QR_OTHER, status, table)
         if (window_live_p(window)) call window_even_window_sizes(window)
     end function display_buffer_use_some_window
 
@@ -1662,9 +1662,9 @@ contains
     !> already, splits a window at the bottom of the frame or the frame's
     !> root window, or reuses some window at the bottom of the selected
     !> frame.  Port of window.el:display-buffer-at-bottom.
-    function display_buffer_at_bottom(buffer, alist, status) result(window)
+    function display_buffer_at_bottom(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, bottom_window
         type(handle_type), allocatable :: list(:)
@@ -1697,7 +1697,7 @@ contains
         end do
 
         if (bottom_window_shows_buffer) then
-            window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, alist)
+            window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, table)
             if (window%index /= 0 .or. .not. status%ok()) return
         end if
 
@@ -1705,7 +1705,7 @@ contains
         call split_window(selected_frame%root_window, 0, .false., .false., window, status)
 
         if (status%ok()) then
-            window = window_display_buffer(buffer, window, QR_WINDOW, status, alist)
+            window = window_display_buffer(buffer, window, QR_WINDOW, status, table)
             if (window%index /= 0 .or. .not. status%ok()) return
         else
             status = status_type()
@@ -1714,7 +1714,7 @@ contains
 
         if (window_live_p(bottom_window)) then
             if (windows(bottom_window%index)%dedicated == DEDICATED_NONE) then
-                window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, alist)
+                window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, table)
             end if
         end if
     end function display_buffer_at_bottom
@@ -1727,9 +1727,9 @@ contains
     !> below the selected one, use that window.  Port of
     !> window.el:display-buffer-below-selected (no `window_min_height'
     !> entry).
-    function display_buffer_below_selected(buffer, alist, status) result(window)
+    function display_buffer_below_selected(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
@@ -1738,7 +1738,7 @@ contains
 
         if (window_live_p(window)) then
             if (same_handle(buffer, windows(window%index)%buffer)) then
-                window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+                window = window_display_buffer(buffer, window, QR_OTHER, status, table)
                 if (window%index /= 0 .or. .not. status%ok()) return
             end if
         end if
@@ -1758,7 +1758,7 @@ contains
         end if
 
         if (window_live_p(window)) then
-            window = window_display_buffer(buffer, window, QR_WINDOW, status, alist)
+            window = window_display_buffer(buffer, window, QR_WINDOW, status, table)
             if (window%index /= 0 .or. .not. status%ok()) return
         end if
 
@@ -1766,7 +1766,7 @@ contains
 
         if (window_live_p(window)) then
             if (windows(window%index)%dedicated == DEDICATED_NONE) then
-                window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+                window = window_display_buffer(buffer, window, QR_OTHER, status, table)
                 return
             end if
         end if
@@ -1857,22 +1857,22 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: norecord
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
         logical :: saved
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer-or-name t norecord))
         saved = pop_up_windows
         pop_up_windows = .true.
-        alist%inhibit_same_window = .true.
-        call pop_to_buffer(buffer, status, alist=alist, norecord=norecord)
+        table%inhibit_same_window = .true.
+        call pop_to_buffer(buffer, status, table=table, norecord=norecord)
         pop_up_windows = saved
     end subroutine switch_to_buffer_other_window
 
-    !> Try action function ACTION for BUFFER with ALIST.  Not a port.
-    function display_buffer_action(action, buffer, alist, status) result(window)
+    !> Try action function ACTION for BUFFER with TABLE.  Not a port.
+    function display_buffer_action(action, buffer, table, status) result(window)
         integer, intent(in) :: action
         type(handle_type), intent(in) :: buffer
-        type(display_alist_type), intent(in) :: alist
+        type(display_alist_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
@@ -1881,25 +1881,25 @@ contains
 
         select case (action)
         case (DISPLAY_ACTION_SAME_WINDOW)
-            window = display_buffer_same_window(buffer, alist, status)
+            window = display_buffer_same_window(buffer, table, status)
         case (DISPLAY_ACTION_MAYBE_SAME_WINDOW)
             ! `same_window_p' is false for any buffer with the default
             ! `same_window_buffer_names' and `same_window_regexps'.
             continue
         case (DISPLAY_ACTION_REUSE_WINDOW)
-            window = display_buffer_reuse_window(buffer, alist, status)
+            window = display_buffer_reuse_window(buffer, table, status)
         case (DISPLAY_ACTION_POP_UP_WINDOW)
-            window = display_buffer_pop_up_window(buffer, alist, status)
+            window = display_buffer_pop_up_window(buffer, table, status)
         case (DISPLAY_ACTION_MAYBE_POP_UP_WINDOW)
-            if (pop_up_windows) window = display_buffer_pop_up_window(buffer, alist, status)
+            if (pop_up_windows) window = display_buffer_pop_up_window(buffer, table, status)
         case (DISPLAY_ACTION_IN_PREVIOUS_WINDOW)
-            window = display_buffer_in_previous_window(buffer, alist, status)
+            window = display_buffer_in_previous_window(buffer, table, status)
         case (DISPLAY_ACTION_USE_SOME_WINDOW)
-            window = display_buffer_use_some_window(buffer, alist, status)
+            window = display_buffer_use_some_window(buffer, table, status)
         case (DISPLAY_ACTION_AT_BOTTOM)
-            window = display_buffer_at_bottom(buffer, alist, status)
+            window = display_buffer_at_bottom(buffer, table, status)
         case (DISPLAY_ACTION_BELOW_SELECTED)
-            window = display_buffer_below_selected(buffer, alist, status)
+            window = display_buffer_below_selected(buffer, table, status)
         case default
             continue
         end select
@@ -1907,21 +1907,21 @@ contains
 
     !> Display BUFFER in some window and return that window, or the null
     !> handle if no window could be found.  The action functions ACTIONS
-    !> are tried in turn with ALIST, then those of
+    !> are tried in turn with TABLE, then those of
     !> `display_buffer_fallback_action':
     !> `display_buffer__maybe_same_window', `display_buffer_reuse_window',
     !> `display_buffer__maybe_pop_up_window',
     !> `display_buffer_in_previous_window' and
     !> `display_buffer_use_some_window'.  Port of window.el:display-buffer
     !> (one frame; `display_buffer_overriding_action',
-    !> `display_buffer_alist' and `display_buffer_base_action' are
+    !> `display_buffer_table' and `display_buffer_base_action' are
     !> deferred: they are empty).
-    module subroutine display_buffer(buffer, window, status, actions, alist)
+    module subroutine display_buffer(buffer, window, status, actions, table)
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: alist
+        type(display_alist_type), intent(in), optional :: table
         integer, parameter :: fallback(5) = [DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, &
                                              DISPLAY_ACTION_MAYBE_POP_UP_WINDOW, DISPLAY_ACTION_IN_PREVIOUS_WINDOW, &
                                              DISPLAY_ACTION_USE_SOME_WINDOW]
@@ -1937,7 +1937,7 @@ contains
         end if
 
         call ensure_frame_windows()
-        if (present(alist)) al = alist
+        if (present(table)) al = table
 
         if (present(actions)) then
             do k = 1, size(actions)
@@ -1953,19 +1953,19 @@ contains
     end subroutine display_buffer
 
     !> Display buffer BUFFER and select its window.  This uses
-    !> `display_buffer' with ACTIONS and ALIST and then selects the window;
+    !> `display_buffer' with ACTIONS and TABLE and then selects the window;
     !> unless NORECORD, BUFFER becomes the most recently selected buffer.
     !> If no window shows it, BUFFER becomes current.  Port of
     !> window.el:pop-to-buffer (one frame).
-    module subroutine pop_to_buffer(buffer, status, actions, alist, norecord)
+    module subroutine pop_to_buffer(buffer, status, actions, table, norecord)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: alist
+        type(display_alist_type), intent(in), optional :: table
         logical, intent(in), optional :: norecord
         type(handle_type) :: window
 
-        call display_buffer(buffer, window, status, actions, alist)
+        call display_buffer(buffer, window, status, actions, table)
         if (.not. status%ok()) return
 
         if (.not. window_live_p(window)) then
@@ -2065,12 +2065,12 @@ contains
     !> Show temporary buffer BUFFER in a window: unmodified, read-only and
     !> at its beginning.  Return the window showing BUFFER.  Port of
     !> window.el:temp-buffer-window-show (no `temp_buffer_resize_mode').
-    module subroutine temp_buffer_window_show(buffer, window, status, actions, alist)
+    module subroutine temp_buffer_window_show(buffer, window, status, actions, table)
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_alist_type), intent(in), optional :: alist
+        type(display_alist_type), intent(in), optional :: table
         type(handle_type) :: saved
 
         window = null_handle()
@@ -2080,7 +2080,7 @@ contains
         call restore_buffer_modified_p(.false.)
         call set_buffer_read_only(buffer, .true., status)
         call goto_char(buffers(cur)%begv)
-        call display_buffer(buffer, window, status, actions, alist)
+        call display_buffer(buffer, window, status, actions, table)
         if (buffer_live_p(saved)) call set_buffer(saved, status)
         if (.not. window_live_p(window)) return
         minibuffer_scroll_window = window

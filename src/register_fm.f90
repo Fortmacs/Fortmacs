@@ -23,7 +23,7 @@
 !> Registers: named places (characters) holding a buffer position, text,
 !> a rectangle, a number, a window configuration with a position, a file
 !> name, a file and position to visit again, or a buffer.  The registers
-!> are `register_alist', an array of `register_type' (a name and a
+!> are `register_table', an array of `register_type' (a name and a
 !> typed `register_value_type'), read with `get_register' and set with
 !> `set_register' or the commands; the markers and window configurations
 !> in it belong to it and are freed when a register is set again.
@@ -41,7 +41,7 @@
 !> `register_preview_previous'), `register_preview_delay' (no timers: the
 !> preview comes only with C-h), `register_preview_function' (the
 !> preview always uses `register_preview_default'),
-!> `register_preview_display_buffer_alist' (the preview is shown at the
+!> `register_preview_display_buffer_table' (the preview is shown at the
 !> bottom, fitted to its buffer; preserve-size is not ported),
 !> `help_event_list', `register_swap_out' and
 !> `register_buffer_to_file_query' (they need `kill_buffer_hook'), the
@@ -137,7 +137,7 @@ module register_fm
     !> file-query reference), a buffer, or a window configuration with
     !> a saved value of point.  Set it with `set_register' and the register
     !> commands.  Port of register.el register-alist.
-    type(register_type), allocatable, protected, public :: register_alist(:)
+    type(register_type), allocatable, protected, public :: register_table(:)
 
     !> Register containing the text to put between collected texts, or -1
     !> if none.
@@ -150,7 +150,7 @@ module register_fm
 
     !> Set contents of Emacs register named REGISTER to VALUE (text, a
     !> number or a rectangle).
-    !> See the documentation of the variable `register_alist' for possible
+    !> See the documentation of the variable `register_table' for possible
     !> VALUEs.  Port of register.el:set-register.
     interface set_register
         module procedure set_register_text, set_register_number, set_register_rectangle
@@ -180,14 +180,14 @@ contains
     ! Register contents
     ! ------------------------------------------------------------------
 
-    !> The index of register REGISTER in `register_alist', 0 if none.
+    !> The index of register REGISTER in `register_table', 0 if none.
     !> Not a port.
     integer function register_index(register) result(k)
         integer(int64), intent(in) :: register
 
-        if (allocated(register_alist)) then
-            do k = 1, size(register_alist)
-                if (register_alist(k)%name == register) return
+        if (allocated(register_table)) then
+            do k = 1, size(register_table)
+                if (register_table(k)%name == register) return
             end do
         end if
 
@@ -203,7 +203,7 @@ contains
         integer :: k
 
         k = register_index(register)
-        if (k > 0) value = register_alist(k)%value
+        if (k > 0) value = register_table(k)%value
     end subroutine get_register
 
     !> The kind of the contents of REGISTER.  Not a port.
@@ -213,7 +213,7 @@ contains
 
         kind = REGISTER_EMPTY
         k = register_index(register)
-        if (k > 0) kind = register_alist(k)%value%kind
+        if (k > 0) kind = register_table(k)%value%kind
     end function register_kind
 
     !> Free what VALUE owns: its marker and its window configuration.
@@ -247,18 +247,18 @@ contains
         k = register_index(register)
 
         if (k > 0) then
-            call free_register_value(register_alist(k)%value)
-            register_alist(k)%value = value
+            call free_register_value(register_table(k)%value)
+            register_table(k)%value = value
             return
         end if
 
-        if (.not. allocated(register_alist)) allocate (register_alist(0))
-        n = size(register_alist)
+        if (.not. allocated(register_table)) allocate (register_table(0))
+        n = size(register_table)
         allocate (grown(n + 1))
         grown(1)%name = register
         grown(1)%value = value
-        grown(2:) = register_alist
-        call move_alloc(grown, register_alist)
+        grown(2:) = register_table
+        call move_alloc(grown, register_table)
     end subroutine store_register
 
     !> `set_register' with text.  Port of register.el:set-register (text).
@@ -563,7 +563,7 @@ contains
         integer(int64) :: t
         integer :: k, j
         type(handle_type) :: old, buf, window
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: old_dir
 
@@ -571,13 +571,13 @@ contains
         ! (register-of-type-alist pred)
         allocate (names(0))
 
-        if (allocated(register_alist)) then
-            do k = 1, size(register_alist)
+        if (allocated(register_table)) then
+            do k = 1, size(register_table)
                 if (present(pred)) then
-                    if (.not. pred(register_alist(k)%value)) cycle
+                    if (.not. pred(register_table(k)%value)) cycle
                 end if
 
-                names = [names, register_alist(k)%name]
+                names = [names, register_table(k)%name]
             end do
         end if
 
@@ -619,8 +619,8 @@ contains
 
         if (buffer_live_p(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
-        alist%window_height => fit_preview_window
-        call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_AT_BOTTOM], alist)
+        table%window_height => fit_preview_window
+        call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_AT_BOTTOM], table)
     end subroutine register_preview
 
     !> Delete the window showing the preview and kill its buffer.
@@ -1050,7 +1050,7 @@ contains
         character(len=:), allocatable :: text
 
         allocate (names(0))
-        if (allocated(register_alist)) names = register_alist(:)%name
+        if (allocated(register_table)) names = register_table(:)%name
 
         ! (sort list (lambda (a b) (< (car a) (car b))))
         do k = 2, size(names)

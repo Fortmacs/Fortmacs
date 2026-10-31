@@ -468,11 +468,11 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), optional :: exit_action
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer t))
-        alist%inhibit_same_window = .true.
-        call pop_to_buffer(buffer, status, alist=alist)
+        table%inhibit_same_window = .true.
+        call pop_to_buffer(buffer, status, table=table)
         if (.not. status%ok()) return
 
         if (special_major_mode()) then

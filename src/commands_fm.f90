@@ -60,16 +60,16 @@ module commands_fm
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
         type(command_type) :: backward_delete_char_untabify
+        type(command_type) :: backward_expression
+        type(command_type) :: backward_group
+        type(command_type) :: backward_kill_expression
         type(command_type) :: backward_kill_paragraph
         type(command_type) :: backward_kill_sentence
-        type(command_type) :: backward_kill_sexp
         type(command_type) :: backward_kill_word
-        type(command_type) :: backward_list
         type(command_type) :: backward_page
         type(command_type) :: backward_paragraph
         type(command_type) :: backward_sentence
-        type(command_type) :: backward_sexp
-        type(command_type) :: backward_up_list
+        type(command_type) :: backward_up_group
         type(command_type) :: backward_word
         type(command_type) :: beginning_of_buffer
         type(command_type) :: beginning_of_line
@@ -306,7 +306,7 @@ module commands_fm
         type(command_type) :: digit_argument
         type(command_type) :: dired
         type(command_type) :: dired_backup_diff
-        type(command_type) :: dired_build_subdir_alist
+        type(command_type) :: dired_build_subdir_table
         type(command_type) :: dired_change_marks
         type(command_type) :: dired_copy_filename_as_kill
         type(command_type) :: dired_create_directory
@@ -377,7 +377,7 @@ module commands_fm
         type(command_type) :: dired_why
         type(command_type) :: disable_command
         type(command_type) :: do_auto_fill
-        type(command_type) :: down_list
+        type(command_type) :: down_group
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
         type(command_type) :: edit_abbrevs
@@ -459,12 +459,12 @@ module commands_fm
         type(command_type) :: font_lock_refresh_defaults
         type(command_type) :: font_lock_update
         type(command_type) :: forward_char
+        type(command_type) :: forward_expression
+        type(command_type) :: forward_group
         type(command_type) :: forward_line
-        type(command_type) :: forward_list
         type(command_type) :: forward_page
         type(command_type) :: forward_paragraph
         type(command_type) :: forward_sentence
-        type(command_type) :: forward_sexp
         type(command_type) :: forward_word
         type(command_type) :: fundamental_mode
         type(command_type) :: global_auto_revert_mode
@@ -706,6 +706,7 @@ module commands_fm
         type(command_type) :: kill_all_abbrevs
         type(command_type) :: kill_buffer
         type(command_type) :: kill_compilation
+        type(command_type) :: kill_expression
         type(command_type) :: kill_grep
         type(command_type) :: kill_line
         type(command_type) :: kill_matching_lines
@@ -714,7 +715,6 @@ module commands_fm
         type(command_type) :: kill_region
         type(command_type) :: kill_ring_save
         type(command_type) :: kill_sentence
-        type(command_type) :: kill_sexp
         type(command_type) :: kill_whole_line
         type(command_type) :: kill_word
         type(command_type) :: kmacro_add_counter
@@ -817,8 +817,8 @@ module commands_fm
         type(command_type) :: makefile_previous_dependency
         type(command_type) :: map_query_replace_regexp
         type(command_type) :: mark_end_of_sentence
+        type(command_type) :: mark_expression
         type(command_type) :: mark_paragraph
-        type(command_type) :: mark_sexp
         type(command_type) :: mark_whole_buffer
         type(command_type) :: mark_word
         type(command_type) :: messages_buffer_mode
@@ -978,10 +978,10 @@ module commands_fm
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
         type(command_type) :: smie__next_indent_change
-        type(command_type) :: smie_backward_sexp_command
+        type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
         type(command_type) :: smie_down_list
-        type(command_type) :: smie_forward_sexp_command
+        type(command_type) :: smie_forward_expression_command
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
@@ -1020,7 +1020,7 @@ module commands_fm
         type(command_type) :: universal_argument_minus
         type(command_type) :: universal_argument_more
         type(command_type) :: universal_coding_system_argument
-        type(command_type) :: up_list
+        type(command_type) :: up_group
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
@@ -1148,16 +1148,16 @@ module commands_fm
                                                                   "back_to_indentation", &
                                                                   "backward_char", &
                                                                   "backward_delete_char_untabify", &
+                                                                  "backward_expression", &
+                                                                  "backward_group", &
+                                                                  "backward_kill_expression", &
                                                                   "backward_kill_paragraph", &
                                                                   "backward_kill_sentence", &
-                                                                  "backward_kill_sexp", &
                                                                   "backward_kill_word", &
-                                                                  "backward_list", &
                                                                   "backward_page", &
                                                                   "backward_paragraph", &
                                                                   "backward_sentence", &
-                                                                  "backward_sexp", &
-                                                                  "backward_up_list", &
+                                                                  "backward_up_group", &
                                                                   "backward_word", &
                                                                   "beginning_of_buffer", &
                                                                   "beginning_of_line", &
@@ -1394,7 +1394,7 @@ module commands_fm
                                                                   "digit_argument", &
                                                                   "dired", &
                                                                   "dired_backup_diff", &
-                                                                  "dired_build_subdir_alist", &
+                                                                  "dired_build_subdir_table", &
                                                                   "dired_change_marks", &
                                                                   "dired_copy_filename_as_kill", &
                                                                   "dired_create_directory", &
@@ -1465,7 +1465,7 @@ module commands_fm
                                                                   "dired_why", &
                                                                   "disable_command", &
                                                                   "do_auto_fill", &
-                                                                  "down_list", &
+                                                                  "down_group", &
                                                                   "downcase_region", &
                                                                   "downcase_word", &
                                                                   "edit_abbrevs", &
@@ -1547,12 +1547,12 @@ module commands_fm
                                                                   "font_lock_refresh_defaults", &
                                                                   "font_lock_update", &
                                                                   "forward_char", &
+                                                                  "forward_expression", &
+                                                                  "forward_group", &
                                                                   "forward_line", &
-                                                                  "forward_list", &
                                                                   "forward_page", &
                                                                   "forward_paragraph", &
                                                                   "forward_sentence", &
-                                                                  "forward_sexp", &
                                                                   "forward_word", &
                                                                   "fundamental_mode", &
                                                                   "global_auto_revert_mode", &
@@ -1794,6 +1794,7 @@ module commands_fm
                                                                   "kill_all_abbrevs", &
                                                                   "kill_buffer", &
                                                                   "kill_compilation", &
+                                                                  "kill_expression", &
                                                                   "kill_grep", &
                                                                   "kill_line", &
                                                                   "kill_matching_lines", &
@@ -1802,7 +1803,6 @@ module commands_fm
                                                                   "kill_region", &
                                                                   "kill_ring_save", &
                                                                   "kill_sentence", &
-                                                                  "kill_sexp", &
                                                                   "kill_whole_line", &
                                                                   "kill_word", &
                                                                   "kmacro_add_counter", &
@@ -1905,8 +1905,8 @@ module commands_fm
                                                                   "makefile_previous_dependency", &
                                                                   "map_query_replace_regexp", &
                                                                   "mark_end_of_sentence", &
+                                                                  "mark_expression", &
                                                                   "mark_paragraph", &
-                                                                  "mark_sexp", &
                                                                   "mark_whole_buffer", &
                                                                   "mark_word", &
                                                                   "messages_buffer_mode", &
@@ -2066,10 +2066,10 @@ module commands_fm
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
                                                                   "smie__next_indent_change", &
-                                                                  "smie_backward_sexp_command", &
+                                                                  "smie_backward_expression_command", &
                                                                   "smie_close_block", &
                                                                   "smie_down_list", &
-                                                                  "smie_forward_sexp_command", &
+                                                                  "smie_forward_expression_command", &
                                                                   "special_mode", &
                                                                   "split_window_below", &
                                                                   "split_window_right", &
@@ -2108,7 +2108,7 @@ module commands_fm
                                                                   "universal_argument_minus", &
                                                                   "universal_argument_more", &
                                                                   "universal_coding_system_argument", &
-                                                                  "up_list", &
+                                                                  "up_group", &
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
                                                                   "upcase_word", &
@@ -2268,26 +2268,26 @@ contains
             p => commands%backward_char
         case ("backward_delete_char_untabify")
             p => commands%backward_delete_char_untabify
+        case ("backward_expression")
+            p => commands%backward_expression
+        case ("backward_group")
+            p => commands%backward_group
+        case ("backward_kill_expression")
+            p => commands%backward_kill_expression
         case ("backward_kill_paragraph")
             p => commands%backward_kill_paragraph
         case ("backward_kill_sentence")
             p => commands%backward_kill_sentence
-        case ("backward_kill_sexp")
-            p => commands%backward_kill_sexp
         case ("backward_kill_word")
             p => commands%backward_kill_word
-        case ("backward_list")
-            p => commands%backward_list
         case ("backward_page")
             p => commands%backward_page
         case ("backward_paragraph")
             p => commands%backward_paragraph
         case ("backward_sentence")
             p => commands%backward_sentence
-        case ("backward_sexp")
-            p => commands%backward_sexp
-        case ("backward_up_list")
-            p => commands%backward_up_list
+        case ("backward_up_group")
+            p => commands%backward_up_group
         case ("backward_word")
             p => commands%backward_word
         case ("beginning_of_buffer")
@@ -2760,8 +2760,8 @@ contains
             p => commands%dired
         case ("dired_backup_diff")
             p => commands%dired_backup_diff
-        case ("dired_build_subdir_alist")
-            p => commands%dired_build_subdir_alist
+        case ("dired_build_subdir_table")
+            p => commands%dired_build_subdir_table
         case ("dired_change_marks")
             p => commands%dired_change_marks
         case ("dired_copy_filename_as_kill")
@@ -2902,8 +2902,8 @@ contains
             p => commands%disable_command
         case ("do_auto_fill")
             p => commands%do_auto_fill
-        case ("down_list")
-            p => commands%down_list
+        case ("down_group")
+            p => commands%down_group
         case ("downcase_region")
             p => commands%downcase_region
         case ("downcase_word")
@@ -3066,18 +3066,18 @@ contains
             p => commands%font_lock_update
         case ("forward_char")
             p => commands%forward_char
+        case ("forward_expression")
+            p => commands%forward_expression
+        case ("forward_group")
+            p => commands%forward_group
         case ("forward_line")
             p => commands%forward_line
-        case ("forward_list")
-            p => commands%forward_list
         case ("forward_page")
             p => commands%forward_page
         case ("forward_paragraph")
             p => commands%forward_paragraph
         case ("forward_sentence")
             p => commands%forward_sentence
-        case ("forward_sexp")
-            p => commands%forward_sexp
         case ("forward_word")
             p => commands%forward_word
         case ("fundamental_mode")
@@ -3560,6 +3560,8 @@ contains
             p => commands%kill_buffer
         case ("kill_compilation")
             p => commands%kill_compilation
+        case ("kill_expression")
+            p => commands%kill_expression
         case ("kill_grep")
             p => commands%kill_grep
         case ("kill_line")
@@ -3576,8 +3578,6 @@ contains
             p => commands%kill_ring_save
         case ("kill_sentence")
             p => commands%kill_sentence
-        case ("kill_sexp")
-            p => commands%kill_sexp
         case ("kill_whole_line")
             p => commands%kill_whole_line
         case ("kill_word")
@@ -3782,10 +3782,10 @@ contains
             p => commands%map_query_replace_regexp
         case ("mark_end_of_sentence")
             p => commands%mark_end_of_sentence
+        case ("mark_expression")
+            p => commands%mark_expression
         case ("mark_paragraph")
             p => commands%mark_paragraph
-        case ("mark_sexp")
-            p => commands%mark_sexp
         case ("mark_whole_buffer")
             p => commands%mark_whole_buffer
         case ("mark_word")
@@ -4104,14 +4104,14 @@ contains
             p => commands%show_paren_mode
         case ("smie__next_indent_change")
             p => commands%smie__next_indent_change
-        case ("smie_backward_sexp_command")
-            p => commands%smie_backward_sexp_command
+        case ("smie_backward_expression_command")
+            p => commands%smie_backward_expression_command
         case ("smie_close_block")
             p => commands%smie_close_block
         case ("smie_down_list")
             p => commands%smie_down_list
-        case ("smie_forward_sexp_command")
-            p => commands%smie_forward_sexp_command
+        case ("smie_forward_expression_command")
+            p => commands%smie_forward_expression_command
         case ("special_mode")
             p => commands%special_mode
         case ("split_window_below")
@@ -4188,8 +4188,8 @@ contains
             p => commands%universal_argument_more
         case ("universal_coding_system_argument")
             p => commands%universal_coding_system_argument
-        case ("up_list")
-            p => commands%up_list
+        case ("up_group")
+            p => commands%up_group
         case ("upcase_initials_region")
             p => commands%upcase_initials_region
         case ("upcase_region")

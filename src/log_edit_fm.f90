@@ -33,7 +33,7 @@
 !> are set by its SET_PARAMS procedure.
 !>
 !> Deferred: `log_edit_generate_changelog_from_diff' (C-c C-w, needing
-!> `diff_add_log_current_defuns'), `log_edit_add_to_changelog' and
+!> `diff_add_log_current_subprograms'), `log_edit_add_to_changelog' and
 !> `log_edit_comment_to_change_log' (needing `add_change_log_entry'),
 !> the BUFFER argument of `log_edit' (PCL-CVS) and so
 !> `log_edit_parent_buffer', `log_edit_maybe_show_diff' (needing
@@ -785,7 +785,7 @@ contains
     subroutine header_contents_face(face)
         character(len=:), allocatable, intent(out) :: face
 
-        face = header_alist_face(match_string(2))
+        face = header_table_face(match_string(2))
         if (len(face) == 0) face = "log_edit_header"
     end subroutine header_contents_face
 
@@ -799,13 +799,13 @@ contains
     end function known_header
 
     ! The face log-edit-headers-alist gives NAME ("" for none).  Not a port.
-    function header_alist_face(name) result(face)
+    function header_table_face(name) result(face)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: face
 
         face = ""
         if (string_equal_ci(name, "Summary")) face = "log_edit_summary"
-    end function header_alist_face
+    end function header_table_face
 
     ! Whether A and B are equal ignoring the case of ASCII letters.
     ! Not a port.
@@ -1331,7 +1331,7 @@ contains
         type(log_edit_string_type), allocatable :: files(:)
         type(cvs_string_type), allocatable :: strings(:)
         type(handle_type) :: buf, old, win
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
         type(status_type) :: st
         integer :: k, saved_dedicated
 
@@ -1359,12 +1359,12 @@ contains
         call goto_char(point_min())
 
         if (status%ok()) then
-            alist%inhibit_same_window = .true.
-            alist%window_height => shrink_window
+            table%inhibit_same_window = .true.
+            table%window_height => shrink_window
             ! (dedicated . t)
             saved_dedicated = display_buffer_mark_dedicated
             display_buffer_mark_dedicated = DEDICATED_STRONG
-            call display_buffer(buf, win, status, [DISPLAY_ACTION_BELOW_SELECTED], alist)
+            call display_buffer(buf, win, status, [DISPLAY_ACTION_BELOW_SELECTED], table)
             display_buffer_mark_dedicated = saved_dedicated
         end if
 
@@ -2279,7 +2279,7 @@ contains
     end function log_edit_set_header
 
     !> Extract headers from VC commit COMMENT to form command line arguments.
-    !> HEADERS should be an alist with elements (HEADER . CMDARG)
+    !> HEADERS should be a table with elements (HEADER . CMDARG)
     !> or (HEADER . FUNCTION) associating headers to command line
     !> options and the result is then a list of the form (MSG ARGUMENTS...)
     !> where MSG is the remaining text from COMMENT.
@@ -2604,7 +2604,7 @@ contains
 
     ! Insert FUNC_NAMES, following ChangeLog formatting.
     ! Port of log-edit.el:log-edit--insert-filled-defuns.
-    recursive subroutine log_edit_insert_filled_defuns(func_names, status)
+    recursive subroutine log_edit_insert_filled_subprograms(func_names, status)
         use add_log_fm, only: change_log_string_type
         use cmds_fm, only: delete_char
         type(change_log_string_type), intent(in) :: func_names(:)
@@ -2622,7 +2622,7 @@ contains
         end if
 
         fill = fill_column%value
-        ! Insert a space unless this list of defun names is being
+        ! Insert a space unless this list of subprogram names is being
         ! inserted at the start of a line or after a space character.
         call char_before(c, found)
 
@@ -2650,9 +2650,9 @@ contains
                     ! Iterate over this function name again.
                     i = i - 1
                 else if (inside_paren_pair) then
-                    ! If `name' is not the first item in a list of defuns
+                    ! If `name' is not the first item in a list of subprograms
                     ! and inserting it would overflow the fill column,
-                    ! start a new list of defuns on the next line.
+                    ! start a new list of subprograms on the next line.
                     if (current_column() + string_width(name) + merge(0, 1, more) > fill) then
                         call delete_char(-2_int64, status)
                         if (.not. status%ok()) return
@@ -2661,14 +2661,14 @@ contains
                         ! Iterate over this function name again.
                         i = i - 1
                     else
-                        ! Insert this defun name with a separator attached.
+                        ! Insert this subprogram name with a separator attached.
                         call insert(name//", ", status)
                     end if
-                    ! Otherwise, decide whether to start a list of defuns or
+                    ! Otherwise, decide whether to start a list of subprograms or
                     ! to insert `name' on its own line.
                 else if (current_column() + string_width(name) + merge(1, 2, more) > fill) then
                     ! ...would leave insufficient space for any
-                    ! subsequent defun names so insert it on its own
+                    ! subsequent subprogram names so insert it on its own
                     ! line.
                     if (more) then
                         call insert("("//name//")"//achar(10), status)
@@ -2676,7 +2676,7 @@ contains
                         call insert("("//name//"):", status)
                     end if
                 else if (.not. more) then
-                    ! Insert a new defun list, unless `name' is the last
+                    ! Insert a new subprogram list, unless `name' is the last
                     ! function name.
                     call insert("("//name//"):", status)
                 else
@@ -2690,20 +2690,20 @@ contains
             i = i + 1
         end do
 
-        ! Close any open list of defuns.
+        ! Close any open list of subprograms.
         if (inside_paren_pair) then
             call delete_char(-2_int64, status)
             if (.not. status%ok()) return
             call insert("):", status)
         end if
-    end subroutine log_edit_insert_filled_defuns
+    end subroutine log_edit_insert_filled_subprograms
 
     !> Like \[fill_paragraph], but for filling ChangeLog-formatted entries.
     !> Consecutive function entries without prose (i.e., lines of the
     !> form "(FUNCTION):") will be combined into "(FUNC1, FUNC2):"
     !> according to `fill_column'.  Port of log-edit.el:log-edit-fill-entry.
     recursive subroutine log_edit_fill_entry(status, done, justify)
-        use add_log_fm, only: change_log_string_type, change_log_read_defuns, change_log_unindented_file_names_re
+        use add_log_fm, only: change_log_string_type, change_log_read_subprograms, change_log_unindented_file_names_re
         use fill_fm, only: fill_region, fill_indent_according_to_mode
         use editfns_fm, only: line_beginning_position
         use subr_fm, only: replace_regexp_in_region, replace_string_in_region
@@ -2711,11 +2711,11 @@ contains
         logical, intent(out) :: done
         integer, intent(in), optional :: justify
         character(len=*), parameter :: NBSP = char(194)//char(160)
-        type(change_log_string_type), allocatable :: defuns(:)
-        type(handle_type) :: opoint, end_marker, defuns_beg, space_beg, space_end
+        type(change_log_string_type), allocatable :: subprograms(:)
+        type(handle_type) :: opoint, end_marker, subprograms_beg, space_beg, space_end
         integer(int64) :: beg, end, e, b, here, n
         logical :: found
-        logical :: have_defuns, have_space, saved_indent
+        logical :: have_subprograms, have_space, saved_indent
         type(status_type) :: st
 
         status = status_type()
@@ -2734,9 +2734,9 @@ contains
 
         do
             ! Match a regexp against the next ChangeLog entry.
-            ! `defuns_beg' will be the end of the file name,
-            ! which marks the beginning of the list of defuns.
-            have_defuns = .false.
+            ! `subprograms_beg' will be the end of the file name,
+            ! which marks the beginning of the list of subprograms.
+            have_subprograms = .false.
             e = mpos(end_marker)
 
             if (beg < mpos(end_marker)) then
@@ -2744,8 +2744,8 @@ contains
                                        found, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
 
                 if (found) then
-                    have_defuns = .true.
-                    defuns_beg = marker_at(match_end(1, st))
+                    have_subprograms = .true.
+                    subprograms_beg = marker_at(match_end(1, st))
                     e = match_beginning(0, st)
                 end if
             end if
@@ -2760,13 +2760,13 @@ contains
 
             if (line_end_position() <= e) then
                 ! Replace space characters within parentheses
-                ! that resemble ChangeLog defun names between BEG
+                ! that resemble ChangeLog subprogram names between BEG
                 ! and END with non-breaking spaces to prevent
                 ! them from being considered break points by
                 ! `fill_region'.
                 here = point()
                 call goto_char(b)
-                ! Also replace spaces within defun lists
+                ! Also replace spaces within subprogram lists
                 ! prefixed by a file name so that
                 ! fill-region never attempts to break
                 ! them, even if multiple items combine
@@ -2799,12 +2799,12 @@ contains
                 n = release(space_end)
             end if
 
-            if (.not. status%ok() .or. .not. have_defuns) exit
-            call goto_char(mpos(defuns_beg))
-            call change_log_read_defuns(defuns, status, mpos(end_marker))
-            if (status%ok()) call delete_region(mpos(defuns_beg), point(), status)
-            if (status%ok()) call log_edit_insert_filled_defuns(defuns, status)
-            n = release(defuns_beg)
+            if (.not. status%ok() .or. .not. have_subprograms) exit
+            call goto_char(mpos(subprograms_beg))
+            call change_log_read_subprograms(subprograms, status, mpos(end_marker))
+            if (status%ok()) call delete_region(mpos(subprograms_beg), point(), status)
+            if (status%ok()) call log_edit_insert_filled_subprograms(subprograms, status)
+            n = release(subprograms_beg)
             if (.not. status%ok()) exit
             beg = point()
         end do

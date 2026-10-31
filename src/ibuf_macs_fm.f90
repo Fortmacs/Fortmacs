@@ -152,7 +152,7 @@ module ibuf_macs_fm
             type(handle_type), intent(in) :: buffer
         end function ibuffer_buffer_predicate_proc
 
-        !> The FORM of an `ibuffer_fontification_alist' entry, evaluated in
+        !> The FORM of an `ibuffer_fontification_table' entry, evaluated in
         !> the buffer.  Not a port.
         recursive logical function ibuffer_form_proc()
             implicit none(type, external)
@@ -255,7 +255,7 @@ module ibuf_macs_fm
         procedure(ibuffer_buffer_predicate_proc), pointer, nopass :: predicate => null()
     end type ibuffer_show_predicate_type
 
-    !> An element of `ibuffer_fontification_alist': PRIORITY, a FORM
+    !> An element of `ibuffer_fontification_table': PRIORITY, a FORM
     !> evaluated in the buffer, and the FACE to put on the buffer name if
     !> FORM returns true.
     type, public :: ibuffer_fontification_type
@@ -264,7 +264,7 @@ module ibuf_macs_fm
         character(len=IBUFFER_NAME_LEN) :: face = ""
     end type ibuffer_fontification_type
 
-    !> An element of `ibuffer_directory_abbrev_alist' (FROM . TO).
+    !> An element of `ibuffer_directory_abbrev_table' (FROM . TO).
     type, public :: ibuffer_directory_abbrev_type
         character(len=256) :: from = ""
         character(len=256) :: to = ""
@@ -399,14 +399,14 @@ module ibuf_macs_fm
     end type ibuffer_filter_def_type
 
     !> An element (FILTER (FORMAT FORMAT ...)) of
-    !> `ibuffer_filter_format_alist'.
+    !> `ibuffer_filter_format_table'.
     type, public :: ibuffer_filter_format_type
         character(len=IBUFFER_NAME_LEN) :: filter = ""
         type(ibuffer_formats_type) :: formats
     end type ibuffer_filter_format_type
 
     !> The special formats used when a filter is active (the type of
-    !> `ibuffer_filter_format_alist').
+    !> `ibuffer_filter_format_table').
     type, public :: ibuffer_filter_formats_type
         type(ibuffer_filter_format_type), allocatable :: entries(:)
     contains
@@ -697,7 +697,7 @@ contains
     end function ibuffer_saved
 
     !> A simple filter specification (SYMBOL . QUALIFIER): the filter NAME
-    !> of `ibuffer_filtering_alist' with the string QUALIFIER, the integer
+    !> of `ibuffer_filtering_table' with the string QUALIFIER, the integer
     !> NUMBER or the PREDICATE (none for a filter without qualifier).
     !> Not a port.
     function ibuffer_filter(name, qualifier, number, predicate) result(f)

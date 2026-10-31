@@ -490,7 +490,7 @@ contains
             end if
         end do
 
-        ! Consider alist of all buffers next.
+        ! Consider table of all buffers next.
         all = buffer_list()
 
         do k = 1, size(all)
@@ -564,7 +564,7 @@ contains
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
             ! non-nil one meaning `inhibit_same_window'.
-            call pop_to_buffer(buffer, status, alist=display_alist_type(inhibit_same_window=norec))
+            call pop_to_buffer(buffer, status, table=display_alist_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else if (windows(sw%index)%dedicated == DEDICATED_STRONG) then
             if (force) then
@@ -574,7 +574,7 @@ contains
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
             ! non-nil one meaning `inhibit_same_window'.
-            call pop_to_buffer(buffer, status, alist=display_alist_type(inhibit_same_window=norec))
+            call pop_to_buffer(buffer, status, table=display_alist_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else
             ! `switch_to_buffer_preserve_window_point' is t.

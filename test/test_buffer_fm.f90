@@ -69,7 +69,7 @@ contains
                     new_unittest("barf-if-buffer-read-only", test_read_only), &
                     new_unittest("buffer-tests-inhibit-buffer-hooks", test_inhibit_buffer_hooks), &
                     new_unittest("buffer-list-update-hook", test_buffer_list_update_hook), &
-                    new_unittest("buffer-defuns", test_buffer_defuns) &
+                    new_unittest("buffer-defuns", test_buffer_subprograms) &
                     ]
     end subroutine collect_buffer_fm
 
@@ -408,7 +408,7 @@ contains
     !> `set_buffer_modified_p' marks the buffer; `buffer_file_name' gives the
     !> visited file; `find_buffer' finds a buffer by a local value.
     !> Own test.
-    subroutine test_buffer_defuns(error)
+    subroutine test_buffer_subprograms(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, found_h
         type(status_type) :: st
@@ -450,5 +450,5 @@ contains
         call check(error, found_h%index == 0, "no buffer with 7")
         call discard(h)
         if (buffer_live_p(old)) call set_buffer(old, st)
-    end subroutine test_buffer_defuns
+    end subroutine test_buffer_subprograms
 end module test_buffer_fm

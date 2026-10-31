@@ -1,4 +1,4 @@
-! lisp_cmds_fm.f90 -- moving over and killing balanced expressions.
+! expression_motion_fm.f90 -- moving over and killing balanced expressions.
 ! Ported from GNU Emacs 31.1 lisp/emacs-lisp/lisp.el.
 !
 ! Copyright (C) 1985-1986, 1994, 2000-2026 Free Software Foundation,
@@ -20,29 +20,29 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The sexp and list commands of lisp.el ("Lisp editing commands ...
-!> More-or-less applicable in other modes too"), named lisp_cmds_fm
-!> because lisp_fm is lisp.h.  They move with `scan_sexps' and
-!> `scan_lists' (syntax_fm), as forward-sexp-default-function,
+!> The expression and group commands of lisp.el ("Lisp editing commands ...
+!> More-or-less applicable in other modes too"), named expression_motion_fm
+!> because lisp_fm is lisp.h.  They move with `scan_expressions' and
+!> `scan_groups' (syntax_fm), as forward-sexp-default-function,
 !> forward-list-default-function, down-list-default-function and
 !> up-list-default-function do.  A `scan_error' becomes a `user_error'
-!> when a command is run interactively (INTERACTIVE).  `forward_sexp'
-!> delegates to `forward_sexp_function' (which SMIE modes set).
+!> when a command is run interactively (INTERACTIVE).  `forward_expression'
+!> delegates to `forward_expression_function' (which SMIE modes set).
 !>
-!> Deferred: `forward_list_function', `down_list_function' and
-!> `up_list_function' (the defaults are always used), shift selection
-!> (the `^' of the interactive specs), the defun
-!> commands (`beginning_of_defun', `end_of_defun', `mark_defun',
-!> `narrow_to_defun'), `insert_pair', `delete_pair', `raise_sexp',
-!> `kill_backward_up_list', `insert_parentheses', `move_past_close_and_reindent',
+!> Deferred: `forward_group_function', `down_group_function' and
+!> `up_group_function' (the defaults are always used), shift selection
+!> (the `^' of the interactive specs), the subprogram
+!> commands (`beginning_of_subprogram', `end_of_subprogram', `mark_subprogram',
+!> `narrow_to_subprogram'), `insert_pair', `delete_pair', `raise_expression',
+!> `kill_backward_up_group', `insert_parentheses', `move_past_close_and_reindent',
 !> `check_parens', `field_complete', `lisp_complete_symbol'.
-module lisp_cmds_fm
+module expression_motion_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use buffer_fm, only: buffers, cur, transient_mark_mode, buffer_serial_live
     use editfns_fm, only: point, goto_char, point_min, point_max, narrow_to_region, widen, mark_position
-    use syntax_fm, only: scan_sexps, scan_lists, forward_comment, backward_prefix_chars, syntax_ppss, &
+    use syntax_fm, only: scan_expressions, scan_groups, forward_comment, backward_prefix_chars, syntax_ppss, &
                          parse_state_type, scan_error_data
     use simple_fm, only: kill_region, set_mark, push_mark
     use data_fm, only: value_eq, add_local_variables_killer
@@ -52,58 +52,59 @@ module lisp_cmds_fm
     implicit none(type, external)
     private
 
-    public :: forward_sexp, backward_sexp, forward_list, backward_list, down_list, backward_up_list, up_list, &
-              kill_sexp, backward_kill_sexp, mark_sexp, syms_of_lisp_cmds, forward_sexp_default_function, &
-              forward_sexp_proc
+    public :: forward_expression, backward_expression, forward_group, backward_group, down_group, backward_up_group, up_group, &
+              kill_expression, backward_kill_expression, mark_expression, syms_of_expression_motion, &
+              forward_expression_default_function, &
+              forward_expression_proc
 
     abstract interface
-        !> A `forward_sexp_function': move across ARG sexps, as
-        !> `forward_sexp' does.  Not a port.
-        subroutine forward_sexp_proc(arg, status)
+        !> A `forward_expression_function': move across ARG expressions, as
+        !> `forward_expression' does.  Not a port.
+        subroutine forward_expression_proc(arg, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: arg
             type(status_type), intent(out) :: status
-        end subroutine forward_sexp_proc
+        end subroutine forward_expression_proc
     end interface
 
-    ! One buffer's own `forward_sexp_function' (FN null is nil).
-    type :: forward_sexp_entry_type
+    ! One buffer's own `forward_expression_function' (FN null is nil).
+    type :: forward_expression_entry_type
         integer(int64) :: serial = 0
-        procedure(forward_sexp_proc), pointer, nopass :: fn => null()
-    end type forward_sexp_entry_type
+        procedure(forward_expression_proc), pointer, nopass :: fn => null()
+    end type forward_expression_entry_type
 
-    !> The type of `forward_sexp_function': the default `value' (assign
+    !> The type of `forward_expression_function': the default `value' (assign
     !> with `=>'; null is nil) and buffers' own values (`set_local',
     !> where null is nil too).
-    type, public :: forward_sexp_function_type
-        procedure(forward_sexp_proc), pointer, nopass :: value => null()
-        type(forward_sexp_entry_type), allocatable :: entries(:)
+    type, public :: forward_expression_function_type
+        procedure(forward_expression_proc), pointer, nopass :: value => null()
+        type(forward_expression_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value FN (setq-local); absent is
         !> nil.
-        procedure :: set_local => forward_sexp_set_local
+        procedure :: set_local => forward_expression_set_local
         !> The value in the current buffer (null for nil).
-        procedure :: get => forward_sexp_get
+        procedure :: get => forward_expression_get
         !> Whether the current buffer has its own value.
-        procedure :: local_p => forward_sexp_local_p
+        procedure :: local_p => forward_expression_local_p
         !> Make the current buffer use the default again.
-        procedure :: kill_local => forward_sexp_kill_local
-    end type forward_sexp_function_type
+        procedure :: kill_local => forward_expression_kill_local
+    end type forward_expression_function_type
 
-    !> If true, `forward_sexp' delegates to this function.
-    !> Should take the same arguments and behave similarly to `forward_sexp'.
+    !> If true, `forward_expression' delegates to this function.
+    !> Should take the same arguments and behave similarly to `forward_expression'.
     !> Port of lisp.el forward-sexp-function (its default,
-    !> `forward_sexp_default_function', is set by `syms_of_lisp_cmds').
-    type(forward_sexp_function_type), public :: forward_sexp_function
+    !> `forward_expression_default_function', is set by `syms_of_expression_motion').
+    type(forward_expression_function_type), public :: forward_expression_function
 
 contains
 
     ! Not a port.
-    subroutine forward_sexp_set_local(self, fn)
-        class(forward_sexp_function_type), intent(inout) :: self
-        procedure(forward_sexp_proc), optional :: fn
-        type(forward_sexp_entry_type), allocatable :: grown(:)
+    subroutine forward_expression_set_local(self, fn)
+        class(forward_expression_function_type), intent(inout) :: self
+        procedure(forward_expression_proc), optional :: fn
+        type(forward_expression_entry_type), allocatable :: grown(:)
         integer :: i, n
 
         if (cur == 0) return
@@ -136,11 +137,11 @@ contains
         else
             self%entries(i)%fn => null()
         end if
-    end subroutine forward_sexp_set_local
+    end subroutine forward_expression_set_local
 
     ! The index of the current buffer's entry, 0 if none.  Not a port.
     integer function local_entry(self) result(i)
-        class(forward_sexp_function_type), intent(in) :: self
+        class(forward_expression_function_type), intent(in) :: self
 
         if (cur == 0 .or. .not. allocated(self%entries)) then
             i = 0
@@ -155,9 +156,9 @@ contains
     end function local_entry
 
     ! Not a port.
-    function forward_sexp_get(self) result(fn)
-        class(forward_sexp_function_type), intent(in) :: self
-        procedure(forward_sexp_proc), pointer :: fn
+    function forward_expression_get(self) result(fn)
+        class(forward_expression_function_type), intent(in) :: self
+        procedure(forward_expression_proc), pointer :: fn
         integer :: i
 
         i = local_entry(self)
@@ -167,31 +168,31 @@ contains
         else
             fn => self%value
         end if
-    end function forward_sexp_get
+    end function forward_expression_get
 
     ! Not a port.
-    logical function forward_sexp_local_p(self)
-        class(forward_sexp_function_type), intent(in) :: self
+    logical function forward_expression_local_p(self)
+        class(forward_expression_function_type), intent(in) :: self
 
-        forward_sexp_local_p = local_entry(self) > 0
-    end function forward_sexp_local_p
+        forward_expression_local_p = local_entry(self) > 0
+    end function forward_expression_local_p
 
     ! Not a port.
-    subroutine forward_sexp_kill_local(self)
-        class(forward_sexp_function_type), intent(inout) :: self
+    subroutine forward_expression_kill_local(self)
+        class(forward_expression_function_type), intent(inout) :: self
         integer :: i
 
         i = local_entry(self)
         if (i == 0) return
         self%entries(i)%serial = 0
         self%entries(i)%fn => null()
-    end subroutine forward_sexp_kill_local
+    end subroutine forward_expression_kill_local
 
     ! kill-all-local-variables: forget the current buffer's
-    ! `forward_sexp_function'.  Not a port.
-    subroutine kill_lisp_cmds_locals()
-        call forward_sexp_function%kill_local()
-    end subroutine kill_lisp_cmds_locals
+    ! `forward_expression_function'.  Not a port.
+    subroutine kill_expression_motion_locals()
+        call forward_expression_function%kill_local()
+    end subroutine kill_expression_motion_locals
 
     !> (buffer-end ARG): the end of the accessible region if ARG is
     !> positive, else its start.  Port of subr.el:buffer-end.
@@ -205,71 +206,71 @@ contains
         end if
     end function buffer_end
 
-    !> Default function for `forward_sexp_function'.  Port of
+    !> Default function for `forward_expression_function'.  Port of
     !> lisp.el:forward-sexp-default-function.
-    recursive subroutine forward_sexp_default_function(arg, status)
+    recursive subroutine forward_expression_default_function(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: pos
 
-        pos = scan_sexps(point(), arg, status)
+        pos = scan_expressions(point(), arg, status)
         if (.not. status%ok()) return
         if (pos == 0) pos = buffer_end(arg)
         call goto_char(pos)
         if (arg < 0) call backward_prefix_chars()
-    end subroutine forward_sexp_default_function
+    end subroutine forward_expression_default_function
 
-    !> Move forward across one balanced expression (sexp).
+    !> Move forward across one balanced expression.
     !> With ARG, do it that many times.  Negative arg -N means move
     !> backward across N balanced expressions.  This command assumes
     !> point is not in a string or comment.  Calls
-    !> `forward_sexp_function' to do the work, if that is set.
-    !> If unable to move over a sexp, signal `scan_error' with three
+    !> `forward_expression_function' to do the work, if that is set.
+    !> If unable to move over an expression, signal `scan_error' with three
     !> arguments: a message, the start of the obstacle (usually a
-    !> parenthesis or list marker of some kind), and end of the
+    !> parenthesis or group marker of some kind), and end of the
     !> obstacle.  If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:forward-sexp.
-    recursive subroutine forward_sexp(arg, status, interactive)
+    recursive subroutine forward_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
-        procedure(forward_sexp_proc), pointer :: fn
+        procedure(forward_expression_proc), pointer :: fn
 
-        fn => forward_sexp_function%get()
+        fn => forward_expression_function%get()
 
         if (associated(fn)) then
             call fn(arg, status)
         else
-            call forward_sexp_default_function(arg, status)
+            call forward_expression_default_function(arg, status)
         end if
 
         if (.not. present(interactive)) return
 
         if (interactive .and. status%code == FM_SCAN_ERROR) then
             if (arg > 0) then
-                call set_error(status, FM_USER_ERROR, "No next sexp")
+                call set_error(status, FM_USER_ERROR, "No next expression")
             else
-                call set_error(status, FM_USER_ERROR, "No previous sexp")
+                call set_error(status, FM_USER_ERROR, "No previous expression")
             end if
         end if
-    end subroutine forward_sexp
+    end subroutine forward_expression
 
-    !> Move backward across one balanced expression (sexp).
+    !> Move backward across one balanced expression.
     !> With ARG, do it that many times.  Negative arg -N means
     !> move forward across N balanced expressions.
     !> This command assumes point is not in a string or comment.
-    !> Uses `forward_sexp' to do the work.
+    !> Uses `forward_expression' to do the work.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:backward-sexp.
-    recursive subroutine backward_sexp(arg, status, interactive)
+    recursive subroutine backward_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
 
-        call forward_sexp(-arg, status, interactive)
-    end subroutine backward_sexp
+        call forward_expression(-arg, status, interactive)
+    end subroutine backward_expression
 
     !> Move forward across one balanced group of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -280,13 +281,13 @@ contains
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:forward-list (with forward-list-default-function).
-    subroutine forward_list(arg, status, interactive)
+    subroutine forward_group(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         integer(int64) :: pos
 
-        pos = scan_lists(point(), arg, 0_int64, status)
+        pos = scan_groups(point(), arg, 0_int64, status)
 
         if (status%ok()) then
             if (pos == 0) pos = buffer_end(arg)
@@ -303,7 +304,7 @@ contains
                 call set_error(status, FM_USER_ERROR, "No previous group")
             end if
         end if
-    end subroutine forward_list
+    end subroutine forward_group
 
     !> Move backward across one balanced group of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -311,17 +312,17 @@ contains
     !> With ARG, do it that many times.
     !> Negative arg -N means move forward across N groups of parentheses.
     !> This command assumes point is not in a string or comment.
-    !> Uses `forward_list' to do the work.
+    !> Uses `forward_group' to do the work.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:backward-list.
-    subroutine backward_list(arg, status, interactive)
+    subroutine backward_group(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
 
-        call forward_list(-arg, status, interactive)
-    end subroutine backward_list
+        call forward_group(-arg, status, interactive)
+    end subroutine backward_group
 
     !> Move forward down one level of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -332,7 +333,7 @@ contains
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:down-list (with down-list-default-function).
-    subroutine down_list(arg, status, interactive)
+    subroutine down_group(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
@@ -352,7 +353,7 @@ contains
         if (n > 0) inc = 1
 
         do while (n /= 0)
-            pos = scan_lists(point(), inc, -1_int64, status)
+            pos = scan_groups(point(), inc, -1_int64, status)
             if (.not. status%ok()) exit
             if (pos == 0) pos = buffer_end(n)
             call goto_char(pos)
@@ -361,7 +362,7 @@ contains
 
         if (.not. present(interactive)) return
         if (interactive .and. status%code == FM_SCAN_ERROR) call set_error(status, FM_USER_ERROR, "At bottom level")
-    end subroutine down_list
+    end subroutine down_group
 
     !> Move backward out of one level of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -374,17 +375,17 @@ contains
     !>
     !> If NO_SYNTAX_CROSSING is true (as it is interactively), prefer
     !> to break out of any enclosing string instead of moving to the
-    !> start of a list broken across multiple strings.
+    !> start of a group broken across multiple strings.
     !>
     !> On error, location of point is unspecified.
     !> Port of lisp.el:backward-up-list.
-    recursive subroutine backward_up_list(arg, status, escape_strings, no_syntax_crossing)
+    recursive subroutine backward_up_group(arg, status, escape_strings, no_syntax_crossing)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: escape_strings, no_syntax_crossing
 
-        call up_list(-arg, status, escape_strings, no_syntax_crossing)
-    end subroutine backward_up_list
+        call up_group(-arg, status, escape_strings, no_syntax_crossing)
+    end subroutine backward_up_group
 
     !> Move forward out of one level of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -397,11 +398,11 @@ contains
     !>
     !> If NO_SYNTAX_CROSSING is true (as it is interactively), prefer
     !> to break out of any enclosing string instead of moving to the
-    !> end of a list broken across multiple strings.
+    !> end of a group broken across multiple strings.
     !>
     !> On error, location of point is unspecified.
     !> Port of lisp.el:up-list (with up-list-default-function).
-    recursive subroutine up_list(arg, status, escape_strings, no_syntax_crossing)
+    recursive subroutine up_group(arg, status, escape_strings, no_syntax_crossing)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: escape_strings, no_syntax_crossing
@@ -409,7 +410,7 @@ contains
         type(status_type) :: st
         integer(int64) :: n, inc, pos, savedb, savedz, opoint, limit
         logical :: escape, crossing, handled, have_syntax, ok, default_fn
-        procedure(forward_sexp_proc), pointer :: fn
+        procedure(forward_expression_proc), pointer :: fn
         character(len=:), allocatable :: message
         integer(int64) :: beg, end
         character(len=24) :: buf
@@ -440,7 +441,7 @@ contains
 
                     if (syntax%instring /= -1) then
                         ! In string.
-                        call forward_sexp(1_int64, st)
+                        call forward_expression(1_int64, st)
 
                         if (st%code == FM_SCAN_ERROR) then
                             limit = point_max()
@@ -457,12 +458,12 @@ contains
                 end if
             end if
 
-            fn => forward_sexp_function%get()
+            fn => forward_expression_function%get()
             default_fn = .not. associated(fn)
-            if (.not. default_fn) default_fn = associated(fn, forward_sexp_default_function)
+            if (.not. default_fn) default_fn = associated(fn, forward_expression_default_function)
 
             if (default_fn) then
-                pos = scan_lists(point(), inc, 1_int64, status)
+                pos = scan_groups(point(), inc, 1_int64, status)
 
                 if (status%ok()) then
                     if (pos == 0) pos = buffer_end(n)
@@ -471,7 +472,7 @@ contains
             else
                 do
                     pos = point()
-                    call forward_sexp(inc, status)
+                    call forward_expression(inc, status)
                     if (.not. status%ok()) exit
                     if (point() == pos) exit
                 end do
@@ -511,7 +512,7 @@ contains
                         call goto_char(syntax%comstr_start)
 
                         if (inc > 0) then
-                            call forward_sexp(1_int64, status)
+                            call forward_expression(1_int64, status)
                             if (.not. status%ok()) return
                         end if
 
@@ -553,23 +554,23 @@ contains
 
             n = n - inc
         end do
-    end subroutine up_list
+    end subroutine up_group
 
-    !> Kill the sexp (balanced expression) following point.
-    !> With ARG, kill that many sexps after point.
-    !> Negative arg -N means kill N sexps before point.
+    !> Kill the balanced expression following point.
+    !> With ARG, kill that many expressions after point.
+    !> Negative arg -N means kill N expressions before point.
     !> This command assumes point is not in a string or comment.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:kill-sexp.
-    subroutine kill_sexp(arg, status, interactive)
+    subroutine kill_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         integer(int64) :: opoint
 
         opoint = point()
-        call forward_sexp(arg, status)
+        call forward_expression(arg, status)
 
         if (status%ok()) then
             call kill_region(opoint, point(), status)
@@ -580,46 +581,46 @@ contains
 
         if (interactive .and. status%code == FM_SCAN_ERROR) then
             if (arg > 0) then
-                call set_error(status, FM_USER_ERROR, "No next sexp")
+                call set_error(status, FM_USER_ERROR, "No next expression")
             else
-                call set_error(status, FM_USER_ERROR, "No previous sexp")
+                call set_error(status, FM_USER_ERROR, "No previous expression")
             end if
         end if
-    end subroutine kill_sexp
+    end subroutine kill_expression
 
-    !> Kill the sexp (balanced expression) preceding point.
-    !> With ARG, kill that many sexps before point.
-    !> Negative arg -N means kill N sexps after point.
+    !> Kill the balanced expression preceding point.
+    !> With ARG, kill that many expressions before point.
+    !> Negative arg -N means kill N expressions after point.
     !> This command assumes point is not in a string or comment.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:backward-kill-sexp.
-    subroutine backward_kill_sexp(arg, status, interactive)
+    subroutine backward_kill_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
 
-        call kill_sexp(-arg, status, interactive)
-    end subroutine backward_kill_sexp
+        call kill_expression(-arg, status, interactive)
+    end subroutine backward_kill_expression
 
-    !> Set mark ARG sexps from point or move mark one sexp.
-    !> With ALLOW_EXTEND false, mark is set ARG sexps from point.
+    !> Set mark ARG expressions from point or move mark one expression.
+    !> With ALLOW_EXTEND false, mark is set ARG expressions from point.
     !> With ARG given (HAVE_ARG) and ALLOW_EXTEND both true (interactively,
     !> with prefix argument), the place to which mark goes is the same
-    !> place \[forward_sexp] would move to with the same argument; if the
-    !> mark is active, it moves ARG sexps from its current position,
-    !> otherwise it is set ARG sexps from point.
+    !> place \[forward_expression] would move to with the same argument; if the
+    !> mark is active, it moves ARG expressions from its current position,
+    !> otherwise it is set ARG expressions from point.
     !> When invoked interactively without a prefix argument and no active
-    !> region, mark moves one sexp forward.
+    !> region, mark moves one expression forward.
     !> When invoked interactively without a prefix argument, and region
-    !> is active, mark moves one sexp away of point (i.e., forward
+    !> is active, mark moves one expression away of point (i.e., forward
     !> if mark is at or after point, back if mark is before point), thus
-    !> extending the region by one sexp.  Since the direction of region
+    !> extending the region by one expression.  Since the direction of region
     !> extension depends on the relative position of mark and point, you
     !> can change the direction by \[exchange_point_and_mark].
     !> This command assumes point is not in a string or comment.
     !> Port of lisp.el:mark-sexp.
-    subroutine mark_sexp(arg, have_arg, allow_extend, status)
+    subroutine mark_expression(arg, have_arg, allow_extend, status)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: have_arg, allow_extend
         type(status_type), intent(out) :: status
@@ -647,23 +648,23 @@ contains
             end if
 
             call goto_char(mark_position())
-            call forward_sexp(n, status)
+            call forward_expression(n, status)
             target = point()
             call goto_char(opoint)
 
             if (.not. status%ok()) then
-                call to_user_error("No more sexp to select")
+                call to_user_error("No more expression to select")
                 return
             end if
 
             call set_mark(target)
         else
-            call forward_sexp(arg, status)
+            call forward_expression(arg, status)
             target = point()
             call goto_char(opoint)
 
             if (.not. status%ok()) then
-                call to_user_error("No sexp to select")
+                call to_user_error("No expression to select")
                 return
             end if
 
@@ -689,81 +690,81 @@ contains
                 call set_error(status, FM_USER_ERROR, message)
             end if
         end subroutine to_user_error
-    end subroutine mark_sexp
+    end subroutine mark_expression
 
-    subroutine cmd_forward_sexp(status)
+    subroutine cmd_forward_expression(status)
         type(status_type), intent(out) :: status
 
-        call forward_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_forward_sexp
+        call forward_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_forward_expression
 
-    subroutine cmd_backward_sexp(status)
+    subroutine cmd_backward_expression(status)
         type(status_type), intent(out) :: status
 
-        call backward_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_backward_sexp
+        call backward_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_backward_expression
 
-    subroutine cmd_forward_list(status)
+    subroutine cmd_forward_group(status)
         type(status_type), intent(out) :: status
 
-        call forward_list(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_forward_list
+        call forward_group(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_forward_group
 
-    subroutine cmd_backward_list(status)
+    subroutine cmd_backward_group(status)
         type(status_type), intent(out) :: status
 
-        call backward_list(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_backward_list
+        call backward_group(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_backward_group
 
-    subroutine cmd_down_list(status)
+    subroutine cmd_down_group(status)
         type(status_type), intent(out) :: status
 
-        call down_list(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_down_list
+        call down_group(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_down_group
 
-    subroutine cmd_up_list(status)
+    subroutine cmd_up_group(status)
         type(status_type), intent(out) :: status
 
-        call up_list(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
-    end subroutine cmd_up_list
+        call up_group(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
+    end subroutine cmd_up_group
 
-    subroutine cmd_backward_up_list(status)
+    subroutine cmd_backward_up_group(status)
         type(status_type), intent(out) :: status
 
-        call backward_up_list(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
-    end subroutine cmd_backward_up_list
+        call backward_up_group(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
+    end subroutine cmd_backward_up_group
 
-    subroutine cmd_kill_sexp(status)
+    subroutine cmd_kill_expression(status)
         type(status_type), intent(out) :: status
 
-        call kill_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_kill_sexp
+        call kill_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_kill_expression
 
-    subroutine cmd_backward_kill_sexp(status)
+    subroutine cmd_backward_kill_expression(status)
         type(status_type), intent(out) :: status
 
-        call backward_kill_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_backward_kill_sexp
+        call backward_kill_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_backward_kill_expression
 
-    subroutine cmd_mark_sexp(status)
+    subroutine cmd_mark_expression(status)
         type(status_type), intent(out) :: status
 
-        call mark_sexp(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
-    end subroutine cmd_mark_sexp
+        call mark_expression(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
+    end subroutine cmd_mark_expression
 
     !> Register the commands.  Not a port.
-    subroutine syms_of_lisp_cmds()
-        forward_sexp_function%value => forward_sexp_default_function
-        call add_local_variables_killer(kill_lisp_cmds_locals)
-        commands%forward_sexp%run => cmd_forward_sexp
-        commands%backward_sexp%run => cmd_backward_sexp
-        commands%forward_list%run => cmd_forward_list
-        commands%backward_list%run => cmd_backward_list
-        commands%down_list%run => cmd_down_list
-        commands%up_list%run => cmd_up_list
-        commands%backward_up_list%run => cmd_backward_up_list
-        commands%kill_sexp%run => cmd_kill_sexp
-        commands%backward_kill_sexp%run => cmd_backward_kill_sexp
-        commands%mark_sexp%run => cmd_mark_sexp
-    end subroutine syms_of_lisp_cmds
-end module lisp_cmds_fm
+    subroutine syms_of_expression_motion()
+        forward_expression_function%value => forward_expression_default_function
+        call add_local_variables_killer(kill_expression_motion_locals)
+        commands%forward_expression%run => cmd_forward_expression
+        commands%backward_expression%run => cmd_backward_expression
+        commands%forward_group%run => cmd_forward_group
+        commands%backward_group%run => cmd_backward_group
+        commands%down_group%run => cmd_down_group
+        commands%up_group%run => cmd_up_group
+        commands%backward_up_group%run => cmd_backward_up_group
+        commands%kill_expression%run => cmd_kill_expression
+        commands%backward_kill_expression%run => cmd_backward_kill_expression
+        commands%mark_expression%run => cmd_mark_expression
+    end subroutine syms_of_expression_motion
+end module expression_motion_fm

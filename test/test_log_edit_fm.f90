@@ -53,7 +53,7 @@ contains
                     new_unittest("log-edit-fill-entry-confinement", test_confinement), &
                     new_unittest("log-edit-fill-entry-space-substitution", test_space_substitution), &
                     new_unittest("log-edit-fill-entry-initial-wrapping", test_initial_wrapping), &
-                    new_unittest("log-edit-fill-entry-no-defun-list-wrapping", test_no_defun_list_wrapping), &
+                    new_unittest("log-edit-fill-entry-no-defun-list-wrapping", test_no_subprogram_list_wrapping), &
                     new_unittest("log-edit-done-strip-cvs-lines-cvs", test_strip_cvs), &
                     new_unittest("log-edit-done-strip-cvs-lines-non-cvs", test_strip_non_cvs), &
                     new_unittest("log-edit-done-strip-cvs-lines-only-cvs-colon-blank", test_strip_colon_blank), &
@@ -242,11 +242,11 @@ contains
         character(len=*), parameter :: string2 = &
                                        "* file2.txt (fun4, fun5, fun6, fun7, fun8, fun9, fun10, fun11345)"//LF// &
                                        "(fun11356):"
-        ! The first defun in this entry is a file name that brings
+        ! The first subprogram in this entry is a file name that brings
         ! the total to 40 columns in length and should be preserved
         ! intact.
         character(len=*), parameter :: string3 = "* file2.txt (abcdefghijklmnopqrstuvwxyz)"//LF//"(ABC):"
-        ! The first defun brings that total to 41, and should be
+        ! The first subprogram brings that total to 41, and should be
         ! placed on the next line.
         character(len=*), parameter :: string4 = "* file2.txt (abcdefghijklmnopqrstuvwxyz):"
         type(handle_type) :: h
@@ -288,7 +288,7 @@ contains
         type(handle_type) :: h
 
         ! This test verifies that filling the paragraph surrounding the
-        ! last line of defuns does not break between defun lists with
+        ! last line of subprograms does not break between subprogram lists with
         ! spaces in identifiers.
         call temp_buffer(LF// &
                          "* src/sfnt.c (xmalloc, xrealloc): Improve behavior upon allocation"//LF// &
@@ -419,8 +419,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        ! This test verifies that a newline is inserted before a defun
-        ! itself longer than the fill column when such a defun is being
+        ! This test verifies that a newline is inserted before a subprogram
+        ! itself longer than the fill column when such a subprogram is being
         ! inserted after a file name, and not otherwise.
         call temp_buffer(LF// &
                          "* src/sfnt.c (long_entry_1): This entry should be placed on a"//LF// &
@@ -440,11 +440,11 @@ contains
         call leave(h)
     end subroutine test_initial_wrapping
 
-    subroutine test_no_defun_list_wrapping(error)
+    subroutine test_no_subprogram_list_wrapping(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        ! This test verifies that the opening defun list of an entry is never
+        ! This test verifies that the opening subprogram list of an entry is never
         ! broken, even in the event its length in total exceeds the fill
         ! column.
         call temp_buffer(LF// &
@@ -454,7 +454,7 @@ contains
                             "* src/androidfns.c (Fxw_display_color_p, Fx_display_grayscale_p):"//LF// &
                             "Report color and/or grayscale properly."//LF)
         call leave(h)
-    end subroutine test_no_defun_list_wrapping
+    end subroutine test_no_subprogram_list_wrapping
 
     ! ------------------------------------------------------------------
     ! log-edit-done-strip-cvs-lines

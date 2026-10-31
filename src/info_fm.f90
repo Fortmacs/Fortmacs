@@ -729,7 +729,7 @@ module info_fm
     type(toc_file_type), allocatable :: toc_cache(:)
 
     abstract interface
-        !> A URL-specification function of `info_url_alist': the URL of
+        !> A URL-specification function of `info_url_table': the URL of
         !> node NODE (URL-encoded as ENCODED) of manual MANUAL (a subroutine:
         !> gfortran frees a pointer component to a function with a
         !> deferred-length result).  Not a port.
@@ -740,7 +740,7 @@ module info_fm
         end subroutine info_url_proc
     end interface
 
-    !> An element of `info_url_alist': the names of one or more MANUALS
+    !> An element of `info_url_table': the names of one or more MANUALS
     !> and their URL specification, either the string URL or the function
     !> FN.
     type, public :: info_url_type
@@ -773,7 +773,7 @@ module info_fm
     !> online node may differ.  The resource represented by the generated
     !> URL may even be not found by the gnu.org server.  Port of info.el
     !> Info-url-alist.
-    type(info_url_type), allocatable, public :: info_url_alist(:)
+    type(info_url_type), allocatable, public :: info_url_table(:)
 
 contains
 
@@ -2045,7 +2045,7 @@ contains
         logical, intent(in), optional :: other_window
         type(handle_type), intent(in), optional :: buffer_handle
         type(handle_type) :: buffer, old, window
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
         type(info_history_entry_type), allocatable :: history(:)
         type(status_type) :: st
         logical :: other
@@ -2091,8 +2091,8 @@ contains
         if (.not. status%ok()) return
 
         if (other) then
-            alist%inhibit_same_window = .true.
-            call display_buffer(buffer, window, status, alist=alist)
+            table%inhibit_same_window = .true.
+            call display_buffer(buffer, window, status, table=table)
         else
             call display_buffer(buffer, window, status, actions=[DISPLAY_ACTION_SAME_WINDOW])
         end if
@@ -3664,7 +3664,7 @@ contains
                 v = unescape_quotes(match_string_no_properties(3, parameter_string))
             end if
 
-            ! (The alist is built by pushing, so the last pair wins.)
+            ! (The table is built by pushing, so the last pair wins.)
             if (lower(k) == lower(key)) then
                 value = v
                 found = .true.
@@ -3890,7 +3890,7 @@ contains
     !> NODE should be a string of the form "(manual)Node".
     !>
     !> The correspondence between Info manuals and their Web URLs is
-    !> established by `info_url_alist', which see.  Port of
+    !> established by `info_url_table', which see.  Port of
     !> info.el:Info-url-for-node.
     function info_url_for_node(node, status) result(url)
         character(len=*), intent(in) :: node
@@ -3900,7 +3900,7 @@ contains
 
         status = status_type()
         url = ""
-        if (.not. allocated(info_url_alist)) call init_url_alist()
+        if (.not. allocated(info_url_table)) call init_url_table()
 
         ! GNU Texinfo skips whitespaces and newlines between the closing
         ! parenthesis and the node-name, i.e. space, tab, line feed and
@@ -3913,11 +3913,11 @@ contains
         manual = match_string_no_properties(1, node)
         name = match_string_no_properties(2, node)
 
-        do i = 1, size(info_url_alist)
-            do j = 1, size(info_url_alist(i)%manuals)
-                if (len_trim(info_url_alist(i)%manuals(j)) == 0) cycle
+        do i = 1, size(info_url_table)
+            do j = 1, size(info_url_table(i)%manuals)
+                if (len_trim(info_url_table(i)%manuals(j)) == 0) cycle
 
-                if (lower(trim(info_url_alist(i)%manuals(j))) == lower(manual)) then
+                if (lower(trim(info_url_table(i)%manuals(j))) == lower(manual)) then
                     ! Reproduce GNU Texinfo's way of URL-encoding.
                     ! (info "(texinfo) HTML Xref Node Name Expansion")
                     if (name == "Top") then
@@ -3926,10 +3926,10 @@ contains
                         encoded = url_hexify(replace_all(" ", "-", texinfo_escape(name)))//".html"
                     end if
 
-                    if (associated(info_url_alist(i)%fn)) then
-                        call info_url_alist(i)%fn(manual, name, encoded, url)
+                    if (associated(info_url_table(i)%fn)) then
+                        call info_url_table(i)%fn(manual, name, encoded, url)
                     else
-                        url = format_url(trim(info_url_alist(i)%url))
+                        url = format_url(trim(info_url_table(i)%url))
                     end if
 
                     return
@@ -4018,10 +4018,10 @@ contains
         end do
     end function url_hexify
 
-    ! The default value of `info_url_alist'.  Not a port.
-    subroutine init_url_alist()
-        allocate (info_url_alist(1))
-        info_url_alist(1)%manuals(1:69) = [character(len=16) :: &
+    ! The default value of `info_url_table'.  Not a port.
+    subroutine init_url_table()
+        allocate (info_url_table(1))
+        info_url_table(1)%manuals(1:69) = [character(len=16) :: &
                                            "auth", "autotype", "bovine", "calc", "ccmode", "cl", "dbus", "dired-x", &
                                            "ebrowse", "ede", "ediff", "edt", "efaq", "efaq-w32", "eglot", "eieio", &
                                            "eintr", "elisp", "emacs", "emacs-gnutls", "emacs-mime", "epa", "erc", &
@@ -4032,8 +4032,8 @@ contains
                                            "semantic", "ses", "sieve", "smtpmail", "speedbar", "srecode", &
                                            "todo-mode", "tramp", "transient", "url", "use-package", "vhdl-mode", &
                                            "viper", "vtable", "widget", "wisent", "woman", "", "", ""]
-        info_url_alist(1)%url = "https://www.gnu.org/software/emacs/manual/html_node/%m/%e"
-    end subroutine init_url_alist
+        info_url_table(1)%url = "https://www.gnu.org/software/emacs/manual/html_node/%m/%e"
+    end subroutine init_url_table
 
     ! Complete STRING in the list LIST for ACTION ((complete-with-action
     ! ACTION LIST STRING PRED)).  Not a port.

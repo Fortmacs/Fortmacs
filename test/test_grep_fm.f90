@@ -197,7 +197,7 @@ contains
     end subroutine grep_error_line
 
     !> Port of compile-tests.el compile-test-grep-regexps: the
-    !> `grep_regexp_alist' regexps, on file names that NUL bytes or colons
+    !> `grep_regexp_table' regexps, on file names that NUL bytes or colons
     !> separate from the line numbers.
     subroutine test_grep_regexps(error)
         type(error_type), allocatable, intent(out) :: error

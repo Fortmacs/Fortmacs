@@ -116,7 +116,7 @@ module window_fm
                                   DISPLAY_ACTION_BELOW_SELECTED = 9
 
     !> A function that sets the height of a window `display_buffer' made
-    !> (the `window_height' entry of an action alist).
+    !> (the `window_height' entry of an action table).
     abstract interface
         ! Not a port.
         subroutine window_height_function(window)
@@ -126,7 +126,7 @@ module window_fm
         end subroutine window_height_function
     end interface
 
-    !> A buffer display action alist: the entries ported.  Port of the
+    !> A buffer display action table: the entries ported.  Port of the
     !> `inhibit_same_window', `window_height' (a function) and
     !> `body_function' entries.
     type, public :: display_alist_type
@@ -711,26 +711,26 @@ module window_fm
 
         !> Display BUFFER in some window and return that window (the null
         !> handle if none could be found): the action functions ACTIONS
-        !> (DISPLAY_ACTION_* codes) are tried in turn with ALIST, then those
+        !> (DISPLAY_ACTION_* codes) are tried in turn with TABLE, then those
         !> of `display_buffer_fallback_action'.  Port of
         !> window.el:display-buffer.
-        module subroutine display_buffer(buffer, window, status, actions, alist)
+        module subroutine display_buffer(buffer, window, status, actions, table)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: alist
+            type(display_alist_type), intent(in), optional :: table
         end subroutine display_buffer
 
         !> Display BUFFER and select its window.  Port of
         !> window.el:pop-to-buffer.
-        module subroutine pop_to_buffer(buffer, status, actions, alist, norecord)
+        module subroutine pop_to_buffer(buffer, status, actions, table, norecord)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: alist
+            type(display_alist_type), intent(in), optional :: table
             logical, intent(in), optional :: norecord
         end subroutine pop_to_buffer
 
@@ -802,17 +802,17 @@ module window_fm
         end subroutine shrink_window_if_larger_than_buffer
 
         !> Show temporary buffer BUFFER in a window: unmodified, read-only
-        !> and at its beginning, displayed with ACTIONS and ALIST.  WINDOW
+        !> and at its beginning, displayed with ACTIONS and TABLE.  WINDOW
         !> is the window showing BUFFER; it becomes
         !> `minibuffer_scroll_window'.  Port of
         !> window.el:temp-buffer-window-show (no `temp_buffer_resize_mode').
-        module subroutine temp_buffer_window_show(buffer, window, status, actions, alist)
+        module subroutine temp_buffer_window_show(buffer, window, status, actions, table)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_alist_type), intent(in), optional :: alist
+            type(display_alist_type), intent(in), optional :: table
         end subroutine temp_buffer_window_show
 
         !> Scroll WINDOW up (DIRECTION 1) or down (-1) by nearly a full

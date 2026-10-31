@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Buffer-local variables (data.c's SYMBOL_LOCALIZED and
-!> buffer.c's local_var_alist) and the variables forwarded to Fortran
+!> buffer.c's local_var_table) and the variables forwarded to Fortran
 !> settings (data.c's SYMBOL_FORWARDED).
 !>
 !> The value of a variable is always the current buffer's.  When a
@@ -57,7 +57,7 @@ submodule(data_fm) data_buffer_fm
     use subr_fm, only: kill_delayed_mode_hooks
     use easy_mmode_fm, only: minor_mode_type, minor_mode_index, minor_mode_at
     use text_mode_fm, only: text_mode_variant
-    use syntax_fm, only: parse_sexp_ignore_comments, comment_end_can_be_escaped
+    use syntax_fm, only: parse_expression_ignore_comments, comment_end_can_be_escaped
     use casefiddle_fm, only: case_symbols_as_words
     use insdel_fm, only: inhibit_modification_hooks
     use electric_fm, only: electric_indent_inhibit
@@ -82,7 +82,7 @@ submodule(data_fm) data_buffer_fm
                                                     "sentence_end_double_space", "adaptive_fill_mode", "auto_fill_inhibit_regexp", &
                                            "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
                                                       "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
-                                                      "parse_sexp_ignore_comments", "require_final_newline", &
+                                                      "parse_expression_ignore_comments", "require_final_newline", &
                                                       "mode_require_final_newline", "case_symbols_as_words", &
                                                       "completion_ignore_case", "comment_end_can_be_escaped", &
                                                       "inhibit_modification_hooks", &
@@ -438,9 +438,9 @@ contains
             if (b > 0) v = bool_value(buffers(b)%read_only)
         case ("text_mode_variant")
             call setting_value(text_mode_variant, bool_value(text_mode_variant%value), v, bound)
-        case ("parse_sexp_ignore_comments")
+        case ("parse_expression_ignore_comments")
             ! A DEFVAR_BOOL: always t or nil.
-            v = bool_value(parse_sexp_ignore_comments%value)
+            v = bool_value(parse_expression_ignore_comments%value)
         case ("case_symbols_as_words")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(case_symbols_as_words%value)
@@ -563,8 +563,8 @@ contains
             if (cur > 0) buffers(cur)%read_only = .not. nilp(v)
         case ("text_mode_variant")
             call set_logical(text_mode_variant, v)
-        case ("parse_sexp_ignore_comments")
-            parse_sexp_ignore_comments = .not. nilp(v)
+        case ("parse_expression_ignore_comments")
+            parse_expression_ignore_comments = .not. nilp(v)
         case ("case_symbols_as_words")
             case_symbols_as_words = .not. nilp(v)
         case ("comment_end_can_be_escaped")
@@ -733,9 +733,9 @@ contains
             electric_indent_inhibit%void = .true.
         case ("text_mode_variant")
             text_mode_variant%void = .true.
-        case ("parse_sexp_ignore_comments")
+        case ("parse_expression_ignore_comments")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
-            parse_sexp_ignore_comments = .true.
+            parse_expression_ignore_comments = .true.
         case ("case_symbols_as_words")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             case_symbols_as_words = .true.
@@ -1396,7 +1396,7 @@ contains
 
     b = cur
     if (present(buffer)) b = buffer
-    alist = nil()
+    table = nil()
     if (b <= 0) return
     allocate (elts(buffers(b)%nlocal + size(SLOTS)))
     n = 0
@@ -1419,7 +1419,7 @@ contains
         elts(n) = list(sym(trim(SLOTS(i))), v)
     end do
 
-    alist = make_list(elts(1:n))
+    table = make_list(elts(1:n))
     end procedure buffer_local_variables
 
     module procedure setq_local

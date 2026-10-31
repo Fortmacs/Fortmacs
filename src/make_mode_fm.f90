@@ -31,15 +31,15 @@
 !> The tables of known targets and macros are buffer-local in Makefile
 !> mode buffers (`makefile_target_table', `makefile_macro_table' read
 !> them).  The keyword lists are arrays of `font_lock_keyword_type';
-!> `makefile_gnumake_functions_alist' is an array of
+!> `makefile_gnumake_functions_table' is an array of
 !> `makefile_gnumake_function_type'.
 !>
 !> Deferred: the obsolete macro and target browser (C-c C-b,
 !> `makefile_switch_to_browser' and the `makefile_browser_*' commands and
 !> options, obsolete since 30.1), the Makefile menu, Imenu
 !> (`makefile_imenu_generic_expression' and makepp's "Functions"),
-!> `add_log_current_defun_function' (add-log's defun lookup is not ported;
-!> `makefile_add_log_defun' is here), `cpp_font_lock_keywords' in
+!> `add_log_current_subprogram_function' (add-log's subprogram lookup is not ported;
+!> `makefile_add_log_subprogram' is here), `cpp_font_lock_keywords' in
 !> `makefile_imake_font_lock_keywords' (font-lock.el's C preprocessor
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_fm
@@ -109,7 +109,7 @@ module make_mode_fm
               makefile_cleanup_continuations_function, makefile_warn_suspicious_lines, makefile_warn_continuations, &
               makefile_insert_gmake_function, makefile_match_function_end, makefile_match_dependency, &
               makefile_match_action, makefile_do_macro_insertion, makefile_remember_target, makefile_remember_macro, &
-              makefile_format_macro_ref, makefile_add_log_defun, makefile_syntax_propertize_function, &
+              makefile_format_macro_ref, makefile_add_log_subprogram, makefile_syntax_propertize_function, &
               makefile_make_font_lock_keywords, makefile_target_table, makefile_macro_table, makefile_has_prereqs, &
               makefile_query_proc
 
@@ -373,16 +373,16 @@ module make_mode_fm
     !> makefile-imake-mode-syntax-table.
     type(handle_type), public :: makefile_imake_mode_syntax_table
 
-    !> A GNU make function of `makefile_gnumake_functions_alist': its NAME and
+    !> A GNU make function of `makefile_gnumake_functions_table': its NAME and
     !> the PROMPTS for its required arguments (blank ones are unused).
     type, public :: makefile_gnumake_function_type
         character(len=10) :: name = ""
         character(len=11) :: prompts(6) = ""
     end type makefile_gnumake_function_type
 
-    !> Alist of GNU Make functions and their arguments.  Port of
+    !> Table of GNU Make functions and their arguments.  Port of
     !> make-mode.el makefile-gnumake-functions-alist.
-    type(makefile_gnumake_function_type), allocatable, public :: makefile_gnumake_functions_alist(:)
+    type(makefile_gnumake_function_type), allocatable, public :: makefile_gnumake_functions_table(:)
 
     !> A target or macro name of the tables.
     type, public :: makefile_name_type
@@ -605,8 +605,8 @@ contains
     subroutine init_gnumake_functions()
         integer :: k
 
-        if (allocated(makefile_gnumake_functions_alist)) return
-        allocate (makefile_gnumake_functions_alist(39))
+        if (allocated(makefile_gnumake_functions_table)) return
+        allocate (makefile_gnumake_functions_table(39))
         k = 0
         ! Functions for String Substitution and Analysis
         call add("subst", [character(len=11) :: "From", "To", "In"])
@@ -658,8 +658,8 @@ contains
             character(len=*), intent(in) :: prompts(:)
 
             k = k + 1
-            makefile_gnumake_functions_alist(k)%name = name
-            makefile_gnumake_functions_alist(k)%prompts(1:size(prompts)) = prompts
+            makefile_gnumake_functions_table(k)%name = name
+            makefile_gnumake_functions_table(k)%prompts(1:size(prompts)) = prompts
         end subroutine add
     end subroutine init_gnumake_functions
 
@@ -2470,10 +2470,10 @@ contains
         character(len=:), allocatable :: name, args, arg
         integer :: k, j
 
-        allocate (items(size(makefile_gnumake_functions_alist)))
+        allocate (items(size(makefile_gnumake_functions_table)))
 
         do k = 1, size(items)
-            items(k) = make_string(trim(makefile_gnumake_functions_alist(k)%name))
+            items(k) = make_string(trim(makefile_gnumake_functions_table(k)%name))
         end do
 
         table%list = make_list(items)
@@ -2482,12 +2482,12 @@ contains
         if (len(name) == 0) return
         args = ""
 
-        do k = 1, size(makefile_gnumake_functions_alist)
-            if (trim(makefile_gnumake_functions_alist(k)%name) /= name) cycle
+        do k = 1, size(makefile_gnumake_functions_table)
+            if (trim(makefile_gnumake_functions_table(k)%name) /= name) cycle
 
-            do j = 1, size(makefile_gnumake_functions_alist(k)%prompts)
-                if (len_trim(makefile_gnumake_functions_alist(k)%prompts(j)) == 0) exit
-                call read_string("["//name//"] "//trim(makefile_gnumake_functions_alist(k)%prompts(j))//": ", arg, status)
+            do j = 1, size(makefile_gnumake_functions_table(k)%prompts)
+                if (len_trim(makefile_gnumake_functions_table(k)%prompts(j)) == 0) exit
+                call read_string("["//name//"] "//trim(makefile_gnumake_functions_table(k)%prompts(j))//": ", arg, status)
                 if (.not. status%ok()) return
                 if (j > 1) args = args//","
                 args = args//arg
@@ -2731,7 +2731,7 @@ contains
     !> Return name of target or variable assignment that point is in.
     !> If it isn't in one, FOUND is unallocated.  Port of
     !> make-mode.el:makefile-add-log-defun.
-    subroutine makefile_add_log_defun(found)
+    subroutine makefile_add_log_subprogram(found)
         character(len=:), allocatable, intent(out) :: found
         integer(int64) :: opoint, shortage
         type(status_type) :: st
@@ -2778,7 +2778,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end subroutine makefile_add_log_defun
+    end subroutine makefile_add_log_subprogram
 
     ! ------------------------------------------------------------------
     ! Helpers

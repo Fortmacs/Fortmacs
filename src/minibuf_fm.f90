@@ -851,7 +851,7 @@ contains
         allocate (names(size(elts)), ok(size(elts)))
 
         do k = 1, size(elts, kind=int64)
-            ! An alist element: its car is the completion.
+            ! A table element: its car is the completion.
             eltstring = elts(k)
 
             if (vtag(elts(k)) == V_LIST) then
@@ -897,7 +897,7 @@ contains
     !> the longest initial substring common to all possible completions
     !> that begin with STRING.
     !>
-    !> If COLLECTION is an alist, the keys (cars of elements) are the
+    !> If COLLECTION is a table, the keys (cars of elements) are the
     !> possible completions.  If an element is not a cons cell, then the
     !> element itself is a possible completion.  If COLLECTION is the
     !> obarray, the names of all symbols in the obarray are the possible
@@ -910,7 +910,7 @@ contains
     !> If optional argument PREDICATE is present, it is used to test each
     !> possible completion.  A possible completion is accepted only if
     !> PREDICATE returns true.  The argument given to PREDICATE is either a
-    !> string or a list (whose first element is a string) from the alist,
+    !> string or a list (whose first element is a string) from the table,
     !> or a symbol from the obarray.
     !>
     !> If `completion_ignore_case' is non-nil, possible completions are
@@ -1040,7 +1040,7 @@ contains
     !> The value is a list of all the possible completions that match
     !> STRING.
     !>
-    !> If COLLECTION is an alist, the keys (cars of elements) are the
+    !> If COLLECTION is a table, the keys (cars of elements) are the
     !> possible completions.  If COLLECTION is the obarray, the names of
     !> all symbols in the obarray are the possible completions.
     !>

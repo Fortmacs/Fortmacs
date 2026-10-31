@@ -2048,7 +2048,7 @@ contains
         type(string_box), allocatable :: strings(:)
         type(handle_type) :: mini, buf, window
         type(status_type) :: status
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
         character(len=:), allocatable :: string
         integer(int64) :: s, e, base_size
         integer :: k, saved_mark
@@ -2116,14 +2116,14 @@ contains
         ! A copy of `display_buffer_fallback_action' where
         ! `display_buffer_use_some_window' is replaced with
         ! `display_buffer_at_bottom' (with-current-buffer-window).
-        alist%window_height => completions_fit_window_to_buffer
+        table%window_height => completions_fit_window_to_buffer
 
         if (selected_frame%minibuffer_selected) then
             call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
-                                                               DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM], alist)
+                                                               DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM], table)
         else
             call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
-                                                               DISPLAY_ACTION_REUSE_WINDOW], alist)
+                                                               DISPLAY_ACTION_REUSE_WINDOW], table)
         end if
 
         display_buffer_mark_dedicated = saved_mark
@@ -2438,19 +2438,19 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_predicate), optional :: pred
         character(len=*), intent(in), optional :: suffix
-        type(completion_table_type) :: alist
+        type(completion_table_type) :: table
         type(value_type), allocatable :: res(:), bufs(:)
         integer :: k, n, total
 
         status = status_type()
         result = nil()
-        alist = completion_list_table(buffer_names())
+        table = completion_list_table(buffer_names())
 
         select case (action)
         case (COMPLETE_TRY)
-            call try_completion(string, alist, result, status, pred)
+            call try_completion(string, table, result, status, pred)
         case (COMPLETE_ALL)
-            call all_completions(string, alist, result, status, pred)
+            call all_completions(string, table, result, status, pred)
             if (len(string) > 0) return
             ! Strip out internal buffers.
             call list_elements(result, res)
@@ -2472,7 +2472,7 @@ contains
 
             result = make_list(bufs(1:n))
         case (COMPLETE_TEST)
-            if (test_completion(string, alist, pred)) result = t_value()
+            if (test_completion(string, table, pred)) result = t_value()
         case default
             continue
         end select
@@ -2542,7 +2542,7 @@ contains
 
     !> Read a string in the minibuffer, with completion.
     !> PROMPT is a string to prompt with; normally it ends in a colon and
-    !> a space.  COLLECTION can be a list of strings, an alist, the
+    !> a space.  COLLECTION can be a list of strings, a table, the
     !> obarray or a function (see `try_completion').  PREDICATE limits
     !> completion to a subset of COLLECTION.
     !>

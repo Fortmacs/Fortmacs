@@ -37,8 +37,8 @@ module test_syntax_propertize_fm
     use search_fm, only: re_search_forward, SEARCH_NOERROR
     use textprop_fm, only: get_text_property
     use bindings_fm, only: init_bindings
-    use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_ppss, syntax_propertize__done, &
-                         parse_sexp_lookup_properties, forward_comment
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, syntax_propertize__done, &
+                         parse_expression_lookup_properties, forward_comment
     use subr_fm, only: subregexp_context_p
     use regexp_opt_fm, only: regexp_opt_depth
     use syntax_propertize_fm, only: syntax_propertize_shift_groups_and_backrefs, syntax_propertize_function, &
@@ -195,7 +195,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, state%comstr_start, 3_int64)
             if (allocated(error)) exit checks
-            call check(error, parse_sexp_lookup_properties%value, "lookup turned on")
+            call check(error, parse_expression_lookup_properties%value, "lookup turned on")
             if (allocated(error)) exit checks
             call check(error, syntax_propertize__done%value >= 6, "propertized that far")
             if (allocated(error)) exit checks
@@ -245,7 +245,7 @@ contains
         checks: block
             do i = 1, size(positions)
                 call syntax_ppss(cached, positions(i))
-                call parse_partial_sexp(point_min(), positions(i), direct, st)
+                call parse_partial_expression(point_min(), positions(i), direct, st)
                 call check(error, cached%depth, direct%depth)
                 if (allocated(error)) exit checks
                 call check(error, cached%innermost_start, direct%innermost_start)
@@ -258,7 +258,7 @@ contains
 
             do i = 1, size(positions)
                 call syntax_ppss(cached, positions(i))
-                call parse_partial_sexp(point_min(), positions(i), direct, st)
+                call parse_partial_expression(point_min(), positions(i), direct, st)
                 call check(error, cached%depth, direct%depth)
                 if (allocated(error)) exit checks
             end do

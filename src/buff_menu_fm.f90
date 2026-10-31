@@ -1066,7 +1066,7 @@ contains
 
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call display_buffer(buf, window, status, alist=display_alist_type(inhibit_same_window=.true.))
+        call display_buffer(buf, window, status, table=display_alist_type(inhibit_same_window=.true.))
     end subroutine buffer_menu_switch_other_window
 
     !> Select this line's buffer, with previous buffer in second window.

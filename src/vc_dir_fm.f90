@@ -1602,15 +1602,15 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(handle_type) :: buf, window
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
 
         call vc_dir_current_file(file, status)
         if (.not. status%ok()) return
         call find_file_noselect(file, buf, status)
         if (.not. status%ok()) return
         ! (display-buffer ... t): not in the selected window.
-        alist%inhibit_same_window = .true.
-        call display_buffer(buf, window, status, alist=alist)
+        table%inhibit_same_window = .true.
+        call display_buffer(buf, window, status, table=table)
     end subroutine vc_dir_display_file
 
     !> Examine a file on the current line in view mode.  Port of

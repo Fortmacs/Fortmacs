@@ -33,7 +33,7 @@
 !>
 !> Deferred: a list of files as the directory argument (a cons
 !> `dired_directory'), inserted subdirectories (`i', `dired_insert_subdir',
-!> `$' hiding, `dired_switches_alist', `dired_subdir_switches'),
+!> `$' hiding, `dired_switches_table', `dired_subdir_switches'),
 !> `dired_hide_details_mode' and its options (the `invisible' properties
 !> are set, but redisplay shows invisible text), `dired_find_alternate_file'
 !> (`a') and `dired_kill_when_opening_new_dired_buffer', the dired-aux.el
@@ -129,7 +129,7 @@ module dired_mode_fm
 
     public :: syms_of_dired_mode, dired, dired_other_window, dired_noselect, dired_mode
     public :: dired_get_filename, dired_move_to_filename, dired_move_to_end_of_filename, dired_current_directory, &
-              dired_get_marked_files, dired_goto_file, dired_revert, dired_build_subdir_alist, dired_get_subdir, &
+              dired_get_marked_files, dired_goto_file, dired_revert, dired_build_subdir_table, dired_get_subdir, &
               dired_buffers_for_dir, dired_file_name_at_point, dired_insert_directory, dired_readin, &
               dired_find_buffer_nocreate, dired_save_positions, dired_restore_positions, dired_positions_type, &
               dired_between_files, dired_next_line, dired_previous_line, dired_next_dirline, dired_prev_dirline, &
@@ -531,8 +531,8 @@ module dired_mode_fm
         character(len=:), allocatable :: regexp, new_suffix, program
     end type dired_compress_suffix_type
 
-    !> A rule (REGEXP . CMD) of `dired_compress_file_alist' and
-    !> `dired_compress_files_alist'.
+    !> A rule (REGEXP . CMD) of `dired_compress_file_table' and
+    !> `dired_compress_files_table'.
     type, public :: dired_compress_rule_type
         character(len=:), allocatable :: regexp, command
     end type dired_compress_rule_type
@@ -563,7 +563,7 @@ module dired_mode_fm
     !> Within CMD, %i denotes the input file(s), and %o denotes the
     !> output file.  %i path(s) are relative, while %o is absolute.
     !> Port of dired-aux.el dired-compress-file-alist.
-    type(dired_compress_rule_type), allocatable, public :: dired_compress_file_alist(:)
+    type(dired_compress_rule_type), allocatable, public :: dired_compress_file_table(:)
 
     !> Controls the compression shell command for `dired_do_compress_to'.
     !>
@@ -574,7 +574,7 @@ module dired_mode_fm
     !> Within CMD, %i denotes the input file(s), and %o denotes the
     !> output file.  %i path(s) are relative, while %o is absolute.
     !> Port of dired-aux.el dired-compress-files-alist.
-    type(dired_compress_rule_type), allocatable, public :: dired_compress_files_alist(:)
+    type(dired_compress_rule_type), allocatable, public :: dired_compress_files_table(:)
 
     !> What a file creator of `dired_create_files' is, for its special
     !> cases: `dired_copy_file', `make_symbolic_link' or another.
@@ -762,7 +762,7 @@ module dired_mode_fm
         character(len=:), allocatable :: s
     end type dired_string_type
 
-    !> One element of `dired_subdir_alist': a listed directory and a
+    !> One element of `dired_subdir_table': a listed directory and a
     !> marker at the start of its header line.
     type :: dired_subdir_type
         character(len=:), allocatable :: dir
@@ -780,11 +780,11 @@ module dired_mode_fm
         character(len=:), allocatable :: actual_switches
         !> dired-subdir-alist, its first element first (the last
         !> directory in the buffer)
-        type(dired_subdir_type), allocatable :: subdir_alist(:)
+        type(dired_subdir_type), allocatable :: subdir_table(:)
         !> dired-subdir-alist-pre-R (directory names; its markers are
         !> never used)
         logical :: has_pre_r = .false.
-        type(dired_string_type), allocatable :: subdir_alist_pre_r(:)
+        type(dired_string_type), allocatable :: subdir_table_pre_r(:)
     end type dired_local_type
 
     type(dired_local_type), allocatable :: locals(:)
@@ -795,7 +795,7 @@ module dired_mode_fm
         type(handle_type) :: buffer
     end type dired_buffer_entry_type
 
-    !> Alist of expanded directories and their associated Dired buffers
+    !> Table of expanded directories and their associated Dired buffers
     !> (the first is the most recent).  Port of dired.el dired-buffers.
     type(dired_buffer_entry_type), allocatable :: dired_buffers(:)
 
@@ -1042,7 +1042,7 @@ module dired_mode_fm
         !> Compress selected files and directories to an archive.
         !> Prompt for the archive file name.
         !> Choose the archiving command based on the archive file-name extension
-        !> and `dired_compress_files_alist'.  Port of
+        !> and `dired_compress_files_table'.  Port of
         !> dired-aux.el:dired-do-compress-to.  (In dired_aux_fm.)
         recursive module subroutine dired_do_compress_to(status)
             implicit none(type, external)
@@ -1419,29 +1419,29 @@ contains
         end do
     end function serial_live
 
-    !> Free the markers of a subdirectory alist.  Not a port.
-    subroutine free_alist(alist)
-        type(dired_subdir_type), allocatable, intent(inout) :: alist(:)
+    !> Free the markers of a subdirectory table.  Not a port.
+    subroutine free_table(table)
+        type(dired_subdir_type), allocatable, intent(inout) :: table(:)
         integer :: k
 
-        if (.not. allocated(alist)) return
+        if (.not. allocated(table)) return
 
-        do k = 1, size(alist)
-            if (alist(k)%marker%index /= 0) call release_marker(alist(k)%marker)
+        do k = 1, size(table)
+            if (table(k)%marker%index /= 0) call release_marker(table(k)%marker)
         end do
 
-        deallocate (alist)
-    end subroutine free_alist
+        deallocate (table)
+    end subroutine free_table
 
     !> Forget entry K (of a killed buffer, or for kill-all-local-variables).
     !> Not a port.
     subroutine clear_entry(k)
         integer, intent(in) :: k
 
-        call free_alist(locals(k)%subdir_alist)
+        call free_table(locals(k)%subdir_table)
         if (allocated(locals(k)%directory)) deallocate (locals(k)%directory)
         if (allocated(locals(k)%actual_switches)) deallocate (locals(k)%actual_switches)
-        if (allocated(locals(k)%subdir_alist_pre_r)) deallocate (locals(k)%subdir_alist_pre_r)
+        if (allocated(locals(k)%subdir_table_pre_r)) deallocate (locals(k)%subdir_table_pre_r)
         locals(k)%has_pre_r = .false.
         locals(k)%set = .false.
         locals(k)%serial = 0
@@ -1523,7 +1523,7 @@ contains
         if (allocated(locals(k)%actual_switches)) sw = locals(k)%actual_switches
     end function dired_actual_switches_of
 
-    !> The directories of the current buffer's `dired_subdir_alist', in
+    !> The directories of the current buffer's `dired_subdir_table', in
     !> its order (the last one in the buffer first).  Not a port.
     function dired_subdir_dirs() result(dirs)
         type(dired_string_type), allocatable :: dirs(:)
@@ -1532,25 +1532,25 @@ contains
         allocate (dirs(0))
         k = local_index(.false.)
         if (k == 0) return
-        if (.not. allocated(locals(k)%subdir_alist)) return
+        if (.not. allocated(locals(k)%subdir_table)) return
         deallocate (dirs)
-        allocate (dirs(size(locals(k)%subdir_alist)))
+        allocate (dirs(size(locals(k)%subdir_table)))
 
         do i = 1, size(dirs)
-            dirs(i)%s = locals(k)%subdir_alist(i)%dir
+            dirs(i)%s = locals(k)%subdir_table(i)%dir
         end do
     end function dired_subdir_dirs
 
-    !> The number of elements of the current buffer's `dired_subdir_alist'.
+    !> The number of elements of the current buffer's `dired_subdir_table'.
     !> Not a port.
-    integer function alist_size()
+    integer function table_size()
         integer :: k
 
-        alist_size = 0
+        table_size = 0
         k = local_index(.false.)
         if (k == 0) return
-        if (allocated(locals(k)%subdir_alist)) alist_size = size(locals(k)%subdir_alist)
-    end function alist_size
+        if (allocated(locals(k)%subdir_table)) table_size = size(locals(k)%subdir_table)
+    end function table_size
 
     !> The current buffer's `default_directory'.  Not a port.
     function default_directory() result(dir)
@@ -2004,7 +2004,7 @@ contains
             if (.not. header_present()) then
                 ! Inserted directory name must be absolute, but keep in
                 ! mind it may be replaced in some instances like in
-                ! `dired_build_subdir_alist'.
+                ! `dired_build_subdir_table'.
                 if (dir_wildcard) then
                     dir_name = dw_dir
                 else
@@ -2362,7 +2362,7 @@ contains
         call inhibit_read_only_end(saved_ro)
         if (.not. status%ok()) return
         call goto_char(point_min())
-        call dired_build_subdir_alist(st)
+        call dired_build_subdir_table(st)
         call file_attributes(dirname, attributes, found)
 
         if (found) then
@@ -2390,8 +2390,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dir, base
         type(handle_type) :: tmpbuf, old
-        type(dired_subdir_type), allocatable :: saved_alist(:)
-        logical :: had_alist
+        type(dired_subdir_type), allocatable :: saved_table(:)
+        logical :: had_table
         type(status_type) :: st
         type(handle_type) :: begv_m, zv_m
         integer(int64) :: found, opoint
@@ -2434,22 +2434,22 @@ contains
 
         if (found > 0) then
             ! The call chain of `dired_remove_entry' requires a non-nil
-            ! `dired_subdir_alist', so we set it.
+            ! `dired_subdir_table', so we set it.
             k = local_index(.true.)
-            had_alist = allocated(locals(k)%subdir_alist)
+            had_table = allocated(locals(k)%subdir_table)
 
-            if (had_alist) then
-                saved_alist = locals(k)%subdir_alist
-                deallocate (locals(k)%subdir_alist)
+            if (had_table) then
+                saved_table = locals(k)%subdir_table
+                deallocate (locals(k)%subdir_table)
             end if
 
-            allocate (locals(k)%subdir_alist(1))
-            locals(k)%subdir_alist(1)%dir = temporary_file_directory()
-            call make_marker(locals(k)%subdir_alist(1)%marker)
-            call set_marker(locals(k)%subdir_alist(1)%marker, point_min(), st)
+            allocate (locals(k)%subdir_table(1))
+            locals(k)%subdir_table(1)%dir = temporary_file_directory()
+            call make_marker(locals(k)%subdir_table(1)%marker)
+            call set_marker(locals(k)%subdir_table(1)%marker, point_min(), st)
             call dired_remove_entry(dired_ls_error_file)
-            call free_alist(locals(k)%subdir_alist)
-            if (had_alist) locals(k)%subdir_alist = saved_alist
+            call free_table(locals(k)%subdir_table)
+            if (had_table) locals(k)%subdir_table = saved_table
         end if
 
         call narrow_to_region(mpos(begv_m), mpos(zv_m), st)
@@ -2473,13 +2473,13 @@ contains
     end subroutine dired_readin_insert
 
     ! ------------------------------------------------------------------
-    ! The subdirectory alist
+    ! The subdirectory table
     ! ------------------------------------------------------------------
 
-    !> Build `dired_subdir_alist' by parsing the buffer.
+    !> Build `dired_subdir_table' by parsing the buffer.
     !> If optional arg SWITCHES is present, use its value instead of
     !> `dired_actual_switches'.  Port of dired.el:dired-build-subdir-alist.
-    recursive subroutine dired_build_subdir_alist(status, switches, called_interactively)
+    recursive subroutine dired_build_subdir_table(status, switches, called_interactively)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: switches
         logical, intent(in), optional :: called_interactively
@@ -2493,8 +2493,8 @@ contains
 
         status = status_type()
         k = local_index(.true.)
-        call free_alist(locals(k)%subdir_alist)
-        allocate (locals(k)%subdir_alist(0))
+        call free_table(locals(k)%subdir_table)
+        allocate (locals(k)%subdir_table(0))
         opoint = point()
         call inhibit_read_only_begin(saved_ro)
         saved_undo = buffers(cur)%undo_enabled
@@ -2561,11 +2561,11 @@ contains
                 ! lines.
                 call make_marker(m)
                 call set_marker(m, header_bol, status)
-                allocate (grown(size(locals(k)%subdir_alist) + 1))
+                allocate (grown(size(locals(k)%subdir_table) + 1))
                 grown(1)%dir = dired_normalize_subdir(new_dir_name)
                 grown(1)%marker = m
-                grown(2:) = locals(k)%subdir_alist
-                call move_alloc(grown, locals(k)%subdir_alist)
+                grown(2:) = locals(k)%subdir_table
+                call move_alloc(grown, locals(k)%subdir_table)
             end if
 
             call goto_char(after)
@@ -2591,7 +2591,7 @@ contains
                 if (iand(ichar(s(j:j)), 192) /= 128) len_chars = len_chars + 1
             end do
         end function len_chars
-    end subroutine dired_build_subdir_alist
+    end subroutine dired_build_subdir_table
 
     !> DIR as an absolute directory name (relative names are relative to
     !> `default_directory').  Port of dired.el:dired-normalize-subdir.
@@ -2623,18 +2623,18 @@ contains
         dir = ""
         k = local_index(.false.)
 
-        if (k == 0 .or. alist_size() == 0) then
+        if (k == 0 .or. table_size() == 0) then
             ! probably because called in a non-dired buffer
-            call set_error(status, FM_GENERIC_ERROR, "No subdir_alist in #<buffer "//buffers(cur)%name//">")
+            call set_error(status, FM_GENERIC_ERROR, "No subdir_table in #<buffer "//buffers(cur)%name//">")
             return
         end if
 
         here = point()
 
-        do i = 1, size(locals(k)%subdir_alist)
-            dir = locals(k)%subdir_alist(i)%dir
+        do i = 1, size(locals(k)%subdir_table)
+            dir = locals(k)%subdir_table(i)%dir
             ! use `<=' (not `<') as subdir line is part of subdir
-            if (mpos(locals(k)%subdir_alist(i)%marker) <= here) exit
+            if (mpos(locals(k)%subdir_table(i)%marker) <= here) exit
         end do
 
         if (present(localp)) then
@@ -2682,16 +2682,16 @@ contains
         if (.not. st%ok()) return
         k = local_index(.false.)
 
-        do i = 1, size(locals(k)%subdir_alist)
-            if (locals(k)%subdir_alist(i)%dir == cur_dir) then
-                ! alist stores b-o-l positions
-                if (bol() == mpos(locals(k)%subdir_alist(i)%marker)) dir = cur_dir
+        do i = 1, size(locals(k)%subdir_table)
+            if (locals(k)%subdir_table(i)%dir == cur_dir) then
+                ! table stores b-o-l positions
+                if (bol() == mpos(locals(k)%subdir_table(i)%marker)) dir = cur_dir
                 return
             end if
         end do
     end function dired_get_subdir
 
-    !> The index of DIR in `dired_subdir_alist' (0-based, as nth wants
+    !> The index of DIR in `dired_subdir_table' (0-based, as nth wants
     !> it), or -1.  Port of dired.el:dired-subdir-index.
     integer function dired_subdir_index(dir) result(index)
         character(len=*), intent(in) :: dir
@@ -2701,8 +2701,8 @@ contains
         k = local_index(.false.)
         if (k == 0) return
 
-        do i = 1, size(locals(k)%subdir_alist)
-            if (locals(k)%subdir_alist(i)%dir == dir) then
+        do i = 1, size(locals(k)%subdir_table)
+            if (locals(k)%subdir_table(i)%dir == dir) then
                 index = i - 1
                 return
             end if
@@ -2731,8 +2731,8 @@ contains
         k = local_index(.false.)
         index = dired_subdir_index(this_dir) - int(arg)
 
-        if (index >= 0 .and. index < size(locals(k)%subdir_alist)) then
-            call goto_char(mpos(locals(k)%subdir_alist(index + 1)%marker))
+        if (index >= 0 .and. index < size(locals(k)%subdir_table)) then
+            call goto_char(mpos(locals(k)%subdir_table(index + 1)%marker))
             if (skip) call end_of_line()
             pos = point()
         else if (.not. noerr) then
@@ -2753,7 +2753,7 @@ contains
         opoint = point()
         pos = point_max()
 
-        if (alist_size() > 1) then
+        if (table_size() > 1) then
             if (dired_next_subdir(1_int64, st, .true., .true.) /= 0) pos = point()
         end if
 
@@ -3663,7 +3663,7 @@ contains
     !> If Dired ever gets confused, you can either type \[revert_buffer]
     !> to read the directories again, type \[dired_do_redisplay]
     !> to relist the file at point or the marked files or a
-    !> subdirectory, or type \[dired_build_subdir_alist] to parse the buffer
+    !> subdirectory, or type \[dired_build_subdir_table] to parse the buffer
     !> again for the directory tree.
     !>
     !> This mode runs the following hooks:
@@ -4014,7 +4014,7 @@ contains
                 ok = .true.
             else
                 ok = .false.
-                if (alist_size() > 1) ok = dired_goto_subdir(dir) /= 0
+                if (table_size() > 1) ok = dired_goto_subdir(dir) /= 0
             end if
 
             if (ok) found = dired_goto_file_1(file_name_nondirectory(file), file, dired_subdir_max())
@@ -4412,7 +4412,7 @@ contains
         if (.not. status%ok()) return
 
         ! Only try dired-goto-subdir if buffer has more than one dir.
-        if (alist_size() > 1) then
+        if (table_size() > 1) then
             if (dired_goto_subdir(up) /= 0) return
         end if
 
@@ -4520,15 +4520,15 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(handle_type) :: buf, window
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
 
         call dired_get_file_for_visit(file, status)
         if (.not. status%ok()) return
         call find_file_noselect(file, buf, status)
         if (.not. status%ok()) return
         ! (display-buffer BUFFER t)
-        alist%inhibit_same_window = .true.
-        call display_buffer(buf, window, status, alist=alist)
+        table%inhibit_same_window = .true.
+        call display_buffer(buf, window, status, table=table)
     end subroutine dired_display_file
 
     ! ------------------------------------------------------------------
@@ -6159,7 +6159,7 @@ contains
         logical :: answer, canceled
 
         status = status_type()
-        ! L is an alist of files to delete, with their buffer positions;
+        ! L is a table of files to delete, with their buffer positions;
         ! filenames are absolute.  (In buffer order.)
         allocate (files(map_n), markers(map_n))
 
@@ -6311,7 +6311,7 @@ contains
         status = status_type()
         opoint = point()
 
-        if (alist_size() > 1) then
+        if (table_size() > 1) then
             if (dired_goto_subdir(fn) /= 0) call dired_kill_subdir(status)
         end if
 
@@ -6333,7 +6333,7 @@ contains
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window, owindow, old
-        type(display_alist_type) :: alist
+        type(display_alist_type) :: table
         type(status_type) :: st
         integer :: saved_dedicated, k
         logical :: quiet
@@ -6363,9 +6363,9 @@ contains
         ! (display-buffer-below-selected (window-height . fit-window-to-buffer)
         !  (preserve-size . (nil . t)) (body-function ...))
         pop_up_files = files
-        alist%window_height => fit_window
-        alist%body_function => insert_marked_files
-        call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_BELOW_SELECTED], alist)
+        table%window_height => fit_window
+        table%body_function => insert_marked_files
+        call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_BELOW_SELECTED], table)
         display_buffer_mark_dedicated = saved_dedicated
         call set_buffer(old, st)
         if (.not. status%ok()) return
@@ -6609,7 +6609,7 @@ contains
         call undo(current_prefix_arg, status)
         call inhibit_read_only_end(saved_ro)
         if (.not. status%ok()) return
-        call dired_build_subdir_alist(st)
+        call dired_build_subdir_table(st)
         call message("Change in Dired buffer undone."//LF//"Actual changes in files cannot be undone by Emacs.")
     end subroutine cmd_dired_undo
 
@@ -6830,7 +6830,7 @@ contains
     end subroutine dired_sort_other
 
     !> Additional processing of -R in ls option string SWITCHES.
-    !> Saves `dired_subdir_alist' when R is set and restores saved value
+    !> Saves `dired_subdir_table' when R is set and restores saved value
     !> minus any directories explicitly deleted when R is cleared.
     !> To be called first in body of `dired_sort_other', etc.  Port of
     !> dired.el:dired-sort-R-check.
@@ -6842,44 +6842,44 @@ contains
         k = local_index(.true.)
 
         if (dired_switches_recursive_p(switches) .and. .not. dired_switches_recursive_p(dired_actual_switches_of())) then
-            ! Adding -R to ls switches -- save `dired_subdir_alist':
+            ! Adding -R to ls switches -- save `dired_subdir_table':
             locals(k)%has_pre_r = .true.
-            if (allocated(locals(k)%subdir_alist_pre_r)) deallocate (locals(k)%subdir_alist_pre_r)
-            allocate (locals(k)%subdir_alist_pre_r(alist_size()))
+            if (allocated(locals(k)%subdir_table_pre_r)) deallocate (locals(k)%subdir_table_pre_r)
+            allocate (locals(k)%subdir_table_pre_r(table_size()))
 
-            do i = 1, alist_size()
-                locals(k)%subdir_alist_pre_r(i)%s = locals(k)%subdir_alist(i)%dir
+            do i = 1, table_size()
+                locals(k)%subdir_table_pre_r(i)%s = locals(k)%subdir_table(i)%dir
             end do
         else if (dired_switches_recursive_p(dired_actual_switches_of()) .and. &
                  .not. dired_switches_recursive_p(switches)) then
             ! Deleting -R from ls switches -- revert to pre-R subdirs that
             ! are still present:
-            if (.not. allocated(locals(k)%subdir_alist)) return
+            if (.not. allocated(locals(k)%subdir_table)) return
             allocate (kept(0))
 
-            if (locals(k)%has_pre_r .and. size(locals(k)%subdir_alist_pre_r) > 0) then
-                do i = 1, size(locals(k)%subdir_alist_pre_r)
-                    do j = 1, size(locals(k)%subdir_alist)
-                        if (locals(k)%subdir_alist(j)%dir == locals(k)%subdir_alist_pre_r(i)%s) then
+            if (locals(k)%has_pre_r .and. size(locals(k)%subdir_table_pre_r) > 0) then
+                do i = 1, size(locals(k)%subdir_table_pre_r)
+                    do j = 1, size(locals(k)%subdir_table)
+                        if (locals(k)%subdir_table(j)%dir == locals(k)%subdir_table_pre_r(i)%s) then
                             ! subdir still present...
-                            kept = [kept, locals(k)%subdir_alist(j)]
-                            locals(k)%subdir_alist(j)%marker = null_handle()
+                            kept = [kept, locals(k)%subdir_table(j)]
+                            locals(k)%subdir_table(j)%marker = null_handle()
                             exit
                         end if
                     end do
                 end do
 
-                deallocate (locals(k)%subdir_alist_pre_r)
-                allocate (locals(k)%subdir_alist_pre_r(0))
-            else if (size(locals(k)%subdir_alist) > 0) then
-                ! No pre-R subdir alist, so revert to main directory listing:
-                n = size(locals(k)%subdir_alist)
-                kept = [kept, locals(k)%subdir_alist(n)]
-                locals(k)%subdir_alist(n)%marker = null_handle()
+                deallocate (locals(k)%subdir_table_pre_r)
+                allocate (locals(k)%subdir_table_pre_r(0))
+            else if (size(locals(k)%subdir_table) > 0) then
+                ! No pre-R subdir table, so revert to main directory listing:
+                n = size(locals(k)%subdir_table)
+                kept = [kept, locals(k)%subdir_table(n)]
+                locals(k)%subdir_table(n)%marker = null_handle()
             end if
 
-            call free_alist(locals(k)%subdir_alist)
-            call move_alloc(kept, locals(k)%subdir_alist)
+            call free_table(locals(k)%subdir_table)
+            call move_alloc(kept, locals(k)%subdir_table)
         end if
     end subroutine dired_sort_r_check
 
@@ -7201,14 +7201,14 @@ contains
     ! Commands that wrap the functions
     ! ------------------------------------------------------------------
 
-    !> Build `dired_subdir_alist' by parsing the buffer.
-    !> Returns the new value of `dired_subdir_alist'.
+    !> Build `dired_subdir_table' by parsing the buffer.
+    !> Returns the new value of `dired_subdir_table'.
     !> Port of dired.el:dired-build-subdir-alist (interactive).
-    recursive subroutine cmd_dired_build_subdir_alist(status)
+    recursive subroutine cmd_dired_build_subdir_table(status)
         type(status_type), intent(out) :: status
 
-        call dired_build_subdir_alist(status, called_interactively=.true.)
-    end subroutine cmd_dired_build_subdir_alist
+        call dired_build_subdir_table(status, called_interactively=.true.)
+    end subroutine cmd_dired_build_subdir_table
 
     !> In Dired, visit the file or directory named on this line.  Port of
     !> dired.el:dired-find-file (interactive).
@@ -7373,7 +7373,7 @@ contains
         commands%dired_undo%run => cmd_dired_undo
         commands%dired_copy_filename_as_kill%run => cmd_dired_copy_filename_as_kill
         commands%dired_sort_toggle_or_edit%run => cmd_dired_sort_toggle_or_edit
-        commands%dired_build_subdir_alist%run => cmd_dired_build_subdir_alist
+        commands%dired_build_subdir_table%run => cmd_dired_build_subdir_table
         call syms_of_dired_aux()
         ! Dired mode, with a full keymap whose parent is special-mode-map.
         if (.not. keymap_live_p(dired_mode_map)) call make_keymap(dired_mode_map)
