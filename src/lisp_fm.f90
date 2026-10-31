@@ -214,8 +214,8 @@ module lisp_fm
         !> A name value for `name' (added to the name table), or a string
         !> value holding `text' (already in the internal encoding); with
         !> neither, the null value (value_type() calls it, and the name table
-        !> makes null values while it adds a name, so it is recursive).  Port
-        !> of lread.c:intern and alloc.c:build_string.
+        !> makes null values while it adds a name, so it is recursive).
+        !> Port of lread.c:intern and alloc.c:build_string.
         recursive module function value_of_string(name, text) result(v)
             implicit none(type, external)
             character(len=*), intent(in), optional :: name, text
