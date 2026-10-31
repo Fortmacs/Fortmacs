@@ -671,8 +671,8 @@ module fortmacs
                      js_curly_indent_offset, js_switch_indent_offset, js_flat_functions, &
                      js_indent_align_list_continuation, js_comment_lineup_func, js_enabled_frameworks, &
                      js_indent_first_init, js_chain_indent, js_base_mode_hook, js_mode_hook, js_json_mode_hook, &
-                     js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, JS_INDENT_FIRST_INIT_NIL, &
-                     JS_INDENT_FIRST_INIT_T, JS_INDENT_FIRST_INIT_DYNAMIC
+                     js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, JS_INDENT_FIRST_INIT_NO, &
+                     JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC
     use css_mode_fm, only: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, &
                            css_class_list_function, css_id_list_function, css_base_mode_hook, css_mode_hook, &
                            scss_mode_hook, css_mode_map, css_base_mode_map, scss_mode_map, css_mode_syntax_table, &
@@ -1126,7 +1126,7 @@ module fortmacs
               js_curly_indent_offset, js_switch_indent_offset, js_flat_functions, js_indent_align_list_continuation, &
               js_comment_lineup_func, js_enabled_frameworks, js_indent_first_init, js_chain_indent, js_base_mode_hook, &
               js_mode_hook, js_json_mode_hook, js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, &
-              JS_INDENT_FIRST_INIT_NIL, JS_INDENT_FIRST_INIT_T, JS_INDENT_FIRST_INIT_DYNAMIC
+              JS_INDENT_FIRST_INIT_NO, JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC
     public :: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, css_class_list_function, &
               css_id_list_function, css_base_mode_hook, css_mode_hook, scss_mode_hook, css_mode_map, css_base_mode_map, &
               scss_mode_map, css_mode_syntax_table, scss_mode_syntax_table

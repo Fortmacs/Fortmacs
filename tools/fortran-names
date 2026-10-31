@@ -84,6 +84,12 @@ name	kill_backward_up_list	kill_backward_up_group
 name	scan_lists	scan_groups
 name	smie_down_list	smie_down_group
 name	css_current_defun_name	css_current_rule_name
+name	js_beginning_of_defun	js_beginning_of_function
+name	js_beginning_of_subprogram	js_beginning_of_function
+name	js_end_of_defun	js_end_of_function
+name	js_end_of_subprogram	js_end_of_function
+name	JS_INDENT_FIRST_INIT_NIL	JS_INDENT_FIRST_INIT_NO
+name	JS_INDENT_FIRST_INIT_T	JS_INDENT_FIRST_INIT_YES
 
 # Modules.
 file	lisp_cmds_fm	expression_motion_fm

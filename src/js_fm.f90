@@ -25,7 +25,7 @@
 !> declarations of `js_enabled_frameworks', variable declarations and
 !> formal parameters), the parse cache of functions, macros and classes
 !> (`js__ensure_cache') with `js_syntactic_context' and
-!> `js_beginning_of_subprogram'/`js_end_of_subprogram', and indentation
+!> `js_beginning_of_function'/`js_end_of_function', and indentation
 !> (`js_indent_line', with C comments lined up by `js_comment_lineup_func').
 !>
 !> Deferred: JSX (`js_jsx_syntax', its detection, `js_jsx_mode' and its
@@ -78,15 +78,15 @@ module js_fm
     implicit none(type, external)
     private
 
-    public :: syms_of_js, js_base_mode, js_mode, js_json_mode, js_indent_line, js_beginning_of_subprogram, &
-              js_end_of_subprogram, js_syntactic_context, js_syntax_propertize, js_font_lock_syntactic_face_function, &
+    public :: syms_of_js, js_base_mode, js_mode, js_json_mode, js_indent_line, js_beginning_of_function, &
+              js_end_of_function, js_syntactic_context, js_syntax_propertize, js_font_lock_syntactic_face_function, &
               js_re_search_forward, js_re_search_backward, js_continued_expression_p, js_proper_indentation, &
               js_flush_caches, js_ensure_cache
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
     !> Values of `js_indent_first_init': nil, t and `dynamic'.
-    integer, parameter, public :: JS_INDENT_FIRST_INIT_NIL = 0, JS_INDENT_FIRST_INIT_T = 1, &
+    integer, parameter, public :: JS_INDENT_FIRST_INIT_NO = 0, JS_INDENT_FIRST_INIT_YES = 1, &
                                   JS_INDENT_FIRST_INIT_DYNAMIC = 2
 
     !> The syntactic contexts of `js_syntactic_context'.
@@ -162,7 +162,7 @@ module js_fm
     !>     },
     !>         bar = 2;
     !>
-    !> If this option has the value JS_INDENT_FIRST_INIT_T, indent the
+    !> If this option has the value JS_INDENT_FIRST_INIT_YES, indent the
     !> first declaration's initializer by an additional level:
     !>
     !>     var o = {
@@ -189,7 +189,7 @@ module js_fm
     !>
     !> Port of js.el js-indent-first-init.
     type(integer_setting), target, public :: js_indent_first_init = &
-                                             integer_setting(name="js_indent_first_init", value=JS_INDENT_FIRST_INIT_NIL)
+                                             integer_setting(name="js_indent_first_init", value=JS_INDENT_FIRST_INIT_NO)
 
     !> Use "chained" indentation.
     !> Chained indentation applies when the current line starts with ".".
@@ -1416,7 +1416,7 @@ contains
         call goto_char(opoint)
     end function function_prologue_beginning
 
-    ! Helper function for `js_beginning_of_subprogram'.
+    ! Helper function for `js_beginning_of_function'.
     ! Go to previous defun-beginning and return the parse state for it, or
     ! none if we went all the way back to bob and don't find anything.
     ! Port of js.el:js--beginning-of-defun-raw.
@@ -1437,11 +1437,11 @@ contains
         end if
     end function beginning_of_subprogram_raw
 
-    ! Helper function for `js__beginning_of_subprogram_nested'.
-    ! If PSTATE represents a non-empty top-level subprogram, return the top-most
+    ! Helper function for js.el:js--beginning-of-defun-nested.
+    ! If PSTATE represents a non-empty top-level function, return the top-most
     ! pitem.  Otherwise, return 0.  Port of
     ! js.el:js--pstate-is-toplevel-defun.
-    recursive integer function pstate_is_toplevel_subprogram(pstate) result(func_pitem)
+    recursive integer function pstate_is_toplevel_function(pstate) result(func_pitem)
         integer, intent(in) :: pstate(:)
         integer :: i, func_depth
 
@@ -1456,12 +1456,12 @@ contains
         end do
 
         if (func_depth /= 1) func_pitem = 0
-    end function pstate_is_toplevel_subprogram
+    end function pstate_is_toplevel_function
 
-    ! Helper function for `js__beginning_of_subprogram'.
+    ! Helper function for js.el:js--beginning-of-defun.
     ! Return the pitem of the function we went to the beginning of (0 for
     ! none).  Port of js.el:js--beginning-of-defun-nested.
-    recursive integer function beginning_of_subprogram_nested() result(pitem)
+    recursive integer function beginning_of_function_nested() result(pitem)
         integer, allocatable :: pstate(:)
         integer :: i
 
@@ -1478,35 +1478,35 @@ contains
             end if
         end do
 
-        ! ...and if that isn't found, look for the previous top-level subprogram
+        ! ...and if that isn't found, look for the previous top-level function
         pitem = 0
 
         do
             pstate = backward_pstate()
             if (size(pstate) == 0) exit
-            pitem = pstate_is_toplevel_subprogram(pstate)
+            pitem = pstate_is_toplevel_function(pstate)
 
             if (pitem > 0) then
                 call goto_char(pitem_h_begin(pitem))
                 return
             end if
         end do
-    end function beginning_of_subprogram_nested
+    end function beginning_of_function_nested
 
-    ! Helper function for `js_beginning_of_subprogram'.  Port of
+    ! Helper function for `js_beginning_of_function'.  Port of
     ! js.el:js--beginning-of-defun-flat.
-    recursive logical function beginning_of_subprogram_flat() result(found)
+    recursive logical function beginning_of_function_flat() result(found)
         integer, allocatable :: pstate(:)
 
         pstate = beginning_of_subprogram_raw()
         found = size(pstate) > 0
         if (found) call goto_char(pitem_h_begin(pstate(1)))
-    end function beginning_of_subprogram_flat
+    end function beginning_of_function_flat
 
     !> Value of `beginning_of_subprogram_function' for `js_mode': move to the
     !> beginning of the ARGth function (default 1; backward), returning
     !> whether one was found.  Port of js.el:js-beginning-of-defun.
-    recursive subroutine js_beginning_of_subprogram(arg, found)
+    recursive subroutine js_beginning_of_function(arg, found)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type) :: st
@@ -1520,9 +1520,9 @@ contains
 
             if (.not. js_flat_functions%value) then
                 if (js_syntactic_context() == JS_CONTEXT_FUNCTION) then
-                    call js_end_of_subprogram(1_int64)
+                    call js_end_of_function(1_int64)
                 else if (function_prologue_beginning() > 0) then
-                    call js_end_of_subprogram(1_int64)
+                    call js_end_of_function(1_int64)
                 end if
             end if
 
@@ -1546,14 +1546,14 @@ contains
                 call goto_char(prologue_begin)
                 found = .true.
             else if (js_flat_functions%value) then
-                found = beginning_of_subprogram_flat()
-            else if (beginning_of_subprogram_nested() > 0) then
+                found = beginning_of_function_flat()
+            else if (beginning_of_function_nested() > 0) then
                 found = .true.
             end if
         end do
-    end subroutine js_beginning_of_subprogram
+    end subroutine js_beginning_of_function
 
-    ! `js_beginning_of_subprogram' as a `beginning_of_subprogram_function'.
+    ! `js_beginning_of_function' as a `beginning_of_subprogram_function'.
     ! Not a port.
     recursive subroutine beginning_of_subprogram_proc(arg, found, status)
         integer(int64), intent(in) :: arg
@@ -1561,7 +1561,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call js_beginning_of_subprogram(arg, found)
+        call js_beginning_of_function(arg, found)
     end subroutine beginning_of_subprogram_proc
 
     !> Flush the `js_mode' syntax cache after position BEG.
@@ -1897,9 +1897,9 @@ contains
         end subroutine update_parse
     end subroutine js_ensure_cache
 
-    ! Helper function for `js_end_of_subprogram'.  Port of
+    ! Helper function for `js_end_of_function'.  Port of
     ! js.el:js--end-of-defun-flat.
-    recursive subroutine end_of_subprogram_flat()
+    recursive subroutine end_of_function_flat()
         type(value_type) :: v
 
         do while (js_re_search_forward("}"))
@@ -1912,11 +1912,11 @@ contains
         end do
 
         call goto_char(point_max())
-    end subroutine end_of_subprogram_flat
+    end subroutine end_of_function_flat
 
-    ! Helper function for `js_end_of_subprogram'.  Port of
+    ! Helper function for `js_end_of_function'.  Port of
     ! js.el:js--end-of-defun-nested.
-    recursive subroutine end_of_subprogram_nested()
+    recursive subroutine end_of_function_nested()
         type(status_type) :: st
         character(len=:), allocatable :: name
         integer(int64) :: opoint, this_end
@@ -1925,7 +1925,7 @@ contains
 
         opoint = point()
         this_end = 0
-        pitem = beginning_of_subprogram_nested()
+        pitem = beginning_of_function_nested()
 
         if (pitem > 0) then
             call pitem_goto_h_end(pitem)
@@ -1957,11 +1957,11 @@ contains
             ! ... or eob.
             call goto_char(point_max())
         end if
-    end subroutine end_of_subprogram_nested
+    end subroutine end_of_function_nested
 
     !> Value of `end_of_subprogram_function' for `js_mode': move to the end of
     !> the ARGth function.  Port of js.el:js-end-of-defun.
-    recursive subroutine js_end_of_subprogram(arg)
+    recursive subroutine js_end_of_function(arg)
         integer(int64), intent(in) :: arg
         type(status_type) :: st
         character(len=:), allocatable :: name
@@ -1972,9 +1972,9 @@ contains
 
         do while (.not. bobp() .and. n < 0)
             n = n + 1
-            call js_beginning_of_subprogram(1_int64, found)
-            call js_beginning_of_subprogram(1_int64, found)
-            if (.not. bobp()) call js_end_of_subprogram(1_int64)
+            call js_beginning_of_function(1_int64, found)
+            call js_beginning_of_function(1_int64, found)
+            if (.not. bobp()) call js_end_of_function(1_int64)
         end do
 
         do while (n > 0)
@@ -1984,7 +1984,7 @@ contains
             ! function's end. otherwise, search for the next function's end
             ! and go there
             if (js_flat_functions%value) then
-                call end_of_subprogram_flat()
+                call end_of_function_flat()
             else
                 ! if we're doing nested functions, see whether we're in the
                 ! prologue. If we are, go to the end of the function;
@@ -1999,19 +1999,19 @@ contains
                     found = forward_function_decl(name, anonymous)
                     call forward_group(1_int64, st)
                 else
-                    call end_of_subprogram_nested()
+                    call end_of_function_nested()
                 end if
             end if
         end do
-    end subroutine js_end_of_subprogram
+    end subroutine js_end_of_function
 
-    ! `js_end_of_subprogram' as an `end_of_subprogram_function'.
+    ! `js_end_of_function' as an `end_of_subprogram_function'.
     ! Not a port.
     recursive subroutine end_of_subprogram_proc(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call js_end_of_subprogram(1_int64)
+        call js_end_of_function(1_int64)
     end subroutine end_of_subprogram_proc
 
     ! Return whether point is inside the given pitem's header or body.
@@ -3210,7 +3210,7 @@ contains
         logical :: comma_p, moved
 
         select case (int(js_indent_first_init%value))
-        case (JS_INDENT_FIRST_INIT_T)
+        case (JS_INDENT_FIRST_INIT_YES)
             if (at(DECLARATION_KEYWORD_RE)) call goto_char(me(0) + 1)
         case (JS_INDENT_FIRST_INIT_DYNAMIC)
             if (.not. at(DECLARATION_KEYWORD_RE)) return

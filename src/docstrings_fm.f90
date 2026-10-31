@@ -307,8 +307,8 @@ module docstrings_fm
     use jit_lock_fm, only: jit_lock_chunk_size
     use js_fm, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_curly_indent_offset, &
                      js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
-                     js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NIL, &
-                     JS_INDENT_FIRST_INIT_T, JS_INDENT_FIRST_INIT_DYNAMIC, js_indent_level, js_json_mode_hook, &
+                     js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NO, &
+                     JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC, js_indent_level, js_json_mode_hook, &
                      js_json_mode_map, js_mode_hook, js_mode_map, js_mode_syntax_table, js_paren_indent_offset, &
                      js_square_indent_offset, js_switch_indent_offset
     use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_T, &
@@ -21767,13 +21767,13 @@ contains
             entry%file = "js_fm.f90"
             entry%fortran = "js_indent_first_init"
             entry%user_option = .true.
-            entry%original = "JS_INDENT_FIRST_INIT_NIL"
+            entry%original = "JS_INDENT_FIRST_INIT_NO"
 
             select case (js_indent_first_init%value)
-            case (JS_INDENT_FIRST_INIT_NIL)
-                entry%value = "JS_INDENT_FIRST_INIT_NIL"
-            case (JS_INDENT_FIRST_INIT_T)
-                entry%value = "JS_INDENT_FIRST_INIT_T"
+            case (JS_INDENT_FIRST_INIT_NO)
+                entry%value = "JS_INDENT_FIRST_INIT_NO"
+            case (JS_INDENT_FIRST_INIT_YES)
+                entry%value = "JS_INDENT_FIRST_INIT_YES"
             case (JS_INDENT_FIRST_INIT_DYNAMIC)
                 entry%value = "JS_INDENT_FIRST_INIT_DYNAMIC"
             case default
@@ -21794,7 +21794,7 @@ contains
                         "    },"//LF// &
                         "        bar = 2;"//LF// &
                         ""//LF// &
-                        "If this option has the value JS_INDENT_FIRST_INIT_T, indent the"//LF// &
+                        "If this option has the value JS_INDENT_FIRST_INIT_YES, indent the"//LF// &
                         "first declaration's initializer by an additional level:"//LF// &
                         ""//LF// &
                         "    var o = {"//LF// &
@@ -30591,17 +30591,17 @@ contains
             end select
         case ("js_indent_first_init")
             select case (constant)
-            case ("JS_INDENT_FIRST_INIT_NIL")
+            case ("JS_INDENT_FIRST_INIT_NO")
                 if (local) then
-                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_NIL)
+                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_NO)
                 else
-                    js_indent_first_init = JS_INDENT_FIRST_INIT_NIL
+                    js_indent_first_init = JS_INDENT_FIRST_INIT_NO
                 end if
-            case ("JS_INDENT_FIRST_INIT_T")
+            case ("JS_INDENT_FIRST_INIT_YES")
                 if (local) then
-                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_T)
+                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_YES)
                 else
-                    js_indent_first_init = JS_INDENT_FIRST_INIT_T
+                    js_indent_first_init = JS_INDENT_FIRST_INIT_YES
                 end if
             case ("JS_INDENT_FIRST_INIT_DYNAMIC")
                 if (local) then
