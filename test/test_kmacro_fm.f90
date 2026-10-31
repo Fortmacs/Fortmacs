@@ -36,7 +36,7 @@ module test_kmacro_fm
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message, unread_command_events, &
                            defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
                            this_command_keys, last_input_event, store_kbd_macro_event, finalize_kbd_macro_chars, &
-                           kbd_macro_termination_hook, last_command
+                           kbd_macro_termination_hook, last_command, store_event
     use bindings_fm, only: init_bindings
     use register_fm, only: set_register, get_register, register_value_type, REGISTER_NUMBER
     use rect_fm, only: rectangle_line_type
@@ -176,8 +176,13 @@ contains
     subroutine type_events(evs)
         type(value_type), intent(in) :: evs(:)
         type(status_type) :: st
+        integer :: k
 
-        call unread_command_events(evs)
+        ! As typed: into the event queue (unread events are not typed).
+        do k = 1, size(evs)
+            call store_event(evs(k))
+        end do
+
         call command_loop(st)
     end subroutine type_events
 
@@ -703,9 +708,26 @@ contains
         call type_events(kbd("C-x C-k C-v C-v C-v C-v C-v C-v C-k"))
         call check(error, text(), "c")
         if (allocated(error)) return
-        call check(error, last_message, "2nd previous macro: c")
+        ! (Reading C-k wiped the echo area; the views were logged.)
+        call check(error, index(messages_text(), "2nd previous macro: c"//achar(10)) > 0, "view messages")
         call kill_buffer(h, st)
     end subroutine test_repeat_view_and_run
+
+    !> The text of *Messages*.
+    function messages_text() result(t)
+        use buffer_fm, only: get_buffer, buffer_live_p, set_buffer, current_buffer
+        use editfns_fm, only: buffer_string
+        character(len=:), allocatable :: t
+        type(handle_type) :: old
+        type(status_type) :: st
+
+        old = current_buffer()
+        t = ""
+        if (.not. buffer_live_p(get_buffer("*Messages*"))) return
+        call set_buffer(get_buffer("*Messages*"), st)
+        t = buffer_string()
+        call set_buffer(old, st)
+    end function messages_text
 
     ! ------------------------------------------------------------------
     ! Own tests

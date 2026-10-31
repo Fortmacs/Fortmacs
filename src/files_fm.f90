@@ -44,6 +44,7 @@ module files_fm
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
                          buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
                          rename_buffer, restore_buffer_modified_p, buffer_live_p, buffer_handle, run_kill_buffer_hook
+    use fileio_fm, only: open_dribble_file
     use fileio_fm, only: file_stat_type, expand_file_name, file_name_directory, directory_name_p, &
                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
                          get_homedir, file_exists_p, file_readable_p, file_writable_p, &
@@ -2062,6 +2063,21 @@ contains
     !> type \[next_history_element] to pull it into the minibuffer.
     !> Port of files.el:find-file (interactive), with find-file-read-args (no
     !> wildcards, remote files or `file_name_at_point_functions').
+    !> Start writing input events to a dribble file called FILE.
+    !> Any previously open dribble file will be closed first.
+    !>
+    !> Be aware that this records ALL characters you type!
+    !> This may include sensitive information such as passwords.  Port of
+    !> keyboard.c:Fopen_dribble_file (its interactive spec).
+    recursive subroutine cmd_open_dribble_file(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename
+
+        call read_file_name_in_minibuffer("Open dribble file: ", filename, status)
+        if (.not. status%ok()) return
+        call open_dribble_file(status, filename)
+    end subroutine cmd_open_dribble_file
+
     recursive subroutine cmd_find_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir
@@ -2382,6 +2398,7 @@ contains
         if (.not. allocated(mounted_file_systems)) mounted_file_systems = &
             "^\(?:/\(?:afs/\|m\(?:edia/\|nt\)\|\(?:ne\|tmp_mn\)t/\)\)"
         commands%find_file%run => cmd_find_file
+        commands%open_dribble_file%run => cmd_open_dribble_file
         commands%find_file_other_window%run => cmd_find_file_other_window
         commands%revert_buffer%run => cmd_revert_buffer
         run_kill_buffer_hook => run_kill_hook

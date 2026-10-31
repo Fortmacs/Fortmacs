@@ -102,7 +102,8 @@ module simple_fm
                            real_last_command, last_prefix_arg, read_event, &
                            set_transient_map, last_message, disabled_command_hook, &
                            local_function_key_map, unread_command_events
-    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc, deactivate_mark_function
+    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc, deactivate_mark_function, &
+                           ascii_character, prefix_command_update
     implicit none(type, external)
     private
 
@@ -1553,8 +1554,7 @@ contains
     !> Should be called by all prefix commands.
     !> Runs `prefix_command_preserve_state_hook'.  Port of
     !> simple.el:prefix-command-preserve-state (with
-    !> universal-argument--preserve; the echo of the prefix state is
-    !> Deferred).
+    !> universal-argument--preserve).
     recursive subroutine prefix_command_preserve_state()
         type(status_type) :: st
 
@@ -1563,6 +1563,7 @@ contains
         current_prefix_arg = last_prefix_arg
         this_command = last_command
         real_this_command = real_last_command
+        call prefix_command_update()
     end subroutine prefix_command_preserve_state
 
     !> The keymap active after C-u: digits, minus and C-u build the
@@ -1601,6 +1602,7 @@ contains
 
     !> Port of simple.el:universal-argument--mode.
     subroutine universal_argument_mode()
+        call prefix_command_update()
         call set_transient_map(universal_argument_map())
     end subroutine universal_argument_mode
 
@@ -1840,59 +1842,6 @@ contains
             arg = arg - 1
         end do
     end subroutine cmd_quoted_insert
-
-    !> The `ascii_character' property of function-key symbol EVENT: the
-    !> character a keypad or other key with a character equivalent stands
-    !> for, or -1 (nil).  The properties bindings.el and simple.el's
-    !> keypad support give.  Not a port.
-    integer(int64) function ascii_character(event) result(c)
-        type(value_type), intent(in) :: event
-        character(len=:), allocatable :: name
-
-        c = -1
-        if (.not. symbolp(event)) return
-        name = symbols(xsymbol(event))%name
-
-        if (len(name) == 4) then
-            if (name(1:3) == "kp-" .and. verify(name(4:4), "0123456789") == 0) then
-                c = iachar(name(4:4))
-                return
-            end if
-        end if
-
-        select case (name)
-        case ("kp-decimal")
-            c = iachar(".")
-        case ("kp-add")
-            c = iachar("+")
-        case ("kp-subtract")
-            c = iachar("-")
-        case ("kp-multiply")
-            c = iachar("*")
-        case ("kp-divide")
-            c = iachar("/")
-        case ("kp-space")
-            c = iachar(" ")
-        case ("kp-tab", "tab")
-            c = 9
-        case ("kp-enter", "return")
-            c = 13
-        case ("kp-separator")
-            c = iachar(",")
-        case ("kp-equal")
-            c = iachar("=")
-        case ("backspace", "delete")
-            c = 127
-        case ("linefeed")
-            c = 10
-        case ("clear")
-            c = 12
-        case ("escape")
-            c = 27
-        case default
-            c = -1
-        end select
-    end function ascii_character
 
     !> Begin a numeric argument for the following command.
     !> Digits or minus sign following \[universal_argument] make up the numeric argument.

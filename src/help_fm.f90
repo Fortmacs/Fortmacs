@@ -63,7 +63,7 @@ module help_fm
                          key_valid_p, key_description, where_is_internal, lookup_key, current_active_maps, &
                          overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
     use derived_fm, only: major_mode_type, major_mode_named
-    use keyboard_fm, only: read_key_sequence
+    use keyboard_fm, only: read_key_sequence_vs
     use callint_fm, only: commandp
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
                          restore_buffer_modified_p, buffers, cur, buffer_live_p
@@ -750,8 +750,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: eof
 
-        call message_nolog("Describe the following key, mouse click, or menu item: ")
-        call read_key_sequence(keys, binding, eof, status)
+        call read_key_sequence_vs(keys, binding, eof, status, prompt="Describe the following key, mouse click, or menu item: ")
         call message("")
         ok = status%ok() .and. .not. eof
     end subroutine read_help_key
@@ -1396,7 +1395,7 @@ contains
             overriding_terminal_local_map = local_map
             cursor_in_echo_area = .true.
             call message_nolog(prompt)
-            call read_key_sequence(keys, binding, eof, status)
+            call read_key_sequence_vs(keys, binding, eof, status)
             cursor_in_echo_area = .false.
             overriding_terminal_local_map = saved_override
 
