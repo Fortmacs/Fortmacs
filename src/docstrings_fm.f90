@@ -381,6 +381,16 @@ module docstrings_fm
     use process_fm, only: delete_exited_processes, process_connection_type
     use prog_mode_fm, only: prog_indentation_context, prog_mode_abbrev_table, prog_mode_hook, &
                             prog_mode_map
+    use python_fm, only: python_2_support, python_base_mode_hook, python_base_mode_map, &
+                         python_dotty_syntax_table, python_fill_docstring_style, PYTHON_DOCSTRING_NIL, &
+                         PYTHON_DOCSTRING_DJANGO, PYTHON_DOCSTRING_ONETWO, PYTHON_DOCSTRING_PEP_257, &
+                         PYTHON_DOCSTRING_PEP_257_NN, PYTHON_DOCSTRING_SYMMETRIC, python_font_lock_keywords_level_1, &
+                         python_font_lock_keywords_level_2, python_font_lock_keywords_maximum_decoration, &
+                         python_indent_block_paren_deeper, python_indent_def_block_scale, &
+                         python_indent_guess_indent_offset_variable, python_indent_guess_indent_offset_verbose, &
+                         python_indent_offset, python_indent_repeat_map, python_indent_trigger_commands, &
+                         python_mode_hook, python_mode_map, python_mode_syntax_table, &
+                         python_nav_beginning_of_block_regexp, python_nav_beginning_of_subprogram_regexp
     use recentf_fm, only: recentf_auto_cleanup, RECENTF_AUTO_CLEANUP_MODE, &
                           RECENTF_AUTO_CLEANUP_NEVER, recentf_autosave_interval, recentf_exclude, &
                           recentf_exclude_ignored_extensions, recentf_filename_handlers, &
@@ -553,7 +563,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1416) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1443) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -885,15 +895,27 @@ module docstrings_fm
                                                                "process_menu_delete_process", "process_menu_mode", "process_name", &
                                                           "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                              "process_send_string", "process_status", "process_tty_name", "processp", "prog_mode", &
-                                                  "provided_mode_derived_p", "push_mark", "query_replace", "query_replace_regexp", &
-                                         "quit_process", "quit_window", "quoted_insert", "raise_expression", "re_search_backward", &
-                                                           "re_search_forward", "read_buffer", "read_char", "read_char_exclusive", &
-                                                "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
-                                           "read_event", "read_file_name_default", "read_key_sequence_vs", "read_multiple_choice", &
-                                             "read_number", "read_only_mode", "read_passwd_mode", "read_passwd_toggle_visibility", &
-                                                "read_shell_command", "read_string", "recenter", "recenter_top_bottom", "recentf", &
-                                         "recentf_cleanup", "recentf_keep_default_predicate", "recentf_load_list", "recentf_mode", &
-                                                "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
+                                              "provided_mode_derived_p", "push_mark", "python_base_mode", "python_fill_paragraph", &
+                                                               "python_indent_dedent_line", "python_indent_dedent_line_backspace", &
+                                                                  "python_indent_guess_indent_offset", "python_indent_shift_left", &
+                                                             "python_indent_shift_right", "python_mark_subprogram", "python_mode", &
+                                                                    "python_nav_backward_block", "python_nav_backward_expression", &
+                                                           "python_nav_backward_expression_safe", "python_nav_backward_statement", &
+                                                                 "python_nav_backward_subprogram", "python_nav_backward_up_group", &
+                                                             "python_nav_beginning_of_block", "python_nav_beginning_of_statement", &
+                                         "python_nav_end_of_block", "python_nav_end_of_statement", "python_nav_end_of_subprogram", &
+                                                                    "python_nav_forward_block", "python_nav_forward_expression", &
+                                                             "python_nav_forward_expression_safe", "python_nav_forward_statement", &
+                                                "python_nav_forward_subprogram", "python_nav_if_name_main", "python_nav_up_group", &
+                                          "query_replace", "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
+                                                     "raise_expression", "re_search_backward", "re_search_forward", "read_buffer", &
+                                                      "read_char", "read_char_exclusive", "read_char_from_minibuffer_insert_char", &
+                                                 "read_char_from_minibuffer_insert_other", "read_event", "read_file_name_default", &
+                                                  "read_key_sequence_vs", "read_multiple_choice", "read_number", "read_only_mode", &
+                                         "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
+                                                                  "recenter", "recenter_top_bottom", "recentf", "recentf_cleanup", &
+                                            "recentf_keep_default_predicate", "recentf_load_list", "recentf_mode", "recentf_open", &
+                                                                "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
                                            "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
                                                          "rectangle_forward_char", "rectangle_intersect_p", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
@@ -979,7 +1001,7 @@ module docstrings_fm
                                                  "y_or_n_p_insert_y", "yank", "yank_pop", "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1162) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1182) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1279,9 +1301,18 @@ module docstrings_fm
                                                "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
                                                                   "prefix_command_preserve_state_hook", "process_connection_type", &
                                           "prog_indentation_context", "prog_mode_abbrev_table", "prog_mode_hook", "prog_mode_map", &
-                                                                  "query_replace_defaults", "query_replace_from_history_variable", &
-                                                              "query_replace_from_to_separator", "query_replace_show_replacement", &
-                                         "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
+                                                              "python_2_support", "python_base_mode_hook", "python_base_mode_map", &
+                                                                    "python_dotty_syntax_table", "python_fill_docstring_style", &
+                                                         "python_font_lock_keywords_level_1", "python_font_lock_keywords_level_2", &
+                                               "python_font_lock_keywords_maximum_decoration", "python_indent_block_paren_deeper", &
+                                                             "python_indent_def_block_scale", "python_indent_guess_indent_offset", &
+                                                              "python_indent_guess_indent_offset_verbose", "python_indent_offset", &
+                                                 "python_indent_repeat_map", "python_indent_trigger_commands", "python_mode_hook", &
+                                            "python_mode_map", "python_mode_syntax_table", "python_nav_beginning_of_block_regexp", &
+                                                            "python_nav_beginning_of_subprogram_regexp", "query_replace_defaults", &
+                                                         "query_replace_from_history_variable", "query_replace_from_to_separator", &
+                                                                 "query_replace_show_replacement", "query_replace_skip_read_only", &
+                                                                    "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                                     "read_file_name_completion_ignore_case", "read_hide_char", &
                                                "read_minibuffer_restore_windows", "read_only_mode_hook", "read_quoted_char_radix", &
@@ -1387,7 +1418,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(570) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(578) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1794,6 +1825,14 @@ module docstrings_fm
                                                                       "pcomplete_use_paring", &
                                                                       "pop_up_windows", &
                                                                       "prog_mode_hook", &
+                                                                      "python_2_support", &
+                                                                      "python_fill_docstring_style", &
+                                                                      "python_indent_block_paren_deeper", &
+                                                                      "python_indent_def_block_scale", &
+                                                                      "python_indent_guess_indent_offset", &
+                                                                      "python_indent_guess_indent_offset_verbose", &
+                                                                      "python_indent_offset", &
+                                                                      "python_indent_trigger_commands", &
                                                                       "query_replace_from_history_variable", &
                                                                       "query_replace_from_to_separator", &
                                                                       "query_replace_show_replacement", &
@@ -10645,6 +10684,125 @@ contains
                         "ring.  Display `Mark set' unless the optional second arg NOMSG is"//LF// &
                         "true.  In Transient Mark mode, activate mark if optional third arg"//LF// &
                         "ACTIVATE is true."
+        case ("python_base_mode")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Generic major mode for editing Python files."//LF// &
+                        ""//LF// &
+                        "This is a generic major mode intended to be inherited by"//LF// &
+                        "concrete implementations.  Currently there are two concrete"//LF// &
+                        "implementations: `python_mode' and `python_ts_mode'."
+        case ("python_fill_paragraph")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Fill a comment, string, decorator or paren (the command)."
+        case ("python_indent_dedent_line")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "De-indent current line (the command)."
+        case ("python_indent_dedent_line_backspace")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "De-indent current line (the command)."
+        case ("python_indent_guess_indent_offset")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Guess and set `python_indent_offset' for the current buffer (the"//LF// &
+                        "command)."
+        case ("python_indent_shift_left")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Shift lines contained in the region by COUNT columns to the left (the"//LF// &
+                        "command)."
+        case ("python_indent_shift_right")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Shift lines contained in the region by COUNT columns to the right (the"//LF// &
+                        "command)."
+        case ("python_mark_subprogram")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Put mark at end of this subprogram, point at beginning (the command)."
+        case ("python_mode")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing Python files."//LF// &
+                        ""//LF// &
+                        "\{python_mode_map}"
+        case ("python_nav_backward_block")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward to previous block of code (the command)."
+        case ("python_nav_backward_expression")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward across expressions (the command)."
+        case ("python_nav_backward_expression_safe")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward safely across expressions (the command)."
+        case ("python_nav_backward_statement")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward to previous statement (the command)."
+        case ("python_nav_backward_subprogram")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Navigate to closer subprogram backward ARG times (the command)."
+        case ("python_nav_backward_up_group")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward out of one level of parentheses (or blocks) (the"//LF// &
+                        "command)."
+        case ("python_nav_beginning_of_block")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to start of current block (the command)."
+        case ("python_nav_beginning_of_statement")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to start of current statement (the command)."
+        case ("python_nav_end_of_block")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to end of current block (the command)."
+        case ("python_nav_end_of_statement")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to end of current statement (the command)."
+        case ("python_nav_end_of_subprogram")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the end of def or class (the command)."
+        case ("python_nav_forward_block")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward to next block of code (the command)."
+        case ("python_nav_forward_expression")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward across expressions (the command)."
+        case ("python_nav_forward_expression_safe")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward safely across expressions (the command)."
+        case ("python_nav_forward_statement")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward to next statement (the command)."
+        case ("python_nav_forward_subprogram")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Navigate to closer subprogram forward ARG times (the command)."
+        case ("python_nav_if_name_main")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point at the beginning the __main__ block (the command)."
+        case ("python_nav_up_group")
+            entry%file = "python_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward out of one level of parentheses (or blocks) (the"//LF// &
+                        "command)."
         case ("query_replace")
             entry%file = "replace_fm.f90"
             entry%fortran = "call query_replace(from_string, to_string, status, delimited, start, end, backward)"
@@ -22837,6 +22995,267 @@ contains
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "prog_mode_map"
             entry%doc = "Keymap used for programming modes."
+        case ("python_2_support")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_2_support"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(python_2_support%value)
+            entry%doc = "If true, enable Python 2 support."//LF// &
+                        "Currently only affects highlighting."//LF// &
+                        ""//LF// &
+                        "After customizing this variable, you must restart Emacs for it to take"//LF// &
+                        "effect."
+        case ("python_base_mode_hook")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_base_mode_hook"
+            entry%doc = "Normal hook run by `python_base_mode'."
+        case ("python_base_mode_map")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_base_mode_map"
+            entry%doc = "Keymap for `python_base_mode'."
+        case ("python_dotty_syntax_table")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_dotty_syntax_table"
+            entry%doc = "Dotty syntax table for Python files."//LF// &
+                        "It makes underscores and dots word constituent chars."
+        case ("python_fill_docstring_style")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_fill_docstring_style"
+            entry%user_option = .true.
+            entry%original = "PYTHON_DOCSTRING_PEP_257"
+
+            select case (python_fill_docstring_style%value)
+            case (PYTHON_DOCSTRING_NIL)
+                entry%value = "PYTHON_DOCSTRING_NIL"
+            case (PYTHON_DOCSTRING_DJANGO)
+                entry%value = "PYTHON_DOCSTRING_DJANGO"
+            case (PYTHON_DOCSTRING_ONETWO)
+                entry%value = "PYTHON_DOCSTRING_ONETWO"
+            case (PYTHON_DOCSTRING_PEP_257)
+                entry%value = "PYTHON_DOCSTRING_PEP_257"
+            case (PYTHON_DOCSTRING_PEP_257_NN)
+                entry%value = "PYTHON_DOCSTRING_PEP_257_NN"
+            case (PYTHON_DOCSTRING_SYMMETRIC)
+                entry%value = "PYTHON_DOCSTRING_SYMMETRIC"
+            case default
+                entry%value = repr(python_fill_docstring_style%value)
+            end select
+
+            entry%doc = "Style used to fill docstrings."//LF// &
+                        "This affects `python_fill_string' behavior with regards to"//LF// &
+                        "triple quotes positioning."//LF// &
+                        ""//LF// &
+                        "Possible values are PYTHON_DOCSTRING_DJANGO, _ONETWO, _PEP_257,"//LF// &
+                        "_PEP_257_NN, _SYMMETRIC, and PYTHON_DOCSTRING_NIL.  A value of"//LF// &
+                        "PYTHON_DOCSTRING_NIL won't care about quotes position and will treat"//LF// &
+                        "docstrings a normal string, any other value may result in one of"//LF// &
+                        "the following docstring styles:"//LF// &
+                        ""//LF// &
+                        "PYTHON_DOCSTRING_DJANGO:"//LF// &
+                        ""//LF// &
+                        "    """""""//LF// &
+                        "    Process foo, return bar."//LF// &
+                        "    """""""//LF// &
+                        ""//LF// &
+                        "    """""""//LF// &
+                        "    Process foo, return bar."//LF// &
+                        ""//LF// &
+                        "    If processing fails throw ProcessingError."//LF// &
+                        "    """""""//LF// &
+                        ""//LF// &
+                        "PYTHON_DOCSTRING_ONETWO:"//LF// &
+                        ""//LF// &
+                        "    """"""Process foo, return bar."""""""//LF// &
+                        ""//LF// &
+                        "    """""""//LF// &
+                        "    Process foo, return bar."//LF// &
+                        ""//LF// &
+                        "    If processing fails throw ProcessingError."//LF// &
+                        ""//LF// &
+                        "    """""""//LF// &
+                        ""//LF// &
+                        "PYTHON_DOCSTRING_PEP_257:"//LF// &
+                        ""//LF// &
+                        "    """"""Process foo, return bar."""""""//LF// &
+                        ""//LF// &
+                        "    """"""Process foo, return bar."//LF// &
+                        ""//LF// &
+                        "    If processing fails throw ProcessingError."//LF// &
+                        ""//LF// &
+                        "    """""""//LF// &
+                        ""//LF// &
+                        "PYTHON_DOCSTRING_PEP_257_NN:"//LF// &
+                        ""//LF// &
+                        "    """"""Process foo, return bar."""""""//LF// &
+                        ""//LF// &
+                        "    """"""Process foo, return bar."//LF// &
+                        ""//LF// &
+                        "    If processing fails throw ProcessingError."//LF// &
+                        "    """""""//LF// &
+                        ""//LF// &
+                        "PYTHON_DOCSTRING_SYMMETRIC:"//LF// &
+                        ""//LF// &
+                        "    """"""Process foo, return bar."""""""//LF// &
+                        ""//LF// &
+                        "    """""""//LF// &
+                        "    Process foo, return bar."//LF// &
+                        ""//LF// &
+                        "    If processing fails throw ProcessingError."//LF// &
+                        "    """""""
+        case ("python_font_lock_keywords_level_1")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_font_lock_keywords_level_1"
+            entry%doc = "Font lock keywords to use in `python_mode' for level 1 decoration."//LF// &
+                        ""//LF// &
+                        "This is the minimum decoration level, including function and"//LF// &
+                        "class declarations."
+        case ("python_font_lock_keywords_level_2")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_font_lock_keywords_level_2"
+            entry%doc = "Font lock keywords to use in `python_mode' for level 2 decoration."//LF// &
+                        ""//LF// &
+                        "This is the medium decoration level, including everything in"//LF// &
+                        "`python_font_lock_keywords_level_1', as well as keywords and"//LF// &
+                        "builtins."
+        case ("python_font_lock_keywords_maximum_decoration")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_font_lock_keywords_maximum_decoration"
+            entry%doc = "Font lock keywords to use in `python_mode' for maximum decoration."//LF// &
+                        ""//LF// &
+                        "This decoration level includes everything in"//LF// &
+                        "`python_font_lock_keywords_level_2', as well as constants,"//LF// &
+                        "decorators, exceptions, and assignments."
+        case ("python_indent_block_paren_deeper")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_indent_block_paren_deeper"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(python_indent_block_paren_deeper%value)
+            entry%doc = "Increase indentation inside parens of a block."//LF// &
+                        "If true, increase the indentation of the lines inside parens"//LF// &
+                        "in a header of a block when they are indented to the same level"//LF// &
+                        "as the body of the block:"//LF// &
+                        ""//LF// &
+                        "    if (some_expression"//LF// &
+                        "            and another_expression):"//LF// &
+                        "        do_something()"//LF// &
+                        ""//LF// &
+                        "instead of:"//LF// &
+                        ""//LF// &
+                        "    if (some_expression"//LF// &
+                        "        and another_expression):"//LF// &
+                        "        do_something()"//LF// &
+                        ""//LF// &
+                        "This variable only works if the opening paren is followed by"//LF// &
+                        "non-whitespace characters on the same line.  Modify"//LF// &
+                        "`python_indent_def_block_scale' to customize the case where"//LF// &
+                        "non-whitespace character does not follow the opening paren on the"//LF// &
+                        "same line."
+        case ("python_indent_def_block_scale")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_indent_def_block_scale"
+            entry%user_option = .true.
+            entry%original = "2"
+            entry%value = repr(python_indent_def_block_scale%value)
+            entry%doc = "Multiplier applied to indentation inside multi-line blocks."//LF// &
+                        "The indentation in parens in the block header will be the current"//LF// &
+                        "indentation plus `python_indent_offset' multiplied by this"//LF// &
+                        "variable.  For example, the arguments are indented as follows if"//LF// &
+                        "this variable is 1:"//LF// &
+                        ""//LF// &
+                        "    def do_something("//LF// &
+                        "        arg1,"//LF// &
+                        "        arg2):"//LF// &
+                        "        print('hello')"//LF// &
+                        ""//LF// &
+                        "if this variable is 2 (default):"//LF// &
+                        ""//LF// &
+                        "    def do_something("//LF// &
+                        "            arg1,"//LF// &
+                        "            arg2):"//LF// &
+                        "        print('hello')"//LF// &
+                        ""//LF// &
+                        "This variable has an effect on all blocks, not just def block."//LF// &
+                        "This variable only works if the opening paren is not followed by"//LF// &
+                        "non-whitespace characters on the same line.  Modify"//LF// &
+                        "`python_indent_block_paren_deeper' to customize the case where"//LF// &
+                        "non-whitespace characters follow the opening paren on the same"//LF// &
+                        "line."
+        case ("python_indent_guess_indent_offset")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_indent_guess_indent_offset_variable"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(python_indent_guess_indent_offset_variable%value)
+            entry%doc = "True tells Python mode to guess `python_indent_offset' value."
+        case ("python_indent_guess_indent_offset_verbose")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_indent_guess_indent_offset_verbose"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(python_indent_guess_indent_offset_verbose%value)
+            entry%doc = "True means to emit a warning when indentation guessing fails."
+        case ("python_indent_offset")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_indent_offset"
+            entry%user_option = .true.
+            entry%original = "4"
+            entry%value = repr(python_indent_offset%value)
+            entry%doc = "Default indentation offset for Python."
+        case ("python_indent_repeat_map")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_indent_repeat_map"
+            entry%doc = "Keymap to repeat Python indentation commands."//LF// &
+                        "Used in `repeat_mode'."
+        case ("python_indent_trigger_commands")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_indent_trigger_commands"
+            entry%user_option = .true.
+
+            if (allocated(python_indent_trigger_commands)) then
+                entry%value = repr(python_indent_trigger_commands)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Commands that might trigger a `python_indent_line' call."
+        case ("python_mode_hook")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_mode_hook"
+            entry%doc = "Normal hook run by `python_mode'."
+        case ("python_mode_map")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_mode_map"
+            entry%doc = "Keymap for `python_mode'."
+        case ("python_mode_syntax_table")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_mode_syntax_table"
+            entry%doc = "Syntax table for Python files."
+        case ("python_nav_beginning_of_block_regexp")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_nav_beginning_of_block_regexp"
+
+            if (allocated(python_nav_beginning_of_block_regexp)) then
+                entry%value = repr(python_nav_beginning_of_block_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp matching block start."
+        case ("python_nav_beginning_of_subprogram_regexp")
+            entry%file = "python_fm.f90"
+            entry%fortran = "python_nav_beginning_of_subprogram_regexp"
+
+            if (allocated(python_nav_beginning_of_subprogram_regexp)) then
+                entry%value = repr(python_nav_beginning_of_subprogram_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp matching class or function definition."//LF// &
+                        "The name of the subprogram should be grouped so it can be retrieved"//LF// &
+                        "via `match_string'."
         case ("query_replace_defaults")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_defaults"
@@ -26997,6 +27416,27 @@ contains
             setting = .true.
         case ("pop_up_windows")
             kind = OPTION_LOGICAL
+        case ("python_2_support")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("python_fill_docstring_style")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("python_indent_block_paren_deeper")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("python_indent_def_block_scale")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("python_indent_guess_indent_offset")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("python_indent_guess_indent_offset_verbose")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("python_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
         case ("query_replace_from_history_variable")
             kind = OPTION_STRING
         case ("query_replace_from_to_separator")
@@ -27840,6 +28280,30 @@ contains
             end if
         case ("pop_up_windows")
             pop_up_windows = v
+        case ("python_2_support")
+            if (local) then
+                call python_2_support%set_local(v)
+            else
+                python_2_support = v
+            end if
+        case ("python_indent_block_paren_deeper")
+            if (local) then
+                call python_indent_block_paren_deeper%set_local(v)
+            else
+                python_indent_block_paren_deeper = v
+            end if
+        case ("python_indent_guess_indent_offset")
+            if (local) then
+                call python_indent_guess_indent_offset_variable%set_local(v)
+            else
+                python_indent_guess_indent_offset_variable = v
+            end if
+        case ("python_indent_guess_indent_offset_verbose")
+            if (local) then
+                call python_indent_guess_indent_offset_verbose%set_local(v)
+            else
+                python_indent_guess_indent_offset_verbose = v
+            end if
         case ("query_replace_show_replacement")
             query_replace_show_replacement = v
         case ("query_replace_skip_read_only")
@@ -28243,6 +28707,18 @@ contains
             end if
 
             next_screen_context_lines = int(v)
+        case ("python_indent_def_block_scale")
+            if (local) then
+                call python_indent_def_block_scale%set_local(v)
+            else
+                python_indent_def_block_scale = v
+            end if
+        case ("python_indent_offset")
+            if (local) then
+                call python_indent_offset%set_local(v)
+            else
+                python_indent_offset = v
+            end if
         case ("read_quoted_char_radix")
             read_quoted_char_radix = v
         case ("regexp_search_ring_max")
@@ -29670,6 +30146,47 @@ contains
                     call mode_require_final_newline%set_local(FINAL_NEWLINE_ASK)
                 else
                     mode_require_final_newline = FINAL_NEWLINE_ASK
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("python_fill_docstring_style")
+            select case (constant)
+            case ("PYTHON_DOCSTRING_NIL")
+                if (local) then
+                    call python_fill_docstring_style%set_local(PYTHON_DOCSTRING_NIL)
+                else
+                    python_fill_docstring_style = PYTHON_DOCSTRING_NIL
+                end if
+            case ("PYTHON_DOCSTRING_DJANGO")
+                if (local) then
+                    call python_fill_docstring_style%set_local(PYTHON_DOCSTRING_DJANGO)
+                else
+                    python_fill_docstring_style = PYTHON_DOCSTRING_DJANGO
+                end if
+            case ("PYTHON_DOCSTRING_ONETWO")
+                if (local) then
+                    call python_fill_docstring_style%set_local(PYTHON_DOCSTRING_ONETWO)
+                else
+                    python_fill_docstring_style = PYTHON_DOCSTRING_ONETWO
+                end if
+            case ("PYTHON_DOCSTRING_PEP_257")
+                if (local) then
+                    call python_fill_docstring_style%set_local(PYTHON_DOCSTRING_PEP_257)
+                else
+                    python_fill_docstring_style = PYTHON_DOCSTRING_PEP_257
+                end if
+            case ("PYTHON_DOCSTRING_PEP_257_NN")
+                if (local) then
+                    call python_fill_docstring_style%set_local(PYTHON_DOCSTRING_PEP_257_NN)
+                else
+                    python_fill_docstring_style = PYTHON_DOCSTRING_PEP_257_NN
+                end if
+            case ("PYTHON_DOCSTRING_SYMMETRIC")
+                if (local) then
+                    call python_fill_docstring_style%set_local(PYTHON_DOCSTRING_SYMMETRIC)
+                else
+                    python_fill_docstring_style = PYTHON_DOCSTRING_SYMMETRIC
                 end if
             case default
                 ok = .false.

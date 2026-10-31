@@ -651,6 +651,16 @@ module fortmacs
                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
                             SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
                             sh_style_type, sh_var_list
+    use python_fm, only: python_2_support, python_indent_offset, python_indent_guess_indent_offset_variable, &
+                         python_indent_guess_indent_offset_verbose, python_indent_trigger_commands, &
+                         python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_expression_function, &
+                         python_fill_docstring_style, python_fill_comment_function, python_fill_string_function, &
+                         python_fill_decorator_function, python_fill_paren_function, python_base_mode_map, &
+                         python_mode_map, python_indent_repeat_map, python_mode_syntax_table, python_dotty_syntax_table, &
+                         python_base_mode_hook, python_mode_hook, python_font_lock_keywords_level_1, &
+                         python_font_lock_keywords_level_2, python_font_lock_keywords_maximum_decoration, &
+                         PYTHON_DOCSTRING_NIL, PYTHON_DOCSTRING_DJANGO, PYTHON_DOCSTRING_ONETWO, PYTHON_DOCSTRING_PEP_257, &
+                         PYTHON_DOCSTRING_PEP_257_NN, PYTHON_DOCSTRING_SYMMETRIC
     use executable_fm, only: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
                              executable_prefix_env, executable_chmod, executable_self_display, &
                              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
@@ -1086,6 +1096,16 @@ module fortmacs
               SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
               SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_table, &
               sh_style_type, sh_var_list
+    public :: python_2_support, python_indent_offset, python_indent_guess_indent_offset_variable, &
+              python_indent_guess_indent_offset_verbose, python_indent_trigger_commands, &
+              python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_expression_function, &
+              python_fill_docstring_style, python_fill_comment_function, python_fill_string_function, &
+              python_fill_decorator_function, python_fill_paren_function, python_base_mode_map, &
+              python_mode_map, python_indent_repeat_map, python_mode_syntax_table, python_dotty_syntax_table, &
+              python_base_mode_hook, python_mode_hook, python_font_lock_keywords_level_1, &
+              python_font_lock_keywords_level_2, python_font_lock_keywords_maximum_decoration, &
+              PYTHON_DOCSTRING_NIL, PYTHON_DOCSTRING_DJANGO, PYTHON_DOCSTRING_ONETWO, PYTHON_DOCSTRING_PEP_257, &
+              PYTHON_DOCSTRING_PEP_257_NN, PYTHON_DOCSTRING_SYMMETRIC
     public :: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
               executable_prefix_env, executable_chmod, executable_self_display, &
               executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &

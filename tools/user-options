@@ -10,6 +10,7 @@
 # Copyright (C) 2026 The Fortmacs authors
 #
 # This file is part of Fortmacs, under the GNU GPL version 3 or later.
+
 abbrev_all_caps
 abbrev_file_name
 abbrev_mode
@@ -416,6 +417,14 @@ pcomplete_try_first_hook
 pcomplete_use_paring
 pop_up_windows
 prog_mode_hook
+python_2_support
+python_fill_docstring_style
+python_indent_block_paren_deeper
+python_indent_def_block_scale
+python_indent_guess_indent_offset
+python_indent_guess_indent_offset_verbose
+python_indent_offset
+python_indent_trigger_commands
 query_replace_from_history_variable
 query_replace_from_to_separator
 query_replace_show_replacement
