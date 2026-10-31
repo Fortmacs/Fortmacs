@@ -171,6 +171,7 @@ contains
                     new_unittest("minibuf-depth-and-prompt", test_depth_prompt), &
                     new_unittest("test-inhibit-interaction", test_inhibit_interaction), &
                     new_unittest("assoc-string", test_assoc_string), &
+                    new_unittest("read-variable", test_read_variable), &
                     new_unittest("test-try-completion-ignore-case", test_try_completion_ignore_case), &
                     new_unittest("completion-auto-help-test", test_completion_auto_help), &
                     new_unittest("completions-list-buffer", test_completion_list_buffer), &
@@ -1664,6 +1665,24 @@ contains
         r = assoc_string("two", l, case_fold=.true.)
         call check(error, vtag(r) == V_LIST, "case folded")
     end subroutine test_assoc_string
+
+    !> read-variable completes over the user options; RET with empty
+    !> input gives the default.
+    subroutine test_read_variable(error)
+        use simple_fm, only: read_variable
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: name
+        type(status_type) :: st
+
+        call fresh_scratch()
+        call type_text("fill_col"//achar(9)//achar(13))
+        call read_variable("Variable: ", name, st)
+        call check(error, st%ok() .and. name == "fill_column", name)
+        if (allocated(error)) return
+        call type_text(achar(13))
+        call read_variable("Variable: ", name, st, default_value="tab_width")
+        call check(error, name, "tab_width")
+    end subroutine test_read_variable
 
     ! Minibuffer-setup function: note the depth and the prompt.
     subroutine note_depth()

@@ -571,7 +571,7 @@ contains
         minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
         ! (Windows may have been made meanwhile: fetch them again.)
-        ! minibuffer_unwind
+        ! minibuf.c:minibuffer_unwind (one frame)
         mw => minibuffer_window_ref()
         mw%buffer = old_mini_buffer
 

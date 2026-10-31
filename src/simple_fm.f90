@@ -116,7 +116,7 @@ module simple_fm
     public :: set_next_error_function, has_next_error_function, next_error_buffer_p, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, syms_of_simple_next_error
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
-    public :: set_variable
+    public :: set_variable, read_variable
     public :: read_only_mode, what_line, what_line_text
     public :: read_shell_command, shell_command, shell_command_on_region, call_process_shell_command, call_shell_region, &
               display_message_or_buffer, &
@@ -511,6 +511,21 @@ module simple_fm
             logical, intent(in) :: make_local
             type(status_type), intent(out) :: status
         end subroutine set_variable
+
+        !> Read the name of a user option and return it in NAME.
+        !> Prompt with PROMPT.  By default, return DEFAULT_VALUE.
+        !> A user option, or customizable variable, is one for which
+        !> `custom_variable_p' returns true.  (Empty input without a
+        !> default gives "".)  Port of minibuf.c:Fread_variable (here, as
+        !> the user options are known to docstrings_fm).  (In
+        !> simple_setvar_fm.)
+        recursive module subroutine read_variable(prompt, name, status, default_value)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            character(len=:), allocatable, intent(out) :: name
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: default_value
+        end subroutine read_variable
 
         !> Set VARIABLE to VALUE, read in the minibuffer.  Port of
         !> simple.el:set-variable (the command).  (In simple_setvar_fm.)

@@ -1293,7 +1293,8 @@ contains
         call copy_keymap_1(km, 0, copy, status)
     end subroutine copy_keymap
 
-    !> Port of keymap.c:copy_keymap_1.
+    !> Port of keymap.c:copy_keymap_1 (with keymap.c:copy_keymap_item and
+    !> keymap.c:copy_keymap_set_char_table; menu items are not ported).
     recursive subroutine copy_keymap_1(km, depth, copy, status)
         type(handle_type), intent(in) :: km
         integer, intent(in) :: depth
@@ -1575,8 +1576,11 @@ contains
     !> map_keymap visits them: for each map, a full keymap's char-table
     !> first, as runs of characters bound alike (an event FROM, or the
     !> list (FROM TO) for a run), then the other entries, newest first.
-    !> Port of keymap.c:map_keymap (with map_keymap_internal and
-    !> map_keymap_char_table_item).
+    !> Port of keymap.c:map_keymap and keymap.c:Fmap_keymap (with
+    !> keymap.c:map_keymap_internal, keymap.c:Fmap_keymap_internal for each
+    !> map, keymap.c:map_keymap_item, keymap.c:map_keymap_call and
+    !> keymap.c:map_keymap_char_table_item; the caller gets the items
+    !> instead of a function being called).
     subroutine map_keymap_items(km, events, bindings)
         type(handle_type), intent(in) :: km
         type(value_type), allocatable, intent(out) :: events(:), bindings(:)
@@ -1627,7 +1631,8 @@ contains
     !> ([] . KEYMAP).  An optional argument PREFIX, if present, should be a
     !> key sequence; then the value includes only maps for prefixes that
     !> start with PREFIX.  Port of keymap.c:Faccessible_keymaps (with
-    !> accessible_keymaps_1).
+    !> accessible_keymaps_1, keymap.c:append_key and, for the ESC maps,
+    !> keymap.c:map_keymap_canonical).
     subroutine accessible_keymaps(keymap, maps, prefix)
         type(handle_type), intent(in) :: keymap
         type(key_list_type), allocatable, intent(out) :: maps(:)
@@ -2661,8 +2666,8 @@ contains
     !> by a character are given as one Meta character.  Bindings shadowed
     !> by another binding of the same key are left out.  With FIRSTONLY,
     !> the command's `advertised_binding' comes first if it runs it.
-    !> Port of keymap.c:Fwhere_is_internal (no remapping, menus or
-    !> composed keymaps).  A run of characters bound alike in a full
+    !> Port of keymap.c:Fwhere_is_internal and keymap.c:where_is_internal
+    !> (no remapping, menus or composed keymaps).  A run of characters bound alike in a full
     !> keymap's char-table is found as one event, the interval (FROM TO).
     subroutine where_is_internal(definition, keys, firstonly, keymap)
         type(value_type), intent(in) :: definition
@@ -2738,7 +2743,7 @@ contains
         end do
 
         ! Verify that each binding is not shadowed by another binding for
-        ! the same key, then pick the result.
+        ! the same key (keymap.c:shadow_lookup), then pick the result.
         allocate (elems(0))
 
         do k = 1, nfound

@@ -2067,7 +2067,8 @@ contains
     !> longer one as "FIRST .. LAST"; a run that crosses the end of the
     !> 5-byte characters is split there.  Port of
     !> keymap.c:describe_vector (a char-table; KEYMAP_P true) with the
-    !> help.el:describe-map describer.
+    !> help.el:describe-map describer, as keymap.c:Fhelp__describe_vector
+    !> calls it.
     subroutine describe_vector(from, to, defs, prefix, transl, partial, shadow, mention_shadow, text)
         integer(int64), intent(in) :: from(:), to(:)
         type(value_type), intent(in) :: defs(:), prefix(:), shadow(:)
