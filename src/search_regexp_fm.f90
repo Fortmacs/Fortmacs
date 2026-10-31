@@ -70,7 +70,7 @@ contains
     !> Compile PATTERN for case folding `translate' and Posix backtracking
     !> `posix', or find it already compiled, and return its index in the
     !> cache, moved to the front as most recently used.  Port of
-    !> search.c:compile_pattern and compile_pattern_1.
+    !> search.c:compile_pattern and search.c:compile_pattern_1.
     subroutine compile_pattern(pattern, translate, posix, k, status)
         character(len=*), intent(in) :: pattern
         logical, intent(in) :: translate, posix
@@ -140,6 +140,22 @@ contains
         end associate
     end subroutine compile_pattern
 
+    !> Mark cache entry K busy while a match uses it, so that a nested
+    !> search compiles elsewhere.  Port of search.c:freeze_pattern (the
+    !> busy flag: unfreeze_pattern clears it).
+    subroutine freeze_pattern(k)
+        integer, intent(in) :: k
+
+        searchbufs(k)%busy = .true.
+    end subroutine freeze_pattern
+
+    !> Port of search.c:unfreeze_pattern.
+    subroutine unfreeze_pattern(k)
+        integer, intent(in) :: k
+
+        searchbufs(k)%busy = .false.
+    end subroutine unfreeze_pattern
+
     !> Whether two handles are the same.  Not a port.
     pure logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
@@ -192,14 +208,15 @@ contains
     integer :: k
 
     matched = .false.
+    if (running_asynch_code) call save_search_regs()
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_buffer()
 
     associate (b => buffers(cur))
-        searchbufs(k)%busy = .true.
+        call freeze_pattern(k)
         i = re_match(searchbufs(k)%buf, subj, b%pt_byte - b%begv_byte, regs, b%zv_byte - b%begv_byte)
-        searchbufs(k)%busy = .false.
+        call unfreeze_pattern(k)
     end associate
 
     if (i == -2) then
@@ -211,6 +228,54 @@ contains
     if (modify_data .and. matched) call set_regs_from_buffer(regs)
     end procedure looking_at_1
 
+    !> Port of search.c:fast_string_match_internal.
+    module procedure fast_string_match
+    type(re_subject_type) :: subj
+    integer(int64) :: val
+    integer :: k
+
+    idx = 0
+    call compile_pattern(regexp, fold, .false., k, status)
+    if (.not. status%ok()) return
+    subj = subject_from_string(string)
+    call freeze_pattern(k)
+    val = re_search(searchbufs(k)%buf, subj, 0_int64, len(string, kind=int64), stop=len(string, kind=int64))
+    call unfreeze_pattern(k)
+
+    if (val == -2) then
+        call matcher_overflow(status)
+        return
+    end if
+
+    if (val >= 0) idx = string_offset_to_index(string, val)
+    end procedure fast_string_match
+
+    !> Port of search.c:fast_looking_at.
+    module procedure fast_looking_at
+    type(re_subject_type) :: subj
+    integer(int64) :: pos_byte, limit_byte
+    integer :: k
+
+    length = -1
+    call compile_pattern(regexp, .false., .false., k, status)
+    if (.not. status%ok()) return
+
+    if (present(string)) then
+        pos_byte = string_index_to_offset(string, pos)
+        limit_byte = string_index_to_offset(string, limit)
+        subj = subject_from_string(string)
+    else
+        pos_byte = char_to_byte(pos) - buffers(cur)%begv_byte
+        limit_byte = char_to_byte(limit) - buffers(cur)%begv_byte
+        subj = subject_from_buffer()
+    end if
+
+    call freeze_pattern(k)
+    length = re_match(searchbufs(k)%buf, subj, pos_byte, stop=limit_byte)
+    call unfreeze_pattern(k)
+    if (length == -2) call matcher_overflow(status)
+    end procedure fast_looking_at
+
     !> Port of search.c:string_match_1.
     module procedure string_match_1
     type(re_subject_type) :: subj
@@ -221,6 +286,7 @@ contains
 
     idx = 0
     status = status_type()
+    if (running_asynch_code) call save_search_regs()
     pos = 1
 
     if (present(start)) then
@@ -241,10 +307,10 @@ contains
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_string(string)
-    searchbufs(k)%busy = .true.
+    call freeze_pattern(k)
     val = re_search(searchbufs(k)%buf, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
                     len(string, kind=int64))
-    searchbufs(k)%busy = .false.
+    call unfreeze_pattern(k)
 
     if (val == -2) then
         call matcher_overflow(status)
@@ -275,10 +341,10 @@ contains
 
     do while (n < 0)
         ! Don't allow match past current point.
-        searchbufs(k)%busy = .true.
+        call freeze_pattern(k)
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         pos_byte - begv_byte)
-        searchbufs(k)%busy = .false.
+        call unfreeze_pattern(k)
 
         if (val == -2) then
             call matcher_overflow(status)
@@ -298,10 +364,10 @@ contains
     end do
 
     do while (n > 0)
-        searchbufs(k)%busy = .true.
+        call freeze_pattern(k)
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         lim_byte - begv_byte)
-        searchbufs(k)%busy = .false.
+        call unfreeze_pattern(k)
 
         if (val == -2) then
             call matcher_overflow(status)

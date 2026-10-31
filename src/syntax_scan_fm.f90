@@ -198,7 +198,7 @@ contains
     integer function comment_style(flags, other_flags)
         integer, intent(in) :: flags, other_flags
 
-        comment_style = ior(ior(iand(ishft(flags, -21), 1), stylec2(flags)), stylec2(other_flags))
+        comment_style = ior(ior(merge(1, 0, syntax_flags_comment_styleb(flags)), stylec2(flags)), stylec2(other_flags))
     end function comment_style
 
     !> Return syntax code of character C if C is an ASCII character or if
@@ -394,7 +394,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> Return the SYNTAX_COMEND_FIRST of the character before POS,
-    !> POS_BYTE.  Port of syntax.c:prev_char_comend_first.
+    !> POS_BYTE.  Port of syntax.c:prev_char_comend_first (with
+    !> syntax.c:SYNTAX_COMEND_FIRST at that position).
     recursive logical function prev_char_comend_first(pos_in, pos_byte_in)
         integer(int64), intent(in) :: pos_in, pos_byte_in
         integer(int64) :: pos, pos_byte

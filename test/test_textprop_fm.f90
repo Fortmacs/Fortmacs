@@ -27,7 +27,7 @@ module test_textprop_fm
     use error_fm, only: status_type, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, &
                         FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: list, make_fixnum, make_string, nil, nilp, t_value, value_type
+    use lisp_fm, only: list, make_fixnum, make_string, nil, nilp, t_value, value_type, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq, set
     use fns_fm, only: value_equal, put
@@ -44,11 +44,19 @@ module test_textprop_fm
                            previous_single_property_change, put_text_property, &
                            remove_list_of_text_properties, remove_text_properties, &
                            set_text_properties, text_properties_at, text_property_any, &
-                           text_property_not_all, text_property_stickiness
+                           text_property_not_all, text_property_stickiness, text_property_range_type, &
+                           text_property_list, extend_property_ranges, copy_text_properties, inhibit_point_motion_hooks
+    use eval_fm, only: property_function_type
+    use keymap_fm, only: make_sparse_keymap, free_keymap, get_local_map
+    use intervals_fm, only: copy_intervals_to_string, compare_string_intervals
     implicit none(type, external)
     private
 
     public :: collect_textprop_fm
+
+    !> What the property functions recorded.
+    character(len=:), allocatable :: tp_trace
+    type(property_function_type), target :: tp_mod_fn, tp_behind_fn, tp_front_fn, tp_entered_fn, tp_left_fn
 
 contains
 
@@ -69,7 +77,11 @@ contains
                     new_unittest("read-only-insertion", test_read_only_insert), &
                     new_unittest("textprop-interval-immutability", test_immutability), &
                     new_unittest("default-nonsticky", test_default_nonsticky), &
-                    new_unittest("string-properties", test_string_properties) &
+                    new_unittest("string-properties", test_string_properties), &
+                    new_unittest("text-property-modification-hooks", test_modification_hooks), &
+                    new_unittest("intangible-and-point-motion-hooks", test_point_motion), &
+                    new_unittest("text-property-lists", test_property_lists), &
+                    new_unittest("keymap-and-local-map-properties", test_local_map) &
                     ]
     end subroutine collect_textprop_fm
 
@@ -525,4 +537,220 @@ contains
                    value_eq(string_get_text_property(4_int64, sym("cursor"), both), make_fixnum(1_int64)), &
                    "concat keeps both")
     end subroutine test_string_properties
+
+    ! ------------------------------------------------------------------
+    ! Modification hooks, point motion, property lists, keymaps
+    ! ------------------------------------------------------------------
+
+    ! Property functions recording their calls in `tp_trace'.
+    subroutine tp_rec_mod(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        tp_trace = tp_trace//" M"//num(beg)//","//num(end)
+    end subroutine tp_rec_mod
+
+    ! See `tp_rec_mod'.
+    subroutine tp_rec_behind(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        tp_trace = tp_trace//" B"//num(beg)//","//num(end)
+    end subroutine tp_rec_behind
+
+    ! See `tp_rec_mod'.
+    subroutine tp_rec_front(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        tp_trace = tp_trace//" F"//num(beg)//","//num(end)
+    end subroutine tp_rec_front
+
+    ! See `tp_rec_mod'.
+    subroutine tp_rec_entered(old_point, new_point, status)
+        integer(int64), intent(in) :: old_point, new_point
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        tp_trace = tp_trace//" E"//num(old_point)//","//num(new_point)
+    end subroutine tp_rec_entered
+
+    ! See `tp_rec_mod'.
+    subroutine tp_rec_left(old_point, new_point, status)
+        integer(int64), intent(in) :: old_point, new_point
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        tp_trace = tp_trace//" L"//num(old_point)//","//num(new_point)
+    end subroutine tp_rec_left
+
+    function num(n) result(s)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: s
+        character(len=24) :: buf
+
+        write (buf, "(i0)") n
+        s = trim(buf)
+    end function num
+
+    !> Define the recording property functions.  Not a port.
+    subroutine define_tp_functions()
+        tp_mod_fn = property_function_type("tp_rec_mod", positions=tp_rec_mod)
+        call tp_mod_fn%define()
+        tp_behind_fn = property_function_type("tp_rec_behind", positions=tp_rec_behind)
+        call tp_behind_fn%define()
+        tp_front_fn = property_function_type("tp_rec_front", positions=tp_rec_front)
+        call tp_front_fn%define()
+        tp_entered_fn = property_function_type("tp_rec_entered", positions=tp_rec_entered)
+        call tp_entered_fn%define()
+        tp_left_fn = property_function_type("tp_rec_left", positions=tp_rec_left)
+        call tp_left_fn%define()
+    end subroutine define_tp_functions
+
+    !> The `modification_hooks' of changed text run before the change
+    !> with its bounds; after an insertion the `insert_behind_hooks' of the
+    !> text before it and the `insert_in_front_hooks' of the text after it
+    !> run with the bounds of the new text.  Own test.
+    subroutine test_modification_hooks(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        call define_tp_functions()
+        call enter("*tp-hooks*", h, old)
+        call insert("abcd", st)
+        call put_text_property(2_int64, 4_int64, sym("modification_hooks"), list(sym("tp_rec_mod")), st)
+        call put_text_property(1_int64, 2_int64, sym("insert_behind_hooks"), list(sym("tp_rec_behind")), st)
+        call put_text_property(4_int64, 5_int64, sym("insert_in_front_hooks"), list(sym("tp_rec_front")), st)
+        tp_trace = ""
+        call delete_and_extract_region(2_int64, 3_int64, text, st)
+        call check(error, tp_trace == " M2,3", "modification hook: '"//tp_trace//"'")
+        if (allocated(error)) return
+        ! "acd": insert after "a" (behind hooks), then before "d".
+        tp_trace = ""
+        call goto_char(2_int64)
+        call insert("x", st)
+        call check(error, tp_trace == " B2,3", "insert behind: '"//tp_trace//"'")
+        if (allocated(error)) return
+        tp_trace = ""
+        call goto_char(4_int64)
+        call insert("y", st)
+        call check(error, tp_trace == " F4,5", "insert in front: '"//tp_trace//"'")
+        call leave(h, old)
+    end subroutine test_modification_hooks
+
+    !> With `inhibit_point_motion_hooks' false, point does not stop inside
+    !> `intangible' text, and the `point_left' and `point_entered'
+    !> functions run with the old and new point.  Own test.
+    subroutine test_point_motion(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        logical :: changed
+
+        call define_tp_functions()
+        call enter("*tp-point*", h, old)
+        call insert("abcdef", st)
+        call put_text_property(3_int64, 5_int64, sym("intangible"), t_value(), st)
+        call goto_char(1_int64)
+        call goto_char(4_int64)
+        call check(error, buffers(cur)%pt == 4, "intangible ignored by default")
+        if (allocated(error)) return
+        inhibit_point_motion_hooks = .false.
+        call goto_char(1_int64)
+        call goto_char(4_int64)
+        call check(error, buffers(cur)%pt == 5, "forward past intangible text")
+        call goto_char(6_int64)
+        call goto_char(4_int64)
+        call check(error, buffers(cur)%pt == 3, "backward past intangible text")
+        call remove_text_properties(1_int64, 7_int64, list(sym("intangible"), nil()), changed, st)
+        call put_text_property(3_int64, 5_int64, sym("point_entered"), sym("tp_rec_entered"), st)
+        call put_text_property(3_int64, 5_int64, sym("point_left"), sym("tp_rec_left"), st)
+        tp_trace = ""
+        call goto_char(1_int64)
+        call goto_char(4_int64)
+        call goto_char(6_int64)
+        inhibit_point_motion_hooks = .true.
+        ! Leaving the start of the text (3 -> 1) runs point_left; inside it,
+        ! the intervals before and after point both have the functions, so
+        ! each runs twice, as upstream.
+        call check(error, tp_trace == " L3,1 E1,4 E1,4 L4,6 L4,6", "entered and left: '"//tp_trace//"'")
+        call leave(h, old)
+    end subroutine test_point_motion
+
+    !> `text_property_list' lists the properties of a range;
+    !> `extend_property_ranges' cuts and extends it;
+    !> `copy_text_properties' copies them elsewhere; `copy_intervals_to_string'
+    !> gives them to a string.  Own test.
+    subroutine test_property_lists(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        type(text_property_range_type), allocatable :: ranges(:)
+        type(value_type) :: s
+        logical :: modified
+
+        call enter("*tp-lists*", h, old)
+        call insert("abcdef", st)
+        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call put_text_property(5_int64, 6_int64, sym("mouse_face"), sym("highlight"), st)
+        call text_property_list(cur, 1_int64, 7_int64, ranges, st)
+        call check(error, size(ranges) == 2, "two ranges")
+        if (allocated(error)) return
+        call check(error, ranges(1)%start == 5 .and. ranges(1)%end == 6 .and. ranges(2)%start == 2 .and. &
+                   ranges(2)%end == 4, "last first")
+        if (allocated(error)) return
+        call text_property_list(cur, 1_int64, 7_int64, ranges, st, sym("face"))
+        call check(error, size(ranges) == 1, "only face")
+        if (allocated(error)) return
+        call extend_property_ranges(ranges, 4_int64, 6_int64)
+        call check(error, ranges(1)%end == 6, "extended to the new end")
+        if (allocated(error)) return
+        s = make_string("bcd")
+        call copy_intervals_to_string(s, buffers(cur)%text%intervals, 2_int64, 3_int64)
+        call check(error, value_eq(string_get_text_property(1_int64, sym("face"), s), sym("bold")), "string properties")
+        if (allocated(error)) return
+        call check(error, compare_string_intervals(s, propertized_concat(propertize(make_string("bc"), &
+                                                                                    list(sym("face"), sym("bold"))), &
+                                                                         make_string("d")), 3_int64), "same properties")
+        if (allocated(error)) return
+        call copy_text_properties(2_int64, 4_int64, cur, 5_int64, cur, modified, st)
+        call check(error, modified .and. value_eq(prop_at(6_int64, "face"), sym("bold")), "copied")
+        call leave(h, old)
+    end subroutine test_property_lists
+
+    !> A `keymap' property at point puts its map first among the active
+    !> keymaps, and a `local_map' property replaces the local map.
+    !> Own test.
+    subroutine test_local_map(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, km
+        type(status_type) :: st
+        type(value_type) :: map
+
+        call enter("*tp-keymap*", h, old)
+        call insert("abc", st)
+        call make_sparse_keymap(km)
+        call put_text_property(2_int64, 3_int64, sym("keymap"), make_keymap_ref(km), st)
+        map = get_local_map(1_int64, "keymap")
+        call check(error, nilp(map), "no keymap at 1")
+        if (allocated(error)) return
+        map = get_local_map(2_int64, "keymap")
+        call check(error, value_eq(map, make_keymap_ref(km)), "the property's map at 2")
+        if (allocated(error)) return
+        ! At 3 the character after has none, but an insertion there would
+        ! inherit it (rear-sticky).
+        map = get_local_map(3_int64, "keymap")
+        call check(error, value_eq(map, make_keymap_ref(km)), "inherited at 3")
+        if (allocated(error)) return
+        call put_text_property(1_int64, 2_int64, sym("local_map"), make_keymap_ref(km), st)
+        map = get_local_map(1_int64, "local_map")
+        call check(error, value_eq(map, make_keymap_ref(km)), "local_map property")
+        call leave(h, old)
+        call free_keymap(km, st)
+    end subroutine test_local_map
 end module test_textprop_fm

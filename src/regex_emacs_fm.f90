@@ -51,7 +51,7 @@ module regex_emacs_fm
     use syntax_fm, only: char_syntax_class, syntax_class_at, word_boundary_p, SWHITESPACE, SPUNCT, SWORD, SSYMBOL, SOPEN, &
                          SCLOSE, SQUOTE, SSTRING, SMATH, SESCAPE, SCHARQUOTE, SCOMMENT, SENDCOMMENT, SINHERIT, &
                          SCOMMENT_FENCE, SSTRING_FENCE
-    use characters_fm, only: char_has_category
+    use category_fm, only: char_has_category
     use buffer_fm, only: buffers, cur
     use marker_fm, only: byte_to_char
     implicit none(type, external)
