@@ -24,7 +24,7 @@
 !> built-in ones are the components of `commands' (commands_fm), others
 !> are defined with `define'.  Keymaps bind command names; upstream a
 !> command is a function with an `interactive' spec, stored in the
-!> symbol's function cell, and here a command reads its own arguments
+!> name's function cell, and here a command reads its own arguments
 !> (the prefix argument is `current_prefix_arg').
 !>
 !>     commands%forward_char%run => cmd_forward_char
@@ -93,7 +93,7 @@ contains
         end if
     end function find_command
 
-    !> The function named by symbol V, or null.  Not a port.
+    !> The function named V, or null.  Not a port.
     function symbol_command(v) result(p)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -145,7 +145,7 @@ contains
         fboundp = associated(symbol_command(v))
     end function fboundp
 
-    !> Whether symbol `v' names a defined command (a function that is a
+    !> Whether name `v' names a defined command (a function that is a
     !> command).  Not a port.
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v

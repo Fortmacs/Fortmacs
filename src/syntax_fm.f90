@@ -104,7 +104,7 @@ module syntax_fm
     type(logical_setting), public :: comment_end_can_be_escaped = &
                                      logical_setting(name="comment_end_can_be_escaped", value=.false.)
 
-    !> True means `scan_expressions' treats all multibyte characters as symbol.
+    !> True means `scan_expressions' treats all multibyte characters as identifier.
     !> Port of syntax.c multibyte-syntax-as-symbol.
     logical, public :: multibyte_syntax_as_symbol = .false.
 
@@ -1116,7 +1116,7 @@ contains
     !> The characters `from' to `to' (one character if equal) are changed.
     !> The first character of NEWENTRY should be one of the following:
     !>   Space or -  whitespace syntax.    w   word constituent.
-    !>   _           symbol constituent.   .   punctuation.
+    !>   _           identifier constituent.   .   punctuation.
     !>   (           open-parenthesis.     )   close-parenthesis.
     !>   "           string quote.         \   escape.
     !>   $           paired delimiter.     \='   expression quote or prefix operator.

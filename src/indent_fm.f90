@@ -174,7 +174,7 @@ module indent_fm
 
         !> Indent the current line or region, or insert a tab, as appropriate.
         !> This function either inserts a tab, or indents the current line,
-        !> or performs symbol completion, depending on `tab_always_indent'.
+        !> or performs identifier completion, depending on `tab_always_indent'.
         !> The function called to actually indent the line or insert a tab
         !> is given by the variable `indent_line_function'.
         !>

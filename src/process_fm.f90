@@ -159,7 +159,7 @@ module process_fm
         !> Marker set to end of last buffer-inserted output from this process.
         type(handle_type) :: mark
         integer(int32) :: pid = 0
-        !> Symbol indicating status of process (ST_*), with the exit code or
+        !> Name indicating status of process (ST_*), with the exit code or
         !> signal number and whether a core was dumped.
         integer :: state = ST_RUN
         integer(int32) :: code = 0
@@ -446,7 +446,7 @@ contains
     !> "exit" -- for a process that has exited.
     !> "signal" -- for a process that has got a fatal signal.
     !> "" -- if PROCESS is not a process.
-    !> Port of process.c:Fprocess_status (status symbols as strings).
+    !> Port of process.c:Fprocess_status (status names as strings).
     function process_status(process) result(status_name)
         type(handle_type), intent(in) :: process
         character(len=:), allocatable :: status_name

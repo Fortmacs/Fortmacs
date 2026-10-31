@@ -108,7 +108,7 @@ module abbrev_fm
         character(len=:), allocatable :: name
         !> What it expands into; unallocated when it is not defined.
         character(len=:), allocatable :: expansion
-        !> Called after the expansion is inserted (the symbol's function);
+        !> Called after the expansion is inserted (the name's function);
         !> null for none.
         procedure(abbrev_hook_proc), pointer, nopass :: hook => null()
         !> The hook's `no_self_insert' property: the value of the hook
@@ -350,7 +350,7 @@ module abbrev_fm
             class(abbrev_table_type), intent(inout) :: self
         end subroutine clear_abbrev_table
 
-        !> Return false if there are abbrev symbols in OBJECT.
+        !> Return false if there are abbrev names in OBJECT.
         !> If IGNORE_SYSTEM is true, system definitions are ignored.  Port of
         !> abbrev.el:abbrev-table-empty-p.
         module logical function abbrev_table_empty_p(self, ignore_system) result(empty)

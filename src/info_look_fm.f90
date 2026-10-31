@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Looking up symbols and files in the Info manuals of the buffer's
+!> Looking up identifiers and files in the Info manuals of the buffer's
 !> major mode: `info_lookup_symbol' (C-h S), `info_lookup_file' and
 !> `info_lookup_reset'.  The manuals of each mode are help
 !> specifications added with `info_lookup_add_help' (the modes of
@@ -249,7 +249,7 @@ contains
     !> Add or update a help specification.
     !> The arguments are the parts of the help data of a mode: help is
     !> about TOPIC (default "symbol") in MODE (default the current major
-    !> mode), for the symbols beginning with SYMBOL_PREFIX and a dash if
+    !> mode), for the names beginning with SYMBOL_PREFIX and a dash if
     !> present; the help items match REGEXP (default "\w+"), case is
     !> ignored if IGNORE_CASE; DOC_SPEC lists the Info indexes to read,
     !> or DOC_SPEC_FUNCTION computes it when the user asks for info on
@@ -672,7 +672,7 @@ contains
     !> Interactively, prompt for SYMBOL; you can use
     !> \<minibuffer_local_completion_map>\[next_history_element] in the
     !> minibuffer to yank the default argument value into the minibuffer
-    !> so you can edit it.  The default symbol is the one found at point.
+    !> so you can edit it.  The default identifier is the one found at point.
     !>
     !> MODE is the major mode whose Info manuals to search for the
     !> documentation of SYMBOL.  It defaults to the current buffer's
@@ -1368,7 +1368,7 @@ contains
     ! Guessing the item at point
     ! ------------------------------------------------------------------
 
-    !> Return a GUESS for a symbol to look up, based on text around point.
+    !> Return a GUESS for an identifier to look up, based on text around point.
     !> Try all related modes applicable to TOPIC and MODE.  FOUND is false
     !> if there is nothing appropriate in the buffer near point.  Port of
     !> info-look.el:info-lookup-guess-default.
@@ -1481,7 +1481,7 @@ contains
         case_fold_search = saved_fold
     end subroutine guess_default_star
 
-    !> Get the C symbol at point.  Port of
+    !> Get the C identifier at point.  Port of
     !> info-look.el:info-lookup-guess-c-symbol.
     recursive subroutine info_lookup_guess_c_symbol(item, found)
         character(len=:), allocatable, intent(out) :: item
@@ -1534,7 +1534,7 @@ contains
         end if
     end subroutine info_lookup_guess_c_symbol
 
-    !> Get symbol at point in GDB script buffers.  Port of
+    !> Get identifier at point in GDB script buffers.  Port of
     !> info-look.el:info-lookup-guess-gdb-script-symbol.
     recursive subroutine info_lookup_guess_gdb_script_symbol(item, found)
         character(len=:), allocatable, intent(out) :: item

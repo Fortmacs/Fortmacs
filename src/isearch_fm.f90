@@ -29,10 +29,10 @@
 !> buffer-local `isearch_search_fun_function', `isearch_wrap_function',
 !> `isearch_push_state_function' and `isearch_filter_predicate', and
 !> `isearch_mode_hook' and `isearch_mode_end_hook' (Info searches through
-!> its nodes).  Not ported yet: word, symbol and char-fold search
+!> its nodes).  Not ported yet: word, identifier and char-fold search
 !> (`isearch_regexp_function', `search_default_mode'),
 !> highlighting the match and lazy highlighting (faces from overlays),
-!> C-M-w (symbol syntax: forward-symbol), reading a kill with the
+!> C-M-w (identifier syntax: forward-symbol), reading a kill with the
 !> minibuffer (`isearch_yank_from_kill_ring', C-u M-y), search through invisible text, scrolling during search
 !> (`isearch_allow_scroll'), `isearch_allow_motion', query-replace and
 !> occur from isearch, the help map, input methods, completion, the

@@ -40,7 +40,7 @@
 !> Modification hooks: insdel_fm's change signals call
 !> `report_overlay_modification', which runs the functions of the
 !> `modification_hooks', `insert_in_front_hooks' and `insert_behind_hooks'
-!> properties; a function there is a symbol naming a defined
+!> properties; a function there is a name of a defined
 !> `property_function_type' (eval_fm).
 !>
 !> Deferred: indirect buffers (`copy_overlays'), the `window', `mouse_face' and
@@ -539,7 +539,7 @@ contains
         rear_advance = overlays(overlay%index)%rear_advance
     end subroutine overlay_advance
 
-    !> `overlay_get' with the property given as a symbol value.  Port of
+    !> `overlay_get' with the property given as a name value.  Port of
     !> buffer.c:Foverlay_get.
     function overlay_get_prop(overlay, prop) result(val)
         type(handle_type), intent(in) :: overlay

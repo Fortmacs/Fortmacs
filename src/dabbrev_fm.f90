@@ -170,7 +170,7 @@ module dabbrev_fm
     !> This regexp will be surrounded with \\( ... \\) when actually used.
     !>
     !> Set this variable to "\\sw" if you want ordinary words or
-    !> "\\sw\\|\\s_" if you want symbols (including characters
+    !> "\\sw\\|\\s_" if you want identifiers (including characters
     !> whose syntax is "symbol" as well as those whose syntax is
     !> "word").  The abbreviation is from point to the start of the
     !> previous sequence of characters matching this variable.
@@ -179,7 +179,7 @@ module dabbrev_fm
     !>
     !> For instance, suppose the current buffer is in `c_mode'.  If this
     !> variable is unallocated or "\\sw\\|\\s_", then expanding
-    !> `debug_print_in_' looks for a symbol starting with
+    !> `debug_print_in_' looks for an identifier starting with
     !> `debug_print_in_'.  If you set this variable to "\\sw", that
     !> expansion looks for a word prefixed with `in_' (e.g., it would
     !> match `in_range', but not `in_close_range').  If expanding
@@ -805,7 +805,7 @@ contains
         end if
     end subroutine goto_start_of_abbrev
 
-    !> Extract the symbol at point to serve as abbreviation.  Port of
+    !> Extract the identifier at point to serve as abbreviation.  Port of
     !> dabbrev.el:dabbrev--abbrev-at-point.
     recursive subroutine abbrev_at_point(abbrev, status)
         character(len=:), allocatable, intent(out) :: abbrev

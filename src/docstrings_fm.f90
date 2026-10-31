@@ -2195,13 +2195,13 @@ contains
         case ("apropos_documentation")
             entry%file = "apropos_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Show symbols whose documentation contains matches for PATTERN."//LF// &
+            entry%doc = "Show names whose documentation contains matches for PATTERN."//LF// &
                         "PATTERN can be a word, a list of words (separated by spaces),"//LF// &
                         "or a regexp (using some regexp special characters).  If it is a word,"//LF// &
                         "search for matches for that word as a substring.  If it is a list of words,"//LF// &
                         "search for matches for any two (or more) of those words."//LF// &
                         ""//LF// &
-                        "Returns list of symbols and documentation found."
+                        "Returns list of names and documentation found."
         case ("apropos_follow")
             entry%file = "apropos_fm.f90"
             entry%interactive = .true.
@@ -2228,11 +2228,11 @@ contains
         case ("apropos_next_symbol")
             entry%file = "apropos_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Move cursor down to the next symbol in an `apropos_mode' buffer."
+            entry%doc = "Move cursor down to the next name in an `apropos_mode' buffer."
         case ("apropos_previous_symbol")
             entry%file = "apropos_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Move cursor back to the last symbol in an `apropos_mode' buffer."
+            entry%doc = "Move cursor back to the last name in an `apropos_mode' buffer."
         case ("apropos_user_option")
             entry%file = "apropos_fm.f90"
             entry%interactive = .true.
@@ -3394,7 +3394,7 @@ contains
             entry%file = "coding_fm.f90"
             entry%fortran = "coding_system_type(coding_system)"
             entry%doc = "Return the coding type of CODING-SYSTEM."//LF// &
-                        "A coding type is a symbol indicating the encoding method of CODING-SYSTEM."//LF// &
+                        "A coding type is a name indicating the encoding method of CODING-SYSTEM."//LF// &
                         "See the function `define_coding_system' for more detail."
         case ("comint_accumulate")
             entry%file = "comint_fm.f90"
@@ -3928,7 +3928,7 @@ contains
                         "The completion method is determined by `completion_at_point_functions'."//LF// &
                         ""//LF// &
                         "With a prefix argument, this command does completion within"//LF// &
-                        "the collection of symbols listed in the index of the manual for the"//LF// &
+                        "the collection of names listed in the index of the manual for the"//LF// &
                         "language you are using (info_complete_symbol, not ported yet)."
         case ("completing_read_multiple")
             entry%file = "crm_fm.f90"
@@ -5745,18 +5745,18 @@ contains
             entry%file = "keyboard_fm.f90"
             entry%fortran = "call event_convert_list(event_desc, ev, status)"
             entry%doc = "Convert the event description list EVENT_DESC to an event type."//LF// &
-                        "EVENT_DESC should contain one base event type (a character or symbol)"//LF// &
+                        "EVENT_DESC should contain one base event type (a character or name)"//LF// &
                         "and zero or more modifier names (control, meta, hyper, super, shift, alt,"//LF// &
                         "drag, down, double or triple).  The base must be last."//LF// &
                         ""//LF// &
-                        "The return value is an event type (a character or symbol) which has"//LF// &
+                        "The return value is an event type (a character or name) which has"//LF// &
                         "essentially the same base event type and all the specified modifiers."//LF// &
-                        "(Some compatibility base types, like symbols that represent a"//LF// &
+                        "(Some compatibility base types, like names that represent a"//LF// &
                         "character, are not returned verbatim.)"
         case ("event_symbol_parse_modifiers")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "event_symbol_parse_modifiers(symbol)"
-            entry%doc = "Parse the event symbol.  For internal use.  The value is the list"//LF// &
+            entry%doc = "Parse the event name.  For internal use.  The value is the list"//LF// &
                         "(BASE MODIFIERS...), as the `event_symbol_elements' property of"//LF// &
                         "SYMBOL upstream."
         case ("exchange_point_and_mark")
@@ -7769,7 +7769,7 @@ contains
             entry%interactive = .true.
             entry%doc = "Indent the current line or region, or insert a tab, as appropriate."//LF// &
                         "This function either inserts a tab, or indents the current line,"//LF// &
-                        "or performs symbol completion, depending on `tab_always_indent'."//LF// &
+                        "or performs identifier completion, depending on `tab_always_indent'."//LF// &
                         "The function called to actually indent the line or insert a tab"//LF// &
                         "is given by the variable `indent_line_function'."//LF// &
                         ""//LF// &
@@ -8016,7 +8016,7 @@ contains
             entry%doc = "Add or update a help specification."//LF// &
                         "The arguments are the parts of the help data of a mode: help is"//LF// &
                         "about TOPIC (default ""symbol"") in MODE (default the current major"//LF// &
-                        "mode), for the symbols beginning with SYMBOL_PREFIX and a dash if"//LF// &
+                        "mode), for the names beginning with SYMBOL_PREFIX and a dash if"//LF// &
                         "present; the help items match REGEXP (default ""\w+""), case is"//LF// &
                         "ignored if IGNORE_CASE; DOC_SPEC lists the Info indexes to read,"//LF// &
                         "or DOC_SPEC_FUNCTION computes it when the user asks for info on"//LF// &
@@ -8066,7 +8066,7 @@ contains
                         "Interactively, prompt for SYMBOL; you can use"//LF// &
                         "\<minibuffer_local_completion_map>\[next_history_element] in the"//LF// &
                         "minibuffer to yank the default argument value into the minibuffer"//LF// &
-                        "so you can edit it.  The default symbol is the one found at point."//LF// &
+                        "so you can edit it.  The default identifier is the one found at point."//LF// &
                         ""//LF// &
                         "MODE is the major mode whose Info manuals to search for the"//LF// &
                         "documentation of SYMBOL.  It defaults to the current buffer's"//LF// &
@@ -9949,7 +9949,7 @@ contains
                         "The characters `from' to `to' (one character if equal) are changed."//LF// &
                         "The first character of NEWENTRY should be one of the following:"//LF// &
                         "  Space or -  whitespace syntax.    w   word constituent."//LF// &
-                        "  _           symbol constituent.   .   punctuation."//LF// &
+                        "  _           identifier constituent.   .   punctuation."//LF// &
                         "  (           open-parenthesis.     )   close-parenthesis."//LF// &
                         "  ""           string quote.         \   escape."//LF// &
                         "  $           paired delimiter.     \='   expression quote or prefix operator."//LF// &
@@ -15281,17 +15281,17 @@ contains
             entry%fortran = "case_symbols_as_words"
             entry%original = ".false."
             entry%value = repr(case_symbols_as_words%value)
-            entry%doc = "If true, case functions treat symbol syntax as part of words."//LF// &
+            entry%doc = "If true, case functions treat identifier syntax as part of words."//LF// &
                         ""//LF// &
                         "Functions such as `upcase_initials' and `replace_match' check or"//LF// &
                         "modify the case pattern of sequences of characters.  Normally, these"//LF// &
                         "operate on sequences of characters whose syntax is word constituent."//LF// &
                         "If this variable is true, then they operate on sequences of"//LF// &
-                        "characters whose syntax is either word constituent or symbol"//LF// &
+                        "characters whose syntax is either word constituent or identifier"//LF// &
                         "constituent."//LF// &
                         ""//LF// &
                         "This is useful for programming languages and styles where only the"//LF// &
-                        "first letter of a symbol's name is ever capitalized."
+                        "first letter of an identifier's name is ever capitalized."
         case ("change_log_date")
             entry%file = "add_log_fm.f90"
             entry%fortran = "change_log_date"
@@ -17209,7 +17209,7 @@ contains
                         "This regexp will be surrounded with \\( ... \\) when actually used."//LF// &
                         ""//LF// &
                         "Set this variable to ""\\sw"" if you want ordinary words or"//LF// &
-                        """\\sw\\|\\s_"" if you want symbols (including characters"//LF// &
+                        """\\sw\\|\\s_"" if you want identifiers (including characters"//LF// &
                         "whose syntax is ""symbol"" as well as those whose syntax is"//LF// &
                         """word"").  The abbreviation is from point to the start of the"//LF// &
                         "previous sequence of characters matching this variable."//LF// &
@@ -17218,7 +17218,7 @@ contains
                         ""//LF// &
                         "For instance, suppose the current buffer is in `c_mode'.  If this"//LF// &
                         "variable is unallocated or ""\\sw\\|\\s_"", then expanding"//LF// &
-                        "`debug_print_in_' looks for a symbol starting with"//LF// &
+                        "`debug_print_in_' looks for an identifier starting with"//LF// &
                         "`debug_print_in_'.  If you set this variable to ""\\sw"", that"//LF// &
                         "expansion looks for a word prefixed with `in_' (e.g., it would"//LF// &
                         "match `in_range', but not `in_close_range').  If expanding"//LF// &
@@ -22365,7 +22365,7 @@ contains
             entry%fortran = "multibyte_syntax_as_symbol"
             entry%original = ".false."
             entry%value = repr(multibyte_syntax_as_symbol)
-            entry%doc = "True means `scan_expressions' treats all multibyte characters as symbol."
+            entry%doc = "True means `scan_expressions' treats all multibyte characters as identifier."
         case ("narrow_to_subprogram_include_comments")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "narrow_to_subprogram_include_comments"
@@ -23853,8 +23853,8 @@ contains
                         "Use this where the name of the executable doesn't correspond to"//LF// &
                         "the type of shell it really is.  Keys are regular expressions"//LF// &
                         "matched against the full path of the interpreter.  (For backward"//LF// &
-                        "compatibility, keys may also be symbols, which are matched"//LF// &
-                        "against the interpreter's basename.  The values are symbols"//LF// &
+                        "compatibility, keys may also be names, which are matched"//LF// &
+                        "against the interpreter's basename.  The values are names"//LF// &
                         "naming the shell."
         case ("sh_ancestor_table")
             entry%file = "sh_script_fm.f90"
@@ -23921,7 +23921,7 @@ contains
             entry%original = "4"
             entry%value = repr(sh_basic_offset%value)
             entry%doc = "The default indentation increment."//LF// &
-                        "This value is used for the `+' and `-' symbols in an indentation variable."
+                        "This value is used for the `+' and `-' values in an indentation variable."
         case ("sh_beginning_of_command")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_beginning_of_command"

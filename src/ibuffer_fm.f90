@@ -3022,7 +3022,7 @@ contains
     !> buffers in filtering group GROUP.
     !>
     !> FUNCTION is called with two arguments:
-    !> the buffer object itself and the current mark symbol.  Return the
+    !> the buffer object itself and the current mark name.  Return the
     !> number of lines it affected.  Port of
     !> ibuffer.el:ibuffer-map-lines.
     recursive integer function ibuffer_map_lines(func, status, nomodify, group) result(count)

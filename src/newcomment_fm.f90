@@ -297,7 +297,7 @@ module newcomment_fm
     !> Comment region style definitions.
     !> Each style is defined with a form (STYLE . (MULTI ALIGN EXTRA INDENT DOC)).
     !> DOC should succinctly describe the style.
-    !> STYLE should be a mnemonic symbol.
+    !> STYLE should be a mnemonic name.
     !> MULTI specifies that comments are allowed to span multiple lines.
     !> ALIGN specifies that the `comment_end' markers should be aligned.
     !> EXTRA specifies that an extra line should be used before and after the

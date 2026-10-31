@@ -29,7 +29,7 @@
 !> `type(status_type), intent(out) :: status' argument and returns after
 !> setting it.  `intent(out)' resets the status to OK on entry.
 !>
-!> Each error code corresponds to an Emacs error symbol.  Codes form the
+!> Each error code corresponds to an Emacs error name.  Codes form the
 !> same hierarchy as the symbols' `error_conditions' property, so
 !> `condition_matches' is the check of the status that tests for a condition.
 module error_fm
@@ -41,7 +41,7 @@ module error_fm
     public :: set_error, error_name, error_message, condition_matches, &
               format_error
 
-    !> Error codes.  0 means success; the rest mirror Emacs error symbols.
+    !> Error codes.  0 means success; the rest mirror Emacs error names.
     integer(int32), parameter, public :: FM_OK = 0
     !> The root `error' condition (named so it does not clash with the module).
     integer(int32), parameter, public :: FM_GENERIC_ERROR = 1
@@ -140,7 +140,7 @@ module error_fm
     integer(int32), parameter :: last_code = FM_TOP_LEVEL
     integer, parameter :: name_len = 26, msg_len = 48
 
-    !> `error_conditions' symbol names, indexed by code.
+    !> `error_conditions' names, indexed by code.
     character(len=name_len), parameter :: names(0:last_code) = [character(len=name_len) :: &
                                                                 "", "error", "quit", "user_error", &
                                                                 "wrong_type_argument", "args_out_of_range", &
@@ -237,7 +237,7 @@ contains
         valid_code = code >= 0 .and. code <= last_code
     end function valid_code
 
-    !> Error symbol name of `code' (e.g. "args-out-of-range").  Not a port.
+    !> Error name of `code' (e.g. "args-out-of-range").  Not a port.
     pure function error_name(code) result(name)
         integer(int32), intent(in) :: code
         character(len=:), allocatable :: name

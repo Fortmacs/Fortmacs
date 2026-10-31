@@ -419,10 +419,10 @@ module eval_fm
     type(hook_type), public, target :: buffer_list_update_hook = hook_type(name="buffer_list_update_hook")
 
     !> A function that text properties and overlay properties name with a
-    !> symbol: the hooks of the `modification_hooks',
+    !> name: the hooks of the `modification_hooks',
     !> `insert_in_front_hooks', `insert_behind_hooks', `point_entered' and
     !> `point_left' properties.  Upstream such a property holds functions
-    !> (symbols with a function cell); here the symbol's name must be that
+    !> (names with a function cell); here the name must be that
     !> of a defined property function, which gives the procedure:
     !> `positions' for the functions taking two positions (the text
     !> property hooks, called with the bounds of the change or the old
@@ -433,7 +433,7 @@ module eval_fm
     !>     my_freeze = property_function_type("my_freeze", overlay_change=my_freeze_proc)
     !>     call my_freeze%define()
     type, public :: property_function_type
-        !> The symbol's name.
+        !> The name.
         character(len=:), allocatable :: name
         !> The procedure taking two positions, or null.
         procedure(change_function), pointer, nopass :: positions => null()
@@ -1708,7 +1708,7 @@ contains
         property_functions(n_property_functions)%p => self
     end subroutine define_property_function
 
-    !> The property function that FN (a symbol) names, or null; STATUS is
+    !> The property function that FN (a name) names, or null; STATUS is
     !> `void_function' (or `invalid_function' for a non-symbol) when there
     !> is none.  Not a port.
     function property_function(fn, status) result(p)
@@ -1737,7 +1737,7 @@ contains
         call set_error(status, FM_VOID_FUNCTION, name)
     end function property_function
 
-    !> Call the property function FN (a symbol) with the positions A and B.
+    !> Call the property function FN (a name) with the positions A and B.
     !> Port of eval.c:Ffuncall (for a property function of two positions).
     recursive subroutine call_property_function(fn, a, b, status)
         type(value_type), intent(in) :: fn
@@ -1756,7 +1756,7 @@ contains
         call p%positions(a, b, status)
     end subroutine call_property_function
 
-    !> Call the property function FN (a symbol) with OVERLAY, AFTER, BEG,
+    !> Call the property function FN (a name) with OVERLAY, AFTER, BEG,
     !> END and, if present, OLD_LEN.  Port of eval.c:Ffuncall (for the
     !> functions of overlay properties).
     recursive subroutine call_overlay_change_function(fn, overlay, after, beg, end, status, old_len)

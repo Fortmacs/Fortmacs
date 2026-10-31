@@ -32,7 +32,7 @@
 !> The file is in namelist syntax (namelist_fm) rather than Lisp, so it
 !> is read, not loaded: its objects are the variables to set.  A value
 !> is saved if it is a string, an integer, true or false, or a list of
-!> those; other values (symbols, nested lists) are not printable.
+!> those; other values (names, nested lists) are not printable.
 !> Deferred: the text properties of saved strings, the warning about a
 !> file that can't be written (warnings.el is not ported), and the
 !> obsolete `savehist_trim_history'.

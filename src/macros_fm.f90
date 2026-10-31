@@ -25,7 +25,7 @@
 !> (`last_kbd_macro'); the macro being defined is collected in
 !> `kbd_macro_buffer'.
 !>
-!> Deferred: macros that are symbols (their function definitions), and
+!> Deferred: macros that are names (their function definitions), and
 !> string macros other than as `execute_kbd_macro' arguments (a string
 !> `last_kbd_macro').
 submodule(keyboard_fm) macros_fm

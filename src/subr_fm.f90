@@ -762,7 +762,7 @@ contains
     !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.
     !> Otherwise, the maximum history length is the value of the `history_length'
-    !> property on symbol HISTORY-VAR, if set, or the value of the `history_length'
+    !> property on name HISTORY-VAR, if set, or the value of the `history_length'
     !> variable.  The possible values of maximum length have the same meaning as
     !> the values of `history_length'.
     !> Remove duplicates of NEWELT if `history_delete_duplicates' is .true..
@@ -880,7 +880,7 @@ contains
     !> recommended function to use instead.
     !>
     !> COMMAND is the command definition to use; usually it is
-    !> a symbol naming an interactively-callable function.
+    !> a name of an interactively-callable function.
     !> KEY is a key sequence: a vector of events, as `key_parse' makes.
     !>
     !> Note that if KEY has a local binding in the current buffer,
@@ -1195,9 +1195,9 @@ contains
         call message(reporter%text//" "//pulse_characters(k:k))
     end subroutine progress_reporter_pulse
 
-    !> Move point to the next position that is the end of a symbol.
-    !> A symbol is any sequence of characters that are in either the
-    !> word constituent or symbol constituent syntax class.
+    !> Move point to the next position that is the end of an identifier.
+    !> An identifier is any sequence of characters that are in either the
+    !> word constituent or identifier constituent syntax class.
     !> With prefix argument ARG, do it ARG times if positive, or move
     !> backwards ARG times if negative.  Port of subr.el:forward-symbol.
     subroutine forward_symbol(arg)
@@ -1218,7 +1218,7 @@ contains
         end if
     end subroutine forward_symbol
 
-    !> The bounds of the symbol at point (`found' false if none).
+    !> The bounds of the identifier at point (`found' false if none).
     !> Port of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
     !> forward-symbol, beginning-op thing-at-point--beginning-of-symbol,
     !> whose search failing is an error ignored).
@@ -1332,7 +1332,7 @@ contains
         if (found) regexp = regexp_quote(tag)
     end subroutine find_tag_default_as_regexp
 
-    !> Return regexp that matches the default tag at point as symbol.
+    !> Return regexp that matches the default tag at point as identifier.
     !> If there is no tag at point, `found' is false.  Port of
     !> subr.el:find-tag-default-as-symbol-regexp.
     subroutine find_tag_default_as_symbol_regexp(regexp, found)

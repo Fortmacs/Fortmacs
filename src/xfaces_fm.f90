@@ -28,7 +28,7 @@
 !> text (its `face' text property over the default face, then the
 !> region); `merge_faces' merges a named face into a realized one.
 !>
-!> Face references in text properties are face names (symbols, in the
+!> Face references in text properties are face names (symbols upstream, in the
 !> Fortran spelling: `region', `font_lock_comment_face'), attributes
 !> of attributes with the Fortran attribute names as keywords
 !> (`:foreground', `:inverse_video', `:strike_through'), or lists of
@@ -677,7 +677,7 @@ contains
         ok = .false.
     end subroutine merge_face_ref
 
-    !> Whether V is a keyword (a symbol whose name starts with `:').
+    !> Whether V is a keyword (a name that starts with `:').
     !> Not a port.
     logical function keywordp(v)
         type(value_type), intent(in) :: v
@@ -690,7 +690,7 @@ contains
         end associate
     end function keywordp
 
-    !> Whether V is the symbol NAME.  Not a port.
+    !> Whether V is the name NAME.  Not a port.
     logical function is_symbol(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
@@ -699,7 +699,7 @@ contains
         if (symbolp(v)) is_symbol = symbols(xsymbol(v))%name == name
     end function is_symbol
 
-    !> The name of symbol V, or "" if V is not a symbol.  Not a port.
+    !> The text of name V, or "" if V is not a name.  Not a port.
     function symbol_name(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name

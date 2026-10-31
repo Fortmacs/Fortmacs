@@ -178,7 +178,7 @@ contains
 
     !> The number of extra slots of a char-table whose purpose is PURPOSE
     !> when `make_char_table' isn't told (the `char_table_extra_slots'
-    !> property upstream gives the purpose symbols): case tables have 3
+    !> property upstream gives the purpose names): case tables have 3
     !> (casetab.c:init_casetab_once), category tables 2
     !> (category.c:init_category_once).  Not a port.
     pure integer function purpose_extra_slots(purpose) result(n)
@@ -345,7 +345,7 @@ contains
     !> many extra slots the char-table has; it defaults to 3 for
     !> "case_table", 2 for "category_table" and 0 for other purposes.
     !> Port of chartab.c:Fmake_char_table (N_EXTRAS stands for the
-    !> purpose symbol's `char_table_extra_slots' property).
+    !> purpose name's `char_table_extra_slots' property).
     subroutine make_char_table(h, purpose, status, init, n_extras)
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: purpose

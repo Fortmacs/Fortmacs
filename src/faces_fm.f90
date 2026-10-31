@@ -143,7 +143,7 @@ module faces_fm
     !> Face attributes (xfaces.c's Lisp face attribute vector, the parts
     !> a terminal needs and those defface specs use).  A character
     !> attribute is unspecified while unallocated; weight, slant and
-    !> width are symbol names ("bold", "italic", "condensed").
+    !> width are names ("bold", "italic", "condensed").
     type :: face_attributes_type
         character(len=:), allocatable :: family, foundry
         character(len=:), allocatable :: width
@@ -450,7 +450,7 @@ module faces_fm
     !> Basic face used to indicate successful operation.  Port of
     !> faces.el:success.
     type(named_face_type), target, public :: success
-    !> Face for the symbol name in `read_multiple_choice' output.  Port of
+    !> Face for the name in `read_multiple_choice' output.  Port of
     !> faces.el:read-multiple-choice-face.
     type(named_face_type), target, public :: read_multiple_choice_face
     !> Face for displaying enabled items in TTY menus.  Port of

@@ -666,7 +666,7 @@ contains
     end function coding_system_base
 
     !> Return the coding type of CODING-SYSTEM.
-    !> A coding type is a symbol indicating the encoding method of CODING-SYSTEM.
+    !> A coding type is a name indicating the encoding method of CODING-SYSTEM.
     !> See the function `define_coding_system' for more detail.  Port of
     !> mule.el:coding-system-type ("undecided", "utf-8", "utf-16",
     !> "charset" or "raw-text").
@@ -856,7 +856,7 @@ contains
     end subroutine coding_system_aliases
 
     !> Return true if the two coding systems are the same.
-    !> Two coding systems are identical if both symbols are equal
+    !> Two coding systems are identical if both names are equal
     !> or one is an alias of the other.  Port of
     !> mule.el:coding-system-equal.
     logical function coding_system_equal(coding_system_1, coding_system_2)

@@ -205,7 +205,7 @@ module simple_fm
     !> comment-line-break-function.
     procedure(line_break_proc), pointer, public :: comment_line_break_function => null()
 
-    !> The actions of `cycle_spacing' (the symbols of
+    !> The actions of `cycle_spacing' (the names of
     !> `cycle_spacing_actions').
     integer, parameter, public :: CYCLE_JUST_ONE_SPACE = 1, CYCLE_DELETE_SPACE_AFTER = 2, &
                                   CYCLE_DELETE_SPACE_BEFORE = 3, CYCLE_DELETE_ALL_SPACE = 4, CYCLE_RESTORE = 5
@@ -1450,7 +1450,7 @@ module simple_fm
     procedure(yank_undo_proc), pointer, public :: yank_undo_function => null()
 
     !> A function a `yank_handler' property names (upstream's FUNCTION
-    !> symbol; `define_yank_handler_function' names a procedure).
+    !> name; `define_yank_handler_function' names a procedure).
     type :: yank_handler_function_type
         character(len=:), allocatable :: name
         procedure(yank_handler_proc), pointer, nopass :: run => null()

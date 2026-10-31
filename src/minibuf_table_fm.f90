@@ -41,7 +41,7 @@ module minibuf_table_fm
     integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
                                   COMPLETE_BOUNDARIES = 3
 
-    !> Kinds of completion table: a list (an array of strings or symbols,
+    !> Kinds of completion table: a list (an array of strings or names,
     !> or a table of (string, value) entries), the name table, a function, or
     !> a function operating on quoted text (`completion_table_with_quoting').
     integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2, TABLE_QUOTING = 3
@@ -55,7 +55,7 @@ module minibuf_table_fm
 
     abstract interface
         !> A completion predicate: whether the element `elt' (the list
-        !> element or the symbol) is an acceptable completion.  Not a port.
+        !> element or the name) is an acceptable completion.  Not a port.
         logical function completion_predicate(elt)
             import :: value_type
             implicit none(type, external)
@@ -172,7 +172,7 @@ module minibuf_table_fm
 
 contains
 
-    !> A completion table holding the list `list' (strings, symbols, or
+    !> A completion table holding the list `list' (strings, names, or
     !> lists whose first element is the completion), in completion
     !> category `category'.  Not a port.
     function completion_list_table(list, category) result(table)
@@ -209,7 +209,7 @@ contains
         qtable%requote => requote
     end function completion_table_with_quoting
 
-    !> A completion table holding the names of all interned symbols, in
+    !> A completion table holding the names of all interned names, in
     !> completion category `category'.  Not a port.
     function completion_obarray_table(category) result(table)
         character(len=*), intent(in), optional :: category

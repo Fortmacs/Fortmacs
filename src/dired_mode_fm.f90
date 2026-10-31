@@ -1188,7 +1188,7 @@ module dired_mode_fm
         !>   Dired buffer's current directory (or, if `dired_dwim_target' is
         !>   set, the current directory of a neighboring Dired window).
         !>
-        !> OP_SYMBOL is the symbol for the operation.  Function
+        !> OP_SYMBOL is the name for the operation.  Function
         !>   `dired_mark_pop_up' will determine whether pop-ups are
         !>   appropriate for this OP_SYMBOL.
         !>

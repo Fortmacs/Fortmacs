@@ -24,7 +24,7 @@
 !> characters, strings and buffer regions, with Unicode title case and the
 !> unconditional special casings (uni_special_casing_fm: ß upcases to SS,
 !> ﬁ to FI), and the Greek final sigma rule.  Words are runs of
-!> word-constituent characters (and symbol constituents with
+!> word-constituent characters (and identifier constituents with
 !> `case_symbols_as_words') by the current syntax table.
 !>
 !> Strings are always multibyte here (casefiddle.c's unibyte string paths
@@ -64,17 +64,17 @@ module casefiddle_fm
     !> The case actions (enum case_action).
     integer, parameter, public :: CASE_UP = 0, CASE_DOWN = 1, CASE_CAPITALIZE = 2, CASE_CAPITALIZE_UP = 3
 
-    !> If true, case functions treat symbol syntax as part of words.
+    !> If true, case functions treat identifier syntax as part of words.
     !>
     !> Functions such as `upcase_initials' and `replace_match' check or
     !> modify the case pattern of sequences of characters.  Normally, these
     !> operate on sequences of characters whose syntax is word constituent.
     !> If this variable is true, then they operate on sequences of
-    !> characters whose syntax is either word constituent or symbol
+    !> characters whose syntax is either word constituent or identifier
     !> constituent.
     !>
     !> This is useful for programming languages and styles where only the
-    !> first letter of a symbol's name is ever capitalized.  Port of
+    !> first letter of an identifier's name is ever capitalized.  Port of
     !> casefiddle.c case-symbols-as-words (automatically buffer-local
     !> when set).
     type(logical_setting), public :: case_symbols_as_words = &

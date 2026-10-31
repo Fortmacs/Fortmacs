@@ -284,7 +284,7 @@ contains
     !> Read short answers from the minibuffer.  Port of
     !> rmc.el:read-multiple-choice--from-minibuffer (the keymap's
     !> [remap self-insert-command] is flattened, as keymap_fm has no
-    !> remapping; its [help-char] binding binds a symbol event, which
+    !> remapping; its [help-char] binding binds a name event, which
     !> never arrives).
     recursive subroutine from_minibuffer(answer, status)
         type(value_type) :: key1(1)

@@ -160,7 +160,7 @@ contains
     !> The completion method is determined by `completion_at_point_functions'.
     !>
     !> With a prefix argument, this command does completion within
-    !> the collection of symbols listed in the index of the manual for the
+    !> the collection of names listed in the index of the manual for the
     !> language you are using (info_complete_symbol, not ported yet).
     !> Port of bindings.el:complete-symbol.
     subroutine cmd_complete_symbol(status)

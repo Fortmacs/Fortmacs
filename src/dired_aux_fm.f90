@@ -758,7 +758,7 @@ contains
     !> Read args for a Dired marked-files command, prompting with PROMPT.
     !> RESULT is the user input (a string).
     !>
-    !> OP_SYMBOL is an operation symbol (see `dired_no_confirm').
+    !> OP_SYMBOL is an operation name (see `dired_no_confirm').
     !> ARG_KIND and ARG_N are normally the prefix argument for the calling
     !> command; they are passed to `dired_marker_prompt'.
     !> FILES should be a list of marked files' names.
@@ -906,7 +906,7 @@ contains
     end subroutine dired_mark_confirm
 
     !> What an operation is called in messages: "Compress or uncompress"
-    !> for `compress', else the capitalized symbol name.  Not a port.
+    !> for `compress', else the capitalized name.  Not a port.
     function operation_string(op_symbol) result(s)
         character(len=*), intent(in) :: op_symbol
         character(len=:), allocatable :: s
@@ -1851,7 +1851,7 @@ contains
     !> and display failures.  FUN records, with `push_check_result', the
     !> offending object (e.g. the short form of the filename) for a
     !> failure, or "", and probably logs a detailed error explanation
-    !> using `dired_log'.  OP_SYMBOL is a symbol describing the operation
+    !> using `dired_log'.  OP_SYMBOL is a name describing the operation
     !> performed (e.g. `compress').  Port of
     !> dired-aux.el:dired-map-over-marks-check.
     recursive subroutine dired_map_over_marks_check(fun, arg_kind, arg_n, op_symbol, status)

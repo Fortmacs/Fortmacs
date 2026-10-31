@@ -225,7 +225,7 @@ module buffer_fm
         logical :: display_time_set = .false.
         integer(int64) :: display_time_sec = 0
         integer(int32) :: display_time_nsec = 0
-        !> buffer.h:local_var_alist (BVAR): the variables local to this buffer (symbol
+        !> buffer.h:local_var_alist (BVAR): the variables local to this buffer (name
         !> ids) and, while the buffer is not current, their values (data_fm
         !> swaps them in and out).
         integer(int64), allocatable :: local_ids(:)

@@ -151,7 +151,7 @@ module sh_script_fm
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> The symbols an indentation variable can hold, for `sh_var_value':
+    !> The names an indentation variable can hold, for `sh_var_value':
     !> + - ++ -- * /.
     integer, parameter, public :: SH_PLUS = -1000001, SH_MINUS = -1000002, SH_PLUS_PLUS = -1000003, &
                                   SH_MINUS_MINUS = -1000004, SH_STAR = -1000005, SH_SLASH = -1000006
@@ -343,8 +343,8 @@ module sh_script_fm
     !> Use this where the name of the executable doesn't correspond to
     !> the type of shell it really is.  Keys are regular expressions
     !> matched against the full path of the interpreter.  (For backward
-    !> compatibility, keys may also be symbols, which are matched
-    !> against the interpreter's basename.  The values are symbols
+    !> compatibility, keys may also be names, which are matched
+    !> against the interpreter's basename.  The values are names
     !> naming the shell.  Port of sh-script.el sh-alias-alist.
     type(sh_alias_type), allocatable, public :: sh_alias_table(:)
 
@@ -481,7 +481,7 @@ module sh_script_fm
     type(hook_type), target, public :: sh_base_mode_hook = hook_type(name="sh_base_mode_hook")
 
     !> The default indentation increment.
-    !> This value is used for the `+' and `-' symbols in an indentation variable.
+    !> This value is used for the `+' and `-' values in an indentation variable.
     !> Port of sh-script.el sh-basic-offset.
     type(integer_setting), target, public :: sh_basic_offset = integer_setting(name="sh_basic_offset", value=4)
 
@@ -3581,7 +3581,7 @@ contains
     end function sh_canonicalize_shell
 
     !> Return the value of the indentation variable VAR, interpreting the
-    !> symbols SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR and
+    !> names SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR and
     !> SH_SLASH by `sh_basic_offset'.  Port of sh-script.el:sh-var-value.
     integer function sh_var_value(var) result(value)
         type(integer_setting), intent(in) :: var

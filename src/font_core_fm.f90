@@ -247,8 +247,8 @@ module font_core_fm
     !>
     !>  (KEYWORDS [KEYWORDS-ONLY [CASE-FOLD [SYNTAX-ALIST ...]]])
     !>
-    !> KEYWORDS may be a symbol (a variable or function whose value is the
-    !> keywords to use for fontification) or a list of symbols (specifying
+    !> KEYWORDS may be a name (a variable or function whose value is the
+    !> keywords to use for fontification) or a list of names (specifying
     !> different levels of fontification).
     !>
     !> If KEYWORDS-ONLY is true, syntactic fontification (strings and

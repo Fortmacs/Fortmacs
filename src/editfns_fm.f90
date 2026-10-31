@@ -1021,7 +1021,7 @@ contains
     ! properties only, as there are no overlays yet).
     ! ------------------------------------------------------------------
 
-    !> The `field' symbol.  Not a port.
+    !> The `field' name.  Not a port.
     function qfield() result(v)
         type(value_type) :: v
 

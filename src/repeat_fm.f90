@@ -173,7 +173,7 @@ contains
         repeat_is_really_this_command = repeat_num_input_keys_at_repeat == num_input_keys
     end function repeat_is_really_this_command
 
-    !> The command named by symbol V (null if none).  Not a port.
+    !> The command named V (null if none).  Not a port.
     function command_of(v) result(p)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -186,7 +186,7 @@ contains
         if (.not. associated(p)) p => builtin_command(name)
     end function command_of
 
-    !> The name of symbol V.  Not a port.
+    !> The text of name V.  Not a port.
     function name_of(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
@@ -408,7 +408,7 @@ contains
         if (.not. associated(p)) p => command_of(real_this_command)
     end function this_command_object
 
-    !> Return a transient map possibly as a symbol (the null handle for
+    !> Return a transient map possibly as a name (the null handle for
     !> none).  Port of repeat.el:repeat-get-map-sym (and repeat-get-map).
     function repeat_get_map_sym() result(map)
         type(handle_type) :: map
@@ -446,7 +446,7 @@ contains
     end function repeat_get_map_sym
 
     !> The basic type of event EV: the character without its modifiers
-    !> (and lower case), or the symbol without its modifier prefixes.
+    !> (and lower case), or the name without its modifier prefixes.
     !> Port of subr.el:event-basic-type.
     function event_basic_type(ev) result(basic)
         type(value_type), intent(in) :: ev

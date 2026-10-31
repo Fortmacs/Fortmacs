@@ -196,7 +196,7 @@ contains
     end subroutine plist_get_eq
 
     !> Value of text property `prop' in `plist' (text properties), falling back to the
-    !> `category' symbol's property, then to the first of the properties
+    !> `category' value's attributes, then to the first of the properties
     !> `char_property_alias_table' gives as alternatives for `prop'.
     !> Port of intervals.c:textget and intervals.c:lookup_char_property
     !> (default-text-properties is not consulted yet).

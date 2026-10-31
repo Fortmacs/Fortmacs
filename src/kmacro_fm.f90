@@ -46,7 +46,7 @@
 !> (C-x C-k r) and `kbd_macro_query' (C-x C-k q, C-x q) from macros.el,
 !> the Keyboard Macro Menu (`list_keyboard_macros'), mouse events
 !> (`kmacro_call_mouse_event', S-mouse-3, the EVENT of
-!> `kmacro_end_and_call_macro', `kmacro_end_call_mouse'), a key symbol as
+!> `kmacro_end_and_call_macro', `kmacro_end_call_mouse'), a key name as
 !> `kmacro_call_repeat_key', repeat-mode, the obsolete
 !> `kmacro_lambda_form', `kmacro_extract_lambda' and
 !> `kmacro_exec_ring_item', and the obsolete list form of ring elements.
@@ -133,7 +133,7 @@ module kmacro_fm
     !> Allow repeating macro call using last key or a specific key.
     !> In Fortran: KMACRO_CALL_REPEAT_DISABLED (none),
     !> KMACRO_CALL_REPEAT_LAST_KEY (the last key) or a character.  Port of
-    !> kmacro.el kmacro-call-repeat-key (a key symbol is Deferred).
+    !> kmacro.el kmacro-call-repeat-key (a key name is Deferred).
     integer, public :: kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
 
     !> Repeat macro call with original arg when true; repeat once if false.
@@ -503,7 +503,7 @@ contains
     ! The macro ring
     ! ------------------------------------------------------------------
 
-    !> Create a `kmacro_type' for macro bound to symbol or key.
+    !> Create a `kmacro_type' for macro bound to name or key.
     !> KEYS is an array of events; COUNTER defaults to 0 and FORMAT to
     !> "%d".  Port of kmacro.el:kmacro (KEYS a vector).
     function kmacro(keys, counter, format) result(m)

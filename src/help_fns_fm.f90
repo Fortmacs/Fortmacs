@@ -31,7 +31,7 @@
 !> buffer-local when set and whether it is a user option ("You can
 !> customize this variable.").
 !>
-!> Deferred: the default from the symbol at point, cross-reference
+!> Deferred: the default from the identifier at point, cross-reference
 !> buttons, "Probably introduced at" lines, obsolescence, aliases,
 !> buffer-local values and the other help-fns-describe-variable-functions
 !> (safe and risky local variables, file-local values, watchpoints), the

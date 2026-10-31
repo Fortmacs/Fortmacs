@@ -29,12 +29,12 @@
 !> that shadows the parent; `remove' deletes the entry instead.
 !>
 !> A key is a vector of events: fixnums (characters with modifier bits)
-!> and symbols (function keys such as `f1' or `C-home').  Strings as keys
+!> and names (function keys such as `f1' or `C-home').  Strings as keys
 !> are not supported; `key_parse' (kbd) builds vectors.
 !>
 !> Composite keymaps, which upstream builds as (keymap MAP1 MAP2 ...)
 !> when several active maps define the same prefix key, are lists of
-!> keymap values.  The symbol `keymap' inside such a list marks the
+!> keymap values.  The name `keymap' inside such a list marks the
 !> start of an inherited part, exactly as upstream.  A list of keymaps
 !> given to `lookup_key' is the same thing, so `keymapp' accepts it too
 !> (upstream only accepts the (keymap ...) form).
@@ -46,7 +46,7 @@
 !> handles, which are then treated as "not a keymap".
 !>
 !> Not ported yet: char-table and vector entries (a full keymap is a
-!> flag), menu items, `remap', symbols whose function definition is a
+!> flag), menu items, `remap', names whose function definition is a
 !> keymap, event ranges, minor-mode maps, where-is.
 module keymap_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -399,7 +399,7 @@ contains
     ! Predicates and parents
     ! ------------------------------------------------------------------
 
-    !> The symbol `keymap', which marks inherited parts of composites.
+    !> The name `keymap', which marks inherited parts of composites.
     !> Not a port.
     function keymap_marker() result(v)
         type(value_type) :: v
@@ -582,10 +582,10 @@ contains
         end select
     end function modifier_bit
 
-    !> Split symbol event `v' into modifier bits and base name: `C-M-home'
+    !> Split name event `v' into modifier bits and base name: `C-M-home'
     !> gives CTL+META and "home", `down-mouse-1' DOWN and "mouse-1",
     !> `mouse-1' CLICK and "mouse-1".  Port of keyboard.c:parse_modifiers
-    !> and keyboard.c:parse_modifiers_uncached (nothing is cached in symbol
+    !> and keyboard.c:parse_modifiers_uncached (nothing is cached in name
     !> properties).
     subroutine parse_modifiers(v, bits, base)
         type(value_type), intent(in) :: v
@@ -658,8 +658,8 @@ contains
         end function multi_letter_mod
     end subroutine parse_modifiers
 
-    !> The symbol event for `base' with modifiers `bits', prefixes in
-    !> canonical order.  Port of keyboard.c:apply_modifiers (symbols only).
+    !> The name event for `base' with modifiers `bits', prefixes in
+    !> canonical order.  Port of keyboard.c:apply_modifiers (names only).
     function apply_modifiers(bits, base) result(e)
         integer(int64), intent(in) :: bits
         character(len=*), intent(in) :: base
@@ -668,7 +668,7 @@ contains
         e = make_symbol_ref(intern(modifier_prefix(bits)//base))
     end function apply_modifiers
 
-    !> Symbol event `v' with its modifier prefixes in canonical order, so
+    !> Name event `v' with its modifier prefixes in canonical order, so
     !> `M-C-x' and `C-M-x' are the same event.  Port of
     !> keyboard.c:reorder_modifiers.
     function reorder_modifiers(v) result(e)
@@ -687,7 +687,7 @@ contains
     end function reorder_modifiers
 
     !> Event `c' in the form keymaps store: high bits of characters
-    !> cleared, symbol modifiers reordered.  Not a port.
+    !> cleared, name modifiers reordered.  Not a port.
     function normalize_event(c) result(e)
         type(value_type), intent(in) :: c
         type(value_type) :: e
@@ -2020,7 +2020,7 @@ contains
     end function push_key_description
 
     !> Description of one event: "C-x", "<f1>", "C-s-<home>".  With
-    !> `no_angles', symbols are given by name only.  Port of
+    !> `no_angles', named events are given by name only.  Port of
     !> keymap.c:Fsingle_key_description; a character interval from a
     !> char-table, the list (FROM TO) here, is "FROM..TO"; other values
     !> give "".
@@ -2589,7 +2589,7 @@ contains
     end subroutine keymap_set_value
 
     !> Set KEY to the command named COMMAND in KEYMAP: `keymap_set' with
-    !> the symbol COMMAND as the definition.  Not a port.
+    !> the name COMMAND as the definition.  Not a port.
     subroutine keymap_set_command(keymap, key, command, status)
         type(handle_type), intent(in) :: keymap
         character(len=*), intent(in) :: key, command

@@ -1084,7 +1084,7 @@ contains
                                              sym(trim(PROMPT_REAR_NONSTICKY(5)))))
     end function rear_nonsticky_plist
 
-    !> Whether the symbol V is named NAME.  Not a port.
+    !> Whether the name V is named NAME.  Not a port.
     logical function symbol_is(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name

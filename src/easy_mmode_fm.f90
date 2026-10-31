@@ -320,7 +320,7 @@ contains
         if (re_narrow) call narrowfun(status)
     end subroutine easy_mmode_prev
 
-    !> Turn the symbol MODE into a string intended for the user.
+    !> Turn the name MODE into a string intended for the user.
     !> If provided, LIGHTER will be used to help choose capitalization by,
     !> replacing its case-insensitive matches with the literal string in
     !> LIGHTER.  Port of easy-mmode.el:easy-mmode-pretty-mode-name.

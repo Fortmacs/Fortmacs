@@ -26,7 +26,7 @@
 !> input-decode-map, local-function-key-map and key-translation-map)
 !> -> `command_loop_step', which runs the bound command.
 !>
-!> Events are fixnums (characters with modifier bits) and symbols
+!> Events are fixnums (characters with modifier bits) and names
 !> (function keys).  Without a terminal (`set_input_fd' not called) the
 !> event queue is the only source, which is how tests drive the loop;
 !> `read_event' then reports end of input instead of blocking.
@@ -985,7 +985,7 @@ contains
     end subroutine record_char
 
     !> Write event C to the dribble file, if one is open: a character
-    !> below 256 as its byte, a larger one as " 0xHEX", a symbol (or the
+    !> below 256 as its byte, a larger one as " 0xHEX", a name (or the
     !> head of a composite event) as <NAME>.  Port of keyboard.c:record_char
     !> (the dribble part).
     subroutine record_dribble(c)
@@ -2616,7 +2616,7 @@ contains
     end function echo_keystrokes_p
 
     !> Add C to the echo string, without echoing it immediately.  C can
-    !> be a character, which is pretty-printed, or a symbol, whose name is
+    !> be a character, which is pretty-printed, or a name, whose name is
     !> printed.  Port of keyboard.c:echo_add_key.
     subroutine echo_add_key(c)
         type(value_type), intent(in) :: c
@@ -3313,7 +3313,7 @@ contains
     ! Event symbols
     ! ------------------------------------------------------------------
 
-    !> The modifier bit that symbol SYMBOL names by itself (A, alt, C,
+    !> The modifier bit that name SYMBOL names by itself (A, alt, C,
     !> ctrl, control, click, H, hyper, M, meta, S, shift, s, super, drag,
     !> down, double, triple, up), or 0.  Port of
     !> keyboard.c:parse_solitary_modifier.
@@ -3353,7 +3353,7 @@ contains
         end select
     end function parse_solitary_modifier
 
-    !> The list of modifier symbols for the bits MODIFIERS, the highest
+    !> The list of modifier names for the bits MODIFIERS, the highest
     !> bit first: (meta control) for C-M-.  Port of
     !> keyboard.c:lispy_modifier_list.
     function lispy_modifier_list(modifiers) result(v)
@@ -3378,7 +3378,7 @@ contains
         v = make_list(syms(1:n))
     end function lispy_modifier_list
 
-    !> Parse the event symbol.  For internal use.  The value is the list
+    !> Parse the event name.  For internal use.  The value is the list
     !> (BASE MODIFIERS...), as the `event_symbol_elements' property of
     !> SYMBOL upstream.  Port of keyboard.c:Fevent_symbol_parse_modifiers.
     function event_symbol_parse_modifiers(symbol) result(v)
@@ -3435,13 +3435,13 @@ contains
     end function make_ctrl_char
 
     !> Convert the event description list EVENT_DESC to an event type.
-    !> EVENT_DESC should contain one base event type (a character or symbol)
+    !> EVENT_DESC should contain one base event type (a character or name)
     !> and zero or more modifier names (control, meta, hyper, super, shift, alt,
     !> drag, down, double or triple).  The base must be last.
     !>
-    !> The return value is an event type (a character or symbol) which has
+    !> The return value is an event type (a character or name) which has
     !> essentially the same base event type and all the specified modifiers.
-    !> (Some compatibility base types, like symbols that represent a
+    !> (Some compatibility base types, like names that represent a
     !> character, are not returned verbatim.)  Port of
     !> keyboard.c:Fevent_convert_list (EVENT_DESC as an array).
     subroutine event_convert_list(event_desc, ev, status)
@@ -3500,7 +3500,7 @@ contains
         end if
     end subroutine event_convert_list
 
-    !> The `ascii_character' property of function-key symbol EVENT: the
+    !> The `ascii_character' property of function-key name EVENT: the
     !> character a keypad or other key with a character equivalent stands
     !> for, or -1 for none.  The properties bindings.el and simple.el's
     !> keypad support give.  Not a port.
@@ -3563,7 +3563,7 @@ contains
     !> if it is one of them, else from the default ones), the other
     !> functions still running.  Port of keyboard.c:safe_run_hooks, with
     !> keyboard.c:safe_run_hook_funcall, keyboard.c:safe_run_hooks_1 and
-    !> keyboard.c:safe_run_hooks_error (the error as its symbol and
+    !> keyboard.c:safe_run_hooks_error (the error as its name and
     !> message, a status having no other data).
     recursive subroutine safe_run_hooks(hook)
         type(hook_type), intent(inout) :: hook

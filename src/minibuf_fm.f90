@@ -148,7 +148,7 @@ module minibuf_fm
     !> (unallocated for none).
     character(len=:), allocatable :: minibuf_prompt
 
-    !> Vminibuffer_history_variable: the history list's symbol name.
+    !> Vminibuffer_history_variable: the history list's name.
     character(len=:), allocatable, public :: minibuffer_history_variable
     !> Vminibuffer_history_position: the element shown (0: the input).
     integer, public :: minibuffer_history_position = 0
@@ -706,7 +706,7 @@ contains
         end do
     end function match_regexps
 
-    !> Like `assoc' but specifically for strings (and symbols).
+    !> Like `assoc' but specifically for strings (and names).
     !>
     !> This returns the first element of LIST whose first element matches the string or
     !> name KEY, or empty if no match exists.  When performing the
@@ -716,7 +716,7 @@ contains
     !>
     !> Unlike `assoc', KEY can also match an entry in LIST consisting of a
     !> single string, rather than a pair whose first element is a string.
-    !> Port of minibuf.c:Fassoc_string (KEY as a string; a symbol is
+    !> Port of minibuf.c:Fassoc_string (KEY as a string; a name is
     !> given by its name).
     function assoc_string(key, list_value, case_fold) result(elt)
         character(len=*), intent(in) :: key
@@ -823,9 +823,9 @@ contains
     ! ------------------------------------------------------------------
 
     !> The elements of a non-function table: `elts' (the list elements or
-    !> symbols, given to the predicate) and the string each one completes
+    !> names, given to the predicate) and the string each one completes
     !> to (`names'; `ok' is false for elements that are not strings or
-    !> symbols).  Not a port.
+    !> names).  Not a port.
     subroutine table_elements(table, elts, names, ok)
         type(completion_table_type), intent(in) :: table
         type(value_type), allocatable, intent(out) :: elts(:)
@@ -889,7 +889,7 @@ contains
     !>
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
-    !> symbols.  Symbols are converted to strings before testing, by using
+    !> names.  Names are converted to strings before testing, by using
     !> `symbol_name'.
     !>
     !> If no possible completions match, the function returns no completion (TRY_NONE); if
@@ -1035,7 +1035,7 @@ contains
     !>
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
-    !> symbols.  Symbols are converted to strings before testing, by using
+    !> names.  Names are converted to strings before testing, by using
     !> `symbol_name'.
     !>
     !> The value is a list of all the possible completions that match
