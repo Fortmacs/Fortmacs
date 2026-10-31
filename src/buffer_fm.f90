@@ -40,10 +40,11 @@
 !> file visiting and locking, and hooks.
 module buffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use lisp_fm, only: vtag, V_NULL
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, nilp, make_symbol_ref
+    use lisp_fm, only: value_type, make_symbol_ref
     use lread_fm, only: intern
     use data_fm, only: symbol_value, integer_setting, logical_setting, function_setting
     use intervals_fm, only: intervals_type, find_interval, textget
@@ -85,7 +86,7 @@ module buffer_fm
     integer, parameter, public :: UE_BOUNDARY = 0, UE_INSERTION = 1, UE_DELETION = 2, &
                                   UE_POINT = 3, UE_FIRST_CHANGE = 4
 
-    !> One entry of `buffer_undo_list': a boundary (nil); an insertion
+    !> One entry of `buffer_undo_list': a boundary; an insertion
     !> (BEG . END); a deletion (TEXT . POSITION), POSITION negative when
     !> point was at the end of the text; point (POSITION, in `beg'); or the
     !> first change since the buffer was unmodified, (t . TIME), with the
@@ -98,7 +99,7 @@ module buffer_fm
     end type undo_entry_type
 
     !> An element of a buffer's invisibility spec: `ATOM', or
-    !> `(ATOM . ELLIPSIS)' (`cons') with ELLIPSIS true or false.
+    !> ATOM with ELLIPSIS (`with_ellipsis') .true. or .false..
     type, public :: invisibility_entry_type
         type(value_type) :: atom
         logical :: cons = .false., ellipsis = .false.
@@ -115,7 +116,7 @@ module buffer_fm
     end type header_line_segment_type
 
     !> A header line: its segments in order.  A buffer shows no header line
-    !> while SEGMENTS is unallocated (nil upstream); `add' starts one.
+    !> while SEGMENTS is unallocated; `add' starts one.
     !> (The %-constructs, `:eval' and the other mode-line-format elements
     !> are Deferred, as for the mode line.)
     type, public :: header_line_format_type
@@ -124,7 +125,7 @@ module buffer_fm
         !> Append a segment: TEXT, in FACE if present, at column ALIGN_TO
         !> if present.
         procedure :: add => header_line_add
-        !> No header line (nil).
+        !> No header line.
         procedure :: clear => header_line_clear
     end type header_line_format_type
 
@@ -142,7 +143,7 @@ module buffer_fm
         !> means reorder bidirectional text for display in the visual order.
         logical :: bidi_display_reordering = .true.
         !> BVAR bidi_paragraph_direction (`bidi_paragraph_direction'): 0
-        !> (nil) to determine each paragraph's direction dynamically, 1
+        !> to determine each paragraph's direction dynamically, 1
         !> (`left-to-right') or 2 (`right-to-left') to force it (bidi_fm
         !> L2R and R2L).
         integer :: bidi_paragraph_direction = 0
@@ -152,7 +153,7 @@ module buffer_fm
         logical :: undo_enabled = .true.
         !> BVAR undo_list (`buffer_undo_list'): entries 1 to `undo_count',
         !> the newest last.  A list position k (entries 1 to k, the head
-        !> being entry k) stands for a tail of the Lisp list.
+        !> being entry k) stands for a tail of upstream's list.
         type(undo_entry_type), allocatable :: undo_list(:)
         integer(int64) :: undo_count = 0
         !> simple.el undo-equiv-table, keyed by list position (0 to
@@ -175,7 +176,7 @@ module buffer_fm
         !> name; unallocated when the buffer visits no file.
         character(len=:), allocatable :: filename
         !> BVAR directory (`default_directory'), ending in a slash;
-        !> unallocated for nil.
+        !> unallocated when unset.
         character(len=:), allocatable :: directory
         !> `buffer_backed_up': a backup was made since the file was visited.
         logical :: backed_up = .false.
@@ -220,12 +221,12 @@ module buffer_fm
         integer(int64) :: display_count = 0
         !> BVAR display_time (`buffer_display_time'): the time when the
         !> buffer was last displayed in a window, in seconds and nanoseconds
-        !> since the epoch (unset, nil upstream, while DISPLAY_TIME_SET is
+        !> since the epoch (unset while DISPLAY_TIME_SET is
         !> false).
         logical :: display_time_set = .false.
         integer(int64) :: display_time_sec = 0
         integer(int32) :: display_time_nsec = 0
-        !> buffer.h:local_var_alist (BVAR): the variables local to this buffer (symbol
+        !> buffer.h:local_var_alist (BVAR): the variables local to this buffer (name
         !> ids) and, while the buffer is not current, their values (data_fm
         !> swaps them in and out).
         integer(int64), allocatable :: local_ids(:)
@@ -301,7 +302,7 @@ module buffer_fm
     !> the `auto_fill_chars' table.
     !> NOTE: This variable is not a hook;
     !> its value may not be several functions.  Port of buffer.c
-    !> auto-fill-function (null is nil; one global value).
+    !> auto-fill-function (null when unset; one global value).
     type(function_setting), public :: auto_fill_function = function_setting(name="auto_fill_function")
 
     !> Swaps the buffer-local variables on a change of current buffer; set
@@ -381,9 +382,9 @@ module buffer_fm
         end subroutine run_buffer_list_update_hook
 
         !> Return the buffer with buffer-local VARIABLE `equal' to VALUE.
-        !> If there is no such live buffer, return nil.
+        !> If there is no such live buffer, return the null handle.
         !> See also `find_buffer_visiting'.
-        !> Port of buffer.c:Ffind_buffer (the null handle for nil).  (In
+        !> Port of buffer.c:Ffind_buffer (the null handle for none).  (In
         !> buffer_ops_fm.)
         module function find_buffer(variable, value) result(h)
             implicit none(type, external)
@@ -399,20 +400,20 @@ module buffer_fm
         end subroutine syms_of_buffer
     end interface
 
-    public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
+    public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
               set_buffer_internal
     public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, &
               frame_seen_buffers, bury_buffer_internal, frames_discard_buffer
     public :: set_buffer, kill_buffer, erase_buffer
-    public :: buffer_modified_p, restore_buffer_modified_p, &
+    public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_chars_modified_tick
     public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
     public :: modiff_incr, buf_compute_unchanged
     public :: buf_byte_index, buf_fetch_byte, buf_fetch_char, &
               buf_next_char_len, buf_prev_char_len, buf_bytes
     public :: temp_set_point_both
-    public :: nsberror, buffer_enable_undo, set_buffer_modified_p, force_mode_line_update, buffer_file_name, &
+    public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
               set_buffer_if_live, run_buffer_list_update_hook, find_buffer, syms_of_buffer
     public :: buffer_serial_live
 
@@ -445,7 +446,7 @@ contains
         call move_alloc(grown, self%segments)
     end subroutine header_line_add
 
-    !> Make header line SELF nil: no header line.  Not a port.
+    !> Clear header line SELF: no header line.  Not a port.
     subroutine header_line_clear(self)
         class(header_line_format_type), intent(inout) :: self
 
@@ -467,11 +468,11 @@ contains
     end subroutine resolve_buffer
 
     !> Port of buffer.c:Fbuffer_live_p.
-    logical function buffer_live_p(h)
+    logical function is_buffer_live(h)
         type(handle_type), intent(in) :: h
 
-        buffer_live_p = table%is_live(h)
-    end function buffer_live_p
+        is_buffer_live = table%is_live(h)
+    end function is_buffer_live
 
     !> Whether a live buffer has serial number SERIAL (for Fortran objects
     !> keeping per-buffer values by serial number).  Not a port.
@@ -484,7 +485,7 @@ contains
 
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
-            live = buffer_live_p(buffer_handle(k))
+            live = is_buffer_live(buffer_handle(k))
             return
         end do
     end function buffer_serial_live
@@ -697,7 +698,7 @@ contains
 
     !> Return the name of BUFFER (handle `h'), as a string.  Port of
     !> buffer.c:Fbuffer_name (a killed buffer is an error, where upstream
-    !> returns nil).
+    !> returns no name).
     subroutine buffer_name(h, name, status)
         type(handle_type), intent(in) :: h
         character(len=:), allocatable, intent(out) :: name
@@ -766,7 +767,7 @@ contains
     end subroutine rename_buffer
 
     !> Return a list of all live buffers, most recently selected first.
-    !> Port of buffer.c:Fbuffer_list (FRAME nil).
+    !> Port of buffer.c:Fbuffer_list (FRAME absent).
     function buffer_list() result(list)
         type(handle_type), allocatable :: list(:)
 
@@ -862,7 +863,7 @@ contains
         end do
     end subroutine list_delq
 
-    !> (cons h (delq h list)) Not a port.
+    !> Move H to the front of LIST (removing it elsewhere).  Not a port.
     subroutine list_push(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
@@ -1015,7 +1016,7 @@ contains
 
     !> Port of buffer.c:Fbuffer_modified_p (the `autosaved' state is not
     !> tracked yet).
-    subroutine buffer_modified_p(h, modified, status)
+    subroutine is_buffer_modified(h, modified, status)
         type(handle_type), intent(in) :: h
         logical, intent(out) :: modified
         type(status_type), intent(out) :: status
@@ -1025,12 +1026,12 @@ contains
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
         modified = buffers(i)%text%save_modiff < buffers(i)%text%modiff
-    end subroutine buffer_modified_p
+    end subroutine is_buffer_modified
 
     !> Mark the current buffer modified or unmodified.
     !> Port of buffer.c:Frestore_buffer_modified_p (also the behavior of
     !> Fset_buffer_modified_p, minus mode-line updates and file locks).
-    subroutine restore_buffer_modified_p(flag)
+    subroutine restore_buffer_modified(flag)
         logical, intent(in) :: flag
 
         if (cur == 0) return
@@ -1042,7 +1043,7 @@ contains
                 call modiff_incr(t%modiff, 1_int64, t%save_modiff)
             end if
         end associate
-    end subroutine restore_buffer_modified_p
+    end subroutine restore_buffer_modified
 
     !> Port of buffer.c:Fbuffer_modified_tick.
     subroutine buffer_modified_tick(h, tick, status)
@@ -1070,7 +1071,7 @@ contains
         tick = buffers(i)%text%chars_modiff
     end subroutine buffer_chars_modified_tick
 
-    !> Value of the variable `inhibit_read_only' (nil when unbound).
+    !> Value of the variable `inhibit_read_only' (.false. when it has no value).
     !> Port of buffer.c:Vinhibit_read_only (global value only).
     function inhibit_read_only() result(v)
         type(value_type) :: v
@@ -1080,8 +1081,8 @@ contains
     end function inhibit_read_only
 
     !> Fail with buffer-read-only if the current buffer is read-only,
-    !> unless `inhibit_read_only' is non-nil or the text at `position'
-    !> (default: point) has a non-nil `inhibit_read_only' property.
+    !> unless `inhibit_read_only' is .true. or the text at `position'
+    !> (default: point) has an `inhibit_read_only' text property that is not .false..
     !> Port of buffer.c:Fbarf_if_buffer_read_only.
     subroutine barf_if_buffer_read_only(status, position)
         type(status_type), intent(out) :: status
@@ -1091,7 +1092,7 @@ contains
 
         if (cur == 0) return
         if (.not. buffers(cur)%read_only) return
-        if (.not. nilp(inhibit_read_only())) return
+        if (vtag(inhibit_read_only()) /= V_NULL) return
         pos = buffers(cur)%pt
         if (present(position)) pos = position
 
@@ -1100,7 +1101,7 @@ contains
             if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
                 k = find_interval(iv, pos)
                 props = iv%runs(k)%plist
-                if (.not. nilp(textget(props, make_symbol_ref(intern("inhibit_read_only"))))) return
+                if (vtag(textget(props, make_symbol_ref(intern("inhibit_read_only")))) /= V_NULL) return
             end if
         end associate
 
@@ -1232,7 +1233,7 @@ contains
     end subroutine nsberror
 
     !> Start keeping undo information for buffer BUFFER.
-    !> No argument or nil as argument means do this for the current buffer.
+    !> An absent argument means do this for the current buffer.
     !> Port of buffer.c:Fbuffer_enable_undo (BUFFER a buffer; a buffer
     !> name is looked up with `get_buffer' by the command).
     subroutine buffer_enable_undo(status, buffer)
@@ -1267,13 +1268,13 @@ contains
     !> the function's argument is true, but only if both `buffer_file_name'
     !> and `buffer_file_truename' are true.
     !> Port of buffer.c:Fset_buffer_modified_p (file locking is deferred,
-    !> as in `restore_buffer_modified_p').
-    subroutine set_buffer_modified_p(flag)
+    !> as in `restore_buffer_modified').
+    subroutine set_buffer_modified(flag)
         logical, intent(in) :: flag
 
-        call restore_buffer_modified_p(flag)
+        call restore_buffer_modified(flag)
         call force_mode_line_update(.false.)
-    end subroutine set_buffer_modified_p
+    end subroutine set_buffer_modified
 
     !> Force redisplay of the current buffer's mode line and header line.
     !> With optional true ALL, force redisplay of all mode lines, tab lines and
@@ -1288,9 +1289,9 @@ contains
         if (all) continue
     end subroutine force_mode_line_update
 
-    !> Return absolute name of file BUFFER is visiting, or nil if none.
-    !> No argument or nil as argument means use the current buffer.
-    !> Port of buffer.c:Fbuffer_file_name (FOUND false for nil).
+    !> Return absolute name of file BUFFER is visiting, or FOUND .false. if none.
+    !> An absent argument means use the current buffer.
+    !> Port of buffer.c:Fbuffer_file_name (FOUND .false. for none).
     subroutine buffer_file_name(filename, found, status, buffer)
         character(len=:), allocatable, intent(out) :: filename
         logical, intent(out) :: found

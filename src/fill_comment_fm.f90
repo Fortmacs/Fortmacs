@@ -23,6 +23,7 @@
 !> comment variables: a submodule because it uses newcomment_fm, which
 !> uses fill_fm.
 submodule(fill_fm) fill_comment_fm
+    use lisp_fm, only: vtag, V_STRING, value_type
     use newcomment_fm, only: comment_start, comment_end, comment_start_skip, comment_normalize_vars, &
                              comment_search_forward, comment_string_strip
     use paragraphs_fm, only: paragraph_separate
@@ -33,12 +34,12 @@ submodule(fill_fm) fill_comment_fm
 
 contains
 
-    module procedure fill_comment_syntax_p
-    fill_comment_syntax_p = .false.
+    module procedure is_fill_comment_syntax
+    is_fill_comment_syntax = .false.
     if (.not. allocated(comment_start%value)) return
     if (.not. allocated(comment_end%value)) return
-    fill_comment_syntax_p = len(comment_end%value) == 0
-    end procedure fill_comment_syntax_p
+    is_fill_comment_syntax = len(comment_end%value) == 0
+    end procedure is_fill_comment_syntax
 
     module procedure fill_comment_start_skip
     skip = ""
@@ -65,7 +66,7 @@ contains
 
         s = ""
         call default_value(sym(name), v, st)
-        if (st%ok() .and. stringp(v)) s = xstring(v)
+        if (st%ok() .and. vtag(v) == V_STRING) s = xstring(v)
     end function default_string
 
     module procedure fill_comment_paragraph
@@ -91,7 +92,7 @@ contains
         comin = point()
         call goto_char(comstart)
         moved = skip_chars_backward(" "//TAB, st)
-        has_code_and_comment = .not. bolp()
+        has_code_and_comment = .not. is_bol()
     end if
 
     call goto_char(opoint)

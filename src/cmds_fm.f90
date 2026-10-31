@@ -36,7 +36,7 @@ module cmds_fm
     use insdel_fm, only: del_range
     use editfns_fm, only: line_beginning_position, line_end_position, goto_char, &
                           insert_char_n
-    use lisp_fm, only: value_type, fixnump, xfixnum, nilp
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use character_fm, only: MAX_CHAR
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command_event, this_command, last_command
@@ -47,7 +47,7 @@ module cmds_fm
     use dispnew_fm, only: ding
     use syntax_fm, only: char_syntax_class, SWORD
     use editfns_fm, only: preceding_char
-    use abbrev_fm, only: abbrev_mode_p, expand_abbrev, abbrev_ref_type, abbrev_no_self_insert
+    use abbrev_fm, only: is_abbrev_mode, expand_abbrev, abbrev_ref_type, abbrev_no_self_insert
     implicit none(type, external)
     private
 
@@ -208,8 +208,8 @@ contains
         call goto_char(line_end_position(n))
     end subroutine end_of_line
 
-    !> Delete `n' characters after point (before, if negative); signals
-    !> beginning-/end-of-buffer instead of deleting fewer.  Optional
+    !> Delete `n' characters after point (before, if negative); a
+    !> `beginning_of_buffer' or `end_of_buffer' error condition occurs instead of deleting fewer.  Optional
     !> KILLFLAG true means kill instead (save in kill ring).
     !> Port of cmds.c:Fdelete_char.
     subroutine delete_char(n, status, killflag)
@@ -294,7 +294,7 @@ contains
         hairy = 0
         status = status_type()
 
-        if (abbrev_mode_p()) then
+        if (is_abbrev_mode()) then
             if (char_syntax_class(int(c)) /= SWORD .and. .not. buffers(cur)%read_only .and. &
                 buffers(cur)%pt > buffers(cur)%begv) then
                 if (char_syntax_class(int(preceding_char())) == SWORD) then
@@ -318,7 +318,7 @@ contains
         call insert_char_n(c, n, status)
         if (.not. status%ok()) return
 
-        if (auto_fill_char_p(c) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
+        if (is_auto_fill_char(c) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
             ! After inserting a newline, move to previous line and fill
             ! that.  Must have the newline in place already so filling and
             ! justification, if any, know where the end is going to be.
@@ -336,24 +336,24 @@ contains
 
     !> Whether `auto_fill_chars' contains `c' (space and
     !> newline when it is not a char-table).  Not a port.
-    logical function auto_fill_char_p(c)
+    logical function is_auto_fill_char(c)
         integer(int32), intent(in) :: c
         integer :: k
 
         if (.not. allocated(auto_fill_chars)) then
-            auto_fill_char_p = c == 32 .or. c == 10
+            is_auto_fill_char = c == 32 .or. c == 10
             return
         end if
 
-        auto_fill_char_p = .false.
+        is_auto_fill_char = .false.
 
         do k = 1, size(auto_fill_chars)
             if (c >= auto_fill_chars(k)%from .and. c <= auto_fill_chars(k)%to) then
-                auto_fill_char_p = .true.
+                is_auto_fill_char = .true.
                 return
             end if
         end do
-    end function auto_fill_char_p
+    end function is_auto_fill_char
 
     ! ------------------------------------------------------------------
     ! Commands (the interactive side of the DEFUNs)
@@ -365,7 +365,7 @@ contains
     end function arg_p
 
     !> Move point N characters forward (backward if N is negative).
-    !> On reaching end or beginning of buffer, stop and signal error.
+    !> On reaching end or beginning of buffer, stop, and an error condition occurs.
     !> Interactively, N is the numeric prefix argument.
     !> If N is omitted, move point 1 character forward.
     !>
@@ -379,7 +379,7 @@ contains
     end subroutine cmd_forward_char
 
     !> Move point N characters backward (forward if N is negative).
-    !> On attempt to pass beginning or end of buffer, stop and signal error.
+    !> On attempt to pass beginning or end of buffer, stop, and an error condition occurs.
     !> Interactively, N is the numeric prefix argument.
     !> If N is omitted, move point 1 character backward.
     !>
@@ -462,7 +462,7 @@ contains
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
 
-        call delete_char(arg_p(), status,.not. nilp(current_prefix_arg))
+        call delete_char(arg_p(), status, allocated(current_prefix_arg%a))
     end subroutine cmd_delete_char
 
     !> Insert the character you type.
@@ -480,7 +480,7 @@ contains
 
         status = status_type()
 
-        if (fixnump(last_command_event)) then
+        if (vtag(last_command_event) == V_INTEGER) then
             call self_insert_command(arg_p(), xfixnum(last_command_event), status)
         else
             ! Not a character: self_insert_command barfs.

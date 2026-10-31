@@ -48,8 +48,8 @@ module commands_fm
         type(command_type) :: apropos_follow
         type(command_type) :: apropos_function
         type(command_type) :: apropos_mode
-        type(command_type) :: apropos_next_symbol
-        type(command_type) :: apropos_previous_symbol
+        type(command_type) :: apropos_next_name
+        type(command_type) :: apropos_previous_name
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
@@ -227,7 +227,7 @@ module commands_fm
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
-        type(command_type) :: complete_symbol
+        type(command_type) :: complete_name
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
@@ -288,7 +288,7 @@ module commands_fm
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
         type(command_type) :: describe_mode
-        type(command_type) :: describe_symbol
+        type(command_type) :: describe_name
         type(command_type) :: describe_variable
         type(command_type) :: diff
         type(command_type) :: diff_apply_buffer
@@ -490,8 +490,8 @@ module commands_fm
         type(command_type) :: grep_find_toggle_abbreviation
         type(command_type) :: grep_mode
         type(command_type) :: help_for_help
-        type(command_type) :: help_form_show
         type(command_type) :: help_mode
+        type(command_type) :: help_procedure_show
         type(command_type) :: help_quit
         type(command_type) :: how_many
         type(command_type) :: ibuffer
@@ -654,8 +654,8 @@ module commands_fm
         type(command_type) :: info_last_menu_item
         type(command_type) :: info_last_preorder
         type(command_type) :: info_lookup_file
+        type(command_type) :: info_lookup_name
         type(command_type) :: info_lookup_reset
-        type(command_type) :: info_lookup_symbol
         type(command_type) :: info_menu
         type(command_type) :: info_mode
         type(command_type) :: info_next
@@ -907,24 +907,24 @@ module commands_fm
         type(command_type) :: python_indent_guess_indent_offset
         type(command_type) :: python_indent_shift_left
         type(command_type) :: python_indent_shift_right
-        type(command_type) :: python_mark_subprogram
+        type(command_type) :: python_mark_definition
         type(command_type) :: python_mode
         type(command_type) :: python_nav_backward_block
+        type(command_type) :: python_nav_backward_definition
         type(command_type) :: python_nav_backward_expression
         type(command_type) :: python_nav_backward_expression_safe
         type(command_type) :: python_nav_backward_statement
-        type(command_type) :: python_nav_backward_subprogram
         type(command_type) :: python_nav_backward_up_group
         type(command_type) :: python_nav_beginning_of_block
         type(command_type) :: python_nav_beginning_of_statement
         type(command_type) :: python_nav_end_of_block
+        type(command_type) :: python_nav_end_of_definition
         type(command_type) :: python_nav_end_of_statement
-        type(command_type) :: python_nav_end_of_subprogram
         type(command_type) :: python_nav_forward_block
+        type(command_type) :: python_nav_forward_definition
         type(command_type) :: python_nav_forward_expression
         type(command_type) :: python_nav_forward_expression_safe
         type(command_type) :: python_nav_forward_statement
-        type(command_type) :: python_nav_forward_subprogram
         type(command_type) :: python_nav_if_name_main
         type(command_type) :: python_nav_up_group
         type(command_type) :: query_replace
@@ -939,6 +939,9 @@ module commands_fm
         type(command_type) :: read_only_mode
         type(command_type) :: read_passwd_mode
         type(command_type) :: read_passwd_toggle_visibility
+        type(command_type) :: read_y_or_n_insert_n
+        type(command_type) :: read_y_or_n_insert_other
+        type(command_type) :: read_y_or_n_insert_y
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
@@ -1164,9 +1167,6 @@ module commands_fm
         type(command_type) :: window_configuration_to_register
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
-        type(command_type) :: y_or_n_p_insert_n
-        type(command_type) :: y_or_n_p_insert_other
-        type(command_type) :: y_or_n_p_insert_y
         type(command_type) :: yank
         type(command_type) :: yank_pop
         type(command_type) :: yank_rectangle
@@ -1193,8 +1193,8 @@ module commands_fm
                                                                   "apropos_follow", &
                                                                   "apropos_function", &
                                                                   "apropos_mode", &
-                                                                  "apropos_next_symbol", &
-                                                                  "apropos_previous_symbol", &
+                                                                  "apropos_next_name", &
+                                                                  "apropos_previous_name", &
                                                                   "apropos_user_option", &
                                                                   "apropos_variable", &
                                                                   "async_shell_command", &
@@ -1372,7 +1372,7 @@ module commands_fm
                                                                   "compilation_shell_minor_mode", &
                                                                   "compile", &
                                                                   "compile_goto_error", &
-                                                                  "complete_symbol", &
+                                                                  "complete_name", &
                                                                   "completion_at_point", &
                                                                   "completion_help_at_point", &
                                                                   "completion_in_region_mode", &
@@ -1433,7 +1433,7 @@ module commands_fm
                                                                   "describe_key", &
                                                                   "describe_key_briefly", &
                                                                   "describe_mode", &
-                                                                  "describe_symbol", &
+                                                                  "describe_name", &
                                                                   "describe_variable", &
                                                                   "diff", &
                                                                   "diff_apply_buffer", &
@@ -1635,8 +1635,8 @@ module commands_fm
                                                                   "grep_find_toggle_abbreviation", &
                                                                   "grep_mode", &
                                                                   "help_for_help", &
-                                                                  "help_form_show", &
                                                                   "help_mode", &
+                                                                  "help_procedure_show", &
                                                                   "help_quit", &
                                                                   "how_many", &
                                                                   "ibuffer", &
@@ -1799,8 +1799,8 @@ module commands_fm
                                                                   "info_last_menu_item", &
                                                                   "info_last_preorder", &
                                                                   "info_lookup_file", &
+                                                                  "info_lookup_name", &
                                                                   "info_lookup_reset", &
-                                                                  "info_lookup_symbol", &
                                                                   "info_menu", &
                                                                   "info_mode", &
                                                                   "info_next", &
@@ -2052,24 +2052,24 @@ module commands_fm
                                                                   "python_indent_guess_indent_offset", &
                                                                   "python_indent_shift_left", &
                                                                   "python_indent_shift_right", &
-                                                                  "python_mark_subprogram", &
+                                                                  "python_mark_definition", &
                                                                   "python_mode", &
                                                                   "python_nav_backward_block", &
+                                                                  "python_nav_backward_definition", &
                                                                   "python_nav_backward_expression", &
                                                                   "python_nav_backward_expression_safe", &
                                                                   "python_nav_backward_statement", &
-                                                                  "python_nav_backward_subprogram", &
                                                                   "python_nav_backward_up_group", &
                                                                   "python_nav_beginning_of_block", &
                                                                   "python_nav_beginning_of_statement", &
                                                                   "python_nav_end_of_block", &
+                                                                  "python_nav_end_of_definition", &
                                                                   "python_nav_end_of_statement", &
-                                                                  "python_nav_end_of_subprogram", &
                                                                   "python_nav_forward_block", &
+                                                                  "python_nav_forward_definition", &
                                                                   "python_nav_forward_expression", &
                                                                   "python_nav_forward_expression_safe", &
                                                                   "python_nav_forward_statement", &
-                                                                  "python_nav_forward_subprogram", &
                                                                   "python_nav_if_name_main", &
                                                                   "python_nav_up_group", &
                                                                   "query_replace", &
@@ -2084,6 +2084,9 @@ module commands_fm
                                                                   "read_only_mode", &
                                                                   "read_passwd_mode", &
                                                                   "read_passwd_toggle_visibility", &
+                                                                  "read_y_or_n_insert_n", &
+                                                                  "read_y_or_n_insert_other", &
+                                                                  "read_y_or_n_insert_y", &
                                                                   "recenter", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
@@ -2309,9 +2312,6 @@ module commands_fm
                                                                   "window_configuration_to_register", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
-                                                                  "y_or_n_p_insert_n", &
-                                                                  "y_or_n_p_insert_other", &
-                                                                  "y_or_n_p_insert_y", &
                                                                   "yank", &
                                                                   "yank_pop", &
                                                                   "yank_rectangle", &
@@ -2358,10 +2358,10 @@ contains
             p => commands%apropos_function
         case ("apropos_mode")
             p => commands%apropos_mode
-        case ("apropos_next_symbol")
-            p => commands%apropos_next_symbol
-        case ("apropos_previous_symbol")
-            p => commands%apropos_previous_symbol
+        case ("apropos_next_name")
+            p => commands%apropos_next_name
+        case ("apropos_previous_name")
+            p => commands%apropos_previous_name
         case ("apropos_user_option")
             p => commands%apropos_user_option
         case ("apropos_variable")
@@ -2716,8 +2716,8 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
-        case ("complete_symbol")
-            p => commands%complete_symbol
+        case ("complete_name")
+            p => commands%complete_name
         case ("completion_at_point")
             p => commands%completion_at_point
         case ("completion_help_at_point")
@@ -2838,8 +2838,8 @@ contains
             p => commands%describe_key_briefly
         case ("describe_mode")
             p => commands%describe_mode
-        case ("describe_symbol")
-            p => commands%describe_symbol
+        case ("describe_name")
+            p => commands%describe_name
         case ("describe_variable")
             p => commands%describe_variable
         case ("diff")
@@ -3242,10 +3242,10 @@ contains
             p => commands%grep_mode
         case ("help_for_help")
             p => commands%help_for_help
-        case ("help_form_show")
-            p => commands%help_form_show
         case ("help_mode")
             p => commands%help_mode
+        case ("help_procedure_show")
+            p => commands%help_procedure_show
         case ("help_quit")
             p => commands%help_quit
         case ("how_many")
@@ -3570,10 +3570,10 @@ contains
             p => commands%info_last_preorder
         case ("info_lookup_file")
             p => commands%info_lookup_file
+        case ("info_lookup_name")
+            p => commands%info_lookup_name
         case ("info_lookup_reset")
             p => commands%info_lookup_reset
-        case ("info_lookup_symbol")
-            p => commands%info_lookup_symbol
         case ("info_menu")
             p => commands%info_menu
         case ("info_mode")
@@ -4076,20 +4076,20 @@ contains
             p => commands%python_indent_shift_left
         case ("python_indent_shift_right")
             p => commands%python_indent_shift_right
-        case ("python_mark_subprogram")
-            p => commands%python_mark_subprogram
+        case ("python_mark_definition")
+            p => commands%python_mark_definition
         case ("python_mode")
             p => commands%python_mode
         case ("python_nav_backward_block")
             p => commands%python_nav_backward_block
+        case ("python_nav_backward_definition")
+            p => commands%python_nav_backward_definition
         case ("python_nav_backward_expression")
             p => commands%python_nav_backward_expression
         case ("python_nav_backward_expression_safe")
             p => commands%python_nav_backward_expression_safe
         case ("python_nav_backward_statement")
             p => commands%python_nav_backward_statement
-        case ("python_nav_backward_subprogram")
-            p => commands%python_nav_backward_subprogram
         case ("python_nav_backward_up_group")
             p => commands%python_nav_backward_up_group
         case ("python_nav_beginning_of_block")
@@ -4098,20 +4098,20 @@ contains
             p => commands%python_nav_beginning_of_statement
         case ("python_nav_end_of_block")
             p => commands%python_nav_end_of_block
+        case ("python_nav_end_of_definition")
+            p => commands%python_nav_end_of_definition
         case ("python_nav_end_of_statement")
             p => commands%python_nav_end_of_statement
-        case ("python_nav_end_of_subprogram")
-            p => commands%python_nav_end_of_subprogram
         case ("python_nav_forward_block")
             p => commands%python_nav_forward_block
+        case ("python_nav_forward_definition")
+            p => commands%python_nav_forward_definition
         case ("python_nav_forward_expression")
             p => commands%python_nav_forward_expression
         case ("python_nav_forward_expression_safe")
             p => commands%python_nav_forward_expression_safe
         case ("python_nav_forward_statement")
             p => commands%python_nav_forward_statement
-        case ("python_nav_forward_subprogram")
-            p => commands%python_nav_forward_subprogram
         case ("python_nav_if_name_main")
             p => commands%python_nav_if_name_main
         case ("python_nav_up_group")
@@ -4140,6 +4140,12 @@ contains
             p => commands%read_passwd_mode
         case ("read_passwd_toggle_visibility")
             p => commands%read_passwd_toggle_visibility
+        case ("read_y_or_n_insert_n")
+            p => commands%read_y_or_n_insert_n
+        case ("read_y_or_n_insert_other")
+            p => commands%read_y_or_n_insert_other
+        case ("read_y_or_n_insert_y")
+            p => commands%read_y_or_n_insert_y
         case ("recenter")
             p => commands%recenter
         case ("recenter_top_bottom")
@@ -4590,12 +4596,6 @@ contains
             p => commands%write_abbrev_file
         case ("write_file")
             p => commands%write_file
-        case ("y_or_n_p_insert_n")
-            p => commands%y_or_n_p_insert_n
-        case ("y_or_n_p_insert_other")
-            p => commands%y_or_n_p_insert_other
-        case ("y_or_n_p_insert_y")
-            p => commands%y_or_n_p_insert_y
         case ("yank")
             p => commands%yank
         case ("yank_pop")

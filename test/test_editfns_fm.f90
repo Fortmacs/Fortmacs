@@ -27,12 +27,12 @@ module test_editfns_fm
     use error_fm, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, format_error, format_message
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, &
-                         current_buffer, buffer_live_p, erase_buffer
+                         current_buffer, is_buffer_live, erase_buffer
     use marker_fm, only: make_marker, set_marker, free_marker, marker_position
     use insdel_fm, only: insert
-    use editfns_fm, only: bobp, bolp, buffer_size, buffer_size_of, buffer_string, buffer_substring, &
+    use editfns_fm, only: is_bob, is_bol, buffer_size, buffer_size_of, buffer_string, buffer_substring, &
                           byte_to_position, char_after, char_before, delete_and_extract_region, &
-                          delete_region, eobp, eolp, following_char, gap_position, goto_char, &
+                          delete_region, is_eob, is_eol, following_char, gap_position, goto_char, &
                           goto_char_marker, insert_char_n, narrow_to_region, point, point_marker, &
                           point_max, point_max_marker, point_min, point_min_marker, position_bytes, &
                           preceding_char, widen, field_beginning, field_end, field_string, &
@@ -94,7 +94,7 @@ contains
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -222,16 +222,16 @@ contains
 
         call enter("te-lines", h, old)
         call insert("ab"//new_line("a")//"cd", st)
-        call check(error, eolp() .and. eobp() .and. .not. bolp(), "at end")
+        call check(error, is_eol() .and. is_eob() .and. .not. is_bol(), "at end")
         if (allocated(error)) return
         call goto_char(4_int64)
-        call check(error, bolp() .and. .not. eolp(), "start of line 2")
+        call check(error, is_bol() .and. .not. is_eol(), "start of line 2")
         if (allocated(error)) return
         call goto_char(3_int64)
-        call check(error, eolp() .and. .not. bolp(), "end of line 1")
+        call check(error, is_eol() .and. .not. is_bol(), "end of line 1")
         if (allocated(error)) return
         call goto_char(1_int64)
-        call check(error, bobp() .and. bolp(), "beginning")
+        call check(error, is_bob() .and. is_bol(), "beginning")
         call leave(h, old)
     end subroutine test_lines
 
@@ -249,7 +249,7 @@ contains
         if (allocated(error)) return
         call check(error, buffer_string(), "2345")
         if (allocated(error)) return
-        call check(error, bobp() .eqv. .false., "bobp")
+        call check(error, is_bob() .eqv. .false., "is_bob")
         if (allocated(error)) return
         call narrow_to_region(0_int64, 5_int64, st)
         call check(error, st%code, FM_ARGS_OUT_OF_RANGE)

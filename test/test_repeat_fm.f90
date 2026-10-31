@@ -27,7 +27,7 @@ module test_repeat_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, command_type, nil, PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO
+    use lisp_fm, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, generate_new_buffer_name
     use editfns_fm, only: buffer_string
     use keymap_fm, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
@@ -255,7 +255,7 @@ contains
         calls = ""
         call erase_buffer(st)
         call key_parse(keys, events, st)
-        call execute_kbd_macro(events, nil(), st)
+        call execute_kbd_macro(events, value_type(), st)
         call check(error, calls, expected_calls, keys//": "//calls)
         if (allocated(error)) return
         ! Check for self-inserting keys
@@ -276,16 +276,16 @@ contains
             if (allocated(error)) exit body
             call check_keys(error, "C-M-b c d z", "(1 b)", "cdz")
             if (allocated(error)) exit body
-            cmd_b%repeat_check_key = PROPERTY_NO
+            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_NO
             call check_keys(error, "C-M-b c d z", "(1 b)(1 c)(1 d)", "z")
-            cmd_b%repeat_check_key = PROPERTY_UNSET
+            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
             if (allocated(error)) exit body
             repeat_check_key = .false.
             call check_keys(error, "C-M-b c d z", "(1 b)(1 c)(1 d)", "z")
             if (allocated(error)) exit body
-            cmd_b%repeat_check_key = PROPERTY_TRUE
+            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_YES
             call check_keys(error, "C-M-b c d z", "(1 b)", "cdz")
-            cmd_b%repeat_check_key = PROPERTY_UNSET
+            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
         end block body
 
         call finish()
@@ -408,7 +408,7 @@ contains
         call begin(global_map)
         repeat_check_key = .false.
         call key_parse("C-M-s", events, st)
-        call execute_kbd_macro(events, nil(), st)
+        call execute_kbd_macro(events, value_type(), st)
         call check(error, repeat_echo_message_string(repeat_in_progress), &
                    "Repeat with s, [T]est, C-M-o (an[O]ther test), C-M-u")
         call finish()

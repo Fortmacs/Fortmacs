@@ -27,7 +27,7 @@ module test_saveplace_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: current_buffer, set_buffer, kill_buffer, restore_buffer_modified_p, get_buffer_create, &
+    use buffer_fm, only: current_buffer, set_buffer, kill_buffer, restore_buffer_modified, get_buffer_create, &
                          generate_new_buffer_name
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
@@ -146,7 +146,7 @@ contains
         call check(error, save_place_table(1)%position == 4 .and. .not. allocated(save_place_table(1)%dired_filename), &
                    "at 4")
         h = current_buffer()
-        call restore_buffer_modified_p(.false.)
+        call restore_buffer_modified(.false.)
         call kill_buffer(h, st)
         call set_buffer(old, st)
         call delete_file(tmpfile, st)

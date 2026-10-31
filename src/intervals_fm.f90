@@ -33,14 +33,14 @@
 !> `next_property_change' with LIMIT t, as upstream.
 module intervals_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: consp, list_elements, list_length, make_symbol_ref, nilp, symbolp, symbols, make_list, nil, &
-                       value_type, xsymbol, string_intervals, set_string_intervals
+    use lisp_fm, only: list_elements, list_length, make_symbol_ref, symbols, make_list, &
+                       value_type, xsymbol, string_intervals, set_string_intervals, vtag, V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: intern, ensure_obarray
     use data_fm, only: value_eq
     implicit none(type, external)
     private
 
-    !> Port of intervals.h:struct interval (position, length, plist).
+    !> Port of intervals.h:struct interval (position, length, text properties).
     type, public :: interval_type
         integer(int64) :: position = 1
         integer(int64) :: length = 0
@@ -146,7 +146,7 @@ contains
     end subroutine close_slot
 
     !> Split interval `k' `offset' characters in; return the index of the
-    !> new right-hand part.  Both parts keep the plist (upstream callers
+    !> new right-hand part.  Both parts keep the text properties (upstream callers
     !> copy it with copy_properties).  Port of intervals.c:split_interval_right.
     pure subroutine split_interval_right(iv, k, offset, r)
         type(intervals_type), intent(inout) :: iv
@@ -174,7 +174,7 @@ contains
         l = r - 1
     end subroutine split_interval_left
 
-    !> Value of `prop' in `plist' compared with eq, and whether it is there.
+    !> Value of `prop' in the text properties `plist' compared with eq, and whether it is there.
     !> Port of fns.c:plist_get and textprop.c:property_value.
     subroutine plist_get_eq(plist, prop, val, found)
         type(value_type), intent(in) :: plist, prop
@@ -195,8 +195,8 @@ contains
         end do
     end subroutine plist_get_eq
 
-    !> Value of text property `prop' in `plist', falling back to the
-    !> `category' symbol's property, then to the first of the properties
+    !> Value of text property `prop' in `plist' (text properties), falling back to the
+    !> `category' value's attributes, then to the first of the properties
     !> `char_property_alias_table' gives as alternatives for `prop'.
     !> Port of intervals.c:textget and intervals.c:lookup_char_property
     !> (default-text-properties is not consulted yet).
@@ -220,7 +220,7 @@ contains
             if (value_eq(elems(k), category)) then
                 tem = elems(k + 1)
 
-                if (symbolp(tem)) then
+                if ((vtag(tem) == V_NAME .or. vtag(tem) == V_NULL)) then
                     call ensure_obarray()
                     call plist_get_eq(symbols(xsymbol(tem))%plist, prop, fallback, found)
                 end if
@@ -228,36 +228,36 @@ contains
         end do
 
         val = fallback
-        if (.not. nilp(fallback)) return
+        if (allocated(fallback%a)) return
         ! Check for alternative properties.
         call ensure_obarray()
         id = intern("char_property_alias_table")
         if (.not. symbols(id)%bound) return
-        if (.not. consp(symbols(id)%val)) return
+        if (vtag(symbols(id)%val) /= V_ARRAY) return
         call list_elements(symbols(id)%val, aliases)
 
         do k = 1, size(aliases, kind=int64)
-            if (.not. consp(aliases(k))) cycle
+            if (vtag(aliases(k)) /= V_ARRAY) cycle
             call list_elements(aliases(k), alias)
             if (.not. value_eq(alias(1), prop)) cycle
 
             do j = 2, size(alias, kind=int64)
                 call plist_get_eq(plist, alias(j), val, found)
-                if (.not. nilp(val)) return
+                if (allocated(val%a)) return
             end do
 
             return
         end do
     end function textget
 
-    !> True if `sym' is in list `set', or `set' is a non-nil non-list.
+    !> True if `sym' is in list `set', or `set' is a value that is not empty and not a list.
     !> Port of textprop.c:TMEM.
     logical function tmem(sym, set)
         type(value_type), intent(in) :: sym, set
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
 
-        if (consp(set)) then
+        if (vtag(set) == V_ARRAY) then
             tmem = .false.
             call list_elements(set, elems)
 
@@ -268,11 +268,11 @@ contains
                 end if
             end do
         else
-            tmem = .not. nilp(set)
+            tmem = allocated(set%a)
         end if
     end function tmem
 
-    !> True if the two plists have the same properties with eq values.
+    !> True if the two sets of text properties have the same properties with eq values.
     !> Port of intervals.c:intervals_equal and intervals.c:intervals_equal_1
     !> (with eq).
     logical function intervals_equal(p0, p1)
@@ -298,7 +298,7 @@ contains
 
     !> Adjust `iv' for `length' characters inserted (length > 0) or deleted
     !> (length < 0) at `start'.  Inserted text gets its own interval: with no
-    !> properties, or with INHERIT true those `insertion_plist' gives it
+    !> properties, or with INHERIT true those `insertion_plist' (text properties) gives it
     !> from its surroundings (upstream's adjust_intervals_for_insertion
     !> puts it in a neighboring interval by stickiness).  Port of
     !> intervals.c:offset_intervals, intervals.c:adjust_intervals_for_insertion
@@ -313,7 +313,7 @@ contains
         if (iv%n == 0 .or. length == 0) return
 
         if (length > 0) then
-            plist = nil()
+            plist = value_type()
 
             if (present(inherit)) then
                 if (inherit) plist = insertion_plist(iv, start)
@@ -372,7 +372,7 @@ contains
     !> standard value makes `syntax_table' and `display' (textprop.c),
     !> `composition' (composite.c) and `fill_space' (fill.el)
     !> rear-nonsticky.  Not a port: the value is built in (its table needs
-    !> dotted pairs).
+    !> entries of two names).
     logical function default_nonsticky(prop)
         type(value_type), intent(in) :: prop
 
@@ -389,7 +389,7 @@ contains
         v = make_symbol_ref(intern(name))
     end function qsym
 
-    !> Whether PROP is one of the properties of PLIST.  Not a port.
+    !> Whether PROP is one of the text properties PLIST.  Not a port.
     logical function plist_member(plist, prop)
         type(value_type), intent(in) :: plist, prop
         type(value_type) :: val
@@ -406,7 +406,7 @@ contains
         type(value_type), allocatable :: s(:), t(:), merged(:)
         integer(int64) :: k, n
 
-        if (nilp(source)) return
+        if (.not. allocated(source%a)) return
         call list_elements(source, s)
         call list_elements(target, t)
         allocate (merged(size(s) + size(t)))
@@ -462,7 +462,7 @@ contains
             rval = right(k + 1)
             ! Whether the property is explicitly defined on the left.
             call plist_get_eq(pleft, sym, lval, lpresent)
-            if (.not. lpresent) lval = nil()
+            if (.not. lpresent) lval = value_type()
             ! Even if lrear or rfront say nothing about the stickiness of
             ! SYM, text_property_default_nonsticky may give default
             ! stickiness to SYM.
@@ -471,9 +471,9 @@ contains
             use_right = tmem(sym, rfront)
 
             if (use_left .and. use_right) then
-                if (nilp(lval)) then
+                if (.not. allocated(lval%a)) then
                     use_left = .false.
-                else if (nilp(rval)) then
+                else if (.not. allocated(rval%a)) then
                     use_right = .false.
                 end if
             end if
@@ -525,7 +525,7 @@ contains
         if (n > 0) then
             props = make_list(out(1:n))
         else
-            props = nil()
+            props = value_type()
         end if
 
         cat = textget(props, qsym("category"))
@@ -535,7 +535,7 @@ contains
             ! t, we don't need to set up a detailed one.
             found = .false.
 
-            if (.not. nilp(cat) .and. symbolp(cat)) then
+            if (allocated(cat%a) .and. (vtag(cat) == V_NAME .or. vtag(cat) == V_NULL)) then
                 call ensure_obarray()
                 call plist_get_eq(symbols(xsymbol(cat))%plist, qsym("front_sticky"), tem, found)
                 found = found .and. value_eq(tem, qsym("t"))
@@ -594,34 +594,34 @@ contains
         type(value_type) :: front, rear, pleft, pright
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k, pos
-        logical :: eobp, problem
+        logical :: is_eob, problem
 
-        plist = nil()
+        plist = value_type()
         if (iv%n == 0) return
         pos = position
-        eobp = .false.
+        is_eob = .false.
 
         ! If inserting at point-max of a buffer, that position will be out
         ! of range.
         if (pos >= interval_end(iv, iv%n)) then
             pos = interval_end(iv, iv%n)
-            eobp = .true.
+            is_eob = .true.
         end if
 
         k = find_interval(iv, pos)
-        pleft = nil()
-        pright = nil()
+        pleft = value_type()
+        pright = value_type()
 
         ! If in middle of an interval which is not sticky either way, we
         ! must not just give its properties to the insertion.
-        if (.not. (pos == iv%runs(k)%position .or. eobp)) then
+        if (.not. (pos == iv%runs(k)%position .or. is_eob)) then
             rear = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
             front = textget(iv%runs(k)%plist, qsym("front_sticky"))
 
-            if (.not. consp(rear) .and. .not. nilp(rear)) then
+            if (vtag(rear) /= V_ARRAY .and. allocated(rear%a)) then
                 ! All properties are nonsticky.  We split the interval.
                 problem = .true.
-            else if (.not. consp(front) .and. .not. nilp(front)) then
+            else if (vtag(front) /= V_ARRAY .and. allocated(front%a)) then
                 ! All properties are sticky.  We don't split the interval.
                 problem = .false.
             else
@@ -631,10 +631,10 @@ contains
 
                 do pos = 1, size(elems, kind=int64) - 1, 2
                     ! Is this particular property front-sticky?
-                    if (consp(front) .and. tmem(elems(pos), front)) cycle
+                    if (vtag(front) == V_ARRAY .and. tmem(elems(pos), front)) cycle
 
                     ! Is this particular property rear-nonsticky?
-                    if ((consp(rear) .and. tmem(elems(pos), rear)) .or. default_nonsticky(elems(pos))) then
+                    if ((vtag(rear) == V_ARRAY .and. tmem(elems(pos), rear)) .or. default_nonsticky(elems(pos))) then
                         problem = .true.
                         exit
                     end if
@@ -651,7 +651,7 @@ contains
             pright = iv%runs(k)%plist
         else
             ! Between intervals: check the stickiness of both of them.
-            if (eobp) then
+            if (is_eob) then
                 pleft = iv%runs(k)%plist
             else
                 if (k > 1) pleft = iv%runs(k - 1)%plist
@@ -664,14 +664,14 @@ contains
 
     !> Graft the text properties of inserted text, given as pieces
     !> [STARTS(k), ENDS(k)) relative to the start of the text with
-    !> properties PLISTS(k) (pieces left out have none), into the intervals
+    !> text properties PLISTS(k) (pieces left out have none), into the intervals
     !> IV of a buffer whose text ends at Z, where the LENGTH characters at
     !> POSITION were inserted.  INHERIT true means the inserted text keeps
     !> the properties it got from its surroundings, its own ones added
     !> where it has none (else its own replace them).  With no pieces and
     !> no INHERIT the inserted text gets no properties.  Port of
     !> intervals.c:graft_intervals_into_buffer (with
-    !> intervals.c:copy_properties, a plist assignment here).
+    !> intervals.c:copy_properties, an assignment of the text properties here).
     subroutine graft_intervals_into_buffer(iv, z, starts, ends, plists, position, length, inherit)
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: z
@@ -707,8 +707,8 @@ contains
         end do
     end subroutine graft_intervals_into_buffer
 
-    !> Give the characters A..B of IV the properties PLIST (MERGE: add
-    !> those of PLIST they lack instead), splitting intervals at A and B.
+    !> Give the characters A..B of IV the text properties PLIST (MERGE: add
+    !> those of the text properties PLIST they lack instead), splitting intervals at A and B.
     !> Not a port.
     subroutine set_range_plist(iv, a, b, plist, merge)
         type(intervals_type), intent(inout) :: iv
@@ -744,7 +744,7 @@ contains
 
     !> The text properties of the LENGTH characters of IV from START, as
     !> pieces [STARTS(k), ENDS(k)) relative to START with properties
-    !> PLISTS(k), the pieces without properties left out (none if IV has
+    !> text properties PLISTS(k), the pieces without properties left out (none if IV has
     !> no intervals).  Port of intervals.c:copy_intervals (the copy as
     !> string intervals hold them).
     subroutine copy_intervals(iv, start, length, starts, ends, plists)
@@ -766,7 +766,7 @@ contains
             if (iv%runs(k)%position >= start + length) exit
             a = max(start, iv%runs(k)%position)
             b = min(start + length, interval_end(iv, k))
-            if (b <= a .or. nilp(iv%runs(k)%plist)) cycle
+            if (b <= a .or. .not. allocated(iv%runs(k)%plist%a)) cycle
             n = n + 1
             starts(n) = a - start
             ends(n) = b - start
@@ -845,7 +845,7 @@ contains
             type(value_type) :: v
             integer :: i
 
-            v = nil()
+            v = value_type()
 
             do i = 1, size(st)
                 if (st(i) <= p .and. p < en(i)) then

@@ -44,7 +44,7 @@ module test_syntax_fm
     use syntax_fm, only: syntax_descriptor_type, string_to_syntax, syntax_class_to_char, char_syntax, &
                          modify_syntax_entry, make_syntax_table, copy_syntax_table, free_syntax_table, &
                          set_syntax_table, standard_syntax_table, matching_paren, syntax_entry, scan_words, &
-                         forward_word, word_boundary_p, SWORD, SOPEN, internal_describe_syntax_value
+                         forward_word, is_word_boundary, SWORD, SOPEN, internal_describe_syntax_value
     use charscript_fm, only: char_script, script_names
     implicit none(type, external)
     private
@@ -267,23 +267,23 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         ! Same script: no boundary.
-        call check(error,.not. word_boundary_p(iachar("a"), iachar("b")))
+        call check(error,.not. is_word_boundary(iachar("a"), iachar("b")))
         if (allocated(error)) return
         ! Latin then Greek: a boundary.
-        call check(error, word_boundary_p(iachar("a"), int(z'03B1')))
+        call check(error, is_word_boundary(iachar("a"), int(z'03B1')))
         if (allocated(error)) return
         ! A combining mark joins whatever it follows.
-        call check(error,.not. word_boundary_p(iachar("e"), int(z'0301')) .and. &
-                   .not. word_boundary_p(int(z'0301'), iachar("x")))
+        call check(error,.not. is_word_boundary(iachar("e"), int(z'0301')) .and. &
+                   .not. is_word_boundary(int(z'0301'), iachar("x")))
         if (allocated(error)) return
         ! Kanji followed by hiragana or katakana: one word; not the reverse.
-        call check(error,.not. word_boundary_p(int(z'6F22'), int(z'3042')) .and. &
-                   .not. word_boundary_p(int(z'6F22'), int(z'30A2')) .and. &
-                   word_boundary_p(int(z'3042'), int(z'6F22')))
+        call check(error,.not. is_word_boundary(int(z'6F22'), int(z'3042')) .and. &
+                   .not. is_word_boundary(int(z'6F22'), int(z'30A2')) .and. &
+                   is_word_boundary(int(z'3042'), int(z'6F22')))
         if (allocated(error)) return
         ! Hiragana then katakana (same script, kana): separated.
-        call check(error, word_boundary_p(int(z'3042'), int(z'30A2')) .and. &
-                   .not. word_boundary_p(int(z'30A2'), int(z'3042')))
+        call check(error, is_word_boundary(int(z'3042'), int(z'30A2')) .and. &
+                   .not. is_word_boundary(int(z'30A2'), int(z'3042')))
     end subroutine test_word_boundaries
 
     subroutine test_forward_word(error)

@@ -29,13 +29,13 @@ module test_help_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, make_fixnum, make_string, make_list
+    use lisp_fm, only: value_type, t_value, make_fixnum, make_string, make_list
     use lread_fm, only: sym
     use print_fm, only: fortran_repr
     use callint_fm, only: current_prefix_arg
     use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NEVER
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_modified_p, &
-                         auto_fill_function, buffer_live_p
+    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
+                         auto_fill_function, is_buffer_live
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string
@@ -44,7 +44,7 @@ module test_help_fm
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
-    use isearch_fm, only: search_upper_case, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use isearch_fm, only: search_upper_case, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS
     use simple_fm, only: fill_prefix, do_auto_fill
     use help_fm, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                        make_separator_line, register_keymap_name
@@ -101,7 +101,7 @@ contains
                     new_unittest("describe-map-tree-ranges-and-prefixes", test_map_tree_ranges), &
                     new_unittest("describe-bindings", test_describe_bindings), &
                     new_unittest("describe-mode", test_describe_mode), &
-                    new_unittest("help-fns-test-describe-symbol", test_describe_symbol), &
+                    new_unittest("help-fns-test-describe-symbol", test_describe_name), &
                     new_unittest("describe-command", test_describe_command_x), &
                     new_unittest("describe-variable-customize", test_describe_variable_customize), &
                     new_unittest("view-lossage", test_view_lossage), &
@@ -157,7 +157,7 @@ contains
         name = buffers(windows(selected_frame%selected_window%index)%buffer%index)%name
     end function selected_buffer_name
 
-    !> Queue `keys` (a key_valid_p string) as input.
+    !> Queue `keys` (an is_key_valid string) as input.
     subroutine type_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
@@ -336,9 +336,13 @@ contains
         call check(error, index(text, "a Fortran subroutine in "//LQ//"insdel_fm.f90"//RQ//"."//LF//LF// &
                                 "call insert(") == 1, text)
         if (allocated(error)) return
+        ! The call line, then the declaration block of its arguments.
+        call check(error, index(text, "call insert(string, status)"//LF//"character(len=*), intent(in) :: string"//LF// &
+                                "type(status_type), intent(out) :: status"//LF//LF) > 0, text)
+        if (allocated(error)) return
         call describe_function_1("point", text)
         call check(error, index(text, "a Fortran function in "//LQ//"editfns_fm.f90"//RQ) == 1 .and. &
-                   index(text, LF//"point()"//LF) > 0, text)
+                   index(text, LF//"point()"//LF//"integer(int64) :: point"//LF) > 0, text)
         if (allocated(error)) return
         call describe_function_1("no-such-function", text)
         call check(error, index(text, "Not documented.") > 0, text)
@@ -378,10 +382,10 @@ contains
         if (allocated(error)) return
         ! An original value of 20 characters or more starts on the next
         ! line.
-        search_upper_case = UPPER_CASE_T
+        search_upper_case = UPPER_CASE_YES
         call describe_variable_text("search_upper_case", text, found)
         search_upper_case = UPPER_CASE_NOT_YANKS
-        call check(error, index(text, "Its value is UPPER_CASE_T"//LF// &
+        call check(error, index(text, "Its value is UPPER_CASE_YES"//LF// &
                                 "Original value was "//LF//"UPPER_CASE_NOT_YANKS"//LF) > 0, text)
         if (allocated(error)) return
         ! A value fits on the "Its value is" line when it is shorter than
@@ -441,7 +445,7 @@ contains
         elems(1) = make_fixnum(4_int64)
         current_prefix_arg = make_list(elems)
         call describe_variable_text("current_prefix_arg", text, found)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error, index(text, "Its value is [4]"//LF) > 0, text)
         if (allocated(error)) return
         ! A hook has no printed form yet: the documentation follows the
@@ -497,17 +501,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: elems(3)
 
-        call check(error, fortran_repr(nil()) == ".false." .and. fortran_repr(t_value()) == ".true.")
+        call check(error, fortran_repr(value_type()) == ".false." .and. fortran_repr(t_value()) == ".true.")
         if (allocated(error)) return
         call check(error, fortran_repr(make_fixnum(-12_int64)) == "-12", fortran_repr(make_fixnum(-12_int64)))
         if (allocated(error)) return
         call check(error, fortran_repr(make_string('say "hi"')) == '"say ""hi"""', fortran_repr(make_string('say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(sym("UPPER_CASE_T")) == "UPPER_CASE_T")
+        call check(error, fortran_repr(sym("UPPER_CASE_YES")) == "UPPER_CASE_YES")
         if (allocated(error)) return
         elems(1) = make_fixnum(1_int64)
         elems(2) = make_string("a")
-        elems(3) = nil()
+        elems(3) = value_type()
         call check(error, fortran_repr(make_list(elems)) == '[1, "a", .false.]', fortran_repr(make_list(elems)))
     end subroutine test_fortran_repr
 
@@ -519,7 +523,7 @@ contains
         call fresh_scratch()
         call type_keys("C-h f RET")
         call command_loop(st)
-        call check(error, last_message, "You didn"//RQ//"t specify a function symbol")
+        call check(error, last_message, "You didn"//RQ//"t specify a function name")
         if (allocated(error)) return
         call type_keys("C-h v RET")
         call command_loop(st)
@@ -549,7 +553,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message == "Type C-x 1 to delete the help window.", last_message)
         if (allocated(error)) return
-        call buffer_modified_p(help, modified, st)
+        call is_buffer_modified(help, modified, st)
         call check(error,.not. modified, "*Help* is unmodified")
         if (allocated(error)) return
         ! q in the help window deletes it.
@@ -623,7 +627,7 @@ contains
         call command_loop(st)
         call check(error, index(help_text(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
                    help_text())
-        call keymap_set(text_mode_map, "C-c t", nil(), st)
+        call keymap_set(text_mode_map, "C-c t", value_type(), st)
         call fresh_scratch()
     end subroutine test_binding_locus
 
@@ -877,7 +881,7 @@ contains
         call keymap_set(text_mode_map, "C-f", "backward_char", st)
         call type_keys("C-h b")
         call command_loop(st)
-        call keymap_set(text_mode_map, "C-f", nil(), st)
+        call keymap_set(text_mode_map, "C-f", value_type(), st)
         text = help_text()
         k1 = index(text, FF//LF//LQ//"text_mode"//RQ//" Major Mode Bindings:"//LF//LF//"Key             Binding"//LF// &
                    sep())
@@ -925,7 +929,7 @@ contains
 
     !> describe-symbol shows a function and a variable of that name, with
     !> a separator line between them.
-    subroutine test_describe_symbol(error)
+    subroutine test_describe_name(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -945,7 +949,7 @@ contains
         call command_loop(st)
         call check(error, last_message, "You didn"//RQ//"t specify a function or variable")
         call fresh_scratch()
-    end subroutine test_describe_symbol
+    end subroutine test_describe_name
 
     subroutine test_describe_command_x(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1115,7 +1119,7 @@ contains
 
         old = current_buffer()
         text = "(none)"
-        if (.not. buffer_live_p(get_buffer(name))) return
+        if (.not. is_buffer_live(get_buffer(name))) return
         call set_buffer(get_buffer(name), st)
         text = buffer_string()
         call set_buffer(old, st)

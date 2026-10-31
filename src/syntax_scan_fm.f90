@@ -619,7 +619,7 @@ contains
             do
                 call internalize_parse_state(state)
                 call scan_expressions_forward(state, subprogram_start, subprogram_start_byte, comment_end, -huge(0_int64) - 1, &
-                                              .false., COMMENTSTOP_NIL)
+                                              .false., COMMENTSTOP_NO)
                 subprogram_start = comment_end
 
                 if (.not. adjusted) then
@@ -1022,7 +1022,7 @@ contains
     ! Groups and expressions
     ! ------------------------------------------------------------------
 
-    !> Port of syntax.c:scan_lists (0 is nil).
+    !> Port of syntax.c:scan_lists (0 for none).
     recursive integer(int64) function scan_groups_1(from0, count_in, depth_in, expression_flag, status) result(pos)
         integer(int64), intent(in) :: from0, count_in, depth_in
         logical, intent(in) :: expression_flag
@@ -1052,7 +1052,7 @@ contains
         ! Err out if depth gets less than this.
         min_depth = depth
         last_good = from0
-        multibyte_symbol_p = expression_flag .and. multibyte_syntax_as_symbol
+        multibyte_symbol_p = expression_flag .and. multibyte_syntax_as_identifier
         if (depth > 0) min_depth = 0
         from_byte = char_to_byte(from)
 
@@ -1843,7 +1843,7 @@ contains
     end subroutine scan_expressions_forward
 
     !> Convert a parse state to the internal form used in
-    !> scan_expressions_forward; an absent EXTERNAL is nil.  Port of
+    !> scan_expressions_forward; an absent EXTERNAL is the empty state.  Port of
     !> syntax.c:internalize_parse_state.
     recursive subroutine internalize_parse_state(state, external)
         type(lisp_parse_state), intent(out) :: state
@@ -1878,8 +1878,8 @@ contains
         state%incomment = external%incomment
         state%quoted = external%quoted
 
-        ! If the eighth element of the list is nil, we are in comment
-        ! style a.  If it is non-nil, we are in comment style b.
+        ! If the eighth element of the list is not set, we are in comment
+        ! style a.  If it is set, we are in comment style b.
         if (external%comment_style < 0 .or. external%comment_style > ST_COMMENT_STYLE) then
             state%comstyle = ST_COMMENT_STYLE
         else
@@ -1901,7 +1901,7 @@ contains
     ! We won't reach this depth.
     target = -huge(0_int64) - 1
     if (present(targetdepth)) target = targetdepth
-    stop_at_comments = COMMENTSTOP_NIL
+    stop_at_comments = COMMENTSTOP_NO
     if (present(commentstop)) stop_at_comments = commentstop
     status = status_type()
     allocate (state%open_parens(0))

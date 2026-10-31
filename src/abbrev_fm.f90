@@ -30,8 +30,8 @@
 !>     abbrev_mode = .true.
 !>
 !> An abbrev table's properties are components (`parents', `case_fixed',
-!> `regexp', `enable_function'); upstream's obarray of symbols with
-!> property lists becomes an array of `abbrev_type' entries.  An abbrev
+!> `regexp', `enable_function'); upstream's name table of names with
+!> attributes becomes an array of `abbrev_type' entries.  An abbrev
 !> as `expand_abbrev' and `last_abbrev' give it (upstream's abbrev
 !> symbol) is an `abbrev_ref_type': its table and name.
 !>
@@ -73,18 +73,18 @@ module abbrev_fm
     public :: kill_all_abbrevs, copy_abbrev_table, insert_abbrevs, list_abbrevs, abbrev_table_name, &
               prepare_abbrev_list_buffer, edit_abbrevs, write_abbrev_file, add_mode_abbrev, add_global_abbrev, &
               add_abbrev, inverse_add_mode_abbrev, inverse_add_global_abbrev, inverse_add_abbrev, abbrev_prefix_mark, &
-              expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, abbrev_symbol, abbrev_expansion, &
+              expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, abbrev_name, abbrev_expansion, &
               abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, insert_abbrev_table_description, &
-              abbrev_table_symbols, abbrev_possibly_save, local_abbrev_table, set_local_abbrev_table, &
-              edit_abbrevs_mode, abbrev_mode_p, abbrev_no_self_insert, syms_of_abbrev
+              abbrev_table_names, abbrev_possibly_save, local_abbrev_table, set_local_abbrev_table, &
+              edit_abbrevs_mode, is_abbrev_mode, abbrev_no_self_insert, syms_of_abbrev
 
-    !> The values of `save_abbrevs': never save, ask (t upstream) or save
+    !> The values of `save_abbrevs': never save, ask or save
     !> without asking (`silently').
     integer, parameter, public :: SAVE_ABBREVS_NEVER = 0, SAVE_ABBREVS_ASK = 1, SAVE_ABBREVS_SILENTLY = 2
 
     abstract interface
         !> An abbrev's hook, called after its expansion is inserted;
-        !> VALUE is its value (true for non-nil), which matters for an
+        !> VALUE is its value (.true. or .false.), which matters for an
         !> abbrev whose `no_self_insert' is true.  Not a port.
         subroutine abbrev_hook_proc(value, status)
             import :: status_type
@@ -101,14 +101,14 @@ module abbrev_fm
         end function abbrev_enable_proc
     end interface
 
-    !> One abbrev of a table (upstream's symbol in the table's obarray,
+    !> One abbrev of a table (upstream's name in the table's name table,
     !> with its value, function and properties).
     type, public :: abbrev_type
         !> The abbrev, as defined (usually lower case).
         character(len=:), allocatable :: name
-        !> What it expands into; unallocated when it is not defined (nil).
+        !> What it expands into; unallocated when it is not defined.
         character(len=:), allocatable :: expansion
-        !> Called after the expansion is inserted (the symbol's function);
+        !> Called after the expansion is inserted (the name's function);
         !> null for none.
         procedure(abbrev_hook_proc), pointer, nopass :: hook => null()
         !> The hook's `no_self_insert' property: the value of the hook
@@ -134,7 +134,7 @@ module abbrev_fm
     end type abbrev_table_ref_type
 
     !> An abbrev table.  Port of the abbrev tables of abbrev.el (an
-    !> obarray with the table's properties on its symbol "").
+    !> name table with the table's attributes on its name "").
     type, public :: abbrev_table_type
         !> The name of the variable holding the table
         !> (`abbrev_table_name'), as in `abbrev_table_name_list'; empty for
@@ -164,14 +164,14 @@ module abbrev_fm
         procedure :: define_table => abbrev_table_define_table
         !> Undefine all abbrevs (`clear_abbrev_table').
         procedure :: clear => clear_abbrev_table
-        !> Whether there are no abbrevs (`abbrev_table_empty_p').
-        procedure :: empty => abbrev_table_empty_p
+        !> Whether there are no abbrevs (`is_abbrev_table_empty').
+        procedure :: empty => is_abbrev_table_empty
         !> Add a parent table.
         procedure :: add_parent => abbrev_table_add_parent
     end type abbrev_table_type
 
     !> An abbrev as expansion functions return it (upstream's abbrev
-    !> symbol): its table and name.  No table is nil.
+    !> symbol): its table and name.  No table is the null handle.
     type, public :: abbrev_ref_type
         type(abbrev_table_type), pointer :: table => null()
         character(len=:), allocatable :: name
@@ -246,7 +246,7 @@ module abbrev_fm
     !> abbrev-start-location-buffer.
     type(handle_type), public :: abbrev_start_location_buffer
 
-    !> The abbrev of the last abbrev expanded.  See `abbrev_symbol'.
+    !> The abbrev of the last abbrev expanded.  See `abbrev_name'.
     !> Port of abbrev.el last-abbrev.
     type(abbrev_ref_type), public :: last_abbrev
 
@@ -267,7 +267,7 @@ module abbrev_fm
 
     !> True means save word abbrevs too when files are saved.
     !> If `SAVE_ABBREVS_SILENTLY', don't ask the user before saving.  Port
-    !> of files.el save-abbrevs (SAVE_ABBREVS_ASK is t).
+    !> of files.el save-abbrevs (SAVE_ABBREVS_ASK).
     integer, public :: save_abbrevs = SAVE_ABBREVS_ASK
 
     !> Keymap used in `edit_abbrevs'.  Port of abbrev.el
@@ -350,14 +350,14 @@ module abbrev_fm
             class(abbrev_table_type), intent(inout) :: self
         end subroutine clear_abbrev_table
 
-        !> Return false if there are abbrev symbols in OBJECT.
+        !> Return false if there are abbrev names in OBJECT.
         !> If IGNORE_SYSTEM is true, system definitions are ignored.  Port of
         !> abbrev.el:abbrev-table-empty-p.
-        module logical function abbrev_table_empty_p(self, ignore_system) result(empty)
+        module logical function is_abbrev_table_empty(self, ignore_system) result(empty)
             implicit none(type, external)
             class(abbrev_table_type), intent(in) :: self
             logical, intent(in), optional :: ignore_system
-        end function abbrev_table_empty_p
+        end function is_abbrev_table_empty
 
         !> Add PARENT to the tables from which the table inherits abbrevs
         !> (its `parents').  Not a port.
@@ -373,7 +373,7 @@ module abbrev_fm
         end subroutine kill_all_abbrevs
 
         !> Make a new abbrev-table NEW with the same abbrevs as TABLE.
-        !> This function does not copy property lists of the abbrevs.
+        !> This function does not copy the attributes of the abbrevs.
         !> See `define_abbrev' for the documentation of abbrev properties.
         !> Port of abbrev.el:copy-abbrev-table.
         module subroutine copy_abbrev_table(table, new)
@@ -637,12 +637,12 @@ module abbrev_fm
         !> Optional second arg TABLE is the abbrev table to look it up in.
         !> The default is to try buffer's mode-specific abbrev table, then global table.
         !> Port of abbrev.el:abbrev-symbol.
-        module subroutine abbrev_symbol(abbrev, result, table)
+        module subroutine abbrev_name(abbrev, result, table)
             implicit none(type, external)
             character(len=*), intent(in) :: abbrev
             type(abbrev_ref_type), intent(out) :: result
             type(abbrev_table_type), intent(in), target, optional :: table
-        end subroutine abbrev_symbol
+        end subroutine abbrev_name
 
         !> Return the string that ABBREV expands into in the current buffer,
         !> in EXPANSION (unallocated if none).
@@ -722,12 +722,12 @@ module abbrev_fm
         !> Return the user abbrevs in the abbrev table TABLE, in NAMES.
         !> System abbrevs are omitted unless SYSTEM is true.  Port of
         !> abbrev.el:abbrev--table-symbols.
-        module subroutine abbrev_table_symbols(table, names, system)
+        module subroutine abbrev_table_names(table, names, system)
             implicit none(type, external)
             type(abbrev_table_type), intent(in) :: table
             character(len=:), allocatable, intent(out) :: names(:)
             logical, intent(in), optional :: system
-        end subroutine abbrev_table_symbols
+        end subroutine abbrev_table_names
 
         !> Hook function for use by `save_some_buffers_functions'.
         !>
@@ -750,7 +750,7 @@ module abbrev_fm
         end function local_abbrev_table
 
         !> Make TABLE the local abbrev table of the current buffer, as
-        !> `(setq local-abbrev-table TABLE)'.  Not a port.
+        !> assigning TABLE to `local_abbrev_table' does.  Not a port.
         module subroutine set_local_abbrev_table(table)
             implicit none(type, external)
             type(abbrev_table_type), intent(in), target :: table
@@ -774,9 +774,9 @@ module abbrev_fm
 
         !> Whether Abbrev mode is on in the current buffer (BVAR
         !> abbrev_mode, for cmds.c's self-insert-command).  Not a port.
-        module logical function abbrev_mode_p()
+        module logical function is_abbrev_mode()
             implicit none(type, external)
-        end function abbrev_mode_p
+        end function is_abbrev_mode
 
         !> Define Abbrev mode, Edit-Abbrevs mode and the tables, and
         !> register the commands.  Not a port.

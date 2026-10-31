@@ -45,20 +45,20 @@ module derived_fm
     use data_fm, only: kill_all_local_variables
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur
-    use keymap_fm, only: make_sparse_keymap, keymap_live_p, keymap_parent, set_keymap_parent, use_local_map
+    use keymap_fm, only: make_sparse_keymap, is_keymap_live, keymap_parent, set_keymap_parent, use_local_map
     use subr_fm, only: delay_mode_hooks_begin, delay_mode_hooks_end, run_mode_hooks
     use abbrev_fm, only: abbrev_table_type, local_abbrev_table, set_local_abbrev_table
     implicit none(type, external)
     private
 
-    public :: major_mode_named, derived_mode_p, provided_mode_derived_p
+    public :: major_mode_named, is_derived_mode, provided_mode_derived_p
 
     !> Return true if the current major mode is derived from one of
     !> MODES (mode objects, or names).  MODES can also be a single mode
     !> instead of an array.  Port of subr.el:derived-mode-p.
-    interface derived_mode_p
-        module procedure derived_mode_p_object, derived_mode_p_names, derived_mode_p_name
-    end interface derived_mode_p
+    interface is_derived_mode
+        module procedure is_derived_mode_object, is_derived_mode_names, is_derived_mode_name
+    end interface is_derived_mode
 
     !> True if MODE is derived from a mode that is a member of the array
     !> MODES.  MODES can also be a single mode instead of an array.  Port of
@@ -167,13 +167,13 @@ contains
             call abbrev_table%define_table(trim(name)//"_abbrev_table")
         end if
 
-        if (.not. keymap_live_p(self%map)) call make_sparse_keymap(self%map)
+        if (.not. is_keymap_live(self%map)) call make_sparse_keymap(self%map)
         self%parent => null()
 
         if (present(parent)) then
             self%parent => parent
 
-            if (keymap_live_p(parent%map) .and. .not. keymap_live_p(keymap_parent(self%map))) then
+            if (is_keymap_live(parent%map) .and. .not. is_keymap_live(keymap_parent(self%map))) then
                 call set_keymap_parent(self%map, parent%map, st)
             end if
         end if
@@ -333,7 +333,7 @@ contains
 
     !> Return true if the current major mode is derived from MODE.
     !> Port of subr.el:derived-mode-p (one mode).
-    logical function derived_mode_p_object(mode) result(derived)
+    logical function is_derived_mode_object(mode) result(derived)
         type(major_mode_type), intent(in), target :: mode
         type(major_mode_type), pointer :: m
 
@@ -342,24 +342,24 @@ contains
         if (.not. allocated(buffers(cur)%major_mode)) return
         m => major_mode_named(buffers(cur)%major_mode)
         if (associated(m)) derived = m%derived_from(mode)
-    end function derived_mode_p_object
+    end function is_derived_mode_object
 
     !> Return true if the current major mode is derived from one of
     !> MODES, given by name.  Port of subr.el:derived-mode-p.
-    logical function derived_mode_p_names(modes) result(derived)
+    logical function is_derived_mode_names(modes) result(derived)
         character(len=*), intent(in) :: modes(:)
 
         derived = .false.
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%major_mode)) return
         derived = provided_mode_derived_p_names(buffers(cur)%major_mode, modes)
-    end function derived_mode_p_names
+    end function is_derived_mode_names
 
     !> Return true if the current major mode is derived from the mode
     !> named `mode'.  Port of subr.el:derived-mode-p (MODES a single mode).
-    logical function derived_mode_p_name(mode) result(derived)
+    logical function is_derived_mode_name(mode) result(derived)
         character(len=*), intent(in) :: mode
 
-        derived = derived_mode_p_names([mode])
-    end function derived_mode_p_name
+        derived = is_derived_mode_names([mode])
+    end function is_derived_mode_name
 end module derived_fm

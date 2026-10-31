@@ -25,7 +25,7 @@
 !> Every change to a buffer is recorded in its `buffer_undo_list' (here
 !> the `undo_list' array of buffer_type, newest entry last): insertions,
 !> deletions with the deleted text, where point was, and the first change
-!> after the buffer was saved.  Boundaries (nil entries) separate the
+!> after the buffer was saved.  Boundaries (UE_BOUNDARY entries) separate the
 !> changes of one command from the next; the command loop adds them before
 !> each command (`undo_auto_add_boundary'), and runs of self-inserting or
 !> deleting commands are merged up to `amalgamating_undo_limit' at a time.
@@ -40,7 +40,7 @@
 module undo_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, buffer_handle, buffer_live_p, resolve_buffer, set_buffer, &
+    use buffer_fm, only: buffers, cur, buffer_handle, is_buffer_live, resolve_buffer, set_buffer, &
                          undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, UE_POINT, &
                          UE_FIRST_CHANGE
     use error_fm, only: status_type
@@ -315,7 +315,7 @@ contains
         list = changed_buffers
 
         do k = 1, size(list)
-            if (.not. buffer_live_p(list(k))) cycle
+            if (.not. is_buffer_live(list(k))) cycle
             call set_buffer(list(k), st)
             if (buffers(cur)%undo_enabled) call ensure_boundary(cause)
         end do
@@ -357,7 +357,7 @@ contains
             old = buffer_handle(cur)
 
             do k = 1, size(last_boundary_buffers)
-                if (.not. buffer_live_p(last_boundary_buffers(k))) cycle
+                if (.not. is_buffer_live(last_boundary_buffers(k))) cycle
                 call set_buffer(last_boundary_buffers(k), st)
 
                 associate (b => buffers(cur))

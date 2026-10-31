@@ -56,16 +56,16 @@ module faces_fm
     public :: set_frame_display, faces_equal, face_weight_numeric, face_slant_numeric
     public :: init_faces
 
-    !> States of a face attribute: unspecified, nil, t (true), a color,
-    !> a property list, a list (of face names), a value (number).
-    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_NIL = 1, FACE_T = 2, FACE_COLOR = 3, &
+    !> States of a face attribute: unspecified, .false., .true., a color,
+    !> typed attributes, an array (of face names), a value (number).
+    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_OFF = 1, FACE_ON = 2, FACE_COLOR = 3, &
                                   FACE_PLIST = 4, FACE_LIST = 5, FACE_VALUE = 6
 
-    !> Underline styles (`:style' in an underline property list).
+    !> Underline styles (`style' of `face_underline').
     integer, parameter, public :: FACE_STYLE_LINE = 1, FACE_STYLE_DOUBLE_LINE = 2, FACE_STYLE_WAVE = 3, &
                                   FACE_STYLE_DOTS = 4, FACE_STYLE_DASHES = 5
 
-    !> Box styles (`:style' in a box property list): 3D buttons, and a
+    !> Box styles (`style' of `face_box'): 3D buttons, and a
     !> flat button (a plain box in the background color).
     integer, parameter, public :: FACE_BOX_RELEASED_BUTTON = 1, FACE_BOX_PRESSED_BUTTON = 2, FACE_BOX_FLAT_BUTTON = 3
 
@@ -74,7 +74,7 @@ module faces_fm
     !> Background modes of a frame (the `background_mode' frame parameter).
     integer, parameter, public :: FACE_BACKGROUND_LIGHT = 1, FACE_BACKGROUND_DARK = 2
 
-    !> An attribute that is unspecified, nil or t (`:inverse_video',
+    !> An attribute that is unspecified, .false. or .true. (`:inverse_video',
     !> `:extend').  Assign a logical to set it.
     type :: face_flag_type
         integer :: state = FACE_UNSPECIFIED
@@ -85,10 +85,10 @@ module faces_fm
         procedure :: unspecify => flag_unspecify
     end type face_flag_type
 
-    !> `:underline', `:overline' or `:strike_through': unspecified, nil, t,
+    !> `:underline', `:overline' or `:strike_through': unspecified, .false., .true.,
     !> a color, or (for underlines) a color and a style.  Assign a
-    !> logical (nil or t) or a color name, or for an underline a property
-    !> list made by `face_underline'.  `color' empty with `style' set
+    !> logical, a color name, or for an underline the value of
+    !> `face_underline(color=..., style=..., position=...)'.  `color' empty with `style' set
     !> means the foreground color (`:color foreground-color').
     type :: face_line_type
         integer :: state = FACE_UNSPECIFIED
@@ -102,8 +102,8 @@ module faces_fm
         procedure :: unspecify => line_unspecify
     end type face_line_type
 
-    !> `:box': unspecified, nil, or a box (a terminal draws none).  Assign
-    !> a logical, a color name, or a property list made by `face_box'.
+    !> `:box': unspecified, .false., or a box (a terminal draws none).  Assign
+    !> a logical, a color name, or the value of `face_box(...)'.
     type :: face_box_type
         integer :: state = FACE_UNSPECIFIED
         integer :: line_width = 1, line_height = 1
@@ -128,7 +128,7 @@ module faces_fm
         procedure :: unspecify => height_unspecify
     end type face_height_type
 
-    !> `:inherit': unspecified, nil, or the faces inherited from (their
+    !> `:inherit': unspecified, none, or the faces inherited from (their
     !> names, the first taking precedence).  Assign a name or an array of
     !> names.
     type :: face_inherit_type
@@ -143,7 +143,7 @@ module faces_fm
     !> Face attributes (xfaces.c's Lisp face attribute vector, the parts
     !> a terminal needs and those defface specs use).  A character
     !> attribute is unspecified while unallocated; weight, slant and
-    !> width are symbol names ("bold", "italic", "condensed").
+    !> width are names ("bold", "italic", "condensed").
     type :: face_attributes_type
         character(len=:), allocatable :: family, foundry
         character(len=:), allocatable :: width
@@ -450,7 +450,7 @@ module faces_fm
     !> Basic face used to indicate successful operation.  Port of
     !> faces.el:success.
     type(named_face_type), target, public :: success
-    !> Face for the symbol name in `read_multiple_choice' output.  Port of
+    !> Face for the name in `read_multiple_choice' output.  Port of
     !> faces.el:read-multiple-choice-face.
     type(named_face_type), target, public :: read_multiple_choice_face
     !> Face for displaying enabled items in TTY menus.  Port of
@@ -484,9 +484,9 @@ contains
         logical, intent(in) :: value
 
         if (value) then
-            self%state = FACE_T
+            self%state = FACE_ON
         else
-            self%state = FACE_NIL
+            self%state = FACE_OFF
         end if
     end subroutine flag_from_logical
 
@@ -507,9 +507,9 @@ contains
         self%position = .false.
 
         if (value) then
-            self%state = FACE_T
+            self%state = FACE_ON
         else
-            self%state = FACE_NIL
+            self%state = FACE_OFF
         end if
     end subroutine line_from_logical
 
@@ -545,7 +545,7 @@ contains
         if (value) then
             self%state = FACE_VALUE
         else
-            self%state = FACE_NIL
+            self%state = FACE_OFF
         end if
     end subroutine box_from_logical
 
@@ -601,7 +601,7 @@ contains
         if (allocated(self%names)) deallocate (self%names)
 
         if (len_trim(name) == 0) then
-            self%state = FACE_NIL
+            self%state = FACE_OFF
             return
         end if
 
@@ -619,7 +619,7 @@ contains
         if (allocated(self%names)) deallocate (self%names)
 
         if (size(names) == 0) then
-            self%state = FACE_NIL
+            self%state = FACE_OFF
             return
         end if
 
@@ -641,7 +641,7 @@ contains
     end subroutine inherit_unspecify
 
     !> Face attributes with the given ones specified, for specs: the
-    !> property list of a defface alternative.  INHERIT names one face
+    !> attributes of a defface alternative.  INHERIT names one face
     !> inherited from, INHERITS a list of them.  Not a port.
     function face_attrs(family, foundry, foreground, background, distant_foreground, weight, slant, width, height, &
                         relative_height, underline, underline_color, underline_style, overline, strike_through, &
@@ -693,7 +693,7 @@ contains
     end function face_attrs
 
     !> An underline given as upstream's
-    !> property list (:color COLOR :style STYLE :position POSITION), for
+    !> attributes `:color', `:style' and `:position', as `color', `style' and `position', for
     !> `faces%NAME%underline = face_underline(...)'.  An absent COLOR is
     !> the face's foreground color (`foreground-color'); STYLE is one of
     !> FACE_STYLE_LINE (the default), FACE_STYLE_DOUBLE_LINE,
@@ -722,11 +722,11 @@ contains
         if (present(position)) line%position = position
     end function face_underline
 
-    !> A box given as upstream's property list (:line-width WIDTH :color
-    !> COLOR :style STYLE), for `faces%NAME%box = face_box(...)'.
+    !> A box given as upstream's attributes `:line-width' WIDTH, `:color'
+    !> COLOR and `:style' STYLE, for `faces%NAME%box = face_box(...)'.
     !> LINE_WIDTH N is upstream's single number: vertical lines of width
     !> |N| and horizontal lines of width N; VERTICAL_WIDTH and
-    !> HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default
+    !> HORIZONTAL_WIDTH give upstream's two values, VWIDTH and HWIDTH, and default
     !> to 1.  A negative width draws the line over the text instead of
     !> beside it.  An absent COLOR is the face's background color for 3D
     !> boxes and FACE_BOX_FLAT_BUTTON and its foreground color otherwise;

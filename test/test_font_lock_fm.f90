@@ -26,7 +26,7 @@ module test_font_lock_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, symbolp, symbols, xsymbol, consp, list_elements
+    use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, resolve_buffer
     use insdel_fm, only: insert
@@ -38,7 +38,7 @@ module test_font_lock_fm
                             font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_fontify_buffer, font_lock_ensure, &
                             font_lock_add_keywords
-    use jit_lock_fm, only: jit_lock_mode_p, jit_lock_fontify_now
+    use jit_lock_fm, only: is_jit_lock_mode, jit_lock_fontify_now
     use dispextern_fm, only: glyph_row_type, DEFAULT_FACE_ID
     use frame_fm, only: frame_type
     use faces_fm, only: init_faces
@@ -88,13 +88,13 @@ contains
         name = ""
         call get_text_property(pos, sym("face"), v, st)
 
-        if (consp(v)) then
+        if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
             v = elts(1)
         end if
 
-        if (nilp(v)) return
-        if (symbolp(v)) name = symbols(xsymbol(v))%name
+        if (.not. allocated(v%a)) return
+        if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL)) name = symbols(xsymbol(v))%name
     end function face_at
 
     !> Keywords highlighting "foo" in font_lock_keyword_face.
@@ -158,7 +158,7 @@ contains
         call buffer_with("*fl-keywords*", "a foo b foo", h)
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
-        call check(error, st%ok() .and. jit_lock_mode_p(), "jit-lock")
+        call check(error, st%ok() .and. is_jit_lock_mode(), "jit-lock")
         if (allocated(error)) return
         call check(error, face_at(3_int64) == "", "not fontified yet")
         if (allocated(error)) return
@@ -167,7 +167,7 @@ contains
                    .and. face_at(6_int64) == "" .and. face_at(9_int64) == "font_lock_keyword_face", "both foos")
         if (allocated(error)) return
         call minor_modes%font_lock_mode%disable(st)
-        call check(error, face_at(3_int64) == "" .and. .not. jit_lock_mode_p(), "unfontified when off")
+        call check(error, face_at(3_int64) == "" .and. .not. is_jit_lock_mode(), "unfontified when off")
         call kill_buffer(h, st)
     end subroutine test_keywords
 
@@ -207,7 +207,7 @@ contains
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
         call get_text_property(3_int64, sym("face"), v, st)
-        call check(error, consp(v), "a list of faces")
+        call check(error, vtag(v) == V_ARRAY, "a list of faces")
         if (allocated(error)) return
         call list_elements(v, elts)
         call check(error, size(elts) == 2, "two faces")
@@ -232,12 +232,12 @@ contains
         call minor_modes%font_lock_mode%enable(st)
         call jit_lock_fontify_now(st)
         call get_text_property(6_int64, sym("fontified"), v, st)
-        call check(error,.not. nilp(v), "fontified")
+        call check(error, allocated(v%a), "fontified")
         if (allocated(error)) return
         call goto_char(6_int64)
         call insert("foo", st)
         call get_text_property(6_int64, sym("fontified"), v, st)
-        call check(error, nilp(v), "refontify the change")
+        call check(error,.not. allocated(v%a), "refontify the change")
         if (allocated(error)) return
         call jit_lock_fontify_now(st)
         call check(error, face_at(6_int64) == "font_lock_keyword_face", "fontified again")

@@ -28,7 +28,7 @@
 !> kill ring are here too.
 !>
 !> Not ported yet: undo in a region (undo-make-selective-list), temporary
-!> Transient Mark mode ((only . OLD) and lambda), the global mark ring,
+!> Transient Mark mode (the temporary and shift-selection activations), the global mark ring,
 !> shift-selection, the interprogram (system clipboard) cut and paste,
 !> `yank_from_kill_ring' (read-from-kill-ring needs completion metadata,
 !> history positions and display properties), the timer of the M-x key
@@ -41,8 +41,9 @@ module simple_fm
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
-                       nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc
+    use lisp_fm, only: value_type, make_fixnum, list, &
+                       xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc, vtag, V_NULL, &
+                       V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use lread_fm, only: sym
     use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting, &
                        add_local_variables_killer
@@ -60,7 +61,7 @@ module simple_fm
     use window_fm, only: window_type, window_start, window_body_lines, recenter
     use subr_fm, only: add_to_history, defvar_nil
     use editfns_fm, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
-                          bolp, constrain_to_field, pos_eol, point_min, bobp, eobp, buffer_substring, &
+                          is_bol, constrain_to_field, pos_eol, point_min, is_bob, is_eob, buffer_substring, &
                           delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
     use textprop_fm, only: get_text_property, get_char_property, next_char_property_change, &
                            previous_char_property_change, previous_single_char_property_change, &
@@ -71,20 +72,20 @@ module simple_fm
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
     use insdel_fm, only: insert, del_range
     use data_fm, only: symbol_value, set
-    use lisp_fm, only: list_length, xstring, stringp, symbolp, xsymbol, symbols, make_keymap_ref
+    use lisp_fm, only: list_length, xstring, xsymbol, symbols, make_keymap_ref
     use editfns_fm, only: insert_char_n
     use minibuf_fm, only: minibuffer_history_position, minibuffer_history_variable, &
                           minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
                           minibuffer_prompt_end, minibuffer_contents, minibuf_level
     use cmds_fm, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
                        backward_char
-    use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p, &
+    use keymap_fm, only: make_sparse_keymap, define_key, is_keymap_live, &
                          key_description, where_is_internal, lookup_key, command_remapping
     use minibuf_fm, only: completion_obarray_table
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use lread_fm, only: intern_soft
     use callint_fm, only: current_prefix_arg, prefix_arg, &
-                          prefix_numeric_value, mark_even_if_inactive, commandp, call_interactively
+                          prefix_numeric_value, mark_even_if_inactive, is_command, call_interactively
     use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          backward_prefix_chars
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
@@ -93,16 +94,16 @@ module simple_fm
     use eval_fm, only: hook_type
     use abbrev_fm, only: abbrev_table_type
     use insdel_fm, only: insert_before_markers
-    use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region, char_after, pos_bol, &
+    use editfns_fm, only: char_before, is_eol, point_marker, delete_and_extract_region, char_after, pos_bol, &
                           inhibit_field_text_motion
-    use minibuf_fm, only: minibufferp
+    use minibuf_fm, only: is_minibuffer
     use cmds_fm, only: forward_char, kill_forward_chars_hook
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
                            real_last_command, last_prefix_arg, read_event, &
                            set_transient_map, last_message, disabled_command_hook, &
                            local_function_key_map, unread_command_events
-    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc, deactivate_mark_function, &
+    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, redisplay_proc, deactivate_mark_function, &
                            ascii_character, prefix_command_update
     implicit none(type, external)
     private
@@ -113,7 +114,7 @@ module simple_fm
 
     public :: execute_extended_command, read_extended_command
     public :: async_shell_command, shell_command_sentinel
-    public :: set_next_error_function, has_next_error_function, next_error_buffer_p, next_error_find_buffer, &
+    public :: set_next_error_function, has_next_error_function, is_next_error_buffer, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, syms_of_simple_next_error
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
     public :: set_variable, read_variable
@@ -127,7 +128,7 @@ module simple_fm
               blink_paren_post_self_insert_function, newline_and_indent, syms_of_simple_electric, &
               backward_delete_char_untabify, blink_matching_check_proc, reindent_then_newline_and_indent
     public :: set_local_blink_matching_check_function, current_blink_matching_check_function, &
-              blink_matching_check_function_local_p, kill_local_blink_matching_check_function
+              is_blink_matching_check_function_local, kill_local_blink_matching_check_function
 
     !> True means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
@@ -165,20 +166,20 @@ module simple_fm
     !> widen-automatically.
     logical, public :: widen_automatically = .true.
     ! Values of undo-equiv-table besides list positions: nil, t, `empty`.
-    integer(int64), parameter :: EQUIV_NONE = -2, EQUIV_T = -1, EQUIV_EMPTY = -4
-    public :: mark, region_active_p, use_region_p, deactivate_mark, activate_mark, set_mark, &
+    integer(int64), parameter :: EQUIV_NONE = -2, EQUIV_IN_REGION = -1, EQUIV_EMPTY = -4
+    public :: mark, is_region_active, is_use_region, deactivate_mark, activate_mark, set_mark, &
               push_mark, pop_mark, pop_to_mark_command, push_mark_command, set_mark_command, &
               exchange_point_and_mark, mark_whole_buffer
     public :: kill_ring, kill_new, kill_append, current_kill, kill_region, copy_region_as_kill, &
               kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
-              region_bounds, region_noncontiguous_p, define_yank_handler_function, region_extract_proc, &
+              region_bounds, is_region_noncontiguous, define_yank_handler_function, region_extract_proc, &
               region_insert_proc, yank_handler_proc, yank_undo_proc, &
               forward_visible_line, count_lines, line_number_at_pos
     public :: backward_word, kill_word, backward_kill_word, mark_word
-    public :: indicate_copied_region, region_indistinguishable_p, predicate_proc
+    public :: indicate_copied_region, is_region_indistinguishable, predicate_proc
     ! (Public because gfortran drops private parent procedures that only a
     ! submodule uses.)
-    public :: shows_current_buffer, pos_visible_in_window_p
+    public :: shows_current_buffer, is_pos_visible_in_window
 
     public :: delete_indentation, delete_blank_lines, fixup_whitespace, delete_horizontal_space, &
               delete_all_space, just_one_space, rfc822_goto_eoh, cycle_spacing, transpose_chars, transpose_words, &
@@ -205,7 +206,7 @@ module simple_fm
     !> comment-line-break-function.
     procedure(line_break_proc), pointer, public :: comment_line_break_function => null()
 
-    !> The actions of `cycle_spacing' (the symbols of
+    !> The actions of `cycle_spacing' (the names of
     !> `cycle_spacing_actions').
     integer, parameter, public :: CYCLE_JUST_ONE_SPACE = 1, CYCLE_DELETE_SPACE_AFTER = 2, &
                                   CYCLE_DELETE_SPACE_BEFORE = 3, CYCLE_DELETE_ALL_SPACE = 4, CYCLE_RESTORE = 5
@@ -272,7 +273,7 @@ module simple_fm
               turn_on_auto_fill, turn_off_auto_fill
 
     !> Regexp to match lines that should not be auto-filled.  Port of
-    !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
+    !> simple.el auto-fill-inhibit-regexp (unallocated when unset).
     type(string_setting), public :: auto_fill_inhibit_regexp = string_setting(name="auto_fill_inhibit_regexp")
 
     !> True means to do as if `auto_fill_mode' was disabled.  Port of
@@ -446,7 +447,7 @@ module simple_fm
         !>
         !> If the mark lies outside the selected window, display an
         !> informative message containing a sample of the copied text.  The
-        !> optional argument MESSAGE_LEN, if non-nil, specifies the length
+        !> optional argument MESSAGE_LEN, if present, specifies the length
         !> of this sample text; it defaults to 40.  Port of
         !> simple.el:indicate-copied-region (a quit during the blink does
         !> not deactivate the mark; the mark counts as not visible when the
@@ -504,7 +505,7 @@ module simple_fm
         !> a variable meant to be customized by users.  You should enter
         !> VALUE in Fortran syntax, so if you want VALUE to be a string, you
         !> must surround it with doublequotes.  VALUE is used literally, not
-        !> evaluated.
+        !> computed.
         !>
         !> The type of VARIABLE is used to check that VALUE is valid.
         !>
@@ -996,12 +997,12 @@ module simple_fm
                                      logical_setting(name="shell_command_prompt_show_cwd", value=.false.)
 
     !> Values of `shell_command_dont_erase_buffer' (see there).
-    integer, parameter, public :: DONT_ERASE_NIL = 0, DONT_ERASE_ERASE = 1, DONT_ERASE_BEG_LAST_OUT = 2, &
+    integer, parameter, public :: DONT_ERASE_NO = 0, DONT_ERASE_ERASE = 1, DONT_ERASE_BEG_LAST_OUT = 2, &
                                   DONT_ERASE_END_LAST_OUT = 3, DONT_ERASE_SAVE_POINT = 4
 
     !> Whether to erase the output buffer before executing shell command.
     !>
-    !> DONT_ERASE_NIL erases the output buffer before execution of the
+    !> DONT_ERASE_NO erases the output buffer before execution of the
     !> shell command, except when the output buffer is the current one.
     !>
     !> DONT_ERASE_ERASE ensures the output buffer is erased before
@@ -1015,11 +1016,11 @@ module simple_fm
     !> output, DONT_ERASE_END_LAST_OUT sets point at the end of the last
     !> output, and DONT_ERASE_SAVE_POINT restores the buffer position as it
     !> was before the shell command.  Port of simple.el shell-command-dont-erase-buffer
-    !> (DONT_ERASE_NIL is nil, DONT_ERASE_ERASE `erase',
-    !> DONT_ERASE_BEG_LAST_OUT `beg-last-out', DONT_ERASE_END_LAST_OUT
-    !> `end-last-out', DONT_ERASE_SAVE_POINT `save-point').
+    !> (DONT_ERASE_NO, DONT_ERASE_ERASE,
+    !> DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT
+    !> and DONT_ERASE_SAVE_POINT).
     type(integer_setting), public :: shell_command_dont_erase_buffer = &
-                                     integer_setting(name="shell_command_dont_erase_buffer", value=DONT_ERASE_NIL)
+                                     integer_setting(name="shell_command_dont_erase_buffer", value=DONT_ERASE_NO)
 
     !> Values of `async_shell_command_buffer' (see there).
     integer, parameter, public :: ASYNC_CONFIRM_KILL_PROCESS = 0, ASYNC_CONFIRM_NEW_BUFFER = 1, ASYNC_NEW_BUFFER = 2, &
@@ -1057,7 +1058,7 @@ module simple_fm
     !> output.  If negative, use the shell default number (usually 80
     !> columns).  If a natural number, tell the shell to use that number
     !> of columns for command output.  Port of simple.el
-    !> async-shell-command-width (a negative value for nil).
+    !> async-shell-command-width (a negative value for none).
     type(integer_setting), public :: async_shell_command_width = &
                                      integer_setting(name="async_shell_command_width", value=-1)
 
@@ -1128,7 +1129,7 @@ module simple_fm
         !> beginning of the errors before moving.
         !> Major modes providing compile-like functionality should set this
         !> variable to indicate to `next_error' that this is a candidate
-        !> buffer and how to navigate in it.  Port of the setq-local of
+        !> buffer and how to navigate in it.  Port of the buffer-local setting of
         !> simple.el next-error-function.  (In simple_next_error_fm.)
         module subroutine set_next_error_function(fn)
             implicit none(type, external)
@@ -1154,13 +1155,13 @@ module simple_fm
         !> buffer would normally qualify.  If it returns false, BUFFER is
         !> rejected, and the function returns false.  Port of
         !> simple.el:next-error-buffer-p.  (In simple_next_error_fm.)
-        recursive module logical function next_error_buffer_p(buffer, avoid_current, extra_test_inclusive, &
-                                                              extra_test_exclusive)
+        recursive module logical function is_next_error_buffer(buffer, avoid_current, extra_test_inclusive, &
+                                                               extra_test_exclusive)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             logical, intent(in), optional :: avoid_current
             procedure(predicate_proc), optional :: extra_test_inclusive, extra_test_exclusive
-        end function next_error_buffer_p
+        end function is_next_error_buffer
 
         !> Return a `next_error' capable buffer in BUFFER.
         !>
@@ -1257,7 +1258,7 @@ module simple_fm
     real, public :: copy_region_blink_delay = 1.0
 
     !> Values of `blink_matching_paren'.
-    integer, parameter, public :: BLINK_MATCHING_PAREN_NIL = 0, BLINK_MATCHING_PAREN_T = 1, &
+    integer, parameter, public :: BLINK_MATCHING_PAREN_NO = 0, BLINK_MATCHING_PAREN_YES = 1, &
                                   BLINK_MATCHING_PAREN_JUMP = 2, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN = 3
 
     !> True means show matching open-paren when close-paren is inserted.
@@ -1267,7 +1268,7 @@ module simple_fm
     !>
     !> The valid values are:
     !>
-    !>   `BLINK_MATCHING_PAREN_T'               Highlight the matching open-paren if it is visible
+    !>   `BLINK_MATCHING_PAREN_YES'               Highlight the matching open-paren if it is visible
     !>                                          in the window, otherwise show the text with matching
     !>                                          open-paren in the echo area.  This is the default.
     !>   `BLINK_MATCHING_PAREN_JUMP'            If the matching open-paren is visible in the window,
@@ -1275,20 +1276,20 @@ module simple_fm
     !>                                          the text with matching open-paren in the echo area.
     !>   `BLINK_MATCHING_PAREN_JUMP_OFFSCREEN'  Briefly move cursor to the matching open-paren
     !>                                          even if it is not visible in the window.
-    !>   `BLINK_MATCHING_PAREN_NIL'             Don't show the matching open-paren.
+    !>   `BLINK_MATCHING_PAREN_NO'             Don't show the matching open-paren.
     !>
     !> Port of simple.el blink-matching-paren.
-    integer, public :: blink_matching_paren = BLINK_MATCHING_PAREN_T
+    integer, public :: blink_matching_paren = BLINK_MATCHING_PAREN_YES
 
     !> Values of `backward_delete_char_untabify_method'.
-    integer, parameter, public :: UNTABIFY_METHOD_NIL = 0, UNTABIFY_METHOD_UNTABIFY = 1, UNTABIFY_METHOD_HUNGRY = 2, &
+    integer, parameter, public :: UNTABIFY_METHOD_NONE = 0, UNTABIFY_METHOD_UNTABIFY = 1, UNTABIFY_METHOD_HUNGRY = 2, &
                                   UNTABIFY_METHOD_ALL = 3
 
     !> The method for untabifying when deleting backward.
     !> Can be `UNTABIFY_METHOD_UNTABIFY' -- turn a tab to many spaces, then delete one space;
     !>        `UNTABIFY_METHOD_HUNGRY' -- delete all whitespace, both tabs and spaces;
     !>        `UNTABIFY_METHOD_ALL' -- delete all whitespace, including tabs, spaces and newlines;
-    !>        `UNTABIFY_METHOD_NIL' -- just delete one character.
+    !>        `UNTABIFY_METHOD_NONE' -- just delete one character.
     !> Port of simple.el backward-delete-char-untabify-method.
     integer, public :: backward_delete_char_untabify_method = UNTABIFY_METHOD_UNTABIFY
 
@@ -1297,7 +1298,7 @@ module simple_fm
     !> in the echo area when it is off screen).
     !>
     !> This variable has no effect if `blink_matching_paren' is
-    !> `BLINK_MATCHING_PAREN_NIL'.  (In that case, the open-paren is never
+    !> `BLINK_MATCHING_PAREN_NO'.  (In that case, the open-paren is never
     !> shown.)  It is also ignored if `show_paren_mode' is enabled.  Port
     !> of simple.el blink-matching-paren-on-screen.
     logical, public :: blink_matching_paren_on_screen = .true.
@@ -1305,7 +1306,7 @@ module simple_fm
     !> If not negative, maximum distance to search backwards for matching
     !> open-paren.  If negative, search stops at the beginning of the
     !> accessible portion of the buffer.  Port of simple.el
-    !> blink-matching-paren-distance (negative for nil).
+    !> blink-matching-paren-distance (negative for none).
     integer(int64), public :: blink_matching_paren_distance = 100*1024
 
     !> Time in seconds to delay after showing a matching paren.  Port of
@@ -1358,7 +1359,7 @@ module simple_fm
     !> current window, `kill_ring_save' will blink the cursor between
     !> point and mark for `copy_region_blink_delay' seconds.  Port of
     !> simple.el copy-region-blink-predicate.
-    procedure(predicate_proc), pointer, public :: copy_region_blink_predicate => region_indistinguishable_p
+    procedure(predicate_proc), pointer, public :: copy_region_blink_predicate => is_region_indistinguishable
 
     !> Hook run when the mark becomes inactive.  Port of simple.el
     !> deactivate-mark-hook.
@@ -1372,8 +1373,8 @@ module simple_fm
     !> kill-ring-yank-pointer.
     integer(int64), public :: kill_ring_yank_pointer = 1
 
-    !> The METHODs of `region_extract_function': nil, `delete' (anything
-    !> else upstream), `delete-only' and `bounds'.
+    !> The METHODs of `region_extract_function': REGION_EXTRACT_COPY, REGION_EXTRACT_DELETE (anything
+    !> else upstream), REGION_EXTRACT_DELETE_ONLY and REGION_EXTRACT_BOUNDS.
     integer, parameter, public :: REGION_EXTRACT_COPY = 0, REGION_EXTRACT_DELETE = 1, &
                                   REGION_EXTRACT_DELETE_ONLY = 2, REGION_EXTRACT_BOUNDS = 3
 
@@ -1426,7 +1427,7 @@ module simple_fm
     !> - REGION_EXTRACT_DELETE_ONLY: delete the region; the return value
     !>   is undefined.
     !> - REGION_EXTRACT_BOUNDS: return the boundaries of the region as
-    !>   one or more pairs START, END.
+    !>   one or more ranges START, END.
     !> - REGION_EXTRACT_DELETE: delete the region and return its content
     !>   as a string, after filtering it with `filter_buffer_substring'.
     !> Port of casefiddle.c region-extract-function, as simple.el sets it.
@@ -1450,7 +1451,7 @@ module simple_fm
     procedure(yank_undo_proc), pointer, public :: yank_undo_function => null()
 
     !> A function a `yank_handler' property names (upstream's FUNCTION
-    !> symbol; `define_yank_handler_function' names a procedure).
+    !> name; `define_yank_handler_function' names a procedure).
     type :: yank_handler_function_type
         character(len=:), allocatable :: name
         procedure(yank_handler_proc), pointer, nopass :: run => null()
@@ -1462,7 +1463,7 @@ module simple_fm
     !> Optional second argument REPLACE true means that STRING will replace
     !> the front of the kill ring, rather than being added to the list.
     !>
-    !> When the yank handler has a non-nil PARAM element, the original
+    !> When the yank handler has a PARAM element, the original
     !> STRING argument is not used by `insert_for_yank'.  However, since
     !> code may access and use elements from the kill ring directly, the
     !> STRING argument should still be a "useful" string for such uses.
@@ -1497,7 +1498,7 @@ module simple_fm
     !> Maximum size of mark ring.  Start discarding off end if gets this
     !> big.  Port of simple.el mark-ring-max.
     integer, public :: mark_ring_max = 16
-    !> True means don't signal an error for killing read-only text.
+    !> True means no error condition occurs for killing read-only text.
     !> Port of simple.el kill-read-only-ok.
     logical, public :: kill_read_only_ok = .false.
     !> If true, `kill_line' with no arg at start of line kills the whole
@@ -1561,7 +1562,7 @@ contains
     end function check_local_index
 
     !> Give the current buffer its own `blink_matching_check_function'
-    !> FN (setq-local); absent is nil.  Not a port.
+    !> FN (set_local); absent clears it.  Not a port.
     subroutine set_local_blink_matching_check_function(fn)
         procedure(blink_matching_check_proc), optional :: fn
         type(check_entry_type), allocatable :: grown(:)
@@ -1600,7 +1601,7 @@ contains
     end subroutine set_local_blink_matching_check_function
 
     !> The value of `blink_matching_check_function' in the current buffer
-    !> (null for nil).  Not a port.
+    !> (null when unset).  Not a port.
     function current_blink_matching_check_function() result(fn)
         procedure(blink_matching_check_proc), pointer :: fn
         integer :: i
@@ -1616,9 +1617,9 @@ contains
 
     !> Whether the current buffer has its own `blink_matching_check_function'.
     !> Not a port.
-    logical function blink_matching_check_function_local_p()
-        blink_matching_check_function_local_p = check_local_index() > 0
-    end function blink_matching_check_function_local_p
+    logical function is_blink_matching_check_function_local()
+        is_blink_matching_check_function_local = check_local_index() > 0
+    end function is_blink_matching_check_function_local
 
     !> Make the current buffer use the default `blink_matching_check_function'
     !> (also what `kill_all_local_variables' does to it).  Not a port.
@@ -1683,7 +1684,7 @@ contains
         integer :: d
         character(len=4) :: name
 
-        if (keymap_live_p(uarg_map)) then
+        if (is_keymap_live(uarg_map)) then
             map = uarg_map
             return
         end if
@@ -1733,7 +1734,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call newline(status, interactive=.true.)
         else
             call newline(status, arg_p(), interactive=.true.)
@@ -1767,14 +1768,14 @@ contains
 
         n = arg_p()
 
-        if (use_region_p() .and. delete_active_region .and. n == 1) then
+        if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_backward_char(n, status,.not. nilp(current_prefix_arg))
+            call delete_backward_char(n, status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_delete_backward_char
 
-    !> (funcall region-extract-function 'delete-only) Not a port.
+    !> Call `region_extract_function' with REGION_EXTRACT_DELETE_ONLY.  Not a port.
     recursive subroutine delete_the_region(status)
         type(status_type), intent(out) :: status
         type(value_type) :: string
@@ -1799,10 +1800,10 @@ contains
 
         n = arg_p()
 
-        if (use_region_p() .and. delete_active_region .and. n == 1) then
+        if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_char(n, status,.not. nilp(current_prefix_arg))
+            call delete_char(n, status, allocated(current_prefix_arg%a))
         end if
     end subroutine cmd_delete_forward_char
 
@@ -1813,9 +1814,9 @@ contains
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
 
-        if (region_active_p()) call deactivate_mark()
+        if (is_region_active()) call deactivate_mark()
         if (associated(kmacro_keyboard_quit_hook)) call kmacro_keyboard_quit_hook()
-        defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+        defining_kbd_macro = DEFINING_KBD_MACRO_NO
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
 
@@ -1847,7 +1848,7 @@ contains
             if (.not. status%ok() .or. .not. have) return
 
             ! Only the first event is read with inhibit-quit.
-            if (.not. first .and. fixnump(ev)) then
+            if (.not. first .and. vtag(ev) == V_INTEGER) then
                 if (xfixnum(ev) == 7) then
                     call set_error(status, FM_QUIT)
                     return
@@ -1855,18 +1856,18 @@ contains
             end if
 
             ! Translate TAB key into control-I ASCII character, and so on.
-            translation = nil()
+            translation = value_type()
 
-            if (keymap_live_p(local_function_key_map)) then
+            if (is_keymap_live(local_function_key_map)) then
                 key(1) = ev
                 call lookup_key(make_keymap_ref(local_function_key_map), key, translation, st)
             end if
 
             translated = -1
 
-            if (consp(translation)) then
-                if (fixnump(list_elt(translation, 1_int64))) translated = xfixnum(list_elt(translation, 1_int64))
-            else if (fixnump(ev)) then
+            if (vtag(translation) == V_ARRAY) then
+                if (vtag(list_elt(translation, 1_int64)) == V_INTEGER) translated = xfixnum(list_elt(translation, 1_int64))
+            else if (vtag(ev) == V_INTEGER) then
                 translated = xfixnum(ev)
             end if
 
@@ -1978,7 +1979,7 @@ contains
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (consp(arg)) then
+        if (vtag(arg) == V_ARRAY) then
             prefix_arg = list(make_fixnum(4*xfixnum(list_elt(arg, 1_int64))))
         else if (value_eq(arg, sym("-"))) then
             prefix_arg = list(make_fixnum(-4_int64))
@@ -1986,7 +1987,7 @@ contains
             prefix_arg = arg
         end if
 
-        if (consp(prefix_arg)) call universal_argument_mode()
+        if (vtag(prefix_arg) == V_ARRAY) call universal_argument_mode()
     end subroutine cmd_universal_argument_more
 
     !> Begin a negative numeric argument for the next command.
@@ -2000,10 +2001,10 @@ contains
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (fixnump(arg)) then
+        if (vtag(arg) == V_INTEGER) then
             prefix_arg = make_fixnum(-xfixnum(arg))
         else if (value_eq(arg, sym("-"))) then
-            prefix_arg = nil()
+            prefix_arg = value_type()
         else
             prefix_arg = sym("-")
         end if
@@ -2023,20 +2024,20 @@ contains
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (fixnump(last_command_event)) then
+        if (vtag(last_command_event) == V_INTEGER) then
             char = xfixnum(last_command_event)
         else
             char = ascii_character(last_command_event)
 
             if (char < 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer_or_marker_p")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
                 return
             end if
         end if
 
         digit = iand(char, 127_int64) - iachar("0")
 
-        if (fixnump(arg)) then
+        if (vtag(arg) == V_INTEGER) then
             if (xfixnum(arg) < 0) then
                 prefix_arg = make_fixnum(xfixnum(arg)*10 - digit)
             else
@@ -2062,7 +2063,7 @@ contains
     subroutine cmd_universal_argument_minus(status)
         type(status_type), intent(out) :: status
 
-        if (fixnump(current_prefix_arg)) then
+        if (vtag(current_prefix_arg) == V_INTEGER) then
             call self_insert_command(arg_p(), int(iachar("-"), int64), status)
         else
             call cmd_negative_argument(status)
@@ -2174,7 +2175,7 @@ contains
                 if (forward_line(1_int64) == 0) n = 0
             else
                 if (forward_line(n) == 0) then
-                    if (bolp()) n = 0
+                    if (is_bol()) n = 0
                 end if
             end if
 
@@ -2186,7 +2187,7 @@ contains
             do while (n > 0 .and. .not. stop)
                 ! If the following character is currently invisible, skip
                 ! all characters with that same `invisible' property value.
-                do while (.not. eobp() .and. invisible_p(point()) /= 0)
+                do while (.not. is_eob() .and. invisible_p(point()) /= 0)
                     call goto_char(next_char_property_change(point()))
                 end do
 
@@ -2195,7 +2196,7 @@ contains
                 call goto_char(constrain_to_field(pos_eol(), point(), .true., .true.))
 
                 ! If there's no invisibility here, move over the newline.
-                if (eobp()) then
+                if (is_eob()) then
                     if (.not. noerror) call signal_end(status)
                     stop = .true.
                 else if (n > 1 .and. invisible_p(point()) == 0) then
@@ -2220,7 +2221,7 @@ contains
             do while (n < 0 .and. .not. stop)
                 call beginning_of_line()
 
-                if (bobp()) then
+                if (is_bob()) then
                     if (.not. noerror) call signal_beginning(status)
                     stop = .true.
                 else if (n < -1 .and. invisible_p(point() - 1) == 0) then
@@ -2239,7 +2240,7 @@ contains
 
                     ! Don't move over previous invis lines if our target is
                     ! the middle of this line.
-                    do while ((goal_or_temporary() == 0 .or. n < 0) .and. .not. bobp())
+                    do while ((goal_or_temporary() == 0 .or. n < 0) .and. .not. is_bob())
                         if (invisible_p(point() - 1) == 0) exit
                         call goto_char(previous_char_property_change(point()))
                     end do
@@ -2304,14 +2305,14 @@ contains
             call move_to_column(col, reached)
         end if
 
-        if (.not. line_move_ignore_invisible .or. bolp()) return
+        if (.not. line_move_ignore_invisible .or. is_bol()) return
         if (invisible_p(point() - 1) == 0) return
         normal_location = point()
         normal_column = current_column()
 
         ! If the following character is currently invisible, skip all
         ! characters with that same `invisible' property value.
-        do while (.not. eobp() .and. invisible_p(point()) /= 0)
+        do while (.not. is_eob() .and. invisible_p(point()) /= 0)
             call goto_char(next_char_property_change(point()))
         end do
 
@@ -2326,10 +2327,10 @@ contains
             ! the screen but with a more reasonable buffer position.
             call goto_char(normal_location)
             ! We want the real line beginning, so it's consistent with
-            ! bolp below, otherwise we might infloop.
+            ! is_bol below, otherwise we might infloop.
             line_beg = pos_bol()
 
-            do while (.not. bolp())
+            do while (.not. is_bol())
                 if (invisible_p(point() - 1) == 0) exit
                 call goto_char(previous_char_property_change(point(), line_beg))
             end do
@@ -2408,7 +2409,7 @@ contains
             saved = point()
             call goto_char(pos_eol())
 
-            do while (.not. eobp() .and. invisible_p(point()) /= 0)
+            do while (.not. is_eob() .and. invisible_p(point()) /= 0)
                 call goto_char(next_char_property_change(point()))
                 call goto_char(pos_eol())
             end do
@@ -2506,14 +2507,14 @@ contains
 
         do while (.not. done)
             ! (save-excursion (let ((goal-column 0) (line-move-visual nil)
-            ! (inhibit-field-text-motion (minibufferp))) ...))
+            ! (inhibit-field-text-motion (is_minibuffer))) ...))
             opoint = point()
             saved_goal = goal_column
             saved_visual = line_move_visual
             saved_inhibit = inhibit_field_text_motion
             goal_column = 0
             line_move_visual = .false.
-            inhibit_field_text_motion = minibufferp()
+            inhibit_field_text_motion = is_minibuffer()
             call line_move(n, st, noerror=.true., moved=moved)
 
             if (moved) then
@@ -2521,8 +2522,8 @@ contains
                 ! we are.
                 call goto_char(pos_bol())
 
-                if (.not. bobp()) then
-                    do while (.not. bobp())
+                if (.not. is_bob()) then
+                    do while (.not. is_bob())
                         if (invisible_p(point() - 1) == 0) exit
                         call goto_char(previous_single_char_property_change(point(), sym("invisible")))
                     end do
@@ -2544,7 +2545,7 @@ contains
 
                 if (found .and. c == 10) then
                     call goto_char(point() - 1)
-                else if (.not. eobp()) then
+                else if (.not. is_eob()) then
                     call char_after(c, found)
 
                     if (c /= 10) then
@@ -2596,7 +2597,7 @@ contains
         ! Move to beginning-of-line, ignoring fields and invisible text.
         call goto_char(pos_bol())
 
-        do while (.not. bobp())
+        do while (.not. is_bob())
             if (invisible_p(point() - 1) == 0) exit
             call goto_char(previous_char_property_change(point()))
             call goto_char(pos_bol())
@@ -2643,11 +2644,11 @@ contains
         type(value_type) :: history
         type(status_type) :: status
 
-        history = nil()
+        history = value_type()
         if (.not. allocated(minibuffer_history_variable)) return
         if (len(minibuffer_history_variable) == 0) return
         call symbol_value(sym(minibuffer_history_variable), history, status)
-        if (.not. status%ok()) history = nil()
+        if (.not. status%ok()) history = value_type()
     end function history_value
 
     !> Insert into the minibuffer the element of minibuffer history specified by NABS.
@@ -2698,7 +2699,7 @@ contains
 
             if (point() <= pend) then
                 minibuffer_temporary_goal_position = pend
-            else if (eobp()) then
+            else if (is_eob()) then
                 minibuffer_temporary_goal_position = 0
             else
                 minibuffer_temporary_goal_position = point()
@@ -2721,7 +2722,7 @@ contains
         else
             elt = list_elt(history, int(nabs, int64))
             text = ""
-            if (stringp(elt)) text = xstring(elt)
+            if (vtag(elt) == V_STRING) text = xstring(elt)
         end if
 
         call insert(text, status)
@@ -2783,7 +2784,7 @@ contains
         ! Remember the original goal column of possibly multi-line input
         ! excluding the length of the prompt on the first line.
         prompt_end = minibuffer_prompt_end()
-        have_column = .not. (eolp() .and. point() > prompt_end)
+        have_column = .not. (is_eol() .and. point() > prompt_end)
         old_column = 0
 
         if (have_column) then
@@ -2839,7 +2840,7 @@ contains
         ! Remember the original goal column of possibly multi-line input
         ! excluding the length of the prompt on the first line.
         prompt_end = minibuffer_prompt_end()
-        have_column = .not. (eolp() .and. point() > prompt_end)
+        have_column = .not. (is_eol() .and. point() > prompt_end)
         old_column = 0
 
         if (have_column) then
@@ -2909,7 +2910,7 @@ contains
             ! Since `end_of_visual_line' puts the cursor at the beginning
             ! of the next visual line, move it one char back to the end of
             ! the first visual line (bug#22544).
-            if (.not. eolp()) call backward_char(status)
+            if (.not. is_eol()) call backward_char(status)
             status = status_type()
         end if
 
@@ -2964,10 +2965,10 @@ contains
 
         if (value_eq(current_prefix_arg, sym("-"))) then
             prompt = "- "
-        else if (consp(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_ARRAY) then
             head = list_elt(current_prefix_arg, 1_int64)
 
-            if (fixnump(head)) then
+            if (vtag(head) == V_INTEGER) then
                 if (xfixnum(head) == 4) then
                     prompt = "C-u "
                 else
@@ -2975,7 +2976,7 @@ contains
                     prompt = trim(num)//" "
                 end if
             end if
-        else if (fixnump(current_prefix_arg)) then
+        else if (vtag(current_prefix_arg) == V_INTEGER) then
             write (num, "(i0)") xfixnum(current_prefix_arg)
             prompt = trim(num)//" "
         end if
@@ -2983,8 +2984,8 @@ contains
         ! Read a string, completing from and restricting to the set of all
         ! defined commands.  Save the command read on the extended-command
         ! history list.
-        call completing_read(prompt//"M-x ", completion_obarray_table("command"), name, status, commandp, &
-                             require_match=REQUIRE_MATCH_T, history="extended_command_history")
+        call completing_read(prompt//"M-x ", completion_obarray_table("command"), name, status, is_command, &
+                             require_match=REQUIRE_MATCH_YES, history="extended_command_history")
     end subroutine read_extended_command
 
     !> Read a command name, then read the arguments and call the command.
@@ -3015,23 +3016,23 @@ contains
         end if
 
         id = intern_soft(name)
-        function = nil()
+        function = value_type()
         if (id /= 0) function = sym(name)
 
-        if (id == 0 .or. .not. commandp(function)) then
+        if (id == 0 .or. .not. is_command(function)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("`")//name//format_message("' is not a valid command name"))
             return
         end if
 
-        binding = nil()
+        binding = value_type()
         if (suggest_key_bindings) call where_is_internal(function, binding, firstonly=.true.)
 
         ! If we're executing a command that's remapped, we can't actually
         ! execute that command with the keymapping we've found with
         ! `where_is_internal'.
-        if (.not. nilp(binding)) then
+        if (allocated(binding%a)) then
             call command_remapping(function, remapped)
-            if (.not. nilp(remapped)) binding = nil()
+            if (allocated(remapped%a)) binding = value_type()
         end if
 
         this_command = function
@@ -3041,13 +3042,13 @@ contains
         real_this_command = function
         ! command-execute
         current_prefix_arg = prefixarg
-        prefix_arg = nil()
+        prefix_arg = value_type()
         handled = .false.
         if (associated(disabled_command_hook)) call disabled_command_hook(function, handled, status)
         if (.not. handled) call call_interactively(function, status)
         if (.not. status%ok()) return
 
-        if (suggest_key_bindings .and. .not. nilp(binding)) then
+        if (suggest_key_bindings .and. allocated(binding%a)) then
             if (echo_area_empty()) then
                 call list_elements(binding, keys)
                 call message("You can run the command "//char(226)//char(128)//char(152)//name// &
@@ -3056,7 +3057,7 @@ contains
         end if
     end subroutine execute_extended_command
 
-    !> Whether the echo area shows nothing (current-message is nil).
+    !> Whether the echo area shows nothing (`current_message' is empty).
     !> Not a port.
     logical function echo_area_empty()
         echo_area_empty = .true.
@@ -3159,7 +3160,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The undo-equiv-table value of list position `k' in the current
-    !> buffer: a list position, or EQUIV_NONE, EQUIV_T or EQUIV_EMPTY.
+    !> buffer: a list position, or EQUIV_NONE, EQUIV_IN_REGION or EQUIV_EMPTY.
     !> Not a port.
     integer(int64) function equiv_of(k) result(v)
         integer(int64), intent(in) :: k
@@ -3387,7 +3388,7 @@ contains
             if (equiv >= 0) pending_undo_list = equiv
         end if
 
-        if (fixnump(arg)) then
+        if (vtag(arg) == V_INTEGER) then
             call undo_more(prefix_numeric_value(arg), status)
         else
             call undo_more(1_int64, status)
@@ -3514,7 +3515,7 @@ contains
 
     !> Return this buffer's mark value as integer, or 0 if never set.
     !>
-    !> In Transient Mark mode, this function signals an error if
+    !> In Transient Mark mode, an error condition occurs if
     !> the mark is not active.  However, if `mark_even_if_inactive' is true,
     !> or the argument FORCE is true, it disregards whether the mark
     !> is active, and returns an integer or 0 in the usual way.  Port of
@@ -3538,22 +3539,22 @@ contains
 
     !> Return true if Transient Mark mode is enabled and the mark is active.
     !> Port of simple.el:region-active-p.
-    logical function region_active_p()
-        region_active_p = transient_mark_mode%value .and. buffers(cur)%mark_active .and. mark_position() /= 0
-    end function region_active_p
+    logical function is_region_active()
+        is_region_active = transient_mark_mode%value .and. buffers(cur)%mark_active .and. mark_position() /= 0
+    end function is_region_active
 
     !> Return true if the region is active and it is appropriate to act on it:
     !> Transient Mark mode is enabled, the mark is active and the region is
-    !> not empty.  Port of simple.el:use-region-p (use-empty-active-region
-    !> nil).
-    logical function use_region_p()
+    !> not empty.  Port of simple.el:use-region-p (`use_empty_active_region'
+    !> .false.).
+    logical function is_use_region()
         integer(int64) :: m
 
-        use_region_p = region_active_p()
-        if (.not. use_region_p) return
+        is_use_region = is_region_active()
+        if (.not. is_use_region) return
         m = mark_position()
-        use_region_p = m /= point()
-    end function use_region_p
+        is_use_region = m /= point()
+    end function is_use_region
 
     !> Deactivate the mark.
     !> If Transient Mark mode is disabled, this function normally does
@@ -3566,7 +3567,7 @@ contains
 
         forced = .false.
         if (present(force)) forced = force
-        if (.not. (region_active_p() .or. forced)) return
+        if (.not. (is_region_active() .or. forced)) return
         buffers(cur)%mark_active = .false.
         call deactivate_mark_hook%run(st)
     end subroutine deactivate_mark
@@ -3579,7 +3580,7 @@ contains
     !> Activate the mark.  Port of simple.el:activate-mark.
     subroutine activate_mark()
         if (mark_position() == 0) return
-        if (.not. region_active_p()) buffers(cur)%mark_active = .true.
+        if (.not. is_region_active()) buffers(cur)%mark_active = .true.
     end subroutine activate_mark
 
     !> Set this buffer's mark to POS (0 for none) and activate it.
@@ -3735,13 +3736,13 @@ contains
     !> mark from position popped off the local mark ring.
     !>
     !> With C-u C-u as prefix argument, unconditionally set mark where point
-    !> is.  Port of simple.el:set-mark-command (set-mark-command-repeat-pop
-    !> nil, no global mark ring).
+    !> is.  Port of simple.el:set-mark-command (`set_mark_command_repeat_pop'
+    !> .false., no global mark ring).
     subroutine set_mark_command(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (consp(arg)) then
+        if (vtag(arg) == V_ARRAY) then
             if (prefix_numeric_value(arg) > 4) then
                 call push_mark_command(.false.)
                 return
@@ -3749,16 +3750,16 @@ contains
         end if
 
         if (.not. value_eq(this_command, sym("set_mark_command"))) then
-            if (.not. nilp(arg)) then
+            if (allocated(arg%a)) then
                 call pop_to_mark_command(status)
             else
                 call push_mark_command(.true.)
             end if
-        else if (.not. nilp(arg)) then
+        else if (allocated(arg%a)) then
             this_command = sym("pop_to_mark_command")
             call pop_to_mark_command(status)
         else if (value_eq(last_command, sym("set_mark_command"))) then
-            if (region_active_p()) then
+            if (is_region_active()) then
                 call deactivate_mark()
                 call message("Mark deactivated")
             else
@@ -3791,7 +3792,7 @@ contains
         call set_mark(point())
         call goto_char(omark)
 
-        if (arg .neqv. .not. region_active_p()) then
+        if (arg .neqv. .not. is_region_active()) then
             call deactivate_mark()
         else
             call activate_mark()
@@ -3818,7 +3819,7 @@ contains
         type(status_type) :: st
 
         call symbol_value(sym("kill_ring"), ring, st)
-        if (.not. st%ok()) ring = nil()
+        if (.not. st%ok()) ring = value_type()
     end function kill_ring
 
     !> kill_new for STRING as text.  Not a port.
@@ -3914,7 +3915,7 @@ contains
         string = list_elt(kill_ring(), k)
     end subroutine current_kill_string
 
-    !> The default `region_extract_function'.  Port of the lambda simple.el
+    !> The default `region_extract_function'.  Port of the procedure simple.el
     !> sets region-extract-function to.
     recursive subroutine default_region_extract(method, string, starts, ends, status)
         integer, intent(in) :: method
@@ -3950,7 +3951,7 @@ contains
 
     !> The default `region_insert_function': the strings of LINES, a
     !> newline between them, each through `insert_for_yank'.  Port of the
-    !> lambda of simple.el region-insert-function.
+    !> procedure of simple.el region-insert-function.
     recursive subroutine default_region_insert(lines, status)
         type(value_type), intent(in) :: lines
         type(status_type), intent(out) :: status
@@ -3967,10 +3968,10 @@ contains
         end do
     end subroutine default_region_insert
 
-    !> Return the boundaries of the region, one or more pairs
+    !> Return the boundaries of the region, one or more ranges
     !> [STARTS(k), ENDS(k)).
-    !> There is more than one pair when the region is non-contiguous, see
-    !> `region_noncontiguous_p' and `extract_rectangle_bounds'.  Port of
+    !> There is more than one range when the region is non-contiguous, see
+    !> `is_region_noncontiguous' and `extract_rectangle_bounds'.  Port of
     !> simple.el:region-bounds.
     recursive subroutine region_bounds(starts, ends, status)
         integer(int64), allocatable, intent(out) :: starts(:), ends(:)
@@ -3984,14 +3985,14 @@ contains
     !> An example is a rectangular region handled as a list of separate
     !> contiguous regions for each line.  Port of
     !> simple.el:region-noncontiguous-p.
-    recursive logical function region_noncontiguous_p() result(noncontiguous)
+    recursive logical function is_region_noncontiguous() result(noncontiguous)
         integer(int64), allocatable :: starts(:), ends(:)
         type(status_type) :: st
 
         call region_bounds(starts, ends, st)
         noncontiguous = .false.
         if (st%ok()) noncontiguous = size(starts) > 1
-    end function region_noncontiguous_p
+    end function is_region_noncontiguous
 
     !> Kill ("cut") text between BEG and END.
     !> This deletes the text from the buffer and saves it in the kill ring.
@@ -4006,8 +4007,8 @@ contains
     !> you can use the killing commands to copy text from a read-only buffer.
     !>
     !> With REGION true, kill the region instead of BEG to END (the
-    !> command always does).  Port of simple.el:kill-region (kill-region-dwim
-    !> nil); READ_ONLY_OK stands for a binding of kill-read-only-ok.
+    !> command always does).  Port of simple.el:kill-region (`kill_region_dwim'
+    !> unset); READ_ONLY_OK stands for `kill_read_only_ok', saved and restored around the call.
     subroutine kill_region(beg, end, status, region, read_only_ok)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
@@ -4027,7 +4028,7 @@ contains
 
         if (status%ok()) then
             ! (STRING is nil if BEG = END.)
-            if (stringp(string)) then
+            if (vtag(string) == V_STRING) then
                 if (value_eq(last_command, sym("kill_region"))) then
                     call kill_append(xstring(string), end < beg)
                 else
@@ -4108,11 +4109,11 @@ contains
             ! lines, skip it.
             opoint = point()
 
-            do while (.not. eobp())
+            do while (.not. is_eob())
                 if (invisible_p(point()) == 0) exit
                 call get_text_property(point(), sym("invisible"), prop, st)
 
-                if (.not. nilp(prop)) then
+                if (allocated(prop%a)) then
                     call next_single_property_change(point(), sym("invisible"), next, found, st)
                     if (.not. found) next = point_max()
                     call goto_char(next)
@@ -4121,7 +4122,7 @@ contains
                 end if
             end do
 
-            if (.not. bolp()) call goto_char(opoint)
+            if (.not. is_bol()) call goto_char(opoint)
         else
             first = .true.
 
@@ -4134,7 +4135,7 @@ contains
 
                 ! If the newline we just moved to is invisible, don't count
                 ! it.
-                if (.not. bobp()) then
+                if (.not. is_bob()) then
                     if (invisible_p(point() - 1) == 0) n = n + 1
                 end if
 
@@ -4145,11 +4146,11 @@ contains
             ! lines, skip it.
             opoint = point()
 
-            do while (.not. bobp())
+            do while (.not. is_bob())
                 if (invisible_p(point() - 1) == 0) exit
                 call get_text_property(point() - 1, sym("invisible"), prop, st)
 
-                if (.not. nilp(prop)) then
+                if (allocated(prop%a)) then
                     call previous_single_property_change(point(), sym("invisible"), next, found, st)
                     if (.not. found) next = point_min()
                     call goto_char(next)
@@ -4158,7 +4159,7 @@ contains
                 end if
             end do
 
-            if (.not. bolp()) call goto_char(opoint)
+            if (.not. is_bol()) call goto_char(opoint)
         end if
     end subroutine forward_visible_line
 
@@ -4179,7 +4180,7 @@ contains
         if (e <= s) return
         text = buf_bytes(buffers(cur), char_to_byte(s), char_to_byte(e))
         n = newlines_in(text)
-        ! (if (bolp) (1- (line-number-at-pos)) (line-number-at-pos)) at
+        ! (if (is_bol) (1- (line-number-at-pos)) (line-number-at-pos)) at
         ! the end of the region narrowed to.
         if (text(len(text):len(text)) /= char(10)) n = n + 1
     end function count_lines
@@ -4249,7 +4250,7 @@ contains
         if (have_arg) then
             call forward_visible_line(arg)
         else
-            if (eobp()) then
+            if (is_eob()) then
                 call set_error(status, FM_END_OF_BUFFER)
                 return
             end if
@@ -4257,7 +4258,7 @@ contains
             end = line_end_position()
             call buffer_substring(start, end, rest, status)
 
-            if (verify(rest, " "//achar(9)) == 0 .or. (kill_whole_line_option .and. bolp())) then
+            if (verify(rest, " "//achar(9)) == 0 .or. (kill_whole_line_option .and. is_bol())) then
                 call forward_visible_line(1_int64)
             else
                 call goto_char(end)
@@ -4281,7 +4282,7 @@ contains
 
         here = point()
 
-        if (arg > 0 .and. eobp()) then
+        if (arg > 0 .and. is_eob()) then
             call forward_visible_line(0_int64)
             b = point()
             call goto_char(here)
@@ -4292,7 +4293,7 @@ contains
             end if
         end if
 
-        if (arg < 0 .and. bobp()) then
+        if (arg < 0 .and. is_bob()) then
             call goto_char(line_end_position())
             b = point()
             call goto_char(here)
@@ -4320,7 +4321,7 @@ contains
             call copy_marker_at(point(), region1_end, .false., st)
             call goto_char(here)
             call forward_visible_line(arg + 1)
-            if (.not. bobp()) call goto_char(point() - 1)
+            if (.not. is_bob()) call goto_char(point() - 1)
         else
             call forward_visible_line(0_int64)
             call copy_marker_at(point(), region1_end, .false., st)
@@ -4357,7 +4358,7 @@ contains
         this_command = t_value()
         call push_mark()
 
-        if (nilp(arg) .or. consp(arg)) then
+        if (.not. allocated(arg%a) .or. vtag(arg) == V_ARRAY) then
             n = 0
         else if (value_eq(arg, sym("-"))) then
             n = -2
@@ -4370,7 +4371,7 @@ contains
         call insert_for_yank(text, status)
         if (.not. status%ok()) return
 
-        if (consp(arg)) then
+        if (vtag(arg) == V_ARRAY) then
             ! Like exchange-point-and-mark, without activating the mark.
             m = mark_position()
             call set_marker_here()
@@ -4495,14 +4496,14 @@ contains
         status = status_type()
         handler = string_get_text_property(0_int64, sym("yank_handler"), string)
         param = list_elt(handler, 2_int64)
-        if (nilp(param)) param = string
+        if (.not. allocated(param%a)) param = string
         ! (FIXME upstream: this throws away any yank-undo-function set by
         ! previous calls to insert-for-yank-1 within the loop of
         ! insert-for-yank.)
         yank_undo_function => null()
         fn = list_elt(handler, 1_int64)
 
-        if (symbolp(fn) .and. .not. nilp(fn)) then
+        if ((vtag(fn) == V_NAME .or. vtag(fn) == V_NULL) .and. allocated(fn%a)) then
             do k = 1, n_yank_handler_functions()
                 if (yank_handler_functions(k)%name == symbols(xsymbol(fn))%name) then
                     call yank_handler_functions(k)%run(param, status)
@@ -4576,7 +4577,7 @@ contains
     subroutine cmd_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
 
-        call exchange_point_and_mark(.not. nilp(current_prefix_arg), status)
+        call exchange_point_and_mark(allocated(current_prefix_arg%a), status)
     end subroutine cmd_exchange_point_and_mark
 
     subroutine cmd_mark_whole_buffer(status)
@@ -4640,9 +4641,9 @@ contains
     !> This holds when the region is inactive, or when the `region' face
     !> cannot be distinguished from the `default' face (on a terminal it
     !> always can).  Port of simple.el:region-indistinguishable-p.
-    logical function region_indistinguishable_p()
-        region_indistinguishable_p = .not. region_active_p()
-    end function region_indistinguishable_p
+    logical function is_region_indistinguishable()
+        is_region_indistinguishable = .not. is_region_active()
+    end function is_region_indistinguishable
 
     !> Whether `w' shows the current buffer.  Not a port.
     logical function shows_current_buffer(w)
@@ -4657,7 +4658,7 @@ contains
     subroutine cmd_kill_line(status)
         type(status_type), intent(out) :: status
 
-        call kill_line(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), status)
+        call kill_line(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), status)
     end subroutine cmd_kill_line
 
     subroutine cmd_kill_whole_line(status)
@@ -4749,7 +4750,7 @@ contains
         opoint = point()
 
         if (allow_extend .and. ((value_eq(last_command, this_command) .and. mark_position() /= 0) .or. &
-                                region_active_p())) then
+                                is_region_active())) then
             if (have_arg) then
                 n = arg
             else if (mark_position() < point()) then
@@ -4801,7 +4802,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call mark_word(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true.)
+        call mark_word(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), .true.)
     end subroutine cmd_mark_word
 
     ! ------------------------------------------------------------------
@@ -4893,7 +4894,7 @@ contains
 
         if (thisblank) then
             if (.not. looking_at("[ "//TAB//"]*"//LF//"[ "//TAB//"]*$", status)) then
-                if (bobp()) then
+                if (is_bob()) then
                     singleblank = .true.
                 else
                     shortage = forward_line(-1_int64)
@@ -5111,7 +5112,7 @@ contains
 
         ! Initialize `cycle_spacing__context' if needed.
         if (.not. value_eq(last_command, this_command) .or. .not. cycle_spacing_active .or. &
-            (.not. nilp(n) .and. .not. value_equal(cycle_spacing_n, n))) then
+            (allocated(n%a) .and. .not. value_equal(cycle_spacing_n, n))) then
             orig_pos = point()
             moved = skip_chars_backward(" "//TAB//LF//CR, status)
             call goto_char(constrain_to_field(point(), orig_pos, .false., .false.))
@@ -5156,7 +5157,7 @@ contains
 
             numeric_n = prefix_numeric_value(actual_n)
             include_newlines = value_eq(actual_n, sym("-"))
-            if (fixnump(actual_n)) include_newlines = xfixnum(actual_n) < 0
+            if (vtag(actual_n) == V_INTEGER) include_newlines = xfixnum(actual_n) < 0
 
             select case (action%action)
             case (CYCLE_JUST_ONE_SPACE)
@@ -5240,9 +5241,9 @@ contains
         type(value_type) :: read_only
         type(status_type) :: st
 
-        if (eolp() .and. .not. bobp()) then
+        if (is_eol() .and. .not. is_bob()) then
             call get_text_property(point() - 1, sym("read_only"), read_only, st)
-            if (nilp(read_only)) call goto_char(point() - 1)
+            if (.not. allocated(read_only%a)) call goto_char(point() - 1)
         end if
 
         call transpose_subr(move_chars, arg, status)
@@ -5385,7 +5386,7 @@ contains
         end subroutine aux
     end subroutine transpose_subr
 
-    !> Exchange the text of the ranges POS1 and POS2 (each a pair of
+    !> Exchange the text of the ranges POS1 and POS2 (each two
     !> positions in either order), preserving markers at their ends.
     !> Port of simple.el:transpose-subr-1.
     subroutine transpose_subr_1(pos1_in, pos2_in, status)
@@ -5463,14 +5464,14 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call delete_horizontal_space(.not. nilp(current_prefix_arg), status)
+        if (status%ok()) call delete_horizontal_space(allocated(current_prefix_arg%a), status)
     end subroutine cmd_delete_horizontal_space
 
     subroutine cmd_delete_all_space(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call delete_all_space(.not. nilp(current_prefix_arg), status)
+        if (status%ok()) call delete_all_space(allocated(current_prefix_arg%a), status)
     end subroutine cmd_delete_all_space
 
     subroutine cmd_just_one_space(status)
@@ -5508,12 +5509,12 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (use_region_p()) then
+        if (is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
-            call delete_indentation(.not. nilp(current_prefix_arg), status, b, e)
+            call delete_indentation(allocated(current_prefix_arg%a), status, b, e)
         else
-            call delete_indentation(.not. nilp(current_prefix_arg), status)
+            call delete_indentation(allocated(current_prefix_arg%a), status)
         end if
     end subroutine cmd_delete_indentation
 
@@ -5549,10 +5550,10 @@ contains
         type(value_type), intent(in) :: arg
         integer(int64) :: size
 
-        if (.not. consp(arg) .and. .not. region_active_p()) call push_mark()
+        if (vtag(arg) /= V_ARRAY .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (.not. nilp(arg) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
             call goto_char(point_min() + 1 + (size*prefix_numeric_value(arg))/10)
         else
             call goto_char(point_min())
@@ -5560,7 +5561,7 @@ contains
 
         ! If we went to a place in the middle of the buffer, adjust it to
         ! the beginning of the following line.
-        if (.not. nilp(arg) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
             if (forward_line(1_int64) /= 0) continue
         end if
     end subroutine beginning_of_buffer
@@ -5581,10 +5582,10 @@ contains
         type(window_type), pointer :: w
         type(status_type) :: st
 
-        if (.not. consp(arg) .and. .not. region_active_p()) call push_mark()
+        if (vtag(arg) /= V_ARRAY .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (.not. nilp(arg) .and. .not. consp(arg)) then
+        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
             call goto_char(point_max() - (size*prefix_numeric_value(arg))/10)
             ! If we went to a place in the middle of the buffer, adjust it
             ! to the beginning of a line.
@@ -5610,7 +5611,7 @@ contains
     !> The position after the end of the text `w' (showing the current
     !> buffer) displays from its start: the start of the first line below
     !> its last screen line.  Port of window.c:Fwindow_end with UPDATE
-    !> non-nil (line-based, as on a text terminal).
+    !> .true. (line-based, as on a text terminal).
     integer(int64) function window_end_updated(w) result(pos)
         type(window_type), intent(in) :: w
         integer(int64) :: opoint, moved
@@ -5626,7 +5627,7 @@ contains
     !> buffer), counting from its start.  Port of
     !> window.c:Fpos_visible_in_window_p (line-based, as on a text
     !> terminal; no partial lines).
-    logical function pos_visible_in_window_p(pos, w) result(visible)
+    logical function is_pos_visible_in_window(pos, w) result(visible)
         integer(int64), intent(in) :: pos
         type(window_type), intent(in) :: w
         integer(int64) :: start
@@ -5634,7 +5635,7 @@ contains
         start = max(point_min(), min(window_start(w), point_max()))
         visible = pos >= start .and. (pos < window_end_updated(w) .or. &
                                       (pos == point_max() .and. window_end_updated(w) == point_max()))
-    end function pos_visible_in_window_p
+    end function is_pos_visible_in_window
 
     subroutine cmd_beginning_of_buffer(status)
         type(status_type), intent(out) :: status

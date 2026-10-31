@@ -29,9 +29,9 @@
 !> `type(status_type), intent(out) :: status' argument and returns after
 !> setting it.  `intent(out)' resets the status to OK on entry.
 !>
-!> Each error code corresponds to an Emacs error symbol.  Codes form the
+!> Each error code corresponds to an Emacs error name.  Codes form the
 !> same hierarchy as the symbols' `error_conditions' property, so
-!> `condition_matches' behaves like a `condition_case' handler test.
+!> `condition_matches' is the check of the status that tests for a condition.
 module error_fm
     use, intrinsic :: iso_fortran_env, only: int32
     implicit none(type, external)
@@ -41,7 +41,7 @@ module error_fm
     public :: set_error, error_name, error_message, condition_matches, &
               format_error
 
-    !> Error codes.  0 means success; the rest mirror Emacs error symbols.
+    !> Error codes.  0 means success; the rest mirror Emacs error names.
     integer(int32), parameter, public :: FM_OK = 0
     !> The root `error' condition (named so it does not clash with the module).
     integer(int32), parameter, public :: FM_GENERIC_ERROR = 1
@@ -131,16 +131,16 @@ module error_fm
     !> `inhibit_interaction' is true.
     integer(int32), parameter, public :: FM_INHIBITED_INTERACTION = 35
 
-    !> Not an error: a throw to the catch tag `top_level'
+    !> Not an error: a return with a status to `top_level'
     !> (keyboard.c:Ftop_level), which unwinds every recursive edit and
     !> which only the top-level command loop takes; like `quit', no
-    !> handler for `error' catches it.
+    !> check of the status for `error' takes it.
     integer(int32), parameter, public :: FM_TOP_LEVEL = 36
 
     integer(int32), parameter :: last_code = FM_TOP_LEVEL
     integer, parameter :: name_len = 26, msg_len = 48
 
-    !> `error_conditions' symbol names, indexed by code.
+    !> `error_conditions' names, indexed by code.
     character(len=name_len), parameter :: names(0:last_code) = [character(len=name_len) :: &
                                                                 "", "error", "quit", "user_error", &
                                                                 "wrong_type_argument", "args_out_of_range", &
@@ -162,15 +162,15 @@ module error_fm
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
                                                                   "", "error", "Quit", "", &
                                                                   "Wrong type argument", "Args out of range", &
-                                                                  "Symbol's value as variable is void", &
-                                                                  "Attempt to set a constant symbol", &
+                                                                  "Variable has no value", &
+                                                                  "Attempt to set a named constant", &
                                                                   "Arithmetic error", "Arithmetic range error", &
                                                                   "Arithmetic overflow error", &
                                                                   "Beginning of buffer", "End of buffer", &
                                                                   "Buffer is read-only", "Text is read-only", &
                                                                   "File error", "Memory exhausted", &
                                                                   "Object has been deleted", &
-                                                                  "Symbol's function definition is void", &
+                                                                  "Function is not defined", &
                                                                   "File is missing", "File already exists", &
                                                                   "The mark is not active now", "Search failed", &
                                                                   "Invalid regexp", "Cannot access file or directory", &
@@ -237,7 +237,7 @@ contains
         valid_code = code >= 0 .and. code <= last_code
     end function valid_code
 
-    !> Error symbol name of `code' (e.g. "args-out-of-range").  Not a port.
+    !> Error name of `code' (e.g. "args-out-of-range").  Not a port.
     pure function error_name(code) result(name)
         integer(int32), intent(in) :: code
         character(len=:), allocatable :: name
@@ -262,7 +262,7 @@ contains
         end if
     end function error_message
 
-    !> True when an error with `code' would be caught by a handler for
+    !> True when an error with `code' would be taken by a check of the status for
     !> `condition', i.e. `condition' is in its `error_conditions' chain.
     !> Not a port.
     pure logical function condition_matches(code, condition)

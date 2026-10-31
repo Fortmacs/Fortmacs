@@ -51,7 +51,7 @@
 module eval_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
-    use lisp_fm, only: value_type, nil, nilp, command_proc, symbolp, symbols, xsymbol
+    use lisp_fm, only: value_type, command_proc, symbols, xsymbol, vtag, V_NULL, V_NAME
     use handle_fm, only: handle_type
     use callint_fm, only: funcall, current_prefix_arg
     use buffer_fm, only: buffers, cur
@@ -117,7 +117,7 @@ module eval_fm
         end subroutine region_function
 
         !> Report the error STATUS that FN, a function of the hook named
-        !> HOOK_NAME, signaled (`hook_type%run_safe').  Not a port.
+        !> HOOK_NAME, returned with (`hook_type%run_safe').  Not a port.
         subroutine hook_error_proc(hook_name, fn, status)
             import :: command_proc, status_type
             implicit none(type, external)
@@ -158,7 +158,7 @@ module eval_fm
         end subroutine capf_function
 
         !> A function of an `until_success_hook_type' hook such as
-        !> `write_file_functions': DONE true (upstream's non-nil value)
+        !> `write_file_functions': DONE .true. (stop at the first function that succeeds)
         !> stops the hook.
         recursive subroutine until_success_function(done, status)
             import :: status_type
@@ -247,7 +247,7 @@ module eval_fm
         !> Forget the current buffer's own functions.
         procedure :: kill_local => hook_kill_local
         !> Whether the current buffer has its own functions.
-        procedure :: local_p => hook_local_p
+        procedure :: local_p => is_hook_local
         !> Whether the hook's value in the current buffer is empty.
         procedure :: empty => hook_empty
         !> Make the hook's value in the current buffer empty.
@@ -278,7 +278,7 @@ module eval_fm
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => hook_member
         !> Run the hook's functions, reporting and removing the ones that
-        !> signal an error (keyboard.c's safe_run_hooks).
+        !> return with an error condition (keyboard.c's safe_run_hooks).
         procedure :: run_safe => hook_run_safe
     end type hook_type
 
@@ -419,10 +419,10 @@ module eval_fm
     type(hook_type), public, target :: buffer_list_update_hook = hook_type(name="buffer_list_update_hook")
 
     !> A function that text properties and overlay properties name with a
-    !> symbol: the hooks of the `modification_hooks',
+    !> name: the hooks of the `modification_hooks',
     !> `insert_in_front_hooks', `insert_behind_hooks', `point_entered' and
     !> `point_left' properties.  Upstream such a property holds functions
-    !> (symbols with a function cell); here the symbol's name must be that
+    !> (names with a function cell); here the name must be that
     !> of a defined property function, which gives the procedure:
     !> `positions' for the functions taking two positions (the text
     !> property hooks, called with the bounds of the change or the old
@@ -433,7 +433,7 @@ module eval_fm
     !>     my_freeze = property_function_type("my_freeze", overlay_change=my_freeze_proc)
     !>     call my_freeze%define()
     type, public :: property_function_type
-        !> The symbol's name.
+        !> The name.
         character(len=:), allocatable :: name
         !> The procedure taking two positions, or null.
         procedure(change_function), pointer, nopass :: positions => null()
@@ -463,7 +463,7 @@ contains
         type(value_type) :: saved
 
         saved = current_prefix_arg
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call funcall(fn, status)
         current_prefix_arg = saved
     end subroutine funcall_noargs
@@ -952,7 +952,7 @@ contains
             saved = current_prefix_arg
             saved_outer = hook_current_prefix_arg
             hook_current_prefix_arg = saved
-            current_prefix_arg = nil()
+            current_prefix_arg = value_type()
             call e%fn(status)
             current_prefix_arg = saved
             hook_current_prefix_arg = saved_outer
@@ -981,14 +981,14 @@ contains
     end subroutine hook_kill_local
 
     ! Not a port.
-    logical function hook_local_p(self)
+    logical function is_hook_local(self)
         class(hook_base_type), intent(in) :: self
 
-        hook_local_p = local_index(self) > 0
-    end function hook_local_p
+        is_hook_local = local_index(self) > 0
+    end function is_hook_local
 
-    !> Whether the hook's value in the current buffer is empty (upstream:
-    !> nil): no functions, and for a buffer's own value no `t' either.
+    !> Whether the hook's value in the current buffer is empty: no functions,
+    !> and for a buffer's own value no `t' (run the default functions) either.
     !> Not a port.
     logical function hook_empty(self)
         class(hook_base_type), intent(in) :: self
@@ -1006,7 +1006,7 @@ contains
     end function hook_empty
 
     !> Make the hook's value in the current buffer empty, as setting the
-    !> variable to nil does upstream: the buffer's own value if it has
+    !> variable to an empty value does upstream: the buffer's own value if it has
     !> one (which then runs nothing, not even the default functions),
     !> else the default value.  Depths are kept.  Not a port.
     subroutine hook_clear(self)
@@ -1708,7 +1708,7 @@ contains
         property_functions(n_property_functions)%p => self
     end subroutine define_property_function
 
-    !> The property function that FN (a symbol) names, or null; STATUS is
+    !> The property function that FN (a name) names, or null; STATUS is
     !> `void_function' (or `invalid_function' for a non-symbol) when there
     !> is none.  Not a port.
     function property_function(fn, status) result(p)
@@ -1720,7 +1720,7 @@ contains
 
         p => null()
 
-        if (.not. symbolp(fn) .or. nilp(fn)) then
+        if ((vtag(fn) /= V_NAME .and. vtag(fn) /= V_NULL) .or. .not. allocated(fn%a)) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid function")
             return
         end if
@@ -1737,7 +1737,7 @@ contains
         call set_error(status, FM_VOID_FUNCTION, name)
     end function property_function
 
-    !> Call the property function FN (a symbol) with the positions A and B.
+    !> Call the property function FN (a name) with the positions A and B.
     !> Port of eval.c:Ffuncall (for a property function of two positions).
     recursive subroutine call_property_function(fn, a, b, status)
         type(value_type), intent(in) :: fn
@@ -1756,7 +1756,7 @@ contains
         call p%positions(a, b, status)
     end subroutine call_property_function
 
-    !> Call the property function FN (a symbol) with OVERLAY, AFTER, BEG,
+    !> Call the property function FN (a name) with OVERLAY, AFTER, BEG,
     !> END and, if present, OLD_LEN.  Port of eval.c:Ffuncall (for the
     !> functions of overlay properties).
     recursive subroutine call_overlay_change_function(fn, overlay, after, beg, end, status, old_len)

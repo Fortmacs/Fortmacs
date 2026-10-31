@@ -37,9 +37,9 @@ module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT
-    use lisp_fm, only: fixnump, list, list_elt, list_tail, listp, nil, stringp, symbolp, symbols, &
-                       v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, v_symbol, v_syntax_table, v_window, value_type, &
-                       vtag, xsymbol
+    use lisp_fm, only: list, list_elt, list_tail, symbols, &
+                       v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, V_NAME, v_syntax_table, v_window, value_type, &
+                       vtag, xsymbol, V_STRING
     use lread_fm, only: ensure_obarray, sym
     use lisp_fm, only: command_proc
     implicit none(type, external)
@@ -71,7 +71,7 @@ module data_fm
         procedure :: kill_local => setting_kill_local
         !> Whether the current buffer has its own value.  Port of
         !> data.c:Flocal_variable_p.
-        procedure :: local_p => setting_local_p
+        procedure :: local_p => is_setting_local
         !> Start giving the current buffer its own value.
         procedure :: make_local => setting_make_local
     end type setting_type
@@ -87,7 +87,7 @@ module data_fm
         procedure, private :: set_local_setting => integer_set_local_setting
     end type integer_setting
 
-    !> A true/false setting (nil or non-nil upstream).
+    !> A true/false setting (.true. or .false.).
     type, extends(setting_type), public :: logical_setting
         logical :: value = .false.
     contains
@@ -97,7 +97,7 @@ module data_fm
         procedure, private :: set_local_logical => logical_set_local
     end type logical_setting
 
-    !> A string setting; unallocated is nil.
+    !> A string setting; unallocated when unset.
     type, extends(setting_type), public :: string_setting
         character(len=:), allocatable :: value
     contains
@@ -105,12 +105,12 @@ module data_fm
         generic :: set_local => set_local_string
         procedure, private :: assign => string_assign
         procedure, private :: set_local_string => string_set_local
-        !> Make it nil.
+        !> Deallocate it.
         procedure :: clear => string_clear
     end type string_setting
 
     !> A setting whose value is a function of no arguments (a
-    !> `command_type' procedure); null is nil.  Assign with `=>' to
+    !> `command_type' procedure); null when unset.  Assign with `=>' to
     !> `value'.
     type, extends(setting_type), public :: function_setting
         procedure(command_proc), pointer, nopass :: value => null()
@@ -156,7 +156,7 @@ module data_fm
     public :: value_eq, car, cdr, car_safe, cdr_safe
     public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
     public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
-              local_variable_p, local_variable_if_set_p, automatically_local_p, forwarded_variable_p, default_value, &
+              is_local_variable, is_local_variable_if_set, is_automatically_local, is_forwarded_variable, default_value, &
               function_setting_default, &
               set_default, default_boundp, buffer_local_value, buffer_local_variables, setq_local
 
@@ -248,7 +248,7 @@ module data_fm
         !> Switch to Fundamental mode by killing current buffer's local variables.
         !> Most local variable bindings are eliminated so that the default values
         !> become effective once more.  Also, the syntax table is set from
-        !> `standard_syntax_table', the local keymap is set to nil,
+        !> `standard_syntax_table', the local keymap is set to none,
         !> and the abbrev table from `fundamental_mode_abbrev_table'.
         !> This function also forces redisplay of the mode line.
         !>
@@ -256,8 +256,8 @@ module data_fm
         !> calling this function.
         !>
         !> As a special exception, local variables whose names have
-        !> a non-nil `permanent_local' property are not eliminated by this function.
-        !> If the optional KILL-PERMANENT argument is non-nil, clear out these local
+        !> a `permanent_local' attribute that is .true. are not eliminated by this function.
+        !> If the optional KILL-PERMANENT argument is .true., clear out these local
         !> variables, too.
         !>
         !> The first thing this function does is run
@@ -268,44 +268,44 @@ module data_fm
             logical, intent(in), optional :: kill_permanent
         end subroutine kill_all_local_variables
 
-        !> Non-nil if VARIABLE has a local binding in buffer BUFFER (the
+        !> True if VARIABLE has a local binding in buffer BUFFER (the
         !> slot number; the current buffer if absent).  Port of
         !> data.c:Flocal_variable_p.  (In data_buffer_fm.)
-        module logical function local_variable_p(variable, buffer)
+        module logical function is_local_variable(variable, buffer)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
             integer(int64), intent(in), optional :: buffer
-        end function local_variable_p
+        end function is_local_variable
 
-        !> Non-nil if VARIABLE is local in buffer BUFFER when set there.
+        !> True if VARIABLE is local in buffer BUFFER when set there.
         !> BUFFER defaults to the current buffer.
         !>
-        !> More precisely, return non-nil if either VARIABLE already has a local
+        !> More precisely, return .true. if either VARIABLE already has a local
         !> value in BUFFER, or if VARIABLE is automatically buffer-local (see
         !> `make_variable_buffer_local').  Port of
         !> data.c:Flocal_variable_if_set_p.  (In data_buffer_fm.)
-        module logical function local_variable_if_set_p(variable, buffer)
+        module logical function is_local_variable_if_set(variable, buffer)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
             integer(int64), intent(in), optional :: buffer
-        end function local_variable_if_set_p
+        end function is_local_variable_if_set
 
         !> Whether VARIABLE is automatically buffer-local: it gets a local
         !> value in any buffer where it is set (`make_variable_buffer_local').
         !> (Ours; data.c's SYMBOL_LOCALIZED with local_if_set.)  (In
         !> data_buffer_fm.)  Not a port.
-        module logical function automatically_local_p(variable)
+        module logical function is_automatically_local(variable)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
-        end function automatically_local_p
+        end function is_automatically_local
 
         !> Whether VARIABLE is forwarded to a Fortran setting, so its
         !> buffer-local values are those of the setting object.  (Ours;
         !> data.c's SYMBOL_FORWARDED.)  (In data_buffer_fm.)  Not a port.
-        module logical function forwarded_variable_p(variable)
+        module logical function is_forwarded_variable(variable)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
-        end function forwarded_variable_p
+        end function is_forwarded_variable
 
         !> The default value of the forwarded function setting S (its value
         !> in buffers without their own), in FN.  Not a port: what
@@ -364,7 +364,7 @@ module data_fm
         !> Most elements look like (SYMBOL VALUE), describing one variable.
         !> For a symbol that is locally unbound, just the symbol appears in the value.
         !> Note that storing new VALUEs in these elements doesn't change the variables.
-        !> No argument or nil as argument means use current buffer as BUFFER.
+        !> An absent argument means use current buffer as BUFFER.
         !> Port of buffer.c:Fbuffer_local_variables (with
         !> buffer.c:buffer_lisp_local_variables and buffer.c:buffer_local_variables_1;
         !> elements are two-element
@@ -469,11 +469,11 @@ contains
     end subroutine setting_kill_local
 
     ! Not a port.
-    logical function setting_local_p(self)
+    logical function is_setting_local(self)
         class(setting_type), intent(in) :: self
 
-        setting_local_p = local_variable_p(sym(trim(self%name)))
-    end function setting_local_p
+        is_setting_local = is_local_variable(sym(trim(self%name)))
+    end function is_setting_local
 
     !> Forget an exact Lisp value and voidness: the Fortran value is the
     !> value now.  Not a port.
@@ -482,7 +482,7 @@ contains
 
         self%has_exact = .false.
         self%void = .false.
-        self%exact = nil()
+        self%exact = value_type()
     end subroutine settled
 
     ! Not a port.
@@ -609,7 +609,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. fixnump(v)) call wrong_type(status, "fixnump")
+        if (vtag(v) /= V_INTEGER) call wrong_type(status, "expected integer")
     end subroutine check_fixnum
 
     !> Port of lisp.h:CHECK_SYMBOL.
@@ -617,7 +617,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. symbolp(v)) call wrong_type(status, "symbolp")
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) call wrong_type(status, "expected name")
     end subroutine check_symbol
 
     !> Port of lisp.h:CHECK_STRING.
@@ -625,7 +625,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. stringp(v)) call wrong_type(status, "stringp")
+        if (vtag(v) /= V_STRING) call wrong_type(status, "expected character(len=*)")
     end subroutine check_string
 
     !> Port of lisp.h:CHECK_LIST.
@@ -633,7 +633,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
 
-        if (.not. listp(v)) call wrong_type(status, "listp")
+        if ((vtag(v) /= V_ARRAY .and. vtag(v) /= V_NULL)) call wrong_type(status, "expected array")
     end subroutine check_list
 
     ! ------------------------------------------------------------------
@@ -650,9 +650,9 @@ contains
         if (vtag(a) /= vtag(b)) return
 
         select case (vtag(a))
-        case (V_NIL)
+        case (V_NULL)
             value_eq = .true.
-        case (V_INT, V_SYMBOL)
+        case (V_INTEGER, V_NAME)
             value_eq = a%a(1)%i == b%a(1)%i
         case (V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE, V_WINDOW)
             value_eq = a%a(1)%h%index == b%a(1)%h%index .and. &
@@ -669,12 +669,12 @@ contains
         type(status_type), intent(out) :: status
 
         select case (vtag(list))
-        case (V_LIST)
+        case (V_ARRAY)
             v = list_elt(list, 1_int64)
-        case (V_NIL)
-            v = nil()
+        case (V_NULL)
+            v = value_type()
         case default
-            call wrong_type(status, "listp")
+            call wrong_type(status, "expected array")
         end select
     end subroutine car
 
@@ -686,12 +686,12 @@ contains
         type(status_type), intent(out) :: status
 
         select case (vtag(list))
-        case (V_LIST)
+        case (V_ARRAY)
             v = list_tail(list, 1_int64)
-        case (V_NIL)
-            v = nil()
+        case (V_NULL)
+            v = value_type()
         case default
-            call wrong_type(status, "listp")
+            call wrong_type(status, "expected array")
         end select
     end subroutine cdr
 
@@ -700,7 +700,7 @@ contains
         type(value_type), intent(in) :: list
         type(value_type) :: v
 
-        if (vtag(list) == V_LIST) v = list_elt(list, 1_int64)
+        if (vtag(list) == V_ARRAY) v = list_elt(list, 1_int64)
     end function car_safe
 
     !> Like `cdr', but nil for a non-list.  Port of data.c:Fcdr_safe.
@@ -708,7 +708,7 @@ contains
         type(value_type), intent(in) :: list
         type(value_type) :: v
 
-        if (vtag(list) == V_LIST) v = list_tail(list, 1_int64)
+        if (vtag(list) == V_ARRAY) v = list_tail(list, 1_int64)
     end function cdr_safe
 
     ! ------------------------------------------------------------------
@@ -732,7 +732,7 @@ contains
         type(value_type), intent(in) :: v
 
         keywordp = .false.
-        if (vtag(v) /= V_SYMBOL) return
+        if (vtag(v) /= V_NAME) return
         call ensure_obarray()
 
         associate (name => symbols(xsymbol(v))%name)
@@ -848,7 +848,7 @@ contains
 
         call forwarded_makunbound(id, status, found)
         if (found) return
-        symbols(id)%val = nil()
+        symbols(id)%val = value_type()
         symbols(id)%bound = .false.
     end subroutine makunbound
 end module data_fm

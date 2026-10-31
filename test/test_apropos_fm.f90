@@ -29,7 +29,7 @@ module test_apropos_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_live_p
+    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, is_buffer_live
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string, goto_char, point_max
@@ -143,7 +143,7 @@ contains
 
         old = current_buffer()
         text = "(none)"
-        if (.not. buffer_live_p(get_buffer("*Apropos*"))) return
+        if (.not. is_buffer_live(get_buffer("*Apropos*"))) return
         call set_buffer(get_buffer("*Apropos*"), st)
         text = buffer_string()
         call set_buffer(old, st)

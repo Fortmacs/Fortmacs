@@ -35,18 +35,18 @@ module filenotify_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, condition_matches, FM_FILE_NOTIFY_ERROR, FM_WRONG_TYPE_ARGUMENT
     use inotify_fm, only: watch_descriptor_type, inotify_event_type, inotify_add_watch, inotify_rm_watch, &
-                          inotify_valid_p, operator(==), INOTIFY_CREATE, INOTIFY_DELETE, INOTIFY_DELETE_SELF, &
+                          is_inotify_valid, operator(==), INOTIFY_CREATE, INOTIFY_DELETE, INOTIFY_DELETE_SELF, &
                           INOTIFY_MODIFY, INOTIFY_MOVE_SELF, INOTIFY_MOVE, INOTIFY_ATTRIB, INOTIFY_DONT_FOLLOW, &
                           INOTIFY_IGNORED, INOTIFY_UNMOUNT, INOTIFY_MOVED_FROM, INOTIFY_MOVED_TO
     use keyboard_fm, only: insert_special_event
-    use fileio_fm, only: expand_file_name, file_directory_p, directory_file_name, file_name_directory, &
-                         file_name_nondirectory, file_name_absolute_p
-    use files_fm, only: backup_file_name_p
+    use fileio_fm, only: expand_file_name, is_file_directory, directory_file_name, file_name_directory, &
+                         file_name_nondirectory, is_file_name_absolute
+    use files_fm, only: is_backup_file_name
     implicit none(type, external)
     private
 
     public :: file_notify_event_type, file_notify_callback_proc
-    public :: file_notify_add_watch, file_notify_rm_watch, file_notify_rm_all_watches, file_notify_valid_p, &
+    public :: file_notify_add_watch, file_notify_rm_watch, file_notify_rm_all_watches, is_file_notify_valid, &
               file_notify_watch_count
 
     !> Flags of `file_notify_add_watch': watch for file changes, and for
@@ -228,7 +228,7 @@ contains
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        if (file_name_absolute_p(file)) then
+        if (is_file_name_absolute(file)) then
             name = directory_file_name(file)
         else
             call expand_file_name(file, name, st, file_notify_descriptors(k)%directory)
@@ -395,7 +395,7 @@ contains
 
             if (action == FILE_NOTIFY_DELETED .or. action == FILE_NOTIFY_RENAMED) then
                 if (have_file1) then
-                    if (backup_file_name_p(file1)) cycle
+                    if (is_backup_file_name(file1)) cycle
                 end if
 
                 if (file == watch_absolute_filename(k)) call file_notify_rm_watch(desc)
@@ -408,8 +408,8 @@ contains
     !> to Emacs.  Use `file_notify_rm_watch' to cancel the watch.
     !>
     !> The returned value is a descriptor for the added watch.  If the
-    !> file cannot be watched for some reason, this function signals a
-    !> `file_notify_error' error.
+    !> file cannot be watched for some reason, a
+    !> `file_notify_error' error condition occurs.
     !>
     !> FLAGS is a list of conditions to set what will be watched for.  It can
     !> include the following constants, combined with `ior':
@@ -462,13 +462,13 @@ contains
             return
         end if
 
-        if (file_directory_p(file)) then
+        if (is_file_directory(file)) then
             dir = directory_file_name(file)
         else
             dir = directory_file_name(file_name_directory(file))
         end if
 
-        if (.not. file_directory_p(dir)) then
+        if (.not. is_file_directory(dir)) then
             call set_error(status, FM_FILE_NOTIFY_ERROR, "Directory does not exist: "//dir)
             return
         end if
@@ -524,7 +524,7 @@ contains
         file_notify_descriptors(k)%desc = desc
         file_notify_descriptors(k)%directory = dir
         if (allocated(file_notify_descriptors(k)%filename)) deallocate (file_notify_descriptors(k)%filename)
-        if (.not. file_directory_p(file)) file_notify_descriptors(k)%filename = file_name_nondirectory(file)
+        if (.not. is_file_directory(file)) file_notify_descriptors(k)%filename = file_name_nondirectory(file)
         file_notify_descriptors(k)%callback => callback
     end subroutine file_notify_add_watch
 
@@ -561,11 +561,11 @@ contains
     !> Check a watch specified by its DESCRIPTOR.
     !> DESCRIPTOR should be an object returned by `file_notify_add_watch'.
     !> Port of filenotify.el:file-notify-valid-p.
-    logical function file_notify_valid_p(descriptor)
+    logical function is_file_notify_valid(descriptor)
         type(watch_descriptor_type), intent(in) :: descriptor
 
-        file_notify_valid_p = .false.
+        is_file_notify_valid = .false.
         if (find_watch(descriptor) == 0) return
-        file_notify_valid_p = inotify_valid_p(descriptor)
-    end function file_notify_valid_p
+        is_file_notify_valid = is_inotify_valid(descriptor)
+    end function is_file_notify_valid
 end module filenotify_fm

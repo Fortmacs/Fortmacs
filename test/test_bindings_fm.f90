@@ -29,14 +29,14 @@ module test_bindings_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use editfns_fm, only: point, buffer_string, goto_char
-    use lisp_fm, only: value_type, nil, xstring, list_elt
+    use lisp_fm, only: value_type, xstring, list_elt
     use simple_fm, only: kill_ring
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_binding, key_parse
     use keyboard_fm, only: kbd_store_bytes, command_loop, command_loop_step, &
                            discard_input, last_message, last_command, ring_bell_hook
-    use callint_fm, only: prefix_arg, command_defined_p
+    use callint_fm, only: prefix_arg, is_command_defined
     use bindings_fm, only: init_bindings
     implicit none(type, external)
     private
@@ -73,7 +73,7 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
         call init_bindings()
         call get_buffer_create(name, buf, st)
         call set_buffer(buf, st)
@@ -122,7 +122,7 @@ contains
         call check(error, value_eq(binding_of("DEL"), sym("delete_backward_char")), "DEL")
         if (allocated(error)) return
         ! A modified character is not covered by the self-insert range.
-        call check(error, value_eq(binding_of("C-é"), nil()), "C-é")
+        call check(error, value_eq(binding_of("C-é"), value_type()), "C-é")
     end subroutine test_global_map
 
     subroutine test_typing(error)
@@ -321,12 +321,12 @@ contains
         call init_bindings()
 
         do k = 1, size(keys)
-            call check(error, value_eq(binding_of(trim(keys(k))), nil()), trim(keys(k))//" is bound")
+            call check(error, value_eq(binding_of(trim(keys(k))), value_type()), trim(keys(k))//" is bound")
             if (allocated(error)) return
         end do
 
         do k = 1, size(names)
-            call check(error,.not. command_defined_p(sym(trim(names(k)))), trim(names(k))//" is a command")
+            call check(error,.not. is_command_defined(sym(trim(names(k)))), trim(names(k))//" is a command")
             if (allocated(error)) return
         end do
     end subroutine test_no_eval_keys

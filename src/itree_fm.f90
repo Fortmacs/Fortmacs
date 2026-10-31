@@ -22,7 +22,7 @@
 !> Overlays.  An overlay is a registry object referenced by a handle: the
 !> buffer it is in (the null handle once deleted), the interval it
 !> covers (itree.c's struct itree_node: begin, end, front_advance,
-!> rear_advance) and its property list.  Upstream keeps a buffer's
+!> rear_advance) and its text properties.  Upstream keeps a buffer's
 !> overlays in an interval tree (itree.c); here they are one array of
 !> nodes, scanned in order of their start, which gives the same results
 !> for the few overlays a buffer has.  insdel_fm moves them with the text
@@ -37,36 +37,37 @@
 !> `before_string' and `after_string' properties, and textprop_fm's
 !> `get_char_property' family looks at them.
 !>
-!> Modification hooks: insdel_fm's change signals call
+!> Modification hooks: insdel_fm's change notifications call
 !> `report_overlay_modification', which runs the functions of the
 !> `modification_hooks', `insert_in_front_hooks' and `insert_behind_hooks'
-!> properties; a function there is a symbol naming a defined
+!> properties; a function there is a name of a defined
 !> `property_function_type' (eval_fm).
 !>
 !> Deferred: indirect buffers (`copy_overlays'), the `window', `mouse_face' and
-!> `intangible' properties, priorities given as (PRIMARY . SECONDARY)
-!> pairs (no dotted pairs), `remove_overlays' (subr.el) and
+!> `intangible' properties, priorities given as two values, PRIMARY and SECONDARY
+!> (no entry of two names), `remove_overlays' (subr.el) and
 !> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: vtag, V_NULL, V_INTEGER, V_ARRAY
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, make_list, list_elements, consp
+    use lisp_fm, only: value_type, xfixnum, make_list, list_elements
     use eval_fm, only: call_overlay_change_function
     use lread_fm, only: sym
     use data_fm, only: value_eq
-    use buffer_fm, only: buffers, cur, buffer_live_p, buffer_handle, resolve_buffer, modiff_incr, &
+    use buffer_fm, only: buffers, cur, is_buffer_live, buffer_handle, resolve_buffer, modiff_incr, &
                          buf_compute_unchanged, BUF_BEG => BEG
     use intervals_fm, only: textget
     implicit none(type, external)
     private
 
-    public :: make_overlay, move_overlay, delete_overlay, free_overlay, delete_all_overlays, overlayp, &
+    public :: make_overlay, move_overlay, delete_overlay, free_overlay, delete_all_overlays, is_overlay, &
               overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_get_prop, overlay_advance, overlay_put, &
               overlay_properties, &
               overlays_at, overlays_in, next_overlay_change, previous_overlay_change, sort_overlays, &
               adjust_overlays_for_insert, adjust_overlays_for_delete, buffer_has_overlays, overlay_priority, &
-              compare_overlays, overlay_lists, overlay_recenter, overlay_touches_p, mouse_face_overlay_overlaps, &
+              compare_overlays, overlay_lists, overlay_recenter, is_overlay_touches, mouse_face_overlay_overlaps, &
               disable_line_numbers_overlay_at_eob, report_overlay_modification
 
     !> An overlay: struct Lisp_Overlay with its itree_node.
@@ -75,7 +76,7 @@ module itree_fm
         type(handle_type) :: buffer
         integer(int64) :: begin = 0, end = 0
         logical :: front_advance = .false., rear_advance = .false.
-        !> The property list.
+        !> The overlay's properties.
         type(value_type) :: plist
     end type overlay_type
 
@@ -119,18 +120,18 @@ contains
 
     !> Return true if OBJECT is an overlay.  Port of buffer.c:Foverlayp
     !> (a live overlay handle).
-    logical function overlayp(object)
+    logical function is_overlay(object)
         type(handle_type), intent(in) :: object
 
-        overlayp = table%is_live(object)
-    end function overlayp
+        is_overlay = table%is_live(object)
+    end function is_overlay
 
     ! An error unless OV is an overlay.  Port of buffer.c:CHECK_OVERLAY.
     subroutine check_overlay(ov, status)
         type(handle_type), intent(in) :: ov
         type(status_type), intent(out) :: status
 
-        if (.not. overlayp(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "overlayp")
+        if (.not. is_overlay(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(overlay_type)")
     end subroutine check_overlay
 
     !> Whether overlay slot I is in buffer slot B.  Not a port.
@@ -140,7 +141,7 @@ contains
         in_buffer = .false.
         if (b <= 0) return
         if (overlays(i)%buffer%index /= b) return
-        in_buffer = buffer_live_p(overlays(i)%buffer)
+        in_buffer = is_buffer_live(overlays(i)%buffer)
     end function in_buffer
 
     !> The live overlay slots of buffer slot B, sorted by start (the order
@@ -263,7 +264,7 @@ contains
 
         if (present(buffer)) then
             if (buffer%index /= 0) then
-                if (.not. buffer_live_p(buffer)) then
+                if (.not. is_buffer_live(buffer)) then
                     call set_error(status, FM_GENERIC_ERROR, "Attempt to create overlay in a dead buffer")
                     return
                 end if
@@ -316,7 +317,7 @@ contains
         if (present(buffer)) b = buffer%index
 
         if (b == 0) then
-            if (buffer_live_p(overlays(i)%buffer)) b = overlays(i)%buffer%index
+            if (is_buffer_live(overlays(i)%buffer)) b = overlays(i)%buffer%index
         end if
 
         if (b == 0) b = cur
@@ -327,7 +328,7 @@ contains
         end if
 
         if (present(buffer)) then
-            if (buffer%index /= 0 .and. .not. buffer_live_p(buffer)) then
+            if (buffer%index /= 0 .and. .not. is_buffer_live(buffer)) then
                 call set_error(status, FM_GENERIC_ERROR, "Attempt to move overlay to a dead buffer")
                 return
             end if
@@ -336,7 +337,7 @@ contains
         lo = min(beg, end)
         hi = max(beg, end)
         ob = 0
-        if (buffer_live_p(overlays(i)%buffer)) ob = overlays(i)%buffer%index
+        if (is_buffer_live(overlays(i)%buffer)) ob = overlays(i)%buffer%index
         n_beg = clip(BUF_BEG, lo, buffers(b)%text%z)
         n_end = clip(n_beg, hi, buffers(b)%text%z)
         o_beg = 0
@@ -375,7 +376,7 @@ contains
         ! Delete the overlay if it is empty after clipping and has the
         ! evaporate property.
         if (n_beg == n_end) then
-            if (.not. nilp(overlay_get(overlay, "evaporate"))) call drop_overlay(i)
+            if (vtag(overlay_get(overlay, "evaporate")) /= V_NULL) call drop_overlay(i)
         end if
     end subroutine move_overlay
 
@@ -416,7 +417,7 @@ contains
     subroutine drop_overlay(i)
         integer(int64), intent(in) :: i
 
-        if (buffer_live_p(overlays(i)%buffer)) then
+        if (is_buffer_live(overlays(i)%buffer)) then
             call modify_overlay(overlays(i)%buffer%index, overlays(i)%begin, overlays(i)%end)
         end if
 
@@ -428,8 +429,8 @@ contains
     subroutine delete_overlay(overlay)
         type(handle_type), intent(in) :: overlay
 
-        if (.not. overlayp(overlay)) return
-        if (.not. buffer_live_p(overlays(overlay%index)%buffer)) return
+        if (.not. is_overlay(overlay)) return
+        if (.not. is_buffer_live(overlays(overlay%index)%buffer)) return
         call drop_overlay(overlay%index)
     end subroutine delete_overlay
 
@@ -439,7 +440,7 @@ contains
         type(handle_type), intent(in) :: overlay
         type(status_type) :: st
 
-        if (.not. overlayp(overlay)) return
+        if (.not. is_overlay(overlay)) return
         call delete_overlay(overlay)
         overlays(overlay%index) = overlay_type()
         call table%release(overlay, st)
@@ -459,7 +460,7 @@ contains
 
         if (present(buffer)) then
             b = 0
-            if (buffer_live_p(buffer)) b = buffer%index
+            if (is_buffer_live(buffer)) b = buffer%index
         end if
 
         if (b == 0) return
@@ -470,26 +471,26 @@ contains
         end do
     end subroutine delete_all_overlays
 
-    !> Return the position at which OVERLAY starts (0 if it is deleted,
-    !> upstream's nil).  Port of buffer.c:Foverlay_start (with
+    !> Return the position at which OVERLAY starts (0 if it is deleted).
+    !> Port of buffer.c:Foverlay_start (with
     !> itree.c:itree_node_begin: no offsets to add up).
     integer(int64) function overlay_start(overlay)
         type(handle_type), intent(in) :: overlay
 
         overlay_start = 0
-        if (.not. overlayp(overlay)) return
-        if (buffer_live_p(overlays(overlay%index)%buffer)) overlay_start = overlays(overlay%index)%begin
+        if (.not. is_overlay(overlay)) return
+        if (is_buffer_live(overlays(overlay%index)%buffer)) overlay_start = overlays(overlay%index)%begin
     end function overlay_start
 
-    !> Return the position at which OVERLAY ends (0 if it is deleted,
-    !> upstream's nil).  Port of buffer.c:Foverlay_end (with
+    !> Return the position at which OVERLAY ends (0 if it is deleted).
+    !> Port of buffer.c:Foverlay_end (with
     !> itree.c:itree_node_end).
     integer(int64) function overlay_end(overlay)
         type(handle_type), intent(in) :: overlay
 
         overlay_end = 0
-        if (.not. overlayp(overlay)) return
-        if (buffer_live_p(overlays(overlay%index)%buffer)) overlay_end = overlays(overlay%index)%end
+        if (.not. is_overlay(overlay)) return
+        if (is_buffer_live(overlays(overlay%index)%buffer)) overlay_end = overlays(overlay%index)%end
     end function overlay_end
 
     !> Return the buffer OVERLAY belongs to.
@@ -500,18 +501,18 @@ contains
         type(handle_type) :: b
 
         b = null_handle()
-        if (.not. overlayp(overlay)) return
-        if (buffer_live_p(overlays(overlay%index)%buffer)) b = overlays(overlay%index)%buffer
+        if (.not. is_overlay(overlay)) return
+        if (is_buffer_live(overlays(overlay%index)%buffer)) b = overlays(overlay%index)%buffer
     end function overlay_buffer
 
     !> Return a list of the properties on OVERLAY.
-    !> This is a copy of OVERLAY's plist; modifying its conses has no effect on
+    !> This is a copy of OVERLAY's properties; modifying it has no effect on
     !> OVERLAY.  Port of buffer.c:Foverlay_properties.
     function overlay_properties(overlay) result(plist)
         type(handle_type), intent(in) :: overlay
         type(value_type) :: plist
 
-        if (overlayp(overlay)) plist = overlays(overlay%index)%plist
+        if (is_overlay(overlay)) plist = overlays(overlay%index)%plist
     end function overlay_properties
 
     !> Get the property of overlay OVERLAY with property name PROP.  Port of
@@ -521,7 +522,7 @@ contains
         character(len=*), intent(in) :: prop
         type(value_type) :: val
 
-        if (.not. overlayp(overlay)) return
+        if (.not. is_overlay(overlay)) return
         val = textget(overlays(overlay%index)%plist, sym(prop))
     end function overlay_get
 
@@ -534,19 +535,19 @@ contains
 
         front_advance = .false.
         rear_advance = .false.
-        if (.not. overlayp(overlay)) return
+        if (.not. is_overlay(overlay)) return
         front_advance = overlays(overlay%index)%front_advance
         rear_advance = overlays(overlay%index)%rear_advance
     end subroutine overlay_advance
 
-    !> `overlay_get' with the property given as a symbol value.  Port of
+    !> `overlay_get' with the property given as a name value.  Port of
     !> buffer.c:Foverlay_get.
     function overlay_get_prop(overlay, prop) result(val)
         type(handle_type), intent(in) :: overlay
         type(value_type), intent(in) :: prop
         type(value_type) :: val
 
-        if (.not. overlayp(overlay)) return
+        if (.not. is_overlay(overlay)) return
         val = textget(overlays(overlay%index)%plist, prop)
     end function overlay_get_prop
 
@@ -582,7 +583,7 @@ contains
 
         if (.not. found) then
             ! It wasn't in the list, so add it to the front.
-            changed = .not. nilp(value)
+            changed = allocated(value%a)
             n = size(elems)
             allocate (grown(n + 2))
             grown(1) = key
@@ -593,10 +594,10 @@ contains
 
         overlays(i)%plist = make_list(elems)
 
-        if (buffer_live_p(overlays(i)%buffer)) then
+        if (is_buffer_live(overlays(i)%buffer)) then
             if (changed) call modify_overlay(overlays(i)%buffer%index, overlays(i)%begin, overlays(i)%end)
 
-            if (prop == "evaporate" .and. .not. nilp(value) .and. overlays(i)%begin == overlays(i)%end) then
+            if (prop == "evaporate" .and. allocated(value%a) .and. overlays(i)%begin == overlays(i)%end) then
                 call delete_overlay(overlay)
             end if
         end if
@@ -804,7 +805,7 @@ contains
         priority = 0
         spriority = 0
         tem = overlay_get(overlay, "priority")
-        if (fixnump(tem)) priority = xfixnum(tem)
+        if (vtag(tem) == V_INTEGER) priority = xfixnum(tem)
     end subroutine overlay_priority
 
     !> Sort an array of overlays by priority, increasing.  Invalid
@@ -968,7 +969,7 @@ contains
             if (.not. table%is_live(table%handle_of(i))) cycle
             if (.not. in_buffer(i, cur)) cycle
             if (overlays(i)%begin /= pos .or. overlays(i)%end /= pos) cycle
-            if (nilp(overlay_get(table%handle_of(i), "evaporate"))) cycle
+            if (vtag(overlay_get(table%handle_of(i), "evaporate")) == V_NULL) cycle
             n = n + 1
             hit_list(n) = table%handle_of(i)
         end do
@@ -1026,12 +1027,12 @@ contains
 
     !> Whether some overlay of the current buffer starts or ends (or both)
     !> at POS.  Port of buffer.c:overlay_touches_p.
-    logical function overlay_touches_p(pos)
+    logical function is_overlay_touches(pos)
         integer(int64), intent(in) :: pos
         integer(int64), allocatable :: idx(:)
         integer :: k
 
-        overlay_touches_p = .false.
+        is_overlay_touches = .false.
         if (cur == 0) return
         call buffer_nodes(cur, idx)
 
@@ -1042,12 +1043,12 @@ contains
                 if (.not. intersects(node%begin, node%end, pos - 1, pos + 1)) cycle
 
                 if (node%begin == pos .or. node%end == pos) then
-                    overlay_touches_p = .true.
+                    is_overlay_touches = .true.
                     return
                 end if
             end associate
         end do
-    end function overlay_touches_p
+    end function is_overlay_touches
 
     !> Whether another non-empty overlay of the current buffer with a
     !> true `mouse_face' property overlaps OVERLAY.  Port of
@@ -1060,7 +1061,7 @@ contains
         integer :: k
 
         mouse_face_overlay_overlaps = .false.
-        if (cur == 0 .or. .not. overlayp(overlay)) return
+        if (cur == 0 .or. .not. is_overlay(overlay)) return
         start = overlays(overlay%index)%begin
         end = overlays(overlay%index)%end
         call buffer_nodes(cur, idx)
@@ -1071,7 +1072,7 @@ contains
                 if (.not. (node%begin < end .and. node%end > start .and. node%begin < node%end)) cycle
                 if (idx(k) == overlay%index) cycle
 
-                if (.not. nilp(overlay_get(overlay, "mouse_face"))) then
+                if (vtag(overlay_get(overlay, "mouse_face")) /= V_NULL) then
                     mouse_face_overlay_overlaps = .true.
                     return
                 end if
@@ -1095,7 +1096,7 @@ contains
         do k = 1, size(idx)
             if (.not. intersects(overlays(idx(k))%begin, overlays(idx(k))%end, zv, zv)) cycle
 
-            if (.not. nilp(overlay_get(table%handle_of(idx(k)), "display_line_numbers_disable"))) then
+            if (vtag(overlay_get(table%handle_of(idx(k)), "display_line_numbers_disable")) /= V_NULL) then
                 disable_line_numbers_overlay_at_eob = .true.
                 return
             end if
@@ -1193,19 +1194,19 @@ contains
 
                 if (insertion .and. (start == obegin .or. end == obegin)) then
                     prop = overlay_get(ov, "insert_in_front_hooks")
-                    if (.not. nilp(prop)) call add_overlay_mod_hooklist(prop, ov)
+                    if (allocated(prop%a)) call add_overlay_mod_hooklist(prop, ov)
                 end if
 
                 if (insertion .and. (start == oend .or. end == oend)) then
                     prop = overlay_get(ov, "insert_behind_hooks")
-                    if (.not. nilp(prop)) call add_overlay_mod_hooklist(prop, ov)
+                    if (allocated(prop%a)) call add_overlay_mod_hooklist(prop, ov)
                 end if
 
                 ! Test for intersecting intervals.  This does the right
                 ! thing for both insertion and deletion.
                 if (end > obegin .and. start < oend) then
                     prop = overlay_get(ov, "modification_hooks")
-                    if (.not. nilp(prop)) call add_overlay_mod_hooklist(prop, ov)
+                    if (allocated(prop%a)) call add_overlay_mod_hooklist(prop, ov)
                 end if
             end do
         end if
@@ -1226,8 +1227,8 @@ contains
             ! (which makes its markers' buffers be nil), or that (due to
             ! some bug) it belongs to a different buffer.  Only run this
             ! hook if the overlay belongs to the current buffer.
-            if (.not. overlayp(copy_overlays(k))) cycle
-            if (.not. buffer_live_p(overlays(copy_overlays(k)%index)%buffer)) cycle
+            if (.not. is_overlay(copy_overlays(k))) cycle
+            if (.not. is_buffer_live(overlays(copy_overlays(k)%index)%buffer)) cycle
             if (overlays(copy_overlays(k)%index)%buffer%index /= cur) cycle
             call call_overlay_mod_hooks(copy(k), copy_overlays(k), after, arg1, arg2, status, arg3)
             if (.not. status%ok()) return
@@ -1247,7 +1248,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. consp(list)) return
+        if (vtag(list) /= V_ARRAY) return
         call list_elements(list, fns)
 
         do k = 1, size(fns)

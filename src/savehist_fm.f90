@@ -32,7 +32,7 @@
 !> The file is in namelist syntax (namelist_fm) rather than Lisp, so it
 !> is read, not loaded: its objects are the variables to set.  A value
 !> is saved if it is a string, an integer, true or false, or a list of
-!> those; other values (symbols, nested lists) are not printable.
+!> those; other values (names, nested lists) are not printable.
 !> Deferred: the text properties of saved strings, the warning about a
 !> file that can't be written (warnings.el is not ported), and the
 !> obsolete `savehist_trim_history'.
@@ -40,8 +40,8 @@ module savehist_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_fixnum, make_list, list_elements, &
-                       vtag, nilp, xstring, xfixnum, xsymbol, symbols, V_NIL, V_INT, V_STRING, V_LIST, V_SYMBOL, SYM_T
+    use lisp_fm, only: value_type, t_value, make_string, make_fixnum, make_list, list_elements, &
+                       vtag, xstring, xfixnum, xsymbol, symbols, V_NULL, V_INTEGER, V_STRING, V_ARRAY, V_NAME, SYM_T
     use lread_fm, only: sym, intern_soft
     use data_fm, only: set, symbol_value, boundp
     use fns_fm, only: value_equal
@@ -49,11 +49,11 @@ module savehist_fm
     use easy_mmode_fm, only: mode_called_interactively
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: run_with_timer, free_timer, timerp
+    use timer_fm, only: run_with_timer, free_timer, is_timer
     use buffer_fm, only: get_buffer_create, generate_new_buffer_name, set_buffer, kill_buffer, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
-    use fileio_fm, only: file_exists_p, file_attributes, file_stat_type, set_file_modes, write_region, &
+    use fileio_fm, only: file_exists, file_attributes, file_stat_type, set_file_modes, write_region, &
                          insert_file_contents, file_name_directory, expand_file_name
     use files_fm, only: make_directory
     use config_fm, only: state_directory
@@ -126,12 +126,12 @@ module savehist_fm
     !> Set to -1 to use the default permissions that Fortmacs uses,
     !> typically mandated by umask.  The default is a bit more restrictive
     !> to protect the user's privacy.  Port of savehist.el
-    !> savehist-file-modes (-1 for nil).
+    !> savehist-file-modes (-1 for none).
     integer, public :: savehist_file_modes = 384
 
     !> The interval between autosaves of minibuffer history, in seconds.
     !> If set to 0, disables timer-based autosaving.  Port of savehist.el
-    !> savehist-autosave-interval (0 for nil; it takes effect when the
+    !> savehist-autosave-interval (0 for none; it takes effect when the
     !> timer is next set, as Savehist mode does).
     integer, public :: savehist_autosave_interval = 5*60
 
@@ -162,7 +162,7 @@ module savehist_fm
     logical, public :: savehist_loaded = .false.
 
     !> Modtime of the `savehist_file' when we last sync'd up with it
-    !> (savehist--file-sync-modtime); KNOWN false for nil.  A file that
+    !> (savehist--file-sync-modtime); KNOWN .false. for none.  A file that
     !> doesn't exist has the modtime t (EXISTS false).
     type :: modtime_type
         logical :: known = .false., exists = .false.
@@ -183,7 +183,7 @@ contains
     !> Cancel `savehist_autosave' timer, if set.  Port of
     !> savehist.el:savehist--cancel-timer.
     subroutine savehist_cancel_timer()
-        if (timerp(savehist_timer)) call free_timer(savehist_timer)
+        if (is_timer(savehist_timer)) call free_timer(savehist_timer)
         savehist_timer = handle_type()
     end subroutine savehist_cancel_timer
 
@@ -194,7 +194,7 @@ contains
         type(status_type) :: st
 
         if (minor_modes%savehist_mode%enabled() .and. savehist_autosave_interval > 0 .and. &
-            .not. timerp(savehist_timer)) then
+            .not. is_timer(savehist_timer)) then
             call run_with_timer(savehist_timer, real(savehist_autosave_interval, real64), savehist_autosave_timer, &
                                 st, real(savehist_autosave_interval, real64))
         else
@@ -289,7 +289,7 @@ contains
         integer :: k, n
 
         status = status_type()
-        if (.not. file_exists_p(savehist_file)) return
+        if (.not. file_exists(savehist_file)) return
         if (savehist_loaded .and. same_modtime(savehist_file_sync_modtime, savehist_file_modtime())) return
         ! The history variables we know about, with their values.
         n = 0
@@ -589,7 +589,7 @@ contains
                 if (.not. bound .or. member(name, savehist_ignored_variables)) cycle
                 call symbol_value(sym(name), value, st)
                 ! Don't save empty histories.
-                if (nilp(value)) cycle
+                if (.not. allocated(value%a)) cycle
                 ! Print elements of VALUE one by one, carefully: those
                 ! that can't be written are left out.
                 item = namelist_item_type(name=name)
@@ -615,7 +615,7 @@ contains
                 if (.not. savehist_printable(value)) cycle
                 item = namelist_item_type(name=trim(var%name))
 
-                if (vtag(value) == V_LIST) then
+                if (vtag(value) == V_ARRAY) then
                     ! When we have a max-size, chop off the last elements.
                     call list_elements(value, elems)
                     m = size(elems)
@@ -649,7 +649,7 @@ contains
 
         ! Ensure that the directory exists before saving.
         dir = file_name_directory(savehist_file)
-        if (.not. file_exists_p(dir)) call make_directory(dir, st, parents=.true.)
+        if (.not. file_exists(dir)) call make_directory(dir, st, parents=.true.)
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
@@ -698,11 +698,11 @@ contains
         select case (vtag(v))
         case (V_STRING)
             call item%add_string(xstring(v))
-        case (V_INT)
+        case (V_INTEGER)
             call item%add_integer(xfixnum(v))
-        case (V_NIL)
+        case (V_NULL)
             call item%add_logical(.false.)
-        case (V_SYMBOL)
+        case (V_NAME)
             ok = xsymbol(v) == SYM_T
             if (ok) call item%add_logical(.true.)
         case default
@@ -737,12 +737,12 @@ contains
         integer :: k
 
         select case (vtag(value))
-        case (V_LIST)
+        case (V_ARRAY)
             printable = .true.
             call list_elements(value, elems)
 
             do k = 1, size(elems)
-                if (vtag(elems(k)) == V_LIST) then
+                if (vtag(elems(k)) == V_ARRAY) then
                     printable = .false.
                     return
                 end if

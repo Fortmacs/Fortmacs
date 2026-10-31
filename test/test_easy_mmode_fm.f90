@@ -29,14 +29,14 @@ module test_easy_mmode_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, t_value
+    use lisp_fm, only: value_type, make_fixnum, t_value
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, cur, auto_fill_function, &
                          transient_mark_mode
     use data_fm, only: symbol_value, value_eq
     use callint_fm, only: current_prefix_arg
     use keyboard_fm, only: last_message
-    use keymap_fm, only: keymap_set, key_binding, key_parse, keymap_live_p
+    use keymap_fm, only: keymap_set, key_binding, key_parse, is_keymap_live
     use xdisp_fm, only: mode_line_modes, mode_line_text
     use easy_mmode_fm, only: minor_mode_type, easy_mmode_pretty_mode_name
     use modes_fm, only: minor_modes
@@ -106,12 +106,12 @@ contains
         if (allocated(error)) return
         current_prefix_arg = make_fixnum(33_int64)
         call test_mode%command(st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error, test_mode_on(), "33 turns it on")
         if (allocated(error)) return
         current_prefix_arg = make_fixnum(-33_int64)
         call test_mode%command(st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error,.not. test_mode_on(), "-33 turns it off")
         if (allocated(error)) return
         call test_mode%toggle(st)
@@ -143,7 +143,7 @@ contains
         if (allocated(error)) return
         ! Without :keymap there is no MODE-map.
         call test_mode%define("easy-mmode-test-mode", "", body=test_body)
-        call check(error,.not. keymap_live_p(test_mode%map), "no keymap")
+        call check(error,.not. is_keymap_live(test_mode%map), "no keymap")
     end subroutine test_pretty_name
 
     !> A buffer-local mode: on in one buffer only, with its lighter and
@@ -160,7 +160,7 @@ contains
         call get_buffer_create("easy-mmode-test-A", a, st)
         call get_buffer_create("easy-mmode-test-B", b, st)
         call set_buffer(a, st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call test_lit_mode%command(st)
         call check(error, test_lit_mode%enabled(), "on in A")
         if (allocated(error)) return
@@ -180,7 +180,7 @@ contains
         call check(error, mode_line_modes(b%index), "Fundamental")
         if (allocated(error)) return
         call key_binding(key, binding, st)
-        call check(error, nilp(binding), "map inactive in B")
+        call check(error,.not. allocated(binding%a), "map inactive in B")
         call kill_buffer(a, st)
         call kill_buffer(b, st)
     end subroutine test_local_and_map
@@ -222,7 +222,7 @@ contains
         saved = transient_mark_mode%value
         current_prefix_arg = make_fixnum(-1_int64)
         call minor_modes%transient_mark_mode%command(st)
-        current_prefix_arg = nil()
+        current_prefix_arg = value_type()
         call check(error,.not. transient_mark_mode%value, "turned off")
         if (allocated(error)) return
         call check(error, last_message, "Transient-Mark mode disabled")

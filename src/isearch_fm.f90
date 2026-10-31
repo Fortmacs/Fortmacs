@@ -29,10 +29,10 @@
 !> buffer-local `isearch_search_fun_function', `isearch_wrap_function',
 !> `isearch_push_state_function' and `isearch_filter_predicate', and
 !> `isearch_mode_hook' and `isearch_mode_end_hook' (Info searches through
-!> its nodes).  Not ported yet: word, symbol and char-fold search
+!> its nodes).  Not ported yet: word, identifier and char-fold search
 !> (`isearch_regexp_function', `search_default_mode'),
 !> highlighting the match and lazy highlighting (faces from overlays),
-!> C-M-w (symbol syntax: forward-symbol), reading a kill with the
+!> C-M-w (identifier syntax: forward-symbol), reading a kill with the
 !> minibuffer (`isearch_yank_from_kill_ring', C-u M-y), search through invisible text, scrolling during search
 !> (`isearch_allow_scroll'), `isearch_allow_motion', query-replace and
 !> occur from isearch, the help map, input methods, completion, the
@@ -43,8 +43,8 @@ module isearch_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_INVALID_REGEXP, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, error_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, make_fixnum, fixnump, xfixnum, stringp, xstring, make_keymap_ref, &
-                       list_length, list_elt, list_elements, make_list, nilp
+    use lisp_fm, only: value_type, make_fixnum, xfixnum, xstring, make_keymap_ref, &
+                       list_length, list_elt, list_elements, make_list, vtag, V_INTEGER, V_STRING
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
@@ -54,17 +54,17 @@ module isearch_fm
     use buffer_fm, only: buffers, cur, transient_mark_mode, buf_fetch_char
     use marker_fm, only: char_to_byte
     use syntax_fm, only: char_syntax, forward_word
-    use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, eolp, pos_eol, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_eol, pos_eol, &
                           buffer_substring
     use cmds_fm, only: forward_char
     use search_fm, only: re_search_forward, re_search_backward, match_beginning, match_end, looking_at, &
                          string_match, regexp_quote, case_fold_search, search_spaces_regexp, SEARCH_NOERROR
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, define_key_range, key_parse, &
-                         lookup_key, keymap_live_p, free_keymap, overriding_terminal_local_map
+                         lookup_key, is_keymap_live, free_keymap, overriding_terminal_local_map
     use keyboard_fm, only: this_command, last_command, last_command_event, this_command_keys, &
-                           pre_command_hook, discard_input, input_pending_p, &
+                           pre_command_hook, discard_input, is_input_pending, &
                            read_event, sit_for
-    use callint_fm, only: commandp, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: is_command, current_prefix_arg, prefix_numeric_value
     use subr_fm, only: add_to_history, history_delete_duplicates, defvar_nil
     use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message, message_nolog
@@ -85,19 +85,19 @@ module isearch_fm
               isearch_ring_retreat, isearch_toggle_case_fold, isearch_edit_string, &
               isearch_message_prefix, syms_of_isearch, isearch_forward_regexp_command, &
               isearch_backward_regexp_command, isearch_toggle_regexp, isearch_toggle_lax_whitespace, &
-              isearch_no_upper_case_p, word_search_regexp, isearch_search_fun_default, set_isearch_wrapped
+              is_isearch_no_upper_case, word_search_regexp, isearch_search_fun_default, set_isearch_wrapped
     public :: isearch_search_proc, isearch_search_fun_proc, isearch_wrap_proc, isearch_pop_proc, &
               isearch_push_state_proc, isearch_filter_proc, isearch_message_proc, isearch_message_display, &
               set_isearch_barrier, set_isearch_opoint
 
-    !> Values of `isearch_case_fold_search': nil, t, and `yes' (set by
+    !> Values of `isearch_case_fold_search': CASE_FOLD_NO, CASE_FOLD_YES, and CASE_FOLD_YES (set by
     !> M-c: fold even when the string has upper-case letters).
-    integer, parameter, public :: CASE_FOLD_NIL = 0, CASE_FOLD_T = 1, CASE_FOLD_YES = 2
+    integer, parameter, public :: CASE_FOLD_NO = 0, CASE_FOLD_YES = 1, CASE_FOLD_FORCED = 2
 
-    !> Values of `search_upper_case': nil, t and `not_yanks'.
-    integer, parameter, public :: UPPER_CASE_NIL = 0, UPPER_CASE_T = 1, UPPER_CASE_NOT_YANKS = 2
+    !> Values of `search_upper_case': UPPER_CASE_NO, UPPER_CASE_YES and UPPER_CASE_NOT_YANKS.
+    integer, parameter, public :: UPPER_CASE_NO = 0, UPPER_CASE_YES = 1, UPPER_CASE_NOT_YANKS = 2
 
-    !> If not UPPER_CASE_NIL, upper case chars disable case fold searching.
+    !> If not UPPER_CASE_NO, upper case chars disable case fold searching.
     !> That is, upper and lower case chars must match exactly.
     !> This applies no matter where the chars come from, but does not
     !> apply to chars in regexps that are prefixed with `\'.
@@ -117,8 +117,8 @@ module isearch_fm
     !> search-nonincremental-instead.
     logical, public :: search_nonincremental_instead = .true.
 
-    !> Maximum length of search ring before oldest elements are thrown
-    !> away.  Port of isearch.el search-ring-max.
+    !> Maximum length of search ring before oldest elements are
+    !> thrown away.  Port of isearch.el search-ring-max.
     integer, public :: search_ring_max = 16
 
     !> Maximum length of regexp search ring before oldest elements are
@@ -169,7 +169,7 @@ module isearch_fm
     !> The search string and the message shown for it (isearch.el's
     !> isearch-string and isearch-message), in UTF-8.
     character(len=:), allocatable, public, protected :: isearch_string, isearch_message
-    !> Why the search string fails (isearch-error; unallocated for nil).
+    !> Why the search string fails (isearch-error; unallocated for none).
     character(len=:), allocatable, public, protected :: isearch_error
     !> Searching forward (isearch-forward), and whether the search succeeds
     !> (isearch-success).
@@ -180,15 +180,15 @@ module isearch_fm
     logical, public, protected :: isearch_regexp = .false.
     !> The other end of the match, where the search started and the
     !> barrier (isearch-other-end, isearch-opoint, isearch-barrier; 0 for
-    !> nil).
+    !> none).
     integer(int64), public, protected :: isearch_other_end = 0, isearch_opoint = 0, isearch_barrier = 0
     !> Whether the search ignores case (isearch-case-fold-search; a CASE_FOLD_
     !> value).
-    integer, public, protected :: isearch_case_fold_search = CASE_FOLD_T
-    integer :: isearch_last_case_fold_search = CASE_FOLD_T
-    !> isearch-adjusted: nil, t (shows "pending"), or a toggle.
-    integer, parameter :: ADJUSTED_NIL = 0, ADJUSTED_T = 1, ADJUSTED_TOGGLE = 2
-    integer :: isearch_adjusted = ADJUSTED_NIL
+    integer, public, protected :: isearch_case_fold_search = CASE_FOLD_YES
+    integer :: isearch_last_case_fold_search = CASE_FOLD_YES
+    !> isearch-adjusted: ADJUSTED_NO, ADJUSTED_PENDING (shows "pending"), or ADJUSTED_TOGGLE.
+    integer, parameter :: ADJUSTED_NO = 0, ADJUSTED_PENDING = 1, ADJUSTED_TOGGLE = 2
+    integer :: isearch_adjusted = ADJUSTED_NO
     logical :: isearch_yank_flag = .false.
     logical :: isearch_just_started = .false.
     !> Whether the search is nonincremental (isearch-nonincremental).
@@ -196,13 +196,13 @@ module isearch_fm
     integer(int64) :: isearch_yank_prev_point = 0
 
     !> isearch.el search-ring-yank-pointer and
-    !> regexp-search-ring-yank-pointer: 0-based, -1 for nil.
+    !> regexp-search-ring-yank-pointer: 0-based, -1 for none.
     integer :: search_ring_yank_pointer = -1, regexp_search_ring_yank_pointer = -1
 
     abstract interface
         !> A search function, as `isearch_search_fun_function' returns:
         !> search for the first occurrence of STRING from point, BOUND (0
-        !> for nil) and NOERROR as for `re_search_forward'.  POS is where
+        !> for none) and NOERROR as for `re_search_forward'.  POS is where
         !> the search left point, 0 if it found nothing.  Not a port.
         recursive subroutine isearch_search_proc(string, bound, noerror, pos, status)
             import :: int64, status_type
@@ -267,7 +267,7 @@ module isearch_fm
         character(len=:), allocatable :: string, message, error
         integer(int64) :: point = 0, other_end = 0, barrier = 0
         logical :: success = .true., forward = .true., wrapped = .false.
-        integer :: case_fold = CASE_FOLD_T
+        integer :: case_fold = CASE_FOLD_YES
         !> The function restoring the mode-specific state, and that state.
         procedure(isearch_pop_proc), pointer, nopass :: pop_fun => null()
         character(len=:), allocatable :: pop_data
@@ -301,9 +301,9 @@ module isearch_fm
     type, public :: isearch_search_fun_function_type
         character(len=32) :: name = "isearch_search_fun_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => search_fun_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => search_fun_set_local
         !> Set FN to the current buffer's value (null for the default).
         procedure, nopass :: get => search_fun_get
@@ -319,11 +319,11 @@ module isearch_fm
     type, public :: isearch_wrap_function_type
         character(len=32) :: name = "isearch_wrap_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => wrap_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => wrap_set_local
-        !> The current buffer's value (null for nil).
+        !> The current buffer's value (null when unset).
         procedure, nopass :: get => wrap_get
     end type isearch_wrap_function_type
 
@@ -333,11 +333,11 @@ module isearch_fm
     type, public :: isearch_push_state_function_type
         character(len=32) :: name = "isearch_push_state_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => push_state_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => push_state_set_local
-        !> The current buffer's value (null for nil).
+        !> The current buffer's value (null when unset).
         procedure, nopass :: get => push_state_get
     end type isearch_push_state_function_type
 
@@ -354,9 +354,9 @@ module isearch_fm
     type, public :: isearch_filter_predicate_type
         character(len=32) :: name = "isearch_filter_predicate"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => filter_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => filter_set_local
         !> The current buffer's value (null for the default).
         procedure, nopass :: get => filter_get
@@ -368,18 +368,18 @@ module isearch_fm
     type, public :: isearch_message_function_type
         character(len=32) :: name = "isearch_message_function"
     contains
-        !> Set the current buffer's value to null (setq to nil).
+        !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => message_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => message_set_local
-        !> The current buffer's value (null for nil).
+        !> The current buffer's value (null when unset).
         procedure, nopass :: get => message_get
     end type isearch_message_function_type
 
     !> See the type.  Port of isearch.el isearch-message-function.
     type(isearch_message_function_type), public :: isearch_message_function
 
-    !> A string added to the Isearch prompt (unallocated for nil), as
+    !> A string added to the Isearch prompt (unallocated for none), as
     !> "history " when searching a comint's input history.  Port of
     !> isearch.el isearch-message-prefix-add.
     character(len=:), allocatable, public :: isearch_message_prefix_add
@@ -504,7 +504,7 @@ contains
     !> If REGEXP-FLAG is true, disregard letters preceded by `\' (but
     !> not `\\') since they have special meaning in a regexp.  Port of
     !> isearch.el:isearch-no-upper-case-p.
-    logical function isearch_no_upper_case_p(string, regexp_flag) result(none)
+    logical function is_isearch_no_upper_case(string, regexp_flag) result(none)
         character(len=*), intent(in) :: string
         logical, intent(in) :: regexp_flag
         integer(int32), allocatable :: chars(:)
@@ -545,14 +545,14 @@ contains
                 end if
             end if
         end if
-    end function isearch_no_upper_case_p
+    end function is_isearch_no_upper_case
 
     !> Return a regexp which matches words, ignoring punctuation.
     !> Given STRING, a string of words separated by word delimiters,
     !> compute a regexp that matches those exact words separated by
     !> arbitrary punctuation.  If the string begins or ends in whitespace,
     !> the beginning or the end of the string matches arbitrary whitespace.
-    !> Otherwise if LAX is non-nil, the beginning or the end of the string
+    !> Otherwise if LAX is .true., the beginning or the end of the string
     !> need not match a word boundary.
     !>
     !> Used in `word_search_forward', `word_search_backward',
@@ -635,12 +635,12 @@ contains
         type(status_type) :: status
 
         call symbol_value(sym(ring_name(isearch_regexp)), ring, status)
-        if (.not. status%ok()) ring = nil()
+        if (.not. status%ok()) ring = value_type()
         call list_elements(ring, elems)
     end subroutine search_ring
 
     !> Add STRING to the beginning of the search ring.
-    !> REGEXP if non-nil says use the regexp search ring.  Port of
+    !> REGEXP if .true. says use the regexp search ring.  Port of
     !> isearch.el:isearch-update-ring (no text properties on STRING).
     subroutine isearch_update_ring(string, regexp)
         character(len=*), intent(in) :: string
@@ -679,13 +679,13 @@ contains
             search_ring_yank_pointer = yank_pointer
         end if
 
-        if (stringp(ring(yank_pointer + 1))) then
+        if (vtag(ring(yank_pointer + 1)) == V_STRING) then
             isearch_string = xstring(ring(yank_pointer + 1))
             isearch_message = isearch_string
         end if
     end subroutine isearch_ring_adjust1
 
-    !> Port of isearch.el:isearch-ring-adjust (search-ring-update nil:
+    !> Port of isearch.el:isearch-ring-adjust (`search_ring_update' .false.:
     !> edit the string in the minibuffer).
     subroutine isearch_ring_adjust(advance, status)
         logical, intent(in) :: advance
@@ -819,7 +819,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true.,.not. nilp(current_prefix_arg))
+        call isearch_mode(.true., allocated(current_prefix_arg%a))
     end subroutine isearch_forward_command
 
     !> Do incremental search backward.
@@ -830,7 +830,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false.,.not. nilp(current_prefix_arg))
+        call isearch_mode(.false., allocated(current_prefix_arg%a))
     end subroutine isearch_backward_command
 
     !> Do incremental search forward for regular expression.
@@ -850,7 +850,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true., nilp(current_prefix_arg))
+        call isearch_mode(.true.,.not. allocated(current_prefix_arg%a))
     end subroutine isearch_forward_regexp_command
 
     !> Do incremental search backward for regular expression.
@@ -862,13 +862,13 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false., nilp(current_prefix_arg))
+        call isearch_mode(.false.,.not. allocated(current_prefix_arg%a))
     end subroutine isearch_backward_regexp_command
 
     !> Start Isearch minor mode.
     !> It is called by the function `isearch_forward' and other related
     !> functions.  The arg FORWARD means searching in the forward
-    !> direction.  The non-nil arg REGEXP does an incremental regular
+    !> direction.  The arg REGEXP .true. does an incremental regular
     !> expression search.  Port of isearch.el:isearch-mode (no OP-FUN,
     !> RECURSIVE-EDIT or REGEXP-FUNCTION).
     recursive subroutine isearch_mode(forward, regexp)
@@ -880,14 +880,14 @@ contains
         isearch_forward = forward
         isearch_regexp = flag(regexp)
         isearch_last_case_fold_search = isearch_case_fold_search
-        isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, case_fold_search%value)
+        isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, case_fold_search%value)
         isearch_string = ""
         isearch_message = ""
         ncmds = 0
         isearch_success = .true.
         isearch_wrapped = .false.
         isearch_barrier = point()
-        isearch_adjusted = ADJUSTED_NIL
+        isearch_adjusted = ADJUSTED_NO
         isearch_yank_flag = .false.
         if (allocated(isearch_error)) deallocate (isearch_error)
         isearch_other_end = 0
@@ -928,8 +928,8 @@ contains
     !> Port of isearch.el:isearch-update (no slow-terminal window, hscroll
     !> or highlighting).
     subroutine isearch_update()
-        if (.not. input_pending_p()) call isearch_message_show()
-        isearch_adjusted = ADJUSTED_NIL
+        if (.not. is_input_pending()) call isearch_message_show()
+        isearch_adjusted = ADJUSTED_NO
         isearch_yank_flag = .false.
     end subroutine isearch_update
 
@@ -939,7 +939,7 @@ contains
     !> For a failing search, NOPUSH is t.
     !> For going to the minibuffer to edit the search string,
     !> NOPUSH is t and EDIT is t.
-    !> If NOPUSH is non-nil, we don't push the string on the search ring.
+    !> If NOPUSH is .true., we don't push the string on the search ring.
     !> Port of isearch.el:isearch-done (no intangible text).
     recursive subroutine isearch_done(nopush, edit)
         logical, intent(in), optional :: nopush, edit
@@ -1011,9 +1011,9 @@ contains
         call set_error(status, FM_QUIT)
     end subroutine isearch_cancel
 
-    !> Abort incremental search mode if searching is successful, signaling
-    !> quit.  Otherwise, revert to previous successful search and continue
-    !> searching.  Use `isearch_exit' to quit without signaling.  Port of
+    !> Abort incremental search mode if searching is successful, making a
+    !> `quit' occur.  Otherwise, revert to previous successful search and continue
+    !> searching.  Use `isearch_exit' to quit without that.  Port of
     !> isearch.el:isearch-abort.
     subroutine isearch_abort(status)
         type(status_type), intent(out) :: status
@@ -1058,7 +1058,7 @@ contains
         if (allocated(this_command_keys)) then
             if (size(this_command_keys) > 0) then
                 call lookup_key(make_keymap_ref(isearch_mode_map), this_command_keys, binding, status)
-                if (status%ok() .and. .not. fixnump(binding) .and. commandp(binding)) return
+                if (status%ok() .and. vtag(binding) /= V_INTEGER .and. is_command(binding)) return
             end if
         end if
 
@@ -1112,8 +1112,8 @@ contains
         m = m//isearch_message_suffix(c_q_hack)
     end function isearch_message_string
 
-    !> Return position of first mismatch in search string, or -1 (nil) if
-    !> none.  Port of isearch.el:isearch-fail-pos (MSG nil).
+    !> Return position of first mismatch in search string, or -1 if
+    !> none.  Port of isearch.el:isearch-fail-pos (MSG absent).
     integer(int64) function isearch_fail_pos() result(pos)
         integer :: k
 
@@ -1193,7 +1193,7 @@ contains
 
         m = ""
         if (.not. isearch_success) m = "failing "
-        if (isearch_adjusted == ADJUSTED_T) m = m//"pending "
+        if (isearch_adjusted == ADJUSTED_PENDING) m = m//"pending "
 
         if (isearch_wrapped) then
             if (isearch_forward) then
@@ -1211,7 +1211,7 @@ contains
                 if (b%begv /= 1 .or. b%zv /= b%text%z) m = m//"narrowed "
             end associate
 
-            if (isearch_case_fold_search == CASE_FOLD_NIL) m = m//"case-sensitive "
+            if (isearch_case_fold_search == CASE_FOLD_NO) m = m//"case-sensitive "
         end if
 
         ! isearch--describe-regexp-mode.
@@ -1318,7 +1318,7 @@ contains
     !> Search for the first occurrence of STRING.  If found, move point
     !> to the end of the occurrence, update the match data, and return
     !> true.  An error of the search is in `status'.  Port of
-    !> isearch.el:isearch-search-string (BOUND nil, NOERROR t; no
+    !> isearch.el:isearch-search-string (BOUND absent, NOERROR .true.; no
     !> translation-table-for-input).
     recursive logical function isearch_search_string(string, status) result(found)
         character(len=*), intent(in) :: string
@@ -1355,13 +1355,13 @@ contains
         logical :: saved_fold, found, retry
         integer(int64) :: mb, me
 
-        if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
-            isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, &
-                                             isearch_no_upper_case_p(isearch_string, isearch_regexp))
+        if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= UPPER_CASE_NO) then
+            isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
+                                             is_isearch_no_upper_case(isearch_string, isearch_regexp))
         end if
 
         saved_fold = case_fold_search%value
-        case_fold_search = isearch_case_fold_search /= CASE_FOLD_NIL
+        case_fold_search = isearch_case_fold_search /= CASE_FOLD_NO
         if (allocated(isearch_error)) deallocate (isearch_error)
         mb = 0
         me = 0
@@ -1386,7 +1386,7 @@ contains
                 retry = .false.
             else if (mb == me) then
                 ! Advance point on empty matches before retrying
-                if (merge(eobp(), bobp(), isearch_forward)) then
+                if (merge(is_eob(), is_bob(), isearch_forward)) then
                     retry = .false.
                     isearch_success = .false.
                 else
@@ -1518,10 +1518,10 @@ contains
             ! many more chars to be matched, in the string following point.
             ! Allow all those possibilities without moving point as long as
             ! the match does not extend past search origin.
-            fold = isearch_case_fold_search /= CASE_FOLD_NIL
+            fold = isearch_case_fold_search /= CASE_FOLD_NO
 
-            if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
-                fold = isearch_no_upper_case_p(isearch_string, isearch_regexp)
+            if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= UPPER_CASE_NO) then
+                fold = is_isearch_no_upper_case(isearch_string, isearch_regexp)
             end if
 
             if (reverse_match_here()) then
@@ -1529,16 +1529,16 @@ contains
                 if (allocated(isearch_error)) deallocate (isearch_error)
                 isearch_other_end = mend
 
-                if (isearch_case_fold_search == CASE_FOLD_T .and. search_upper_case /= UPPER_CASE_NIL) then
-                    isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, &
-                                                     isearch_no_upper_case_p(isearch_string, isearch_regexp))
+                if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= UPPER_CASE_NO) then
+                    isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
+                                                     is_isearch_no_upper_case(isearch_string, isearch_regexp))
                 end if
             else
                 ! Not regexp, not reverse, or no match at point.
                 ! Do the following before moving point.
                 call isearch_message_show(ellipsis=.true.)
 
-                if (isearch_other_end /= 0 .and. isearch_adjusted == ADJUSTED_NIL) then
+                if (isearch_other_end /= 0 .and. isearch_adjusted == ADJUSTED_NO) then
                     if (isearch_forward) then
                         call goto_char(isearch_other_end)
                     else
@@ -1557,7 +1557,7 @@ contains
 
         logical function reverse_match_here()
             reverse_match_here = .false.
-            if (isearch_forward .or. isearch_adjusted /= ADJUSTED_NIL) return
+            if (isearch_forward .or. isearch_adjusted /= ADJUSTED_NO) return
             if (.not. looking_at_string(isearch_string, fold, mend)) return
             reverse_match_here = isearch_yank_flag .or. mend <= min(isearch_opoint, isearch_barrier)
         end function reverse_match_here
@@ -1565,7 +1565,7 @@ contains
 
     !> Utility for isearch-repeat-forward and isearch-repeat-backward.
     !> Port of isearch.el:isearch-repeat (isearch-wrap-pause t,
-    !> isearch-repeat-on-direction-change nil).
+    !> `isearch_repeat_on_direction_change' .false.).
     recursive subroutine isearch_repeat(forward, count)
         logical, intent(in) :: forward
         integer(int64), intent(in), optional :: count
@@ -1584,7 +1584,7 @@ contains
                 if (size(ring) == 0) then
                     isearch_error = "No previous search string"
                 else
-                    if (stringp(ring(1))) isearch_string = xstring(ring(1))
+                    if (vtag(ring(1)) == V_STRING) isearch_string = xstring(ring(1))
                     isearch_message = isearch_string
                     isearch_case_fold_search = isearch_last_case_fold_search
                     ! After taking the last element, adjust ring to
@@ -1630,7 +1630,7 @@ contains
                 if (isearch_success .and. point() == isearch_other_end .and. .not. isearch_just_started) then
                     ! If repeating a search that found an empty string,
                     ! ensure we advance.
-                    if (merge(eobp(), bobp(), isearch_forward)) then
+                    if (merge(is_eob(), is_bob(), isearch_forward)) then
                         ! If there's nowhere to advance to, fail (and wrap
                         ! next time).
                         isearch_success = .false.
@@ -1665,7 +1665,7 @@ contains
         type(value_type), intent(in) :: arg
         integer(int64) :: count
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             call isearch_repeat(.true.)
             return
         end if
@@ -1691,7 +1691,7 @@ contains
         type(value_type), intent(in) :: arg
         integer(int64) :: count
 
-        if (nilp(arg)) then
+        if (.not. allocated(arg%a)) then
             call isearch_repeat(.false.)
             return
         end if
@@ -1731,7 +1731,7 @@ contains
             return
         end if
 
-        ! For the case when the match is at bobp, don't forward char in
+        ! For the case when the match is at is_bob, don't forward char in
         ! isearch-repeat.
         isearch_just_started = .true.
         call goto_char(point_min())
@@ -1854,7 +1854,7 @@ contains
         call isearch_search_and_update()
     end subroutine isearch_process_search_string
 
-    !> Return t if STR ends in an odd number of backslashes.  Port of
+    !> Return .true. if STR ends in an odd number of backslashes.  Port of
     !> isearch.el:isearch-backslash.
     pure logical function isearch_backslash(str)
         character(len=*), intent(in) :: str
@@ -1875,12 +1875,12 @@ contains
     !> `isearch_barrier' as needed.
     !>
     !> Do nothing if a backslash is escaping the liberalizing character.
-    !> If WANT-BACKSLASH is non-nil, invert this behavior (for \} and \|).
+    !> If WANT-BACKSLASH is .true., invert this behavior (for \} and \|).
     !>
     !> Do nothing if regexp has recently been invalid unless optional
-    !> ALLOW-INVALID non-nil.
+    !> ALLOW-INVALID .true..
     !>
-    !> If optional TO-BARRIER non-nil, ignore previous matches and go
+    !> If optional TO-BARRIER .true., ignore previous matches and go
     !> exactly to the barrier.  Port of isearch.el:isearch-fallback.
     subroutine isearch_fallback(want_backslash, allow_invalid, to_barrier)
         logical, intent(in) :: want_backslash
@@ -1902,7 +1902,7 @@ contains
 
         if (flag(to_barrier)) then
             call goto_char(isearch_barrier)
-            isearch_adjusted = ADJUSTED_T
+            isearch_adjusted = ADJUSTED_PENDING
             return
         end if
 
@@ -1951,7 +1951,7 @@ contains
             call goto_char(min(last_other_end, isearch_barrier))
         end if
 
-        isearch_adjusted = ADJUSTED_T
+        isearch_adjusted = ADJUSTED_PENDING
     end subroutine isearch_fallback
 
     !> Pull STRING into search string.  Port of
@@ -1963,7 +1963,7 @@ contains
         s = string
 
         ! Downcase the string if not supposed to case-fold yanked strings.
-        if (isearch_case_fold_search /= CASE_FOLD_NIL .and. search_upper_case == UPPER_CASE_NOT_YANKS) then
+        if (isearch_case_fold_search /= CASE_FOLD_NO .and. search_upper_case == UPPER_CASE_NOT_YANKS) then
             s = downcase_string(s)
         end if
 
@@ -2000,7 +2000,7 @@ contains
                 end if
             end do
         else
-            call goto_char(pos_eol(merge(arg + 1, arg, eolp())))
+            call goto_char(pos_eol(merge(arg + 1, arg, is_eol())))
         end if
 
         isearch_yank_prev_point = point()
@@ -2098,11 +2098,11 @@ contains
     subroutine isearch_toggle_case_fold()
         if (.not. isearch_active) call isearch_mode(.true.)
 
-        if (isearch_case_fold_search /= CASE_FOLD_NIL) then
-            isearch_case_fold_search = CASE_FOLD_NIL
+        if (isearch_case_fold_search /= CASE_FOLD_NO) then
+            isearch_case_fold_search = CASE_FOLD_NO
             call isearch_momentary_message("case sensitive")
         else
-            isearch_case_fold_search = CASE_FOLD_YES
+            isearch_case_fold_search = CASE_FOLD_FORCED
             call isearch_momentary_message("case insensitive")
         end if
 
@@ -2291,7 +2291,7 @@ contains
         call read_event(ev, have, status)
         if (.not. status%ok() .or. .not. have) return
         c = -1
-        if (fixnump(ev)) c = xfixnum(ev)
+        if (vtag(ev) == V_INTEGER) c = xfixnum(ev)
 
         if (c < 0 .or. c > MAX_CHAR) then
             call set_error(status, FM_USER_ERROR, "Not a valid character")
@@ -2360,7 +2360,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. fixnump(last_command_event)) return
+        if (vtag(last_command_event) /= V_INTEGER) return
         call isearch_printing_char(xfixnum(last_command_event), arg_p())
     end subroutine cmd_isearch_printing_char
 
@@ -2469,21 +2469,21 @@ contains
 
     !> Register the isearch commands, build `isearch_mode_map', and bind
     !> C-s, C-r, C-M-s and C-M-r in `global_map'.  Port of isearch.el's
-    !> (setq isearch-wrapped WRAPPED), for an `isearch_wrap_function'.
+    !> Assign WRAPPED to `isearch_wrapped', for an `isearch_wrap_function'.
     subroutine set_isearch_wrapped(wrapped)
         logical, intent(in) :: wrapped
 
         isearch_wrapped = wrapped
     end subroutine set_isearch_wrapped
 
-    !> (setq isearch-barrier POS), for a search function.  Not a port.
+    !> Assign POS to `isearch_barrier', for a search function.  Not a port.
     subroutine set_isearch_barrier(pos)
         integer(int64), intent(in) :: pos
 
         isearch_barrier = pos
     end subroutine set_isearch_barrier
 
-    !> (setq isearch-opoint POS), for a search function.  Not a port.
+    !> Assign POS to `isearch_opoint', for a search function.  Not a port.
     subroutine set_isearch_opoint(pos)
         integer(int64), intent(in) :: pos
 
@@ -2725,7 +2725,7 @@ contains
         commands%isearch_yank_kill%run => cmd_isearch_yank_kill
         commands%isearch_yank_pop_only%run => cmd_isearch_yank_pop_only
         if (.not. allocated(search_whitespace_regexp)) search_whitespace_regexp = "[ "//achar(9)//"]+"
-        if (keymap_live_p(isearch_mode_map)) call free_keymap(isearch_mode_map, status)
+        if (is_keymap_live(isearch_mode_map)) call free_keymap(isearch_mode_map, status)
         call make_keymap(isearch_mode_map)
         ! Make all multibyte characters search for themselves.
         call define_key_range(isearch_mode_map, 256_int64, int(MAX_CHAR, int64), &

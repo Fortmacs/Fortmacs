@@ -42,12 +42,12 @@ module test_syntax_scan_fm
     use data_fm, only: set
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position, bobp, eobp
+    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position, is_bob, is_eob
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
     use syntax_fm, only: modify_syntax_entry, make_syntax_table, set_syntax_table, free_syntax_table, &
-                         standard_syntax_table, syntax_table_live_p, forward_comment, scan_groups, scan_expressions, &
+                         standard_syntax_table, is_syntax_table_live, forward_comment, scan_groups, scan_expressions, &
                          parse_partial_expression, &
                          parse_state_type, scan_error_data, syntax_ppss, parse_expression_ignore_comments, &
                          comment_end_can_be_escaped, COMMENTSTOP_SYNTAX_TABLE, COMMENTSTOP_COMMENT, ST_STRING_STYLE
@@ -113,7 +113,7 @@ contains
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(point_min())
-        if (syntax_table_live_p(table)) call free_syntax_table(table, st)
+        if (is_syntax_table_live(table)) call free_syntax_table(table, st)
         call make_syntax_table(table, st)
         call set_syntax_table(table, st)
         call show_alone()
@@ -665,7 +665,7 @@ contains
         if (allocated(error)) return
         call temp_buffer("()", table)
         call forward_expression(2_int64, st)
-        call check(error, st%ok() .and. eobp(), "lisp-forward-sexp-2-eobp")
+        call check(error, st%ok() .and. is_eob(), "lisp-forward-sexp-2-eobp")
         if (allocated(error)) return
         call forward_expression(1_int64, st)
         call check(error, st%ok(), "lisp-forward-sexp-2-eobp-and-subsequent")
@@ -673,7 +673,7 @@ contains
         call temp_buffer("()", table)
         call goto_char(point_max())
         call forward_expression(-2_int64, st)
-        call check(error, st%ok() .and. bobp(), "lisp-backward-sexp-2-bobp")
+        call check(error, st%ok() .and. is_bob(), "lisp-backward-sexp-2-bobp")
         if (allocated(error)) return
         call forward_expression(-1_int64, st)
         call check(error, st%ok(), "lisp-backward-sexp-2-bobp-and-subsequent")

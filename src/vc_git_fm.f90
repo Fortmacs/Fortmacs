@@ -35,33 +35,33 @@
 !> asynchronous checkins, amending with \[vc_git_log_edit_toggle_amend]
 !> and the published-history checks it needs), `vc_git_find_file_hook'
 !> (Smerge mode for conflicts) and `vc_git_resolve_conflicts', the
-!> difftool path of `vc_git_diff' (`vc_git_diff_switches' nil), the
+!> difftool path of `vc_git_diff' (`vc_git_diff_switches' VC_SWITCHES_UNSPECIFIED), the
 !> coding systems of Git's output (UTF-8 is used), remote directories
 !> and the other `vc_git_' options of those features.
 module vc_git_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, t_value, make_string, make_list, fixnump, xfixnum
+    use lisp_fm, only: value_type, t_value, make_string, make_list, xfixnum, vtag, V_INTEGER
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, kill_buffer, &
-                         generate_new_buffer_name, erase_buffer, buffer_live_p
-    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, bolp, bobp, pos_eol, &
+                         generate_new_buffer_name, erase_buffer, is_buffer_live
+    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, is_bol, is_bob, pos_eol, &
                           buffer_substring
     use cmds_fm, only: forward_line
     use search_fm, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
     use subr_fm, only: match_string
-    use fileio_fm, only: expand_file_name, file_directory_p, directory_name_p, file_exists_p
+    use fileio_fm, only: expand_file_name, is_file_directory, is_directory_name, file_exists
     use files_fm, only: file_relative_name, executable_find, revert_buffer_in_progress
     use callproc_fm, only: call_process
     use vc_hooks_fm, only: vc_backends, vc_string_type, vc_switches_type, register_vc_backend, vc_find_root, &
                            vc_state, vc_mode_line_state, vc_working_revision, vc_file_get_git_symbolic_ref, &
                            vc_file_set_git_symbolic_ref, vc_display_status, vc_use_short_revision, &
-                           VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_T, VC_SWITCHES_NIL, VC_SWITCHES_LIST, &
+                           VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_NONE, VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_LIST, &
                            VC_UP_TO_DATE, VC_EDITED, &
                            VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, &
-                           VC_MODEL_IMPLICIT, VC_STATE_NIL, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
+                           VC_MODEL_IMPLICIT, VC_STATE_UNKNOWN, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
                            vc_dir_update_proc
-    use vc_dispatcher_fm, only: vc_do_command, VC_OKSTATUS_NIL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
+    use vc_dispatcher_fm, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
     use ewoc_fm, only: ewoc_part_type
     use vc_fm, only: vc_switches
     use eval_fm, only: hook_type
@@ -82,9 +82,9 @@ module vc_git_fm
               vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
 
     !> String or list of strings specifying switches for Git diff under VC.
-    !> If nil, use the value of `vc_diff_switches'.  If t, use no switches.
+    !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use no switches.
     !> Port of vc-git.el vc-git-diff-switches.
-    type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_T)
+    type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_NONE)
 
     !> Name of the Git executable (excluding any arguments).  Port of
     !> vc-git.el vc-git-program.
@@ -144,7 +144,7 @@ module vc_git_fm
     type(handle_type), public :: vc_git_log_view_mode_map
 
     ! The stages of `vc_git_dir_status_files'.
-    integer, parameter :: STAGE_NIL = 0, STAGE_UPDATE_INDEX = 1, STAGE_LS_FILES_ADDED = 2, &
+    integer, parameter :: STAGE_DONE = 0, STAGE_UPDATE_INDEX = 1, STAGE_LS_FILES_ADDED = 2, &
                           STAGE_LS_FILES_UP_TO_DATE = 3, STAGE_LS_FILES_CONFLICT = 4, STAGE_LS_FILES_MISSING = 5, &
                           STAGE_LS_FILES_UNKNOWN = 6, STAGE_LS_FILES_IGNORED = 7, STAGE_DIFF_INDEX = 8
 
@@ -181,7 +181,7 @@ module vc_git_fm
     !> many commit summaries will need to exceed this length.
     !>
     !> See also `vc_git_log_edit_summary_max_len'.  Port of vc-git.el
-    !> vc-git-log-edit-summary-target-len (negative for nil).
+    !> vc-git-log-edit-summary-target-len (negative for none).
     integer, public :: vc_git_log_edit_summary_target_len = -1
 
     !> Maximum length for Git commit summary lines.
@@ -243,7 +243,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push
 
-    !> Append nil to LIST (a flag passing nothing).  Not a port.
+    !> Append an unallocated entry to LIST (a flag passing nothing).  Not a port.
     subroutine push_nil(list)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         type(vc_string_type), allocatable :: grown(:)
@@ -329,7 +329,7 @@ contains
         rootdir = .false.
 
         if (size(files) == 1) then
-            if (directory_name_p(files(1)%s)) then
+            if (is_directory_name(files(1)%s)) then
                 call vc_git_root(files(1)%s, root, found)
                 rootdir = found .and. root == files(1)%s
             end if
@@ -433,7 +433,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        if (fixnump(result)) code = int(xfixnum(result))
+        if (vtag(result) == V_INTEGER) code = int(xfixnum(result))
     end subroutine vc_git_call
 
     !> Run `git COMMAND ARGS...' and insert standard output in current buffer.
@@ -517,13 +517,13 @@ contains
 
     !> Check if the git db is empty (no commit done yet).  Port of
     !> vc-git.el:vc-git--empty-db-p.
-    logical function vc_git_empty_db_p() result(empty)
+    logical function is_vc_git_empty_db() result(empty)
         type(status_type) :: st
         integer :: code
 
         call vc_git_call(.false., "rev-parse", strings("--verify", "HEAD"), code, st)
         empty = code /= 0
-    end function vc_git_empty_db_p
+    end function is_vc_git_empty_db
 
     !> The version of Git, "0" if unknown.  Port of
     !> vc-git.el:vc-git--program-version (the parsing is
@@ -871,7 +871,7 @@ contains
         allocate (flist(0), dlist(0))
 
         do k = size(files), 1, -1
-            if (file_directory_p(files(k)%s)) then
+            if (is_file_directory(files(k)%s)) then
                 call push(dlist, files(k)%s)
             else
                 call push(flist, files(k)%s)
@@ -960,7 +960,7 @@ contains
         else
             call vc_git_command(0, strings(file), strings("reset", "-q", "--"), status)
             if (.not. status%ok()) return
-            call vc_git_command(VC_OKSTATUS_NIL, strings(file), strings("checkout", "-q", "--"), status)
+            call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, strings(file), strings("checkout", "-q", "--"), status)
         end if
     end subroutine vc_git_revert
 
@@ -972,7 +972,7 @@ contains
 
         call vc_git_command(0, files, strings("reset", "-q", "--"), status)
         if (.not. status%ok()) return
-        call vc_git_command(VC_OKSTATUS_NIL, files, strings("checkout", "-q", "--"), status)
+        call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, files, strings("checkout", "-q", "--"), status)
     end subroutine vc_git_revert_files
 
     !> Delete FILE with `git rm'.  Port of vc-git.el:vc-git-delete-file.
@@ -1013,7 +1013,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Get a difference report using Git between two revisions of FILES.
-    !> Port of vc-git.el:vc-git-diff (`vc_git_diff_switches' not nil; the
+    !> Port of vc-git.el:vc-git-diff (`vc_git_diff_switches' not VC_SWITCHES_UNSPECIFIED; the
     !> difftool path is deferred).
     recursive subroutine vc_git_diff(files, buffer, async, status, rev1, rev2)
         type(vc_string_type), intent(in) :: files(:)
@@ -1036,7 +1036,7 @@ contains
 
             if (present(rev1)) then
                 r1 = rev1
-            else if (vc_git_empty_db_p()) then
+            else if (is_vc_git_empty_db()) then
                 ! If there aren't any commits yet then there is no HEAD.
                 ! So diff against the empty tree object.
                 r1 = vc_git_empty_tree
@@ -1045,7 +1045,7 @@ contains
             end if
         end if
 
-        if (vc_git_diff_switches%kind == VC_SWITCHES_NIL) then
+        if (vc_git_diff_switches%kind == VC_SWITCHES_UNSPECIFIED) then
             call set_error(status, FM_GENERIC_ERROR, "vc_git_diff with git difftool is not ported yet")
             return
         end if
@@ -1086,7 +1086,7 @@ contains
         allocate (table(0))
         call push(table, "HEAD")
         call temp_begin(old, tmp)
-        call vc_git_command(VC_OKSTATUS_NIL, none, strings("for-each-ref", "--format=%(refname)"), st, current=.true.)
+        call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("for-each-ref", "--format=%(refname)"), st, current=.true.)
         call goto_char(point_min())
 
         if (vc_git_revision_complete_only_branches) then
@@ -1156,12 +1156,12 @@ contains
 
             if (ok) then
                 call goto_char(point_max())
-                ok = bolp()
+                ok = is_bol()
             end if
 
             if (ok) then
                 shortage = forward_line(-1_int64)
-                ok = shortage == 0 .and. .not. bobp()
+                ok = shortage == 0 .and. .not. is_bob()
             end if
 
             if (ok) then
@@ -1239,7 +1239,7 @@ contains
 
         if (found) then
             shortage = forward_line(2_int64)
-            found = shortage == 1 .and. bolp()
+            found = shortage == 1 .and. is_bol()
         end if
 
         if (found) call buffer_substring(point_min(), point_max() - 1, sym, st)
@@ -1524,7 +1524,7 @@ contains
         use vc_dispatcher_fm, only: vc_setup_buffer
         use vc_fm, only: vc_log_view_type, VC_LOG_VIEW_WITH_DIFF
         use vc_hooks_fm, only: vc_log_limit_type, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
-        use fileio_fm, only: file_directory_p
+        use fileio_fm, only: is_file_directory
         use lisp_fm, only: value_type, t_value
         use lread_fm, only: sym
         use data_fm, only: symbol_value, set
@@ -1564,7 +1564,7 @@ contains
             ! "--follow" on directories or multiple files is broken
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=8756
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=16422
-            if (.not. file_directory_p(files(1)%s)) call push(flags, "--follow")
+            if (.not. is_file_directory(files(1)%s)) call push(flags, "--follow")
         end if
 
         if (shortlog) then
@@ -1725,7 +1725,7 @@ contains
     recursive subroutine vc_git_expanded_log_entry(revision, text, found)
         use search_fm, only: replace_match
         use cmds_fm, only: forward_line
-        use editfns_fm, only: eobp, buffer_string
+        use editfns_fm, only: is_eob, buffer_string
         character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
@@ -1741,10 +1741,10 @@ contains
         flags = strings("log", revision, "-1", "--no-color")
         call append_switches(flags, vc_git_log_switches)
         call push(flags, "--")
-        call vc_git_command(VC_OKSTATUS_NIL, none, flags, st, current=.true.)
+        call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, flags, st, current=.true.)
         call goto_char(point_min())
 
-        if (.not. eobp()) then
+        if (.not. is_eob()) then
             ! Indent the expanded log entry.
             do
                 call re_search_forward("^  ", pos, st, noerror=SEARCH_NOERROR)
@@ -1896,13 +1896,13 @@ contains
     !> entry of state STATE, or an empty string if none.  Port of
     !> vc-git.el:vc-git-rename-as-string.
     function vc_git_rename_as_string(state, extra) result(str)
-        use vc_hooks_fm, only: VC_RENAME_NIL, VC_RENAME_COPY
+        use vc_hooks_fm, only: VC_RENAME_NONE, VC_RENAME_COPY
         integer, intent(in) :: state
         type(vc_dir_entry_type), intent(in) :: extra
         character(len=:), allocatable :: str
 
         str = ""
-        if (.not. extra%has_extra .or. extra%rename_state == VC_RENAME_NIL) return
+        if (.not. extra%has_extra .or. extra%rename_state == VC_RENAME_NONE) return
 
         if (extra%rename_state == VC_RENAME_COPY) then
             str = "   (copied from "
@@ -2002,7 +2002,7 @@ contains
         call insert_with_face(type_str, type_face)
 
         if (isdir) then
-            call insert_with_face(vc_git_rename_as_string(VC_STATE_NIL, info%entry), "font_lock_comment_face")
+            call insert_with_face(vc_git_rename_as_string(VC_STATE_UNKNOWN, info%entry), "font_lock_comment_face")
         else
             call insert_with_face(vc_git_rename_as_string(state, info%entry), "font_lock_comment_face")
         end if
@@ -2054,7 +2054,7 @@ contains
     ! (vc-git-create-extra-fileinfo OLD-PERM NEW-PERM RENAME-STATE ORIG-NAME).
     ! Not a port.
     function extra_fileinfo(old_perm, new_perm, rename_state, orig_name) result(info)
-        use vc_hooks_fm, only: VC_RENAME_NIL
+        use vc_hooks_fm, only: VC_RENAME_NONE
         integer, intent(in) :: old_perm, new_perm
         integer, intent(in), optional :: rename_state
         character(len=*), intent(in), optional :: orig_name
@@ -2063,7 +2063,7 @@ contains
         info%has_extra = .true.
         info%old_perm = old_perm
         info%new_perm = new_perm
-        info%rename_state = VC_RENAME_NIL
+        info%rename_state = VC_RENAME_NONE
         if (present(rename_state)) info%rename_state = rename_state
         if (present(orig_name)) info%orig_name = orig_name
     end function extra_fileinfo
@@ -2096,7 +2096,7 @@ contains
         status = status_type()
         k = action%n
 
-        if (.not. buffer_live_p(action%buffer)) then
+        if (.not. is_buffer_live(action%buffer)) then
             dir_states(k)%live = .false.
             return
         end if
@@ -2105,19 +2105,19 @@ contains
         call set_buffer(action%buffer, st)
         files = dir_states(k)%files
         had_files = size(files) > 0
-        next_stage = STAGE_NIL
+        next_stage = STAGE_DONE
         ! First stage is always update-index.
         !   After that, if no commits yet, ls-files-added.
         !   Otherwise (there are commits), diff-index then ls-files-missing.
-        !     After ls-files-missing, if FILES non-nil, ls-files-up-to-date.
+        !     After ls-files-missing, if FILES is not empty, ls-files-up-to-date.
         !     After ls-files-missing, if FILES     nil, ls-files-conflict.
         ! Then always ls-files-unknown.
-        ! Finally, if FILES non-nil, ls-files-ignored.
+        ! Finally, if FILES is not empty, ls-files-ignored.
         call goto_char(point_min())
 
         select case (dir_states(k)%stage)
         case (STAGE_UPDATE_INDEX)
-            if (vc_git_empty_db_p()) then
+            if (is_vc_git_empty_db()) then
                 next_stage = STAGE_LS_FILES_ADDED
             else
                 next_stage = STAGE_DIFF_INDEX
@@ -2236,13 +2236,13 @@ contains
 
         ! If we had files but now we don't, it's time to stop.
         if (had_files) then
-            if (size(dir_states(k)%files) == 0) next_stage = STAGE_NIL
+            if (size(dir_states(k)%files) == 0) next_stage = STAGE_DONE
         end if
 
         dir_states(k)%stage = next_stage
         dir_states(k)%files = files
 
-        if (next_stage /= STAGE_NIL) then
+        if (next_stage /= STAGE_DONE) then
             call vc_git_dir_status_goto_stage(k, status)
             call set_buffer(old, st)
         else
@@ -2586,15 +2586,15 @@ contains
         gitdir = vc_git_git_path()
         ! See contrib/completion/git-prompt.sh in git.git.
         call expand_file_name("rebase-merge", f, st, gitdir)
-        rebase = file_directory_p(f)
+        rebase = is_file_directory(f)
 
         if (.not. rebase) then
             call expand_file_name("rebase-apply/rebasing", f, st, gitdir)
-            rebase = file_exists_p(f)
+            rebase = file_exists(f)
         end if
 
         call expand_file_name("BISECT_START", f, st, gitdir)
-        bisect = file_exists_p(f)
+        bisect = file_exists(f)
 
         ! For now just a heading, key bindings can be added
         ! later for various bisect actions.

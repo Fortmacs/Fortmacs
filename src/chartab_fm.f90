@@ -26,7 +26,7 @@
 !> purpose) and a few extra slots.  A char-table is a registry object
 !> referenced by handle (the parent is a handle too); its values are
 !> integers (characters, category set numbers, ...), with `NO_VALUE' for
-!> the nil of upstream: an element holding it takes the default value,
+!> no value: an element holding it takes the default value,
 !> or else the parent's.
 !>
 !> As upstream, the table is a trie of four levels of 64, 16, 32 and 128
@@ -50,13 +50,13 @@ module chartab_fm
     implicit none(type, external)
     private
 
-    public :: make_char_table, free_char_table, char_table_p, char_table_subtype, char_table_parent, &
+    public :: make_char_table, free_char_table, is_char_table, char_table_subtype, char_table_parent, &
               set_char_table_parent, char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, &
               set_char_table_extra_table, char_table_range, &
               set_char_table_range, char_table_ref, char_table_set, char_table_set_range, char_table_ref_and_range, &
               map_char_table, optimize_char_table, copy_char_table, check_char_table, char_table_map_proc
 
-    !> The value of an element that holds nothing (nil upstream): looking
+    !> The value of an element that holds nothing: looking
     !> it up gives the default value, or else the parent's value.
     integer(int64), parameter, public :: NO_VALUE = -huge(1_int64)
 
@@ -145,7 +145,7 @@ contains
         tables(h%index) = char_table_type()
     end subroutine new_table
 
-    !> The slot of char-table H, or a wrong-type-argument error
+    !> The slot of char-table H, or a `wrong_type_argument' error
     !> (char-table-p).  Port of chartab.c:CHECK_CHAR_TABLE.
     pure subroutine check_char_table(h, i, status)
         type(handle_type), intent(in) :: h
@@ -153,16 +153,16 @@ contains
         type(status_type), intent(out) :: status
 
         call registry%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "char_table_p")
+        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(char_table_type)")
     end subroutine check_char_table
 
     !> Return true if OBJECT is a char-table.  Not a port (data.c
     !> char-table-p: a live handle).
-    pure logical function char_table_p(object)
+    pure logical function is_char_table(object)
         type(handle_type), intent(in) :: object
 
-        char_table_p = registry%is_live(object)
-    end function char_table_p
+        is_char_table = registry%is_live(object)
+    end function is_char_table
 
     !> Free char-table H.  Not a port: upstream relies on GC.
     subroutine free_char_table(h, status)
@@ -178,7 +178,7 @@ contains
 
     !> The number of extra slots of a char-table whose purpose is PURPOSE
     !> when `make_char_table' isn't told (the `char_table_extra_slots'
-    !> property upstream gives the purpose symbols): case tables have 3
+    !> property upstream gives the purpose names): case tables have 3
     !> (casetab.c:init_casetab_once), category tables 2
     !> (category.c:init_category_once).  Not a port.
     pure integer function purpose_extra_slots(purpose) result(n)
@@ -345,7 +345,7 @@ contains
     !> many extra slots the char-table has; it defaults to 3 for
     !> "case_table", 2 for "category_table" and 0 for other purposes.
     !> Port of chartab.c:Fmake_char_table (N_EXTRAS stands for the
-    !> purpose symbol's `char_table_extra_slots' property).
+    !> purpose name's `char_table_extra_slots' property).
     subroutine make_char_table(h, purpose, status, init, n_extras)
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: purpose
@@ -778,7 +778,7 @@ contains
         if (.not. status%ok()) return
 
         if (c < 0 .or. c > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -855,7 +855,7 @@ contains
         if (.not. status%ok()) return
 
         if (from < 0 .or. from > MAX_CHAR .or. to < 0 .or. to > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -908,7 +908,7 @@ contains
         end if
 
         if (from < 0 .or. from > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 
@@ -918,7 +918,7 @@ contains
         end if
 
         if (to < 0 .or. to > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
             return
         end if
 

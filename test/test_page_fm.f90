@@ -27,7 +27,7 @@ module test_page_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, buffer_substring, widen, bobp, &
+    use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, buffer_substring, widen, is_bob, &
                           region_beginning, region_end
     use cmds_fm, only: forward_char, forward_line
     use search_fm, only: looking_at

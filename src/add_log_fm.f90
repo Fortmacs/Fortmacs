@@ -45,11 +45,11 @@ module add_log_fm
     use data_fm, only: string_setting, forward_setting
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_file_buffer, &
-                         buffer_live_p
-    use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, file_directory_p, &
-                         file_exists_p, file_name_as_directory, directory_file_name
+                         is_buffer_live
+    use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, is_file_directory, &
+                         file_exists, file_name_as_directory, directory_file_name
     use files_fm, only: find_file_noselect, abbreviate_file_name, file_chase_links
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use modes_fm, only: major_modes
     use syntax_fm, only: make_syntax_table, modify_syntax_entry
     use faces_fm, only: named_face_type, display_when, face_attrs
@@ -88,7 +88,7 @@ module add_log_fm
     end interface
 
     !> Name of a change log file for \[add_change_log_entry].  Port of
-    !> add-log.el change-log-default-name (unallocated for nil; becomes
+    !> add-log.el change-log-default-name (unallocated when unset; becomes
     !> buffer-local when `find_change_log' sets it).
     type(string_setting), public :: change_log_default_name = string_setting(name="change_log_default_name")
 
@@ -307,7 +307,7 @@ contains
                 file_name = buffers(cur)%directory
             end if
 
-            if (file_directory_p(file_name)) then
+            if (is_file_directory(file_name)) then
                 dir = file_name
                 call expand_file_name(change_log_name(), file_name, st, dir)
             end if
@@ -325,14 +325,14 @@ contains
             do while (len(dir) > 0)
                 call expand_file_name(cbase, try, st, dir)
 
-                if (buffer_live_p(get_file_buffer(try)) .or. file_exists_p(try)) then
+                if (is_buffer_live(get_file_buffer(try)) .or. file_exists(try)) then
                     found = .true.
                 else if (allocated(change_log_directory_files)) then
                     ! Stop at VCS root?
                     do k = 1, size(change_log_directory_files)
                         call expand_file_name(trim(change_log_directory_files(k)), try, st, dir)
 
-                        if (file_exists_p(try)) then
+                        if (file_exists(try)) then
                             found = .true.
                             exit
                         end if
@@ -373,7 +373,7 @@ contains
 
         status = status_type()
 
-        if (file_exists_p(changelog_file_name) .or. .not. add_log_dont_create_changelog_file) then
+        if (file_exists(changelog_file_name) .or. .not. add_log_dont_create_changelog_file) then
             call find_file_noselect(changelog_file_name, buf, status)
         else
             call get_buffer_create(add_log_pseudo_changelog_buffer_name(changelog_file_name), buf, status)

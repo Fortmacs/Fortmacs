@@ -27,7 +27,7 @@ module page_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use buffer_fm, only: buffers, cur
-    use editfns_fm, only: point, goto_char, point_min, point_max, bolp, bobp, eobp, eolp, widen, narrow_to_region
+    use editfns_fm, only: point, goto_char, point_min, point_max, is_bol, is_bob, is_eob, is_eol, widen, narrow_to_region
     use cmds_fm, only: forward_char, forward_line, beginning_of_line, end_of_line
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
                          set_match_data, SEARCH_NOERROR
@@ -36,7 +36,6 @@ module page_fm
     use xdisp_fm, only: message
     use paragraphs_fm, only: page_delimiter, init_paragraph_variables
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use lisp_fm, only: nilp
     use commands_fm, only: commands
     implicit none(type, external)
     private
@@ -60,7 +59,7 @@ contains
         n = 1
         if (present(count)) n = count
 
-        do while (n > 0 .and. .not. eobp())
+        do while (n > 0 .and. .not. is_eob())
             at_delimiter = looking_at(page_delimiter%value, status)
             if (.not. status%ok()) return
             if (at_delimiter) at_delimiter = match_end(0, status) > point()
@@ -73,7 +72,7 @@ contains
             else
                 ! In case the page-delimiter matches the null string,
                 ! don't find a match without moving.
-                if (bolp()) call forward_char(status, 1_int64)
+                if (is_bol()) call forward_char(status, 1_int64)
                 if (.not. status%ok()) return
                 call re_search_forward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
@@ -83,7 +82,7 @@ contains
             n = n - 1
         end do
 
-        do while (n < 0 .and. .not. bobp())
+        do while (n < 0 .and. .not. is_bob())
             ! In case the page-delimiter matches the null string,
             ! don't find a match without moving.
             here = point()
@@ -103,7 +102,7 @@ contains
                 if (me == point()) call goto_char(mb)
             end if
 
-            if (.not. bobp()) then
+            if (.not. is_bob()) then
                 call forward_char(status, -1_int64)
                 if (.not. status%ok()) return
                 call re_search_backward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
@@ -150,7 +149,7 @@ contains
     !> Put mark at end of page, point at beginning.
     !> A numeric arg specifies to move forward or backward by that many pages,
     !> thus marking a page other than the one point was originally in.
-    !> Port of page.el:mark-page (ARG 0 for nil).
+    !> Port of page.el:mark-page (ARG 0 for no prefix).
     recursive subroutine mark_page(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -170,7 +169,7 @@ contains
     !> Make text outside current page invisible.
     !> A numeric arg specifies to move forward or backward by that many pages,
     !> thus showing a page other than the one point was originally in.
-    !> Port of page.el:narrow-to-page (ARG 0 for nil).
+    !> Port of page.el:narrow-to-page (ARG 0 for no prefix).
     recursive subroutine narrow_to_page(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -226,7 +225,7 @@ contains
         ! If extra text follows page delimiter on same line,
         ! include it.
         ! Otherwise, show text starting with following line.
-        if (eolp() .and. .not. bobp()) shortage = forward_line(1_int64)
+        if (is_eol() .and. .not. is_bob()) shortage = forward_line(1_int64)
         call narrow_to_region(e, point(), status)
         call goto_char(min(max(saved, point_min()), point_max()))
     end subroutine narrow_to_page
@@ -280,7 +279,7 @@ contains
         opoint = point()
         page = 1
         adjust = 0
-        if (bolp()) adjust = 1
+        if (is_bol()) adjust = 1
         if (adjust == 0 .and. looking_back(page_delimiter%value, st)) adjust = 1
         call goto_char(point_min())
 
@@ -323,7 +322,7 @@ contains
         integer(int64) :: n
 
         n = 0
-        if (.not. nilp(current_prefix_arg)) n = prefix_numeric_value(current_prefix_arg)
+        if (allocated(current_prefix_arg%a)) n = prefix_numeric_value(current_prefix_arg)
         call mark_page(n, status)
     end subroutine cmd_mark_page
 
@@ -332,7 +331,7 @@ contains
         integer(int64) :: n
 
         n = 0
-        if (.not. nilp(current_prefix_arg)) n = prefix_numeric_value(current_prefix_arg)
+        if (allocated(current_prefix_arg%a)) n = prefix_numeric_value(current_prefix_arg)
         call narrow_to_page(n, status)
     end subroutine cmd_narrow_to_page
 

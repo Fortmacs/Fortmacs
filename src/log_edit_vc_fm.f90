@@ -45,7 +45,7 @@ contains
     type(vc_fileset_type) :: fs
     logical :: found
 
-    ! Re NOT-ESSENTIAL non-nil: this function can get called from
+    ! Re NOT-ESSENTIAL .true.: this function can get called from
     ! `log-edit-hook' and we don't want to abort the whole Log Edit setup
     ! because the user says no to saving a buffer.  The buffers will
     ! still actually get saved before committing, by the

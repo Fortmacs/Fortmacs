@@ -29,21 +29,21 @@ module test_dired_aux_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer, &
-                         get_file_buffer, buffer_live_p, resolve_buffer
+                         get_file_buffer, is_buffer_live, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, buffer_string, line_beginning_position, line_end_position, buffer_substring, goto_char
     use keyboard_fm, only: discard_input, kbd_store_bytes, command_loop, last_message
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists_p, file_directory_p, write_region, &
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, write_region, &
                          make_directory_internal, file_modes, set_file_modes, file_symlink_target, file_attributes, &
-                         file_stat_type, file_executable_p
+                         file_stat_type, is_file_executable
     use files_fm, only: find_file_noselect, delete_directory
     use sysdep_fm, only: emacs_localtime
     use dired_mode_fm, only: dired, dired_goto_file, dired_buffers_for_dir, dired_get_marked_files, dired_string_type, &
                              dired_deletion_confirmer, dired_auto_revert_buffer, dired_mark_files_regexp, &
                              dired_copy_file_recursive, dired_rename_file, dired_do_create_files, dired_copy_file, &
                              dired_create_empty_file, dired_unmark_all_files, dired_create_destination_dirs, &
-                             DIRED_CREATE_DESTINATION_DIRS_NIL, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
-                             DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NIL, DIRED_LOCALP_NO_DIR, &
+                             DIRED_CREATE_DESTINATION_DIRS_NEVER, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
+                             DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NONE, DIRED_LOCALP_NO_DIR, &
                              dired_file_creator_proc
     implicit none(type, external)
     private
@@ -102,13 +102,13 @@ contains
         buffers(cur)%directory = file_name_as_directory(emacs_wd)
         call show_alone()
         call kill_dired_buffers()
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call make_directory_internal(tdir(), st)
         call make_file("a.txt", "alpha")
         call make_file("b.txt", "beta")
         call make_directory_internal(tdir()//"sub", st)
         dired_auto_revert_buffer = .false.
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
+        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
     end subroutine setup
 
     !> Remove the test directory and the buffers showing it.
@@ -121,9 +121,9 @@ contains
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
         call show_alone()
-        if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
+        if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         dired_deletion_confirmer => null()
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
+        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
     end subroutine teardown
 
     !> Kill every Dired buffer of the test directory and its subdirectories.
@@ -238,14 +238,14 @@ contains
             ! `dired_create_destination_dirs' set to always.
             dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_ALWAYS
             call dired_copy_file_recursive(from, to_cp, .false., st)
-            call check(error, st%ok() .and. file_exists_p(to_cp), "always: copy "//format_error(st))
+            call check(error, st%ok() .and. file_exists(to_cp), "always: copy "//format_error(st))
             if (allocated(error)) exit body
             call dired_rename_file(from, to_mv, .false., st)
-            call check(error, st%ok() .and. file_exists_p(to_mv), "always: rename "//format_error(st))
+            call check(error, st%ok() .and. file_exists(to_mv), "always: rename "//format_error(st))
             if (allocated(error)) exit body
             ! `dired_create_destination_dirs' set to nil.
             call reset()
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
+            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
             call dired_copy_file_recursive(from, to_cp, .false., st)
             call check(error,.not. st%ok(), "nil: copy fails")
             if (allocated(error)) exit body
@@ -257,11 +257,11 @@ contains
             dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_ASK
             call kbd_store_bytes("yes"//CR)
             call dired_copy_file_recursive(from, to_cp, .false., st)
-            call check(error, st%ok() .and. file_exists_p(to_cp), "ask yes: copy "//format_error(st))
+            call check(error, st%ok() .and. file_exists(to_cp), "ask yes: copy "//format_error(st))
             if (allocated(error)) exit body
             call kbd_store_bytes("yes"//CR)
             call dired_rename_file(from, to_mv, .false., st)
-            call check(error, st%ok() .and. file_exists_p(to_mv), "ask yes: rename "//format_error(st))
+            call check(error, st%ok() .and. file_exists(to_mv), "ask yes: rename "//format_error(st))
             if (allocated(error)) exit body
             ! Answer no.
             call reset()
@@ -281,9 +281,9 @@ contains
         subroutine reset()
             type(status_type) :: s
 
-            if (file_directory_p(tdir()//"bar")) call delete_directory(tdir()//"bar", s, .true.)
-            if (file_directory_p(tdir()//"qux")) call delete_directory(tdir()//"qux", s, .true.)
-            if (.not. file_exists_p(from)) call make_file("a.txt", "alpha")
+            if (is_file_directory(tdir()//"bar")) call delete_directory(tdir()//"bar", s, .true.)
+            if (is_file_directory(tdir()//"qux")) call delete_directory(tdir()//"qux", s, .true.)
+            if (.not. file_exists(from)) call make_file("a.txt", "alpha")
         end subroutine reset
     end subroutine test_bug28834
 
@@ -307,11 +307,11 @@ contains
             ! (dired-mark-read-file-name gives the deleted target directory)
             call kbd_store_bytes(achar(1)//achar(11)//tdir()//"target-dir"//CR)
             creator => dired_copy_file
-            call dired_do_create_files("copy", creator, DIRED_CREATOR_COPY, "Copy", DIRED_ARG_NIL, 0_int64, "C", st)
+            call dired_do_create_files("copy", creator, DIRED_CREATOR_COPY, "Copy", DIRED_ARG_NONE, 0_int64, "C", st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, file_exists_p(tdir()//"target-dir/bug30624_file1") .and. &
-                       file_exists_p(tdir()//"target-dir/bug30624_file2"), "copied into the new directory")
+            call check(error, file_exists(tdir()//"target-dir/bug30624_file1") .and. &
+                       file_exists(tdir()//"target-dir/bug30624_file2"), "copied into the new directory")
         end block body
 
         call teardown()
@@ -326,7 +326,7 @@ contains
         body: block
             call dired_on("a.txt")
             call keys("Ccopy.txt"//CR)
-            call check(error, file_exists_p(tdir()//"copy.txt"), last_message)
+            call check(error, file_exists(tdir()//"copy.txt"), last_message)
             if (allocated(error)) exit body
             call check(error, contents("copy.txt"), "alpha")
             if (allocated(error)) exit body
@@ -349,7 +349,7 @@ contains
             call dired_on("a.txt")
             call dired_mark_files_regexp("\.txt\'", st)
             call keys("Csub"//CR)
-            call check(error, file_exists_p(tdir()//"sub/a.txt") .and. file_exists_p(tdir()//"sub/b.txt"), last_message)
+            call check(error, file_exists(tdir()//"sub/a.txt") .and. file_exists(tdir()//"sub/b.txt"), last_message)
             if (allocated(error)) exit body
             call check(error, last_message, "Copy: 2 files done")
         end block body
@@ -393,7 +393,7 @@ contains
             call find_file_noselect(tdir()//"a.txt", fbuf, st)
             call dired_on("a.txt")
             call keys("Rrenamed.txt"//CR)
-            call check(error, file_exists_p(tdir()//"renamed.txt") .and. .not. file_exists_p(tdir()//"a.txt"), &
+            call check(error, file_exists(tdir()//"renamed.txt") .and. .not. file_exists(tdir()//"a.txt"), &
                        last_message)
             if (allocated(error)) exit body
             call check(error, len(line_of("a.txt")) == 0 .and. len(line_of("renamed.txt")) > 0, "listing updated")
@@ -420,7 +420,7 @@ contains
             call dired_on("a.txt")
             call keys("Hhard.txt"//CR)
             call file_attributes(tdir()//"a.txt", st_a, found)
-            call check(error, file_exists_p(tdir()//"hard.txt") .and. st_a%nlink == 2, last_message)
+            call check(error, file_exists(tdir()//"hard.txt") .and. st_a%nlink == 2, last_message)
             if (allocated(error)) exit body
             call dired_on("a.txt")
             call keys("Ssym.txt"//CR)
@@ -491,7 +491,7 @@ contains
             call keys("k")
             call check(error, last_message, "Killed 2 lines.")
             if (allocated(error)) exit body
-            call check(error, len(line_of("a.txt")) == 0 .and. file_exists_p(tdir()//"a.txt"), "line gone, file kept")
+            call check(error, len(line_of("a.txt")) == 0 .and. file_exists(tdir()//"a.txt"), "line gone, file kept")
         end block body
 
         call teardown()
@@ -506,7 +506,7 @@ contains
         body: block
             call dired_on("a.txt")
             call keys("%uy")
-            call check(error, file_exists_p(tdir()//"A.TXT") .and. .not. file_exists_p(tdir()//"a.txt"), last_message)
+            call check(error, file_exists(tdir()//"A.TXT") .and. .not. file_exists(tdir()//"a.txt"), last_message)
             if (allocated(error)) exit body
             call check(error, last_message, "Rename upcase: 1 file done")
         end block body
@@ -525,7 +525,7 @@ contains
             call dired_on("a.txt")
             call dired_mark_files_regexp("\.txt\'", st)
             call keys("%R\.txt"//CR//".text"//CR//"!")
-            call check(error, file_exists_p(tdir()//"a.text") .and. file_exists_p(tdir()//"b.text"), last_message)
+            call check(error, file_exists(tdir()//"a.text") .and. file_exists(tdir()//"b.text"), last_message)
             if (allocated(error)) exit body
             call check(error, last_message, "Rename: 2 files done")
         end block body
@@ -543,7 +543,7 @@ contains
         body: block
             call dired_on("a.txt")
             call dired_create_empty_file(tdir()//"new/deep/empty", st)
-            call check(error, st%ok() .and. file_exists_p(tdir()//"new/deep/empty"), format_error(st))
+            call check(error, st%ok() .and. file_exists(tdir()//"new/deep/empty"), format_error(st))
             if (allocated(error)) exit body
             call check(error, len(line_of("new")) > 0, "new listed")
             if (allocated(error)) exit body
@@ -558,7 +558,7 @@ contains
     subroutine test_compress(error)
         type(error_type), allocatable, intent(out) :: error
 
-        if (.not. (file_executable_p("/bin/gzip") .or. file_executable_p("/usr/bin/gzip"))) then
+        if (.not. (is_file_executable("/bin/gzip") .or. is_file_executable("/usr/bin/gzip"))) then
             call skip_test(error, "no gzip")
             return
         end if
@@ -568,7 +568,7 @@ contains
         body: block
             call dired_on("a.txt")
             call keys("Zy")
-            call check(error, file_exists_p(tdir()//"a.txt.gz") .and. .not. file_exists_p(tdir()//"a.txt"), &
+            call check(error, file_exists(tdir()//"a.txt.gz") .and. .not. file_exists(tdir()//"a.txt"), &
                        last_message)
             if (allocated(error)) exit body
             call check(error, last_message, "Compress or uncompress: 1 file.")
@@ -576,7 +576,7 @@ contains
             call check(error, len(line_of("a.txt.gz")) > 0, "listed")
             if (allocated(error)) exit body
             call keys("Zy")
-            call check(error, file_exists_p(tdir()//"a.txt") .and. .not. file_exists_p(tdir()//"a.txt.gz"), &
+            call check(error, file_exists(tdir()//"a.txt") .and. .not. file_exists(tdir()//"a.txt.gz"), &
                        last_message)
             if (allocated(error)) exit body
             call check(error, contents("a.txt"), "alpha")
@@ -600,7 +600,7 @@ contains
             call check(error, vbuf%index /= 0 .and. buffers(cur)%read_only, "viewing a.txt")
             if (allocated(error)) exit body
             call keys("q")
-            call check(error, cur == dbuf%index .and. .not. buffer_live_p(vbuf), "back in Dired")
+            call check(error, cur == dbuf%index .and. .not. is_buffer_live(vbuf), "back in Dired")
         end block body
 
         call teardown()

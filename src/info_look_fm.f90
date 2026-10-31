@@ -19,25 +19,25 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Looking up symbols and files in the Info manuals of the buffer's
-!> major mode: `info_lookup_symbol' (C-h S), `info_lookup_file' and
+!> Looking up identifiers and files in the Info manuals of the buffer's
+!> major mode: `info_lookup_name' (C-h S), `info_lookup_file' and
 !> `info_lookup_reset'.  The manuals of each mode are help
 !> specifications added with `info_lookup_add_help' (the modes of
 !> upstream's info-look.el are added by `syms_of_info_look'): the index
 !> nodes to read the documented items from, and how to find an item in
 !> the text of its node.
 !>
-!> Deferred: `info_complete_symbol' and `info_complete_file' (completion
-!> in the buffer), the obsolete `info_lookup_guess_custom_symbol', and
+!> Deferred: `info_complete_name' and `info_complete_file' (completion
+!> in the buffer), the obsolete `info_lookup_guess_custom_name', and
 !> raising another frame that shows *info*.
 module info_look_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nilp, xsymbol, symbolp, symbols, value_type, make_string, make_list
+    use lisp_fm, only: xsymbol, symbols, value_type, make_string, make_list, vtag, V_NULL, V_NAME
     use casefiddle_fm, only: downcase_string
     use lread_fm, only: sym
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, buffer_live_p
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live
     use editfns_fm, only: point, point_min, goto_char, line_beginning_position, line_end_position
     use search_fm, only: looking_at, string_match, search_forward, re_search_forward, re_search_backward, &
                          match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR, &
@@ -45,7 +45,7 @@ module info_look_fm
     use subr_fm, only: match_string_no_properties
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_backward
     use textprop_fm, only: get_text_property
-    use itree_fm, only: make_overlay, move_overlay, overlay_put, overlayp
+    use itree_fm, only: make_overlay, move_overlay, overlay_put, is_overlay
     use data_fm, only: logical_setting, add_local_variables_killer
     use fileio_fm, only: file_name_nondirectory
     use derived_fm, only: major_mode_named, major_mode_type
@@ -60,17 +60,17 @@ module info_look_fm
     use frame_fm, only: selected_window, selected_frame
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers
     use minibuf_table_fm, only: completion_list_table
-    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
     use info_fm, only: info, info_mode, info_goto_node, info_follow_nearest_node, info_find_file, info_current_file, &
                        info_current_node, info_history_variable, set_info_history_variable, info_history_entry_type, &
                        info_history_list, info_node_ref_type, info_fontify_maximum_menu_size, &
-                       INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+                       INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
     implicit none(type, external)
     private
 
-    public :: info_lookup_add_help, info_lookup_maybe_add_help, info_lookup_symbol, info_lookup_file, &
-              info_lookup_reset, info_lookup, info_lookup_guess_default, info_lookup_guess_c_symbol, &
-              info_lookup_guess_gdb_script_symbol, info_lookup_mode, syms_of_info_look
+    public :: info_lookup_add_help, info_lookup_maybe_add_help, info_lookup_name, info_lookup_file, &
+              info_lookup_reset, info_lookup, info_lookup_guess_default, info_lookup_guess_c_name, &
+              info_lookup_guess_gdb_script_name, info_lookup_mode, syms_of_info_look
 
     abstract interface
         !> A TRANS-FUNC of a documentation specification: the help item of
@@ -163,14 +163,14 @@ module info_look_fm
 
     ! Whether a mode's cache is initialized: nil, t, or 0 (initialized
     ! but void).
-    integer, parameter :: INIT_NIL = 0, INIT_T = 1, INIT_VOID = 2
+    integer, parameter :: INIT_PENDING = 0, INIT_DONE = 1, INIT_VOID = 2
 
     ! The cached data of a mode (HELP-MODE INITIALIZED COMPLETIONS
     ! REFER-MODES).
     type :: mode_cache_type
         character(len=:), allocatable :: topic
         type(help_mode_type) :: mode
-        integer :: initialized = INIT_NIL
+        integer :: initialized = INIT_PENDING
         type(completion_type), allocatable :: completions(:)
         type(help_mode_type), allocatable :: refer_modes(:)
     end type mode_cache_type
@@ -249,7 +249,7 @@ contains
     !> Add or update a help specification.
     !> The arguments are the parts of the help data of a mode: help is
     !> about TOPIC (default "symbol") in MODE (default the current major
-    !> mode), for the symbols beginning with SYMBOL_PREFIX and a dash if
+    !> mode), for the names beginning with SYMBOL_PREFIX and a dash if
     !> present; the help items match REGEXP (default "\w+"), case is
     !> ignored if IGNORE_CASE; DOC_SPEC lists the Info indexes to read,
     !> or DOC_SPEC_FUNCTION computes it when the user asks for info on
@@ -531,7 +531,7 @@ contains
         integer :: k
 
         k = mode_cache(topic, mode)
-        initialized = INIT_NIL
+        initialized = INIT_PENDING
         if (k > 0) initialized = info_lookup_cache(k)%initialized
     end function initialized
 
@@ -543,7 +543,7 @@ contains
         type(completion_type), allocatable, intent(out) :: completions(:)
         integer :: k, init
 
-        if (initialized(topic, mode) == INIT_NIL) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INIT_PENDING) init = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
 
         if (k > 0) then
@@ -565,7 +565,7 @@ contains
         type(help_mode_type), allocatable, intent(out) :: modes(:)
         integer :: k, init, i, n
 
-        if (initialized(topic, mode) == INIT_NIL) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INIT_PENDING) init = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
         n = 0
 
@@ -597,8 +597,8 @@ contains
     ! Looking up
     ! ------------------------------------------------------------------
 
-    !> The current buffer's help mode (unallocated for nil): help is
-    !> provided according to the buffer's major mode if it is nil.  Port of
+    !> The current buffer's help mode (unallocated when unset): help is
+    !> provided according to the buffer's major mode if it is unallocated.  Port of
     !> info-look.el info-lookup-mode (buffer-local).
     function info_lookup_mode() result(mode)
         character(len=:), allocatable :: mode
@@ -672,7 +672,7 @@ contains
     !> Interactively, prompt for SYMBOL; you can use
     !> \<minibuffer_local_completion_map>\[next_history_element] in the
     !> minibuffer to yank the default argument value into the minibuffer
-    !> so you can edit it.  The default symbol is the one found at point.
+    !> so you can edit it.  The default identifier is the one found at point.
     !>
     !> MODE is the major mode whose Info manuals to search for the
     !> documentation of SYMBOL.  It defaults to the current buffer's
@@ -682,14 +682,14 @@ contains
     !>
     !> Is SAME_WINDOW, try to reuse the current window instead of popping
     !> up a new one.  Port of info-look.el:info-lookup-symbol.
-    recursive subroutine info_lookup_symbol(symbol, status, mode, same_window)
+    recursive subroutine info_lookup_name(symbol, status, mode, same_window)
         character(len=*), intent(in) :: symbol
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: mode
         logical, intent(in), optional :: same_window
 
         call info_lookup("symbol", symbol, status, mode, same_window)
-    end subroutine info_lookup_symbol
+    end subroutine info_lookup_name
 
     !> Look up and display documentation of FILE in the relevant Info
     !> manual.  FILE should be the name of a file; a notable example is a
@@ -716,20 +716,20 @@ contains
         call info_lookup("file", file, status, mode)
     end subroutine info_lookup_file
 
-    recursive subroutine cmd_info_lookup_symbol(status)
+    recursive subroutine cmd_info_lookup_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("symbol",.not. nilp(current_prefix_arg), value, mode, status)
+        call interactive_arguments("symbol", allocated(current_prefix_arg%a), value, mode, status)
         if (.not. status%ok()) return
-        call info_lookup_symbol(value, status, mode)
-    end subroutine cmd_info_lookup_symbol
+        call info_lookup_name(value, status, mode)
+    end subroutine cmd_info_lookup_name
 
     recursive subroutine cmd_info_lookup_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("file",.not. nilp(current_prefix_arg), value, mode, status)
+        call interactive_arguments("file", allocated(current_prefix_arg%a), value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_file(value, status, mode)
     end subroutine cmd_info_lookup_file
@@ -893,7 +893,7 @@ contains
 
         names = make_list(elems)
         call completing_read("Major mode whose manuals to search for this "//topic//": ", &
-                             completion_list_table(names), input, status, require_match=REQUIRE_MATCH_T, &
+                             completion_list_table(names), input, status, require_match=REQUIRE_MATCH_YES, &
                              history="info_lookup_history")
         if (.not. status%ok()) return
         mi = 0
@@ -1087,7 +1087,7 @@ contains
                 ! Don't need Index menu fontifications here, and they slow
                 ! down the lookup.
                 saved_size = info_fontify_maximum_menu_size
-                info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+                info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
 
                 if (allocated(info_history_list)) then
                     saved_list = info_history_list
@@ -1128,7 +1128,7 @@ contains
                 if (.not. st%ok()) cycle
                 call goto_char(match_beginning(0, st))
 
-                if (display_color_p() .and. len(info_lookup_highlight_face) > 0) then
+                if (is_display_color() .and. len(info_lookup_highlight_face) > 0) then
                     ! Search again for ITEM so that the first occurrence of
                     ! ITEM will be highlighted.
                     call re_search_forward(regexp_quote(entry_item), pos, st, noerror=SEARCH_NOERROR)
@@ -1137,7 +1137,7 @@ contains
                     if (matched) then
                         start = match_beginning(0, st)
 
-                        if (overlayp(highlight_overlay)) then
+                        if (is_overlay(highlight_overlay)) then
                             call move_overlay(highlight_overlay, start, match_end(0, st), st, current_buffer())
                         else
                             call make_overlay(highlight_overlay, start, match_end(0, st), st)
@@ -1165,9 +1165,9 @@ contains
     end subroutine info_lookup
 
     ! Whether the terminal can display colors (display-color-p).  Not a port.
-    logical function display_color_p()
-        display_color_p = selected_frame%tty%tn_max_colors > 0
-    end function display_color_p
+    logical function is_display_color()
+        is_display_color = selected_frame%tty%tn_max_colors > 0
+    end function is_display_color
 
     ! STR in lower case (downcase).  Not a port.
     function downcase(str) result(r)
@@ -1190,7 +1190,7 @@ contains
         integer :: i, k, n, sub
 
         init = initialized(topic, mode)
-        if (init /= INIT_NIL) return
+        if (init /= INIT_PENDING) return
         init = INIT_VOID
         allocate (refer(0), completions(0))
 
@@ -1207,9 +1207,9 @@ contains
             call other_modes_of(topic, mode, others)
 
             do i = 1, size(others)
-                if (initialized(topic, others(i)) == INIT_NIL) sub = info_lookup_setup_mode(topic, others(i))
+                if (initialized(topic, others(i)) == INIT_PENDING) sub = info_lookup_setup_mode(topic, others(i))
 
-                if (initialized(topic, others(i)) == INIT_T) then
+                if (initialized(topic, others(i)) == INIT_DONE) then
                     n = size(refer)
                     allocate (tmp(n + 1))
                     tmp(1:n) = refer
@@ -1235,7 +1235,7 @@ contains
                 call move_alloc(joined, completions)
             end do
 
-            init = INIT_T
+            init = INIT_DONE
         end if
 
         if (allocated(info_history_list)) deallocate (info_history_list)
@@ -1284,7 +1284,7 @@ contains
         ignore = ignore_case_of(topic, mode)
         doc_found = .false.
         saved_size = info_fontify_maximum_menu_size
-        info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+        info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
         old = current_buffer()
         call get_buffer_create(" temp-info-look", buffer, st)
         call set_buffer(buffer, st)
@@ -1368,7 +1368,7 @@ contains
     ! Guessing the item at point
     ! ------------------------------------------------------------------
 
-    !> Return a GUESS for a symbol to look up, based on text around point.
+    !> Return a GUESS for an identifier to look up, based on text around point.
     !> Try all related modes applicable to TOPIC and MODE.  FOUND is false
     !> if there is nothing appropriate in the buffer near point.  Port of
     !> info-look.el:info-lookup-guess-default.
@@ -1481,9 +1481,9 @@ contains
         case_fold_search = saved_fold
     end subroutine guess_default_star
 
-    !> Get the C symbol at point.  Port of
+    !> Get the C identifier at point.  Port of
     !> info-look.el:info-lookup-guess-c-symbol.
-    recursive subroutine info_lookup_guess_c_symbol(item, found)
+    recursive subroutine info_lookup_guess_c_name(item, found)
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
         character(len=:), allocatable :: prefix, name
@@ -1532,11 +1532,11 @@ contains
             if (has_name) item = item//name
             found = .true.
         end if
-    end subroutine info_lookup_guess_c_symbol
+    end subroutine info_lookup_guess_c_name
 
-    !> Get symbol at point in GDB script buffers.  Port of
+    !> Get identifier at point in GDB script buffers.  Port of
     !> info-look.el:info-lookup-guess-gdb-script-symbol.
-    recursive subroutine info_lookup_guess_gdb_script_symbol(item, found)
+    recursive subroutine info_lookup_guess_gdb_script_name(item, found)
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
         character(len=:), allocatable :: line, str
@@ -1610,7 +1610,7 @@ contains
                 p = q
             end do
         end subroutine split_words
-    end subroutine info_lookup_guess_gdb_script_symbol
+    end subroutine info_lookup_guess_gdb_script_name
 
     ! The parse rule `ignore': no item.  Not a port.
     recursive subroutine parse_ignore(item, found)
@@ -1630,7 +1630,7 @@ contains
         type(status_type) :: st
 
         call get_text_property(point(), sym("custom_data"), v, st)
-        found = symbolp(v) .and. .not. nilp(v)
+        found = (vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)
         if (found) item = trim(symbols(xsymbol(v))%name)
     end subroutine parse_custom
 
@@ -1882,8 +1882,8 @@ contains
         character(len=:), allocatable :: latex_node, found
         type(status_type) :: st
 
-        commands%info_lookup_symbol%run => cmd_info_lookup_symbol
-        commands%info_lookup_symbol%info_file = "emacs"
+        commands%info_lookup_name%run => cmd_info_lookup_name
+        commands%info_lookup_name%info_file = "emacs"
         commands%info_lookup_file%run => cmd_info_lookup_file
         commands%info_lookup_file%info_file = "emacs"
         commands%info_lookup_reset%run => cmd_info_lookup_reset
@@ -1911,7 +1911,7 @@ contains
         call s%add("(termcap)Var Index", prefix="^[ "//TAB//"]*['`‘]", suffix="['’]")
         call info_lookup_maybe_add_help(mode="c_mode", topic="symbol", &
                                         regexp="\(struct \|union \|enum \)?[_a-zA-Z][_a-zA-Z0-9]*", doc_spec=s, &
-                                        parse_function=info_lookup_guess_c_symbol)
+                                        parse_function=info_lookup_guess_c_name)
         s = info_lookup_doc_specs_type()
         call s%add("(libc)File Index")
         call info_lookup_maybe_add_help(mode="c_mode", topic="file", regexp="[_a-zA-Z0-9./+-]+", doc_spec=s)
@@ -2139,7 +2139,7 @@ contains
         call s%add("(gdb)Command and Variable Index")
         call info_lookup_maybe_add_help(mode="gdb_script_mode", ignore_case=.false., &
                                         regexp="\([-a-z]+\(\s-+[-a-z]+\)*\)", doc_spec=s, &
-                                        parse_function=info_lookup_guess_gdb_script_symbol)
+                                        parse_function=info_lookup_guess_gdb_script_name)
 
     contains
 

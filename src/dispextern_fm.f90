@@ -218,7 +218,7 @@ module dispextern_fm
         end subroutine rif_flush_display
     end interface
 
-    public :: face_tty_specified_color, glyph_equal_p, char_glyph_space_p
+    public :: face_tty_specified_color, is_glyph_equal, is_char_glyph_space
 
 contains
 
@@ -232,18 +232,18 @@ contains
 
     !> dispextern.h:GLYPH_EQUAL_P for character and stretch glyphs.
     !> Port of dispextern.h:GLYPH_EQUAL_P (in part).
-    elemental logical function glyph_equal_p(x, y)
+    elemental logical function is_glyph_equal(x, y)
         type(glyph_type), intent(in) :: x, y
 
-        glyph_equal_p = x%type == y%type .and. x%ch == y%ch .and. x%face_id == y%face_id .and. &
-                        (x%padding .eqv. y%padding) .and. x%pixel_width == y%pixel_width
-    end function glyph_equal_p
+        is_glyph_equal = x%type == y%type .and. x%ch == y%ch .and. x%face_id == y%face_id .and. &
+                         (x%padding .eqv. y%padding) .and. x%pixel_width == y%pixel_width
+    end function is_glyph_equal
 
     !> A blank in the default face.  dispextern.h:CHAR_GLYPH_SPACE_P.
     !> Port of dispextern.h:CHAR_GLYPH_SPACE_P.
-    elemental logical function char_glyph_space_p(g)
+    elemental logical function is_char_glyph_space(g)
         type(glyph_type), intent(in) :: g
 
-        char_glyph_space_p = g%ch == 32 .and. g%face_id == DEFAULT_FACE_ID
-    end function char_glyph_space_p
+        is_char_glyph_space = g%ch == 32 .and. g%face_id == DEFAULT_FACE_ID
+    end function is_char_glyph_space
 end module dispextern_fm

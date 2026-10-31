@@ -63,16 +63,16 @@ module syntax_fm
     use category_fm, only: char_has_category
     use charscript_fm, only: char_script
     use data_fm, only: logical_setting, integer_setting, forward_setting
-    use lisp_fm, only: value_type, consp, fixnump, xfixnum, syntax_table_ref_p, xhandle, make_fixnum, list_elt, list
+    use lisp_fm, only: value_type, xfixnum, xhandle, make_fixnum, list_elt, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
     use lread_fm, only: sym
     use textprop_fm, only: get_text_property
     implicit none(type, external)
     private
 
     public :: syntax_descriptor_type, standard_syntax_table, make_syntax_table, copy_syntax_table, &
-              free_syntax_table, syntax_table_live_p, syntax_table, set_syntax_table, string_to_syntax, &
+              free_syntax_table, is_syntax_table_live, syntax_table, set_syntax_table, string_to_syntax, &
               modify_syntax_entry, syntax_entry, char_syntax_class, char_syntax, syntax_class_to_char, &
-              matching_paren, scan_words, forward_word, word_boundary_p, syms_of_syntax, &
+              matching_paren, scan_words, forward_word, is_word_boundary, syms_of_syntax, &
               skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
               skip_limit, backward_prefix_chars
     public :: parse_state_type, forward_comment, scan_groups, scan_expressions, parse_partial_expression, syntax_ppss, &
@@ -104,9 +104,9 @@ module syntax_fm
     type(logical_setting), public :: comment_end_can_be_escaped = &
                                      logical_setting(name="comment_end_can_be_escaped", value=.false.)
 
-    !> True means `scan_expressions' treats all multibyte characters as symbol.
+    !> True means `scan_expressions' treats all multibyte characters as identifier.
     !> Port of syntax.c multibyte-syntax-as-symbol.
-    logical, public :: multibyte_syntax_as_symbol = .false.
+    logical, public :: multibyte_syntax_as_identifier = .false.
 
     !> True means an open paren in column 0 denotes the start of a subprogram.
     !> Port of syntax.c open-paren-in-column-0-is-defun-start.
@@ -150,39 +150,39 @@ module syntax_fm
     !> One more than the largest syntax class (syntax.h Smax).
     integer, parameter, public :: SMAX = 16
 
-    !> COMMENTSTOP of `parse_partial_expression': nil, non-nil (stop after the
-    !> start of a comment) and the symbol `syntax-table' (stop after the
+    !> COMMENTSTOP of `parse_partial_expression': COMMENTSTOP_NO, COMMENTSTOP_COMMENT (stop after the
+    !> start of a comment) and COMMENTSTOP_SYNTAX_TABLE (stop after the
     !> start or end of a comment or a string).
-    integer, parameter, public :: COMMENTSTOP_NIL = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
+    integer, parameter, public :: COMMENTSTOP_NO = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
 
     !> The state of a parse by `parse_partial_expression', the list upstream
     !> returns.  Its components are the list's elements:
     !>  0. `depth': depth in parens.
     !>  1. `innermost_start': character address of start of innermost
-    !>     containing group; 0 if none (nil).
+    !>     containing group; 0 if none.
     !>  2. `last_expression_start': character address of start of last complete
-    !>     expression terminated; 0 if none (nil).
-    !>  3. `instring': -1 (nil) if not inside a string; else the character
-    !>     that will terminate the string, or ST_STRING_STYLE (t) if the
+    !>     expression terminated; 0 if none.
+    !>  3. `instring': -1 if not inside a string; else the character
+    !>     that will terminate the string, or ST_STRING_STYLE if the
     !>     string should be terminated by a generic string delimiter.
-    !>  4. `incomment': 0 (nil) outside a comment, -1 (t) inside a
+    !>  4. `incomment': 0 outside a comment, -1 inside a
     !>     non-nestable comment, else the current comment nesting.
     !>  5. `quoted': true if following a quote character.
     !>  6. `mindepth': the minimum paren-depth encountered during this scan.
-    !>  7. `comment_style': style of comment, if any: 0 (nil, style a), 1
-    !>     (b), 2 (c), 3 (b and c) or ST_COMMENT_STYLE (the symbol
-    !>     `syntax-table': a generic comment fence).
+    !>  7. `comment_style': style of comment, if any: 0 (style a), 1
+    !>     (b), 2 (c), 3 (b and c) or ST_COMMENT_STYLE (a generic
+    !>     comment fence).
     !>  8. `comstr_start': character address of start of comment or string;
-    !>     0 (nil) if not in one.
+    !>     0 if not in one.
     !>  9. `open_parens': positions of currently open parens, outermost
     !>     first.
     !> 10. `prev_syntax': when the last position scanned holds the first
     !>     character of a (potential) two character construct, the syntax
-    !>     of that position (class and flags), otherwise -1 (nil).  That
+    !>     of that position (class and flags), otherwise -1.  That
     !>     construct can be a two character comment delimiter or an
     !>     Escaped or Char-quoted character.
-    !> The default value is the state at the start of a subprogram (an OLDSTATE
-    !> of nil).
+    !> The default value is the state at the start of a subprogram (an absent
+    !> OLDSTATE).
     type :: parse_state_type
         integer(int64) :: depth = 0
         integer(int64) :: innermost_start = 0
@@ -215,8 +215,8 @@ module syntax_fm
     !> on syntax can tell they are stale (search.c:clear_regexp_cache).
     integer(int64), public, protected :: syntax_modiff = 0
 
-    !> A raw syntax descriptor, (CODE . MATCHING-CHAR) upstream.  `code'
-    !> -1 is nil: inherit from the parent table.  `match' -1 is nil.
+    !> A raw syntax descriptor, CODE and MATCHING-CHAR.  `code'
+    !> -1 is none: inherit from the parent table.  `match' -1 is none.
     type :: syntax_descriptor_type
         integer(int32) :: code = -1
         integer(int32) :: match = -1
@@ -279,7 +279,7 @@ module syntax_fm
         !>
         !> If we reach the beginning or end of the accessible part of the buffer
         !> before we have scanned over COUNT groups, return 0 if the depth at
-        !> that point is zero, and signal an error if the depth is nonzero.
+        !> that point is zero, and an error condition occurs if the depth is nonzero.
         !> Port of syntax.c:Fscan_lists (the error is `scan_error').
         recursive module integer(int64) function scan_groups(from, count, depth, status) result(pos)
             implicit none(type, external)
@@ -294,7 +294,7 @@ module syntax_fm
         !> Comments are ignored if `parse_expression_ignore_comments' is true.
         !>
         !> If the beginning or end of (the accessible part of) the buffer is reached
-        !> in the middle of a parenthetical grouping, an error is signaled.
+        !> in the middle of a parenthetical grouping, an error condition occurs.
         !> If the beginning or end is reached between groupings
         !> but before count is used up, 0 is returned.  Port of
         !> syntax.c:Fscan_sexps.
@@ -379,7 +379,7 @@ contains
         tables(h%index)%parent = parent
     end subroutine new_table
 
-    !> Slot of table `h', or a wrong-type-argument error.  Port of
+    !> Slot of table `h', or a `wrong_type_argument' error.  Port of
     !> syntax.c:check_syntax_table.
     subroutine resolve_table(h, i, status)
         type(handle_type), intent(in) :: h
@@ -387,17 +387,17 @@ contains
         type(status_type), intent(out) :: status
 
         call table%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax_table_p")
+        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(syntax_table_type)")
     end subroutine resolve_table
 
     !> Return true if OBJECT is a syntax table.  Port of
     !> syntax.c:Fsyntax_table_p (syntax tables are their own objects here,
     !> so no other char-table counts as one).
-    logical function syntax_table_live_p(h)
+    logical function is_syntax_table_live(h)
         type(handle_type), intent(in) :: h
 
-        syntax_table_live_p = table%is_live(h)
-    end function syntax_table_live_p
+        is_syntax_table_live = table%is_live(h)
+    end function is_syntax_table_live
 
     !> Free syntax table `h' (not the standard one).  Not a port: upstream
     !> relies on GC.
@@ -678,7 +678,7 @@ contains
         same = a%code == b%code .and. a%match == b%match
     end function same
 
-    !> The entry of character `c' in table slot `t' itself (nil, code -1,
+    !> The entry of character `c' in table slot `t' itself (code -1
     !> if it has none).  Not a port.
     function own_entry(t, c) result(d)
         integer(int64), intent(in) :: t
@@ -751,12 +751,12 @@ contains
         type(value_type) :: code, match
 
         found = .false.
-        if (.not. consp(v)) return
+        if (vtag(v) /= V_ARRAY) return
         code = list_elt(v, 1_int64)
-        if (.not. fixnump(code)) return
+        if (vtag(code) /= V_INTEGER) return
         d%code = int(xfixnum(code), int32)
         match = list_elt(v, 2_int64)
-        if (fixnump(match)) d%match = int(xfixnum(match), int32)
+        if (vtag(match) == V_INTEGER) d%match = int(xfixnum(match), int32)
         found = .true.
     end subroutine descriptor_of_value
 
@@ -826,11 +826,11 @@ contains
         call get_text_property(pos, sym("syntax_table"), prop, st)
 
         if (st%ok()) then
-            if (consp(prop)) then
+            if (vtag(prop) == V_ARRAY) then
                 call descriptor_of_value(prop, d, found)
                 if (found) return
-            else if (syntax_table_ref_p(prop)) then
-                if (syntax_table_live_p(xhandle(prop))) then
+            else if (vtag(prop) == V_SYNTAX_TABLE) then
+                if (is_syntax_table_live(xhandle(prop))) then
                     d = syntax_entry(c, xhandle(prop))
                     return
                 end if
@@ -922,7 +922,7 @@ contains
 
     !> Insert a description of the internal syntax description SYNTAX at point.
     !> Port of syntax.c:Finternal_describe_syntax_value, returning the
-    !> text it inserts (a descriptor with `code' -1, nil, is "default").
+    !> text it inserts (a descriptor with `code' -1 is "default").
     function internal_describe_syntax_value(syntax) result(text)
         type(syntax_descriptor_type), intent(in) :: syntax
         character(len=:), allocatable :: text
@@ -1036,8 +1036,8 @@ contains
         s = tmp(1:n)
     end function char_utf8
 
-    !> Return the matching parenthesis of CHARACTER, or nil if none.
-    !> (-1 is nil.)  Port of syntax.c:Fmatching_paren (with
+    !> Return the matching parenthesis of CHARACTER, or -1 if none.
+    !> Port of syntax.c:Fmatching_paren (with
     !> syntax.c:SYNTAX_MATCH, the descriptor's `match').
     integer function matching_paren(c)
         integer, intent(in) :: c
@@ -1051,7 +1051,7 @@ contains
     !> Convert a syntax descriptor STRING into a raw syntax descriptor.
     !> STRING should be a string of the form allowed as argument of
     !> `modify_syntax_entry'.  The return value is a raw syntax descriptor:
-    !> (CODE . MATCHING-CHAR); "@" (inherit) gives nil, code -1.  Port of
+    !> CODE and MATCHING-CHAR; "@" (inherit) gives code -1.  Port of
     !> syntax.c:Fstring_to_syntax.
     subroutine string_to_syntax(string, d, status)
         character(len=*), intent(in) :: string
@@ -1116,7 +1116,7 @@ contains
     !> The characters `from' to `to' (one character if equal) are changed.
     !> The first character of NEWENTRY should be one of the following:
     !>   Space or -  whitespace syntax.    w   word constituent.
-    !>   _           symbol constituent.   .   punctuation.
+    !>   _           identifier constituent.   .   punctuation.
     !>   (           open-parenthesis.     )   close-parenthesis.
     !>   "           string quote.         \   escape.
     !>   $           paired delimiter.     \='   expression quote or prefix operator.
@@ -1182,22 +1182,22 @@ contains
 
     !> Whether there is a word boundary between the word-constituent
     !> characters `c1' and `c2'.  Port of category.c:word_boundary_p, with
-    !> characters.el's `word_combining_categories' ((nil . ^) (^ . nil)
-    !> (C . H) (C . K)) and `word_separating_categories' ((H . K)).
-    logical function word_boundary_p(c1, c2)
+    !> characters.el's `word_combining_categories' (blank and ^, ^ and blank,
+    !> C and H, C and K) and `word_separating_categories' (H and K).
+    logical function is_word_boundary(c1, c2)
         integer, intent(in) :: c1, c2
 
         if (char_script(c1) == char_script(c2)) then
-            word_boundary_p = between(c1, c2, "H", "K")
+            is_word_boundary = between(c1, c2, "H", "K")
         else
-            word_boundary_p = .not. (between(c1, c2, " ", "^") .or. between(c1, c2, "^", " ") .or. &
-                                     between(c1, c2, "C", "H") .or. between(c1, c2, "C", "K"))
+            is_word_boundary = .not. (between(c1, c2, " ", "^") .or. between(c1, c2, "^", " ") .or. &
+                                      between(c1, c2, "C", "H") .or. between(c1, c2, "C", "K"))
         end if
 
     contains
 
-        !> Whether (CAT1 . CAT2) matches: c1 has CAT1 but not CAT2, and c2
-        !> has CAT2 but not CAT1; a blank category is nil, which matches.
+        !> Whether the categories CAT1 and CAT2 match: c1 has CAT1 but not CAT2, and c2
+        !> has CAT2 but not CAT1; a blank category matches.
         logical function between(a, b, cat1, cat2)
             integer, intent(in) :: a, b
             character, intent(in) :: cat1, cat2
@@ -1207,14 +1207,14 @@ contains
             if (.not. between) return
             if (cat2 /= " ") between = .not. char_has_category(a, cat2) .and. char_has_category(b, cat2)
         end function between
-    end function word_boundary_p
+    end function is_word_boundary
 
     !> Whether syntax class `code' is part of a word.  Not a port.
-    logical function word_code_p(code)
+    logical function is_word_code(code)
         integer, intent(in) :: code
 
-        word_code_p = code == SWORD .or. (words_include_escapes .and. (code == SESCAPE .or. code == SCHARQUOTE))
-    end function word_code_p
+        is_word_code = code == SWORD .or. (words_include_escapes .and. (code == SESCAPE .or. code == SCHARQUOTE))
+    end function is_word_code
 
     !> Return the position across COUNT words from FROM.
     !> If that many words cannot be found before the end of the buffer,
@@ -1242,7 +1242,7 @@ contains
                 code = syntax_class_at(ch0, from)
                 from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                 from = from + 1
-                if (word_code_p(code)) exit
+                if (is_word_code(code)) exit
             end do
 
             ! Now CH0 is a character which begins a word and FROM is the
@@ -1251,8 +1251,8 @@ contains
                 if (from == end) exit
                 ch1 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch1, from)
-                if (.not. word_code_p(code)) exit
-                if (word_boundary_p(ch0, ch1)) exit
+                if (.not. is_word_code(code)) exit
+                if (is_word_boundary(ch0, ch1)) exit
                 from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                 from = from + 1
                 ch0 = ch1
@@ -1272,7 +1272,7 @@ contains
                 from = from - 1
                 ch1 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch1, from)
-                if (word_code_p(code)) exit
+                if (is_word_code(code)) exit
             end do
 
             ! Now CH1 is a character which ends a word and FROM is the
@@ -1284,7 +1284,7 @@ contains
                 ch0 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch0, from)
 
-                if (.not. word_code_p(code) .or. word_boundary_p(ch0, ch1)) then
+                if (.not. is_word_code(code) .or. is_word_boundary(ch0, ch1)) then
                     from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                     from = from + 1
                     exit

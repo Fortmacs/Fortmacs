@@ -32,9 +32,9 @@ module auth_source_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, make_string, list
+    use lisp_fm, only: make_string, list
     use lread_fm, only: sym
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, erase_buffer
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, erase_buffer
     use editfns_fm, only: buffer_size
     use textprop_fm, only: put_text_property, remove_list_of_text_properties
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
@@ -45,7 +45,7 @@ module auth_source_fm
     use commands_fm, only: commands
     use minibuf_fm, only: minibuffer_prompt_end, minibuffer_setup_function, read_string, &
                           enable_recursive_minibuffers, minibuffer_local_map, read_hide_char
-    use window_fm, only: windows, window_valid_p
+    use window_fm, only: windows, is_window_valid
     use frame_fm, only: selected_frame
     use xdisp_fm, only: message
     implicit none(type, external)
@@ -118,14 +118,14 @@ contains
         forced = .false.
         if (present(force)) forced = force
 
-        if (.not. window_valid_p(selected_frame%minibuffer_window)) then
+        if (.not. is_window_valid(selected_frame%minibuffer_window)) then
             call set_error(status, FM_GENERIC_ERROR, "No active minibuffer")
             return
         end if
 
         mbuf = windows(selected_frame%minibuffer_window%index)%buffer
 
-        if (.not. buffer_live_p(mbuf)) then
+        if (.not. is_buffer_live(mbuf)) then
             call set_error(status, FM_GENERIC_ERROR, "No active minibuffer")
             return
         end if
@@ -273,7 +273,7 @@ contains
         enable_recursive_minibuffers = saved_recursive
         read_hide_char = saved_hide
 
-        if (buffer_live_p(minibuf)) then
+        if (is_buffer_live(minibuf)) then
             old = current_buffer()
             call set_buffer(minibuf, st)
             call minor_modes%read_passwd_mode%disable(st)

@@ -26,7 +26,7 @@ module test_cmds_fm
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, &
-                         current_buffer, buffer_live_p
+                         current_buffer, is_buffer_live
     use insdel_fm, only: insert, move_gap_both
     use search_fm, only: find_newline, find_before_next_newline
     use editfns_fm, only: point, goto_char, buffer_string, pos_bol, pos_eol, &
@@ -78,7 +78,7 @@ contains
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 

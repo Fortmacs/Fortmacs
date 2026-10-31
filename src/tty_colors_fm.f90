@@ -475,7 +475,7 @@ contains
     !> it entirely: an optional sign, digits with an optional point (at
     !> least one digit), and an optional exponent with at least one digit.
     !> Not a port.
-    logical function strtod_decimal_p(s) result(ok)
+    logical function is_strtod_decimal(s) result(ok)
         character(len=*), intent(in) :: s
         integer :: i, n, digits
 
@@ -529,7 +529,7 @@ contains
         end if
 
         ok = i > n
-    end function strtod_decimal_p
+    end function is_strtod_decimal
 
     !> Parse floating-point color component specification `s'.  Put the
     !> integer near-equivalent of that into `dst'.  Return true if
@@ -553,7 +553,7 @@ contains
         if (len(s) == 0) then
             x = 0
         else
-            if (.not. strtod_decimal_p(s)) return
+            if (.not. is_strtod_decimal(s)) return
             read (s, *, iostat=ios) x
             if (ios /= 0) return
         end if

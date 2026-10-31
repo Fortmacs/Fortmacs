@@ -30,7 +30,7 @@ module help_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use keymap_fm, only: keymap_live_p
+    use keymap_fm, only: is_keymap_live
     use modes_fm, only: major_modes
     use eval_fm, only: hook_type
     use abbrev_fm, only: abbrev_table_type
@@ -68,7 +68,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. keymap_live_p(help_mode_map)) call init_help_mode()
+        if (.not. is_keymap_live(help_mode_map)) call init_help_mode()
         call major_modes%help_mode%begin(saved, status)
         if (.not. status%ok()) return
         call major_modes%help_mode%finish(saved, status)

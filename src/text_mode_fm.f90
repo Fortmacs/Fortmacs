@@ -27,7 +27,7 @@ module text_mode_fm
     use handle_fm, only: handle_type
     use data_fm, only: logical_setting
     use files_fm, only: require_final_newline, mode_require_final_newline
-    use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p
+    use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live
     use modes_fm, only: major_modes
     use eval_fm, only: hook_type
     use abbrev_fm, only: abbrev_table_type
@@ -38,7 +38,7 @@ module text_mode_fm
 
     !> True if this buffer's major mode is a variant of Text mode.
     !> Obsolete since 27.1: don't set it, and instead of testing its value
-    !> use `derived_mode_p'.  Port of text-mode.el text-mode-variant.
+    !> use `is_derived_mode'.  Port of text-mode.el text-mode-variant.
     type(logical_setting), public :: text_mode_variant = logical_setting(name="text_mode_variant", value=.false.)
 
     !> Normal hook run when entering Text mode and many related modes.
@@ -92,7 +92,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. syntax_table_live_p(text_mode_syntax_table)) call syms_of_text_mode()
+        if (.not. is_syntax_table_live(text_mode_syntax_table)) call syms_of_text_mode()
         call major_modes%text_mode%begin(saved, status)
         if (.not. status%ok()) return
         call text_mode_variant%set_local(.true.)
@@ -103,7 +103,7 @@ contains
     !> Define Text mode.
     !> Not a port: upstream defines Text mode at top level.
     subroutine syms_of_text_mode()
-        if (.not. syntax_table_live_p(text_mode_syntax_table)) call init_text_mode_syntax_table()
+        if (.not. is_syntax_table_live(text_mode_syntax_table)) call init_text_mode_syntax_table()
         call major_modes%text_mode%define("text_mode", "Text", text_mode, text_mode_hook, &
                                           syntax_table=text_mode_syntax_table, abbrev_table=text_mode_abbrev_table)
         text_mode_map = major_modes%text_mode%map

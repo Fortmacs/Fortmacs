@@ -27,10 +27,10 @@
 !> the command loop.  Every test kills its buffers.
 module test_electric_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, buffer_string
@@ -78,7 +78,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
+        prefix_arg = value_type()
 
         if (present(name)) then
             call get_buffer_create(name, h, st)

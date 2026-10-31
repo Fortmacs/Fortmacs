@@ -28,12 +28,12 @@ module test_insdel_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, FM_BUFFER_READ_ONLY, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, nilp, list, make_string, t_value
+    use lisp_fm, only: value_type, list, make_string, t_value
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, &
-                         set_buffer, current_buffer, buffer_live_p, buf_bytes, &
+                         set_buffer, current_buffer, is_buffer_live, buf_bytes, &
                          temp_set_point_both, set_buffer_read_only, buf_fetch_char
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos
     use insdel_fm, only: del_range, del_range_1, del_range_byte, insert, insert_char, make_gap, &
@@ -117,7 +117,7 @@ contains
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
 
-        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -774,7 +774,7 @@ contains
         call check(error, value_eq(v, sym("bold")), "property at 2")
         if (allocated(error)) return
         call get_text_property(4_int64, sym("face"), v, st)
-        call check(error, nilp(v), "no property at 4")
+        call check(error,.not. allocated(v%a), "no property at 4")
         call forget_changes()
         call leave(h, old)
     end subroutine test_hooks_property_retry
@@ -929,14 +929,14 @@ contains
         if (allocated(error)) return
         call insert("Y", st)
         call get_text_property(3_int64, sym("face"), v, st)
-        call check(error, nilp(v), "Y inserted plainly")
+        call check(error,.not. allocated(v%a), "Y inserted plainly")
         if (allocated(error)) return
         ! rear-nonsticky: nothing from before.
         call put_text_property(1_int64, 2_int64, sym("rear_nonsticky"), t_value(), st)
         call goto(2_int64)
         call insert_and_inherit("Z", st)
         call get_text_property(2_int64, sym("face"), v, st)
-        call check(error, nilp(v), "rear-nonsticky face not inherited")
+        call check(error,.not. allocated(v%a), "rear-nonsticky face not inherited")
         if (allocated(error)) return
         ! front-sticky text after point.
         call put_text_property(point_max() - 1, point_max(), sym("mouse_face"), sym("highlight"), st)

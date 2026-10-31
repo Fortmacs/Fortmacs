@@ -41,7 +41,7 @@ module test_regex_emacs_fm
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_max, point_min, buffer_substring, buffer_string, delete_region
     use search_fm, only: string_index_to_offset
-    use subr_fm, only: match_string, string_match_p, looking_at_p, looking_back
+    use subr_fm, only: match_string, string_matches, is_looking_at, looking_back
     use syntax_fm, only: modify_syntax_entry, make_syntax_table, set_syntax_table, free_syntax_table
     use search_fm, only: string_match, posix_string_match, looking_at, re_search_forward, re_search_backward, &
                          match_beginning, match_end, match_data, set_match_data, regexp_quote, case_fold_search, &
@@ -1343,7 +1343,7 @@ contains
         s = match_string(2, "aéézb", matched)
         call check(error,.not. matched .and. s == "", "unmatched group")
         if (allocated(error)) return
-        call check(error, string_match_p("z", "aéézb", st) == 4 .and. mb(1) == 2, "string-match-p keeps data")
+        call check(error, string_matches("z", "aéézb", st) .and. mb(1) == 2, "string-match-p keeps data")
         if (allocated(error)) return
         call enter("key = value", h)
 
@@ -1352,7 +1352,7 @@ contains
             call check(error, match_string(1) == "key" .and. match_string(2) == "value", "buffer")
             if (allocated(error)) exit body
             call goto_char(1_int64)
-            call check(error, looking_at_p("key", st) .and. mb(1) == 1, "looking-at-p keeps data")
+            call check(error, is_looking_at("key", st) .and. mb(1) == 1, "looking-at-p keeps data")
         end block body
 
         call leave(h)

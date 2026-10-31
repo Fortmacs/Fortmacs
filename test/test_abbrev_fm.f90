@@ -34,9 +34,9 @@ module test_abbrev_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, make_fixnum
+    use lisp_fm, only: value_type, make_fixnum
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur, buffer_name, &
-                         current_buffer, buffer_list, resolve_buffer, restore_buffer_modified_p
+                         current_buffer, buffer_list, resolve_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, point, point_min, point_max
     use search_fm, only: search_forward, SEARCH_NOERROR
@@ -52,15 +52,15 @@ module test_abbrev_fm
     use xdisp_fm, only: mode_line_modes
     use lread_fm, only: user_init_file
     use fileio_fm, only: expand_file_name, make_directory_internal, delete_file_internal, emacs_wd, init_fileio, &
-                         file_exists_p
+                         file_exists
     use files_fm, only: save_some_buffers
     use abbrev_fm, only: abbrev_table_type, abbrev_ref_type, global_abbrev_table, fundamental_mode_abbrev_table, &
                          abbrev_table_name_list, abbrev_mode, abbrev_all_caps, only_global_abbrevs, abbrevs_changed, &
                          abbrev_file_name, save_abbrevs, SAVE_ABBREVS_ASK, SAVE_ABBREVS_NEVER, last_abbrev_text, &
                          kill_all_abbrevs, copy_abbrev_table, insert_abbrevs, abbrev_table_name, prepare_abbrev_list_buffer, &
-                         write_abbrev_file, inverse_add_abbrev, abbrev_expansion, abbrev_table_symbols, expand_abbrev, &
+                         write_abbrev_file, inverse_add_abbrev, abbrev_expansion, abbrev_table_names, expand_abbrev, &
                          unexpand_abbrev, expand_region_abbrevs, define_global_abbrev, abbrev_possibly_save, &
-                         local_abbrev_table, abbrev_symbol
+                         local_abbrev_table, abbrev_name
     implicit none(type, external)
     private
 
@@ -132,8 +132,8 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = nil()
-        current_prefix_arg = nil()
+        prefix_arg = value_type()
+        current_prefix_arg = value_type()
         call get_buffer_create("*abbrev-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -245,12 +245,12 @@ contains
         call fresh(h)
         call setup_test_abbrev_table()
         call ert_test_abbrevs%define("sys", "system abbrev", system=.true.)
-        call abbrev_table_symbols(ert_test_abbrevs, names)
+        call abbrev_table_names(ert_test_abbrevs, names)
         call check(error, size(names), 1)
         if (allocated(error)) return
         call check(error, trim(names(1)), "a-e-t")
         if (allocated(error)) return
-        call abbrev_table_symbols(ert_test_abbrevs, names, system=.true.)
+        call abbrev_table_names(ert_test_abbrevs, names, system=.true.)
         call check(error, size(names), 2)
         if (allocated(error)) return
         call check(error, trim(names(1)) == "a-e-t" .and. trim(names(2)) == "sys", "with system abbrevs")
@@ -559,7 +559,7 @@ contains
         ! Save
         abbrevs_changed = .true.
         call abbrev_possibly_save(.false., .true., result, st)
-        call check(error,.not. result .and. .not. abbrevs_changed .and. file_exists_p(abbrev_file_name), "save")
+        call check(error,.not. result .and. .not. abbrevs_changed .and. file_exists(abbrev_file_name), "save")
         if (allocated(error)) return
         ! Don't save
         abbrevs_changed = .true.
@@ -844,7 +844,7 @@ contains
         if (allocated(error)) return
         ! Parents: unlisted_table inherits global_abbrev_table.
         call unlisted_table%add_parent(global_abbrev_table)
-        call abbrev_symbol("teh", sym, unlisted_table)
+        call abbrev_name("teh", sym, unlisted_table)
         call check(error, associated(sym%table, global_abbrev_table), "found in the parent")
         call kill_buffer(h, st)
     end subroutine test_table_properties
@@ -1022,7 +1022,7 @@ contains
             if (.not. st%ok()) cycle
             if (.not. allocated(buffers(i)%filename)) cycle
             call set_buffer(all(k), st)
-            call restore_buffer_modified_p(.false.)
+            call restore_buffer_modified(.false.)
         end do
 
         call set_buffer(h, st)
@@ -1039,7 +1039,7 @@ contains
         save_abbrevs = SAVE_ABBREVS_NEVER
         abbrevs_changed = .true.
         call save_some_buffers(.true., .false., st)
-        call check(error, abbrevs_changed .and. .not. file_exists_p(abbrev_file_name), "not saved")
+        call check(error, abbrevs_changed .and. .not. file_exists(abbrev_file_name), "not saved")
         save_abbrevs = SAVE_ABBREVS_ASK
         abbrevs_changed = .false.
         deallocate (abbrev_file_name)

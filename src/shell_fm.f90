@@ -50,13 +50,13 @@ module shell_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nilp, consp, stringp, xstring
+    use lisp_fm, only: value_type, xstring, vtag, V_NULL, V_NAME
     use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, buffer_live_p, kill_buffer, &
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, kill_buffer, &
                          generate_new_buffer_name
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
-                          line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, eobp
+                          line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, is_eob
     use textprop_fm, only: get_text_property, put_text_property, next_single_property_change
     use ansi_color_fm, only: ansi_color_apply_face_function
     use insdel_fm, only: insert
@@ -64,11 +64,11 @@ module shell_fm
                          looking_at, SEARCH_NOERROR, SEARCH_MOVE
     use syntax_fm, only: skip_chars_forward, skip_syntax_backward, skip_syntax_forward
     use env_fm, only: getenv
-    use fileio_fm, only: file_exists_p, expand_file_name, file_name_nondirectory, file_name_absolute_p, &
+    use fileio_fm, only: file_exists, expand_file_name, file_name_nondirectory, is_file_name_absolute, &
                          directory_file_name, insert_file_contents
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
-    use keymap_fm, only: keymap_set, make_sparse_keymap, keymap_live_p, set_repeat_map
+    use keymap_fm, only: keymap_set, make_sparse_keymap, is_keymap_live, set_repeat_map
     use paragraphs_fm, only: paragraph_start, paragraph_separate
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight
@@ -76,12 +76,12 @@ module shell_fm
     use callproc_fm, only: shell_file_name, init_callproc
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use minibuffer_fm, only: read_buffer
-    use derived_fm, only: derived_mode_p
+    use derived_fm, only: is_derived_mode
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use commands_fm, only: commands
     use process_fm, only: process_arg_type, get_buffer_process, process_filter, process_sentinel, set_process_filter, &
-                          set_process_sentinel, process_send_string, accept_process_output, process_live_p, &
+                          set_process_sentinel, process_send_string, accept_process_output, is_process_live, &
                           process_buffer, process_command, process_filter_proc, process_sentinel_proc, process_name
     use comint_fm, only: comint_mode, comint_check_proc, make_comint_in_buffer, comint_prompt_regexp, &
                          comint_delimiter_argument_list, comint_input_ring_size, comint_input_ring_file_name, &
@@ -98,12 +98,12 @@ module shell_fm
                                 completion_function_table, completion_list_table, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuf_fm, only: complete_with_action
     use minibuffer_fm, only: completion_in_region, completion_file_name_table, completion_at_point_functions
-    use fileio_fm, only: file_executable_p, file_directory_p, file_accessible_directory_p, file_name_as_directory
+    use fileio_fm, only: is_file_executable, is_file_directory, is_file_accessible_directory, file_name_as_directory
     use dired_fm, only: file_name_all_completions
     use search_fm, only: SEARCH_NOERROR, SEARCH_MOVE, looking_at, regexp_quote, re_search_backward, re_search_forward
     use subr_fm, only: match_string
     use fns_fm, only: substring, schars
-    use editfns_fm, only: eolp, char_after, delete_region
+    use editfns_fm, only: is_eol, char_after, delete_region
     use frame_fm, only: selected_frame
     use sysdep_fm, only: sys_string_type, emacs_environment
     use comint_fm, only: comint_file_name_chars, comint_file_name_quote_list, comint_file_name_prefix, &
@@ -111,7 +111,7 @@ module shell_fm
                          comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
                          comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
                          comint_completion_addsuffix, comint_input_autoexpand, COMINT_AUTOEXPAND_HISTORY, &
-                         COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, &
+                         COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, &
                          comint_completion_fignore, comint_line_beginning_position
     use pcomplete_fm, only: pcomplete_match, pcomplete_thrown, pcomplete_here, pcomplete_entries, pcomplete_ignore, &
                             pcomplete_completions_at_point, pcomplete_parse_arguments_function, &
@@ -122,7 +122,7 @@ module shell_fm
 
     !> The values of `shell_input_autoexpand' (those of
     !> `comint_input_autoexpand').
-    public :: COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
+    public :: COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
     public :: shell_command_completion, shell_environment_variable_completion
     public :: shell, shell_mode, shell_command_mode, syms_of_shell, shell_get_old_input, shell_directory_tracker, &
               shell_unquote_argument, shell__unquote_argument, shell_parse_pcomplete_arguments, &
@@ -332,7 +332,7 @@ module shell_fm
     type(logical_setting), public :: shell_completion_execonly = &
                                      logical_setting(name="shell_completion_execonly", value=.true.)
 
-    !> If not COMINT_AUTOEXPAND_NIL, expand input command history
+    !> If not COMINT_AUTOEXPAND_NO, expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlit).
     !>
@@ -387,7 +387,7 @@ contains
         n = 0
 
         do i = 1, size(shell_buffers)
-            if (.not. buffer_live_p(shell_buffers(i)%buffer)) cycle
+            if (.not. is_buffer_live(shell_buffers(i)%buffer)) cycle
             n = n + 1
             kept(n) = shell_buffers(i)
         end do
@@ -471,7 +471,7 @@ contains
             bof = field_beginning(point(), .false.)
             call get_text_property(bof, sym("field"), field_prop, status)
 
-            if (nilp(field_prop)) then
+            if (.not. allocated(field_prop%a)) then
                 input = field_string(bof)
                 return
             end if
@@ -488,7 +488,7 @@ contains
             if (shell_get_old_input_include_continuation_lines%value) then
                 ! Include continuation lines as long as the current line
                 ! ends with a backslash.
-                do while (.not. eobp())
+                do while (.not. is_eob())
                     if (char_before_point() /= iachar("\")) exit
                     n = 2
                     call goto_char(line_end_position(n))
@@ -513,13 +513,13 @@ contains
 
     ! Not a port.
     logical function symbol_is(v, name)
-        use lisp_fm, only: symbolp, symbols, xsymbol
+        use lisp_fm, only: symbols, xsymbol
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
 
         symbol_is = .false.
-        if (.not. symbolp(v)) return
-        if (nilp(v)) return
+        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) return
+        if (.not. allocated(v%a)) return
         symbol_is = symbols(xsymbol(v))%name == name
     end function symbol_is
 
@@ -757,7 +757,7 @@ contains
         logical, intent(out) :: found
 
         if (shell_completion_execonly%value) then
-            call pcomplete_entries(table, predicate=executable_p)
+            call pcomplete_entries(table, predicate=is_executable)
         else
             call pcomplete_entries(table)
         end if
@@ -765,12 +765,12 @@ contains
         found = .true.
     end subroutine executable_entries_form
 
-    ! `file_executable_p' as a file predicate.  Not a port.
-    recursive logical function executable_p(file)
+    ! `is_file_executable' as a file predicate.  Not a port.
+    recursive logical function is_executable(file)
         character(len=*), intent(in) :: file
 
-        executable_p = file_executable_p(file)
-    end function executable_p
+        is_executable = is_file_executable(file)
+    end function is_executable
 
     ! (nth 2 (shell--command-completion-data)) as a FORM.  Not a port.
     recursive subroutine command_names_form(table, found)
@@ -868,7 +868,7 @@ contains
             if (len(dir) == 0) dir = "."
             call comint_directory(dir, expanded, st)
             dir = file_name_as_directory(expanded)
-            if (.not. file_accessible_directory_p(dir)) cycle
+            if (.not. is_file_accessible_directory(dir)) cycle
             call file_name_all_completions(filenondir, dir, listed, st)
             if (.not. st%ok()) cycle
             call list_elements(listed, comps)
@@ -883,8 +883,8 @@ contains
                     dup = string_match(ignored, file, st) > 0
                 end if
 
-                if (.not. dup .and. dir /= cwd) dup = file_directory_p(dir//file)
-                if (.not. dup .and. shell_completion_execonly%value) dup = .not. file_executable_p(dir//file)
+                if (.not. dup .and. dir /= cwd) dup = is_file_directory(dir//file)
+                if (.not. dup .and. shell_completion_execonly%value) dup = .not. is_file_executable(dir//file)
                 if (dup) cycle
                 n = n + 1
                 if (n > size(kept)) call grow(kept)
@@ -1066,7 +1066,7 @@ contains
             if (.not. looking_at("\$", st)) call goto_char(point() + 1)
         end if
 
-        if (.not. (eolp() .or. looking_at("[^A-Za-z0-9_{($]", st))) then
+        if (.not. (is_eol() .or. looking_at("[^A-Za-z0-9_{($]", st))) then
             if (looking_at("\$?[{(]?[A-Za-z0-9_]*[})]?", st)) continue
             call buffer_substring(match_beginning(0, st), match_end(0, st), var, st)
             found = .true.
@@ -1176,7 +1176,7 @@ contains
 
         if (found) then
             call comint_directory(value, dir, st)
-            if (st%ok() .and. file_directory_p(dir)) suf = suf//"/"
+            if (st%ok() .and. is_file_directory(dir)) suf = suf//"/"
         end if
 
         if (looking_at(regexp_quote(suf), st)) then
@@ -1228,7 +1228,7 @@ contains
             else if (index <= size(stack)) then
                 directory_replacement = file_name_as_directory(stack(index)%s)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, nil")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got unallocated")
                 call goto_char(opoint)
                 return
             end if
@@ -1537,7 +1537,7 @@ contains
         type(value_type), intent(in) :: face
         type(status_type) :: st
 
-        if (nilp(face)) return
+        if (.not. allocated(face%a)) return
         call put_text_property(beg, end, sym("ansi_color_face"), face, st)
         call put_text_property(beg, end, sym("font_lock_face"), face, st)
     end subroutine shell_apply_ansi_color
@@ -1559,7 +1559,7 @@ contains
 
         do
             call get_text_property(pos, sym("ansi_color_face"), face, st)
-            if (.not. nilp(face)) call put_text_property(pos, end, sym("font_lock_face"), face, st)
+            if (allocated(face%a)) call put_text_property(pos, end, sym("font_lock_face"), face, st)
             pos = end
             call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
             if (.not. found) exit
@@ -1609,7 +1609,7 @@ contains
 
         result = null_handle()
 
-        if (present(buffer_name) .or. .not. derived_mode_p("shell_mode") .or. comint_check_proc(current_buffer())) then
+        if (present(buffer_name) .or. .not. is_derived_mode("shell_mode") .or. comint_check_proc(current_buffer())) then
             if (present(buffer_name)) then
                 call get_buffer_create(buffer_name, buf, status)
             else
@@ -1646,7 +1646,7 @@ contains
             name = file_name_nondirectory(prog)
             call expand_file_name("~/.emacs_"//name, startfile, st)
             start_point = point()
-            if (.not. file_exists_p(startfile)) call expand_file_name("~/.emacs.d/init_"//name//".sh", startfile, st)
+            if (.not. file_exists(startfile)) call expand_file_name("~/.emacs.d/init_"//name//".sh", startfile, st)
             k = current_entry()
             shell_buffers(k)%start_prog = file_name_nondirectory(prog)
 
@@ -1666,11 +1666,11 @@ contains
             call shell_mode(status)
             if (.not. status%ok()) return
 
-            if (file_exists_p(startfile)) then
+            if (file_exists(startfile)) then
                 ! Wait until the prompt has appeared.
                 proc = get_buffer_process(buf)
 
-                do while (start_point == point() .and. process_live_p(proc))
+                do while (start_point == point() .and. is_process_live(proc))
                     call accept_process_output(got, st, proc, 0.1)
                 end do
 
@@ -1728,7 +1728,7 @@ contains
         status = status_type()
         buf = process_buffer(proc)
 
-        if (.not. buffer_live_p(buf)) then
+        if (.not. is_buffer_live(buf)) then
             call internal_default_process_sentinel(proc, event, status)
             return
         end if
@@ -1743,10 +1743,10 @@ contains
             end if
         end if
 
-        if (.not. process_live_p(proc)) then
+        if (.not. is_process_live(proc)) then
             old = current_buffer()
             call kill_buffer(buf, st)
-            if (buffer_live_p(old)) call set_buffer(old, st)
+            if (is_buffer_live(old)) call set_buffer(old, st)
         end if
     end subroutine kill_buffer_sentinel
 
@@ -1760,7 +1760,7 @@ contains
         type(handle_type) :: buf, proc
         character(len=:), allocatable :: name, default
 
-        if (nilp(current_prefix_arg)) then
+        if (.not. allocated(current_prefix_arg%a)) then
             call shell(buf, status)
             return
         end if
@@ -1826,7 +1826,7 @@ contains
                 end if
             end if
 
-            if (done .or. .not. process_live_p(proc)) exit
+            if (done .or. .not. is_process_live(proc)) exit
             call accept_process_output(got, st, proc, 0.1)
         end do
 
@@ -1917,7 +1917,7 @@ contains
         call comint_write_input_ring()
         buf = process_buffer(process)
 
-        if (buffer_live_p(buf)) then
+        if (is_buffer_live(buf)) then
             old = current_buffer()
             call set_buffer(buf, st)
             call insert(achar(10)//"Process "//process_name(process)//" "//event//achar(10), status)
@@ -2009,8 +2009,8 @@ contains
                 call shell_process_cd(comint_substitute_in_file_name(arg1), st)
             else if (shell_has_auto_cd%value) then
                 block
-                    use fileio_fm, only: file_directory_p
-                    if (file_directory_p(cmd_subst_fn)) call shell_process_cd(cmd_subst_fn, st)
+                    use fileio_fm, only: is_file_directory
+                    if (is_file_directory(cmd_subst_fn)) call shell_process_cd(cmd_subst_fn, st)
                 end block
             end if
 
@@ -2448,7 +2448,7 @@ contains
         call keymap_set(shell_mode_map, "TAB", "completion_at_point", st)
         call keymap_set(shell_mode_map, "M-?", "comint_dynamic_list_filename_completions", st)
 
-        if (.not. keymap_live_p(shell_repeat_map)) then
+        if (.not. is_keymap_live(shell_repeat_map)) then
             call make_sparse_keymap(shell_repeat_map)
             call keymap_set(shell_repeat_map, "C-f", "shell_forward_command", st)
             call keymap_set(shell_repeat_map, "C-b", "shell_backward_command", st)
@@ -2458,7 +2458,7 @@ contains
         call keymap_set(shell_mode_map, "C-x n d", "shell_narrow_to_prompt", st)
         commands%shell%run => cmd_shell
         commands%shell_mode%run => shell_mode
-        commands%shell_mode%interactive = .false.
+        commands%shell_mode%is_command = .false.
         commands%shell_command_mode%run => shell_command_mode
         commands%shell_dirtrack_mode%run => shell_dirtrack_mode
         commands%shell_forward_command%run => cmd_shell_forward_command
