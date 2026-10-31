@@ -899,6 +899,11 @@ text are unchanged.
 
 ### When the answer is not clear: ask
 
+Obvious cases that follow an existing rule or pattern (e.g. _NIL/_T →
+_NO/_YES, _p → is_*) are decided by Claude and reported, not asked; only
+cases no rule covers go to the owner.  The report names each case and the
+rule it follows, so the owner can still overrule it.
+
 A Lisp-derived term with no line in tools/fortran-names, or a choice the
 questions above do not settle, goes to the owner; it is never invented
 and never copied from Lisp.  Ask as a multiple-choice question, one
