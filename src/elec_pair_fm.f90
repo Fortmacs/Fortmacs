@@ -1223,7 +1223,7 @@ contains
     end function electric_pair_local_mode_p
 
     !> The body of Electric Pair Local mode with its new state VAL: the
-    !> setter (setq-local electric-pair-mode VAL), then the body.  Port of
+    !> setter (`electric_pair_mode' set locally to VAL), then the body.  Port of
     !> elec-pair.el:electric-pair-local-mode (its body).
     subroutine electric_pair_local_mode_body(val, status)
         logical, intent(in) :: val

@@ -303,7 +303,7 @@ module minibuffer_fm
     !> completion data (START END COLLECTION . PROPS), where:
     !>  START and END delimit the entity to complete and should include point,
     !>  COLLECTION is the completion table to use to complete the entity, and
-    !>  PROPS is a property list for additional information.
+    !>  PROPS holds attributes for additional information.
     !> Currently supported properties are:
     !>  `predicate'        a predicate that completion candidates need to satisfy.
     !>  `exclusive'        false means that if the completion table fails to
@@ -2544,7 +2544,7 @@ contains
     !> PROMPT is a string to prompt with; normally it ends in a colon and
     !> a space.  COLLECTION, the completion table, is an array of strings,
     !> a table of (string, value) entries, or a completion function, or
-    !> the obarray (see `try_completion').  PREDICATE limits
+    !> the name table (see `try_completion').  PREDICATE limits
     !> completion to a subset of COLLECTION.
     !>
     !> REQUIRE_MATCH can take the following values:

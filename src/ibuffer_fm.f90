@@ -1082,7 +1082,7 @@ contains
         f = ibuffer_formats
     end function formats_of
 
-    !> (car FILTER): the name of a simple filter, else "not", "and", "or"
+    !> The first element of FILTER: the name of a simple filter, else "not", "and", "or"
     !> or "saved".  Not a port.
     function filter_symbol(filter) result(name)
         type(ibuffer_filter_type), intent(in) :: filter
@@ -1196,7 +1196,7 @@ contains
     end function ibuffer_current_mark
 
     !> Return the buffer on the current line (the null handle for none or
-    !> a killed buffer).  If MUST_BE_LIVE, signal an error in STATUS if
+    !> a killed buffer).  If MUST_BE_LIVE, an error condition occurs in STATUS if
     !> there is none or it has been killed.  Port of
     !> ibuffer.el:ibuffer-current-buffer.
     function ibuffer_current_buffer(status, must_be_live) result(buf)

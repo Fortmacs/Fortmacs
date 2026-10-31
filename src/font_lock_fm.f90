@@ -502,8 +502,8 @@ contains
         if (locals(k)%keywords_set) keywords = locals(k)%keywords
     end function font_lock_keywords_of_buffer
 
-    !> Make KEYWORDS the current buffer's `font_lock_keywords' (setq
-    !> font-lock-keywords).  Not a port.
+    !> Make KEYWORDS the current buffer's `font_lock_keywords'
+    !> (set_local).  Not a port.
     subroutine set_font_lock_keywords(keywords)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k

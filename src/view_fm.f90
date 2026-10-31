@@ -226,7 +226,7 @@ contains
         if (locals(k)%has_view_read_only) view_read_only_value = locals(k)%view_read_only
     end function view_read_only_value
 
-    !> (setq-local view-read-only VALUE).  Not a port.
+    !> Give the current buffer its own `view_read_only', VALUE (set_local).  Not a port.
     subroutine set_view_read_only_local(value)
         logical, intent(in) :: value
         integer :: k

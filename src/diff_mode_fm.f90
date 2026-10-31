@@ -630,7 +630,7 @@ contains
 
     !> Move back to the previous hunk beginning, and return its position.
     !> If point is in a file header rather than a hunk, advance to the
-    !> next hunk if TRY_HARDER is true; otherwise signal an error.
+    !> next hunk if TRY_HARDER is true; otherwise an error condition occurs.
     !> Port of diff-mode.el:diff-beginning-of-hunk.
     recursive integer(int64) function diff_beginning_of_hunk(status, try_harder) result(pos)
         type(status_type), intent(out) :: status
@@ -804,7 +804,7 @@ contains
 
     !> Return the bounds of the diff hunk at point.
     !> The return value is (BEG END), which are the hunk's start and end
-    !> positions.  Signal an error if no hunk is found.  If point is in a
+    !> positions.  An error condition occurs if no hunk is found.  If point is in a
     !> file header, return the bounds of the next hunk.  Port of
     !> diff-mode.el:diff-bounds-of-hunk.
     recursive subroutine diff_bounds_of_hunk(beg, end, status)
@@ -1446,7 +1446,7 @@ contains
     !> otherwise.  The strings are assumed not to contain any "\n" (i.e.
     !> end of line).  If ANCESTOR = FROM, returns TO.  If ANCESTOR = TO,
     !> returns FROM.  The heuristic is simplistic and only really works for
-    !> cases like (diff_merge_strings "b/foo" "b/bar" "/a/c/foo").  Port of
+    !> cases like diff_merge_strings("b/foo", "b/bar", "/a/c/foo", result, merged).  Port of
     !> diff-mode.el:diff-merge-strings.
     subroutine diff_merge_strings(ancestor, from, to, result, merged)
         use search_fm, only: string_match
@@ -1785,7 +1785,7 @@ contains
 
     !> Set the current buffer's `diff_vc_backend' to BACKEND (the VC
     !> backend name; absent for none) and `diff_vc_revisions' to (REV1
-    !> REV2).  Port of the setq-local of diff-mode.el diff-vc-backend and
+    !> REV2).  Port of the buffer-local setting of diff-mode.el diff-vc-backend and
     !> diff-vc-revisions.
     subroutine set_diff_vc_backend(backend, rev1, rev2)
         character(len=*), intent(in), optional :: backend, rev1, rev2

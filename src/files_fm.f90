@@ -407,7 +407,7 @@ module files_fm
         !> trailing slash, to indicate that it is a directory.
         !>
         !> Valid wildcards are `*', `?', `[abc]' and `[a-z]'.  Port of
-        !> files.el:insert-directory-wildcard-in-dir-p (the cons as
+        !> files.el:insert-directory-wildcard-in-dir-p (the pair as
         !> DIRECTORY and WILDCARD).  (In files_dir_fm.)
         module function insert_directory_wildcard_in_dir_p(dir, directory, wildcard) result(found)
             implicit none(type, external)
@@ -844,7 +844,7 @@ module files_fm
         character(len=48) :: name = "revert_buffer_function"
         type(revert_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's revert function (setq-local).
+        !> Make FN the current buffer's revert function (set_local).
         procedure :: set_local => revert_set_local
         !> The current buffer's revert function (null for the default).
         procedure :: get => revert_get
@@ -896,7 +896,7 @@ module files_fm
         character(len=48) :: name = "buffer_stale_function"
         type(stale_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => stale_set_local
         !> The current buffer's function (null for the default).
         procedure :: get => stale_get
@@ -1774,7 +1774,7 @@ contains
     end subroutine insert_final_newline
 
     !> map-y-or-n-p prompter for save_some_buffers.  Port of the prompter
-    !> lambda of files.el:save-some-buffers.
+    !> procedure of files.el:save-some-buffers.
     subroutine save_prompter(k, how, prompt)
         integer, intent(in) :: k
         integer, intent(out) :: how
@@ -1799,7 +1799,7 @@ contains
     end subroutine save_prompter
 
     !> map-y-or-n-p actor for save_some_buffers: save that buffer.  Port of
-    !> the actor lambda of files.el:save-some-buffers.
+    !> the actor procedure of files.el:save-some-buffers.
     subroutine save_actor(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
@@ -2120,7 +2120,7 @@ contains
     !>
     !> Be aware that this records ALL characters you type!
     !> This may include sensitive information such as passwords.  Port of
-    !> keyboard.c:Fopen_dribble_file (its interactive spec).
+    !> keyboard.c:Fopen_dribble_file (how the command reads its argument).
     recursive subroutine cmd_open_dribble_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename
@@ -2576,7 +2576,7 @@ contains
     !>
     !> ALREADY is true if PARENTS is true and DIR already exists as a
     !> directory, and false if DIR did not already exist but was created.
-    !> Signal an error if unsuccessful.  Port of files.el:make-directory.
+    !> An error condition occurs if unsuccessful.  Port of files.el:make-directory.
     subroutine make_directory(dir, status, parents, already)
         character(len=*), intent(in) :: dir
         type(status_type), intent(out) :: status

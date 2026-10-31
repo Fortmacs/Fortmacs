@@ -1,0 +1,88 @@
+# fortran-prose -- Lisp wording that Fortmacs's prose no longer uses.
+#
+# The companion of tools/fortran-names for words rather than names: the
+# owner's wording decisions (PORTING.md, "Fortran names for Lisp terms",
+# "Wording") say a value by its Fortran type, an error by its condition
+# and a status, and Lisp data by the Fortran form that replaced it.
+# tools/check.sh runs tools/fortran-prose.awk, which fails with
+# FILE:LINE on a rejected term in a `!>' docstring or in a message or
+# error string (the string literals of a line that calls set_error,
+# message, user_error, format_message or minibuffer_message), and
+# tools/test-fortran-prose.sh, which runs it on the fixture in
+# tools/fortran-prose-test.
+#
+# One entry per line, fields separated by one tab:
+#
+#   reject<TAB>LABEL<TAB>REGEXP<TAB>USE
+#       REGEXP (an awk regular expression, matched against the lower-case
+#       text) is not used in prose; USE says what to write instead.
+#   keep<TAB>PATH
+#       a file left as it is (a path from the top of the repository):
+#       a Lisp language mode, or Lisp source.
+#   keep<TAB>"TEXT"
+#       TEXT, wherever it occurs, is not checked (matched ignoring case).
+#   Every keep entry says why in a comment above it.
+#
+# Never checked: citations (FILE.el:NAME, FILE.c:NAME, FILE.h:NAME, a
+# hyphenated name after "upstream" or "upstream's", and Info node names
+# such as `(elisp)Basic Completion'), generated src/docstrings_fm.f90,
+# the tests (their fixtures hold Lisp), lines that say "fortran-prose:
+# keep" or "fortran-names: keep", and lines between "fortran-names: off"
+# and "fortran-names: on".
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+
+# A4a: values by their type.
+reject	non-nil	non-nil	.true., present, a named constant, or "set"
+reject	nil	(^|[^a-z0-9_-])nil([^a-z0-9_-]|$)	.false., absent, unallocated, null, "" or a named constant
+# A3: the error messages.
+reject	is void	is void	"has no value", "is not defined"
+reject	Symbol's value	symbol's value	"Variable has no value"
+reject	constant symbol	constant symbol	"named constant"
+# A2: wrong-type messages name the Fortran declaration.
+reject	wrong-type predicate	wrong type argument: [a-z_-]+p,	"Wrong type argument: expected character(len=*)"
+# A4c and B8: error conditions and statuses.
+reject	signal an error	signals? an error	"a `X' error condition occurs"
+reject	throw	(^|[^a-z_])(throw|throws|thrown|throwing)([^a-z_]|$)	"return to X with a status"
+reject	catch	(^|[^a-z_])(catch|catches|caught)([^a-z_]|$)	"the caller that checks the status"
+reject	condition-case	condition[-_ ]case	"a check of the status"
+# A4d: Lisp data and evaluation.
+reject	property list	property list|(^|[^a-z])plists?([^a-z]|$)	typed components, "text properties" or "attributes"
+reject	interactive spec	interactive spec	a description ("a command that reads the region")
+reject	byte compiler	byte-compil	(not applicable: remove)
+reject	cons	(^|[^a-z_-])cons([^a-z_-]|$)	named components
+reject	dotted pair	dotted pair	named components
+reject	car/cdr	(^|[^a-z_-])(car|cdr)([^a-z_-]|$)	"first"/"rest" or the component's name
+reject	lambda	(^|[^a-z_])lambda([^a-z_]|$)	"procedure"
+reject	funcall	funcall	"call"
+reject	setq	setq	"assignment", "set_local"
+reject	obarray	obarray	"name table"
+reject	Elisp	elisp	reword ((elisp) Info node names are allowed)
+
+# The Lisp language modes, once ported, describe Lisp.
+keep	src/lisp_mode_fm.f90
+keep	src/elisp_mode_fm.f90
+keep	src/scheme_fm.f90
+# "Throw away" in its English sense (discard), not a throw.
+keep	"thrown away"
+keep	"throw away"
+# The generic value machinery (values, names, lists and their printed
+# form) implements Lisp data; the names branch rewrites it (PORTING.md,
+# "Decided, not yet applied": C1 to C5), and these keeps go with it.
+keep	src/lisp_fm.f90
+keep	src/fns_fm.f90
+keep	src/data_fm.f90
+keep	src/print_fm.f90
+keep	src/lread_fm.f90
+keep	src/data_buffer_fm.f90
+# Upstream's Lisp form, quoted as such in novice_fm's description of
+# what enable_command writes.
+keep	"(put 'cmd 'disabled nil)"
+# f90_fm prints a missing name as upstream's message text does.
+keep	""nil" (upstream's message text)"
+# ibuffer_always_compile_formats is removed as not applicable (A4d) on
+# the names branch; its docstring goes with it.
+keep	"use the byte-compiler to optimize"
+keep	"elisp byte-compiler."

@@ -4798,7 +4798,7 @@ contains
     !> Save all current styles as Fortran to buffer BUFF.
     !> This is always added to the end of the buffer.  Port of
     !> sh-script.el:sh-save-styles-to-buffer (an assignment of
-    !> `sh_styles_table', for init.f90, in place of a setq).
+    !> `sh_styles_table', for init.f90, in place of an assignment).
     recursive subroutine sh_save_styles_to_buffer(buff, status)
         character(len=*), intent(in) :: buff
         type(status_type), intent(out) :: status

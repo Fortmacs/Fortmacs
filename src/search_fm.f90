@@ -165,7 +165,7 @@ module search_fm
         !>   `\\' means insert one `\'.
         !>   `\?' is treated literally
         !>        (for compatibility with `query_replace_regexp').
-        !>   Any other character following `\' signals an error.
+        !>   Any other character following `\' makes an error condition occur.
         !> Case conversion does not apply to these substitutions.
         !>
         !> If optional fourth argument STRING is present, it should be a

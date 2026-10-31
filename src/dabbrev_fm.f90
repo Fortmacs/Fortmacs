@@ -450,7 +450,7 @@ contains
     end function abbrev_location
 
     !> Record point POS in the current buffer's undo list
-    !> (`(setq buffer-undo-list (cons POS buffer-undo-list))').  Not a port.
+    !> (POS added to the front of `buffer_undo_list').  Not a port.
     subroutine push_undo_point(pos)
         integer(int64), intent(in) :: pos
         type(undo_entry_type) :: entry

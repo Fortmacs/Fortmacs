@@ -727,7 +727,7 @@ contains
         call move_alloc(grown, windows(h%index)%prev_buffers)
     end subroutine append_prev
 
-    !> (cons b (delq b list)) Not a port.
+    !> Move B to the front of LIST (removing it elsewhere).  Not a port.
     subroutine push_front(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b

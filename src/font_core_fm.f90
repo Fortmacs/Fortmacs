@@ -257,8 +257,8 @@ module font_core_fm
     !> If CASE-FOLD is true, the case of the keywords is ignored when
     !> fontifying.
     !>
-    !> If SYNTAX-ALIST is true, it should be a list of cons pairs of the
-    !> form (CHAR-OR-STRING . STRING) used to set the local Font Lock
+    !> If SYNTAX-ALIST is true, it should be an array of pairs of the
+    !> form CHAR-OR-STRING and STRING used to set the local Font Lock
     !> syntax table, for keyword and syntactic fontification (see
     !> `modify_syntax_entry').
     !>
@@ -273,7 +273,7 @@ module font_core_fm
         character(len=48) :: name = "font_lock_defaults"
         type(defaults_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer these defaults (setq-local): its
+        !> Give the current buffer these defaults (set_local): its
         !> KEYWORDS (or the keyword lists of its decoration LEVELS),
         !> KEYWORDS_ONLY, CASE_FOLD and SYNTAX_MODIFICATIONS.
         procedure :: set_local => defaults_set_local

@@ -41,7 +41,7 @@
 !> 35 minutes"), encoded times and t (integral multiples of REPEAT,
 !> timer-next-integral-multiple-of-time), `with_timeout',
 !> `y_or_n_p_with_timeout', `timer_duration', `add_timeout' (obsolete),
-!> keyboard.c's pending_funcalls, the timer-event-last debugging
+!> keyboard.c's pending calls, the timer-event-last debugging
 !> variables, and timers' interactive commands (`cancel_function_timers'
 !> is a function only).  The clock is monotonic, where upstream's
 !> current-time is the wall clock.
@@ -421,7 +421,7 @@ contains
     end subroutine cancel_timer
 
     !> Remove TIMER from the list of active timers or idle timers; WAS
-    !> says whether it was on one (upstream returns the cons cell that was
+    !> says whether it was on one (upstream returns the list element that was
     !> removed).  Port of timer.el:cancel-timer-internal.
     subroutine cancel_timer_internal(timer, was)
         type(handle_type), intent(in) :: timer

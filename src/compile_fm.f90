@@ -57,7 +57,7 @@
 !> `compilation_error_regexp_names' with rule specifications rather than
 !> names (add the rule to `compilation_error_regexp_table'; a mode's
 !> own value is rules), FILE given as (FILE FORMAT...), HIGHLIGHT faces
-!> given as property lists other than (face FACE display DISPLAY),
+!> given as text properties other than `face' and `display',
 !> `compilation_parse_errors_filename_function',
 !> `comint_file_name_prefix' (remote files), `compilation_search_path'
 !> and `compilation_search_extra_path' (only the directory of the message
@@ -222,7 +222,7 @@ module compile_fm
 
     !> A HIGHLIGHT of a rule: the text of SUBMATCH gets the face FACE (a
     !> face name), or the one FACE_FUNCTION gives.  DISPLAY, if allocated,
-    !> makes it the property list (face FACE display DISPLAY): the text
+    !> makes the text properties `face' FACE and `display' DISPLAY: the text
     !> also gets that `display' property.
     type, public :: compilation_highlight_type
         integer :: submatch = 0
@@ -392,7 +392,7 @@ module compile_fm
 
     !> Table that specifies how to match errors in compiler output.
     !> On GNU and Unix, any string is a valid filename, so these
-    !> matchers must make some common sense assumptions, which catch
+    !> matchers must make some common sense assumptions, which handle
     !> normal cases.  A shorter list will be lighter on resource usage.
     !>
     !> Each element is the name of a rule of
@@ -1197,7 +1197,7 @@ contains
 
     !> Give the current buffer its own values of the compilation variables,
     !> as the body of a mode made by define-compilation-mode does with
-    !> `setq_local' (after `compilation_mode' has run as its parent):
+    !> `set_local' (after `compilation_mode' has run as its parent):
     !> `compilation_error_regexp_names' as the rules ERROR_REGEXP_TABLE,
     !> `compilation_directory_matcher', `compilation_transform_file_match_table',
     !> `compilation_error' (the word for a message, "error" by default),

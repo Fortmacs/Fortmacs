@@ -474,7 +474,7 @@ contains
         call append_line(self%lines, line)
     end subroutine extract_line
 
-    !> The function of rect.el:extract-rectangle-bounds.  Port of the lambda
+    !> The function of rect.el:extract-rectangle-bounds.  Port of the procedure
     !> of rect.el:extract-rectangle-bounds.
     recursive subroutine bounds_line(self, startcol, endcol, status)
         class(bounds_line_action), intent(inout) :: self
@@ -1496,8 +1496,8 @@ contains
         end if
     end subroutine rectangle_mark_mode_body
 
-    !> (lambda () (rectangle-mark-mode -1)) on `deactivate_mark_hook'.
-    !> Port of the deactivate-mark-hook lambda of
+    !> Turn `rectangle_mark_mode' off, on `deactivate_mark_hook'.
+    !> Port of the deactivate-mark-hook procedure of
     !> rect.el:rectangle-mark-mode.
     recursive subroutine rectangle_mark_mode_off(status)
         type(status_type), intent(out) :: status
@@ -1911,7 +1911,7 @@ contains
 
     !> The `yank_undo_function' of a yanked rectangle: undo back to the
     !> point entry recorded before it, turned into a boundary.  Port of the
-    !> yank-undo-function lambda of rect.el:rectangle--insert-for-yank.
+    !> yank-undo-function procedure of rect.el:rectangle--insert-for-yank.
     recursive subroutine rectangle_yank_undo(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -2305,7 +2305,7 @@ contains
     end subroutine cmd_clear_rectangle
 
     !> The newest element of `string_rectangle_history', or "" (the
-    !> (or (car string-rectangle-history) "") of the prompts).  Not a port.
+    !> (the first element of `string_rectangle_history', or "") of the prompts).  Not a port.
     function history_head() result(head)
         character(len=:), allocatable :: head
         type(value_type) :: hist, first
@@ -2331,7 +2331,7 @@ contains
     end function prompt_with_default
 
     !> Read the string of `string_rectangle' and `string_insert_rectangle'
-    !> with PROMPT (their interactive specs).  Port of the interactive specs
+    !> with PROMPT (how the commands read their arguments).  Port of the argument reading
     !> of rect.el:string-rectangle and rect.el:string-insert-rectangle.
     recursive subroutine read_rectangle_string(prompt, string, status)
         character(len=*), intent(in) :: prompt

@@ -37,7 +37,7 @@
 !>
 !> Deferred: `forward_group_function', `down_group_function' and
 !> `up_group_function' (the defaults are always used), shift selection
-!> (the `^' of the interactive specs), `kill_backward_up_group' (needs
+!> (the `^' of how the commands read their arguments), `kill_backward_up_group' (needs
 !> thingatpt.el), `move_past_close_and_reindent' (M-); needs lisp-mode.el's
 !> `calculate_lisp_indent'); not applicable: `field_complete' and
 !> `lisp_complete_symbol' (obsolete; Emacs Lisp completion).
@@ -101,7 +101,7 @@ module expression_motion_fm
         procedure(forward_expression_proc), pointer, nopass :: value => null()
         type(forward_expression_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer its own value FN (setq-local); absent
+        !> Give the current buffer its own value FN (set_local); absent
         !> clears it.
         procedure :: set_local => forward_expression_set_local
         !> The value in the current buffer (null when unset).
@@ -143,7 +143,7 @@ module expression_motion_fm
         procedure(beginning_of_subprogram_proc), pointer, nopass :: value => null()
         type(beginning_of_subprogram_entry_type), allocatable :: entries(:)
     contains
-        !> Give the current buffer its own value FN (setq-local); absent is
+        !> Give the current buffer its own value FN (set_local); absent is
         !> clears it.
         procedure :: set_local => bod_set_local
         !> The value in the current buffer (null when unset).
@@ -1753,16 +1753,11 @@ contains
     !>
     !> For instance, if you have:
     !>
-    !>   (let ((foo 2))
-    !>     (progn
-    !>       (setq foo 3)
-    !>       (zot)
-    !>       (+ foo 2)))
+    !>   x = max(a, min(b, c))
     !>
-    !> and point is before (zot), \[raise_expression] will give you
+    !> and point is before min, \[raise_expression] will give you
     !>
-    !>   (let ((foo 2))
-    !>     (zot))
+    !>   x = min(b, c)
     !>
     !> Port of lisp.el:raise-sexp.
     recursive subroutine raise_expression(n, status)

@@ -187,7 +187,7 @@ module fill_fm
         procedure(fill_paragraph_proc), pointer, nopass :: value => null()
         type(fill_paragraph_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => fill_paragraph_set_local
         !> The current buffer's function (null when unset).
         procedure :: get => fill_paragraph_get

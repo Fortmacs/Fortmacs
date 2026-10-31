@@ -833,12 +833,12 @@ contains
     !>
     !> OKSTATUS VC_OKSTATUS_ASYNC means not to wait for termination of the
     !> subprocess and give the process object as PROCESS.  Otherwise, OKSTATUS
-    !> determines when to signal an error instead of giving a numeric exit
+    !> determines when an error condition occurs instead of giving a numeric exit
     !> status as EXIT_STATUS (or a signal description).  OKSTATUS an integer
-    !> means to signal an error if the command's exit status exceeds that
+    !> means an error condition occurs if the command's exit status exceeds that
     !> value or the command is killed by a signal, VC_OKSTATUS_NIL means to
-    !> signal an error only if the command is killed by a signal, and
-    !> VC_OKSTATUS_T means never to signal an error.
+    !> an error condition occurs only if the command is killed by a signal, and
+    !> VC_OKSTATUS_T means no error condition ever occurs.
     !>
     !> FILES are the working files (none to execute commands that don't
     !> expect a file name or set of files).  FLAGS are inserted into the

@@ -706,7 +706,7 @@ contains
         call before_save_hook%add(tail_mode_off, local=.true.)
     end subroutine before_save_tail_off_hook_add
 
-    !> (lambda () (auto-revert-tail-mode 0))  Not a port.
+    !> Turn `auto_revert_tail_mode' off (the procedure `before_save_tail_off_hook_add' adds).  Not a port.
     recursive subroutine tail_mode_off(status)
         type(status_type), intent(out) :: status
 

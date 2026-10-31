@@ -61,11 +61,11 @@ module faces_fm
     integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_NIL = 1, FACE_T = 2, FACE_COLOR = 3, &
                                   FACE_PLIST = 4, FACE_LIST = 5, FACE_VALUE = 6
 
-    !> Underline styles (`:style' in an underline property list).
+    !> Underline styles (`style' of `face_underline').
     integer, parameter, public :: FACE_STYLE_LINE = 1, FACE_STYLE_DOUBLE_LINE = 2, FACE_STYLE_WAVE = 3, &
                                   FACE_STYLE_DOTS = 4, FACE_STYLE_DASHES = 5
 
-    !> Box styles (`:style' in a box property list): 3D buttons, and a
+    !> Box styles (`style' of `face_box'): 3D buttons, and a
     !> flat button (a plain box in the background color).
     integer, parameter, public :: FACE_BOX_RELEASED_BUTTON = 1, FACE_BOX_PRESSED_BUTTON = 2, FACE_BOX_FLAT_BUTTON = 3
 
@@ -641,7 +641,7 @@ contains
     end subroutine inherit_unspecify
 
     !> Face attributes with the given ones specified, for specs: the
-    !> property list of a defface alternative.  INHERIT names one face
+    !> attributes of a defface alternative.  INHERIT names one face
     !> inherited from, INHERITS a list of them.  Not a port.
     function face_attrs(family, foundry, foreground, background, distant_foreground, weight, slant, width, height, &
                         relative_height, underline, underline_color, underline_style, overline, strike_through, &
@@ -693,7 +693,7 @@ contains
     end function face_attrs
 
     !> An underline given as upstream's
-    !> property list (:color COLOR :style STYLE :position POSITION), for
+    !> attributes `:color', `:style' and `:position', as `color', `style' and `position', for
     !> `faces%NAME%underline = face_underline(...)'.  An absent COLOR is
     !> the face's foreground color (`foreground-color'); STYLE is one of
     !> FACE_STYLE_LINE (the default), FACE_STYLE_DOUBLE_LINE,
@@ -722,8 +722,8 @@ contains
         if (present(position)) line%position = position
     end function face_underline
 
-    !> A box given as upstream's property list (:line-width WIDTH :color
-    !> COLOR :style STYLE), for `faces%NAME%box = face_box(...)'.
+    !> A box given as upstream's attributes `:line-width' WIDTH, `:color'
+    !> COLOR and `:style' STYLE, for `faces%NAME%box = face_box(...)'.
     !> LINE_WIDTH N is upstream's single number: vertical lines of width
     !> |N| and horizontal lines of width N; VERTICAL_WIDTH and
     !> HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default

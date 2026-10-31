@@ -147,7 +147,7 @@ module mule_fm
 
     !> Per-buffer `buffer_file_coding_system_explicit': the coding systems
     !> the user gave for reading and for writing the buffer's file
-    !> (mule.el's permanent-local (READ . WRITE) cons), by buffer serial.
+    !> (mule.el's permanent-local pair of READ and WRITE), by buffer serial.
     type :: explicit_type
         integer(int64) :: serial = -1
         character(len=:), allocatable :: read, write

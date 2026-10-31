@@ -600,7 +600,7 @@ contains
     end subroutine cmd_exit_recursive_edit
 
     !> Invoke the editor command loop recursively.
-    !> To get out of the recursive edit, a command can throw to `exit' --
+    !> To get out of the recursive edit, a command can return to `exit' with a status --
     !> for instance \[exit_recursive_edit] or \[abort_recursive_edit].
     !> Port of keyboard.c:Frecursive_edit.
     recursive subroutine cmd_recursive_edit(status)
@@ -622,7 +622,7 @@ contains
     !> Otherwise, return the current limit.
     !>
     !> The saved keystrokes are shown by `view_lossage'.  Port of
-    !> keyboard.c:Flossage_size (its interactive spec).
+    !> keyboard.c:Flossage_size (how the command reads its argument).
     recursive subroutine cmd_lossage_size(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n

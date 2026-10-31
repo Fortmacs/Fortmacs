@@ -331,7 +331,7 @@ contains
     !> Delete specified WINDOW.
     !> WINDOW must be a valid window and defaults to the selected one.
     !>
-    !> Signal an error if WINDOW is the only window on its frame.
+    !> An error condition occurs if WINDOW is the only window on its frame.
     !>
     !> If WINDOW is the selected window on its frame, choose some other
     !> window as that frame's selected window: the most recently used one.

@@ -286,7 +286,7 @@ module ansi_color_fm
         character(len=32) :: name = "ansi_color_apply_face_function"
         type(face_function_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure :: set_local => face_function_set_local
         !> The current buffer's value.
         procedure :: get => face_function_get

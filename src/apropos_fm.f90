@@ -32,7 +32,7 @@
 !>
 !> Deferred: `apropos' itself and `apropos_value', `apropos_library',
 !> `apropos_local_variable', `apropos_local_value' (they need symbol
-!> property lists, faces, libraries or values of every symbol), the
+!> attributes, faces, libraries or values of every symbol), the
 !> scores of `apropos_sort_by_scores' (the default, false, sorts by
 !> name; `apropos_documentation' sorts by score as upstream), faces of
 !> entries and matches, mouse buttons, `apropos_compact_layout',

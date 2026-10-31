@@ -127,7 +127,7 @@ contains
     end function command_name_of
 
     !> Intern the names of the built-in commands, so that completion over
-    !> the obarray (M-x) sees them.  Not a port.
+    !> the name table (M-x) sees them.  Not a port.
     subroutine intern_command_names()
         integer :: i
         integer(int64) :: id
@@ -145,8 +145,8 @@ contains
         fboundp = associated(symbol_command(v))
     end function fboundp
 
-    !> Whether symbol `v' names a defined command (a function with an
-    !> interactive spec).  Not a port.
+    !> Whether symbol `v' names a defined command (a function that is a
+    !> command).  Not a port.
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -194,8 +194,8 @@ contains
         if (allocated(p%disabled_message)) deallocate (p%disabled_message)
     end subroutine set_command_disabled
 
-    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (the
-    !> interactive spec is the command's own business here).  Recursive:
+    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (how the
+    !> command reads its arguments is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
     recursive subroutine call_interactively(cmd, status)
         type(value_type), intent(in) :: cmd

@@ -40,7 +40,7 @@ module intervals_fm
     implicit none(type, external)
     private
 
-    !> Port of intervals.h:struct interval (position, length, plist).
+    !> Port of intervals.h:struct interval (position, length, text properties).
     type, public :: interval_type
         integer(int64) :: position = 1
         integer(int64) :: length = 0
@@ -146,7 +146,7 @@ contains
     end subroutine close_slot
 
     !> Split interval `k' `offset' characters in; return the index of the
-    !> new right-hand part.  Both parts keep the plist (upstream callers
+    !> new right-hand part.  Both parts keep the text properties (upstream callers
     !> copy it with copy_properties).  Port of intervals.c:split_interval_right.
     pure subroutine split_interval_right(iv, k, offset, r)
         type(intervals_type), intent(inout) :: iv
@@ -174,7 +174,7 @@ contains
         l = r - 1
     end subroutine split_interval_left
 
-    !> Value of `prop' in `plist' compared with eq, and whether it is there.
+    !> Value of `prop' in the text properties `plist' compared with eq, and whether it is there.
     !> Port of fns.c:plist_get and textprop.c:property_value.
     subroutine plist_get_eq(plist, prop, val, found)
         type(value_type), intent(in) :: plist, prop
@@ -195,7 +195,7 @@ contains
         end do
     end subroutine plist_get_eq
 
-    !> Value of text property `prop' in `plist', falling back to the
+    !> Value of text property `prop' in `plist' (text properties), falling back to the
     !> `category' symbol's property, then to the first of the properties
     !> `char_property_alias_table' gives as alternatives for `prop'.
     !> Port of intervals.c:textget and intervals.c:lookup_char_property
@@ -272,7 +272,7 @@ contains
         end if
     end function tmem
 
-    !> True if the two plists have the same properties with eq values.
+    !> True if the two sets of text properties have the same properties with eq values.
     !> Port of intervals.c:intervals_equal and intervals.c:intervals_equal_1
     !> (with eq).
     logical function intervals_equal(p0, p1)
@@ -298,7 +298,7 @@ contains
 
     !> Adjust `iv' for `length' characters inserted (length > 0) or deleted
     !> (length < 0) at `start'.  Inserted text gets its own interval: with no
-    !> properties, or with INHERIT true those `insertion_plist' gives it
+    !> properties, or with INHERIT true those `insertion_plist' (text properties) gives it
     !> from its surroundings (upstream's adjust_intervals_for_insertion
     !> puts it in a neighboring interval by stickiness).  Port of
     !> intervals.c:offset_intervals, intervals.c:adjust_intervals_for_insertion
@@ -372,7 +372,7 @@ contains
     !> standard value makes `syntax_table' and `display' (textprop.c),
     !> `composition' (composite.c) and `fill_space' (fill.el)
     !> rear-nonsticky.  Not a port: the value is built in (its table needs
-    !> dotted pairs).
+    !> pairs of two names).
     logical function default_nonsticky(prop)
         type(value_type), intent(in) :: prop
 
@@ -389,7 +389,7 @@ contains
         v = make_symbol_ref(intern(name))
     end function qsym
 
-    !> Whether PROP is one of the properties of PLIST.  Not a port.
+    !> Whether PROP is one of the text properties PLIST.  Not a port.
     logical function plist_member(plist, prop)
         type(value_type), intent(in) :: plist, prop
         type(value_type) :: val
@@ -664,14 +664,14 @@ contains
 
     !> Graft the text properties of inserted text, given as pieces
     !> [STARTS(k), ENDS(k)) relative to the start of the text with
-    !> properties PLISTS(k) (pieces left out have none), into the intervals
+    !> text properties PLISTS(k) (pieces left out have none), into the intervals
     !> IV of a buffer whose text ends at Z, where the LENGTH characters at
     !> POSITION were inserted.  INHERIT true means the inserted text keeps
     !> the properties it got from its surroundings, its own ones added
     !> where it has none (else its own replace them).  With no pieces and
     !> no INHERIT the inserted text gets no properties.  Port of
     !> intervals.c:graft_intervals_into_buffer (with
-    !> intervals.c:copy_properties, a plist assignment here).
+    !> intervals.c:copy_properties, an assignment of the text properties here).
     subroutine graft_intervals_into_buffer(iv, z, starts, ends, plists, position, length, inherit)
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: z
@@ -707,8 +707,8 @@ contains
         end do
     end subroutine graft_intervals_into_buffer
 
-    !> Give the characters A..B of IV the properties PLIST (MERGE: add
-    !> those of PLIST they lack instead), splitting intervals at A and B.
+    !> Give the characters A..B of IV the text properties PLIST (MERGE: add
+    !> those of the text properties PLIST they lack instead), splitting intervals at A and B.
     !> Not a port.
     subroutine set_range_plist(iv, a, b, plist, merge)
         type(intervals_type), intent(inout) :: iv
@@ -744,7 +744,7 @@ contains
 
     !> The text properties of the LENGTH characters of IV from START, as
     !> pieces [STARTS(k), ENDS(k)) relative to START with properties
-    !> PLISTS(k), the pieces without properties left out (none if IV has
+    !> text properties PLISTS(k), the pieces without properties left out (none if IV has
     !> no intervals).  Port of intervals.c:copy_intervals (the copy as
     !> string intervals hold them).
     subroutine copy_intervals(iv, start, length, starts, ends, plists)

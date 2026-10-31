@@ -415,7 +415,7 @@ contains
         if (k > 0) b = locals(k)%vc_backend
     end function log_edit_vc_backend
 
-    !> Set the current buffer's `log_edit_callback' (setq-local): the
+    !> Set the current buffer's `log_edit_callback' (set_local): the
     !> command `log_edit_done' calls to perform the operation.  Not a port.
     subroutine set_log_edit_callback(callback)
         procedure(command_proc) :: callback
@@ -425,7 +425,7 @@ contains
         locals(k)%callback => callback
     end subroutine set_log_edit_callback
 
-    !> Set the current buffer's `log_edit_vc_backend' (setq-local): B is
+    !> Set the current buffer's `log_edit_vc_backend' (set_local): B is
     !> a VC backend index, 0 for none.  Not a port.
     subroutine set_log_edit_vc_backend(b)
         integer, intent(in) :: b

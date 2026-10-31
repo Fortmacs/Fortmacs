@@ -22,7 +22,7 @@
 !> Reading a line of input in the minibuffer: the prompt is read-only
 !> text in a field at the start of buffer " *Minibuf-N*", shown in the
 !> frame's minibuffer window, which is selected while a recursive edit
-!> runs; a command throws to `exit' to finish.
+!> runs; a command returns to `exit' with a status to finish.
 !>
 !> The completion primitives (`try_completion', `all_completions',
 !> `test_completion') are here too; the completion UI is minibuffer_fm's.
@@ -715,7 +715,7 @@ contains
     !> KEY and the elements of LIST are upcased for comparison.
     !>
     !> Unlike `assoc', KEY can also match an entry in LIST consisting of a
-    !> single string, rather than a cons cell whose car is a string.
+    !> single string, rather than a pair whose first element is a string.
     !> Port of minibuf.c:Fassoc_string (KEY as a string; a symbol is
     !> given by its name).
     function assoc_string(key, list_value, case_fold) result(elt)
@@ -901,7 +901,7 @@ contains
     !> of (string, value) entries, or a completion function.  In a table,
     !> the strings of the entries are the possible completions; an entry
     !> that is only a string is itself a possible completion.  If
-    !> COLLECTION is the obarray, the names of all symbols in the obarray
+    !> COLLECTION is the name table, the names of all names in the name table
     !> are the possible completions.
     !>
     !> A completion function does the completion itself.  It receives
@@ -912,7 +912,7 @@ contains
     !> possible completion.  A possible completion is accepted only if
     !> PREDICATE returns true.  The argument given to PREDICATE is either a
     !> string or an entry (whose first element is a string) of COLLECTION,
-    !> or a symbol from the obarray.
+    !> or a name from the name table.
     !>
     !> If `completion_ignore_case' is .true., possible completions are
     !> matched while ignoring letter-case, but no guarantee is made about
@@ -1044,7 +1044,7 @@ contains
     !> COLLECTION, the completion table, is an array of strings, a table
     !> of (string, value) entries, or a completion function.  In a table,
     !> the strings of the entries are the possible completions.  If
-    !> COLLECTION is the obarray, the names of all symbols in the obarray
+    !> COLLECTION is the name table, the names of all names in the name table
     !> are the possible completions.
     !>
     !> A completion function does the completion itself.  It receives
@@ -1111,7 +1111,7 @@ contains
     !> Takes the same arguments as `all_completions' and `try_completion'.
     !>
     !> If COLLECTION is a function, it is called with STRING, PREDICATE and
-    !> COMPLETE_TEST (`lambda').  Port of minibuf.c:Ftest_completion.
+    !> COMPLETE_TEST.  Port of minibuf.c:Ftest_completion.
     recursive logical function test_completion(string, collection, predicate) result(valid)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
@@ -1188,7 +1188,7 @@ contains
     !> unquoted positions, we simply assume that `concat' and `unquote'
     !> commute (which tends to be the case).  And we ask `requote' to do
     !> the work of mapping from unquoted positions back to quoted
-    !> positions.  Port of the lambda of
+    !> positions.  Port of the anonymous procedure of
     !> minibuffer.el:completion-table-with-quoting (no metadata, and no
     !> `completion--unquote' action: the completion styles call
     !> `try_completion' and `all_completions' on the quoted table).
@@ -1487,7 +1487,7 @@ contains
     !> Complete with TABLE, with S1 replaced by S2: strings of the form
     !> (concat S1 S) complete in the same way as TABLE completes strings
     !> of the form (concat S2 S).  ACTION, STRING, RESULT, PREDICATE and
-    !> SUFFIX are those of a function table.  Port of the lambda of
+    !> SUFFIX are those of a function table.  Port of the anonymous procedure of
     !> minibuffer.el:completion-table-subvert.
     recursive subroutine completion_table_subvert(table, s1, s2, string, action, result, status, predicate, suffix)
         type(completion_table_type), intent(in) :: table

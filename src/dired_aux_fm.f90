@@ -49,8 +49,8 @@
 !> `dired_dwim_target_defaults' (offered by M-n: `read_file_name' takes
 !> one default) and a procedure as `dired_dwim_target', the error data in
 !> the log of a failed file operation (its name and message are logged,
-!> not the condition's data list), file name handlers.  Loading and
-!> byte-compiling Lisp files (`L', `B') are not applicable.
+!> not the condition's data list), file name handlers.  Loading Lisp
+!> files (`L', `B') is not applicable.
 submodule(dired_mode_fm) dired_aux_fm
     use lisp_fm, only: make_list, xfixnum
     use error_fm, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
@@ -153,7 +153,7 @@ contains
 
     !> Create a directory called DIRECTORY.
     !> Parent directories of DIRECTORY are created as needed.
-    !> If DIRECTORY already exists, signal an error.  Port of
+    !> If DIRECTORY already exists, an error condition occurs.  Port of
     !> dired-aux.el:dired-create-directory (interactive).
     recursive subroutine cmd_dired_create_directory(status)
         type(status_type), intent(out) :: status
@@ -3585,7 +3585,7 @@ contains
     !> If user option `dired_create_empty_file_in_current_directory' is
     !> true, act on the current subdirectory by default, otherwise act on
     !> the default directory by default.
-    !> If FILE already exists, signal an error.  Port of
+    !> If FILE already exists, an error condition occurs.  Port of
     !> dired-aux.el:dired-create-empty-file (interactive).
     recursive subroutine cmd_dired_create_empty_file(status)
         type(status_type), intent(out) :: status

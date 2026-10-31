@@ -189,8 +189,8 @@ contains
 
     !> If TABLE is absent, give the current category table.  If TABLE is
     !> present, check the validity of TABLE as a category table: give
-    !> TABLE itself if valid, else signal an error of
-    !> wrong-type-argument.  INFO is the number of its info.  Port of
+    !> TABLE itself if valid, else a
+    !> `wrong_type_argument' error condition occurs.  INFO is the number of its info.  Port of
     !> category.c:check_category_table.
     recursive subroutine check_category_table(h, info, status, table)
         type(handle_type), intent(out) :: h

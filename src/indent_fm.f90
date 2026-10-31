@@ -142,7 +142,7 @@ module indent_fm
         procedure(indent_region_proc), pointer, nopass :: value => null()
         type(indent_region_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => indent_region_set_local
         !> The current buffer's function (null for the default).
         procedure :: get => indent_region_get
@@ -389,7 +389,7 @@ module indent_fm
         end function indent_line_function_name
 
         !> Point P at the indent-line function named NAME; any other
-        !> function is called by name with `funcall'.  (In indent_cmds_fm.)
+        !> function is called through its name.  (In indent_cmds_fm.)
         !> Not a port.
         module subroutine indent_line_function_named(name, p)
             implicit none(type, external)

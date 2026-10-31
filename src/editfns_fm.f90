@@ -330,8 +330,8 @@ contains
         end if
     end subroutine check_mark
 
-    !> The region as the arguments of a command whose interactive spec
-    !> has `r': point and the mark, the smaller first (as they are, not
+    !> The region as the arguments of a command that reads the region
+    !> (`r'): point and the mark, the smaller first (as they are, not
     !> limited to the accessible part).  `check_mark' reports a mark that
     !> is not set or inactive; rectangle_mark_mode's advice of
     !> `region_beginning' does not apply.  Port of the `r' code of

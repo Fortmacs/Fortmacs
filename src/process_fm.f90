@@ -49,10 +49,10 @@
 !> `process_environment' (the editor's environment is passed); remote
 !> directories and file name handlers; stopped processes (`stop_process',
 !> `continue_process', `stop' statuses); `set_process_filter' with t
-!> (stopping output); a CURRENT_GROUP of `lambda' (signal only when the
+!> (stopping output); a special CURRENT_GROUP (signal only when the
 !> shell does not own the terminal); `signal_process'
 !> with names, `interrupt_process_functions', `signal_process_functions';
-!> the process plist (`process_get', `process_put'); threads locking
+!> the process attributes (`process_get', `process_put'); threads locking
 !> processes (`set_process_thread'); `set_process_window_size';
 !> `process_running_child_p'; adaptive read buffering; `inhibit_sentinels';
 !> the saving of the match data around filters and sentinels; quitting

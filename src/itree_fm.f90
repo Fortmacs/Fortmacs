@@ -22,7 +22,7 @@
 !> Overlays.  An overlay is a registry object referenced by a handle: the
 !> buffer it is in (the null handle once deleted), the interval it
 !> covers (itree.c's struct itree_node: begin, end, front_advance,
-!> rear_advance) and its property list.  Upstream keeps a buffer's
+!> rear_advance) and its text properties.  Upstream keeps a buffer's
 !> overlays in an interval tree (itree.c); here they are one array of
 !> nodes, scanned in order of their start, which gives the same results
 !> for the few overlays a buffer has.  insdel_fm moves them with the text
@@ -45,7 +45,7 @@
 !>
 !> Deferred: indirect buffers (`copy_overlays'), the `window', `mouse_face' and
 !> `intangible' properties, priorities given as (PRIMARY . SECONDARY)
-!> pairs (no dotted pairs), `remove_overlays' (subr.el) and
+!> pairs (no pairs of two names), `remove_overlays' (subr.el) and
 !> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -75,7 +75,7 @@ module itree_fm
         type(handle_type) :: buffer
         integer(int64) :: begin = 0, end = 0
         logical :: front_advance = .false., rear_advance = .false.
-        !> The property list.
+        !> The overlay's properties.
         type(value_type) :: plist
     end type overlay_type
 
@@ -505,7 +505,7 @@ contains
     end function overlay_buffer
 
     !> Return a list of the properties on OVERLAY.
-    !> This is a copy of OVERLAY's plist; modifying its conses has no effect on
+    !> This is a copy of OVERLAY's properties; modifying it has no effect on
     !> OVERLAY.  Port of buffer.c:Foverlay_properties.
     function overlay_properties(overlay) result(plist)
         type(handle_type), intent(in) :: overlay

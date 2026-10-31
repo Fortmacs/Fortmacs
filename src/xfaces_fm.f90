@@ -29,7 +29,7 @@
 !> region); `merge_faces' merges a named face into a realized one.
 !>
 !> Face references in text properties are face names (symbols, in the
-!> Fortran spelling: `region', `font_lock_comment_face'), property lists
+!> Fortran spelling: `region', `font_lock_comment_face'), attributes
 !> of attributes with the Fortran attribute names as keywords
 !> (`:foreground', `:inverse_video', `:strike_through'), or lists of
 !> face references, the first taking precedence.
@@ -38,8 +38,8 @@
 !> redisplay's region overlay).
 !>
 !> Deferred: `face_remapping_table', mouse faces, face filters
-!> (`:filter'), the cons forms (FOREGROUND-COLOR . COLOR) of face
-!> references (no dotted pairs), the `reset' attribute value, relative
+!> (`:filter'), the pair forms FOREGROUND-COLOR and COLOR of face
+!> references (no pairs of two names), the `reset' attribute value, relative
 !> (float) and functional heights in face references, fonts, fontsets,
 !> stipples and the window-system faces, `internal_set_lisp_face_attribute'
 !> (faces change by assignment in the configuration, then
@@ -619,7 +619,7 @@ contains
     end function face_inherited_extend
 
     !> Merge face attributes from the face reference FACE_REF into TO.
-    !> FACE_REF is a face name, a property list of attributes, or a list
+    !> FACE_REF is a face name, attributes, or a list
     !> of face references, those at the beginning taking precedence.  OK
     !> is false if FACE_REF is invalid (what is valid of it is still
     !> merged).  With EXTEND_ONLY, a face is merged only if it gives
@@ -708,11 +708,11 @@ contains
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function symbol_name
 
-    !> Merge the property list ELTS (keyword, value, ...) of a face
+    !> Merge the attributes ELTS (keyword, value, ...) of a face
     !> reference into TO, in order.  With FILTER, nothing is merged unless
     !> `:extend' is given a true value, or is not mentioned and a face
     !> `:inherit' names gives it one.  Port of
-    !> xfaces.c:merge_face_ref (the property list part).
+    !> xfaces.c:merge_face_ref (the attributes part).
     recursive subroutine merge_plist(elts, to, ok, filter, depth)
         type(value_type), intent(in) :: elts(:)
         type(face_attributes_type), intent(inout) :: to
@@ -928,7 +928,7 @@ contains
         end select
     end subroutine merge_attribute
 
-    !> An underline given as a property list (:color COLOR :style STYLE
+    !> An underline given as attributes (:color COLOR :style STYLE
     !> :position POS).  Not a port.
     subroutine underline_from_plist(value, to)
         type(value_type), intent(in) :: value

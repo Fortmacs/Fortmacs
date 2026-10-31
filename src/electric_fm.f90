@@ -374,7 +374,7 @@ contains
     end function electric_indent_local_mode_p
 
     !> The body of Electric Indent Local mode with its new state VAL: the
-    !> setter (setq-local electric-indent-mode VAL), then the body.  Port of
+    !> setter (`electric_indent_mode' set locally to VAL), then the body.  Port of
     !> electric.el:electric-indent-local-mode (its body).
     subroutine electric_indent_local_mode_body(val, status)
         logical, intent(in) :: val

@@ -98,7 +98,7 @@ module buffer_fm
     end type undo_entry_type
 
     !> An element of a buffer's invisibility spec: `ATOM', or
-    !> `(ATOM . ELLIPSIS)' (`cons') with ELLIPSIS true or false.
+    !> ATOM with ELLIPSIS (`with_ellipsis') .true. or .false..
     type, public :: invisibility_entry_type
         type(value_type) :: atom
         logical :: cons = .false., ellipsis = .false.
@@ -862,7 +862,7 @@ contains
         end do
     end subroutine list_delq
 
-    !> (cons h (delq h list)) Not a port.
+    !> Move H to the front of LIST (removing it elsewhere).  Not a port.
     subroutine list_push(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h

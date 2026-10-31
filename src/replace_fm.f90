@@ -26,7 +26,7 @@
 !>
 !> Differences from upstream, for want of Lisp and of display features:
 !>
-!> - REPLACEMENTS as a (FUNCTION . DATA) cons is a Fortran function of
+!> - REPLACEMENTS as a pair of FUNCTION and DATA is a Fortran function of
 !>   the replacement count (`replacement_function'); `\,' (a Lisp
 !>   expression) in an interactive replacement is an error, while `\#'
 !>   (the replacement count) works;
@@ -1137,10 +1137,10 @@ contains
     !> This function returns .false. if there were no matches to make, or
     !> the user canceled the call.
     !>
-    !> REPLACEMENTS is either a string, a list of strings, or a cons cell
+    !> REPLACEMENTS is either a string, an array of strings, or a pair
     !> containing a function and its first argument.  The function is
     !> called to generate each replacement like this:
-    !>   (funcall (car replacements) (cdr replacements) replace-count)
+    !>   call FUNCTION(DATA, replace_count)
     !> It must return a string.
     !>
     !> In Fortmacs, REPLACEMENTS is the string `replacements', unless

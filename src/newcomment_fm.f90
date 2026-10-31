@@ -164,7 +164,7 @@ module newcomment_fm
         procedure(comment_indent_proc), pointer, nopass :: value => null()
         type(indent_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => indent_function_set_local
         !> The current buffer's function.
         procedure :: get => indent_function_get
@@ -1336,7 +1336,7 @@ contains
         end if
     end subroutine comment_enter_backward
 
-    !> The raw syntax code (with flags) of the character at POS (car of
+    !> The raw syntax code (with flags) of the character at POS (the first element of
     !> syntax-after), 0 outside the buffer.  Not a port.
     integer(int32) function syntax_code_at(pos)
         integer(int64), intent(in) :: pos

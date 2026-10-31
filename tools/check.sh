@@ -153,6 +153,14 @@ if $style; then
     fi
     tools/test-fortran-names.sh
 
+    # The wording of docstrings and messages (PORTING.md, "Fortran names
+    # for Lisp terms", "Wording"): tools/fortran-prose.awk, and its test.
+    if ! awk -v table=tools/fortran-prose -f tools/fortran-prose.awk $(find $DIRS -name '*.f90' | sort); then
+        echo "Lisp wording in docstrings or messages: reword it (PORTING.md, \"Fortran names for Lisp terms\")" >&2
+        exit 1
+    fi
+    tools/test-fortran-prose.sh
+
     # Intrinsics first (PORTING.md, "Intrinsics first"): tools/intrinsics.awk
     # with its shrinking baseline, and its own test.
     if ! awk -v baseline=tools/intrinsics-baseline -f tools/intrinsics.awk $(find $DIRS -name '*.f90' | sort); then

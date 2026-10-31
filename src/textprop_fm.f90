@@ -32,7 +32,7 @@
 !> property and friends), LIMIT t in next-property-change,
 !> add-face-text-property, stickiness for insert-and-inherit, and
 !> `text_property_default_nonsticky' as a (buffer-local) variable: its
-!> standard value is built in, as the value model has no dotted pairs
+!> standard value is built in, as the value model has no pairs of two names
 !> for its table.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -99,7 +99,7 @@ module textprop_fm
                                                                                   value=.true.)
 
     !> One element of `text_property_list': the text from START to END has
-    !> the properties PLIST.
+    !> the text properties PLIST.
     type, public :: text_property_range_type
         integer(int64) :: start = 0, end = 0
         type(value_type) :: plist
@@ -192,7 +192,7 @@ contains
 
         if (consp(props)) then
             if (mod(list_length(props), 2_int64) /= 0) then
-                call set_error(status, FM_GENERIC_ERROR, "Odd length text property list")
+                call set_error(status, FM_GENERIC_ERROR, "Odd length text properties")
                 return
             end if
 
@@ -257,7 +257,7 @@ contains
     end function has_all_properties
 
     !> True if interval `k' has any of the properties named in `names'
-    !> (every element when `step' is 1, every other one for a plist).
+    !> (every element when `step' is 1, every other one for text properties).
     !> Port of textprop.c:interval_has_some_properties and
     !> textprop.c:interval_has_some_properties_list.
     logical function has_some_properties(names, step, k)
@@ -281,7 +281,7 @@ contains
         end do
     end function has_some_properties
 
-    !> Set or add each property of `plist' on interval `k'; new properties
+    !> Set or add each text property of `plist' on interval `k'; new properties
     !> go in front, as upstream.  Port of textprop.c:add_properties
     !> (TEXT_PROPERTY_REPLACE).
     subroutine add_properties(plist, k, changed)
@@ -322,7 +322,7 @@ contains
     end subroutine add_properties
 
     !> Remove from interval `k' every property named in `names' (every
-    !> element when `step' is 1, every other one for a plist).
+    !> element when `step' is 1, every other one for text properties).
     !> Port of textprop.c:remove_properties.
     subroutine remove_properties(names, step, k, changed)
         type(value_type), intent(in) :: names
@@ -373,7 +373,7 @@ contains
         end associate
     end function interval_at
 
-    !> Property list of the character after `position'.
+    !> Text properties of the character after `position'.
     !> Port of textprop.c:Ftext_properties_at.
     subroutine text_properties_at(position, plist, status)
         integer(int64), intent(in) :: position
@@ -606,7 +606,7 @@ contains
     !> `properties'.  The change hooks run.  Port of
     !> textprop.c:Fset_text_properties (textprop.c:set_text_properties with
     !> COHERENT_CHANGE_P t, textprop.c:set_text_properties_1 and
-    !> textprop.c:set_properties, a plist assignment here).
+    !> textprop.c:set_properties, an assignment of the text properties here).
     recursive subroutine set_text_properties(start, end, properties, changed, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: properties
@@ -670,7 +670,7 @@ contains
         call signal_text_properties_change(s, e, status)
     end subroutine set_text_properties
 
-    !> Remove the properties named in plist `properties' (values ignored)
+    !> Remove the properties named in the text properties `properties' (values ignored)
     !> from the text from `start' to `end'.
     !> Port of textprop.c:Fremove_text_properties.
     recursive subroutine remove_text_properties(start, end, properties, changed, status)
@@ -1399,7 +1399,7 @@ contains
     end subroutine call_mod_hooks
 
     !> Check for read-only intervals between character positions START ...
-    !> END, in the current buffer, and signal an error if we find one.
+    !> END, in the current buffer, and an error condition occurs if we find one.
     !>
     !> Then check for any modification hooks in the range.  Create a list of
     !> all these hooks in lexicographic order, eliminating consecutive extra
@@ -1648,7 +1648,7 @@ contains
         val = textget(string_text_properties_at(position, string), prop)
     end function string_get_text_property
 
-    !> Add the properties of PROPERTIES (a plist) to the characters START
+    !> Add the properties of PROPERTIES (text properties) to the characters START
     !> to END (0-based, either order) of STRING; CHANGED says whether any
     !> property changed.  Port of textprop.c:Fadd_text_properties with a
     !> string OBJECT.
@@ -1712,7 +1712,7 @@ contains
         call string_add_text_properties(start, end, list(prop, val), string, changed, status)
     end subroutine string_put_text_property
 
-    !> A copy of STRING with the properties of PROPERTIES (a plist) on all
+    !> A copy of STRING with the properties of PROPERTIES (text properties) on all
     !> of it, added to those it has.  Port of editfns.c:Fpropertize.
     function propertize(string, properties) result(v)
         type(value_type), intent(in) :: string, properties
@@ -1745,9 +1745,9 @@ contains
         if (.not. st%ok()) nchars = len(xstring(string), kind=int64)
     end subroutine string_chars
 
-    !> Add the pairs of NEW to PLIST, replacing values of properties it
-    !> has (textprop.c:add_properties on a plist).
-    !> Port of textprop.c:add_properties (on a plist, in part).
+    !> Add the text properties NEW to PLIST, replacing values of properties it
+    !> has (textprop.c:add_properties on text properties).
+    !> Port of textprop.c:add_properties (on text properties, in part).
     subroutine plist_add(plist, new, changed)
         type(value_type), intent(inout) :: plist
         type(value_type), intent(in) :: new
@@ -1816,8 +1816,8 @@ contains
         cuts = cuts(1:n)
     end subroutine sort_unique
 
-    !> Give STRING the pieces [CUTS(j), CUTS(j+1)) with plists PIECES(j),
-    !> adjacent pieces with equal plists as one interval.  Not a port.
+    !> Give STRING the pieces [CUTS(j), CUTS(j+1)) with text properties PIECES(j),
+    !> adjacent pieces with equal text properties as one interval.  Not a port.
     subroutine set_merged_intervals(string, cuts, pieces)
         type(value_type), intent(inout) :: string
         integer(int64), intent(in) :: cuts(:)
@@ -1971,7 +1971,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Return the text properties of buffer slot B between START and END,
-    !> as elements (S E PLIST), last first: S and E are positions and PLIST
+    !> as elements S, E and PLIST, last first: S and E are positions and PLIST
     !> holds the properties of the text between them.  If PROP is present,
     !> report only on that property.  None if the text has no properties
     !> there.  Port of textprop.c:text_property_list (OBJECT a buffer).
@@ -2033,7 +2033,7 @@ contains
     end subroutine text_property_list
 
     !> Add text properties to the current buffer from LIST, elements
-    !> (START END PLIST) as `text_property_list' gives them, START and END
+    !> START, END and PLIST as `text_property_list' gives them, START and END
     !> moved by DELTA first.  Port of textprop.c:add_text_properties_from_list
     !> (OBJECT the current buffer).
     recursive subroutine add_text_properties_from_list(ranges, delta, status)

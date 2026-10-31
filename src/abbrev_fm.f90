@@ -30,8 +30,8 @@
 !>     abbrev_mode = .true.
 !>
 !> An abbrev table's properties are components (`parents', `case_fixed',
-!> `regexp', `enable_function'); upstream's obarray of symbols with
-!> property lists becomes an array of `abbrev_type' entries.  An abbrev
+!> `regexp', `enable_function'); upstream's name table of names with
+!> attributes becomes an array of `abbrev_type' entries.  An abbrev
 !> as `expand_abbrev' and `last_abbrev' give it (upstream's abbrev
 !> symbol) is an `abbrev_ref_type': its table and name.
 !>
@@ -101,7 +101,7 @@ module abbrev_fm
         end function abbrev_enable_proc
     end interface
 
-    !> One abbrev of a table (upstream's symbol in the table's obarray,
+    !> One abbrev of a table (upstream's name in the table's name table,
     !> with its value, function and properties).
     type, public :: abbrev_type
         !> The abbrev, as defined (usually lower case).
@@ -134,7 +134,7 @@ module abbrev_fm
     end type abbrev_table_ref_type
 
     !> An abbrev table.  Port of the abbrev tables of abbrev.el (an
-    !> obarray with the table's properties on its symbol "").
+    !> name table with the table's attributes on its name "").
     type, public :: abbrev_table_type
         !> The name of the variable holding the table
         !> (`abbrev_table_name'), as in `abbrev_table_name_list'; empty for
@@ -373,7 +373,7 @@ module abbrev_fm
         end subroutine kill_all_abbrevs
 
         !> Make a new abbrev-table NEW with the same abbrevs as TABLE.
-        !> This function does not copy property lists of the abbrevs.
+        !> This function does not copy the attributes of the abbrevs.
         !> See `define_abbrev' for the documentation of abbrev properties.
         !> Port of abbrev.el:copy-abbrev-table.
         module subroutine copy_abbrev_table(table, new)
@@ -750,7 +750,7 @@ module abbrev_fm
         end function local_abbrev_table
 
         !> Make TABLE the local abbrev table of the current buffer, as
-        !> `(setq local-abbrev-table TABLE)'.  Not a port.
+        !> assigning TABLE to `local_abbrev_table' does.  Not a port.
         module subroutine set_local_abbrev_table(table)
             implicit none(type, external)
             type(abbrev_table_type), intent(in), target :: table

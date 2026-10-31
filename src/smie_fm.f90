@@ -2318,7 +2318,7 @@ contains
         end if
     end subroutine smie_forward_expression_command
 
-    !> The character of SYNTAX entry D matches (cdr (syntax-after POS)),
+    !> The character of SYNTAX entry D matches the matching character of `syntax_after' at POS,
     !> as a string; "" if it has none.  Not a port.
     function matching_char(pos) result(s)
         integer(int64), intent(in) :: pos
@@ -3211,7 +3211,7 @@ contains
         call goto_char(here)
     end subroutine smie_parent
 
-    !> The level of the parent: (car (smie-indent--parent)).  Not a port.
+    !> The level of the parent: the first element of `smie_indent__parent'.  Not a port.
     recursive function smie_parent_level(status) result(level)
         type(status_type), intent(out) :: status
         type(smie_level_type) :: level
@@ -3376,7 +3376,7 @@ contains
             if (allocated(smie__token)) then
                 call message("smie-rule-separator: Can't skip token "//smie__token)
             else
-                call message("smie-rule-separator: Can't skip token nil")
+                call message('smie-rule-separator: Can''t skip token ""')
             end if
         end if
 
@@ -3627,7 +3627,7 @@ contains
         if (allocated(tok)) then
             call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: "//prin1_string(tok))
         else
-            call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: nil")
+            call set_error(status, FM_GENERIC_ERROR, 'Bumped into unknown token: ""')
         end if
     end function smie_indent_forward_token
 

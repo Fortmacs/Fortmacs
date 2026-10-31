@@ -31,7 +31,7 @@
 !> dired-aux.el (the operations on marked files) is in the submodule
 !> dired_aux_fm; its options are declared here.
 !>
-!> Deferred: a list of files as the directory argument (a cons
+!> Deferred: a list of files as the directory argument (an array as
 !> `dired_directory'), inserted subdirectories (`i', `dired_insert_subdir',
 !> `$' hiding, `dired_switches_table', `dired_subdir_switches'),
 !> `dired_hide_details_mode' and its options (the `invisible' properties
@@ -51,7 +51,7 @@
 !> (`dired_find_subdir', `dired_omit_mode', killing buffers of deleted
 !> files), `combine_change_calls' in `dired_readin' (the change hooks run
 !> for each change), trash (`delete_by_moving_to_trash'),
-!> `dired_trivial_filenames' t, B and L (byte-compiling and loading Lisp:
+!> `dired_trivial_filenames' t, B and L (loading Lisp:
 !> not applicable).
 module dired_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
@@ -832,7 +832,7 @@ module dired_mode_fm
     interface
         !> Create a directory called DIRECTORY.
         !> Parent directories of DIRECTORY are created as needed.
-        !> If DIRECTORY already exists, signal an error.  Port of
+        !> If DIRECTORY already exists, an error condition occurs.  Port of
         !> dired-aux.el:dired-create-directory.  (In dired_aux_fm.)
         recursive module subroutine dired_create_directory(directory, status)
             implicit none(type, external)
@@ -1351,7 +1351,7 @@ module dired_mode_fm
         !> Parent directories of FILE are created as needed.
         !> Add an entry in the Dired buffer for the topmost new parent
         !> directory of FILE, if created, otherwise for the new file.
-        !> If FILE already exists, signal an error.  Port of
+        !> If FILE already exists, an error condition occurs.  Port of
         !> dired-aux.el:dired-create-empty-file.  (In dired_aux_fm.)
         recursive module subroutine dired_create_empty_file(file, status)
             implicit none(type, external)
@@ -2762,7 +2762,7 @@ contains
     !> Return the position of the beginning of the filename, or 0 if none
     !> found.
     !>
-    !> If RAISE_ERROR, signal an error if we can't find the filename on
+    !> If RAISE_ERROR, an error condition occurs if we can't find the filename on
     !> the current line.
     !>
     !> If EOL_IN is present, it is a position to use instead of
@@ -3629,7 +3629,7 @@ contains
     !> In Dired, you are "editing" a list of the files in a directory and
     !>   (optionally) its subdirectories, in the format of `ls -lR'.
     !> "Editing" means that you can run shell commands on files, visit,
-    !>   compress, load or byte-compile them, change their file attributes
+    !>   compress or load them, change their file attributes
     !>   and insert subdirectories into the same buffer.  You can "mark"
     !>   files for later commands or "flag" them for deletion, either file
     !>   by file or all files matching certain criteria.
@@ -4783,9 +4783,9 @@ contains
         map_n = 0
     end subroutine reset_results
 
-    !> Return the marked files' names as list of strings.
-    !> The list is in the same order as the Dired buffer text, that is, the car
-    !>   is the first marked file.
+    !> Return the marked files' names as an array of strings.
+    !> The list is in the same order as the Dired buffer text, that is, the first
+    !>   element is the first marked file.
     !> Values returned are normally absolute file names.
     !> LOCALP is as in `dired_get_filename'.
     !> ARG_KIND and ARG_N, if not DIRED_ARG_NIL, specify files near point

@@ -513,7 +513,7 @@ module vc_hooks_fm
     ! Per-file properties
     ! ------------------------------------------------------------------
 
-    !> The per-file properties (vc-file-prop-obarray), by property.
+    !> The per-file properties (upstream's vc-file-prop-obarray), by property.
     integer, parameter, public :: VC_PROP_BACKEND = 1, VC_PROP_STATE = 2, VC_PROP_WORKING_REVISION = 3, &
                                   VC_PROP_CHECKOUT_TIME = 4, VC_PROP_GIT_SYMBOLIC_REF = 5
     integer, parameter :: NPROPS = 5

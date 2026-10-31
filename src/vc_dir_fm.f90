@@ -2219,7 +2219,7 @@ contains
     end function set_needs_update
 
     !> Refresh the contents of the *VC-Dir* buffer.
-    !> Throw an error if another update process is in progress.  Port of
+    !> An error condition occurs if another update process is in progress.  Port of
     !> vc-dir.el:vc-dir-refresh.
     recursive subroutine vc_dir_refresh(status)
         type(status_type), intent(out) :: status

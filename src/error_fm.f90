@@ -31,7 +31,7 @@
 !>
 !> Each error code corresponds to an Emacs error symbol.  Codes form the
 !> same hierarchy as the symbols' `error_conditions' property, so
-!> `condition_matches' behaves like a `condition_case' handler test.
+!> `condition_matches' is the check of the status that tests for a condition.
 module error_fm
     use, intrinsic :: iso_fortran_env, only: int32
     implicit none(type, external)
@@ -131,10 +131,10 @@ module error_fm
     !> `inhibit_interaction' is true.
     integer(int32), parameter, public :: FM_INHIBITED_INTERACTION = 35
 
-    !> Not an error: a throw to the catch tag `top_level'
+    !> Not an error: a return with a status to `top_level'
     !> (keyboard.c:Ftop_level), which unwinds every recursive edit and
     !> which only the top-level command loop takes; like `quit', no
-    !> handler for `error' catches it.
+    !> check of the status for `error' takes it.
     integer(int32), parameter, public :: FM_TOP_LEVEL = 36
 
     integer(int32), parameter :: last_code = FM_TOP_LEVEL
@@ -262,7 +262,7 @@ contains
         end if
     end function error_message
 
-    !> True when an error with `code' would be caught by a handler for
+    !> True when an error with `code' would be taken by a check of the status for
     !> `condition', i.e. `condition' is in its `error_conditions' chain.
     !> Not a port.
     pure logical function condition_matches(code, condition)

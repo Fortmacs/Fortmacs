@@ -126,7 +126,7 @@ contains
     end function find_abbrev
 
     !> The index of the abbrev named NAME in TABLE, added undefined if it
-    !> is not there (obarray-put).  Not a port.
+    !> is not there (as upstream's obarray-put).  Not a port.
     integer function intern_abbrev(table, name) result(k)
         type(abbrev_table_type), intent(inout) :: table
         character(len=*), intent(in) :: name

@@ -278,9 +278,9 @@ module coding_fm
     !> Port of coding.c eol-mnemonic-undecided.
     type(string_setting), public :: eol_mnemonic_undecided = string_setting(name="eol_mnemonic_undecided")
 
-    !> Cons of coding systems used for process I/O by default.
-    !> The first element is used for decoding a process output,
-    !> the second is used for encoding a text to be sent to a process.
+    !> Coding systems used for process I/O by default.
+    !> The first (`decoding') is used for decoding a process output,
+    !> the second (`encoding') is used for encoding a text to be sent to a process.
     !> Port of coding.c default-process-coding-system (the value
     !> prefer-coding-system gives it in a UTF-8 locale).
     character(len=40), public :: default_process_coding_system(2) = ["utf-8-unix", "utf-8-unix"]

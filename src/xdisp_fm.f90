@@ -2962,8 +2962,8 @@ contains
         k = 0
     end function process_entry_of
 
-    !> Give the current buffer the `mode_line_process' PARTS (setq
-    !> mode-line-process, a buffer-local variable).
+    !> Give the current buffer the `mode_line_process' PARTS
+    !> (set_local: `mode_line_process' is a buffer-local variable).
     !>
     !> Mode line construct for displaying info on process status.
     !> Normally unallocated in most modes, since there is no process to

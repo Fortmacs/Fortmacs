@@ -181,7 +181,7 @@ module syntax_propertize_fm
         procedure(syntax_propertize_proc), pointer, nopass :: value => null()
         type(function_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => function_set_local
         !> The current buffer's function (null when unset).
         procedure :: get => function_get
@@ -217,7 +217,7 @@ module syntax_propertize_fm
     !> (`set_local'; no table when unset).
     type, public :: syntax_ppss_table_type
     contains
-        !> Make H the current buffer's table (setq-local).
+        !> Make H the current buffer's table (set_local).
         procedure, nopass :: set_local => ppss_table_set_local
         !> Whether the current buffer has a table, and which (FOUND).
         procedure, nopass :: get => ppss_table_get

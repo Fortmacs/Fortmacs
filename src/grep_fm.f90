@@ -152,7 +152,7 @@ module grep_fm
     end type grep_files_alias_type
 
     abstract interface
-        !> The car of a cons element of `grep_find_ignored_files_variable' and
+        !> The test of an element of `grep_find_ignored_files_variable' and
         !> `grep_find_ignored_directories': whether the element applies to
         !> the search directory DIR.  Not a port.
         logical function grep_ignore_predicate(dir)
@@ -181,7 +181,7 @@ module grep_fm
     !> An element of `grep_find_ignored_files_variable' and
     !> `grep_find_ignored_directories': the file or directory NAME, which
     !> applies to a search directory only if APPLIES (when given) says so
-    !> (the cons form (FUNCTION . NAME)).
+    !> (upstream's pair of FUNCTION and NAME).
     type, public :: grep_ignore_type
         character(len=64) :: name = ""
         procedure(grep_ignore_predicate), pointer, nopass :: applies => null()
@@ -2418,7 +2418,7 @@ contains
         if (len(regexp) == 0) return
 
         if (.not. present(dir)) then
-            call set_error(status, FM_USER_ERROR, "Unable to open directory: nil")
+            call set_error(status, FM_USER_ERROR, 'Unable to open directory: ""')
             return
         end if
 
@@ -2541,7 +2541,7 @@ contains
     !> with C-u C-u the command (RUN, from COMMAND and HISTORY), else the
     !> REGEXP, FILES, DIR (prompted with DIR_PROMPT) and CONFIRM (C-u).
     !> Port of grep.el:lgrep, grep.el:rgrep and grep.el:zrgrep, in part
-    !> (their interactive specs).
+    !> (how the commands read their arguments).
     recursive subroutine read_grep_args(command, history, dir_prompt, run, regexp, files, dir, confirm, status)
         character(len=:), allocatable, intent(in) :: command
         character(len=*), intent(in) :: history, dir_prompt
@@ -2661,7 +2661,7 @@ contains
         if (len(regexp) == 0) return
 
         if (.not. present(dir)) then
-            call set_error(status, FM_USER_ERROR, "Unable to open directory: nil")
+            call set_error(status, FM_USER_ERROR, 'Unable to open directory: ""')
             return
         end if
 

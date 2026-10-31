@@ -279,7 +279,7 @@ module syntax_fm
         !>
         !> If we reach the beginning or end of the accessible part of the buffer
         !> before we have scanned over COUNT groups, return 0 if the depth at
-        !> that point is zero, and signal an error if the depth is nonzero.
+        !> that point is zero, and an error condition occurs if the depth is nonzero.
         !> Port of syntax.c:Fscan_lists (the error is `scan_error').
         recursive module integer(int64) function scan_groups(from, count, depth, status) result(pos)
             implicit none(type, external)

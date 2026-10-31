@@ -2541,7 +2541,7 @@ contains
         end do
     end function after_modifiers
 
-    !> Signal an error if KEY doesn't have a valid syntax.  Port of
+    !> An error condition occurs if KEY doesn't have a valid syntax.  Port of
     !> keymap.el:keymap--check.
     subroutine keymap_check(key, status)
         character(len=*), intent(in) :: key
@@ -3170,7 +3170,7 @@ contains
         end if
     end subroutine possibly_translate_key_sequence
 
-    !> Signal an error for a symbol event naming a key that has a character
+    !> An error condition occurs for a name event naming a key that has a character
     !> (RET, TAB, ESC, DEL, SPC, with modifiers): "To bind the key C-RET,
     !> use [?\C-\r], not [C-RET]".  Port of
     !> keymap.c:silly_event_symbol_error.
@@ -3213,7 +3213,7 @@ contains
     !> Return the description of CHARACTER in standard Emacs notation.
     !> CHARACTER must be a valid character code that passes the `characterp' test.
     !> Control characters turn into "^char", and characters with Meta and other
-    !> modifiers signal an error, as they are not valid character codes.
+    !> modifiers make an error condition occur, as they are not valid character codes.
     !> This differs from `single_key_description' which accepts character events,
     !> and thus doesn't enforce the `characterp' condition, turns control
     !> characters into "C-char", and uses the 2**27 bit for Meta.

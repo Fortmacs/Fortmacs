@@ -211,7 +211,7 @@ contains
     end function data_local_index
 
     !> Give the current buffer its own `show_paren_data_function'
-    !> FN (setq-local); absent clears it.  Not a port.
+    !> FN (set_local); absent clears it.  Not a port.
     subroutine set_local_show_paren_data_function(fn)
         procedure(show_paren_data_proc), optional :: fn
         type(data_entry_type), allocatable :: grown(:)
@@ -342,7 +342,7 @@ contains
     end subroutine show_paren_local_mode
 
     !> The body of Show Paren Local mode with its new state VAL: the
-    !> setter (setq-local show-paren-mode VAL), then the body.
+    !> setter (`show_paren_mode' set locally to VAL), then the body.
     !> Port of paren.el:show-paren-local-mode in part.
     subroutine show_paren_local_mode_body(val, status)
         logical, intent(in) :: val

@@ -834,7 +834,7 @@ contains
     !> the responsible backend system for the symbolic link itself will
     !> be reported.
     !>
-    !> If NO_ERROR is false or absent, signal an error that no VC backend is
+    !> If NO_ERROR is false or absent, an error condition occurs saying that no VC backend is
     !> responsible for the given file.  Port of vc.el:vc-responsible-backend.
     integer function vc_responsible_backend(file, status, no_error) result(bk)
         character(len=*), intent(in) :: file
@@ -941,7 +941,7 @@ contains
     !> Otherwise, if ALLOW_UNREGISTERED is true and the visited file
     !> is unregistered, FILESET is a single-file list containing the
     !> name of the visited file.
-    !> Otherwise, throw an error.
+    !> Otherwise, an error condition occurs.
     !>
     !> STATE_MODEL_ONLY_FILES, if true, means that the caller needs
     !> the FILESET-ONLY-FILES, STATE, and CHECKOUT-MODEL info, where
@@ -1349,8 +1349,8 @@ contains
 
     !> Do the next logical version control operation on the current fileset.
     !> This requires that all files in the current VC fileset be in the
-    !> sufficiently similar states.  If they are not, signal an error.
-    !> Also signal an error if files in the fileset are ignored by the VCS.
+    !> sufficiently similar states.  If they are not, an error condition occurs.
+    !> An error condition also occurs if files in the fileset are ignored by the VCS.
     !>
     !> For modern merging-based version control systems:
     !>   If every file in the fileset is not registered for version
@@ -3440,7 +3440,7 @@ contains
     end subroutine vc_rename_file
 
     !> Whether DIRNAME contains a VC-managed file (vc-file-tree-walk
-    !> throwing `done' at the first).  Not a port.
+    !> returning with `done' at the first).  Not a port.
     recursive logical function vc_file_tree_walk_any(dirname) result(found)
         character(len=*), intent(in) :: dirname
         type(vc_string_type), allocatable :: files(:)

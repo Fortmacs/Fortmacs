@@ -647,7 +647,7 @@ contains
     end function getter_in
 
     !> Set the mode's own state: globally, or (a buffer-local mode) in
-    !> the current buffer, as `(setq MODE ON)' does.  Not a port.
+    !> the current buffer, as assigning ON to the mode variable does.  Not a port.
     subroutine minor_mode_set_state(self, on)
         class(minor_mode_type), intent(inout) :: self
         logical, intent(in) :: on

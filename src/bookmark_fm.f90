@@ -1138,8 +1138,8 @@ contains
 
     !> Store the bookmark NAME with data RECORD.
     !> If NO_OVERWRITE is true and another bookmark of the same name already
-    !> exists in `bookmark_table', record the new bookmark without throwing
-    !> away the old one.  Port of bookmark.el:bookmark-store.
+    !> exists in `bookmark_table', record the new bookmark without discarding
+    !> the old one.  Port of bookmark.el:bookmark-store.
     recursive subroutine bookmark_store(name, record, no_overwrite, status)
         character(len=*), intent(in) :: name
         type(bookmark_type), intent(in) :: record
@@ -2177,7 +2177,7 @@ contains
             end if
         else
             ! No file found.
-            call set_error(status, FM_BOOKMARK_ERROR_NO_FILENAME, "stringp, nil")
+            call set_error(status, FM_BOOKMARK_ERROR_NO_FILENAME, "expected character(len=*), unallocated")
             return
         end if
 

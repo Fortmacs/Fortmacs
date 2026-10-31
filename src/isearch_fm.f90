@@ -117,8 +117,8 @@ module isearch_fm
     !> search-nonincremental-instead.
     logical, public :: search_nonincremental_instead = .true.
 
-    !> Maximum length of search ring before oldest elements are thrown
-    !> away.  Port of isearch.el search-ring-max.
+    !> Maximum length of search ring before oldest elements are
+    !> thrown away.  Port of isearch.el search-ring-max.
     integer, public :: search_ring_max = 16
 
     !> Maximum length of regexp search ring before oldest elements are
@@ -303,7 +303,7 @@ module isearch_fm
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => search_fun_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => search_fun_set_local
         !> Set FN to the current buffer's value (null for the default).
         procedure, nopass :: get => search_fun_get
@@ -321,7 +321,7 @@ module isearch_fm
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => wrap_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => wrap_set_local
         !> The current buffer's value (null when unset).
         procedure, nopass :: get => wrap_get
@@ -335,7 +335,7 @@ module isearch_fm
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => push_state_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => push_state_set_local
         !> The current buffer's value (null when unset).
         procedure, nopass :: get => push_state_get
@@ -356,7 +356,7 @@ module isearch_fm
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => filter_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => filter_set_local
         !> The current buffer's value (null for the default).
         procedure, nopass :: get => filter_get
@@ -370,7 +370,7 @@ module isearch_fm
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => message_clear_local
-        !> Make FN the current buffer's value (setq-local).
+        !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => message_set_local
         !> The current buffer's value (null when unset).
         procedure, nopass :: get => message_get
@@ -2469,21 +2469,21 @@ contains
 
     !> Register the isearch commands, build `isearch_mode_map', and bind
     !> C-s, C-r, C-M-s and C-M-r in `global_map'.  Port of isearch.el's
-    !> (setq isearch-wrapped WRAPPED), for an `isearch_wrap_function'.
+    !> Assign WRAPPED to `isearch_wrapped', for an `isearch_wrap_function'.
     subroutine set_isearch_wrapped(wrapped)
         logical, intent(in) :: wrapped
 
         isearch_wrapped = wrapped
     end subroutine set_isearch_wrapped
 
-    !> (setq isearch-barrier POS), for a search function.  Not a port.
+    !> Assign POS to `isearch_barrier', for a search function.  Not a port.
     subroutine set_isearch_barrier(pos)
         integer(int64), intent(in) :: pos
 
         isearch_barrier = pos
     end subroutine set_isearch_barrier
 
-    !> (setq isearch-opoint POS), for a search function.  Not a port.
+    !> Assign POS to `isearch_opoint', for a search function.  Not a port.
     subroutine set_isearch_opoint(pos)
         integer(int64), intent(in) :: pos
 

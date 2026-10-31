@@ -923,7 +923,7 @@ contains
         end if
     end subroutine expand_cp_target
 
-    !> Signal an error if file ABSNAME exists: `file_already_exists',
+    !> An error condition occurs if file ABSNAME exists: `file_already_exists',
     !> or `file_error' if it is a directory.  KNOWN_TO_EXIST says it is
     !> known to exist.  Port of fileio.c:barf_or_query_if_file_exists
     !> (the query is not ported: INTERACTIVE false).

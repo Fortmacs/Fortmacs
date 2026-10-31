@@ -4141,7 +4141,7 @@ contains
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call copy_abbrev_table(table, new)"
             entry%doc = "Make a new abbrev-table NEW with the same abbrevs as TABLE."//LF// &
-                        "This function does not copy property lists of the abbrevs."//LF// &
+                        "This function does not copy the attributes of the abbrevs."//LF// &
                         "See `define_abbrev' for the documentation of abbrev properties."
         case ("copy_category_table")
             entry%file = "category_fm.f90"
@@ -4665,7 +4665,7 @@ contains
             entry%doc = "Delete specified WINDOW."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."//LF// &
                         ""//LF// &
-                        "Signal an error if WINDOW is the only window on its frame."//LF// &
+                        "An error condition occurs if WINDOW is the only window on its frame."//LF// &
                         ""//LF// &
                         "If WINDOW is the selected window on its frame, choose some other"//LF// &
                         "window as that frame's selected window: the most recently used one."
@@ -4963,7 +4963,7 @@ contains
             entry%interactive = .true.
             entry%doc = "Create a directory called DIRECTORY."//LF// &
                         "Parent directories of DIRECTORY are created as needed."//LF// &
-                        "If DIRECTORY already exists, signal an error."
+                        "If DIRECTORY already exists, an error condition occurs."
         case ("dired_create_empty_file")
             entry%file = "dired_aux_fm.f90"
             entry%interactive = .true.
@@ -4974,7 +4974,7 @@ contains
                         "If user option `dired_create_empty_file_in_current_directory' is"//LF// &
                         "true, act on the current subdirectory by default, otherwise act on"//LF// &
                         "the default directory by default."//LF// &
-                        "If FILE already exists, signal an error."
+                        "If FILE already exists, an error condition occurs."
         case ("dired_diff")
             entry%file = "dired_aux_fm.f90"
             entry%interactive = .true.
@@ -6050,8 +6050,8 @@ contains
         case ("face_box")
             entry%file = "faces_fm.f90"
             entry%fortran = "face_box(line_width, vertical_width, horizontal_width, color, style)"
-            entry%doc = "A box given as upstream's property list (:line-width WIDTH :color"//LF// &
-                        "COLOR :style STYLE), for `faces%NAME%box = face_box(...)'."//LF// &
+            entry%doc = "A box given as upstream's attributes `:line-width' WIDTH, `:color'"//LF// &
+                        "COLOR and `:style' STYLE, for `faces%NAME%box = face_box(...)'."//LF// &
                         "LINE_WIDTH N is upstream's single number: vertical lines of width"//LF// &
                         "|N| and horizontal lines of width N; VERTICAL_WIDTH and"//LF// &
                         "HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default"//LF// &
@@ -6066,7 +6066,7 @@ contains
             entry%file = "faces_fm.f90"
             entry%fortran = "face_underline(color, style, position)"
             entry%doc = "An underline given as upstream's"//LF// &
-                        "property list (:color COLOR :style STYLE :position POSITION), for"//LF// &
+                        "attributes `:color', `:style' and `:position', as `color', `style' and `position', for"//LF// &
                         "`faces%NAME%underline = face_underline(...)'.  An absent COLOR is"//LF// &
                         "the face's foreground color (`foreground-color'); STYLE is one of"//LF// &
                         "FACE_STYLE_LINE (the default), FACE_STYLE_DOUBLE_LINE,"//LF// &
@@ -8327,8 +8327,8 @@ contains
         case ("interactive_region")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call interactive_region(beg, end, status)"
-            entry%doc = "The region as the arguments of a command whose interactive spec"//LF// &
-                        "has `r': point and the mark, the smaller first (as they are, not"//LF// &
+            entry%doc = "The region as the arguments of a command that reads the region"//LF// &
+                        "(`r'): point and the mark, the smaller first (as they are, not"//LF// &
                         "limited to the accessible part).  `check_mark' reports a mark that"//LF// &
                         "is not set or inactive; rectangle_mark_mode's advice of"//LF// &
                         "`region_beginning' does not apply."
@@ -9700,7 +9700,7 @@ contains
             entry%fortran = "call mark(pos, status, force)"
             entry%doc = "Return this buffer's mark value as integer, or 0 if never set."//LF// &
                         ""//LF// &
-                        "In Transient Mark mode, this function signals an error if"//LF// &
+                        "In Transient Mark mode, an error condition occurs if"//LF// &
                         "the mark is not active.  However, if `mark_even_if_inactive' is true,"//LF// &
                         "or the argument FORCE is true, it disregards whether the mark"//LF// &
                         "is active, and returns an integer or 0 in the usual way."
@@ -10800,16 +10800,11 @@ contains
                         ""//LF// &
                         "For instance, if you have:"//LF// &
                         ""//LF// &
-                        "  (let ((foo 2))"//LF// &
-                        "    (progn"//LF// &
-                        "      (setq foo 3)"//LF// &
-                        "      (zot)"//LF// &
-                        "      (+ foo 2)))"//LF// &
+                        "  x = max(a, min(b, c))"//LF// &
                         ""//LF// &
-                        "and point is before (zot), \[raise_expression] will give you"//LF// &
+                        "and point is before min, \[raise_expression] will give you"//LF// &
                         ""//LF// &
-                        "  (let ((foo 2))"//LF// &
-                        "    (zot))"
+                        "  x = min(b, c)"
         case ("re_search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call re_search_backward(regexp, found, status, bound, noerror, count)"
@@ -10876,7 +10871,7 @@ contains
                         "to recover the character code with the modifiers removed."//LF// &
                         ""//LF// &
                         "If the user generates an event which is not a character (i.e. a mouse"//LF// &
-                        "click or function key event), `read_char' signals an error.  As an"//LF// &
+                        "click or function key event), an error condition occurs in `read_char'.  As an"//LF// &
                         "exception, switch-frame events are put off until non-character events"//LF// &
                         "can be read."//LF// &
                         "If you want to read non-character events, or ignore them, call"//LF// &
@@ -11256,7 +11251,7 @@ contains
             entry%fortran = "call recursive_edit(status)"
             entry%interactive = .true.
             entry%doc = "Invoke the editor command loop recursively."//LF// &
-                        "To get out of the recursive edit, a command can throw to `exit' --"//LF// &
+                        "To get out of the recursive edit, a command can return to `exit' with a status --"//LF// &
                         "for instance \[exit_recursive_edit] or \[abort_recursive_edit]."
         case ("redraw_display")
             entry%file = "dispnew_fm.f90"
@@ -11394,7 +11389,7 @@ contains
                         "  `\\' means insert one `\'."//LF// &
                         "  `\?' is treated literally"//LF// &
                         "       (for compatibility with `query_replace_regexp')."//LF// &
-                        "  Any other character following `\' signals an error."//LF// &
+                        "  Any other character following `\' makes an error condition occur."//LF// &
                         "Case conversion does not apply to these substitutions."//LF// &
                         ""//LF// &
                         "If optional fourth argument STRING is present, it should be a"//LF// &
@@ -11746,7 +11741,7 @@ contains
                         ""//LF// &
                         "If we reach the beginning or end of the accessible part of the buffer"//LF// &
                         "before we have scanned over COUNT groups, return 0 if the depth at"//LF// &
-                        "that point is zero, and signal an error if the depth is nonzero."
+                        "that point is zero, and an error condition occurs if the depth is nonzero."
         case ("scroll_down")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -11768,7 +11763,7 @@ contains
                         ""//LF// &
                         "If `scroll_error_top_bottom' is true and `scroll_down' cannot"//LF// &
                         "scroll window further, move cursor to the top line."//LF// &
-                        "When point is already on that position, then signal an error."//LF// &
+                        "When point is already on that position, then an error condition occurs."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward."//LF// &
                         ""//LF// &
@@ -11807,7 +11802,7 @@ contains
                         ""//LF// &
                         "If `scroll_error_top_bottom' is true and `scroll_up' cannot"//LF// &
                         "scroll window further, move cursor to the bottom line."//LF// &
-                        "When point is already on that position, then signal an error."//LF// &
+                        "When point is already on that position, then an error condition occurs."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward."//LF// &
                         ""//LF// &
@@ -12045,7 +12040,7 @@ contains
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call set_local_abbrev_table(table)"
             entry%doc = "Make TABLE the local abbrev table of the current buffer, as"//LF// &
-                        "`(setq local-abbrev-table TABLE)'."
+                        "assigning TABLE to `local_abbrev_table' does."
         case ("set_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call set_mark(pos)"
@@ -13310,7 +13305,7 @@ contains
             entry%file = "vc_dir_fm.f90"
             entry%interactive = .true.
             entry%doc = "Refresh the contents of the *VC-Dir* buffer."//LF// &
-                        "Throw an error if another update process is in progress."
+                        "An error condition occurs if another update process is in progress."
         case ("vc_dir_root")
             entry%file = "vc_dir_fm.f90"
             entry%interactive = .true.
@@ -13392,8 +13387,8 @@ contains
             entry%interactive = .true.
             entry%doc = "Do the next logical version control operation on the current fileset."//LF// &
                         "This requires that all files in the current VC fileset be in the"//LF// &
-                        "sufficiently similar states.  If they are not, signal an error."//LF// &
-                        "Also signal an error if files in the fileset are ignored by the VCS."//LF// &
+                        "sufficiently similar states.  If they are not, an error condition occurs."//LF// &
+                        "An error condition also occurs if files in the fileset are ignored by the VCS."//LF// &
                         ""//LF// &
                         "For modern merging-based version control systems:"//LF// &
                         "  If every file in the fileset is not registered for version"//LF// &
@@ -16439,7 +16434,7 @@ contains
 
             entry%doc = "Table that specifies how to match errors in compiler output."//LF// &
                         "On GNU and Unix, any string is a valid filename, so these"//LF// &
-                        "matchers must make some common sense assumptions, which catch"//LF// &
+                        "matchers must make some common sense assumptions, which handle"//LF// &
                         "normal cases.  A shorter list will be lighter on resource usage."//LF// &
                         ""//LF// &
                         "Each element is the name of a rule of"//LF// &
@@ -16753,7 +16748,7 @@ contains
                         "completion data (START END COLLECTION . PROPS), where:"//LF// &
                         " START and END delimit the entity to complete and should include point,"//LF// &
                         " COLLECTION is the completion table to use to complete the entity, and"//LF// &
-                        " PROPS is a property list for additional information."//LF// &
+                        " PROPS holds attributes for additional information."//LF// &
                         "Currently supported properties are:"//LF// &
                         " `predicate'        a predicate that completion candidates need to satisfy."//LF// &
                         " `exclusive'        false means that if the completion table fails to"//LF// &
@@ -17530,9 +17525,9 @@ contains
             entry%file = "coding_fm.f90"
             entry%fortran = "default_process_coding_system"
             entry%value = repr(default_process_coding_system)
-            entry%doc = "Cons of coding systems used for process I/O by default."//LF// &
-                        "The first element is used for decoding a process output,"//LF// &
-                        "the second is used for encoding a text to be sent to a process."
+            entry%doc = "Coding systems used for process I/O by default."//LF// &
+                        "The first (`decoding') is used for decoding a process output,"//LF// &
+                        "the second (`encoding') is used for encoding a text to be sent to a process."
         case ("default_terminal_coding_system")
             entry%file = "mule_fm.f90"
             entry%fortran = "default_terminal_coding_system"
@@ -21139,7 +21134,8 @@ contains
             entry%fortran = "inhibit_interaction"
             entry%original = ".false."
             entry%value = repr(inhibit_interaction)
-            entry%doc = "True means any user interaction will signal an error."//LF// &
+            entry%doc = "True means any user interaction will make an `inhibited_interaction' error condition occur"// &
+                        "."//LF// &
                         "This variable can be bound when user interaction can't be performed,"//LF// &
                         "for instance when running a headless Emacs server.  Functions like"//LF// &
                         "`read_from_minibuffer' (and the like) will signal `inhibited_interaction'"//LF// &
@@ -21398,7 +21394,7 @@ contains
             entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(kill_read_only_ok)
-            entry%doc = "True means don't signal an error for killing read-only text."
+            entry%doc = "True means no error condition occurs for killing read-only text."
         case ("kill_ring_max")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_ring_max"
@@ -23683,7 +23679,7 @@ contains
             entry%original = ".false."
             entry%value = repr(scroll_error_top_bottom)
             entry%doc = "Move point on scroll error if true."//LF// &
-                        "If false, scroll commands signal an error when no more scrolling is"//LF// &
+                        "If false, an error condition occurs in scroll commands when no more scrolling is"//LF// &
                         "possible.  If true, they move point to the beginning or end of"//LF// &
                         "the buffer instead (and then signal at the edge)."
         case ("search_exit_option")
@@ -23710,8 +23706,8 @@ contains
             entry%user_option = .true.
             entry%original = "16"
             entry%value = repr(search_ring_max)
-            entry%doc = "Maximum length of search ring before oldest elements are thrown"//LF// &
-                        "away."
+            entry%doc = "Maximum length of search ring before oldest elements are"//LF// &
+                        "thrown away."
         case ("search_spaces_regexp")
             entry%file = "search_fm.f90"
             entry%fortran = "search_spaces_regexp"

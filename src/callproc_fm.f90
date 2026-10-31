@@ -110,7 +110,7 @@ contains
     !> for PROGRAM in PATH.
     !>
     !> If executable PROGRAM can't be found as an executable,
-    !> `call_process' signals an error.  `call_process' reports errors in
+    !> a `file_missing' error condition occurs in `call_process'.  `call_process' reports errors in
     !> execution of the program only through its return and output.
     !>
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit

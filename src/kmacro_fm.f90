@@ -28,12 +28,12 @@
 !>
 !> A macro of the ring is a `kmacro_type' (upstream's `kmacro' oclosure:
 !> its keys, counter and format); calling one runs it with its own
-!> counter and format, as funcall on the oclosure does.  The head of the
+!> counter and format, as calling the oclosure does.  The head of the
 !> ring is `last_kbd_macro' with `kmacro_counter' and
 !> `kmacro_counter_format_start'.
 !>
 !> Fortran has no anonymous commands: the key that repeats a macro after
-!> C-x e (upstream a lambda in a transient keymap) runs the command
+!> C-x e (upstream an anonymous procedure in a transient keymap) runs the command
 !> `kmacro_call_macro_repeat'.
 !>
 !> Deferred: editing macros (`kmacro_edit_macro', `kmacro_edit_macro_repeat',
@@ -195,7 +195,7 @@ module kmacro_fm
     integer(int64) :: last_kmacro_id = 0
 
     !> The transient keymap of the repeat key, and the arguments of the
-    !> call it repeats (the lambda's ARG and MACRO, if `repeat_has_macro').
+    !> call it repeats (the procedure's ARG and MACRO, if `repeat_has_macro').
     type(handle_type) :: repeat_map
     type(value_type) :: repeat_key_bound, repeat_arg
     type(value_type), allocatable :: repeat_macro(:)
@@ -557,7 +557,7 @@ contains
         kmacro_counter_format_start = saved_format
     end subroutine kmacro_call
 
-    !> Run element K of the ring (funcall on it).  Not a port.
+    !> Run element K of the ring (call it).  Not a port.
     recursive subroutine call_ring_element(k, arg, status)
         integer, intent(in) :: k
         type(value_type), intent(in) :: arg

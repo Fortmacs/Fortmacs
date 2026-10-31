@@ -330,7 +330,7 @@ module keyboard_fm
 
     !> A command to execute in place of the command about to be executed,
     !> which it is given: a function of `pre_command_hook' sets it (upstream,
-    !> such a function sets `this_command' to a lambda calling the command),
+    !> such a function sets `this_command' to a procedure calling the command),
     !> and the command loop clears it before executing it.
     procedure(command_wrapper_proc), pointer, public :: this_command_wrapper => null()
 
@@ -406,7 +406,7 @@ module keyboard_fm
     !> re-exports it).
     integer, public :: minibuf_level = 0
 
-    !> True means any user interaction will signal an error.
+    !> True means any user interaction will make an `inhibited_interaction' error condition occur.
     !> This variable can be bound when user interaction can't be performed,
     !> for instance when running a headless Emacs server.  Functions like
     !> `read_from_minibuffer' (and the like) will signal `inhibited_interaction'
@@ -480,7 +480,7 @@ module keyboard_fm
     !> description of it (unallocated for none).
     logical :: prefix_command_needs_update = .false.
     character(len=:), allocatable :: prefix_command_last_echo
-    !> A throw to `top_level' is unwinding the recursive edits.
+    !> A return to `top_level' with a status is unwinding the recursive edits.
     logical :: top_level_pending = .false.
 
     !> Whether errors of the innermost command loop are handled there
@@ -498,7 +498,7 @@ module keyboard_fm
     logical :: exit_requested = .false.
     !> keyboard.c:command_loop_level, the depth of recursive edits.
     integer, public, protected :: command_loop_level = 0
-    !> A (throw 'exit VALUE) is pending; `exit_abort' for VALUE t.
+    !> A return to `exit' with a status is pending; `exit_abort' for an abort.
     logical :: exit_pending = .false., exit_abort = .false.
     !> How many recursive edits the pending abort leaves
     !> (minibuffer-quit-recursive-edit's LEVELS).
@@ -2568,9 +2568,9 @@ contains
         if (present(levels)) exit_levels = max(1, levels)
     end subroutine throw_exit
 
-    !> (throw 'exit STRING): end the innermost recursive edit once the
-    !> current command returns; it signals an error with message `msg'.
-    !> Port of keyboard.c:Frecursive_edit's handling of a string thrown
+    !> Return to `exit' with a status carrying a message: end the innermost recursive edit once the
+    !> current command returns; an error condition occurs there with message `msg'.
+    !> Port of keyboard.c:Frecursive_edit's handling of a string returned
     !> to `exit'.
     subroutine throw_exit_string(msg)
         character(len=*), intent(in) :: msg
@@ -3176,7 +3176,7 @@ contains
     !> to recover the character code with the modifiers removed.
     !>
     !> If the user generates an event which is not a character (i.e. a mouse
-    !> click or function key event), `read_char' signals an error.  As an
+    !> click or function key event), an error condition occurs in `read_char'.  As an
     !> exception, switch-frame events are put off until non-character events
     !> can be read.
     !> If you want to read non-character events, or ignore them, call
@@ -3599,7 +3599,7 @@ contains
 
     !> Exit all recursive editing levels.
     !> This also exits all active minibuffers.  Port of
-    !> keyboard.c:Ftop_level: the throw to `top_level' is the status
+    !> keyboard.c:Ftop_level: the return to `top_level' is the status
     !> `FM_TOP_LEVEL', which the recursive edits pass on and the top-level
     !> command loop takes without a message.
     subroutine top_level(status)

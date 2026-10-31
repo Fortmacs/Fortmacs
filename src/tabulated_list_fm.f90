@@ -273,7 +273,7 @@ contains
 
     !> Set the current buffer's `tabulated_list_format' to COLUMNS, the
     !> format of the current Tabulated List mode buffer.  Port of
-    !> tabulated-list.el tabulated-list-format (setq-local).
+    !> tabulated-list.el tabulated-list-format (set_local).
     subroutine set_tabulated_list_format(columns)
         type(tabulated_list_column_type), intent(in) :: columns(:)
         integer :: k, j
@@ -310,7 +310,7 @@ contains
 
     !> Set the current buffer's `tabulated_list_entries' to ENTRIES, the
     !> entries displayed in the current Tabulated List buffer.  Port of
-    !> tabulated-list.el tabulated-list-entries (a list; setq-local).
+    !> tabulated-list.el tabulated-list-entries (an array; set_local).
     subroutine set_tabulated_list_entries(entries)
         type(tabulated_list_entry_type), intent(in) :: entries(:)
         integer :: k
@@ -364,7 +364,7 @@ contains
     !> of characters preceding each Tabulated List mode entry.  By default,
     !> lines are padded with spaces, but you can use the function
     !> `tabulated_list_put_tag' to change this.  Port of tabulated-list.el
-    !> tabulated-list-padding (setq-local).
+    !> tabulated-list-padding (set_local).
     subroutine set_tabulated_list_padding(n)
         integer, intent(in) :: n
         integer :: k
@@ -386,7 +386,7 @@ contains
     !> FLIP): NAME is one of the column names in `tabulated_list_format'
     !> (the corresponding SORT entry then specifies how to sort); FLIP
     !> true means to invert the resulting sort.  Port of tabulated-list.el
-    !> tabulated-list-sort-key (setq-local).
+    !> tabulated-list-sort-key (set_local).
     subroutine set_tabulated_list_sort_key(name, flip)
         character(len=*), intent(in) :: name
         logical, intent(in), optional :: flip
@@ -438,7 +438,7 @@ contains
 
     !> Make FN the current buffer's `tabulated_list_printer': the function
     !> for inserting a Tabulated List entry at point.  Port of
-    !> tabulated-list.el tabulated-list-printer (setq-local).
+    !> tabulated-list.el tabulated-list-printer (set_local).
     subroutine set_tabulated_list_printer(fn)
         procedure(tabulated_list_printer_proc) :: fn
         integer :: k

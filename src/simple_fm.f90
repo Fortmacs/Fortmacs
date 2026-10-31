@@ -28,7 +28,7 @@
 !> kill ring are here too.
 !>
 !> Not ported yet: undo in a region (undo-make-selective-list), temporary
-!> Transient Mark mode ((only . OLD) and lambda), the global mark ring,
+!> Transient Mark mode (the temporary and shift-selection activations), the global mark ring,
 !> shift-selection, the interprogram (system clipboard) cut and paste,
 !> `yank_from_kill_ring' (read-from-kill-ring needs completion metadata,
 !> history positions and display properties), the timer of the M-x key
@@ -1128,7 +1128,7 @@ module simple_fm
         !> beginning of the errors before moving.
         !> Major modes providing compile-like functionality should set this
         !> variable to indicate to `next_error' that this is a candidate
-        !> buffer and how to navigate in it.  Port of the setq-local of
+        !> buffer and how to navigate in it.  Port of the buffer-local setting of
         !> simple.el next-error-function.  (In simple_next_error_fm.)
         module subroutine set_next_error_function(fn)
             implicit none(type, external)
@@ -1497,7 +1497,7 @@ module simple_fm
     !> Maximum size of mark ring.  Start discarding off end if gets this
     !> big.  Port of simple.el mark-ring-max.
     integer, public :: mark_ring_max = 16
-    !> True means don't signal an error for killing read-only text.
+    !> True means no error condition occurs for killing read-only text.
     !> Port of simple.el kill-read-only-ok.
     logical, public :: kill_read_only_ok = .false.
     !> If true, `kill_line' with no arg at start of line kills the whole
@@ -1561,7 +1561,7 @@ contains
     end function check_local_index
 
     !> Give the current buffer its own `blink_matching_check_function'
-    !> FN (setq-local); absent clears it.  Not a port.
+    !> FN (set_local); absent clears it.  Not a port.
     subroutine set_local_blink_matching_check_function(fn)
         procedure(blink_matching_check_proc), optional :: fn
         type(check_entry_type), allocatable :: grown(:)
@@ -1774,7 +1774,7 @@ contains
         end if
     end subroutine cmd_delete_backward_char
 
-    !> (funcall region-extract-function 'delete-only) Not a port.
+    !> Call `region_extract_function' with REGION_EXTRACT_DELETE_ONLY.  Not a port.
     recursive subroutine delete_the_region(status)
         type(status_type), intent(out) :: status
         type(value_type) :: string
@@ -3514,7 +3514,7 @@ contains
 
     !> Return this buffer's mark value as integer, or 0 if never set.
     !>
-    !> In Transient Mark mode, this function signals an error if
+    !> In Transient Mark mode, an error condition occurs if
     !> the mark is not active.  However, if `mark_even_if_inactive' is true,
     !> or the argument FORCE is true, it disregards whether the mark
     !> is active, and returns an integer or 0 in the usual way.  Port of
@@ -3914,7 +3914,7 @@ contains
         string = list_elt(kill_ring(), k)
     end subroutine current_kill_string
 
-    !> The default `region_extract_function'.  Port of the lambda simple.el
+    !> The default `region_extract_function'.  Port of the procedure simple.el
     !> sets region-extract-function to.
     recursive subroutine default_region_extract(method, string, starts, ends, status)
         integer, intent(in) :: method
@@ -3950,7 +3950,7 @@ contains
 
     !> The default `region_insert_function': the strings of LINES, a
     !> newline between them, each through `insert_for_yank'.  Port of the
-    !> lambda of simple.el region-insert-function.
+    !> procedure of simple.el region-insert-function.
     recursive subroutine default_region_insert(lines, status)
         type(value_type), intent(in) :: lines
         type(status_type), intent(out) :: status

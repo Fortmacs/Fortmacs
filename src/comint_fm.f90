@@ -969,7 +969,7 @@ contains
     !> The default is `comint_get_old_input_default', which either grabs
     !> the current input field or grabs the current line and strips off
     !> leading text matching `comint_prompt_regexp', depending on the value
-    !> of `comint_use_prompt_regexp'.  Port of the setq-local of comint.el
+    !> of `comint_use_prompt_regexp'.  Port of the buffer-local setting of comint.el
     !> comint-get-old-input.
     subroutine set_comint_get_old_input(fn)
         procedure(comint_get_old_input_proc) :: fn
@@ -987,7 +987,7 @@ contains
     !> `comint_simple_send' just sends the string plus a newline.
     !> (If `comint_input_sender_no_newline' is true, it omits the newline.)
     !> This is called from the user command `comint_send_input'.  Port of
-    !> the setq-local of comint.el comint-input-sender.
+    !> the buffer-local setting of comint.el comint-input-sender.
     subroutine set_comint_input_sender(fn)
         procedure(comint_input_sender_proc) :: fn
         integer :: k
@@ -1001,7 +1001,7 @@ contains
     !> predicate for filtering additions to input history.
     !> Takes one argument, the input.  If true, the input may be saved on
     !> the input history list.  Default is to save anything that isn't all
-    !> whitespace.  Port of the setq-local of comint.el comint-input-filter.
+    !> whitespace.  Port of the buffer-local setting of comint.el comint-input-filter.
     subroutine set_comint_input_filter(fn)
         procedure(comint_input_filter_proc) :: fn
         integer :: k
@@ -1072,7 +1072,7 @@ contains
         pmark_pos = marker_pos(process_mark(proc))
     end function pmark_pos
 
-    !> The property list (rear-nonsticky comint--prompt-rear-nonsticky).
+    !> The text properties (`rear_nonsticky' with `comint__prompt_rear_nonsticky').
     !> Not a port.
     function rear_nonsticky_plist() result(v)
         type(value_type) :: v
@@ -4313,7 +4313,7 @@ contains
     !> beginning of line.
     !>
     !> If DRY_RUN is true, return in KIND what the first reference would
-    !> do before performing any actual side-effect (upstream throws it to
+    !> do before performing any actual side-effect (upstream returns it to
     !> DRY-RUN).  Port of
     !> comint.el:comint-replace-by-expanded-history-before-point.
     recursive subroutine comint_replace_by_expanded_history_before_point(silent, status, start, dry_run, kind)
@@ -5640,7 +5640,7 @@ contains
     end subroutine quote_functions
 
     !> Give the current buffer its own `comint_unquote_function' and
-    !> `comint_requote_function' (setq-local), UNQUOTE and REQUOTE.
+    !> `comint_requote_function' (set_local), UNQUOTE and REQUOTE.
     !> Not a port.
     subroutine set_comint_quote_functions(unquote, requote)
         procedure(completion_unquote_proc) :: unquote
@@ -5653,7 +5653,7 @@ contains
     end subroutine set_comint_quote_functions
 
     !> Give the current buffer its own `comint_completion_fignore',
-    !> SUFFIXES (setq-local comint-completion-fignore).  Not a port.
+    !> SUFFIXES (set_local).  Not a port.
     subroutine set_comint_completion_fignore(suffixes)
         character(len=*), intent(in) :: suffixes(:)
         integer :: k, i

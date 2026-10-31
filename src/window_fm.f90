@@ -69,7 +69,7 @@ module window_fm
     integer, public :: next_screen_context_lines = 2
 
     !> Move point on scroll error if true.
-    !> If false, scroll commands signal an error when no more scrolling is
+    !> If false, an error condition occurs in scroll commands when no more scrolling is
     !> possible.  If true, they move point to the beginning or end of
     !> the buffer instead (and then signal at the edge).  Port of
     !> window.el scroll-error-top-bottom.
@@ -422,7 +422,7 @@ module window_fm
         !>
         !> If `scroll_error_top_bottom' is true and `scroll_up' cannot
         !> scroll window further, move cursor to the bottom line.
-        !> When point is already on that position, then signal an error.
+        !> When point is already on that position, then an error condition occurs.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll downward.
         !>
@@ -446,7 +446,7 @@ module window_fm
         !>
         !> If `scroll_error_top_bottom' is true and `scroll_down' cannot
         !> scroll window further, move cursor to the top line.
-        !> When point is already on that position, then signal an error.
+        !> When point is already on that position, then an error condition occurs.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll upward.
         !>
@@ -626,7 +626,7 @@ module window_fm
         !> name of no live buffer makes a new buffer of that name.  If the
         !> selected window cannot show it (it is the minibuffer window or
         !> strongly dedicated), use `pop_to_buffer', or with
-        !> FORCE_SAME_WINDOW signal an error.  Unless NORECORD, the buffer
+        !> FORCE_SAME_WINDOW an error condition occurs.  Unless NORECORD, the buffer
         !> becomes the most recently selected one.  When the window showed
         !> the buffer before, its start and point there are restored
         !> (`switch_to_buffer_preserve_window_point' t).  Port of
@@ -650,7 +650,7 @@ module window_fm
         !> WINDOW must be a live window.  Optional third argument
         !> KEEP-MARGINS .true. means that WINDOW's current display margins,
         !> fringe widths, and scroll bar settings are preserved.  This
-        !> function throws an error when WINDOW is strongly dedicated to its
+        !> an error condition occurs when WINDOW is strongly dedicated to its
         !> buffer and does not already display BUFFER_OR_NAME.  Port of
         !> window.c:Fset_window_buffer.
         module subroutine set_window_buffer(h, buffer, status, keep_margins)

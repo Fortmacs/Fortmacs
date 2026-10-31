@@ -62,7 +62,7 @@ module subr_fm
 
     !> A numerical progress reporter (`make_progress_reporter' with
     !> MIN_VALUE and MAX_VALUE): the value at which to report next (the
-    !> car of upstream's cons) and the parameters vector.
+    !> first element of upstream's pair) and the parameters vector.
     type, public :: progress_reporter_type
         real(real64) :: next_value = 0
         !> The time of the next echo area update, in seconds.
@@ -864,8 +864,8 @@ contains
         prefix_arg = nil()
     end subroutine undefined
 
-    !> (defvar NAME nil): give the variable NAME the value nil unless it
-    !> has a value already.  Port of eval.c:Fdefvar (INITVALUE nil).
+    !> Give the variable NAME an empty value unless it
+    !> has a value already.  Port of eval.c:Fdefvar (INITVALUE empty).
     subroutine defvar_nil(name)
         character(len=*), intent(in) :: name
         type(value_type) :: v

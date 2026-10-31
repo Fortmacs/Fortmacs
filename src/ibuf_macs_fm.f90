@@ -37,7 +37,7 @@
 !>
 !> Deferred: `define-ibuffer-filter' (with the filters, step 36c),
 !> `ibuffer-aif' and `ibuffer-awhen' (Lisp control macros: Fortran needs
-!> none), INLINE columns (a byte-compiler optimization), the
+!> none), INLINE columns, the
 !> HEADER-MOUSE-MAP of a column, and an operation's commands for
 !> user-defined sorting methods and operations (commands exist at compile
 !> time; a sorting method added at run time is reached with

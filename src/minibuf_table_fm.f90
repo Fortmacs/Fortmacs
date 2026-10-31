@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Completion tables (COLLECTION arguments: lists, the obarray and
+!> Completion tables (COLLECTION arguments: arrays, the name table and
 !> functions) and the completion data the functions of
 !> `completion_at_point_functions' return.  Split from minibuf_fm so
 !> eval_fm's hooks can hold such functions (minibuf_fm re-exports the
@@ -42,7 +42,7 @@ module minibuf_table_fm
                                   COMPLETE_BOUNDARIES = 3
 
     !> Kinds of completion table: a list (an array of strings or symbols,
-    !> or a table of (string, value) entries), the obarray, a function, or
+    !> or a table of (string, value) entries), the name table, a function, or
     !> a function operating on quoted text (`completion_table_with_quoting').
     integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2, TABLE_QUOTING = 3
 
@@ -196,7 +196,7 @@ contains
     !> argument (a string) which returns that argument appropriately
     !> quoted for use at QPOS.  Port of
     !> minibuffer.el:completion-table-with-quoting (TABLE a function; its
-    !> lambda is minibuf_fm's `quoting_table_call').
+    !> procedure is minibuf_fm's `quoting_table_call').
     function completion_table_with_quoting(table, unquote, requote) result(qtable)
         procedure(completion_function) :: table
         procedure(completion_unquote_proc) :: unquote

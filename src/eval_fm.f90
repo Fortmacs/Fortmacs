@@ -278,7 +278,7 @@ module eval_fm
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => hook_member
         !> Run the hook's functions, reporting and removing the ones that
-        !> signal an error (keyboard.c's safe_run_hooks).
+        !> return with an error condition (keyboard.c's safe_run_hooks).
         procedure :: run_safe => hook_run_safe
     end type hook_type
 
