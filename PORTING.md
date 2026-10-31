@@ -723,6 +723,119 @@ on a baseline line that no longer occurs, so the baseline only shrinks.
 tools/test-intrinsics.sh tests the check on the fixture in
 tools/intrinsics-test.
 
+## Fortran-first decision guide
+
+<!-- fortran-names: off -->
+The renames and checks above cover the Lisp-isms already decided; this
+guide is for the next one.  It records how the owner decides, so a
+session or agent can work without supervision and still not drift into
+Lisp written in Fortran.  Run it before naming anything, wording a
+docstring or choosing a data structure for something that comes from Lisp.
+
+### The questions, in order
+
+1. **Is there an intrinsic or a language construct for it?**  Use it
+   directly (see "Intrinsics first"): `allocated` for "is it nil",
+   `findloc`/`any` for `memq`, array sections for `cdr`, `associated` to
+   compare commands, `select case` on a tag for a type test.  No helper
+   that only wraps one.
+2. **What does the Fortran standard call it?**  Use the standard's own
+   word: subprogram (defun), procedure pointer (function value), named
+   constant, derived type and component (struct, plist), array (vector,
+   list of strings), "an error condition occurs" (signal), STAT/status
+   and RETURN (throw/catch), present/absent (optional arguments),
+   allocated/unallocated, associated/null.
+3. **Is there an established Fortran convention?**  Follow it: the `_mod`
+   module suffix, `read_*` for prompts (READ is Fortran's input verb),
+   `is_*`/`has_*` for logical functions, plural array names without
+   `_array`/`_vector`, `_start`/`_end` for internal helpers that find a
+   position (commands keep upstream's `beginning_of_*`/`end_of_*`), a
+   tagged record with `select case` where `select type` is blocked.
+4. **What does Fortmacs already use for the same role?**  Grep first and
+   match it (the owner asks this whenever two forms exist).
+5. **Does the result read well?**  A mechanical rename that doubles a
+   word (`table_table`), collides with an existing name (`syntax_table`,
+   `display_table_type`, a module's `table`) or reads as a double
+   negative (`KMACRO_NO_REPEAT_NO`) is not applied: propose a better name.
+6. **Is it a type question in disguise?**  A setting with two states is a
+   `logical` (.true./.false.); more states make an integer setting with
+   named constants named after their meaning (COMPILATION_SCROLL_NO /
+   _YES / _FIRST_ERROR, `_ALWAYS` when it means always), never
+   `_NIL`/`_T`/`_TRUE`/`_FALSE`.  A pair is a derived type with named
+   components (`decoding`/`encoding`), never a generic "pair".  A value
+   held "by name" is resolved once to a pointer.  Compile-time things are
+   reached through their typed objects, never by a name string.
+7. **Does gfortran allow it?**  Fortmacs targets gfortran only (13 and
+   later).  Check CLAUDE.md's hazards; when unsure, write a ten-line
+   spike and run it under valgrind (as for recursive allocatable types,
+   which gfortran 13.3 still copies shallowly).
+
+### What stays Lisp
+
+Upstream citations ("Port of lisp.el:forward-sexp"), upstream names quoted
+as upstream names, the Lisp language modes and their keywords, Lisp source
+in test fixtures, Info node names such as `(elisp)Hooks`, and Emacs's own
+vocabulary that is not Lisp: buffer, window, frame, keymap, mode, hook,
+face, marker, overlay, text property, minibuffer, kill ring, prefix
+argument, keyboard macro, process filter and sentinel.  Keys and mode-line
+text are unchanged.
+
+### When the answer is not clear: ask
+
+A Lisp-derived term with no line in tools/fortran-names, or a choice the
+questions above do not settle, goes to the owner; it is never invented
+and never copied from Lisp.  Ask as a multiple-choice question, one
+decision at a time:
+
+- state what the thing is and where it occurs (with counts), so the
+  question stands alone;
+- put the recommended option first, with the reason in Fortran terms
+  ("findloc is a standard intrinsic", "the standard calls it ...");
+- show real before/after examples from the code for each option;
+- never offer an option that contradicts an earlier decision (check this
+  section and tools/fortran-names first);
+- when the owner asks "which is more Fortran?" or for more examples,
+  answer that and ask again; do not take the question as a choice.
+
+Each answer is recorded at once: a line of tools/fortran-names (or a keep
+entry), a row in "Fortran names for Lisp terms", a rule in CLAUDE.md when
+it is general, and the check that enforces it.
+
+### Catching what nobody has decided yet
+
+tools/lisp-candidates.sh, run by tools/check.sh, lists Lisp vocabulary
+(tools/lisp-candidates: funcall, lambda, symbol, cons, quote, eval,
+progn, interactive, vector, ...) in the lines a branch adds.  It only
+warns: many hits are fine (a keyboard macro, a POSIX signal).  Every PR
+description lists the candidates it adds with their decision: asked and
+confirmed (now in tools/fortran-names), or why it is not a Lisp-ism here.
+
+### The review of 2026-10-31, as examples
+
+The decisions that shaped this guide, with the owner's reasoning:
+
+| Question | Decision | Why |
+|---|---|---|
+| defun | subprogram | the standard's term for the source text of a function or subroutine; "procedure" is the callable entity |
+| sexp | expression | Fortran's primaries are names, constants and parenthesized groups, what C-M-f moves over |
+| list (a parenthesized group) | group | "list" means argument and I/O lists in Fortran |
+| alist | `_table` (`compilation_error_regexp_names` where it is only names) | a lookup table of keyed records; only a real table gets `_table` |
+| `*_NIL`/`*_T` constants | meaningful names; two states become a logical | Fortran's own multi-state constants (IOSTAT_END, IEEE_POSITIVE_INF) are named for their meaning |
+| nil / non-nil in help | the word for the value's type (.true., present, unallocated, null, "") | each sentence uses the Fortran word for that type |
+| signal / throw | "an error condition occurs"; "a check of the status"; "return to X with a status" | the standard's STAT=/IOSTAT= wording; EXIT only leaves a construct, "handle" is not Fortran |
+| nilp, car, memq, fixnump | `.not. allocated(v%a)`, sections, `findloc`, `select case` on the tag | intrinsics and constructs, no wrappers |
+| `select type` for values | tagged `select case` (json-fortran style) | gfortran 13.3 shallow-copies recursive allocatable types (spike: changing a copy changed the original, then a segfault) |
+| y_or_n_p | read_y_or_n | READ is the input verb, and Emacs's read_string/read_number match |
+| `_vector` | plural names | Fortran does not suffix arrays; the rank is in the declaration |
+| this_command by name | `type(command_type), pointer` with `associated()` | `associated(p, t)` is a standard intrinsic for identity |
+| put/get | typed components; `findloc` over a `text_property_type` array | CLAUDE.md forbids property bags; findloc is standard (Fortran 2008) |
+| C-h f signature | the call line and a declaration block | what one writes in Fortran to call or wrap the procedure |
+| `_fm` module suffix | `_mod` | the most common Fortran module suffix; `_f90` would read as the Fortran 90 dialect |
+| lisp-name in gen-docstrings | help-name | the value is the name C-h f looks up, not the Lisp name |
+| British spelling | American | owner's rule for all text |
+| conditional expressions (Fortran 2023) | not used | gfortran 13 lacks them and Fortmacs builds with -std=f2018 |
+<!-- fortran-names: on -->
+
 ## Style
 
 - The [fortran-lang style guide](https://fortran-lang.org/learn/best_practices/style_guide/):
