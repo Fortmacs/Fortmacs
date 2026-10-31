@@ -121,7 +121,7 @@ module css_mode_fm
         procedure(css_list_proc), pointer, nopass :: value => null()
         type(css_list_entry_type), allocatable :: entries(:)
     contains
-        !> Make FN the current buffer's function (setq-local).
+        !> Make FN the current buffer's function (set_local).
         procedure :: set_local => list_function_set_local
         !> The current buffer's function (null for `ignore').
         procedure :: get => list_function_get
@@ -2919,14 +2919,14 @@ contains
 
     ! Return true if point is inside a function call.  Port of
     ! css-mode.el:css--colon-inside-funcall.
-    logical function colon_inside_funcall()
+    logical function colon_inside_function_call()
         type(parse_state_type) :: ppss
 
-        colon_inside_funcall = .false.
+        colon_inside_function_call = .false.
         call syntax_ppss(ppss)
         if (ppss%innermost_start == 0) return
-        colon_inside_funcall = after_char_at(ppss%innermost_start) == iachar("(")
-    end function colon_inside_funcall
+        colon_inside_function_call = after_char_at(ppss%innermost_start) == iachar("(")
+    end function colon_inside_function_call
 
     !> Whether the "}" before point doesn't end an interpolation #{$...}.
     !> Port of css-mode.el:scss-smie--not-interpolation-p.
@@ -2953,7 +2953,7 @@ contains
 
         if (colon_inside_selector_p()) then
             token = ":"
-        else if (colon_inside_funcall()) then
+        else if (colon_inside_function_call()) then
             token = ":"
         else
             token = ":-property"

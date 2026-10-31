@@ -486,7 +486,7 @@ contains
     end function local_index
 
     !> Give the current buffer its own `font_lock_fontify_region_function'
-    !> FN (setq-local).  Port of font-lock.el
+    !> FN (set_local).  Port of font-lock.el
     !> font-lock-fontify-region-function (buffer-local; its default is
     !> `font_lock_default_fontify_region').
     subroutine set_local_font_lock_fontify_region_function(fn)
