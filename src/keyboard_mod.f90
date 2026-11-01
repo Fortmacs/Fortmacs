@@ -1040,8 +1040,10 @@ contains
             has_previous_message = .false.
 
             if (present(input_method)) then
-                if (input_method .and. associated(buffers(current)%input_method_function)) then
-                    use_input_method = is_input_method_char(ev)
+                ! No buffer yet (keyboard tests run without one): no input
+                ! method.
+                if (input_method .and. allocated(buffers) .and. current > 0) then
+                    if (associated(buffers(current)%input_method_function)) use_input_method = is_input_method_char(ev)
                 end if
             end if
 
