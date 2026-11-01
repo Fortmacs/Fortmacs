@@ -44,6 +44,7 @@
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
@@ -1747,7 +1748,7 @@ contains
     recursive subroutine cmd_makefile_pickup_everything(status)
         type(status_type), intent(out) :: status
 
-        call makefile_pickup_everything(allocated(current_prefix_arg%a), status)
+        call makefile_pickup_everything(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_makefile_pickup_everything
 
     !> Scan the current directory for filenames to use as targets.
@@ -1980,7 +1981,7 @@ contains
         if (.not. status%ok()) return
         ! (save-excursion ...)
         call copy_marker_at(point(), mark, .false., status)
-        call makefile_backslash_region(b, e, allocated(current_prefix_arg%a), status)
+        call makefile_backslash_region(b, e, current_prefix_arg%kind /= PREFIX_NONE, status)
         call goto_char(mpos(mark))
         call free_marker(mark, st)
     end subroutine cmd_makefile_backslash_region

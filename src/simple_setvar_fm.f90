@@ -390,7 +390,7 @@ contains
     integer :: k, n, kind
 
     ! current-prefix-arg, before the minibuffer's commands change it.
-    make_local = allocated(current_prefix_arg%a)
+    make_local = current_prefix_arg%kind /= PREFIX_NONE
     ! (read-variable "Set variable: "): the user options set_variable
     ! can set (custom-variable-p).
     allocate (names(size(user_option_names)))

@@ -38,10 +38,11 @@
 !> runs `jump_to_register', as there is no alias `register_to_point'.
 module view_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list
+    use lisp_fm, only: list
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type, change_major_mode_hook
     use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, resolve_buffer, buffer_handle, &
@@ -686,7 +687,7 @@ contains
 
             ! Avoid spamming the echo area if `view_mode' is entered
             ! non-interactively, e.g., in a temporary buffer (bug#44629).
-            if (.not. view_inhibit_help_message .and. allocated(this_command%a)) then
+            if (.not. view_inhibit_help_message .and. associated(this_command)) then
                 call message(substitute_command_keys("View mode: type \[help_command] for help, "// &
                                                      "\[describe_mode] for commands, \[view_quit] to quit."))
             end if
@@ -928,7 +929,7 @@ contains
     subroutine view_recenter()
         type(status_type) :: st
 
-        call recenter(list(value_type(1_int64)), .false., st)
+        call recenter(prefix_arg_type(PREFIX_RAW, 1_int64), .false., st)
     end subroutine view_recenter
 
     !> If LINES (HAS_LINES .false. for none) is absent, 0, or larger than
@@ -989,7 +990,7 @@ contains
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
 
-        has = allocated(current_prefix_arg%a)
+        has = current_prefix_arg%kind /= PREFIX_NONE
         n = prefix_numeric_value(current_prefix_arg)
     end subroutine raw_prefix
 
@@ -1067,7 +1068,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: has_lines, backward
         integer(int64) :: lines
-        type(value_type) :: arg
+        type(prefix_arg_type) :: arg
 
         has_lines = has_lines_in
         lines = lines_in
@@ -1086,9 +1087,9 @@ contains
         if (maxdefault .and. has_lines .and. lines > view_window_size()) has_lines = .false.
 
         if (has_lines) then
-            arg = value_type(lines)
+            arg = prefix_arg_type(PREFIX_NUMBER, lines)
         else
-            arg = value_type()
+            arg = prefix_arg_type()
         end if
 
         if (backward) then
@@ -1150,7 +1151,7 @@ contains
         visible = is_pos_visible_in_window(point_max(), selected_window())
         p = point()
         call goto_char(point_max())
-        call recenter(value_type(-1_int64), .false., status)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .false., status)
         if (visible) call goto_char(p)
     end subroutine view_scroll_to_buffer_end
 

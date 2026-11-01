@@ -75,7 +75,7 @@ module docstrings_fm
                             buffer_menu_use_frame_buffer_list, buffer_menu_use_header_line
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
-                          mark_even_if_inactive, this_command
+                          prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_fm, only: shell_file_name
     use casefiddle_fm, only: case_identifiers_as_words
     use cmds_fm, only: auto_fill_chars, post_self_insert_hook
@@ -442,6 +442,11 @@ module docstrings_fm
                             SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
                             SAVE_PLACE_VERSION_CONTROL_NEVER, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
     use search_fm, only: case_fold_search, search_spaces_regexp
+    use sgml_mode_fm, only: html_mode_hook, html_mode_map, html_tag_face_table, &
+                            sgml_attribute_offset, sgml_basic_offset, sgml_char_names, sgml_empty_tags, sgml_mode_hook, &
+                            sgml_mode_map, sgml_mode_syntax_table, sgml_slash_distance, sgml_specials, &
+                            sgml_tag_syntax_table, sgml_unclosed_tags, sgml_validate_command, &
+                            sgml_whitespace_sensitive_tags, sgml_xml_mode
     use sh_script_fm, only: sh_alias_table, sh_ancestor_table, sh_assignment_regexp, &
                             sh_backslash_align, sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, &
                             sh_basic_offset, sh_beginning_of_command, sh_builtins, sh_dynamic_complete_functions, &
@@ -587,7 +592,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1453) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1472) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -760,20 +765,21 @@ module docstrings_fm
                                               "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
                                                  "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
                                                        "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_mode", &
-                                           "help_procedure_show", "help_quit", "how_many", "ibuffer", "ibuffer_add_saved_filters", &
-                                                              "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
-                                                       "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
-                                                     "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
-                                                                "ibuffer_bs_show", "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", &
-                                                         "ibuffer_change_marks", "ibuffer_clear_filter_groups", "ibuffer_content", &
-                                                               "ibuffer_copy_buffername_as_kill", "ibuffer_copy_filename_as_kill", &
-                                                                    "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
-                                                             "ibuffer_delete_saved_filter_groups", "ibuffer_delete_saved_filters", &
-                                                            "ibuffer_derived_mode", "ibuffer_diff_with_file", "ibuffer_directory", &
-                                                "ibuffer_do_delete", "ibuffer_do_kill_lines", "ibuffer_do_kill_on_deletion_marks", &
-                                                "ibuffer_do_occur", "ibuffer_do_query_replace", "ibuffer_do_query_replace_regexp", &
-                                                   "ibuffer_do_rename_uniquely", "ibuffer_do_replace_regexp", "ibuffer_do_revert", &
-                                              "ibuffer_do_save", "ibuffer_do_shell_command_file", "ibuffer_do_shell_command_pipe", &
+                                                           "help_procedure_show", "help_quit", "how_many", "html_mode", "ibuffer", &
+                                                "ibuffer_add_saved_filters", "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", &
+                                                                    "ibuffer_and", "ibuffer_and_filter", "ibuffer_auto_mode", &
+                                                                    "ibuffer_backward_filter_group", "ibuffer_backward_line", &
+                                                           "ibuffer_backwards_next_marked", "ibuffer_basename", "ibuffer_bs_show", &
+                                                           "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", "ibuffer_change_marks", &
+                                              "ibuffer_clear_filter_groups", "ibuffer_content", "ibuffer_copy_buffername_as_kill", &
+                                                                    "ibuffer_copy_filename_as_kill", "ibuffer_decompose_filter", &
+                                                           "ibuffer_decompose_filter_group", "ibuffer_delete_saved_filter_groups", &
+                                                 "ibuffer_delete_saved_filters", "ibuffer_derived_mode", "ibuffer_diff_with_file", &
+                                                                "ibuffer_directory", "ibuffer_do_delete", "ibuffer_do_kill_lines", &
+                                              "ibuffer_do_kill_on_deletion_marks", "ibuffer_do_occur", "ibuffer_do_query_replace", &
+                                                                  "ibuffer_do_query_replace_regexp", "ibuffer_do_rename_uniquely", &
+                                                              "ibuffer_do_replace_regexp", "ibuffer_do_revert", "ibuffer_do_save", &
+                                                                 "ibuffer_do_shell_command_file", "ibuffer_do_shell_command_pipe", &
                                                          "ibuffer_do_shell_command_pipe_replace", "ibuffer_do_sort_by_alphabetic", &
                                                            "ibuffer_do_sort_by_filename_process", "ibuffer_do_sort_by_major_mode", &
                                           "ibuffer_do_sort_by_mode_name", "ibuffer_do_sort_by_recency", "ibuffer_do_sort_by_size", &
@@ -968,18 +974,23 @@ module docstrings_fm
                                           "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
                                                    "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
                                                   "set_register", "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
-                                                          "set_terminal_coding_system", "set_variable", "sh_add", "sh_assignment", &
-                                         "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
-                                         "sh_cd_here", "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
-                                                                "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
-                                                              "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
-                                                      "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "shell", &
-                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
-                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
-                                             "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
-                                             "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
-                                                   "show_paren__default", "show_paren_default_predicate", "show_paren_local_mode", &
-                                           "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
+                                                "set_terminal_coding_system", "set_variable", "sgml_close_tag", "sgml_delete_tag", &
+                                            "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", &
+                                                           "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", &
+                                                  "sgml_namify_char", "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", &
+                                          "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", "sgml_validate", "sh_add", &
+                                                   "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
+                                                        "sh_beginning_of_command", "sh_cd_here", "sh_electric_here_document_mode", &
+                                                  "sh_end_of_command", "sh_execute_region", "sh_load_style", "sh_make_vars_local", &
+                                                              "sh_mode", "sh_name_style", "sh_reset_indent_vars_to_global_values", &
+                                                    "sh_save_styles_to_buffer", "sh_send_line_or_region_and_step", "sh_set_shell", &
+                                                              "sh_show_shell", "shell", "shell_backward_command", "shell_command", &
+                                                           "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
+                                                  "shell_dynamic_complete_command", "shell_dynamic_complete_environment_variable", &
+                                                                  "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
+                                                "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
+                                                       "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
+                                                              "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                             "skip_syntax_forward", "smie__next_indent_change", "smie_backward_expression_command", &
                                                          "smie_close_block", "smie_down_group", "smie_forward_expression_command", &
                                                             "spaces_string", "special_mode", "split_window", "split_window_below", &
@@ -1026,7 +1037,7 @@ module docstrings_fm
                                                                     "write_file", "yank", "yank_pop", "yank_rectangle", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1231) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1248) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                 "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
@@ -1229,6 +1240,7 @@ module docstrings_fm
                                                   "grep_use_headings", "grep_use_null_device", "grep_use_null_filename_separator", &
                                            "help_char", "help_event_list", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
                                           "help_mode_map", "history_add_new_input", "history_delete_duplicates", "history_length", &
+                                                                    "html_mode_hook", "html_mode_map", "html_tag_face_table", &
                                                               "ibuffer_always_compile_formats", "ibuffer_always_show_last_buffer", &
                                                                     "ibuffer_always_show_predicates", "ibuffer_case_fold_search", &
                                                                "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
@@ -1382,7 +1394,11 @@ module docstrings_fm
                                                           "search_spaces_regexp", "search_upper_case", "search_whitespace_regexp", &
                                                   "select_safe_coding_system_accept_default", "sentence_end", "sentence_end_base", &
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
-                                                              "set_variable_value_history", "sh_alias_table", "sh_ancestor_table", &
+                                                       "set_variable_value_history", "sgml_attribute_offset", "sgml_basic_offset", &
+                                                          "sgml_char_names", "sgml_empty_tags", "sgml_mode_hook", "sgml_mode_map", &
+                                                                 "sgml_mode_syntax_table", "sgml_slash_distance", "sgml_specials", &
+                                                           "sgml_tag_syntax_table", "sgml_unclosed_tags", "sgml_validate_command", &
+                                         "sgml_whitespace_sensitive_tags", "sgml_xml_mode", "sh_alias_table", "sh_ancestor_table", &
                                          "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", "sh_base_mode_hook", &
                                                   "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", "sh_builtins", &
                                                 "sh_dynamic_complete_functions", "sh_end_of_command", "sh_font_lock_keywords_var", &
@@ -1457,7 +1473,7 @@ module docstrings_fm
                                                                     "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(593) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(598) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1921,6 +1937,11 @@ module docstrings_fm
                                                                       "sentence_end_double_space", &
                                                                       "sentence_end_without_period", &
                                                                       "sentence_end_without_space", &
+                                                                      "sgml_attribute_offset", &
+                                                                      "sgml_basic_offset", &
+                                                                      "sgml_slash_distance", &
+                                                                      "sgml_validate_command", &
+                                                                      "sgml_xml_mode", &
                                                                       "sh_alias_table", &
                                                                       "sh_ancestor_table", &
                                                                       "sh_assignment_regexp", &
@@ -7450,6 +7471,10 @@ contains
                         "form of replace.el:how-many."//LF// &
                         ""//LF// &
                         "Print the number of matches for a regexp following point."
+        case ("html_mode")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Major mode based on SGML mode for editing HTML documents."
         case ("ibuffer")
             entry%file = "ibuffer_fm.f90"
             entry%command = .true.
@@ -11241,7 +11266,7 @@ contains
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
             entry%doc = "Position point relative to window."//LF// &
-                        "ARG .false. means position point at center of window."//LF// &
+                        "ARG PREFIX_NONE means position point at center of window."//LF// &
                         "Else, ARG specifies vertical position within the window;"//LF// &
                         "zero means top of window, negative means relative to bottom"//LF// &
                         "of window, -1 meaning the last fully visible display line"//LF// &
@@ -12701,7 +12726,7 @@ contains
                         "negative, it counts up from the bottom of the window.  (ARG"//LF// &
                         "should be less than the height of the window.)"//LF// &
                         ""//LF// &
-                        "If ARG is .false., then recenter with point on the middle"//LF// &
+                        "If ARG is PREFIX_NONE, then recenter with point on the middle"//LF// &
                         "line of the selected window; if REDISPLAY is true, also erase the"//LF// &
                         "entire frame and redraw it.  Interactively, REDISPLAY is always"//LF// &
                         "true."//LF// &
@@ -13378,11 +13403,12 @@ contains
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
             entry%doc = "Scroll text of selected window down ARG lines."//LF// &
-                        "If ARG is .false. (no prefix argument), scroll down by a near full screen."//LF// &
+                        "If ARG is PREFIX_NONE (no prefix argument), scroll down by a near full screen."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward.  If ARG is"//LF// &
-                        "`-', scroll upward by nearly full screen.  When calling"//LF// &
-                        "from a program, supply as argument an integer, .false., or `-'."
+                        "PREFIX_MINUS, scroll upward by nearly full screen.  When calling"//LF// &
+                        "from a program, supply as argument a number (PREFIX_NUMBER),"//LF// &
+                        "PREFIX_NONE or PREFIX_MINUS."
         case ("scroll_down_command")
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
@@ -13399,7 +13425,7 @@ contains
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward."//LF// &
                         ""//LF// &
-                        "If ARG is `-', scroll upward by nearly full screen."//LF// &
+                        "If ARG is PREFIX_MINUS, scroll upward by nearly full screen."//LF// &
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
@@ -13417,11 +13443,12 @@ contains
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
             entry%doc = "Scroll text of selected window upward ARG lines."//LF// &
-                        "If ARG is .false. (no prefix argument), scroll upward by a near full screen."//LF// &
+                        "If ARG is PREFIX_NONE (no prefix argument), scroll upward by a near full screen."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward.  If ARG is"//LF// &
-                        "`-', scroll downward by nearly full screen.  When calling"//LF// &
-                        "from a program, supply as argument an integer, .false., or `-'."
+                        "PREFIX_MINUS, scroll downward by nearly full screen.  When calling"//LF// &
+                        "from a program, supply as argument a number (PREFIX_NUMBER),"//LF// &
+                        "PREFIX_NONE or PREFIX_MINUS."
         case ("scroll_up_command")
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
@@ -13438,7 +13465,7 @@ contains
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward."//LF// &
                         ""//LF// &
-                        "If ARG is `-', scroll downward by nearly full screen."//LF// &
+                        "If ARG is PREFIX_MINUS, scroll downward by nearly full screen."//LF// &
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
@@ -13865,6 +13892,111 @@ contains
             entry%file = "simple_fm.f90"
             entry%command = .true.
             entry%doc = "Set VARIABLE to VALUE, read in the minibuffer."
+        case ("sgml_close_tag")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Close current element."//LF// &
+                        "Depending on context, inserts a matching close-tag, or closes the"//LF// &
+                        "current start-tag or the current comment or the current cdata, ..."
+        case ("sgml_delete_tag")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Delete tag on or after cursor, and matching closing or opening tag."//LF// &
+                        "With prefix argument ARG, repeat this ARG times."
+        case ("sgml_guess_indent")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Guess an appropriate value for `sgml_basic_offset'."//LF// &
+                        "Base the guessed indentation level on the first indented tag in the"//LF// &
+                        "buffer.  Add this to `sgml_mode_hook' for convenience."
+        case ("sgml_indent_line")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Indent the current line as SGML.  NOINDENT is true when its"//LF// &
+                        "indentation is not known."
+        case ("sgml_maybe_end_tag")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Name self unless in position to end a tag or a prefix ARG is given."
+        case ("sgml_maybe_name_self")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Insert a symbolic character name according to `sgml_char_names'"//LF// &
+                        "when `sgml_name_8bit_mode' is on."
+        case ("sgml_mode")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing SGML documents."//LF// &
+                        "Makes > match <."//LF// &
+                        ""//LF// &
+                        "Use \[sgml_validate] to validate your document with an SGML parser."//LF// &
+                        ""//LF// &
+                        "Do \[describe_variable] sgml_ SPC to see available variables.  Do"//LF// &
+                        "\[describe_key] on the following bindings to discover what they do."
+        case ("sgml_name_8bit_mode")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = ""
+        case ("sgml_name_char")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Insert a symbolic character name according to `sgml_char_names'"//LF// &
+                        "(CHAR, read when absent)."
+        case ("sgml_name_self")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Insert a symbolic character name according to `sgml_char_names'."
+        case ("sgml_namify_char")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Change the char before point into its `&name;' equivalent."//LF// &
+                        "Uses `sgml_char_names'."
+        case ("sgml_pretty_print")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Simple-minded pretty printer for SGML."//LF// &
+                        "Re-indents the code and inserts newlines between BEG and END."//LF// &
+                        "You might want to turn on `auto_fill_mode' to get better results."
+        case ("sgml_quote")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Quote SGML text in region START ... END."//LF// &
+                        "Only &, <, >, ' and "" characters are quoted, the rest is left"//LF// &
+                        "untouched.  This is sufficient to use quoted text as SGML argument."//LF// &
+                        ""//LF// &
+                        "With UNQUOTEP, unquote the region.  All numeric entities, ""amp"","//LF// &
+                        """lt"", ""gt"" and ""quot"" named entities are unquoted."
+        case ("sgml_skip_tag_backward")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Skip to beginning of tag or matching opening tag if present."//LF// &
+                        "With prefix argument ARG, repeat this ARG times."//LF// &
+                        "Return true if we skipped over matched tags."
+        case ("sgml_skip_tag_forward")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Skip to end of tag or matching closing tag if present."//LF// &
+                        "With prefix argument ARG, repeat this ARG times."//LF// &
+                        "Return true if after a closing tag."
+        case ("sgml_slash")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Insert ARG slash characters."
+        case ("sgml_slash_matching")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Insert `/' and display any previous matching `/'."//LF// &
+                        "Two `/'s are treated as matching if the first `/' ends a"//LF// &
+                        "net-enabling start tag, and the second `/' is the corresponding null"//LF// &
+                        "end tag."
+        case ("sgml_validate")
+            entry%file = "sgml_mode_fm.f90"
+            entry%command = .true.
+            entry%doc = "Validate an SGML document."//LF// &
+                        "Runs COMMAND, a shell command, in a separate process asynchronously"//LF// &
+                        "with output going to the buffer `*compilation*'.  You can then use"//LF// &
+                        "the command \[next_error] to find the next error message and move to"//LF// &
+                        "the line in the SGML document that caused it."
         case ("sh_add")
             entry%file = "sh_script_fm.f90"
             entry%command = .true.
@@ -19060,18 +19192,24 @@ contains
         case ("current_minibuffer_command")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_minibuffer_command"
-            entry%value = fortran_repr(current_minibuffer_command)
+
+            if (associated(current_minibuffer_command)) then
+                entry%value = current_minibuffer_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "This is like `this_command', but bound recursively."//LF// &
                         "Code running from (for instance) a minibuffer hook can check this variable"//LF// &
                         "to see what command invoked the current minibuffer."
         case ("current_prefix_arg")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_prefix_arg"
-            entry%value = fortran_repr(current_prefix_arg)
+            entry%value = prefix_arg_repr(current_prefix_arg)
             entry%doc = "The value of the prefix argument for this editing command."//LF// &
-                        "It may be an integer, or `-' for just a minus sign as arg, or an"//LF// &
-                        "array whose first element is an integer ([4], [16], ...) for just one"//LF// &
-                        "or more C-u's, or .false. if no argument has been specified."
+                        "Its kind is PREFIX_NUMBER for a number, PREFIX_MINUS for just a"//LF// &
+                        "minus sign as arg, PREFIX_RAW for just one or more C-u's (value 4,"//LF// &
+                        "16, ...), or PREFIX_NONE if no argument has been specified."
         case ("custom_variable_history")
             entry%file = "simple_fm.f90"
             entry%fortran = "custom_variable_history"
@@ -22148,6 +22286,19 @@ contains
                         "This variable only affects history lists that don't specify their own"//LF// &
                         "maximum lengths.  Setting the `%length' component of a history"//LF// &
                         "overrides this default."
+        case ("html_mode_hook")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "html_mode_hook"
+            entry%doc = "Hook run by command `html_mode'."//LF// &
+                        "`text_mode_hook' and `sgml_mode_hook' are run first."
+        case ("html_mode_map")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "html_mode_map"
+            entry%doc = "Keymap for commands for use in HTML mode."
+        case ("html_tag_face_table")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "html_tag_face_table"
+            entry%doc = "Value of `sgml_tag_face_table' for HTML mode."
         case ("ibuffer_always_compile_formats")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_always_compile_formats"
@@ -23718,7 +23869,13 @@ contains
         case ("last_repeatable_command")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "last_repeatable_command"
-            entry%value = fortran_repr(last_repeatable_command)
+
+            if (associated(last_repeatable_command)) then
+                entry%value = last_repeatable_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "Last command that may be repeated."//LF// &
                         "The last command executed that was not bound to an input event."//LF// &
                         "This is the command `repeat' will try to repeat."//LF// &
@@ -25652,7 +25809,13 @@ contains
         case ("repeat_previous_repeated_command")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_previous_repeated_command"
-            entry%value = fortran_repr(repeat_previous_repeated_command)
+
+            if (associated(repeat_previous_repeated_command)) then
+                entry%value = repeat_previous_repeated_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "The previous repeated command."
         case ("repeat_too_dangerous")
             entry%file = "repeat_fm.f90"
@@ -26278,6 +26441,136 @@ contains
                         ""//LF// &
                         "Maximum length of the history list is determined by the value"//LF// &
                         "of `history_length', which see."
+        case ("sgml_attribute_offset")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_attribute_offset"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(sgml_attribute_offset%value)
+            entry%doc = "Specifies a delta for attribute indentation in `sgml_indent_line'."//LF// &
+                        ""//LF// &
+                        "When 0, attribute indentation looks like this:"//LF// &
+                        ""//LF// &
+                        "    <element"//LF// &
+                        "      attribute=""value"">"//LF// &
+                        "    </element>"//LF// &
+                        ""//LF// &
+                        "When 2, attribute indentation looks like this:"//LF// &
+                        ""//LF// &
+                        "    <element"//LF// &
+                        "        attribute=""value"">"//LF// &
+                        "    </element>"
+        case ("sgml_basic_offset")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_basic_offset"
+            entry%user_option = .true.
+            entry%original = "2"
+            entry%value = repr(sgml_basic_offset%value)
+            entry%doc = "Specifies the basic indentation level for `sgml_indent_line'."
+        case ("sgml_char_names")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_char_names"
+            entry%value = repr(sgml_char_names)
+            entry%doc = "Array of symbolic character names without `&' and `;' ("""" for"//LF// &
+                        "none), by character code."
+        case ("sgml_empty_tags")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_empty_tags"
+
+            if (allocated(sgml_empty_tags)) then
+                entry%value = repr(sgml_empty_tags)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of tags whose !ELEMENT definition says EMPTY."
+        case ("sgml_mode_hook")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_mode_hook"
+            entry%doc = "Hook run by command `sgml_mode'."//LF// &
+                        "`text_mode_hook' is run first."
+        case ("sgml_mode_map")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_mode_map"
+            entry%doc = "Keymap for SGML mode.  See also `sgml_specials'."
+        case ("sgml_mode_syntax_table")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_mode_syntax_table"
+            entry%doc = "Syntax table used in SGML mode.  See also `sgml_specials'."
+        case ("sgml_slash_distance")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_slash_distance"
+            entry%user_option = .true.
+            entry%original = "1000"
+            entry%value = repr(sgml_slash_distance%value)
+            entry%doc = "If positive, is the maximum distance to search for matching `/'"//LF// &
+                        "(0 or less: no limit)."
+        case ("sgml_specials")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_specials"
+
+            if (allocated(sgml_specials)) then
+                entry%value = repr(sgml_specials)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of characters that have a special meaning for SGML mode."//LF// &
+                        "This list is used when first loading the `sgml_mode' library."//LF// &
+                        "The supported characters are "", ', and -."//LF// &
+                        ""//LF// &
+                        "Including - makes double dashes into comment delimiters, but they are"//LF// &
+                        "really only supposed to delimit comments within DTD definitions.  So"//LF// &
+                        "we normally turn it off."
+        case ("sgml_tag_syntax_table")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_tag_syntax_table"
+            entry%doc = "Syntax table used to parse SGML tags."
+        case ("sgml_unclosed_tags")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_unclosed_tags"
+
+            if (allocated(sgml_unclosed_tags)) then
+                entry%value = repr(sgml_unclosed_tags)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of tags whose !ELEMENT definition says the end-tag is optional."
+        case ("sgml_validate_command")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_validate_command"
+            entry%user_option = .true.
+
+            if (allocated(sgml_validate_command%value)) then
+                entry%value = repr(sgml_validate_command%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The command to validate an SGML document."//LF// &
+                        "The file name of current buffer file name will be appended to this,"//LF// &
+                        "separated by a space."
+        case ("sgml_whitespace_sensitive_tags")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_whitespace_sensitive_tags"
+
+            if (allocated(sgml_whitespace_sensitive_tags)) then
+                entry%value = repr(sgml_whitespace_sensitive_tags)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of tags where the contents shouldn't be reindented."
+        case ("sgml_xml_mode")
+            entry%file = "sgml_mode_fm.f90"
+            entry%fortran = "sgml_xml_mode"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(sgml_xml_mode%value)
+            entry%doc = "When true, tag insertion functions will be XML-compliant."//LF// &
+                        "It is set to be buffer-local when the file has a DOCTYPE or an XML"//LF// &
+                        "declaration."
         case ("sh_alias_table")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_alias_table"
@@ -27783,7 +28076,13 @@ contains
         case ("this_command")
             entry%file = "callint_fm.f90"
             entry%fortran = "this_command"
-            entry%value = fortran_repr(this_command)
+
+            if (associated(this_command)) then
+                entry%value = this_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "The command now being executed."//LF// &
                         "The command can set this variable; whatever is put here"//LF// &
                         "will be in `last_command' during the following command."
@@ -29533,6 +29832,21 @@ contains
             kind = OPTION_LOGICAL
         case ("sentence_end_without_space")
             kind = OPTION_STRING
+        case ("sgml_attribute_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sgml_basic_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sgml_slash_distance")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sgml_validate_command")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("sgml_xml_mode")
+            kind = OPTION_LOGICAL
+            setting = .true.
         case ("sh_backslash_align")
             kind = OPTION_LOGICAL
         case ("sh_backslash_column")
@@ -30391,6 +30705,12 @@ contains
             end if
         case ("sentence_end_without_period")
             sentence_end_without_period = v
+        case ("sgml_xml_mode")
+            if (local) then
+                call sgml_xml_mode%set_local(v)
+            else
+                sgml_xml_mode = v
+            end if
         case ("sh_backslash_align")
             sh_backslash_align = v
         case ("sh_indent_statement_after_and")
@@ -30832,6 +31152,24 @@ contains
             end if
 
             search_ring_max = int(v)
+        case ("sgml_attribute_offset")
+            if (local) then
+                call sgml_attribute_offset%set_local(v)
+            else
+                sgml_attribute_offset = v
+            end if
+        case ("sgml_basic_offset")
+            if (local) then
+                call sgml_basic_offset%set_local(v)
+            else
+                sgml_basic_offset = v
+            end if
+        case ("sgml_slash_distance")
+            if (local) then
+                call sgml_slash_distance%set_local(v)
+            else
+                sgml_slash_distance = v
+            end if
         case ("sh_backslash_column")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -31314,6 +31652,12 @@ contains
             sentence_end_base = v
         case ("sentence_end_without_space")
             sentence_end_without_space = v
+        case ("sgml_validate_command")
+            if (local) then
+                call sgml_validate_command%set_local(v)
+            else
+                sgml_validate_command = v
+            end if
         case ("sh_beginning_of_command")
             sh_beginning_of_command = v
         case ("sh_end_of_command")

@@ -45,12 +45,13 @@
 !> variables).
 module log_edit_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, format_error
     use handle_fm, only: handle_type, null_handle
     use commands_fm, only: commands
     use lisp_fm, only: command_proc, value_type
     use lisp_fm, only: value_type
-    use data_fm, only: value_eq, add_local_variables_killer
+    use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type
     use ring_fm, only: ring_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live, &
@@ -1631,7 +1632,7 @@ contains
 
         use = .false.
         if (present(use_first)) use = use_first
-        if (value_eq(last_command, value_type(name="log_edit_insert_changelog"))) use = .true.
+        if (associated(last_command, commands%log_edit_insert_changelog)) use = .true.
         saved_use_first = changelog_use_first
         changelog_use_first = use
         call log_edit_files(files)
@@ -2456,7 +2457,7 @@ contains
     recursive subroutine cmd_log_edit_insert_changelog(status)
         type(status_type), intent(out) :: status
 
-        call log_edit_insert_changelog(status, allocated(current_prefix_arg%a))
+        call log_edit_insert_changelog(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_log_edit_insert_changelog
 
     recursive subroutine cmd_log_edit_show_diff(status)

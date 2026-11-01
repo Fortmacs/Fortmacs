@@ -4,17 +4,19 @@ sample.f90:14: intrinsics: constant: CHECK_TRUE
 sample.f90:14: intrinsics: constant: CHECK_FALSE
 sample.f90:18: intrinsics: vector: colors_vector
 sample.f90:22: intrinsics: interactive: command_type%interactive
-sample.f90:34: intrinsics: verb: hook_type%run
-sample.f90:38: intrinsics: verb: hook_type%run_safe
-sample.f90:45: intrinsics: wrapper: is_null (only `allocated')
-sample.f90:52: intrinsics: wrapper: count_of (only `size')
-sample.f90:80: intrinsics: lisp-helper: is_integer
-sample.f90:80: intrinsics: wrapper: is_integer (only a value's tag or component)
-sample.f90:87: intrinsics: wrapper: value_integer (only a value's tag or component)
-sample.f90:94: intrinsics: wrapper: memq (only `any')
-sample.f90:101: intrinsics: lisp-helper: car
-sample.f90:109: intrinsics: predicate: region_active_p
-sample.f90:115: intrinsics: predicate: processp
-sample.f90:135: intrinsics: verb: run_with_timer
-sample.f90:141: intrinsics: verb: call_indent_line_function
+sample.f90:27: intrinsics: command-state: this_command
+sample.f90:27: intrinsics: command-state: current_prefix_arg
+sample.f90:38: intrinsics: verb: hook_type%run
+sample.f90:42: intrinsics: verb: hook_type%run_safe
+sample.f90:49: intrinsics: wrapper: is_null (only `allocated')
+sample.f90:56: intrinsics: wrapper: count_of (only `size')
+sample.f90:84: intrinsics: lisp-helper: is_integer
+sample.f90:84: intrinsics: wrapper: is_integer (only a value's tag or component)
+sample.f90:91: intrinsics: wrapper: value_integer (only a value's tag or component)
+sample.f90:98: intrinsics: wrapper: memq (only `any')
+sample.f90:105: intrinsics: lisp-helper: car
+sample.f90:113: intrinsics: predicate: region_active_p
+sample.f90:119: intrinsics: predicate: processp
+sample.f90:139: intrinsics: verb: run_with_timer
+sample.f90:145: intrinsics: verb: call_indent_line_function
 baseline: intrinsics: baseline entry no longer occurs: sample.f90:gone:wrapper (remove it)

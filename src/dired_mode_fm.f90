@@ -55,10 +55,11 @@
 !> not applicable).
 module dired_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use error_fm, only: status_type, set_error, format_error, format_message, condition_matches, error_name, &
                         FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, list, list_elements, xfixnum, xstring, command_proc, vtag, V_INTEGER, V_ARRAY
+    use lisp_fm, only: value_type, list, list_elements, xfixnum, xstring, command_proc, vtag, V_INTEGER
     use lread_fm, only: read_string_literal
     use data_fm, only: set, add_local_variables_killer, value_eq, kill_all_local_variables
     use commands_fm, only: commands
@@ -3305,7 +3306,7 @@ contains
         logical, intent(out) :: have_switches
         type(status_type), intent(out) :: status
 
-        have_switches = allocated(current_prefix_arg%a)
+        have_switches = current_prefix_arg%kind /= PREFIX_NONE
         switches = ""
 
         if (have_switches) then
@@ -4375,7 +4376,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: pos, arg
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             arg = prefix_n()
         else if (len(dired_get_subdir()) > 0) then
             ! if on subdir start already, don't stay there!
@@ -4431,7 +4432,7 @@ contains
     recursive subroutine cmd_dired_up_directory(status)
         type(status_type), intent(out) :: status
 
-        call dired_up_directory(status, allocated(current_prefix_arg%a))
+        call dired_up_directory(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_dired_up_directory
 
     ! ------------------------------------------------------------------
@@ -4562,9 +4563,9 @@ contains
 
         arg_n = 0
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             arg_kind = DIRED_ARG_NONE
-        else if (vtag(current_prefix_arg) == V_ARRAY) then
+        else if (current_prefix_arg%kind == PREFIX_RAW) then
             arg_kind = DIRED_ARG_OTHER
         else
             arg_kind = DIRED_ARG_INTEGER
@@ -5382,7 +5383,7 @@ contains
         character(len=:), allocatable :: regexp, verb
         logical :: unmark
 
-        unmark = allocated(current_prefix_arg%a)
+        unmark = current_prefix_arg%kind /= PREFIX_NONE
         verb = "Mark"
         if (unmark) verb = "Unmark"
         call read_dired_regexp(verb//" files (regexp): ", regexp, status, .true.)
@@ -5473,7 +5474,7 @@ contains
         character(len=:), allocatable :: regexp, verb
         logical :: unmark
 
-        unmark = allocated(current_prefix_arg%a)
+        unmark = current_prefix_arg%kind /= PREFIX_NONE
         verb = "Mark"
         if (unmark) verb = "Unmark"
         call read_dired_regexp(verb//" files containing (regexp): ", regexp, status, .false.)
@@ -5539,7 +5540,7 @@ contains
 
         saved = dired_marker_char
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             dired_marker_char = marker
         else
             dired_marker_char = " "
@@ -5834,7 +5835,7 @@ contains
             return
         end if
 
-        call dired_unmark_all_files(achar(mark), status, allocated(current_prefix_arg%a))
+        call dired_unmark_all_files(achar(mark), status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_dired_unmark_all_files
 
     !> Remove all marks from all files in the Dired buffer.  Port of
@@ -6571,7 +6572,7 @@ contains
         call goto_char(point_max())
         call fwd_line(-1_int64)
         call backward_page()
-        call recenter(value_type(0_int64), .false., st)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .false., st)
         call select_window(owindow, st)
     end subroutine dired_why
 
@@ -6632,13 +6633,13 @@ contains
         if (len(subdir) > 0) then
             allocate (files(1))
             files(1)%s = subdir
-        else if (.not. allocated(current_prefix_arg%a)) then
+        else if (current_prefix_arg%kind == PREFIX_NONE) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_NO_DIR)
-        else if (vtag(current_prefix_arg) == V_ARRAY) then
+        else if (current_prefix_arg%kind == PREFIX_RAW) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE)
         else if (prefix_n() == 0) then
             call dired_get_marked_files(files, status)
-        else if (prefix_n() == 1 .and. vtag(current_prefix_arg) == V_INTEGER) then
+        else if (prefix_n() == 1 .and. current_prefix_arg%kind == PREFIX_NUMBER) then
             call set_error(status, FM_GENERIC_ERROR, "Names relative to the project root (project.el) are "// &
                            "not supported yet")
             return
@@ -6665,7 +6666,7 @@ contains
         end if
 
         if (len(string) > 0) then
-            if (symbol_is(last_command, "kill_region")) then
+            if (associated(last_command, commands%kill_region)) then
                 call kill_append(string, .false.)
             else
                 call kill_new(string)
@@ -6739,7 +6740,7 @@ contains
             return
         end if
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call read_string("ls switches (must contain -l): ", switches, status, initial=dired_actual_switches_of())
             if (.not. status%ok()) return
             call dired_sort_other(switches, status)

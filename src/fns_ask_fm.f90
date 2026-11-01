@@ -23,8 +23,8 @@
 !> minibuffer depends on fns_fm, which a module cannot.
 submodule(fns_fm) fns_ask_fm
     use minibuf_fm, only: read_from_minibuffer, enable_recursive_minibuffers
+    use callint_fm, only: command_type
     use keyboard_fm, only: discard_input, sit_for, real_this_command
-    use lisp_fm, only: value_type
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use subr_fm, only: read_y_or_n
@@ -39,7 +39,7 @@ contains
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: full, ans
-        type(value_type) :: saved_real_this
+        type(command_type), pointer :: saved_real_this
         integer(int64) :: n
         integer(int32) :: c, clen
         integer(int64) :: byte, last
@@ -83,7 +83,7 @@ contains
         ! Preserve the actual command that eventually called
         ! `read_yes_or_no' (otherwise `repeat' will be repeating
         ! `exit_minibuffer').
-        saved_real_this = real_this_command
+        saved_real_this => real_this_command
 
         do
             call read_from_minibuffer(full, ans, status, history="read_yes_or_no_history")
@@ -103,6 +103,6 @@ contains
         end do
 
         enable_recursive_minibuffers = saved_enable
-        real_this_command = saved_real_this
+        real_this_command => saved_real_this
     end subroutine read_yes_or_no
 end submodule fns_ask_fm

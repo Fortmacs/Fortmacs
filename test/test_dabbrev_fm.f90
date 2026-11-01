@@ -29,6 +29,7 @@
 !> cycling, case replacement, case-sensitive search.
 module test_dabbrev_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type
@@ -109,8 +110,8 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = value_type()
-        current_prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
+        current_prefix_arg = prefix_arg_type()
         call dabbrev_reset_global_variables()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)

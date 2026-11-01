@@ -47,7 +47,6 @@
 !> Lisp: `ibuffer_filter_by_predicate' takes a Fortran function, shown as
 !> " [predicate]" without its form).
 submodule(ibuffer_fm) ibuf_ext_fm
-    use data_fm, only: value_eq
     use simple_fm, only: execute_shell_region, execute_process_shell_command, shell_command_buffer_name, &
                          shell_command_dont_erase_buffer, kill_new, kill_append
     use keyboard_fm, only: last_command, post_command_hook
@@ -65,7 +64,7 @@ submodule(ibuffer_fm) ibuf_ext_fm
     use diff_mode_fm, only: diff_mode
     use window_fm, only: pop_to_buffer_same_window
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: xsymbol, symbols, list_elements, make_list, vtag, V_NULL, V_INTEGER, V_NAME, V_ARRAY, value_type
+    use lisp_fm, only: xsymbol, symbols, list_elements, make_list, vtag, V_NULL, V_INTEGER, V_NAME, value_type
     use search_fm, only: SEARCH_NOERROR
     use files_fm, only: file_name_extension
     use simple_fm, only: simple_kill_line => kill_line
@@ -635,7 +634,7 @@ contains
 
         status = status_type()
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call ibuffer_forward_filter_group()
         else
             call ibuffer_forward_filter_group(prefix_numeric_value(current_prefix_arg))
@@ -681,7 +680,7 @@ contains
 
         status = status_type()
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call ibuffer_backward_filter_group()
         else
             call ibuffer_backward_filter_group(prefix_numeric_value(current_prefix_arg))
@@ -1568,7 +1567,7 @@ contains
         integer :: k
 
         only_visible = ibuffer_jump_offer_only_visible_buffers
-        if (allocated(current_prefix_arg%a)) only_visible = .not. only_visible
+        if (current_prefix_arg%kind /= PREFIX_NONE) only_visible = .not. only_visible
 
         if (only_visible) then
             call ibuffer_current_state_list(states, status)
@@ -1757,9 +1756,9 @@ contains
 
         status = status_type()
 
-        if (vtag(current_prefix_arg) == V_INTEGER) then
-            if (xfixnum(current_prefix_arg) /= 0) then
-                call near_buffers(xfixnum(current_prefix_arg), bufs)
+        if (current_prefix_arg%kind == PREFIX_NUMBER) then
+            if (current_prefix_arg%value /= 0) then
+                call near_buffers(current_prefix_arg%value, bufs)
                 return
             end if
         end if
@@ -1786,7 +1785,7 @@ contains
 
         if (len(string) == 0) return
 
-        if (value_eq(last_command, value_type(name="kill_region"))) then
+        if (associated(last_command, commands%kill_region)) then
             call kill_append(string, .false.)
         else
             call kill_new(string)
@@ -1827,9 +1826,9 @@ contains
             call set_buffer(old, st)
             if (len(name) == 0) cycle
 
-            if (vtag(current_prefix_arg) == V_INTEGER) then
-                if (xfixnum(current_prefix_arg) /= 0) name = file_name_nondirectory(name)
-            else if (vtag(current_prefix_arg) == V_ARRAY) then
+            if (current_prefix_arg%kind == PREFIX_NUMBER) then
+                if (current_prefix_arg%value /= 0) name = file_name_nondirectory(name)
+            else if (current_prefix_arg%kind == PREFIX_RAW) then
                 if (allocated(ibuffer_default_directory)) dir = ibuffer_default_directory
                 name = file_relative_name(name, buffers(cur)%directory)
                 if (allocated(ibuffer_default_directory)) name = file_relative_name(name, ibuffer_default_directory)
@@ -2074,7 +2073,7 @@ contains
         character(len=:), allocatable :: regexp
 
         call read_from_minibuffer("Mark by content (regexp): ", regexp, status)
-        if (status%ok()) call ibuffer_mark_by_content_regexp(regexp, status, allocated(current_prefix_arg%a))
+        if (status%ok()) call ibuffer_mark_by_content_regexp(regexp, status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_ibuffer_mark_by_content_regexp
 
     !> Mark all buffers whose major mode equals MODE.  Port of
@@ -2878,7 +2877,7 @@ contains
     recursive subroutine cmd_ibuffer_or_filter(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_or_filter(status, allocated(current_prefix_arg%a))
+        call ibuffer_or_filter(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_ibuffer_or_filter
 
     module procedure ibuffer_and_filter
@@ -2892,7 +2891,7 @@ contains
     recursive subroutine cmd_ibuffer_and_filter(status)
         type(status_type), intent(out) :: status
 
-        call ibuffer_and_filter(status, allocated(current_prefix_arg%a))
+        call ibuffer_and_filter(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_ibuffer_and_filter
 
     ! ------------------------------------------------------------------
@@ -3258,7 +3257,7 @@ contains
 
         if (found) then
             call ibuffer_kill_filter_group(it, status)
-        else if (.not. allocated(current_prefix_arg%a)) then
+        else if (current_prefix_arg%kind == PREFIX_NONE) then
             call simple_kill_line(1_int64, .false., status)
         else
             call simple_kill_line(prefix_numeric_value(current_prefix_arg), .true., status)

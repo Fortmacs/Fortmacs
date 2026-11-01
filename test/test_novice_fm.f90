@@ -23,6 +23,7 @@
 !> `disable-command`.
 module test_novice_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type
@@ -66,7 +67,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         disabled_command_function_variable = .true.
         commands%upcase_region%disabled = .true.
         call get_buffer_create("novice-test", h, st)

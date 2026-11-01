@@ -65,11 +65,12 @@
 !> after C-u (an error says so); coding systems.
 module comint_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use callint_fm, only: PREFIX_NONE, PREFIX_RAW, PREFIX_NUMBER, prefix_arg_type, command_type
     use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY, value_type
     use error_fm, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, list, symbols, xsymbol, list_elements, command_proc
-    use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, value_eq, &
+    use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
                        add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, &
                          barf_if_buffer_read_only
@@ -1308,7 +1309,7 @@ contains
         call read_string("Run program: ", program, status)
         if (.not. status%ok()) return
 
-        if (vtag(current_prefix_arg) == V_ARRAY) then
+        if (current_prefix_arg%kind == PREFIX_RAW) then
             call set_error(status, FM_GENERIC_ERROR, "Reading switches for comint_execute is not supported yet")
             return
         end if
@@ -1640,14 +1641,15 @@ contains
         character(len=:), allocatable, intent(out) :: regexp
         integer, intent(out) :: n
         type(status_type), intent(out) :: status
-        type(value_type) :: saved_last, history
+        type(value_type) :: history
+        type(command_type), pointer :: saved_last
         type(value_type), allocatable :: elts(:)
         type(status_type) :: st
 
         ! Don't clobber this.
-        saved_last = last_command
+        saved_last => last_command
         call read_from_minibuffer(prompt, regexp, status, history="minibuffer_history_search_history")
-        last_command = saved_last
+        last_command => saved_last
         if (.not. status%ok()) return
 
         ! If the user didn't enter anything, nothing is added to m-h-s-h.
@@ -1992,8 +1994,8 @@ contains
         opoint = point()
         k = local_entry()
 
-        if (.not. (symbol_is(last_command, "comint_previous_matching_input_from_input") .or. &
-                   symbol_is(last_command, "comint_next_matching_input_from_input"))) then
+        if (.not. (associated(last_command, commands%comint_previous_matching_input_from_input) .or. &
+                   associated(last_command, commands%comint_next_matching_input_from_input))) then
             ! Starting a new search.
             from = marker_pos(comint_buffers(k)%accum_marker)
 
@@ -2874,7 +2876,7 @@ contains
             if (comint_scroll_show_maximum_output%value) then
                 if (window_point_of(leaves(i)) == point_max()) then
                     call select_window(leaves(i), st, norecord=.true.)
-                    call recenter(make_int(-1_int64), .false., st)
+                    call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .false., st)
                     call select_window(selected, st, norecord=.true.)
                 end if
             end if
@@ -2882,15 +2884,6 @@ contains
             call set_buffer(current, st)
         end do
     end subroutine comint_postoutput_scroll_to_bottom
-
-    ! Not a port.
-    function make_int(n) result(v)
-        use lisp_fm, only: value_type
-        integer(int64), intent(in) :: n
-        type(value_type) :: v
-
-        v = value_type(n)
-    end function make_int
 
     !> The point of window W: point, for the selected window showing the
     !> current buffer.  Not a port.
@@ -3063,7 +3056,7 @@ contains
         type(status_type), intent(out) :: status
 
         call goto_char(point_max())
-        call recenter(make_int(-1_int64), .false., status)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .false., status)
     end subroutine comint_show_maximum_output
 
     ! ------------------------------------------------------------------
@@ -3269,7 +3262,7 @@ contains
     recursive subroutine cmd_comint_delete_output(status)
         type(status_type), intent(out) :: status
 
-        call comint_delete_output(status, allocated(current_prefix_arg%a))
+        call comint_delete_output(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_comint_delete_output
 
     !> Write output from interpreter since last input to FILENAME.
@@ -3316,7 +3309,7 @@ contains
         character(len=:), allocatable :: file
         logical :: append
 
-        append = allocated(current_prefix_arg%a)
+        append = current_prefix_arg%kind /= PREFIX_NONE
 
         if (append) then
             call read_file_name("Append output to file: ", file, status)
@@ -3892,7 +3885,7 @@ contains
 
         status = status_type()
 
-        if (.not. symbol_is(last_command, "comint_bol_or_process_mark")) then
+        if (.not. associated(last_command, commands%comint_bol_or_process_mark)) then
             call comint_bol(.false.)
         else
             call comint_goto_process_mark(status)
@@ -4012,7 +4005,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call comint_bol(allocated(current_prefix_arg%a))
+        call comint_bol(current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_comint_bol
 
     !> Kill current line, ignoring read-only and field properties.
@@ -4586,7 +4579,7 @@ contains
         idx = index
         has = has_index
 
-        if (value_eq(last_command, this_command) .and. allocated(this_command%a)) then
+        if (associated(last_command, this_command)) then
             ! Delete last input inserted by this command.
             call delete_region(marker_pos(comint_buffers(k)%insert_previous_argument_last_start_pos), point(), st)
             idx = comint_buffers(k)%insert_previous_argument_last_index
@@ -4634,7 +4627,7 @@ contains
     recursive subroutine cmd_comint_insert_previous_argument(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call comint_insert_previous_argument(0, .false., status)
         else
             call comint_insert_previous_argument(int(prefix_numeric_value(current_prefix_arg)), .true., status)
@@ -4957,8 +4950,9 @@ contains
         status = status_type()
         scroll = int(comint_scroll_to_bottom_on_input%value)
         if (scroll == COMINT_SCROLL_ON_INPUT_NO) return
-        if (.not. (symbol_is(this_command, "self_insert_command") .or. symbol_is(this_command, "comint_magic_space") &
-                   .or. symbol_is(this_command, "yank") .or. symbol_is(this_command, "hilit_yank"))) return
+        ! (Upstream's list also has hilit-yank, which is not ported.)
+        if (.not. (associated(this_command, commands%self_insert_command) .or. &
+                   associated(this_command, commands%comint_magic_space) .or. associated(this_command, commands%yank))) return
         current = current_buffer()
         process = get_buffer_process(current)
         if (process%index == 0) return

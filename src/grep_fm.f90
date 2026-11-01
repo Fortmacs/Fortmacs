@@ -51,6 +51,7 @@
 !> only, `grep_quoting_style' stays false).
 module grep_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE, PREFIX_RAW, find_command
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
@@ -1787,7 +1788,7 @@ contains
         if (.not. status%ok()) return
         default = grep_default_command()
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call read_shell_command("Run grep (like this): ", command, status, initial=default, history="grep_history")
         else
             initial = ""
@@ -2581,7 +2582,7 @@ contains
         run = .false.
         confirm = .false.
         n = 0
-        if (vtag(current_prefix_arg) == V_ARRAY) n = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_arg%kind == PREFIX_RAW) n = prefix_numeric_value(current_prefix_arg)
 
         if (allocated(command) .and. n == 16) then
             run = .true.

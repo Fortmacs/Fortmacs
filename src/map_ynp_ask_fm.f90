@@ -72,7 +72,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: help_object, help_objects, help_action
         character(len=:), allocatable :: prompt, full, msg, str, object, objects, action
-        type(value_type) :: key, def, saved_this, saved_real_this
+        type(value_type) :: key, def
+        type(command_type), pointer :: saved_this, saved_real_this
         type(status_type) :: st
         integer :: k, how, answer
         logical :: had_msg, saved_enable, again
@@ -126,8 +127,8 @@ contains
                 else
                     ! Read from the minibuffer.
                     call init_remap()
-                    saved_this = this_command
-                    saved_real_this = real_this_command
+                    saved_this => this_command
+                    saved_real_this => real_this_command
                     saved_enable = enable_recursive_minibuffers
                     enable_recursive_minibuffers = .true.
 
@@ -139,8 +140,8 @@ contains
                     end if
 
                     enable_recursive_minibuffers = saved_enable
-                    this_command = saved_this
-                    real_this_command = saved_real_this
+                    this_command => saved_this
+                    real_this_command => saved_real_this
                     if (.not. status%ok()) exit objects_loop
 
                     if (allocated(chars)) then
@@ -300,7 +301,8 @@ contains
         type(read_answer_type), allocatable :: with_help(:)
         type(read_answer_type) :: help_answer
         character(len=:), allocatable :: prompt, msg, str, text
-        type(value_type) :: key1(1), saved_this, saved_real_this
+        type(value_type) :: key1(1)
+        type(command_type), pointer :: saved_this, saved_real_this
         type(value_type), allocatable :: remap_events(:)
         type(status_type) :: st
         logical :: short, has_help, found
@@ -377,8 +379,8 @@ contains
         status = status_type()
 
         do
-            saved_this = this_command
-            saved_real_this = real_this_command
+            saved_this => this_command
+            saved_real_this => real_this_command
 
             if (short) then
                 call read_from_minibuffer(prompt, str, status, keymap=short_answer_map, history="read_char_history")
@@ -386,8 +388,8 @@ contains
                 call read_from_minibuffer(prompt, str, status, history="read_yes_or_no_history")
             end if
 
-            this_command = saved_this
-            real_this_command = saved_real_this
+            this_command => saved_this
+            real_this_command => saved_real_this
             if (.not. status%ok()) exit
             answer = downcase_string(str)
             found = .false.

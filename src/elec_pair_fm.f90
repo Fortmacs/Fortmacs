@@ -41,6 +41,7 @@
 !> not ported), overwrite mode and the cc-mode syntax-ppss workaround.
 module elec_pair_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER
     use error_fm, only: status_type, FM_SCAN_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
@@ -958,7 +959,7 @@ contains
         integer(int64) :: pos, num, beg, m, opoint, saved_point, moved
         integer :: ev, skip_whitespace_info, syntax
         logical :: skip, ok, inhibited
-        type(value_type) :: saved_arg
+        type(prefix_arg_type) :: saved_arg
         type(handle_type) :: here
         type(status_type) :: st
 
@@ -1006,7 +1007,7 @@ contains
 
         if (modulo(moved, 2_int64) /= 0) then
             saved_arg = hook_current_prefix_arg
-            hook_current_prefix_arg = value_type(num - 1)
+            hook_current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, num - 1)
             call electric_pair_post_self_insert_function(status)
             hook_current_prefix_arg = saved_arg
             return
@@ -1162,7 +1163,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call electric_pair_delete_pair(prefix_numeric_value(current_prefix_arg), status, &
-                                       allocated(current_prefix_arg%a))
+                                       current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_electric_pair_delete_pair
 
     ! ------------------------------------------------------------------

@@ -30,6 +30,7 @@
 !>     call minor_modes%auto_fill_mode%hook%add(my_procedure)
 module easy_mmode_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_keymap_ref, symbols
@@ -44,7 +45,7 @@ module easy_mmode_fm
     use xdisp_fm, only: message, add_minor_mode_lighter
     use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
     use error_fm, only: set_error, FM_USER_ERROR
-    use lisp_fm, only: make_list, list, value_type
+    use lisp_fm, only: make_list, value_type
     use buffer_fm, only: current_buffer
     use editfns_fm, only: point, goto_char, widen, is_buffer_narrowed
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, SEARCH_NOERROR
@@ -229,7 +230,7 @@ contains
 
                 if (.not. is_pos_visible_in_window(endpt, selected_window())) then
                     ws = window_start(w)
-                    call recenter(list(value_type(0_int64)), .false., st)
+                    call recenter(prefix_arg_type(PREFIX_RAW, 0_int64), .false., st)
                     ! recenter scrolled in the wrong direction!
                     if (window_start(w) < ws) call set_window_start(w, ws, st)
                 end if
@@ -808,7 +809,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: enable
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             enable = .not. self%enabled()
         else
             enable = prefix_numeric_value(current_prefix_arg) >= 1

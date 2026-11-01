@@ -27,6 +27,7 @@
 !> ported yet are left out rather than failing with `void_function'.
 module bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
@@ -86,6 +87,7 @@ module bindings_fm
     use python_fm, only: syms_of_python
     use css_mode_fm, only: syms_of_css_mode
     use js_fm, only: syms_of_js
+    use sgml_mode_fm, only: syms_of_sgml_mode
     use f90_fm, only: syms_of_f90
     use prog_mode_fm, only: syms_of_prog_mode
     use font_core_fm, only: syms_of_font_core
@@ -168,7 +170,7 @@ contains
     subroutine cmd_complete_name(status)
         type(status_type), intent(out) :: status
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call set_error(status, FM_GENERIC_ERROR, "info_complete_name is not ported yet")
             return
         end if
@@ -337,6 +339,7 @@ contains
         call syms_of_python()
         call syms_of_css_mode()
         call syms_of_js()
+        call syms_of_sgml_mode()
         call syms_of_f90()
         call syms_of_prog_mode()
         call syms_of_jit_lock()

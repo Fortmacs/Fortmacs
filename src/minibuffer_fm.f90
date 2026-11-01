@@ -36,6 +36,7 @@
 !> ~USER in file names.
 module minibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use callint_fm, only: command_type
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
@@ -1381,7 +1382,7 @@ contains
                 ! it means we've already given a "Complete, but not
                 ! unique" message and the user's hit TAB again, so now we
                 ! give him help.
-                if (value_eq(this_command, last_command) .and. completion_auto_help) then
+                if (associated(this_command, last_command) .and. completion_auto_help) then
                     call minibuffer_completion_help(beg, e)
                 end if
 
@@ -1586,8 +1587,8 @@ contains
         res = .false.
         ! If the previous command was not this, mark the completion buffer
         ! obsolete.
-        this_command = value_type(name="completion_at_point")
-        if (.not. value_eq(last_command, value_type(name="completion_at_point"))) minibuffer_scroll_window = null_handle()
+        this_command => commands%completion_at_point
+        if (.not. associated(last_command, commands%completion_at_point)) minibuffer_scroll_window = null_handle()
 
         ! If there's a fresh completion window with a live buffer, and this
         ! command is repeated, scroll that window.
@@ -1988,7 +1989,8 @@ contains
         ! test-completion, after confirming her choice.
         if (minibuffer_completion_confirm == REQUIRE_MATCH_CONFIRM .or. &
             minibuffer_completion_confirm == REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION) then
-            if (value_eq(last_command, this_command) .or. &
+            ! hazard-ok(short-circuit): associated(a, b) compares, it guards nothing
+            if (associated(last_command, this_command) .or. &
                 (minibuffer_completion_confirm == REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION .and. &
                  .not. confirm_exit_command(last_command))) then
                 call exit_function(status)
@@ -2018,11 +2020,11 @@ contains
 
     !> Whether `cmd' is in minibuffer-confirm-exit-commands.  Not a port.
     logical function confirm_exit_command(cmd)
-        type(value_type), intent(in) :: cmd
+        type(command_type), pointer, intent(in) :: cmd
 
-        confirm_exit_command = value_eq(cmd, value_type(name="completion_at_point")) .or. &
-                               value_eq(cmd, value_type(name="minibuffer_complete")) .or. &
-                               value_eq(cmd, value_type(name="minibuffer_complete_word"))
+        confirm_exit_command = associated(cmd, commands%completion_at_point) .or. &
+                               associated(cmd, commands%minibuffer_complete) .or. &
+                               associated(cmd, commands%minibuffer_complete_word)
     end function confirm_exit_command
 
     ! ------------------------------------------------------------------

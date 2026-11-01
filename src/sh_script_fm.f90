@@ -52,10 +52,11 @@
 !> and `bash_ts_mode' (tree-sitter).
 module sh_script_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING
-    use data_fm, only: integer_setting, string_setting, forward_setting, add_local_variables_killer, value_eq
+    use data_fm, only: integer_setting, string_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command
@@ -3538,7 +3539,7 @@ contains
         call completing_read(format_prompt("Shell", sh_shell_file%value), table, shell, status, &
                              default=sh_shell_file%value)
         if (.not. status%ok()) return
-        call sh_set_shell(shell, status, executable_query == EXECUTABLE_QUERY_FUNCTION,.not. allocated(current_prefix_arg%a))
+        call sh_set_shell(shell, status, executable_query == EXECUTABLE_QUERY_FUNCTION, current_prefix_arg%kind == PREFIX_NONE)
     end subroutine cmd_sh_set_shell
 
     !> Convert a shell name SHELL to the one we should handle it as.
@@ -3630,10 +3631,10 @@ contains
         previous = current_column()
         call goto_char(here)
         call copy_marker_at(point(), mark, .false., status)
-        newline_cmd = value_eq(this_command, value_type(name="newline_and_indent"))
+        newline_cmd = associated(this_command, commands%newline_and_indent)
 
         if (.not. newline_cmd .and. minor_modes%electric_indent_mode%enabled()) then
-            newline_cmd = value_eq(this_command, value_type(name="newline"))
+            newline_cmd = associated(this_command, commands%newline)
         end if
 
         if (newline_cmd) then
@@ -3763,7 +3764,7 @@ contains
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call sh_execute_region(b, e, status)
         else
             call sh_execute_region(b, e, status, prefix_numeric_value(current_prefix_arg))
@@ -4111,7 +4112,7 @@ contains
 
         ! Called as a command it toggles; from Fortran (a hook) it turns
         ! the mode on, as calling it with no argument does upstream.
-        if (value_eq(this_command, value_type(name="sh_electric_here_document_mode"))) then
+        if (associated(this_command, commands%sh_electric_here_document_mode)) then
             call minor_modes%sh_electric_here_document_mode%command(status)
         else
             call minor_modes%sh_electric_here_document_mode%enable(status)
@@ -4250,7 +4251,7 @@ contains
         if (.not. status%ok()) return
         ! (save-excursion ...)
         call copy_marker_at(point(), mark, .false., status)
-        call sh_backslash_region(b, e, allocated(current_prefix_arg%a), status)
+        call sh_backslash_region(b, e, current_prefix_arg%kind /= PREFIX_NONE, status)
         call goto_char(mpos(mark))
         call free_marker(mark, st)
     end subroutine cmd_sh_backslash_region
@@ -4735,7 +4736,7 @@ contains
 
         call read_from_minibuffer("Name for this style? ", name, status)
         if (.not. status%ok()) return
-        call sh_name_style(name, status,.not. allocated(current_prefix_arg%a))
+        call sh_name_style(name, status, current_prefix_arg%kind == PREFIX_NONE)
     end subroutine cmd_sh_name_style
 
     !> Set shell indentation values for this buffer from those in style NAME.

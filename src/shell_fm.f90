@@ -48,6 +48,7 @@
 !> repeat map and menus.
 module shell_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xstring, vtag, V_NULL, V_NAME
@@ -1761,7 +1762,7 @@ contains
         type(handle_type) :: buf, proc
         character(len=:), allocatable :: name, default
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call shell(buf, status)
             return
         end if

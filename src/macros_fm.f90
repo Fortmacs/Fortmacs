@@ -31,7 +31,8 @@
 submodule(keyboard_fm) macros_fm
     use commands_fm, only: commands
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: make_list, value_type, vtag, V_INTEGER, V_STRING, V_ARRAY
+    use lisp_fm, only: value_type, vtag, V_STRING, V_ARRAY
+    use callint_fm, only: prefix_arg_repr
     use print_fm, only: fortran_repr
     use xdisp_fm, only: message
     implicit none(type, external)
@@ -78,7 +79,7 @@ contains
         ! behavior.
         if (.not. no_exec) then
             macro = last_kbd_macro
-            call execute_kbd_macro(macro, value_type(1_int64), status)
+            call execute_kbd_macro(macro, prefix_arg_type(PREFIX_NUMBER, 1_int64), status)
             if (.not. status%ok()) return
         end if
 
@@ -106,23 +107,24 @@ contains
         return
     end if
 
-    if (.not. allocated(repeat%a)) then
+    select case (repeat%kind)
+    case (PREFIX_NONE)
         n = 1
-    else if (vtag(repeat) == V_INTEGER) then
-        n = xfixnum(repeat)
-    else
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got "//fortran_repr(repeat))
+    case (PREFIX_NUMBER)
+        n = repeat%value
+    case default
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got "//prefix_arg_repr(repeat))
         return
-    end if
+    end select
 
     call finish_kbd_macro()
     call message("Keyboard macro defined")
     macro = last_kbd_macro
 
     if (n == 0) then
-        call execute_kbd_macro(macro, value_type(0_int64), status, loopfunc)
+        call execute_kbd_macro(macro, prefix_arg_type(PREFIX_NUMBER, 0_int64), status, loopfunc)
     else if (n > 1) then
-        call execute_kbd_macro(macro, value_type(n - 1), status, loopfunc)
+        call execute_kbd_macro(macro, prefix_arg_type(PREFIX_NUMBER, n - 1), status, loopfunc)
     end if
     end procedure end_kbd_macro
 
@@ -150,6 +152,24 @@ contains
     kbd_macro_ptr = kbd_macro_end
     end procedure cancel_kbd_macro_events
 
+    module procedure set_last_macro_command
+    last_macro_command%events = events
+    last_macro_command%name = fortran_repr(make_list(events))
+    last_macro_command%is_command = .true.
+    last_macro_command%execute => execute_last_macro_command
+    end procedure set_last_macro_command
+
+    !> The procedure of `last_macro_command': execute its events once
+    !> (repeat.el:repeat runs a macro with no repeat count).  Not a port.
+    recursive subroutine execute_last_macro_command(status)
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: events(:)
+
+        ! A copy: the macro's commands may run another macro.
+        events = last_macro_command%events
+        call execute_kbd_macro(events, prefix_arg_type(), status)
+    end subroutine execute_last_macro_command
+
     module procedure store_kbd_macro_event
     call store_kbd_macro_char(event)
     end procedure store_kbd_macro_event
@@ -160,13 +180,13 @@ contains
     status = status_type()
     ! Don't interfere with recognition of the previous command
     ! from before this macro started.
-    this_command = last_command
-
+    this_command => last_command
     ! C-x z after the macro should repeat the macro.
+    real_this_command => null()
+
     if (allocated(last_kbd_macro)) then
-        real_this_command = make_list(last_kbd_macro)
-    else
-        real_this_command = value_type()
+        call set_last_macro_command(last_kbd_macro)
+        real_this_command => last_macro_command
     end if
 
     if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
@@ -183,7 +203,7 @@ contains
     ! command_loop_1 sets this to nil before it returns; get back the
     ! last command within the macro so that it can be last, again, after
     ! we return.
-    this_command = last_command
+    this_command => last_command
     end procedure execute_last_kbd_macro
 
     module procedure execute_kbd_macro_value
@@ -238,12 +258,13 @@ contains
     !> times.  Port of macros.c:Fexecute_kbd_macro, in part (its body), and
     !> macros.c:pop_kbd_macro.
     recursive subroutine execute_events(final, is_string, count, status, loopfunc)
-        type(value_type), intent(in) :: final(:), count
+        type(value_type), intent(in) :: final(:)
+        type(prefix_arg_type), intent(in) :: count
         logical, intent(in) :: is_string
         type(status_type), intent(out) :: status
         procedure(kbd_macro_loop_proc), optional :: loopfunc
         type(value_type), allocatable :: saved_events(:)
-        type(value_type) :: saved_real_this_command
+        type(command_type), pointer :: saved_real_this_command
         type(status_type) :: hook_status
         integer(int64) :: repeat, success_count, saved_index
         logical :: saved_active, saved_string, saved_forced, saved_handles, done
@@ -252,14 +273,14 @@ contains
         repeat = 1
         success_count = 0
         executing_kbd_macro_iterations = 0
-        if (allocated(count%a)) repeat = prefix_numeric_value(count)
+        if (count%kind /= PREFIX_NONE) repeat = prefix_numeric_value(count)
         ! record_unwind_protect (pop_kbd_macro, ...)
         saved_active = macro_active
         saved_string = macro_string
         saved_forced = macro_forced_end
         saved_index = executing_kbd_macro_index
         if (allocated(macro_events)) call move_alloc(macro_events, saved_events)
-        saved_real_this_command = real_this_command
+        saved_real_this_command => real_this_command
         saved_handles = loop_handles_errors
 
         do
@@ -269,7 +290,7 @@ contains
             macro_forced_end = .false.
             macro_started = .true.
             executing_kbd_macro_index = 0
-            prefix_arg = value_type()
+            prefix_arg = prefix_arg_type()
 
             if (present(loopfunc)) then
                 if (.not. loopfunc()) exit
@@ -302,7 +323,7 @@ contains
         executing_kbd_macro_index = saved_index
         if (allocated(macro_events)) deallocate (macro_events)
         if (allocated(saved_events)) call move_alloc(saved_events, macro_events)
-        real_this_command = saved_real_this_command
+        real_this_command => saved_real_this_command
         call kbd_macro_termination_hook%execute(hook_status)
         if (status%ok() .and. .not. hook_status%ok()) status = hook_status
     end subroutine execute_events
@@ -320,7 +341,7 @@ contains
     recursive subroutine cmd_start_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call start_kbd_macro(allocated(current_prefix_arg%a), .false., status)
+        call start_kbd_macro(current_prefix_arg%kind /= PREFIX_NONE, .false., status)
     end subroutine cmd_start_kbd_macro
 
     !> Finish defining a keyboard macro.
@@ -334,7 +355,7 @@ contains
     recursive subroutine cmd_end_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call end_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
+        call end_kbd_macro(prefix_arg_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_end_kbd_macro
 
     !> Call the last keyboard macro that you defined with \[start_kbd_macro].
@@ -344,7 +365,7 @@ contains
     recursive subroutine cmd_execute_last_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call execute_last_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
+        call execute_last_kbd_macro(prefix_arg_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_execute_last_kbd_macro
 
     module procedure syms_of_macros

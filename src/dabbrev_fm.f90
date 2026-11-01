@@ -36,10 +36,11 @@
 !> Deferred: Picture mode's `picture_replace_match'.
 module dabbrev_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use data_fm, only: value_eq, string_setting, forward_setting
+    use data_fm, only: string_setting, forward_setting
     use buffer_fm, only: buffers, cur, BEG, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
                          get_buffer, get_buffer_create, generate_new_buffer_name, kill_buffer, &
                          barf_if_buffer_read_only, UE_POINT, undo_entry_type
@@ -578,7 +579,7 @@ contains
         repeat = .false.
 
         if (.not. present(arg) .and. is_abbrev_location()) then
-            if (value_eq(last_command, this_command)) then
+            if (associated(last_command, this_command)) then
                 repeat = .true.
             else if (selected_frame%minibuffer_selected) then
                 repeat = abbrev_location() == point()
@@ -1775,7 +1776,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call dabbrev_completion(status)
         else
             call dabbrev_completion(status, prefix_numeric_value(current_prefix_arg))
@@ -1789,7 +1790,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call dabbrev_expand(status)
         else
             call dabbrev_expand(status, prefix_numeric_value(current_prefix_arg))

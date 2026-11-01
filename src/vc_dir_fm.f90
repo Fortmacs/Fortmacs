@@ -38,6 +38,7 @@
 !> directory-local variables.
 module vc_dir_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type
@@ -2642,7 +2643,7 @@ contains
         if (.not. status%ok()) return
         b = 0
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call read_backend(name, status)
             if (.not. status%ok()) return
             b = vc_backend_named(name)
@@ -2703,14 +2704,14 @@ contains
     recursive subroutine cmd_vc_dir_mark_all_files(status)
         type(status_type), intent(out) :: status
 
-        call vc_dir_mark_all_files(allocated(current_prefix_arg%a), status)
+        call vc_dir_mark_all_files(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_vc_dir_mark_all_files
 
     recursive subroutine cmd_vc_dir_unmark_all_files(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call vc_dir_unmark_all_files(allocated(current_prefix_arg%a))
+        call vc_dir_unmark_all_files(current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_vc_dir_unmark_all_files
 
     recursive subroutine cmd_vc_dir_mark_by_regexp(status)
@@ -2719,13 +2720,13 @@ contains
         character(len=:), allocatable :: regexp
 
         call read_string("Mark files matching: ", regexp, status)
-        if (status%ok()) call vc_dir_mark_by_regexp(regexp, allocated(current_prefix_arg%a))
+        if (status%ok()) call vc_dir_mark_by_regexp(regexp, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_vc_dir_mark_by_regexp
 
     recursive subroutine cmd_vc_dir_ignore(status)
         type(status_type), intent(out) :: status
 
-        call vc_dir_ignore(allocated(current_prefix_arg%a), status)
+        call vc_dir_ignore(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_vc_dir_ignore
 
     recursive subroutine cmd_vc_dir_hide_up_to_date(status)
@@ -2734,7 +2735,7 @@ contains
 
         status = status_type()
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             ! Command is prefixed.  Infer STATE from point.
             node = ewoc_locate(ew())
 

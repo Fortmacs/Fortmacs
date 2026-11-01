@@ -1110,7 +1110,7 @@ contains
         character(len=:), allocatable :: command
         logical :: prefix
 
-        prefix = allocated(current_prefix_arg%a)
+        prefix = current_prefix_arg%kind /= PREFIX_NONE
 
         if (allocated(buffers(cur)%filename)) then
             call read_shell_command(shell_prompt("Shell command"), command, status, &
@@ -1142,7 +1142,7 @@ contains
         integer(int64) :: beg, end, m
         logical :: prefix
 
-        prefix = allocated(current_prefix_arg%a)
+        prefix = current_prefix_arg%kind /= PREFIX_NONE
         call mark(m, status)
         if (.not. status%ok()) return
 

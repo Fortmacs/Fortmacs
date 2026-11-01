@@ -26,6 +26,7 @@
 !> and dir2.
 module test_info_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
@@ -906,7 +907,7 @@ contains
 
         ! C-s goes on through the other nodes.
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(value_type())
+            call isearch_repeat_forward(prefix_arg_type())
             call check(error, isearch_success, "found in another node")
         end if
 
@@ -919,7 +920,7 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(value_type())
+            call isearch_repeat_forward(prefix_arg_type())
             call check_node(error, "Section One", status_type())
         end if
 

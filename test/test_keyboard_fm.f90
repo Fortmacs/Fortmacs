@@ -21,6 +21,7 @@
 
 module test_keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, format_error, FM_USER_ERROR, FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
@@ -141,7 +142,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        prefix_arg = value_type(0_int64)
+        prefix_arg = prefix_arg_type(PREFIX_NUMBER, 0_int64)
     end subroutine cmd_zero
 
     !> Record recursion-depth.
@@ -179,7 +180,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        prefix_arg = list(value_type(4_int64))
+        prefix_arg = prefix_arg_type(PREFIX_RAW, 4_int64)
     end subroutine cmd_universal
 
     ! Helpers.
@@ -381,15 +382,13 @@ contains
     subroutine test_prefix_numeric_value(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, prefix_numeric_value(value_type()), 1_int64)
+        call check(error, prefix_numeric_value(prefix_arg_type()), 1_int64)
         if (allocated(error)) return
-        call check(error, prefix_numeric_value(value_type(name="-")), -1_int64)
+        call check(error, prefix_numeric_value(prefix_arg_type(PREFIX_MINUS)), -1_int64)
         if (allocated(error)) return
-        call check(error, prefix_numeric_value(list(value_type(16_int64))), 16_int64)
+        call check(error, prefix_numeric_value(prefix_arg_type(PREFIX_RAW, 16_int64)), 16_int64)
         if (allocated(error)) return
-        call check(error, prefix_numeric_value(value_type(-3_int64)), -3_int64)
-        if (allocated(error)) return
-        call check(error, prefix_numeric_value(value_type(name="foo")), 1_int64)
+        call check(error, prefix_numeric_value(prefix_arg_type(PREFIX_NUMBER, -3_int64)), -3_int64)
     end subroutine test_prefix_numeric_value
 
     subroutine test_read_key_sequence(error)
@@ -553,7 +552,7 @@ contains
         call command_loop(st)
         call check(error, count_a == 2 .and. count_b == 1, "counts")
         if (allocated(error)) return
-        call check(error, value_eq(last_command, value_type(name="cmd-b")), "last-command")
+        call check(error, associated(last_command, cmd_cmd_b), "last-command")
         if (allocated(error)) return
         call check(error, size(this_command_keys) == 0, "keys cleared after the command")
         if (allocated(error)) return

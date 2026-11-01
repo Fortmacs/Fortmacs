@@ -24,7 +24,6 @@
 !> help_fns_fm (`describe_function'), which use log_edit_fm.
 submodule(log_edit_fm) log_edit_vc_fm
     use vc_fm, only: vc_diff, vc_fileset_type
-    use lisp_fm, only: value_type
     use vc_dispatcher_fm, only: vc_log_fileset
     use help_fns_fm, only: describe_function
     implicit none(type, external)
@@ -34,7 +33,7 @@ contains
     module procedure log_edit_mode_help
     status = status_type()
 
-    if (value_eq(last_command, value_type(name="log_edit_mode_help"))) then
+    if (associated(last_command, commands%log_edit_mode_help)) then
         call describe_function(buffers(cur)%major_mode, status)
     else
         call message(substitute_command_keys("Type `\[log_edit_done]' to finish commit.  "// &

@@ -26,6 +26,7 @@
 !> them before returning.
 module test_easy_mmode_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NUMBER
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
@@ -103,14 +104,14 @@ contains
         call test_mode%disable(st)
         call check(error,.not. test_mode_on() .and. .not. body_state, "disable")
         if (allocated(error)) return
-        current_prefix_arg = value_type(33_int64)
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 33_int64)
         call test_mode%command(st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call check(error, test_mode_on(), "33 turns it on")
         if (allocated(error)) return
-        current_prefix_arg = value_type(-33_int64)
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, -33_int64)
         call test_mode%command(st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call check(error,.not. test_mode_on(), "-33 turns it off")
         if (allocated(error)) return
         call test_mode%toggle(st)
@@ -159,7 +160,7 @@ contains
         call get_buffer_create("easy-mmode-test-A", a, st)
         call get_buffer_create("easy-mmode-test-B", b, st)
         call set_buffer(a, st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call test_lit_mode%command(st)
         call check(error, test_lit_mode%enabled(), "on in A")
         if (allocated(error)) return
@@ -219,9 +220,9 @@ contains
 
         call syms_of_simple_modes()
         saved = transient_mark_mode%value
-        current_prefix_arg = value_type(-1_int64)
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, -1_int64)
         call minor_modes%transient_mark_mode%command(st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call check(error,.not. transient_mark_mode%value, "turned off")
         if (allocated(error)) return
         call check(error, last_message, "Transient-Mark mode disabled")

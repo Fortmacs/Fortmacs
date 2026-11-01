@@ -32,6 +32,7 @@
 !> handlers, trash (`delete_by_moving_to_trash').
 module files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use eval_fm, only: hook_type
     use error_fm, only: format_message, status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
@@ -2181,7 +2182,7 @@ contains
     recursive subroutine cmd_revert_buffer(status)
         type(status_type), intent(out) :: status
 
-        call revert_buffer(status, ignore_auto=.not. allocated(current_prefix_arg%a))
+        call revert_buffer(status, ignore_auto=current_prefix_arg%kind == PREFIX_NONE)
     end subroutine cmd_revert_buffer
 
     ! ------------------------------------------------------------------
@@ -2351,7 +2352,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call write_file(filename,.not. allocated(current_prefix_arg%a), status)
+        call write_file(filename, current_prefix_arg%kind == PREFIX_NONE, status)
     end subroutine cmd_write_file
 
     ! ------------------------------------------------------------------
@@ -2409,7 +2410,7 @@ contains
     subroutine cmd_save_some_buffers(status)
         type(status_type), intent(out) :: status
 
-        call save_some_buffers(allocated(current_prefix_arg%a), .true., status)
+        call save_some_buffers(current_prefix_arg%kind /= PREFIX_NONE, .true., status)
     end subroutine cmd_save_some_buffers
 
     !> Offer to save each buffer, then kill Emacs.
@@ -2419,7 +2420,7 @@ contains
     subroutine cmd_save_buffers_kill_terminal(status)
         type(status_type), intent(out) :: status
 
-        call save_buffers_kill_emacs(allocated(current_prefix_arg%a), status)
+        call save_buffers_kill_emacs(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_save_buffers_kill_terminal
 
     !> Execute `kill_buffer_hook' in the buffer H being killed (current).

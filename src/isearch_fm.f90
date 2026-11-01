@@ -39,13 +39,14 @@
 !> minibuffer's own isearch keys while editing the string.
 module isearch_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_INVALID_REGEXP, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, error_message
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xfixnum, xstring, make_keymap_ref, list_length, list_elt, list_elements, make_list, &
                        vtag, V_INTEGER, V_STRING
-    use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer, history_setting, forward_setting
+    use data_fm, only: symbol_value, set, add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use character_fm, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
                             CHAR_SHIFT
@@ -824,7 +825,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true., allocated(current_prefix_arg%a))
+        call isearch_mode(.true., current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine isearch_forward_command
 
     !> Do incremental search backward.
@@ -835,7 +836,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false., allocated(current_prefix_arg%a))
+        call isearch_mode(.false., current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine isearch_backward_command
 
     !> Do incremental search forward for regular expression.
@@ -855,7 +856,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true.,.not. allocated(current_prefix_arg%a))
+        call isearch_mode(.true., current_prefix_arg%kind == PREFIX_NONE)
     end subroutine isearch_forward_regexp_command
 
     !> Do incremental search backward for regular expression.
@@ -867,7 +868,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false.,.not. allocated(current_prefix_arg%a))
+        call isearch_mode(.false., current_prefix_arg%kind == PREFIX_NONE)
     end subroutine isearch_backward_regexp_command
 
     !> Start Isearch minor mode.
@@ -1068,10 +1069,10 @@ contains
         end if
 
         ! Handle a prefix argument.
-        if (value_eq(this_command, value_type(name="universal_argument")) .or. &
-            value_eq(this_command, value_type(name="universal_argument_more")) .or. &
-            value_eq(this_command, value_type(name="digit_argument")) .or. &
-            value_eq(this_command, value_type(name="negative_argument"))) return
+        if (associated(this_command, commands%universal_argument) .or. &
+            associated(this_command, commands%universal_argument_more) .or. &
+            associated(this_command, commands%digit_argument) .or. &
+            associated(this_command, commands%negative_argument)) return
         ! Other characters terminate the search and are then executed
         ! normally.
         if (search_exit_option) call isearch_done()
@@ -1667,10 +1668,10 @@ contains
     !> A negative argument searches backwards.  Port of
     !> isearch.el:isearch-repeat-forward.
     recursive subroutine isearch_repeat_forward(arg)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         integer(int64) :: count
 
-        if (.not. allocated(arg%a)) then
+        if (arg%kind == PREFIX_NONE) then
             call isearch_repeat(.true.)
             return
         end if
@@ -1678,7 +1679,7 @@ contains
         count = prefix_numeric_value(arg)
 
         if (count < 0) then
-            call isearch_repeat_backward(make_count(abs(count)))
+            call isearch_repeat_backward(prefix_arg_type(PREFIX_NUMBER, abs(count)))
             ! Reverse the direction back.
             call isearch_repeat(.true.)
         else
@@ -1693,10 +1694,10 @@ contains
     !> A negative argument searches forwards.  Port of
     !> isearch.el:isearch-repeat-backward.
     recursive subroutine isearch_repeat_backward(arg)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         integer(int64) :: count
 
-        if (.not. allocated(arg%a)) then
+        if (arg%kind == PREFIX_NONE) then
             call isearch_repeat(.false.)
             return
         end if
@@ -1704,7 +1705,7 @@ contains
         count = prefix_numeric_value(arg)
 
         if (count < 0) then
-            call isearch_repeat_forward(make_count(abs(count)))
+            call isearch_repeat_forward(prefix_arg_type(PREFIX_NUMBER, abs(count)))
             ! Reverse the direction back.
             call isearch_repeat(.false.)
         else
@@ -1713,14 +1714,6 @@ contains
             call isearch_repeat(.false., count)
         end if
     end subroutine isearch_repeat_backward
-
-    ! Not a port.
-    function make_count(n) result(v)
-        integer(int64), intent(in) :: n
-        type(value_type) :: v
-
-        v = value_type(n)
-    end function make_count
 
     !> Go to the first occurrence of the current search string.
     !> Move point to the beginning of the buffer and search forwards from
@@ -2074,9 +2067,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
 
-        if (.not. (value_eq(last_command, value_type(name="isearch_yank_kill")) .or. &
-                   value_eq(last_command, value_type(name="isearch_yank_pop")) .or. &
-                   value_eq(last_command, value_type(name="isearch_yank_pop_only")))) then
+        ! (Upstream's list also has isearch-yank-pop, which is not ported:
+        ! Deferred.)
+        if (.not. (associated(last_command, commands%isearch_yank_kill) .or. &
+                   associated(last_command, commands%isearch_yank_pop_only))) then
             call isearch_yank_kill(status)
         else
             call isearch_pop_state()
@@ -2740,7 +2734,7 @@ contains
         ! To handle local bindings with meta char prefix keys, define
         ! another full keymap.
         call make_sparse_keymap(meta_map)
-        key(1) = make_count(27_int64)
+        key(1) = value_type(27_int64)
         call define_key(isearch_mode_map, key, make_keymap_ref(meta_map), status)
         ! Several non-printing chars change the searching behavior.
         call bind(isearch_mode_map, "C-s", "isearch_repeat_forward")

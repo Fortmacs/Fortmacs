@@ -23,6 +23,8 @@
 
 module test_simple_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW
+    use commands_fm, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
@@ -201,7 +203,7 @@ contains
 
         if (allocated(error)) return
         call set_text_point_mark(before)
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call kill_whole_line(arg, st)
         call check(error, st%ok(), label//": "//format_error(st))
         if (allocated(error)) return
@@ -231,10 +233,10 @@ contains
 
         call fresh(h)
         call set_text_point_mark("A"//point_tag//"X"//mark_tag//"B")
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call kill_region(point(), mark_position(), st)
         call deactivate_mark(.true.)
-        last_command = value_type(name="kill_region")
+        last_command => commands%kill_region
         call kill_whole_line(1_int64, st)
         call check(error, latest_kill(), "AXB")
         if (.not. allocated(error)) call check(error, get_text_point_mark(), point_tag)
@@ -321,14 +323,14 @@ contains
 
         call fresh(h)
         call insert("abcdef", st)
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call kill_region(3_int64, 5_int64, st)
         call check(error, buffer_string() == "abef" .and. latest_kill() == "cd", "kill")
         if (allocated(error)) return
-        call check(error, value_eq(this_command, value_type(name="kill_region")), "this-command")
+        call check(error, associated(this_command, commands%kill_region), "this-command")
         if (allocated(error)) return
         ! A kill after a kill appends (forward) or prepends (backward).
-        last_command = value_type(name="kill_region")
+        last_command => commands%kill_region
         call kill_region(3_int64, 4_int64, st)
         call check(error, buffer_string() == "abf" .and. latest_kill() == "cde", "append")
         if (allocated(error)) return
@@ -337,7 +339,7 @@ contains
         if (allocated(error)) return
         call check(error, list_length(kill_ring()), 1_int64)
         if (allocated(error)) return
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call copy_region_as_kill(1_int64, 2_int64, st)
         call check(error, buffer_string() == "f" .and. latest_kill() == "f", "copy")
         if (allocated(error)) return
@@ -354,7 +356,7 @@ contains
         call fresh(h)
         call insert("locked", st)
         call set_buffer_read_only(h, .true., st)
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call kill_region(1_int64, 4_int64, st)
         call check(error, st%code == FM_BUFFER_READ_ONLY, format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string() == "locked" .and. latest_kill() == "loc", "copied")
@@ -369,13 +371,13 @@ contains
 
         call fresh(h)
         call set_text_point_mark(point_tag//"one"//nl//"  "//nl//"three")
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call kill_line(0_int64, .false., st)
         call check(error, get_text_point_mark() == point_tag//nl//"  "//nl//"three" .and. latest_kill() == "one", &
                    "rest of the line")
         if (allocated(error)) return
         ! At the end of a line: the newline; then blanks and the newline.
-        last_command = value_type(name="kill_region")
+        last_command => commands%kill_region
         call kill_line(0_int64, .false., st)
         call kill_line(0_int64, .false., st)
         call check(error, get_text_point_mark() == point_tag//"three" .and. latest_kill() == "one"//nl//"  "//nl, &
@@ -387,7 +389,7 @@ contains
         if (allocated(error)) return
         ! With an argument: that many lines; 0 kills back to the start.
         call set_text_point_mark("a"//nl//"b"//point_tag//"c"//nl//"d"//nl)
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call kill_line(2_int64, .true., st)
         call check(error, get_text_point_mark() == "a"//nl//"b"//point_tag .and. latest_kill() == "c"//nl//"d"//nl, &
                    get_text_point_mark())
@@ -407,30 +409,30 @@ contains
         call kill_new("second")
         call insert("<>", st)
         call goto_char(2_int64)
-        call yank(value_type(), st)
+        call yank(prefix_arg_type(), st)
         call check(error, buffer_string() == "<second>" .and. point() == 8 .and. mark_position() == 2, "yank")
         if (allocated(error)) return
         call check(error,.not. is_region_active(), "the mark is not activated")
         if (allocated(error)) return
-        last_command = value_type(name="yank")
+        last_command => commands%yank
         call yank_pop(1_int64, st)
         call check(error, buffer_string() == "<first>" .and. point() == 7, buffer_string())
         if (allocated(error)) return
         call yank_pop(1_int64, st)
         call check(error, buffer_string(), "<second>")
         if (allocated(error)) return
-        last_command = value_type(name="ignore")
+        last_command => commands%ignore
         call yank_pop(1_int64, st)
         call check(error, format_error(st), "Previous command was not a yank")
         if (allocated(error)) return
         ! C-u C-y: point before the text, mark after it.
         call goto_char(1_int64)
-        call yank(list(value_type(4_int64)), st)
+        call yank(prefix_arg_type(PREFIX_RAW, 4_int64), st)
         call check(error, buffer_string() == "second<second>" .and. point() == 1 .and. mark_position() == 7, &
                    "C-u C-y")
         if (allocated(error)) return
         ! M-2 C-y: the second most recent kill.
-        call yank(value_type(2_int64), st)
+        call yank(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
         call check(error, buffer_string(), "firstsecond<second>")
         call kill_buffer(h, st)
     end subroutine test_yank
@@ -500,7 +502,7 @@ contains
 
         call fresh(h)
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         ! hello world, C-a, C-SPC (NUL), C-f x5, C-w, C-e, C-y
         call kbd_store_bytes("hello world"//achar(1)//achar(0)//repeat(achar(6), 5)//achar(23)//achar(5)// &
@@ -817,22 +819,22 @@ contains
         if (allocated(error)) return
         ! cycle-spacing: one space, no space, the original spacing.
         call set_text_point_mark("a  "//point_tag//" b")
-        this_command = value_type(name="cycle_spacing")
-        last_command = value_type()
-        call cycle_spacing(value_type(), st)
+        this_command => commands%cycle_spacing
+        last_command => null()
+        call cycle_spacing(prefix_arg_type(), st)
         call check(error, get_text_point_mark(), "a "//point_tag//"b")
         if (allocated(error)) return
-        last_command = this_command
-        call cycle_spacing(value_type(), st)
+        last_command => this_command
+        call cycle_spacing(prefix_arg_type(), st)
         call check(error, get_text_point_mark(), "a"//point_tag//"b")
         if (allocated(error)) return
-        call cycle_spacing(value_type(), st)
+        call cycle_spacing(prefix_arg_type(), st)
         call check(error, get_text_point_mark(), "a  "//point_tag//" b")
         if (allocated(error)) return
-        call cycle_spacing(value_type(), st)
+        call cycle_spacing(prefix_arg_type(), st)
         call check(error, get_text_point_mark(), "a "//point_tag//"b")
-        last_command = value_type()
-        this_command = value_type()
+        last_command => null()
+        this_command => null()
         call kill_buffer(h, st)
     end subroutine test_whitespace
 
@@ -1062,7 +1064,7 @@ contains
         call fresh(h)
         call insert("hello world", st)
         call goto_char(1_int64)
-        last_command = value_type()
+        last_command => null()
         call delete_char(5_int64, st, .true.)
         call check(error, buffer_string() == " world" .and. latest_kill() == "hello", "killed")
         if (allocated(error)) return
@@ -1071,12 +1073,12 @@ contains
         if (allocated(error)) return
         call init_bindings()
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         ! C-u 2 C-d
         call kbd_store_bytes(achar(21)//"2"//achar(4))
         call command_loop(st)
         call check(error, buffer_string() == "rld" .and. latest_kill() == "wo", "C-u 2 C-d")
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call kill_buffer(h, st)
     end subroutine test_delete_char_killflag
 
@@ -1092,7 +1094,7 @@ contains
         call fresh(h)
         call init_bindings()
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         ! C-q 1 0 1 RET: octal 101 is A, RET is discarded.
         call kbd_store_bytes(achar(17)//"101"//achar(13))
         call command_loop(st)
@@ -1128,7 +1130,7 @@ contains
         call kbd_store_bytes("b")
         call command_loop(st)
         call check(error, buffer_string(), "b")
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call kill_buffer(h, st)
     end subroutine test_quoted_insert
 
@@ -1142,13 +1144,13 @@ contains
         call fresh(h)
         call init_bindings()
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call list_elements(list(value_type(21_int64), value_type(name="kp-1"), value_type(name="kp-2"), value_type(97_int64)), &
                            events)
         call unread_command_events(events)
         call command_loop(st)
         call check(error, buffer_string(), repeat("a", 12))
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call kill_buffer(h, st)
     end subroutine test_keypad_digit
 
@@ -1183,8 +1185,8 @@ contains
         call fresh(h)
         call kill_new("one")
         call kill_new("two")
-        call yank(value_type(), st)
-        last_command = value_type(name="yank")
+        call yank(prefix_arg_type(), st)
+        last_command => commands%yank
         call set_buffer_read_only(h, .true., st)
         call yank_pop(1_int64, st)
         call set_buffer_read_only(h, .false., st)
@@ -1216,8 +1218,8 @@ contains
         call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
         w => frame_selected_window_ref()
         call set_window_buffer(selected_frame%selected_window, h, st)
-        this_command = value_type()
-        last_command = value_type()
+        this_command => null()
+        last_command => null()
     end subroutine enter_window
 
     subroutine leave_window(h)
@@ -1237,12 +1239,12 @@ contains
         type(handle_type) :: h
 
         call enter_window(h)
-        call end_of_buffer(value_type())
+        call end_of_buffer(prefix_arg_type())
         ! Point (the empty last line, 31) on body line 8 of 10.
         call check(error, point() == point_max() .and. window_start(frame_selected_window_ref()) == 7*24 - 6, &
                    "recentered")
         if (allocated(error)) return
-        call end_of_buffer(value_type())
+        call end_of_buffer(prefix_arg_type())
         call check(error, window_start(frame_selected_window_ref()) == 7*24 - 6, "visible: unchanged")
         call leave_window(h)
     end subroutine test_end_of_buffer
@@ -1291,7 +1293,7 @@ contains
         call fresh(h)
         call init_bindings()
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call special_mode(st)
         call key_parse("x", key, st)
         call key_binding(key, binding, st)

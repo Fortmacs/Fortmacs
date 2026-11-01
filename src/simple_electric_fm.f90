@@ -428,7 +428,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call backward_delete_char_untabify(prefix_numeric_value(current_prefix_arg), status, &
-                                           allocated(current_prefix_arg%a))
+                                           current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_backward_delete_char_untabify
 
     module procedure backward_delete_char_untabify

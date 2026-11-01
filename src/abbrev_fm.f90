@@ -61,9 +61,9 @@
 !> `pre_abbrev_expand_hook'.)
 module abbrev_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type
     use data_fm, only: logical_setting
     use eval_fm, only: hook_type
     implicit none(type, external)
@@ -477,7 +477,7 @@ module abbrev_fm
         !> Port of abbrev.el:add-mode-abbrev.
         recursive module subroutine add_mode_abbrev(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine add_mode_abbrev
 
@@ -499,7 +499,7 @@ module abbrev_fm
         !> Port of abbrev.el:add-global-abbrev.
         recursive module subroutine add_global_abbrev(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine add_global_abbrev
 
@@ -522,7 +522,7 @@ module abbrev_fm
             implicit none(type, external)
             type(abbrev_table_type), intent(inout), target :: table
             character(len=*), intent(in) :: type
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine add_abbrev
 

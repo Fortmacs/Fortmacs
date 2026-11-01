@@ -31,6 +31,7 @@
 !> commands (`set_left_margin' and friends).
 submodule(indent_fm) indent_cmds_fm
     use commands_fm, only: commands
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use data_fm, only: value_eq, default_value, add_local_variables_killer
@@ -231,7 +232,7 @@ contains
         call indent_region(b, e, status)
     else if (to_left_margin .or. (.not. tab_always_indent .and. &
                                   (current_column() > current_indentation() .or. &
-                                   value_eq(this_command, last_command)))) then
+                                   associated(this_command, last_command)))) then
         ! indent-to-left-margin is only meant for indenting, so we force it
         ! to always insert a tab here.
         call insert_tab(arg, status)
@@ -896,7 +897,7 @@ contains
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call set_transient_map(indent_rigidly_map, .true., rigidly_exit, "Type %k to indent region interactively")
         else
             call indent_rigidly(b, e, prefix_numeric_value(current_prefix_arg), status)
@@ -935,10 +936,10 @@ contains
     ! transient map, so they undo together.  Port of
     ! indent.el:indent-rigidly--pop-undo.
     subroutine rigidly_pop_undo()
-        if (.not. (value_eq(last_command, value_type(name="indent_rigidly_left")) .or. &
-                   value_eq(last_command, value_type(name="indent_rigidly_right")) .or. &
-                   value_eq(last_command, value_type(name="indent_rigidly_left_to_tab_stop")) .or. &
-                   value_eq(last_command, value_type(name="indent_rigidly_right_to_tab_stop")))) return
+        if (.not. (associated(last_command, commands%indent_rigidly_left) .or. &
+                   associated(last_command, commands%indent_rigidly_right) .or. &
+                   associated(last_command, commands%indent_rigidly_left_to_tab_stop) .or. &
+                   associated(last_command, commands%indent_rigidly_right_to_tab_stop))) return
 
         associate (b => buffers(cur))
             if (.not. b%undo_enabled .or. b%undo_count == 0) return
@@ -977,7 +978,7 @@ contains
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call indent_region(b, e, status)
         else
             call indent_region(b, e, status, prefix_numeric_value(current_prefix_arg))
@@ -987,7 +988,7 @@ contains
     subroutine cmd_indent_relative(status)
         type(status_type), intent(out) :: status
 
-        call indent_relative(status, first_only=allocated(current_prefix_arg%a))
+        call indent_relative(status, first_only=current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_indent_relative
 
     subroutine cmd_indent_relative_first_indent_point(status)
@@ -1028,7 +1029,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: col, column
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call read_number("Indent to column: ", column, status)
             if (.not. status%ok()) return
         else

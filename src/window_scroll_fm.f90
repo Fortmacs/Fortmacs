@@ -29,9 +29,8 @@
 !> with `scroll_margin' 0 and `scroll_preserve_screen_position' .false..
 submodule(window_fm) window_scroll_fm
     use commands_fm, only: commands
+    use callint_fm, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
-    use lisp_fm, only: value_type, vtag, V_ARRAY
-    use data_fm, only: value_eq
     use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, buffer_list
     use editfns_fm, only: point, goto_char, is_eob, is_bob, point_min, point_max
     use cmds_fm, only: forward_line, beginning_of_line
@@ -170,7 +169,7 @@ contains
     !> Scroll the selected window by ARG in `direction' (1 up, -1 down).
     !> Port of window.c:scroll_command.
     subroutine scroll_command(arg, direction, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         integer(int64), intent(in) :: direction
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
@@ -189,9 +188,9 @@ contains
             if (.not. status%ok()) return
         end if
 
-        if (.not. allocated(arg%a)) then
+        if (arg%kind == PREFIX_NONE) then
             call window_scroll(w, direction, .true., status)
-        else if (value_eq(arg, value_type(name="-"))) then
+        else if (arg%kind == PREFIX_MINUS) then
             call window_scroll(w, -direction, .true., status)
         else
             call window_scroll(w, prefix_numeric_value(arg)*direction, .false., status)
@@ -201,21 +200,21 @@ contains
     end subroutine scroll_command
 
     module subroutine scroll_up(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
         call scroll_command(arg, 1_int64, status)
     end subroutine scroll_up
 
     module subroutine scroll_down(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
         call scroll_command(arg, -1_int64, status)
     end subroutine scroll_down
 
     module subroutine recenter(arg, redisplay, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         logical, intent(in) :: redisplay
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
@@ -234,11 +233,11 @@ contains
         center_p = .false.
         iarg = 0
 
-        if (.not. allocated(arg%a)) then
+        if (arg%kind == PREFIX_NONE) then
             ! recenter-redisplay is `tty': erase and redraw the frame.
             if (redisplay) selected_frame%garbaged = .true.
             center_p = .true.
-        else if (vtag(arg) == V_ARRAY) then
+        else if (arg%kind == PREFIX_RAW) then
             ! Just C-u.
             center_p = .true.
         else
@@ -264,7 +263,7 @@ contains
     end subroutine recenter
 
     module subroutine move_to_window_line(arg, line, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         integer(int64), intent(out) :: line
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
@@ -292,7 +291,7 @@ contains
             call goto_char(start)
         end if
 
-        if (.not. allocated(arg%a)) then
+        if (arg%kind == PREFIX_NONE) then
             iarg = lines/2
         else
             iarg = prefix_numeric_value(arg)
@@ -324,16 +323,16 @@ contains
     end subroutine goto_goal_column
 
     recursive module subroutine scroll_up_command(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
         if (.not. scroll_error_top_bottom) then
             call scroll_up(arg, status)
-        else if (value_eq(arg, value_type(name="-"))) then
-            call scroll_down_command(value_type(), status)
+        else if (arg%kind == PREFIX_MINUS) then
+            call scroll_down_command(prefix_arg_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
-            call scroll_down_command(value_type(-prefix_numeric_value(arg)), status)
+            call scroll_down_command(prefix_arg_type(PREFIX_NUMBER, -prefix_numeric_value(arg)), status)
         else if (is_eob()) then
             ! Signal error.
             call scroll_up(arg, status)
@@ -343,7 +342,7 @@ contains
             if (status%code == FM_END_OF_BUFFER) then
                 status = status_type()
 
-                if (.not. allocated(arg%a)) then
+                if (arg%kind == PREFIX_NONE) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! bottom of the buffer.
                     call goto_char(point_max())
@@ -359,16 +358,16 @@ contains
     end subroutine scroll_up_command
 
     recursive module subroutine scroll_down_command(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
         if (.not. scroll_error_top_bottom) then
             call scroll_down(arg, status)
-        else if (value_eq(arg, value_type(name="-"))) then
-            call scroll_up_command(value_type(), status)
+        else if (arg%kind == PREFIX_MINUS) then
+            call scroll_up_command(prefix_arg_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
-            call scroll_up_command(value_type(-prefix_numeric_value(arg)), status)
+            call scroll_up_command(prefix_arg_type(PREFIX_NUMBER, -prefix_numeric_value(arg)), status)
         else if (is_bob()) then
             ! Signal error.
             call scroll_down(arg, status)
@@ -378,7 +377,7 @@ contains
             if (status%code == FM_BEGINNING_OF_BUFFER) then
                 status = status_type()
 
-                if (.not. allocated(arg%a)) then
+                if (arg%kind == PREFIX_NONE) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! top of the buffer.
                     call goto_char(point_min())
@@ -397,7 +396,7 @@ contains
     !> this command repeats, else the first.
     !> Port of part of window.el:recenter-top-bottom.
     subroutine next_recenter_op()
-        if (value_eq(this_command, last_command)) then
+        if (associated(this_command, last_command)) then
             recenter_last_op = mod(recenter_last_op, size(recenter_positions)) + 1
         else
             recenter_last_op = 1
@@ -405,11 +404,11 @@ contains
     end subroutine next_recenter_op
 
     module subroutine recenter_top_bottom(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
         ! Always respect ARG.
-        if (allocated(arg%a)) then
+        if (arg%kind /= PREFIX_NONE) then
             call recenter(arg, .true., status)
             return
         end if
@@ -419,21 +418,21 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call recenter(value_type(), .true., status)
+            call recenter(prefix_arg_type(), .true., status)
         case (RECENTER_TOP)
-            call recenter(value_type(0_int64), .true., status)
+            call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .true., status)
         case default
-            call recenter(value_type(-1_int64), .true., status)
+            call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .true., status)
         end select
     end subroutine recenter_top_bottom
 
     module subroutine move_to_window_line_top_bottom(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: line
 
         ! Always respect ARG.
-        if (allocated(arg%a)) then
+        if (arg%kind /= PREFIX_NONE) then
             call move_to_window_line(arg, line, status)
             return
         end if
@@ -442,11 +441,11 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call move_to_window_line(value_type(), line, status)
+            call move_to_window_line(prefix_arg_type(), line, status)
         case (RECENTER_TOP)
-            call move_to_window_line(value_type(0_int64), line, status)
+            call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, 0_int64), line, status)
         case default
-            call move_to_window_line(value_type(-1_int64), line, status)
+            call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, -1_int64), line, status)
         end select
     end subroutine move_to_window_line_top_bottom
 
@@ -575,7 +574,7 @@ contains
     !> Port of window.el:scroll-other-window and
     !> window.el:scroll-other-window-down.
     recursive subroutine scroll_other(lines, direction, status)
-        type(value_type), intent(in) :: lines
+        type(prefix_arg_type), intent(in) :: lines
         integer, intent(in) :: direction
         type(status_type), intent(out) :: status
         type(handle_type) :: window, old_window, old_buffer
@@ -604,14 +603,14 @@ contains
     end subroutine scroll_other
 
     recursive module subroutine scroll_other_window(lines, status)
-        type(value_type), intent(in) :: lines
+        type(prefix_arg_type), intent(in) :: lines
         type(status_type), intent(out) :: status
 
         call scroll_other(lines, 1, status)
     end subroutine scroll_other_window
 
     recursive module subroutine scroll_other_window_down(lines, status)
-        type(value_type), intent(in) :: lines
+        type(prefix_arg_type), intent(in) :: lines
         type(status_type), intent(out) :: status
 
         call scroll_other(lines, -1, status)

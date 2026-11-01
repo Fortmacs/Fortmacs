@@ -49,6 +49,7 @@
 !> `rectangle_number_lines' FORMAT (an error).
 module rect_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use lisp_fm, only: vtag, V_NULL, V_STRING, value_type
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, condition_matches, FM_GENERIC_ERROR, &
@@ -56,7 +57,7 @@ module rect_fm
                         FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
-    use data_fm, only: value_eq, history_setting, forward_setting
+    use data_fm, only: history_setting, forward_setting
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use textprop_fm, only: string_put_text_property
@@ -1519,13 +1520,13 @@ contains
         status = status_type()
 
         if (arg) then
-            this_command = value_type(name="exchange_point_and_mark")
+            this_command => commands%exchange_point_and_mark
             call exchange_point_and_mark(arg, status)
             return
         end if
 
         p = point()
-        repeat = value_eq(this_command, last_command)
+        repeat = associated(this_command, last_command)
         m = mark_position()
 
         if (m == 0) then
@@ -1543,7 +1544,7 @@ contains
             cm = startcol
         end if
 
-        if (repeat) this_command = value_type(name="exchange_point_and_mark")
+        if (repeat) this_command => commands%exchange_point_and_mark
         call rectangle_reset_crutches()
         call goto_char(p)
 
@@ -1845,10 +1846,11 @@ contains
             text = text//lines(k)%text
         end do
 
-        if (value_eq(last_command, value_type(name="kill_region"))) then
+        if (associated(last_command, commands%kill_region)) then
             ! Try to prevent kill-region from appending this to some
-            ! earlier element.
-            last_command = value_type(name="kill_region_dont_append")
+            ! earlier element (upstream sets `last_command' to the name
+            ! kill-region-dont-append, which is not a command; null here).
+            last_command => null()
         end if
 
         if (size(lines) == 0) return
@@ -2219,7 +2221,7 @@ contains
     !> The value of the prefix argument as the FILL of a "P" spec.
     !> Not a port.
     logical function prefix_fill()
-        prefix_fill = allocated(current_prefix_arg%a)
+        prefix_fill = current_prefix_arg%kind /= PREFIX_NONE
     end function prefix_fill
 
     recursive subroutine cmd_delete_rectangle(status)
@@ -2399,7 +2401,7 @@ contains
         if (status%ok()) call region_end(end, status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call rectangle_number_lines(start, end, 1_int64, status)
             return
         end if
@@ -2413,7 +2415,7 @@ contains
     recursive subroutine cmd_rectangle_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_exchange_point_and_mark(allocated(current_prefix_arg%a), status)
+        call rectangle_exchange_point_and_mark(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_rectangle_exchange_point_and_mark
 
     recursive subroutine cmd_rectangle_right_char(status)

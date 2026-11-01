@@ -31,7 +31,6 @@
 !> Deferred: `goto_line_history_local' (buffer-local minibuffer
 !> histories), `selective_display'.
 submodule(simple_fm) simple_goto_fm
-    use lisp_fm, only: vtag, V_ARRAY
     use editfns_fm, only: point_min, widen, narrow_to_region, is_buffer_narrowed, interactive_region, region_beginning, &
                           region_end, inhibit_field_text_motion
     use buffer_fm, only: current_buffer
@@ -58,7 +57,7 @@ contains
         status = status_type()
         line = 1
 
-        if (allocated(current_prefix_arg%a) .and. vtag(current_prefix_arg) /= V_ARRAY) then
+        if (current_prefix_arg%kind /= PREFIX_NONE .and. current_prefix_arg%kind /= PREFIX_RAW) then
             line = prefix_numeric_value(current_prefix_arg)
             return
         end if
@@ -70,7 +69,7 @@ contains
         ! Decide if we're switching buffers.
         buffer_prompt = ""
 
-        if (vtag(current_prefix_arg) == V_ARRAY) then
+        if (current_prefix_arg%kind == PREFIX_RAW) then
             buffer = other_buffer(current_buffer(), .true.)
             if (buffer%index /= 0) buffer_prompt = " in "//buffers(buffer%index)%name
         end if
@@ -204,7 +203,7 @@ contains
 
         status = status_type()
 
-        if (allocated(current_prefix_arg%a) .and. vtag(current_prefix_arg) /= V_ARRAY) then
+        if (current_prefix_arg%kind /= PREFIX_NONE .and. current_prefix_arg%kind /= PREFIX_RAW) then
             n = prefix_numeric_value(current_prefix_arg)
             return
         end if
@@ -264,7 +263,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: column, reached
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call read_number("Move to column: ", column, status)
             if (.not. status%ok()) return
         else
@@ -380,7 +379,7 @@ contains
         status = status_type()
         totals = ""
 
-        if (allocated(current_prefix_arg%a) .and. (is_use_region() .or. is_buffer_narrowed())) then
+        if (current_prefix_arg%kind /= PREFIX_NONE .and. (is_use_region() .or. is_buffer_narrowed())) then
             begv = buffers(cur)%begv
             zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
             call widen()
@@ -413,7 +412,7 @@ contains
 
         status = status_type()
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call message(count_words_buffer_format())
             return
         end if

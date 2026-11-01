@@ -38,7 +38,7 @@ module paragraphs_fm
     use indent_fm, only: current_column, move_to_left_margin, current_left_margin
     use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr, fill_prefix
     use editfns_fm, only: mark_position
-    use data_fm, only: value_eq, string_setting, logical_setting
+    use data_fm, only: string_setting, logical_setting
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
@@ -440,7 +440,7 @@ contains
             return
         end if
 
-        if (allow_extend .and. ((value_eq(last_command, this_command) .and. mark_position() /= 0) .or. &
+        if (allow_extend .and. ((associated(last_command, this_command) .and. mark_position() /= 0) .or. &
                                 (transient_mark_mode%value .and. buffers(cur)%mark_active))) then
             opoint = point()
             call goto_char(mark_position())
@@ -710,7 +710,7 @@ contains
         integer(int64) :: opoint, target
 
         opoint = point()
-        if (value_eq(last_command, this_command) .and. mark_position() /= 0) call goto_char(mark_position())
+        if (associated(last_command, this_command) .and. mark_position() /= 0) call goto_char(mark_position())
         call forward_sentence(arg)
         target = point()
         call goto_char(opoint)

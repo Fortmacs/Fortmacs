@@ -38,7 +38,6 @@
 !> selected window is kept), `next_error_this_buffer_no_select' and
 !> `previous_error_this_buffer_no_select', the repeat map.
 submodule(simple_fm) simple_next_error_fm
-    use lisp_fm, only: vtag, V_ARRAY
     use buffer_fm, only: is_buffer_live, current_buffer, set_buffer, buffer_list
     use handle_fm, only: null_handle
     use data_fm, only: add_local_variables_killer
@@ -305,7 +304,7 @@ contains
     recursive subroutine cmd_next_error(status)
         type(status_type), intent(out) :: status
 
-        if (vtag(current_prefix_arg) == V_ARRAY) then
+        if (current_prefix_arg%kind == PREFIX_RAW) then
             call next_error(status, 1_int64, .true.)
         else
             call next_error(status, prefix_numeric_value(current_prefix_arg))

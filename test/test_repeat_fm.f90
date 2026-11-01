@@ -25,13 +25,15 @@
 !> components, as defvar-keymap :repeat does; own test of C-x z.
 module test_repeat_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use callint_fm, only: prefix_arg_type
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, generate_new_buffer_name
     use editfns_fm, only: buffer_string
     use keymap_fm, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
-    use keyboard_fm, only: execute_kbd_macro
+    use keyboard_fm, only: execute_kbd_macro, last_kbd_macro
+    use kmacro_fm, only: syms_of_kmacro
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use modes_fm, only: minor_modes
     use bindings_fm, only: init_bindings
@@ -62,7 +64,8 @@ contains
                     new_unittest("repeat-tests-continue", test_continue), &
                     new_unittest("repeat-tests-continue-another", test_continue_another), &
                     new_unittest("repeat-tests-hints", test_hints), &
-                    new_unittest("repeat-command", test_repeat_command) &
+                    new_unittest("repeat-command", test_repeat_command), &
+                    new_unittest("repeat-keyboard-macro", test_repeat_macro) &
                     ]
     end subroutine collect_repeat_fm
 
@@ -255,7 +258,7 @@ contains
         calls = ""
         call erase_buffer(st)
         call key_parse(keys, events, st)
-        call execute_kbd_macro(events, value_type(), st)
+        call execute_kbd_macro(events, prefix_arg_type(), st)
         call check(error, calls, expected_calls, keys//": "//calls)
         if (allocated(error)) return
         ! Check for self-inserting keys
@@ -408,7 +411,7 @@ contains
         call begin(global_map)
         repeat_check_key = .false.
         call key_parse("C-M-s", events, st)
-        call execute_kbd_macro(events, value_type(), st)
+        call execute_kbd_macro(events, prefix_arg_type(), st)
         call check(error, repeat_echo_message_string(repeat_in_progress), &
                    "Repeat with s, [T]est, C-M-o (an[O]ther test), C-M-u")
         call finish()
@@ -424,4 +427,20 @@ contains
         if (.not. allocated(error)) call check_keys(error, "C-M-a C-u C-x z", "(1 a)(4 a)", "")
         call finish()
     end subroutine test_repeat_command
+
+    !> C-x z after C-x e repeats the keyboard macro, once (repeat.el runs
+    !> it with no repeat count), and z repeats it again.
+    subroutine test_repeat_macro(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+
+        call setup()
+        call syms_of_kmacro()
+        call init_bindings()
+        call begin(global_map)
+        call key_parse("C-M-a C-M-b", last_kbd_macro, st)
+        call check_keys(error, "C-x e C-x z z", "(1 a)(1 b)(1 a)(1 b)(1 a)(1 b)", "")
+        if (.not. allocated(error)) call check_keys(error, "C-u 2 C-x e C-x z", "(1 a)(1 b)(1 a)(1 b)(1 a)(1 b)", "")
+        call finish()
+    end subroutine test_repeat_macro
 end module test_repeat_fm

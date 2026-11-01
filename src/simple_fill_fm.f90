@@ -24,7 +24,7 @@
 !> `set_fill_column' (C-x f): a submodule because they use fill_fm,
 !> which uses simple_fm.
 submodule(simple_fm) simple_fill_fm
-    use lisp_fm, only: vtag, V_INTEGER, V_ARRAY, value_type
+    use lisp_fm, only: value_type
     use commands_fm, only: commands
     use buffer_fm, only: fill_column, FILL_COLUMN_NONE, auto_fill_function
     use cmds_fm, only: internal_auto_fill_hook, end_of_line, post_self_insert_hook
@@ -410,11 +410,11 @@ contains
 
     status = status_type()
 
-    if (vtag(arg) == V_ARRAY) then
+    if (arg%kind == PREFIX_RAW) then
         n = current_column()
-    else if (vtag(arg) == V_INTEGER) then
-        n = xfixnum(arg)
-    else if (.not. allocated(arg%a)) then
+    else if (arg%kind == PREFIX_NUMBER) then
+        n = arg%value
+    else if (arg%kind == PREFIX_NONE) then
         ! We used to use current-column silently, but C-x f is too easily
         ! typed as a typo for C-x C-f, so we turned it into an error and
         ! now an interactive prompt.

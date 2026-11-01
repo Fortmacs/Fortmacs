@@ -75,6 +75,35 @@ module lisp_fm
         end subroutine command_proc
     end interface
 
+    !> Value tags.
+    integer(int32), parameter, public :: V_NULL = 0, V_INTEGER = 1, V_NAME = 2, &
+                                         V_STRING = 3, V_ARRAY = 4, &
+                                         V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7, &
+                                         V_SYNTAX_TABLE = 8, V_WINDOW = 9
+
+    !> Ids of the predefined symbols.
+    integer(int64), parameter, public :: SYM_NIL = 1, SYM_T = 2
+
+    !> One node of a value's tree.
+    type, public :: atom_type
+        integer(int32) :: tag = V_NULL
+        !> V_INTEGER: the integer; V_NAME: the symbol id; V_ARRAY: element count;
+        !> V_STRING: the number of text property intervals.
+        integer(int64) :: i = 0
+        !> Atoms in this subtree, itself included (1 for scalars).
+        integer(int64) :: span = 1
+        !> V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE, V_WINDOW: the
+        !> object's handle.
+        type(handle_type) :: h
+        !> V_STRING: text in the internal (multibyte) encoding.
+        character(len=:), allocatable :: s
+    end type atom_type
+
+    !> One value.  Unallocated `a' (the default) is nil.
+    type, public :: value_type
+        type(atom_type), allocatable :: a(:)
+    end type value_type
+
     !> Values of a command property that is unset (nil), t, or `no'.
     integer, parameter, public :: REPEAT_CHECK_KEY_DEFAULT = 0, REPEAT_CHECK_KEY_YES = 1, REPEAT_CHECK_KEY_NO = 2
 
@@ -131,6 +160,10 @@ module lisp_fm
         !> property, for `info_goto_emacs_command_node'); unallocated for
         !> none.
         character(len=:), allocatable :: info_file
+        !> For a keyboard macro held as a command (`this_command' after
+        !> C-x e, so that C-x z repeats it): the macro's key events;
+        !> unallocated for any other command.
+        type(value_type), allocatable :: events(:)
     contains
         !> Make this command known by its name, to M-x, keymaps and the
         !> help commands (upstream's defun).
@@ -147,35 +180,6 @@ module lisp_fm
     integer :: n_defined_commands = 0
 
     public :: command_proc, defined_command, defined_command_name_of
-
-    !> Value tags.
-    integer(int32), parameter, public :: V_NULL = 0, V_INTEGER = 1, V_NAME = 2, &
-                                         V_STRING = 3, V_ARRAY = 4, &
-                                         V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7, &
-                                         V_SYNTAX_TABLE = 8, V_WINDOW = 9
-
-    !> Ids of the predefined symbols.
-    integer(int64), parameter, public :: SYM_NIL = 1, SYM_T = 2
-
-    !> One node of a value's tree.
-    type, public :: atom_type
-        integer(int32) :: tag = V_NULL
-        !> V_INTEGER: the integer; V_NAME: the symbol id; V_ARRAY: element count;
-        !> V_STRING: the number of text property intervals.
-        integer(int64) :: i = 0
-        !> Atoms in this subtree, itself included (1 for scalars).
-        integer(int64) :: span = 1
-        !> V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE, V_WINDOW: the
-        !> object's handle.
-        type(handle_type) :: h
-        !> V_STRING: text in the internal (multibyte) encoding.
-        character(len=:), allocatable :: s
-    end type atom_type
-
-    !> One value.  Unallocated `a' (the default) is nil.
-    type, public :: value_type
-        type(atom_type), allocatable :: a(:)
-    end type value_type
 
     !> Port of the parts of lisp.h:struct Lisp_Symbol in use.
     type, public :: symbol_type

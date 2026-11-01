@@ -24,6 +24,7 @@
 !> here-document syntax and `sh_set_shell'.
 module test_sh_script_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_fm, only: status_type
     use handle_fm, only: handle_type
@@ -129,7 +130,7 @@ contains
 
             call goto_char(point_min())
             shortage = forward_line(1_int64)
-            call indent_for_tab_command(value_type(), st)
+            call indent_for_tab_command(prefix_arg_type(), st)
             call check(error, buffer_string(), "relative-path/to/configure --prefix=$prefix\"//LF// &
                        TAB//TAB//TAB//"   --with-x")
         end block checks

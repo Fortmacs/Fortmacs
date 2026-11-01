@@ -36,6 +36,7 @@
 !> prefix-argument echoing.
 module simple_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_of
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
@@ -89,7 +90,6 @@ module simple_fm
                          backward_prefix_chars
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
                          SEARCH_NOERROR, SEARCH_MOVE, match_beginning
-    use fns_fm, only: value_equal
     use eval_fm, only: hook_type
     use abbrev_fm, only: abbrev_table_type
     use insdel_fm, only: insert_before_markers
@@ -263,7 +263,7 @@ module simple_fm
     logical :: cycle_spacing_active = .false.
     integer(int64) :: cycle_spacing_orig_pos = 0
     character(len=:), allocatable :: cycle_spacing_whitespace
-    type(value_type) :: cycle_spacing_n
+    type(prefix_arg_type) :: cycle_spacing_n
     integer :: cycle_spacing_last = 0
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10), CR = achar(13)
@@ -401,7 +401,7 @@ module simple_fm
         !> simple.el:set-fill-column.  (In simple_fill_fm.)
         module subroutine set_fill_column(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine set_fill_column
 
@@ -1679,8 +1679,8 @@ contains
         call prefix_command_preserve_state_hook%execute(st)
         prefix_arg = current_prefix_arg
         current_prefix_arg = last_prefix_arg
-        this_command = last_command
-        real_this_command = real_last_command
+        this_command => last_command
+        real_this_command => real_last_command
         call prefix_command_update()
     end subroutine prefix_command_preserve_state
 
@@ -1744,7 +1744,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call newline(status, interactive=.true.)
         else
             call newline(status, numeric_prefix_arg(), interactive=.true.)
@@ -1781,7 +1781,7 @@ contains
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_backward_char(n, status, allocated(current_prefix_arg%a))
+            call delete_backward_char(n, status, current_prefix_arg%kind /= PREFIX_NONE)
         end if
     end subroutine cmd_delete_backward_char
 
@@ -1813,7 +1813,7 @@ contains
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_char(n, status, allocated(current_prefix_arg%a))
+            call delete_char(n, status, current_prefix_arg%kind /= PREFIX_NONE)
         end if
     end subroutine cmd_delete_forward_char
 
@@ -1976,28 +1976,29 @@ contains
 
         status = status_type()
         call prefix_command_preserve_state()
-        prefix_arg = list(value_type(4_int64))
+        prefix_arg = prefix_arg_type(PREFIX_RAW, 4_int64)
         call universal_argument_mode()
     end subroutine cmd_universal_argument
 
     !> Port of simple.el:universal-argument-more.
     subroutine cmd_universal_argument_more(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: arg
+        type(prefix_arg_type) :: arg
 
         status = status_type()
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (vtag(arg) == V_ARRAY) then
-            prefix_arg = list(value_type(4*xfixnum(list_elt(arg, 1_int64))))
-        else if (value_eq(arg, value_type(name="-"))) then
-            prefix_arg = list(value_type(-4_int64))
-        else
+        select case (arg%kind)
+        case (PREFIX_RAW)
+            prefix_arg = prefix_arg_type(PREFIX_RAW, 4*arg%value)
+        case (PREFIX_MINUS)
+            prefix_arg = prefix_arg_type(PREFIX_RAW, -4_int64)
+        case default
             prefix_arg = arg
-        end if
+        end select
 
-        if (vtag(prefix_arg) == V_ARRAY) call universal_argument_mode()
+        if (prefix_arg%kind == PREFIX_RAW) call universal_argument_mode()
     end subroutine cmd_universal_argument_more
 
     !> Begin a negative numeric argument for the next command.
@@ -2005,19 +2006,20 @@ contains
     !> Port of simple.el:negative-argument.
     subroutine cmd_negative_argument(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: arg
+        type(prefix_arg_type) :: arg
 
         status = status_type()
         arg = current_prefix_arg
         call prefix_command_preserve_state()
 
-        if (vtag(arg) == V_INTEGER) then
-            prefix_arg = value_type(-xfixnum(arg))
-        else if (value_eq(arg, value_type(name="-"))) then
-            prefix_arg = value_type()
-        else
-            prefix_arg = value_type(name="-")
-        end if
+        select case (arg%kind)
+        case (PREFIX_NUMBER)
+            prefix_arg = prefix_arg_type(PREFIX_NUMBER, -arg%value)
+        case (PREFIX_MINUS)
+            prefix_arg = prefix_arg_type()
+        case default
+            prefix_arg = prefix_arg_type(PREFIX_MINUS)
+        end select
 
         call universal_argument_mode()
     end subroutine cmd_negative_argument
@@ -2027,7 +2029,7 @@ contains
     !> Port of simple.el:digit-argument.
     subroutine cmd_digit_argument(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: arg
+        type(prefix_arg_type) :: arg
         integer(int64) :: digit, char
 
         status = status_type()
@@ -2047,22 +2049,23 @@ contains
 
         digit = iand(char, 127_int64) - iachar("0")
 
-        if (vtag(arg) == V_INTEGER) then
-            if (xfixnum(arg) < 0) then
-                prefix_arg = value_type(xfixnum(arg)*10 - digit)
+        select case (arg%kind)
+        case (PREFIX_NUMBER)
+            if (arg%value < 0) then
+                prefix_arg = prefix_arg_type(PREFIX_NUMBER, arg%value*10 - digit)
             else
-                prefix_arg = value_type(xfixnum(arg)*10 + digit)
+                prefix_arg = prefix_arg_type(PREFIX_NUMBER, arg%value*10 + digit)
             end if
-        else if (value_eq(arg, value_type(name="-"))) then
+        case (PREFIX_MINUS)
             ! Treat -0 as just -, so that -01 will work.
             if (digit == 0) then
-                prefix_arg = value_type(name="-")
+                prefix_arg = prefix_arg_type(PREFIX_MINUS)
             else
-                prefix_arg = value_type(-digit)
+                prefix_arg = prefix_arg_type(PREFIX_NUMBER, -digit)
             end if
-        else
-            prefix_arg = value_type(digit)
-        end if
+        case default
+            prefix_arg = prefix_arg_type(PREFIX_NUMBER, digit)
+        end select
 
         call universal_argument_mode()
     end subroutine cmd_digit_argument
@@ -2073,7 +2076,7 @@ contains
     subroutine cmd_universal_argument_minus(status)
         type(status_type), intent(out) :: status
 
-        if (vtag(current_prefix_arg) == V_INTEGER) then
+        if (current_prefix_arg%kind == PREFIX_NUMBER) then
             call self_insert_command(numeric_prefix_arg(), int(iachar("-"), int64), status)
         else
             call cmd_negative_argument(status)
@@ -2087,8 +2090,8 @@ contains
 
     !> Whether the last command was next-line or previous-line.  Not a port.
     logical function after_line_move()
-        after_line_move = value_eq(last_command, value_type(name="next_line")) .or. &
-                          value_eq(last_command, value_type(name="previous_line"))
+        after_line_move = associated(last_command, commands%next_line) .or. &
+                          associated(last_command, commands%previous_line)
     end function after_line_move
 
     !> Move `arg' lines down (up if negative), keeping the goal column; by
@@ -2125,7 +2128,7 @@ contains
 
         opoint = point()
 
-        if (.not. (tgc_visual .and. (after_line_move() .or. value_eq(last_command, this_command)))) then
+        if (.not. (tgc_visual .and. (after_line_move() .or. associated(last_command, this_command)))) then
             temporary_goal_column = screen_column()
             tgc_visual = .true.
         end if
@@ -2703,8 +2706,8 @@ contains
             return
         end if
 
-        if (.not. (value_eq(last_command, value_type(name="next_history_element")) .or. &
-                   value_eq(last_command, value_type(name="previous_history_element")))) then
+        if (.not. (associated(last_command, commands%next_history_element) .or. &
+                   associated(last_command, commands%previous_history_element))) then
             pend = minibuffer_prompt_end()
 
             if (point() <= pend) then
@@ -2969,27 +2972,23 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: prompt
         character(len=24) :: num
-        type(value_type) :: head
 
         prompt = ""
+        write (num, "(i0)") current_prefix_arg%value
 
-        if (value_eq(current_prefix_arg, value_type(name="-"))) then
+        select case (current_prefix_arg%kind)
+        case (PREFIX_MINUS)
             prompt = "- "
-        else if (vtag(current_prefix_arg) == V_ARRAY) then
-            head = list_elt(current_prefix_arg, 1_int64)
-
-            if (vtag(head) == V_INTEGER) then
-                if (xfixnum(head) == 4) then
-                    prompt = "C-u "
-                else
-                    write (num, "(i0)") xfixnum(head)
-                    prompt = trim(num)//" "
-                end if
+        case (PREFIX_RAW)
+            if (current_prefix_arg%value == 4) then
+                prompt = "C-u "
+            else
+                prompt = trim(num)//" "
             end if
-        else if (vtag(current_prefix_arg) == V_INTEGER) then
-            write (num, "(i0)") xfixnum(current_prefix_arg)
+        case (PREFIX_NUMBER)
             prompt = trim(num)//" "
-        end if
+        case default
+        end select
 
         ! Read a string, completing from and restricting to the set of all
         ! defined commands.  Save the command read on the extended-command
@@ -3007,7 +3006,7 @@ contains
     !> suggestion shows at once, and only when the command left the echo
     !> area empty; no shorter M-x suggestions).
     recursive subroutine execute_extended_command(prefixarg, status, command_name)
-        type(value_type), intent(in) :: prefixarg
+        type(prefix_arg_type), intent(in) :: prefixarg
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: command_name
         character(len=:), allocatable :: name
@@ -3045,14 +3044,14 @@ contains
             if (allocated(remapped%a)) binding = value_type()
         end if
 
-        this_command = function
+        this_command => command_of(function)
         ! Normally `real_this_command' should never be changed, but here we
         ! really want to pretend that M-x <cmd> RET is nothing more than a
         ! "key binding" for <cmd>.
-        real_this_command = function
+        real_this_command => this_command
         ! command-execute
         current_prefix_arg = prefixarg
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         handled = .false.
         if (associated(disabled_command_hook)) call disabled_command_hook(function, handled, status)
         if (.not. handled) call execute_interactively(function, status)
@@ -3076,7 +3075,7 @@ contains
 
     subroutine cmd_execute_extended_command(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: arg
+        type(prefix_arg_type) :: arg
 
         ! A copy: reading the command name runs other commands, which set
         ! current-prefix-arg.
@@ -3348,7 +3347,7 @@ contains
     !> A numeric ARG serves as a repeat count (ARG is the raw prefix
     !> argument).  Port of simple.el:undo (no undo in region).
     subroutine undo(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: msg
         integer(int64) :: equiv, next, list
@@ -3356,11 +3355,12 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         ! If we get an error in undo-start, the next command should not be
-        ! a "consecutive undo".
-        this_command = value_type(name="undo_start")
+        ! a "consecutive undo" (upstream sets `this_command' to the name
+        ! undo-start, which is not a command; null here).
+        this_command => null()
 
         ! If the previous command is `undo`, don't break the undo chain.
-        if (.not. (value_eq(last_command, value_type(name="undo")) .and. &
+        if (.not. (associated(last_command, commands%undo) .and. &
                    (pending_undo_list < 0 .or. last_change_was_undo(buffers(cur)%undo_count) /= EQUIV_NONE))) then
             call undo_start(status)
             if (.not. status%ok()) return
@@ -3370,7 +3370,7 @@ contains
         end if
 
         ! If we got this far, the next command should be a consecutive undo.
-        this_command = value_type(name="undo")
+        this_command => commands%undo
         ! Check to see whether we're hitting a redo record.
         equiv = EQUIV_NONE
         if (pending_undo_list >= 0) equiv = equiv_of(pending_undo_list)
@@ -3395,7 +3395,7 @@ contains
             if (equiv >= 0) pending_undo_list = equiv
         end if
 
-        if (vtag(arg) == V_INTEGER) then
+        if (arg%kind == PREFIX_NUMBER) then
             call undo_more(prefix_numeric_value(arg), status)
         else
             call undo_more(1_int64, status)
@@ -3466,7 +3466,7 @@ contains
         type(status_type), intent(out) :: status
 
         undo_no_redo = .true.
-        call undo(value_type(n), status)
+        call undo(prefix_arg_type(PREFIX_NUMBER, n), status)
         undo_no_redo = .false.
     end subroutine undo_only
 
@@ -3491,7 +3491,7 @@ contains
         undo_in_progress = .false.
         if (.not. status%ok()) return
         call message("Redo")
-        this_command = value_type(name="undo")
+        this_command => commands%undo
         pending_undo_list = last_change_was_undo(new_ul)
         if (pending_undo_list == EQUIV_NONE) pending_undo_list = 0
         ! (setq buffer-undo-list new-ul): the redo's own records go too.
@@ -3746,26 +3746,26 @@ contains
     !> is.  Port of simple.el:set-mark-command (`set_mark_command_repeat_pop'
     !> .false., no global mark ring).
     subroutine set_mark_command(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (vtag(arg) == V_ARRAY) then
+        if (arg%kind == PREFIX_RAW) then
             if (prefix_numeric_value(arg) > 4) then
                 call push_mark_command(.false.)
                 return
             end if
         end if
 
-        if (.not. value_eq(this_command, value_type(name="set_mark_command"))) then
-            if (allocated(arg%a)) then
+        if (.not. associated(this_command, commands%set_mark_command)) then
+            if (arg%kind /= PREFIX_NONE) then
                 call pop_to_mark_command(status)
             else
                 call push_mark_command(.true.)
             end if
-        else if (allocated(arg%a)) then
-            this_command = value_type(name="pop_to_mark_command")
+        else if (arg%kind /= PREFIX_NONE) then
+            this_command => commands%pop_to_mark_command
             call pop_to_mark_command(status)
-        else if (value_eq(last_command, value_type(name="set_mark_command"))) then
+        else if (associated(last_command, commands%set_mark_command)) then
             if (is_region_active()) then
                 call deactivate_mark()
                 call message("Mark deactivated")
@@ -4036,14 +4036,14 @@ contains
         if (status%ok()) then
             ! (STRING is nil if BEG = END.)
             if (vtag(string) == V_STRING) then
-                if (value_eq(last_command, value_type(name="kill_region"))) then
+                if (associated(last_command, commands%kill_region)) then
                     call kill_append(xstring(string), end < beg)
                 else
                     call kill_new(string)
                 end if
             end if
 
-            this_command = value_type(name="kill_region")
+            this_command => commands%kill_region
             deactivate_mark_variable = .true.
             return
         end if
@@ -4052,7 +4052,7 @@ contains
                    condition_matches(status%code, FM_TEXT_READ_ONLY))) return
         ! The text could not be deleted: copy it to the kill ring anyway.
         call copy_region_as_kill(beg, end, st, region)
-        this_command = value_type(name="kill_region")
+        this_command => commands%kill_region
 
         if (kill_read_only_ok .or. flag(read_only_ok)) then
             status = status_type()
@@ -4081,7 +4081,7 @@ contains
 
         if (.not. status%ok()) return
 
-        if (value_eq(last_command, value_type(name="kill_region"))) then
+        if (associated(last_command, commands%kill_region)) then
             call kill_append(xstring(string), end < beg)
         else
             call kill_new(string)
@@ -4311,9 +4311,9 @@ contains
             end if
         end if
 
-        if (.not. value_eq(last_command, value_type(name="kill_region"))) then
+        if (.not. associated(last_command, commands%kill_region)) then
             call kill_new("")
-            last_command = value_type(name="kill_region")
+            last_command => commands%kill_region
         end if
 
         call copy_marker_at(here, regions_begin, .false., st)
@@ -4357,17 +4357,19 @@ contains
     !> mark at end.  With argument N, reinsert the Nth most recent kill.
     !> ARG is the raw prefix argument.  Port of simple.el:yank.
     subroutine yank(arg, status)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         type(value_type) :: text
         integer(int64) :: n, m
 
-        this_command = value_type(.true.)
+        ! Upstream sets `this_command' to t (no command) while inserting, so
+        ! that a quit leaves it not `yank'; null here.
+        this_command => null()
         call push_mark()
 
-        if (.not. allocated(arg%a) .or. vtag(arg) == V_ARRAY) then
+        if (arg%kind == PREFIX_NONE .or. arg%kind == PREFIX_RAW) then
             n = 0
-        else if (value_eq(arg, value_type(name="-"))) then
+        else if (arg%kind == PREFIX_MINUS) then
             n = -2
         else
             n = prefix_numeric_value(arg) - 1
@@ -4378,14 +4380,14 @@ contains
         call insert_for_yank(text, status)
         if (.not. status%ok()) return
 
-        if (vtag(arg) == V_ARRAY) then
+        if (arg%kind == PREFIX_RAW) then
             ! Like exchange-point-and-mark, without activating the mark.
             m = mark_position()
             call set_marker_here()
             call goto_char(m)
         end if
 
-        if (value_eq(this_command, value_type(.true.))) this_command = value_type(name="yank")
+        if (.not. associated(this_command)) this_command => commands%yank
     end subroutine yank
 
     !> Replace just-yanked stretch of killed text with a different stretch.
@@ -4411,12 +4413,12 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
 
-        if (.not. value_eq(last_command, value_type(name="yank"))) then
+        if (.not. associated(last_command, commands%yank)) then
             call set_error(status, FM_USER_ERROR, "Previous command was not a yank")
             return
         end if
 
-        this_command = value_type(name="yank")
+        this_command => commands%yank
         m = mark_position()
         here = point()
         before = here < m
@@ -4584,7 +4586,7 @@ contains
     subroutine cmd_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
 
-        call exchange_point_and_mark(allocated(current_prefix_arg%a), status)
+        call exchange_point_and_mark(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_exchange_point_and_mark
 
     subroutine cmd_mark_whole_buffer(status)
@@ -4665,7 +4667,7 @@ contains
     subroutine cmd_kill_line(status)
         type(status_type), intent(out) :: status
 
-        call kill_line(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), status)
+        call kill_line(prefix_numeric_value(current_prefix_arg), current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_kill_line
 
     subroutine cmd_kill_whole_line(status)
@@ -4756,7 +4758,7 @@ contains
 
         opoint = point()
 
-        if (allow_extend .and. ((value_eq(last_command, this_command) .and. mark_position() /= 0) .or. &
+        if (allow_extend .and. ((associated(last_command, this_command) .and. mark_position() /= 0) .or. &
                                 is_region_active())) then
             if (have_arg) then
                 n = arg
@@ -4809,7 +4811,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call mark_word(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), .true.)
+        call mark_word(prefix_numeric_value(current_prefix_arg), current_prefix_arg%kind /= PREFIX_NONE, .true.)
     end subroutine cmd_mark_word
 
     ! ------------------------------------------------------------------
@@ -5107,10 +5109,10 @@ contains
     !> doing any other command before the next M-SPC.  N is the raw
     !> prefix argument.  Port of simple.el:cycle-spacing.
     subroutine cycle_spacing(n, status)
-        type(value_type), intent(in) :: n
+        type(prefix_arg_type), intent(in) :: n
         type(status_type), intent(out) :: status
         integer(int64) :: orig_pos, start, end, moved, numeric_n
-        type(value_type) :: actual_n
+        type(prefix_arg_type) :: actual_n
         type(cycle_spacing_action_type) :: action
         integer :: next
         logical :: include_newlines
@@ -5118,8 +5120,8 @@ contains
         status = status_type()
 
         ! Initialize `cycle_spacing__context' if needed.
-        if (.not. value_eq(last_command, this_command) .or. .not. cycle_spacing_active .or. &
-            (allocated(n%a) .and. .not. value_equal(cycle_spacing_n, n))) then
+        if (.not. associated(last_command, this_command) .or. .not. cycle_spacing_active .or. &
+            (n%kind /= PREFIX_NONE .and. (n%kind /= cycle_spacing_n%kind .or. n%value /= cycle_spacing_n%value))) then
             orig_pos = point()
             moved = skip_chars_backward(" "//TAB//LF//CR, status)
             call goto_char(constrain_to_field(point(), orig_pos, .false., .false.))
@@ -5153,28 +5155,26 @@ contains
             ! prefix arg or `-'.
             select case (action%arg_kind)
             case (CYCLE_ARG_FIXED)
-                actual_n = value_type(action%arg)
+                actual_n = prefix_arg_type(PREFIX_NUMBER, action%arg)
             case (CYCLE_ARG_INVERTED)
-                actual_n = value_type(-prefix_numeric_value(cycle_spacing_n))
+                actual_n = prefix_arg_type(PREFIX_NUMBER, -prefix_numeric_value(cycle_spacing_n))
             case (CYCLE_ARG_MINUS)
-                actual_n = value_type(name="-")
+                actual_n = prefix_arg_type(PREFIX_MINUS)
             case default
                 actual_n = cycle_spacing_n
             end select
 
             numeric_n = prefix_numeric_value(actual_n)
-            include_newlines = value_eq(actual_n, value_type(name="-"))
-            if (vtag(actual_n) == V_INTEGER) include_newlines = xfixnum(actual_n) < 0
+            include_newlines = actual_n%kind == PREFIX_MINUS
+            if (actual_n%kind == PREFIX_NUMBER) include_newlines = actual_n%value < 0
 
             select case (action%action)
             case (CYCLE_JUST_ONE_SPACE)
                 call just_one_space(numeric_n, status)
             case (CYCLE_DELETE_SPACE_AFTER)
-                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, value_type(name="-"))), &
-                                  include_newlines, .true.)
+                call delete_space(merge(0_int64, abs(numeric_n), actual_n%kind == PREFIX_MINUS), include_newlines, .true.)
             case (CYCLE_DELETE_SPACE_BEFORE)
-                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, value_type(name="-"))), &
-                                  include_newlines, .false.)
+                call delete_space(merge(0_int64, abs(numeric_n), actual_n%kind == PREFIX_MINUS), include_newlines, .false.)
             case (CYCLE_DELETE_ALL_SPACE)
                 if (include_newlines) then
                     call delete_all_space(.false., status)
@@ -5471,14 +5471,14 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call delete_horizontal_space(allocated(current_prefix_arg%a), status)
+        if (status%ok()) call delete_horizontal_space(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_delete_horizontal_space
 
     subroutine cmd_delete_all_space(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call delete_all_space(allocated(current_prefix_arg%a), status)
+        if (status%ok()) call delete_all_space(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_delete_all_space
 
     subroutine cmd_just_one_space(status)
@@ -5519,9 +5519,9 @@ contains
         if (is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
-            call delete_indentation(allocated(current_prefix_arg%a), status, b, e)
+            call delete_indentation(current_prefix_arg%kind /= PREFIX_NONE, status, b, e)
         else
-            call delete_indentation(allocated(current_prefix_arg%a), status)
+            call delete_indentation(current_prefix_arg%kind /= PREFIX_NONE, status)
         end if
     end subroutine cmd_delete_indentation
 
@@ -5554,13 +5554,13 @@ contains
     !> active.  ARG is the raw prefix argument.  Port of
     !> simple.el:beginning-of-buffer.
     subroutine beginning_of_buffer(arg)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         integer(int64) :: size
 
-        if (vtag(arg) /= V_ARRAY .and. .not. is_region_active()) call push_mark()
+        if (arg%kind /= PREFIX_RAW .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
+        if (arg%kind /= PREFIX_NONE .and. arg%kind /= PREFIX_RAW) then
             call goto_char(point_min() + 1 + (size*prefix_numeric_value(arg))/10)
         else
             call goto_char(point_min())
@@ -5568,7 +5568,7 @@ contains
 
         ! If we went to a place in the middle of the buffer, adjust it to
         ! the beginning of the following line.
-        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
+        if (arg%kind /= PREFIX_NONE .and. arg%kind /= PREFIX_RAW) then
             if (forward_line(1_int64) /= 0) continue
         end if
     end subroutine beginning_of_buffer
@@ -5584,15 +5584,15 @@ contains
     !> simple.el:end-of-buffer (`scroll_minibuffer_conservatively' is t,
     !> its default: not yet a variable).
     subroutine end_of_buffer(arg)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         integer(int64) :: size
         type(window_type), pointer :: w
         type(status_type) :: st
 
-        if (vtag(arg) /= V_ARRAY .and. .not. is_region_active()) call push_mark()
+        if (arg%kind /= PREFIX_RAW .and. .not. is_region_active()) call push_mark()
         size = point_max() - point_min()
 
-        if (allocated(arg%a) .and. vtag(arg) /= V_ARRAY) then
+        if (arg%kind /= PREFIX_NONE .and. arg%kind /= PREFIX_RAW) then
             call goto_char(point_max() - (size*prefix_numeric_value(arg))/10)
             ! If we went to a place in the middle of the buffer, adjust it
             ! to the beginning of a line.
@@ -5608,9 +5608,9 @@ contains
             ! If the end of the buffer is not already on the screen, then
             ! scroll specially to put it near, but not at, the bottom.
             if (w%mini) then
-                call recenter(value_type(-1_int64), .false., st)
+                call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .false., st)
             else
-                call recenter(value_type(-3_int64), .false., st)
+                call recenter(prefix_arg_type(PREFIX_NUMBER, -3_int64), .false., st)
             end if
         end if
     end subroutine end_of_buffer
