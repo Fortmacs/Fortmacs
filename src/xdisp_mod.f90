@@ -2664,22 +2664,32 @@ contains
 
     contains
 
-        !> TEXT with %b replaced by NAME and %% by %.
+        !> TEXT with %b replaced by NAME (padded to the width of %12b) and %%
+        !> by %.
         function expand_identification(text, name) result(t)
             character(len=*), intent(in) :: text, name
             character(len=:), allocatable :: t
-            integer :: i
+            integer :: i, digits, width
 
             t = ""
             i = 1
 
             do while (i <= len(text))
                 if (text(i:i) == "%" .and. i < len(text)) then
-                    if (text(i + 1:i + 1) == "b") then
-                        t = t//name
-                        i = i + 2
-                        cycle
-                    else if (text(i + 1:i + 1) == "%") then
+                    ! The field width's digits after the %, then the spec.
+                    digits = verify(text(i + 1:), "0123456789") - 1
+
+                    if (digits >= 0) then
+                        if (text(i + 1 + digits:i + 1 + digits) == "b") then
+                            width = 0
+                            if (digits > 0) read (text(i + 1:i + digits), *) width
+                            t = t//pad_chars(name, width)
+                            i = i + digits + 2
+                            cycle
+                        end if
+                    end if
+
+                    if (text(i + 1:i + 1) == "%") then
                         t = t//"%"
                         i = i + 2
                         cycle

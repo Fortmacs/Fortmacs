@@ -100,6 +100,7 @@ module help_mod
     private
 
     public :: substitute_command_keys, register_keymap_name, keymap_name, with_help_window, with_output_to_temp_buffer, &
+              temp_buffer_body_procedure, &
               help_buffer_name, describe_key, describe_key_briefly, where_is, help_quit, init_help, &
               view_echo_area_messages, view_lossage, help_for_help, describe_bindings, describe_buffer_bindings, &
               describe_map_tree, lossage_comment_indent, make_separator_line
@@ -109,6 +110,14 @@ module help_mod
     type(handle_type), public :: help_map
 
     abstract interface
+        !> More of the body of `with_output_to_temp_buffer', executed in the
+        !> buffer after the text is inserted.  Not a port.
+        subroutine temp_buffer_body_procedure(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine temp_buffer_body_procedure
+
         !> The text describing function `name', after `lead'.  Not a port.
         subroutine describe_function_1_procedure(name, text, lead)
             implicit none(type, external)
@@ -498,9 +507,11 @@ contains
     !> `temp_buffer_setup_hook' and `temp_buffer_show_hook'
     !> (help-mode-setup, help-mode-finish; no xrefs, no
     !> `temp_buffer_show_function').
-    subroutine with_output_to_temp_buffer(bufname, text, status)
+    subroutine with_output_to_temp_buffer(bufname, text, status, body)
         character(len=*), intent(in) :: bufname, text
         type(status_type), intent(out) :: status
+        !> Executed in the buffer after TEXT is inserted.
+        procedure(temp_buffer_body_procedure), optional :: body
         type(handle_type) :: previous, buffer, window
         type(status_type) :: st
         character(len=:), allocatable :: old_dir
@@ -524,6 +535,12 @@ contains
         call set_buffer_read_only(buffer, .false., status)
         call insert(text, status)
         if (.not. status%ok()) return
+
+        if (present(body)) then
+            call body(status)
+            if (.not. status%ok()) return
+        end if
+
         ! temp_output_buffer_show
         if (allocated(old_dir)) buffers(current)%directory = old_dir
         call restore_buffer_modified(.false.)
