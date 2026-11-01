@@ -1111,12 +1111,12 @@ contains
     !> Name self unless in position to end a tag or a prefix ARG is given.
     !> Port of sgml-mode.el:sgml-maybe-end-tag.
     recursive subroutine sgml_maybe_end_tag(status)
-        use callint_fm, only: current_prefix_arg, prefix_numeric_value
+        use callint_fm, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
         type(status_type), intent(out) :: status
         integer(int64) :: start
         integer :: ctype
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call self_insert_command(prefix_numeric_value(current_prefix_arg), event_char(), status)
             return
         end if
@@ -1665,7 +1665,7 @@ contains
 
     ! The command `sgml_quote'.
     recursive subroutine cmd_sgml_quote(status)
-        use callint_fm, only: current_prefix_arg
+        use callint_fm, only: current_prefix_arg, PREFIX_NONE
         use editfns_fm, only: region_beginning, region_end
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -1673,7 +1673,7 @@ contains
         call region_beginning(b, status)
         if (.not. status%ok()) return
         call region_end(e, status)
-        call sgml_quote(b, e, status, allocated(current_prefix_arg%a))
+        call sgml_quote(b, e, status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_sgml_quote
 
     !> Simple-minded pretty printer for SGML.

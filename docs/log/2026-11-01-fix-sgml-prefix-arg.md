@@ -1,0 +1,1 @@
+2026-11-01 — Fix main's build (`fix-sgml-prefix-arg`): #187 (A7, prefix argument as `prefix_arg_type`) and #188 (step 40h, SGML mode) merged into a semantic conflict: sgml_mode_fm still tested `allocated(current_prefix_arg%a)`, which no longer exists, so main did not compile.  The two tests now read `current_prefix_arg%kind /= PREFIX_NONE`, as the other commands do.
