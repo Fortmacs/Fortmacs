@@ -44,6 +44,10 @@
 #   recursive-allocatable-type
 #                       a type with an allocatable component of its own
 #                       type (gfortran copies it shallowly).
+#   command-component   a component of `command_type' of a type with
+#                       allocatable components (gfortran's deep copies of
+#                       the hundreds of generated commands make -O3
+#                       compiles several times slower).
 #   implicit-none       `implicit none' without `(type, external)'.
 #   stop                `stop' outside a main program.
 #   obsolete            `common', `equivalence' or `goto'.
@@ -422,6 +426,28 @@ END {
                     break
                 }
             }
+        }
+    }
+
+    # command_type: no component of a type with allocatable components.
+    intype = ""
+    for (s = 1; s <= ns; s++) {
+        code = scode[s]
+        if (code ~ /^type[ \t]*(,[^:]*)?::[ \t]*command_type([^a-z0-9_]|$)/) {
+            intype = "command_type"
+            continue
+        }
+        if (intype == "") continue
+        if (code ~ /^end[ \t]*type/ || code == "contains") {
+            intype = ""
+            continue
+        }
+        if (code ~ /^(type|class)[ \t]*\(/ && code !~ /pointer/) {
+            u = code
+            sub(/^(type|class)[ \t]*\([ \t]*/, "", u)
+            sub(/[ \t]*\).*/, "", u)
+            if (hasalloc[u])
+                report(s, "command-component", "command_type component of type " u ", which has allocatable components: gfortran makes the hundreds of generated commands slow to compile at -O3; use an integer handle into a registry")
         }
     }
 

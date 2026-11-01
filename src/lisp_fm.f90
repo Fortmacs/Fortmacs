@@ -161,9 +161,12 @@ module lisp_fm
         !> none.
         character(len=:), allocatable :: info_file
         !> For a keyboard macro held as a command (`this_command' after
-        !> C-x e, so that C-x z repeats it): the macro's key events;
-        !> unallocated for any other command.
-        type(value_type), allocatable :: events(:)
+        !> C-x e, so that C-x z repeats it): the handle of its key events
+        !> in keyboard_fm's registry of macros; 0 for any other command.
+        !> (A handle, not the events: an allocatable component of a type
+        !> with allocatable components makes gfortran slow to compile the
+        !> hundreds of generated commands.)
+        integer :: macro = 0
     contains
         !> Make this command known by its name, to M-x, keymaps and the
         !> help commands (upstream's defun).
