@@ -31,7 +31,7 @@
 !> The tables of known targets and macros are buffer-local in Makefile
 !> mode buffers (`makefile_target_table', `makefile_macro_table' read
 !> them).  The keyword lists are arrays of `font_lock_keyword_type';
-!> `makefile_gnumake_functions_table' is an array of
+!> `makefile_gnumake_functions' is an array of
 !> `makefile_gnumake_function_type'.
 !>
 !> Deferred: the obsolete macro and target browser (C-c C-b,
@@ -48,12 +48,12 @@ module make_mode_fm
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
-    use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer
+    use data_fm, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, append_locals_clearer
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, execute_interactively
     use keyboard_fm, only: last_command_event
-    use buffer_fm, only: buffers, cur, buffer_serial_live, barf_if_buffer_read_only, get_buffer, get_buffer_create, &
-                         set_buffer, current_buffer, erase_buffer, kill_buffer
+    use buffer_fm, only: buffers, current, buffer_serial_live, barf_if_buffer_read_only, get_buffer, get_or_make_buffer, &
+                         set_buffer, current_buffer, erase_buffer, close_buffer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use derived_fm, only: is_derived_mode
@@ -65,7 +65,7 @@ module make_mode_fm
                           delete_region, narrow_to_region, widen, buffer_size
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, self_insert_command
     use insdel_fm, only: insert
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     use indent_fm, only: current_column, indent_to, indent_line_function, indent_to_left_margin, indent_tabs_mode
     use search_fm, only: looking_at, re_search_forward, string_match, match_beginning, match_end, match_data, &
                          set_match_data, regexp_quote, SEARCH_NOERROR
@@ -110,7 +110,7 @@ module make_mode_fm
               makefile_match_action, makefile_do_macro_insertion, makefile_remember_target, makefile_remember_macro, &
               makefile_format_macro_ref, makefile_add_log_target, makefile_syntax_propertize_function, &
               makefile_make_font_lock_keywords, makefile_target_table, makefile_macro_table, makefile_has_prereqs, &
-              makefile_query_proc
+              makefile_query_procedure
 
     !> Face to use for highlighting leading spaces in Font-Lock mode.
     !> Port of make-mode.el:makefile-space.
@@ -131,7 +131,7 @@ module make_mode_fm
     !> String to append to all target names inserted by `makefile_insert_target'.
     !> ":" or "::" are common values.  Port of make-mode.el
     !> makefile-target-colon.
-    type(string_setting), target, public :: makefile_target_colon = string_setting(name="makefile_target_colon")
+    type(string_setting_type), target, public :: makefile_target_colon = string_setting_type(name="makefile_target_colon")
 
     !> String to append to all macro names inserted by `makefile_insert_macro'.
     !> The normal value should be " = ", since this is what
@@ -139,44 +139,44 @@ module make_mode_fm
     !> allow a larger variety of different macro assignments, so you
     !> might prefer to use " += " or " := " .  Port of make-mode.el
     !> makefile-macro-assign.
-    type(string_setting), target, public :: makefile_macro_assign = string_setting(name="makefile_macro_assign")
+    type(string_setting_type), target, public :: makefile_macro_assign = string_setting_type(name="makefile_macro_assign")
 
     !> If true, Makefile mode should install electric keybindings.
     !> Default is .false..  Port of make-mode.el makefile-electric-keys.
-    type(logical_setting), target, public :: makefile_electric_keys = &
-                                             logical_setting(name="makefile_electric_keys", value=.false.)
+    type(logical_setting_type), target, public :: makefile_electric_keys = &
+                                                  logical_setting_type(name="makefile_electric_keys", value=.false.)
 
     !> Controls the style of generated macro references.
     !> True means macro references should use curly braces, like `${this}'.
     !> .false. means use parentheses, like `$(this)'.  Port of make-mode.el
     !> makefile-use-curly-braces-for-macros-p.
-    type(logical_setting), target, public :: makefile_use_curly_braces_for_macros = &
-                                             logical_setting(name="makefile_use_curly_braces_for_macros", value=.false.)
+    type(logical_setting_type), target, public :: makefile_use_curly_braces_for_macros = &
+                                                  logical_setting_type(name="makefile_use_curly_braces_for_macros", value=.false.)
 
     !> If true, insert a TAB after a target colon.
     !> Otherwise, a space is inserted.
     !> The default is .true..  Port of make-mode.el
     !> makefile-tab-after-target-colon.
-    type(logical_setting), target, public :: makefile_tab_after_target_colon = &
-                                             logical_setting(name="makefile_tab_after_target_colon", value=.true.)
+    type(logical_setting_type), target, public :: makefile_tab_after_target_colon = &
+                                                  logical_setting_type(name="makefile_tab_after_target_colon", value=.true.)
 
     !> Column in which `makefile_backslash_region' inserts backslashes.
     !> Port of make-mode.el makefile-backslash-column.
-    type(integer_setting), target, public :: makefile_backslash_column = &
-                                             integer_setting(name="makefile_backslash_column", value=48)
+    type(integer_setting_type), target, public :: makefile_backslash_column = &
+                                                  integer_setting_type(name="makefile_backslash_column", value=48)
 
     !> If true, `makefile_backslash_region' will align backslashes.
     !> Port of make-mode.el makefile-backslash-align.
-    type(logical_setting), target, public :: makefile_backslash_align = &
-                                             logical_setting(name="makefile_backslash_align", value=.true.)
+    type(logical_setting_type), target, public :: makefile_backslash_align = &
+                                                  logical_setting_type(name="makefile_backslash_align", value=.true.)
 
     !> If true, `makefile_pickup_everything' picks up filenames as targets.
     !> This means it calls `makefile_pickup_filenames_as_targets'.
     !> Otherwise filenames are omitted.  Port of make-mode.el
     !> makefile-pickup-everything-picks-up-filenames-p.
-    type(logical_setting), target, public :: makefile_pickup_everything_picks_up_filenames = &
-                                             logical_setting(name="makefile_pickup_everything_picks_up_filenames", &
-                                                             value=.false.)
+    type(logical_setting_type), target, public :: makefile_pickup_everything_picks_up_filenames = &
+                                                  logical_setting_type(name="makefile_pickup_everything_picks_up_filenames", &
+                                                                       value=.false.)
 
     !> If true, automatically clean up continuation lines when saving.
     !> A line is cleaned up by removing all whitespace following a trailing
@@ -184,8 +184,8 @@ module make_mode_fm
     !> IMPORTANT: Please note that enabling this option causes Makefile mode
     !> to MODIFY A FILE WITHOUT YOUR CONFIRMATION when "it seems necessary".
     !> Port of make-mode.el makefile-cleanup-continuations.
-    type(logical_setting), target, public :: makefile_cleanup_continuations = &
-                                             logical_setting(name="makefile_cleanup_continuations", value=.false.)
+    type(logical_setting_type), target, public :: makefile_cleanup_continuations = &
+                                                  logical_setting_type(name="makefile_cleanup_continuations", value=.false.)
 
     !> Normal hook run by `makefile_mode'.  Port of make-mode.el
     !> makefile-mode-hook.
@@ -205,57 +205,58 @@ module make_mode_fm
     !> You will be offered to complete on one of those in the minibuffer whenever
     !> you enter a "." at the beginning of a line in `makefile_mode'.
     !> Port of make-mode.el makefile-special-targets-list.
-    character(len=16), allocatable, public :: makefile_special_targets_list(:)
+    character(len=16), allocatable, public :: makefile_special_targets(:)
 
     !> List of macros that are resolved by make at runtime.
     !> If you insert a macro reference using `makefile_insert_macro_ref', the name
     !> of the macro is checked against this list.  If it can be found its name will
     !> not be enclosed in { } or ( ).  Port of make-mode.el
     !> makefile-runtime-macros-list.
-    character(len=8), allocatable, public :: makefile_runtime_macros_list(:)
+    character(len=8), allocatable, public :: makefile_runtime_macros(:)
 
     !> Regex used to find dependency lines in a makefile.  Port of
     !> make-mode.el makefile-dependency-regex.
-    type(string_setting), target, public :: makefile_dependency_regex = string_setting(name="makefile_dependency_regex")
+    type(string_setting_type), target, public :: makefile_dependency_regexp = string_setting_type(name="makefile_dependency_regexp")
 
     !> Regex used to find dependency lines in a BSD makefile.  Port of
     !> make-mode.el makefile-bsdmake-dependency-regex.
-    character(len=:), allocatable, public :: makefile_bsdmake_dependency_regex
+    character(len=:), allocatable, public :: makefile_bsdmake_dependency_regexp
 
     !> Characters to skip to find a line that might be a dependency.
     !> Port of make-mode.el makefile-dependency-skip.
-    type(string_setting), target, public :: makefile_dependency_skip = string_setting(name="makefile_dependency_skip")
+    type(string_setting_type), target, public :: makefile_dependency_skip = string_setting_type(name="makefile_dependency_skip")
 
     !> Regex used to highlight rule action lines in font lock mode.
     !> Port of make-mode.el makefile-rule-action-regex.
-    type(string_setting), target, public :: makefile_rule_action_regex = string_setting(name="makefile_rule_action_regex")
+    type(string_setting_type), target, public :: makefile_rule_action_regexp = &
+                                                 string_setting_type(name="makefile_rule_action_regexp")
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
     !> Regex used to highlight makepp rule action lines in font lock mode.
     !> Port of make-mode.el makefile-makepp-rule-action-regex.
-    character(len=*), parameter, public :: makefile_makepp_rule_action_regex = &
+    character(len=*), parameter, public :: makefile_makepp_rule_action_regexp = &
                                            "^"//TAB//"[ "//TAB//"]*\(\(?:\(?:noecho\|ignore[-_]error\|[-@]+\)[ "//TAB// &
                                            "]*\)*\)\(\(&\S +\)?\(?:.*\\"//LF//"\)*.*\)"
 
     !> Regex used to highlight BSD rule action lines in font lock mode.
     !> Port of make-mode.el makefile-bsdmake-rule-action-regex.
-    character(len=:), allocatable, public :: makefile_bsdmake_rule_action_regex
+    character(len=:), allocatable, public :: makefile_bsdmake_rule_action_regexp
 
     !> Regex used to find macro assignment lines in a makefile.  Port of
     !> make-mode.el makefile-macroassign-regex.
-    character(len=*), parameter, public :: makefile_macroassign_regex = &
+    character(len=*), parameter, public :: makefile_macroassign_regexp = &
                                            "\(?:^\|^export\|^override\|:\|:[ "//TAB//"]*override\)[ "//TAB//"]*\([^ "//LF// &
                                            TAB//"][^:#= "//TAB//LF//"]*\)[ "//TAB//"]*\(?:!=\|[*:+]?[:?]?=\)"
 
     !> Regex used to find $(macro) uses in a makefile.  Port of
     !> make-mode.el makefile-var-use-regex.
-    character(len=*), parameter, public :: makefile_var_use_regex = &
+    character(len=*), parameter, public :: makefile_var_use_regexp = &
                                            "\(^\|[^$]\)\$[({]\([-a-zA-Z0-9_.]+\|[@%<?^+*][FD]?\)"
 
     !> Regex for filenames that will NOT be included in the target list.
     !> Port of make-mode.el makefile-ignored-files-in-pickup-regex.
-    character(len=*), parameter, public :: makefile_ignored_files_in_pickup_regex = &
+    character(len=*), parameter, public :: makefile_ignored_files_in_pickup_regexp = &
                                            "\(^\..*\)\|\(.*~$\)\|\(.*,v$\)\|\(\.[chy]\)"
 
     !> List of keywords understood by standard make.  Port of make-mode.el
@@ -325,16 +326,16 @@ module make_mode_fm
     !> Abstract interface of `makefile_query_one_target_method_function'.
     abstract interface
         !> Whether TARGET of makefile FILENAME needs rebuilding (.false. when up to date).
-        logical function makefile_query_proc(target, filename)
+        logical function makefile_query_procedure(target, filename)
             implicit none(type, external)
             character(len=*), intent(in) :: target, filename
-        end function makefile_query_proc
+        end function makefile_query_procedure
     end interface
 
     !> How to invoke make, for `makefile_query_targets'.
     !> This should identify a `make' command that can handle the `-q' option.
     !> Port of make-mode.el makefile-brave-make.
-    type(string_setting), target, public :: makefile_brave_make = string_setting(name="makefile_brave_make")
+    type(string_setting_type), target, public :: makefile_brave_make = string_setting_type(name="makefile_brave_make")
 
     !> Function to call to determine whether a make target is up to date.
     !> The function must satisfy this calling convention:
@@ -350,12 +351,12 @@ module make_mode_fm
     !>   up-to-date in the context of the given makefile, .true. otherwise.
     !>
     !> Port of make-mode.el makefile-query-one-target-method-function.
-    procedure(makefile_query_proc), pointer, public :: makefile_query_one_target_method_function => null()
+    procedure(makefile_query_procedure), pointer, public :: makefile_query_one_target_method_function => null()
 
     !> Name of the Up-to-date overview buffer.  Port of make-mode.el
     !> makefile-up-to-date-buffer-name.
-    type(string_setting), target, public :: makefile_up_to_date_buffer_name = &
-                                            string_setting(name="makefile_up_to_date_buffer_name")
+    type(string_setting_type), target, public :: makefile_up_to_date_buffer_name = &
+                                                 string_setting_type(name="makefile_up_to_date_buffer_name")
 
     !> Abbrev table in use in Makefile buffers.  Port of make-mode.el
     !> makefile-mode-abbrev-table.
@@ -372,7 +373,7 @@ module make_mode_fm
     !> makefile-imake-mode-syntax-table.
     type(handle_type), public :: makefile_imake_mode_syntax_table
 
-    !> A GNU make function of `makefile_gnumake_functions_table': its NAME and
+    !> A GNU make function of `makefile_gnumake_functions': its NAME and
     !> the PROMPTS for its required arguments (blank ones are unused).
     type, public :: makefile_gnumake_function_type
         character(len=10) :: name = ""
@@ -381,7 +382,7 @@ module make_mode_fm
 
     !> Table of GNU Make functions and their arguments.  Port of
     !> make-mode.el makefile-gnumake-functions-alist.
-    type(makefile_gnumake_function_type), allocatable, public :: makefile_gnumake_functions_table(:)
+    type(makefile_gnumake_function_type), allocatable, public :: makefile_gnumake_functions(:)
 
     !> A target or macro name of the tables.
     type, public :: makefile_name_type
@@ -433,9 +434,9 @@ contains
         call forward_setting(makefile_backslash_align)
         call forward_setting(makefile_pickup_everything_picks_up_filenames)
         call forward_setting(makefile_cleanup_continuations)
-        call forward_setting(makefile_dependency_regex)
+        call forward_setting(makefile_dependency_regexp)
         call forward_setting(makefile_dependency_skip)
-        call forward_setting(makefile_rule_action_regex)
+        call forward_setting(makefile_rule_action_regexp)
         call forward_setting(makefile_brave_make)
         call forward_setting(makefile_up_to_date_buffer_name)
         if (.not. allocated(makefile_target_colon%value)) makefile_target_colon = ":"
@@ -451,34 +452,34 @@ contains
             makefile_query_one_target_method_function => makefile_query_by_make_minus_q
         end if
 
-        if (.not. allocated(makefile_rule_action_regex%value)) then
-            makefile_rule_action_regex = "^"//TAB//"[ "//TAB//"]*\(?:\([-@]+\)[ "//TAB//"]*\)\(.*\(?:\\"//LF//".*\)*\)"
+        if (.not. allocated(makefile_rule_action_regexp%value)) then
+            makefile_rule_action_regexp = "^"//TAB//"[ "//TAB//"]*\(?:\([-@]+\)[ "//TAB//"]*\)\(.*\(?:\\"//LF//".*\)*\)"
         end if
 
-        makefile_bsdmake_rule_action_regex = string_replace("-@", "-+@", makefile_rule_action_regex%value)
+        makefile_bsdmake_rule_action_regexp = string_replace("-@", "-+@", makefile_rule_action_regexp%value)
 
-        if (.not. allocated(makefile_dependency_regex%value)) then
+        if (.not. allocated(makefile_dependency_regexp%value)) then
             ! Allow for two nested levels $(v1:$(v2:$(v3:a=b)=c)=d)
-            makefile_dependency_regex = "^\("//elems_re(3, .true.)//"\)\(:\)\(?:[ "//TAB//"]*$\|[^="//LF// &
-                                        "]\(?:[^#"//LF//"]*?;[ "//TAB//"]*\(.+\)\)?\)"
+            makefile_dependency_regexp = "^\("//elems_regexp(3, .true.)//"\)\(:\)\(?:[ "//TAB//"]*$\|[^="//LF// &
+                                         "]\(?:[^#"//LF//"]*?;[ "//TAB//"]*\(.+\)\)?\)"
         end if
 
-        makefile_bsdmake_dependency_regex = replace_first("\(:\)", "\([:!]\)", makefile_dependency_regex%value)
+        makefile_bsdmake_dependency_regexp = replace_first("\(:\)", "\([:!]\)", makefile_dependency_regexp%value)
 
-        if (.not. allocated(makefile_special_targets_list)) then
-            makefile_special_targets_list = [character(len=16) :: &
-                                             "DEFAULT", "DONE", "ERROR", "EXPORT", &
-                                             "FAILED", "GROUPEPILOG", "GROUPPROLOG", "IGNORE", &
-                                             "IMPORT", "INCLUDE", "INCLUDEDIRS", "INIT", &
-                                             "KEEP_STATE", "MAKEFILES", "MAKE_VERSION", "NO_PARALLEL", &
-                                             "PARALLEL", "PHONY", "PRECIOUS", "REMOVE", &
-                                             "SCCS_GET", "SILENT", "SOURCE", "SUFFIXES", &
-                                             "WAIT", "c.o", "C.o", "m.o", &
-                                             "el.elc", "y.c", "s.o"]
+        if (.not. allocated(makefile_special_targets)) then
+            makefile_special_targets = [character(len=16) :: &
+                                        "DEFAULT", "DONE", "ERROR", "EXPORT", &
+                                        "FAILED", "GROUPEPILOG", "GROUPPROLOG", "IGNORE", &
+                                        "IMPORT", "INCLUDE", "INCLUDEDIRS", "INIT", &
+                                        "KEEP_STATE", "MAKEFILES", "MAKE_VERSION", "NO_PARALLEL", &
+                                        "PARALLEL", "PHONY", "PRECIOUS", "REMOVE", &
+                                        "SCCS_GET", "SILENT", "SOURCE", "SUFFIXES", &
+                                        "WAIT", "c.o", "C.o", "m.o", &
+                                        "el.elc", "y.c", "s.o"]
         end if
 
-        if (.not. allocated(makefile_runtime_macros_list)) then
-            makefile_runtime_macros_list = [character(len=8) :: "@", "&", ">", "<", "*", "^", "+", "?", "%", "$"]
+        if (.not. allocated(makefile_runtime_macros)) then
+            makefile_runtime_macros = [character(len=8) :: "@", "&", ">", "<", "*", "^", "+", "?", "%", "$"]
         end if
 
         call init_gnumake_functions()
@@ -487,7 +488,7 @@ contains
         call init_keywords()
         call init_rules()
         call makefile_mode_abbrev_table%define_table("makefile_mode_abbrev_table")
-        call add_local_variables_killer(kill_make_locals)
+        call append_locals_clearer(clear_make_locals)
         call major_modes%makefile_mode%define("makefile_mode", "Makefile", makefile_mode, makefile_mode_hook, &
                                               parent=major_modes%prog_mode, syntax_table=makefile_mode_syntax_table, &
                                               abbrev_table=makefile_mode_abbrev_table)
@@ -547,19 +548,19 @@ contains
 
     !> One level of makefile-dependency-regex's elems-re.
     !> Port of make-mode.el:makefile-dependency-regex (its elems-re).
-    recursive function elems_re(n, outer) result(re)
+    recursive function elems_regexp(n, outer) result(regexp)
         integer, intent(in) :: n
         logical, intent(in) :: outer
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
 
         if (n < 1) then
-            re = "[^"//LF//"$#})]+?"
+            regexp = "[^"//LF//"$#})]+?"
         else if (outer) then
-            re = "\(?:\$\(?:[({]"//elems_re(n - 1, .false.)//"[})]\|[^({]\)\|[^"//LF//"$#"//TAB//":=]\)+?"
+            regexp = "\(?:\$\(?:[({]"//elems_regexp(n - 1, .false.)//"[})]\|[^({]\)\|[^"//LF//"$#"//TAB//":=]\)+?"
         else
-            re = "\(?:\$\(?:[({]"//elems_re(n - 1, .false.)//"[})]\|[^({]\)\|[^"//LF//"$#)}]\)+?"
+            regexp = "\(?:\$\(?:[({]"//elems_regexp(n - 1, .false.)//"[})]\|[^({]\)\|[^"//LF//"$#)}]\)+?"
         end if
-    end function elems_re
+    end function elems_regexp
 
     !> TEXT with every FROM replaced by TO (subr.el's string-replace).
     !> Not a port.
@@ -604,62 +605,62 @@ contains
     subroutine init_gnumake_functions()
         integer :: k
 
-        if (allocated(makefile_gnumake_functions_table)) return
-        allocate (makefile_gnumake_functions_table(39))
+        if (allocated(makefile_gnumake_functions)) return
+        allocate (makefile_gnumake_functions(39))
         k = 0
         ! Functions for String Substitution and Analysis
-        call add("subst", [character(len=11) :: "From", "To", "In"])
-        call add("patsubst", [character(len=11) :: "Pattern", "Replacement", "In"])
-        call add("strip", [character(len=11) :: "Text"])
-        call add("findstring", [character(len=11) :: "Find what", "In"])
-        call add("filter", [character(len=11) :: "Pattern", "Text"])
-        call add("filter-out", [character(len=11) :: "Pattern", "Text"])
-        call add("sort", [character(len=11) :: "List"])
-        call add("word", [character(len=11) :: "Index", "Text"])
-        call add("wordlist", [character(len=11) :: "S", "E", "Text"])
-        call add("words", [character(len=11) :: "Text"])
-        call add("firstword", [character(len=11) :: "Text"])
-        call add("lastword", [character(len=11) :: "Names"])
+        call append("subst", [character(len=11) :: "From", "To", "In"])
+        call append("patsubst", [character(len=11) :: "Pattern", "Replacement", "In"])
+        call append("strip", [character(len=11) :: "Text"])
+        call append("findstring", [character(len=11) :: "Find what", "In"])
+        call append("filter", [character(len=11) :: "Pattern", "Text"])
+        call append("filter-out", [character(len=11) :: "Pattern", "Text"])
+        call append("sort", [character(len=11) :: "List"])
+        call append("word", [character(len=11) :: "Index", "Text"])
+        call append("wordlist", [character(len=11) :: "S", "E", "Text"])
+        call append("words", [character(len=11) :: "Text"])
+        call append("firstword", [character(len=11) :: "Text"])
+        call append("lastword", [character(len=11) :: "Names"])
         ! Functions for File Names
-        call add("dir", [character(len=11) :: "Names"])
-        call add("notdir", [character(len=11) :: "Names"])
-        call add("suffix", [character(len=11) :: "Names"])
-        call add("basename", [character(len=11) :: "Names"])
-        call add("addsuffix", [character(len=11) :: "Suffix", "Names"])
-        call add("addprefix", [character(len=11) :: "Prefix", "Names"])
-        call add("join", [character(len=11) :: "List 1", "List 2"])
-        call add("wildcard", [character(len=11) :: "Pattern"])
-        call add("realpath", [character(len=11) :: "Names"])
-        call add("abspath", [character(len=11) :: "Names"])
+        call append("dir", [character(len=11) :: "Names"])
+        call append("notdir", [character(len=11) :: "Names"])
+        call append("suffix", [character(len=11) :: "Names"])
+        call append("basename", [character(len=11) :: "Names"])
+        call append("addsuffix", [character(len=11) :: "Suffix", "Names"])
+        call append("addprefix", [character(len=11) :: "Prefix", "Names"])
+        call append("join", [character(len=11) :: "List 1", "List 2"])
+        call append("wildcard", [character(len=11) :: "Pattern"])
+        call append("realpath", [character(len=11) :: "Names"])
+        call append("abspath", [character(len=11) :: "Names"])
         ! Functions for Conditionals
-        call add("if", [character(len=11) :: "Condition", "Then-part", "Else-part"])
-        call add("or", [character(len=11) :: "Condition 1", "Condition 2", "Condition 3", "Condition 4"])
-        call add("and", [character(len=11) :: "Condition 1", "Condition 2", "Condition 3", "Condition 4"])
+        call append("if", [character(len=11) :: "Condition", "Then-part", "Else-part"])
+        call append("or", [character(len=11) :: "Condition 1", "Condition 2", "Condition 3", "Condition 4"])
+        call append("and", [character(len=11) :: "Condition 1", "Condition 2", "Condition 3", "Condition 4"])
         ! Misc functions
-        call add("foreach", [character(len=11) :: "Variable", "List", "Text"])
-        call add("file", [character(len=11) :: "Op", "Filename", "Text"])
-        call add("call", [character(len=11) :: "Variable", "Param 1", "Param 2", "Param 3", "Param 4", "Param 5"])
-        call add("value", [character(len=11) :: "Variable"])
-        call add("eval", [character(len=11) :: "statement"])
-        call add("origin", [character(len=11) :: "Variable"])
-        call add("flavor", [character(len=11) :: "Variable"])
-        call add("shell", [character(len=11) :: "Command"])
-        call add("guile", [character(len=11) :: "Program"])
+        call append("foreach", [character(len=11) :: "Variable", "List", "Text"])
+        call append("file", [character(len=11) :: "Op", "Filename", "Text"])
+        call append("call", [character(len=11) :: "Variable", "Param 1", "Param 2", "Param 3", "Param 4", "Param 5"])
+        call append("value", [character(len=11) :: "Variable"])
+        call append("eval", [character(len=11) :: "statement"])
+        call append("origin", [character(len=11) :: "Variable"])
+        call append("flavor", [character(len=11) :: "Variable"])
+        call append("shell", [character(len=11) :: "Command"])
+        call append("guile", [character(len=11) :: "Program"])
         ! Functions that control make
-        call add("error", [character(len=11) :: "Text"])
-        call add("warning", [character(len=11) :: "Text"])
-        call add("info", [character(len=11) :: "Text"])
+        call append("error", [character(len=11) :: "Text"])
+        call append("warning", [character(len=11) :: "Text"])
+        call append("info", [character(len=11) :: "Text"])
 
     contains
 
-        subroutine add(name, prompts)
+        subroutine append(name, prompts)
             character(len=*), intent(in) :: name
             character(len=*), intent(in) :: prompts(:)
 
             k = k + 1
-            makefile_gnumake_functions_table(k)%name = name
-            makefile_gnumake_functions_table(k)%prompts(1:size(prompts)) = prompts
-        end subroutine add
+            makefile_gnumake_functions(k)%name = name
+            makefile_gnumake_functions(k)%prompts(1:size(prompts)) = prompts
+        end subroutine append
     end subroutine init_gnumake_functions
 
     ! The faces.
@@ -743,7 +744,7 @@ contains
         character(len=*), parameter :: VA = "font_lock_variable_name_face", NEG = "font_lock_negation_char_face"
         type(font_lock_keyword_type) :: all(64)
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3)
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         integer :: n, k
         logical :: d
 
@@ -754,23 +755,23 @@ contains
         h3(2) = h(2, "makefile_shell", FONT_LOCK_OVERRIDE_PREPEND, .true.)
         ! This is for after normal assignment
         h3(3) = h(3, "font_lock_string_face", FONT_LOCK_OVERRIDE_PREPEND, .true.)
-        call add(font_lock_keyword(makefile_macroassign_regex, highlights=h3))
+        call append(font_lock_keyword(makefile_macroassign_regexp, highlights=h3))
         ! Rule actions.
         ! FIXME: When this spans multiple lines we need font-lock-multiline.
         h3(1) = h(1, "font_lock_type_face", lax=.true.)
         h3(2) = h(2, "makefile_shell", FONT_LOCK_OVERRIDE_PREPEND)
         ! Only makepp has builtin commands.
         h3(3) = h(3, "font_lock_builtin_face", FONT_LOCK_OVERRIDE_PREPEND, .true.)
-        call add(font_lock_keyword(matcher=makefile_match_action, highlights=h3))
+        call append(font_lock_keyword(matcher=makefile_match_action, highlights=h3))
         ! Variable references even in targets/strings/comments.
         h1(1) = h(2, VA, FONT_LOCK_OVERRIDE_PREPEND)
-        call add(font_lock_keyword(var, highlights=h1))
+        call append(font_lock_keyword(var, highlights=h1))
         ! Automatic variable references and single character variable references,
         ! but not shell variables references.
         h1(1) = h(1, "font_lock_constant_face", FONT_LOCK_OVERRIDE_PREPEND)
-        call add(font_lock_keyword("[^$]\$\([@%<?^+*_]\|[a-zA-Z0-9]\>\)", highlights=h1))
+        call append(font_lock_keyword("[^$]\$\([@%<?^+*_]\|[a-zA-Z0-9]\>\)", highlights=h1))
         h1(1) = h(1, "makefile_targets", FONT_LOCK_OVERRIDE_APPEND)
-        call add(font_lock_keyword("[^$]\(\$[@%*]\)", highlights=h1))
+        call append(font_lock_keyword("[^$]\(\$[@%*]\)", highlights=h1))
 
         if (present(keywords)) then
             ! Fontify conditionals and includes.
@@ -778,58 +779,58 @@ contains
             if (present(dash)) d = dash
 
             if (d) then
-                re = string_replace("-", "[_-]", regexp_opt(keywords, REGEXP_OPT_GROUP))
+                regexp = string_replace("-", "[_-]", regexp_opt(keywords, REGEXP_OPT_GROUP))
             else
-                re = regexp_opt(keywords, REGEXP_OPT_GROUP)
+                regexp = regexp_opt(keywords, REGEXP_OPT_GROUP)
             end if
 
             h2(1) = h(1, "font_lock_keyword_face")
             h2(2) = h(2, VA)
-            call add(font_lock_keyword("^\(?: [ "//TAB//"]*\)?"//string_replace(" ", "[ "//TAB//"]+", re)//"\>[ "//TAB// &
-                                       "]*\([^: "//TAB//LF//"#]*\)", highlights=h2))
+            call append(font_lock_keyword("^\(?: [ "//TAB//"]*\)?"//string_replace(" ", "[ "//TAB//"]+", regexp)//"\>[ "//TAB// &
+                                          "]*\([^: "//TAB//LF//"#]*\)", highlights=h2))
         end if
 
         if (present(negation)) then
             h2(1) = h(1, NEG, FONT_LOCK_OVERRIDE_PREPEND)
             h2(2) = h(2, NEG, FONT_LOCK_OVERRIDE_PREPEND, .true.)
-            call add(font_lock_keyword(negation, highlights=h2))
+            call append(font_lock_keyword(negation, highlights=h2))
         end if
 
         if (space) then
             ! Highlight lines that contain just whitespace.
             ! They can cause trouble, especially if they start with a tab.
-            call add(font_lock_keyword("^[ "//TAB//"]+$", face="makefile_space"))
+            call append(font_lock_keyword("^[ "//TAB//"]+$", face="makefile_space"))
             ! Highlight shell comments that Make treats as commands,
             ! since these can fool people.
             h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_YES)
-            call add(font_lock_keyword("^"//TAB//"+#", highlights=h1))
+            call append(font_lock_keyword("^"//TAB//"+#", highlights=h1))
             ! Highlight spaces that precede tabs.
             ! They can make a tab fail to be effective.
             h1(1) = h(1, "makefile_space")
-            call add(font_lock_keyword("^\( +\)"//TAB, highlights=h1))
+            call append(font_lock_keyword("^\( +\)"//TAB, highlights=h1))
         end if
 
         if (present(fl_keywords)) then
             do k = 1, size(fl_keywords)
-                call add(fl_keywords(k))
+                call append(fl_keywords(k))
             end do
         end if
 
         ! Do dependencies.
         h2(1) = h(1, "makefile_targets", FONT_LOCK_OVERRIDE_PREPEND)
         h2(2) = h(3, "makefile_shell", FONT_LOCK_OVERRIDE_PREPEND, .true.)
-        call add(font_lock_keyword(matcher=makefile_match_dependency, highlights=h2))
+        call append(font_lock_keyword(matcher=makefile_match_dependency, highlights=h2))
         allocate (kw(n))
         kw(:) = all(1:n)
 
     contains
 
-        subroutine add(k)
+        subroutine append(k)
             type(font_lock_keyword_type), intent(in) :: k
 
             n = n + 1
             all(n) = k
-        end subroutine add
+        end subroutine append
     end function makefile_make_font_lock_keywords
 
     ! Not a port.
@@ -844,8 +845,8 @@ contains
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3), a(1)
         integer :: n
 
-        makefile_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regex, .true., makefile_statements)
-        makefile_automake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regex, .true., &
+        makefile_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., makefile_statements)
+        makefile_automake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., &
                                                                                 makefile_automake_statements)
         ! GNU make.
         h1(1) = h(1, TG, APPEND)
@@ -859,7 +860,7 @@ contains
         h1(1) = h(1, SH, PREPEND, .true.)
         a(1) = font_lock_anchored(h1, matcher=makefile_match_function_end)
         extra(4) = font_lock_keyword("[^$]\$\([({]\)shell[ "//TAB//"]+", highlights=a)
-        makefile_gmake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regex, .true., &
+        makefile_gmake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., &
                                                                              makefile_gmake_statements, &
                                                                              "^\(?: [ "//TAB//"]*\)?if\(n\)\(?:def\|eq\)\>", &
                                                                              extra(1:4))
@@ -907,13 +908,13 @@ contains
         extra(11) = font_lock_keyword("perl[-_]begin\s *\(?:\s #.*\)?"//LF//"\(\(?:.*"//LF//"\)+?\)\s *perl[-_]end\>", &
                                       highlights=h1)
         makefile_makepp_font_lock_keywords = &
-            makefile_make_font_lock_keywords(makefile_var_use_regex, .false., makefile_makepp_statements, &
+            makefile_make_font_lock_keywords(makefile_var_use_regexp, .false., makefile_makepp_statements, &
                                              "^\(?: [ "//TAB//"]*\)?\(?:and[ "//TAB//"]+\|else[ "//TAB//"]+\|or[ "//TAB// &
                                              "]+\)?if\(n\)\(?:def\|eq\|sys\|true\)\>", extra(1:11), dash=.true.)
         ! BSD make.  A lot more could be done for variables here.
         h1(1) = h(1, KW)
         extra(1) = font_lock_keyword("^[ "//TAB//"]*\.for[ "//TAB//"].+[ "//TAB//"]\(in\)\>", highlights=h1)
-        base = makefile_make_font_lock_keywords(makefile_var_use_regex, .true., &
+        base = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., &
                                                 negation="^\(?: [ "//TAB//"]*\)?\.\(?:el\)?if\(n?\)\(?:def\|make\)?\>[ " &
                                                 //TAB//"]*\(!?\)", fl_keywords=extra(1:1))
         n = size(base)
@@ -973,10 +974,10 @@ contains
         integer :: k
 
         s => default_state
-        if (cur == 0 .or. .not. allocated(locals)) return
+        if (current == 0 .or. .not. allocated(locals)) return
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) then
+            if (locals(k)%serial == buffers(current)%serial) then
                 s => locals(k)
                 return
             end if
@@ -993,13 +994,13 @@ contains
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
                 locals(k) = default_state
-                locals(k)%serial = buffers(cur)%serial
+                locals(k)%serial = buffers(current)%serial
                 return
             end if
         end do
@@ -1012,25 +1013,25 @@ contains
         end do
 
         grown(n + 1) = default_state
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, locals)
     end subroutine make_local
 
     ! kill-all-local-variables: forget the current buffer's tables.
     ! Not a port.
-    subroutine kill_make_locals()
+    subroutine clear_make_locals()
         integer :: k
 
         if (.not. allocated(locals)) return
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) locals(k)%serial = 0
+            if (locals(k)%serial == buffers(current)%serial) locals(k)%serial = 0
         end do
-    end subroutine kill_make_locals
+    end subroutine clear_make_locals
 
     ! NAMES with NAME added in front (cons).
     ! Not a port.
-    subroutine add_front(names, name)
+    subroutine prepend(names, name)
         type(makefile_name_type), allocatable, intent(inout) :: names(:)
         character(len=*), intent(in) :: name
         type(makefile_name_type), allocatable :: grown(:)
@@ -1046,7 +1047,7 @@ contains
         end do
 
         call move_alloc(grown, names)
-    end subroutine add_front
+    end subroutine prepend
 
     ! Whether NAME is one of NAMES (assoc).
     ! Not a port.
@@ -1225,7 +1226,7 @@ contains
     !>    IMPORTANT: Please note that enabling this option causes Makefile mode
     !>    to MODIFY A FILE WITHOUT YOUR CONFIRMATION when "it seems necessary".
     !>
-    !> `makefile_special_targets_list':
+    !> `makefile_special_targets':
     !>    List of special targets.  You will be offered to complete
     !>    on one of those in the minibuffer whenever you enter a `.'.
     !>    at the beginning of a line in Makefile mode.
@@ -1239,10 +1240,10 @@ contains
         call load_make_mode()
         call major_modes%makefile_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call completion_at_point_functions%add(makefile_completions_at_point, local=.true.)
-        call write_file_functions%add(makefile_warn_suspicious_lines, local=.true.)
-        call write_file_functions%add(makefile_warn_continuations, local=.true.)
-        call write_file_functions%add(makefile_cleanup_continuations_function, local=.true.)
+        call completion_at_point_functions%append(makefile_completions_at_point, local=.true.)
+        call write_file_functions%append(makefile_warn_suspicious_lines, local=.true.)
+        call write_file_functions%append(makefile_warn_continuations, local=.true.)
+        call write_file_functions%append(makefile_cleanup_continuations_function, local=.true.)
         call make_local()
         ! Font lock.
         call set_font_lock_defaults(makefile_font_lock_keywords)
@@ -1259,7 +1260,7 @@ contains
         call indent_line_function%set_local(indent_to_left_margin)
         ! Real TABs are important in makefiles
         call indent_tabs_mode%set_local(.true.)
-        call major_modes%makefile_mode%finish(saved, status)
+        call major_modes%makefile_mode%end(saved, status)
     end subroutine makefile_mode
 
     !> An adapted `makefile_mode' that knows about automake.  Port of
@@ -1272,7 +1273,7 @@ contains
         call major_modes%makefile_automake_mode%begin(saved, status)
         if (.not. status%ok()) return
         call set_font_lock_defaults(makefile_automake_font_lock_keywords)
-        call major_modes%makefile_automake_mode%finish(saved, status)
+        call major_modes%makefile_automake_mode%end(saved, status)
     end subroutine makefile_automake_mode
 
     !> An adapted `makefile_mode' that knows about gmake.  Port of
@@ -1285,7 +1286,7 @@ contains
         call major_modes%makefile_gmake_mode%begin(saved, status)
         if (.not. status%ok()) return
         call set_font_lock_defaults(makefile_gmake_font_lock_keywords)
-        call major_modes%makefile_gmake_mode%finish(saved, status)
+        call major_modes%makefile_gmake_mode%end(saved, status)
     end subroutine makefile_gmake_mode
 
     !> An adapted `makefile_mode' that knows about makepp.  Port of
@@ -1297,9 +1298,9 @@ contains
         if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call major_modes%makefile_makepp_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call makefile_rule_action_regex%set_local(makefile_makepp_rule_action_regex)
+        call makefile_rule_action_regexp%set_local(makefile_makepp_rule_action_regexp)
         call set_font_lock_defaults(makefile_makepp_font_lock_keywords)
-        call major_modes%makefile_makepp_mode%finish(saved, status)
+        call major_modes%makefile_makepp_mode%end(saved, status)
     end subroutine makefile_makepp_mode
 
     !> An adapted `makefile_mode' that knows about BSD make.  Port of
@@ -1311,11 +1312,11 @@ contains
         if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call syms_of_make_mode()
         call major_modes%makefile_bsdmake_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call makefile_dependency_regex%set_local(makefile_bsdmake_dependency_regex)
+        call makefile_dependency_regexp%set_local(makefile_bsdmake_dependency_regexp)
         call makefile_dependency_skip%set_local("^:!")
-        call makefile_rule_action_regex%set_local(makefile_bsdmake_rule_action_regex)
+        call makefile_rule_action_regexp%set_local(makefile_bsdmake_rule_action_regexp)
         call set_font_lock_defaults(makefile_bsdmake_font_lock_keywords)
-        call major_modes%makefile_bsdmake_mode%finish(saved, status)
+        call major_modes%makefile_bsdmake_mode%end(saved, status)
     end subroutine makefile_bsdmake_mode
 
     !> An adapted `makefile_mode' that knows about imake.  Port of
@@ -1328,11 +1329,11 @@ contains
         call major_modes%makefile_imake_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! (setq-local syntax-propertize-function nil)
-        call syntax_propertize_function%kill_local()
+        call syntax_propertize_function%clear_local()
         call set_font_lock_defaults(makefile_imake_font_lock_keywords)
         call comment_start%set_local("XCOMM")
         call comment_start_skip%set_local("XCOMM[ "//TAB//"]*")
-        call major_modes%makefile_imake_mode%finish(saved, status)
+        call major_modes%makefile_imake_mode%end(saved, status)
     end subroutine makefile_imake_mode
 
     ! ------------------------------------------------------------------
@@ -1392,7 +1393,7 @@ contains
                 if (char_before_at(point() - 1) == iachar("\")) cycle
             end if
 
-            if (looking_at(makefile_dependency_regex%value, st)) then
+            if (looking_at(makefile_dependency_regexp%value, st)) then
                 found = .true.
                 return
             end if
@@ -1456,10 +1457,10 @@ contains
 
         call makefile_pickup_targets(status)
         if (.not. status%ok()) return
-        allocate (items(size(makefile_special_targets_list)))
+        allocate (items(size(makefile_special_targets)))
 
         do k = 1, size(items)
-            items(k) = value_type(text=trim(makefile_special_targets_list(k)))
+            items(k) = value_type(text=trim(makefile_special_targets(k)))
         end do
 
         table%list = make_list(items)
@@ -1705,7 +1706,7 @@ contains
         call goto_char(point_min())
 
         do
-            call re_search_forward(makefile_macroassign_regex, found, st, noerror=SEARCH_NOERROR)
+            call re_search_forward(makefile_macroassign_regexp, found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
             call goto_char(match_beginning(1, st))
             start = point()
@@ -1752,7 +1753,7 @@ contains
     end subroutine cmd_makefile_pickup_everything
 
     !> Scan the current directory for filenames to use as targets.
-    !> Checks each filename against `makefile_ignored_files_in_pickup_regex'
+    !> Checks each filename against `makefile_ignored_files_in_pickup_regexp'
     !> and adds all qualifying names to the list of known targets.  Port of
     !> make-mode.el:makefile-pickup-filenames-as-targets.
     recursive subroutine makefile_pickup_filenames_as_targets(status)
@@ -1762,19 +1763,19 @@ contains
         integer(int64) :: k
         type(status_type) :: st
 
-        if (.not. allocated(buffers(cur)%filename)) then
+        if (.not. allocated(buffers(current)%filename)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
             return
         end if
 
-        dir = file_name_directory(buffers(cur)%filename)
+        dir = file_name_directory(buffers(current)%filename)
         call file_name_all_completions("", dir, names, status)
         if (.not. status%ok()) return
 
         do k = 1, list_length(names)
             name = xstring(list_elt(names, k))
             if (is_file_directory(name)) cycle
-            if (string_match(makefile_ignored_files_in_pickup_regex, name, st) > 0) cycle
+            if (string_match(makefile_ignored_files_in_pickup_regexp, name, st) > 0) cycle
             if (makefile_remember_target(name)) call message("Picked up file """//name//""" as target")
         end do
     end subroutine makefile_pickup_filenames_as_targets
@@ -1789,7 +1790,7 @@ contains
     recursive subroutine makefile_completions_at_point(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, opoint, moved
+        integer(int64) :: beginning, opoint, moved
         integer :: pc, paren
         logical :: do_macros, at_bol
         type(make_state_type), pointer :: s
@@ -1799,7 +1800,7 @@ contains
         status = status_type()
         opoint = point()
         moved = skip_chars_backward("^$(){}:#= "//TAB//LF, status)
-        beg = point()
+        beginning = point()
         paren = 0
         do_macros = .false.
         pc = before_char()
@@ -1819,7 +1820,7 @@ contains
             do_macros = before_char() == iachar("$")
         end if
 
-        call goto_char(beg)
+        call goto_char(beginning)
         at_bol = is_bol()
         call goto_char(opoint)
 
@@ -1861,7 +1862,7 @@ contains
         end if
 
         data%found = .true.
-        data%start = beg
+        data%start = beginning
         data%end = point()
         data%table%list = all
         if (allocated(completion_suffix)) data%exit_function => completion_exit
@@ -1965,7 +1966,7 @@ contains
             moved = forward_line(1_int64)
         end do
 
-        call free_marker(endmark, st)
+        call destroy_marker(endmark, st)
         call goto_char(here)
     end subroutine makefile_backslash_region
 
@@ -1983,7 +1984,7 @@ contains
         call copy_marker_at(point(), mark, .false., status)
         call makefile_backslash_region(b, e, current_prefix_arg%kind /= PREFIX_NONE, status)
         call goto_char(mpos(mark))
-        call free_marker(mark, st)
+        call destroy_marker(mark, st)
     end subroutine cmd_makefile_backslash_region
 
     ! The width of the selected window (window-width).
@@ -2095,8 +2096,8 @@ contains
 
             end = point()
             ! (save-restriction)
-            begv = buffers(cur)%begv
-            zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+            begv = buffers(current)%begv
+            zv_from_end = buffers(current)%text%z - buffers(current)%zv
             call narrow_to_region(beginning, end, status)
 
             if (status%ok()) then
@@ -2115,25 +2116,25 @@ contains
                 moved = skip_chars_backward(LF, st)
                 if (moved < 0) call delete_region(point(), point_max(), st)
                 call widen()
-                call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+                call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
             end if
-        else if (looking_at(makefile_macroassign_regex, st)) then
+        else if (looking_at(makefile_macroassign_regexp, st)) then
             ! Have a macro assign.  Fill just this line, and then backslash
             ! resulting region.
-            begv = buffers(cur)%begv
-            zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+            begv = buffers(current)%begv
+            zv_from_end = buffers(current)%text%z - buffers(current)%zv
             call narrow_to_region(point(), line_beginning_position(2_int64), status)
 
             if (status%ok()) then
                 call fill_one_less(status)
                 if (status%ok()) call makefile_backslash_region(point_min(), point_max(), .false., status)
                 call widen()
-                call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+                call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
             end if
         end if
 
         call goto_char(mpos(opoint))
-        call free_marker(opoint, st)
+        call destroy_marker(opoint, st)
     end subroutine makefile_fill_paragraph
 
     ! (let ((fill-paragraph-function nil) (fill-column (- fill-column 1)))
@@ -2175,7 +2176,7 @@ contains
         s => state()
         if (allocated(s%targets)) saved_target_table = s%targets
         this_buffer = current_buffer()
-        call get_buffer_create(makefile_up_to_date_buffer_name%value, up_to_date_buffer, status)
+        call get_or_make_buffer(makefile_up_to_date_buffer_name%value, up_to_date_buffer, status)
         if (.not. status%ok()) return
         call makefile_save_temporary(filename, status)
         if (.not. status%ok()) return
@@ -2194,13 +2195,13 @@ contains
         end if
 
         if (status%ok()) then
-            buffers(cur)%read_only = .false.
+            buffers(current)%read_only = .false.
             call erase_buffer(status)
             if (status%ok()) call makefile_query_targets(filename, real_targets, prereqs, status)
 
             ! if it did not get us anything
             if (status%ok() .and. buffer_size() == 0) then
-                call kill_buffer(current_buffer(), status)
+                call close_buffer(current_buffer(), status)
                 call message("No overview created!")
             end if
 
@@ -2221,7 +2222,7 @@ contains
                 if (status%ok()) then
                     call shrink_window_if_larger_than_buffer()
                     call sort_lines_in_buffer(status)
-                    buffers(cur)%read_only = .true.
+                    buffers(current)%read_only = .true.
                 end if
             end if
         end if
@@ -2326,9 +2327,9 @@ contains
     !> `makefile_query_one_target_method_function'
     !> and generates the overview, one line per target name.  Port of
     !> make-mode.el:makefile-query-targets.
-    subroutine makefile_query_targets(filename, target_table, prereq_list, status)
+    subroutine makefile_query_targets(filename, target_table, prerequisites, status)
         character(len=*), intent(in) :: filename
-        type(makefile_name_type), intent(in) :: target_table(:), prereq_list(:)
+        type(makefile_name_type), intent(in) :: target_table(:), prerequisites(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         logical :: no_prereqs, needs_rebuild
@@ -2340,9 +2341,9 @@ contains
         do k = 1, size(target_table)
             no_prereqs = .true.
 
-            do j = 1, size(prereq_list)
-                if (prereq_list(j)%name == target_table(k)%name &
-                    .and. len(prereq_list(j)%name) == len(target_table(k)%name)) no_prereqs = .false.
+            do j = 1, size(prerequisites)
+                if (prerequisites(j)%name == target_table(k)%name &
+                    .and. len(prerequisites(j)%name) == len(target_table(k)%name)) no_prereqs = .false.
             end do
 
             needs_rebuild = no_prereqs
@@ -2395,7 +2396,7 @@ contains
         status = status_type()
         done = .false.
         if (.not. is_derived_mode("makefile_mode")) return
-        if (.not. makefile_cleanup_continuations%value .or. buffers(cur)%read_only) return
+        if (.not. makefile_cleanup_continuations%value .or. buffers(current)%read_only) return
         opoint = point()
         call goto_char(point_min())
 
@@ -2471,10 +2472,10 @@ contains
         character(len=:), allocatable :: name, args, arg
         integer :: k, j
 
-        allocate (items(size(makefile_gnumake_functions_table)))
+        allocate (items(size(makefile_gnumake_functions)))
 
         do k = 1, size(items)
-            items(k) = value_type(text=trim(makefile_gnumake_functions_table(k)%name))
+            items(k) = value_type(text=trim(makefile_gnumake_functions(k)%name))
         end do
 
         table%list = make_list(items)
@@ -2483,12 +2484,12 @@ contains
         if (len(name) == 0) return
         args = ""
 
-        do k = 1, size(makefile_gnumake_functions_table)
-            if (trim(makefile_gnumake_functions_table(k)%name) /= name) cycle
+        do k = 1, size(makefile_gnumake_functions)
+            if (trim(makefile_gnumake_functions(k)%name) /= name) cycle
 
-            do j = 1, size(makefile_gnumake_functions_table(k)%prompts)
-                if (len_trim(makefile_gnumake_functions_table(k)%prompts(j)) == 0) exit
-                call read_string("["//name//"] "//trim(makefile_gnumake_functions_table(k)%prompts(j))//": ", arg, status)
+            do j = 1, size(makefile_gnumake_functions(k)%prompts)
+                if (len_trim(makefile_gnumake_functions(k)%prompts(j)) == 0) exit
+                call read_string("["//name//"] "//trim(makefile_gnumake_functions(k)%prompts(j))//": ", arg, status)
                 if (.not. status%ok()) return
                 if (j > 1) args = args//","
                 args = args//arg
@@ -2541,7 +2542,7 @@ contains
         found = status%ok() .and. f > 0
     end subroutine makefile_match_function_end
 
-    !> Search for `makefile_dependency_regex' up to LIMIT.
+    !> Search for `makefile_dependency_regexp' up to LIMIT.
     !> Checks that the colon has not already been fontified, else we
     !> matched in a rule action.  Port of make-mode.el:makefile-match-dependency.
     recursive subroutine makefile_match_dependency(limit, found, status)
@@ -2588,7 +2589,7 @@ contains
 
             opoint = point()
             call beginning_of_line()
-            matched = looking_at(makefile_dependency_regex%value, st)
+            matched = looking_at(makefile_dependency_regexp%value, st)
 
             if (matched) then
                 deps_end = match_end(1, st)
@@ -2615,7 +2616,7 @@ contains
         call goto_char(pt)
     end subroutine match_dependency
 
-    !> Search for a rule action (`makefile_rule_action_regex') up to LIMIT,
+    !> Search for a rule action (`makefile_rule_action_regexp') up to LIMIT,
     !> not after a continued line.  Port of make-mode.el:makefile-match-action.
     recursive subroutine makefile_match_action(limit, found, status)
         integer(int64), intent(in) :: limit
@@ -2627,7 +2628,7 @@ contains
         found = .false.
 
         do
-            call re_search_forward(makefile_rule_action_regex%value, f, status, bound=limit, noerror=SEARCH_NOERROR)
+            call re_search_forward(makefile_rule_action_regexp%value, f, status, bound=limit, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. f <= 0) return
 
             if (after_char_at(match_beginning(0, status) - 2) /= iachar("\")) then
@@ -2647,9 +2648,9 @@ contains
         status = status_type()
         if (len(macro_name) == 0) return
 
-        do k = 1, size(makefile_runtime_macros_list)
-            if (trim(makefile_runtime_macros_list(k)) == macro_name &
-                .and. len_trim(makefile_runtime_macros_list(k)) == len(macro_name)) then
+        do k = 1, size(makefile_runtime_macros)
+            if (trim(makefile_runtime_macros(k)) == macro_name &
+                .and. len_trim(makefile_runtime_macros(k)) == len(macro_name)) then
                 call insert("$"//macro_name, status)
                 return
             end if
@@ -2669,11 +2670,11 @@ contains
         value = .false.
         if (len(target_name) == 0) return
         s => state()
-        if (.not. member_name(s%targets, target_name)) call add_front(s%targets, target_name)
+        if (.not. member_name(s%targets, target_name)) call prepend(s%targets, target_name)
 
         if (present(has_prereqs)) then
             if (has_prereqs) then
-                call add_front(s%prereqs, target_name)
+                call prepend(s%prereqs, target_name)
                 value = .true.
             end if
         end if
@@ -2691,7 +2692,7 @@ contains
         s => state()
 
         if (.not. member_name(s%macros, macro_name)) then
-            call add_front(s%macros, macro_name)
+            call prepend(s%macros, macro_name)
             value = .true.
         end if
     end function makefile_remember_macro
@@ -2745,9 +2746,9 @@ contains
         ! variable or rule definition, and giving up when we see
         ! a line that is not part of either of those.
         do
-            if (looking_at(makefile_macroassign_regex, st)) then
+            if (looking_at(makefile_macroassign_regexp, st)) then
                 found = match_string_no_properties(1)
-            else if (looking_at(makefile_dependency_regex%value, st)) then
+            else if (looking_at(makefile_dependency_regexp%value, st)) then
                 found = match_string_no_properties(1)
             end if
 
@@ -2851,9 +2852,9 @@ contains
     function itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function itoa
 end module make_mode_fm

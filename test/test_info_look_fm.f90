@@ -26,14 +26,14 @@ module test_info_look_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: current_buffer, set_buffer, kill_buffer, get_buffer, get_buffer_create
+    use buffer_fm, only: current_buffer, set_buffer, close_buffer, get_buffer, get_or_make_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory
     use window_fm, only: window_configuration_type, current_window_configuration, set_window_configuration, &
                          switch_to_buffer
     use bindings_fm, only: init_bindings
-    use info_fm, only: info_directory_list, info_current_node, info_display_manual
+    use info_fm, only: info_directories, info_current_node, info_display_manual
     use info_look_fm, only: info_lookup_add_help, info_lookup_doc_specs_type, info_lookup_name, &
                             info_lookup_reset, info_lookup_guess_default
     implicit none(type, external)
@@ -66,19 +66,19 @@ contains
         call init_fileio()
         call expand_file_name("test/info-resources", dir, st, emacs_wd)
         dir = file_name_as_directory(dir)
-        if (allocated(info_directory_list)) deallocate (info_directory_list)
+        if (allocated(info_directories)) deallocate (info_directories)
         ! (dir1 has a `dir' file for the directory node.)
-        allocate (character(len=len(dir) + 5) :: info_directory_list(2))
-        info_directory_list(1) = dir
-        info_directory_list(2) = dir//"dir1/"
-        call specs%add("(test)Index")
+        allocate (character(len=len(dir) + 5) :: info_directories(2))
+        info_directories(1) = dir
+        info_directories(2) = dir//"dir1/"
+        call specs%append("(test)Index")
         call info_lookup_add_help(mode="test_look_mode", regexp="[a-z]+", doc_spec=specs)
         call info_lookup_reset(st)
         ! The buffer looked up from, in the selected window; no Info
         ! buffer left by an earlier lookup.
         call switch_to_buffer(" info-look from", st)
         b = get_buffer(" temp-info-look")
-        if (b%index /= 0) call kill_buffer(b, st)
+        if (b%index /= 0) call close_buffer(b, st)
     end subroutine setup
 
     !> Kill *info* and go back to OLD and the window configuration CONFIG.
@@ -90,7 +90,7 @@ contains
 
         call set_window_configuration(config)
         b = get_buffer("*info*")
-        if (b%index /= 0) call kill_buffer(b, st)
+        if (b%index /= 0) call close_buffer(b, st)
         call set_buffer(old, st)
     end subroutine teardown
 
@@ -151,7 +151,7 @@ contains
 
         call setup()
         old = current_buffer()
-        call get_buffer_create(" info-look test", b, st)
+        call get_or_make_buffer(" info-look test", b, st)
         call set_buffer(b, st)
         call insert("see the section here", st)
         call goto_char(11_int64)
@@ -159,7 +159,7 @@ contains
         call check(error, found, "found a guess")
         if (.not. allocated(error)) call check(error, guess, "section")
         call set_buffer(old, st)
-        call kill_buffer(b, st)
+        call close_buffer(b, st)
     end subroutine test_guess_default
 
     subroutine test_display_manual(error)
@@ -183,7 +183,7 @@ contains
             call info_display_manual("test", st)
             now = current_buffer()
             call check(error, now%index == b%index, "the same buffer")
-            call kill_buffer(b, st)
+            call close_buffer(b, st)
         end if
 
         call teardown(old, config)

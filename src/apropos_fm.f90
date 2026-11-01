@@ -45,8 +45,8 @@ module apropos_fm
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, symbols, nsymbols, list_elements, xstring, vtag, V_STRING
-    use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, is_buffer_live, get_buffer_create, &
-                         kill_buffer, generate_new_buffer_name
+    use buffer_fm, only: buffers, current, current_buffer, get_buffer, set_buffer, is_buffer_live, get_or_make_buffer, &
+                         close_buffer, generate_new_buffer_name
     use editfns_fm, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
     use insdel_fm, only: insert
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change
@@ -113,7 +113,7 @@ module apropos_fm
     !> where the first word is the standard Emacs term, and the rest of
     !> the words are alternative terms.  Port of apropos.el
     !> apropos-synonyms.
-    character(len=*), parameter :: SYNONYMS(4) = [character(len=16) :: "find open edit", "kill cut", "yank paste", &
+    character(len=*), parameter :: SYNONYMS(4) = [character(len=16) :: "find open edit", "cut kill", "paste yank", &
                                                                                                                  "region selection"]
 
     !> An entry of the apropos accumulator: SYMBOL SCORE FN-DOC VAR-DOC
@@ -192,10 +192,10 @@ contains
     !> Return a regexp matching any two of the words in WORDS.
     !> WILD should be a subexpression matching wildcards between matches.
     !> Port of apropos.el:apropos-words-to-regexp.
-    function apropos_words_to_regexp(words, wild) result(re)
+    function apropos_words_to_regexp(words, wild) result(regexp)
         type(apropos_word_type), intent(in) :: words(:)
         character(len=*), intent(in) :: wild
-        character(len=:), allocatable :: re, others
+        character(len=:), allocatable :: regexp, others
         type(apropos_word_type), allocatable :: w(:)
         integer :: i, j, n
 
@@ -214,11 +214,11 @@ contains
         end do
 
         if (n == 1) then
-            re = w(1)%s
+            regexp = w(1)%s
             return
         end if
 
-        re = ""
+        regexp = ""
 
         do i = 1, n
             others = ""
@@ -229,8 +229,8 @@ contains
                 others = others//w(j)%s
             end do
 
-            if (i > 1) re = re//"\|"
-            re = re//"\(?:"//w(i)%s//"\)"//wild//"\(?:"//others//"\)"
+            if (i > 1) regexp = regexp//"\|"
+            regexp = regexp//"\(?:"//w(i)%s//"\)"//wild//"\(?:"//others//"\)"
         end do
     end function apropos_words_to_regexp
 
@@ -379,14 +379,14 @@ contains
         end function joined
     end subroutine apropos_parse_pattern
 
-    !> Return apropos scores for string STR matching WORDS: the offsets
+    !> Return apropos scores for string STRING matching WORDS: the offsets
     !> (from 0) of the words found in the string; without words, the start
     !> and end of the match of `apropos_pattern'.  Port of
     !> apropos.el:apropos-calc-scores.
-    subroutine apropos_calc_scores(str, words, have_words, scores)
-        character(len=*), intent(in) :: str
+    subroutine apropos_calc_scores(string, words, has_words, scores)
+        character(len=*), intent(in) :: string
         type(apropos_word_type), intent(in) :: words(:)
-        logical, intent(in) :: have_words
+        logical, intent(in) :: has_words
         integer(int64), allocatable, intent(out) :: scores(:)
         type(status_type) :: st
         integer(int64) :: i
@@ -394,29 +394,29 @@ contains
 
         allocate (scores(0))
 
-        if (have_words .and. size(words) > 0) then
+        if (has_words .and. size(words) > 0) then
             do k = 1, size(words)
-                i = string_match(words(k)%s, str, st, inhibit_modify=.true.)
+                i = string_match(words(k)%s, string, st, inhibit_modify=.true.)
                 if (st%ok() .and. i > 0) scores = [i - 1, scores]
             end do
         else
-            i = string_match(apropos_pattern, str, st)
+            i = string_match(apropos_pattern, string, st)
             if (st%ok() .and. i > 0) scores = [i - 1, match_end(0, st) - 1]
         end if
     end subroutine apropos_calc_scores
 
-    !> Return true if STR is a genuine hit: it matches at least two of
+    !> Return true if STRING is a genuine hit: it matches at least two of
     !> WORDS (unless only one was given).  Port of
     !> apropos.el:apropos-true-hit.
-    logical function apropos_true_hit(str, words) result(hit)
-        character(len=*), intent(in) :: str
+    logical function apropos_true_hit(string, words) result(hit)
+        character(len=*), intent(in) :: string
         type(apropos_word_type), allocatable, intent(in) :: words(:)
         integer(int64), allocatable :: scores(:)
 
         hit = .true.
         if (.not. allocated(words)) return
         if (size(words) <= 1) return
-        call apropos_calc_scores(str, words, .true., scores)
+        call apropos_calc_scores(string, words, .true., scores)
         hit = size(scores) > 1
     end function apropos_true_hit
 
@@ -473,7 +473,7 @@ contains
 
         call major_modes%apropos_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call major_modes%apropos_mode%finish(saved, status)
+        call major_modes%apropos_mode%end(saved, status)
     end subroutine apropos_mode
 
     !> The apropos button at `pos': its type (`apropos_name' or a
@@ -508,7 +508,7 @@ contains
     logical function is_at_name()
         character(len=:), allocatable :: type, name
 
-        call button_at(buffers(cur)%pt, type, name)
+        call button_at(buffers(current)%pt, type, name)
         is_at_name = type == "apropos_name"
     end function is_at_name
 
@@ -521,7 +521,7 @@ contains
         status = status_type()
         shortage = forward_line(1_int64)
 
-        do while (.not. is_at_name() .and. buffers(cur)%pt < point_max())
+        do while (.not. is_at_name() .and. buffers(current)%pt < point_max())
             shortage = forward_line(1_int64)
         end do
     end subroutine apropos_next_name
@@ -535,7 +535,7 @@ contains
         status = status_type()
         shortage = forward_line(-1_int64)
 
-        do while (.not. is_at_name() .and. buffers(cur)%pt > point_min())
+        do while (.not. is_at_name() .and. buffers(current)%pt > point_min())
             shortage = forward_line(-1_int64)
         end do
     end subroutine apropos_previous_name

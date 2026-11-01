@@ -30,15 +30,15 @@ module paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use buffer_fm, only: buffers, cur, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
+    use buffer_fm, only: buffers, current, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, is_bob, is_eob, is_bol, point_min, point_max, constrain_to_field, &
                           narrow_to_region, widen, inhibit_field_text_motion
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use indent_fm, only: current_column, move_to_left_margin, current_left_margin
-    use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr, fill_prefix
+    use simple_fm, only: cut_region, set_mark, push_mark, transpose_subr, fill_prefix
     use editfns_fm, only: mark_position
-    use data_fm, only: string_setting, logical_setting
+    use data_fm, only: string_setting_type, logical_setting_type
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
@@ -47,9 +47,9 @@ module paragraphs_fm
     private
 
     public :: transpose_paragraphs, transpose_sentences, init_paragraph_variables, count_sentences
-    public :: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, backward_kill_paragraph, &
+    public :: forward_paragraph, backward_paragraph, mark_paragraph, cut_paragraph, backward_cut_paragraph, &
               start_of_paragraph_text, end_of_paragraph_text, syms_of_paragraphs
-    public :: sentence_end_regexp, forward_sentence, backward_sentence, kill_sentence, backward_kill_sentence, &
+    public :: sentence_end_regexp, forward_sentence, backward_sentence, cut_sentence, backward_cut_sentence, &
               mark_end_of_sentence
 
     integer, parameter :: TAB = 9, NEWLINE = 10, FORMFEED = 12, SPACE = 32
@@ -71,7 +71,7 @@ module paragraphs_fm
     !> following a hard newline are considered to match.  Port of
     !> paragraphs.el paragraph-start (one global value; set by
     !> syms_of_paragraphs).
-    type(string_setting), public :: paragraph_start = string_setting(name="paragraph_start")
+    type(string_setting_type), public :: paragraph_start = string_setting_type(name="paragraph_start")
 
     !> Regexp for beginning of a line that separates paragraphs.
     !> If you change this, you may have to change `paragraph_start' also.
@@ -81,7 +81,7 @@ module paragraphs_fm
     !> an anchor.  This ensures that the paragraph functions will work
     !> equally within a region of text indented by a margin setting.  Port
     !> of paragraphs.el paragraph-separate.
-    type(string_setting), public :: paragraph_separate = string_setting(name="paragraph_separate")
+    type(string_setting_type), public :: paragraph_separate = string_setting_type(name="paragraph_separate")
 
     !> True means a single space does not end a sentence.
     !> This user option affects fill commands and sentence commands.
@@ -89,8 +89,8 @@ module paragraphs_fm
     !> If this variable is true, Emacs considers a period followed by
     !> two spaces or by a newline as the end of a sentence.  Port of
     !> paragraphs.el sentence-end-double-space.
-    type(logical_setting), public :: sentence_end_double_space = &
-                                     logical_setting(name="sentence_end_double_space", value=.true.)
+    type(logical_setting_type), public :: sentence_end_double_space = &
+                                          logical_setting_type(name="sentence_end_double_space", value=.true.)
 
     !> True means the paragraph commands are not affected by `fill_prefix'.
     !> This is desirable in modes where blank lines are the paragraph delimiters.
@@ -123,7 +123,7 @@ module paragraphs_fm
     !> by the function `sentence_end'.  You should always use this function
     !> to obtain the value of this variable.  Port of paragraphs.el
     !> sentence-end.
-    type(string_setting), public :: sentence_end = string_setting(name="sentence_end")
+    type(string_setting_type), public :: sentence_end = string_setting_type(name="sentence_end")
 
     !> Regexp matching the basic end of a sentence, not including
     !> following space.  Port of paragraphs.el sentence-end-base.
@@ -132,7 +132,7 @@ module paragraphs_fm
     !> Regexp describing line-beginnings that separate pages.  Port of
     !> paragraphs.el page-delimiter (given its value by
     !> `init_paragraph_variables').
-    type(string_setting), public :: page_delimiter = string_setting(name="page_delimiter")
+    type(string_setting_type), public :: page_delimiter = string_setting_type(name="page_delimiter")
 
     !> No-break space, which counts as a space in sentence ends.
     character(len=*), parameter :: NBSP = char(194)//char(160)
@@ -155,8 +155,8 @@ contains
         integer(int64), intent(in) :: pos
 
         char_at = -1
-        if (pos < buffers(cur)%begv .or. pos >= buffers(cur)%zv) return
-        char_at = buf_fetch_char(buffers(cur), char_to_byte(pos))
+        if (pos < buffers(current)%begv .or. pos >= buffers(current)%zv) return
+        char_at = buf_fetch_char(buffers(current), char_to_byte(pos))
     end function char_at
 
     !> The first position from `pos' on that is not one of `chars'
@@ -216,7 +216,7 @@ contains
 
     !> skip-chars-backward " \t".  Not a port.
     subroutine skip_blanks_backward()
-        do while (point() > buffers(cur)%begv)
+        do while (point() > buffers(current)%begv)
             if (char_at(point() - 1) /= SPACE .and. char_at(point() - 1) /= TAB) exit
             call goto_char(point() - 1)
         end do
@@ -248,17 +248,17 @@ contains
         integer(int64), intent(in) :: arg
         integer(int64) :: opoint, start, shortage
         character(len=:), allocatable :: parstart, parsep, sp_parstart, fill_prefix_regexp
-        logical :: found_start, have_fpr
+        logical :: found_start, has_fpr
         type(status_type) :: status
 
         call init_paragraph_variables()
         left = arg
         opoint = point()
-        have_fpr = .false.
+        has_fpr = .false.
 
         if (allocated(fill_prefix%value) .and. .not. paragraph_ignore_fill_prefix) then
             if (len(fill_prefix%value) > 0) then
-                have_fpr = .true.
+                has_fpr = .true.
                 fill_prefix_regexp = regexp_quote(fill_prefix%value)
             end if
         end if
@@ -269,7 +269,7 @@ contains
         ! work normally with indented text.
         parstart = unanchored(paragraph_start%value)
         parsep = unanchored(paragraph_separate%value)
-        if (have_fpr) parsep = parsep//"\|"//fill_prefix_regexp//"[ "//achar(TAB)//"]*$"
+        if (has_fpr) parsep = parsep//"\|"//fill_prefix_regexp//"[ "//achar(TAB)//"]*$"
         ! This is used for searching.
         sp_parstart = "^[ "//achar(TAB)//"]*\(?:"//parstart//"\|"//parsep//"\)"
         start = point()
@@ -298,7 +298,7 @@ contains
                     ! Search back for line that starts or separates paragraphs.
                     found_start = .false.
 
-                    if (have_fpr) then
+                    if (has_fpr) then
                         ! There is a fill prefix; it overrides parstart.
                         do
                             call beginning_of_line()
@@ -347,7 +347,7 @@ contains
                             if (.not. is_bol()) shortage = forward_line(1_int64)
                         end if
                     else
-                        ! No starter or separator line => use buffer beg.
+                        ! No starter or separator line => use buffer beginning.
                         call goto_char(point_min())
                     end if
                 end if
@@ -367,7 +367,7 @@ contains
             ! ... and one more line.
             shortage = forward_line(1_int64)
 
-            if (have_fpr) then
+            if (has_fpr) then
                 ! There is a fill prefix; it overrides parstart.
                 do while (.not. is_eob())
                     call to_left_margin()
@@ -441,7 +441,7 @@ contains
         end if
 
         if (allow_extend .and. ((associated(last_command, this_command) .and. mark_position() /= 0) .or. &
-                                (transient_mark_mode%value .and. buffers(cur)%mark_active))) then
+                                (transient_mark_mode%value .and. buffers(current)%mark_active))) then
             opoint = point()
             call goto_char(mark_position())
             left = forward_paragraph(arg)
@@ -455,33 +455,33 @@ contains
         end if
     end subroutine mark_paragraph
 
-    !> Kill forward to end of paragraph.
-    !> With ARG N, kill forward to Nth end of paragraph;
-    !> negative ARG -N means kill backward to Nth start of paragraph.
+    !> Cut forward to end of paragraph.
+    !> With ARG N, cut forward to Nth end of paragraph;
+    !> negative ARG -N means cut backward to Nth start of paragraph.
     !> Port of paragraphs.el:kill-paragraph.
-    subroutine kill_paragraph(arg, status)
+    subroutine cut_paragraph(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: start, left
 
         start = point()
         left = forward_paragraph(arg)
-        call kill_region(start, point(), status)
-    end subroutine kill_paragraph
+        call cut_region(start, point(), status)
+    end subroutine cut_paragraph
 
-    !> Kill back to start of paragraph.
-    !> With ARG N, kill back to Nth start of paragraph;
-    !> negative ARG -N means kill forward to Nth end of paragraph.
+    !> Cut back to start of paragraph.
+    !> With ARG N, cut back to Nth start of paragraph;
+    !> negative ARG -N means cut forward to Nth end of paragraph.
     !> Port of paragraphs.el:backward-kill-paragraph.
-    subroutine backward_kill_paragraph(arg, status)
+    subroutine backward_cut_paragraph(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: start
 
         start = point()
         call backward_paragraph(arg)
-        call kill_region(start, point(), status)
-    end subroutine backward_kill_paragraph
+        call cut_region(start, point(), status)
+    end subroutine backward_cut_paragraph
 
     !> Move to the start of the current paragraph.
     !> Port of paragraphs.el:start-of-paragraph-text.
@@ -561,7 +561,7 @@ contains
     !> forward-sentence-default-function.
     subroutine forward_sentence(arg)
         integer(int64), intent(in) :: arg
-        integer(int64) :: n, opoint, pos, par_beg, par_text_beg, par_end
+        integer(int64) :: n, opoint, pos, par_beginning, par_text_beginning, par_end
         character(len=:), allocatable :: send
         type(status_type) :: status
 
@@ -574,18 +574,18 @@ contains
             ! Start of real text in the paragraph.  We move back to here if
             ! we don't see a sentence-end.
             call start_of_paragraph_text()
-            par_text_beg = point()
+            par_text_beginning = point()
             ! Start of the first line of the paragraph.  We use this as the
             ! search limit to allow sentence-end to match if it is anchored
             ! at BOL and the paragraph starts indented.
             call beginning_of_line()
-            par_beg = point()
+            par_beginning = point()
             call goto_char(pos)
 
             if (back_twice()) then
                 call goto_char(match_end(0, status))
             else
-                call goto_char(par_text_beg)
+                call goto_char(par_text_beginning)
             end if
 
             n = n + 1
@@ -614,10 +614,10 @@ contains
         !>      (or (< (match-end 0) pos)
         !>          (re-search-backward sentence-end par-beg t)))
         logical function back_twice()
-            back_twice = re_search_back(send, SEARCH_NOERROR, par_beg)
+            back_twice = re_search_back(send, SEARCH_NOERROR, par_beginning)
             if (.not. back_twice) return
             if (match_end(0, status) < pos) return
-            back_twice = re_search_back(send, SEARCH_NOERROR, par_beg)
+            back_twice = re_search_back(send, SEARCH_NOERROR, par_beginning)
         end function back_twice
     end subroutine forward_sentence
 
@@ -633,8 +633,8 @@ contains
         saved = inhibit_field_text_motion
         inhibit_field_text_motion = .true.
         opoint = point()
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
         call narrow_to_region(start, end, st)
         call goto_char(point_min())
         prev = point()
@@ -653,14 +653,14 @@ contains
         call skip_whitespace_backward()
         if (point() /= before) sentences = sentences - 1
         call widen()
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         call goto_char(opoint)
         inhibit_field_text_motion = saved
     end function count_sentences
 
     !> skip-chars-backward " \t\n".  Not a port.
     subroutine skip_whitespace_backward()
-        do while (point() > buffers(cur)%begv)
+        do while (point() > buffers(current)%begv)
             if (all(char_at(point() - 1) /= [SPACE, TAB, NEWLINE])) exit
             call goto_char(point() - 1)
         end do
@@ -675,31 +675,31 @@ contains
         call forward_sentence(-arg)
     end subroutine backward_sentence
 
-    !> Kill from point to end of sentence.
-    !> With ARG, repeat; negative ARG -N means kill back to Nth start of
+    !> Cut from point to end of sentence.
+    !> With ARG, repeat; negative ARG -N means cut back to Nth start of
     !> sentence.  Port of paragraphs.el:kill-sentence.
-    subroutine kill_sentence(arg, status)
+    subroutine cut_sentence(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: start
 
         start = point()
         call forward_sentence(arg)
-        call kill_region(start, point(), status)
-    end subroutine kill_sentence
+        call cut_region(start, point(), status)
+    end subroutine cut_sentence
 
-    !> Kill back from point to start of sentence.
-    !> With ARG, repeat, or kill forward to Nth end of sentence if
+    !> Cut back from point to start of sentence.
+    !> With ARG, repeat, or cut forward to Nth end of sentence if
     !> negative ARG -N.  Port of paragraphs.el:backward-kill-sentence.
-    subroutine backward_kill_sentence(arg, status)
+    subroutine backward_cut_sentence(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: start
 
         start = point()
         call backward_sentence(arg)
-        call kill_region(start, point(), status)
-    end subroutine backward_kill_sentence
+        call cut_region(start, point(), status)
+    end subroutine backward_cut_sentence
 
     !> Put mark at end of sentence.
     !> ARG works as in `forward_sentence'.  If this command is repeated,
@@ -747,17 +747,17 @@ contains
         call mark_paragraph(prefix_numeric_value(current_prefix_arg), .true., status)
     end subroutine cmd_mark_paragraph
 
-    subroutine cmd_kill_paragraph(status)
+    subroutine cmd_cut_paragraph(status)
         type(status_type), intent(out) :: status
 
-        call kill_paragraph(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_kill_paragraph
+        call cut_paragraph(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_cut_paragraph
 
-    subroutine cmd_backward_kill_paragraph(status)
+    subroutine cmd_backward_cut_paragraph(status)
         type(status_type), intent(out) :: status
 
-        call backward_kill_paragraph(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_backward_kill_paragraph
+        call backward_cut_paragraph(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_backward_cut_paragraph
 
     subroutine cmd_forward_sentence(status)
         type(status_type), intent(out) :: status
@@ -773,17 +773,17 @@ contains
         call backward_sentence(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_backward_sentence
 
-    subroutine cmd_kill_sentence(status)
+    subroutine cmd_cut_sentence(status)
         type(status_type), intent(out) :: status
 
-        call kill_sentence(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_kill_sentence
+        call cut_sentence(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_cut_sentence
 
-    subroutine cmd_backward_kill_sentence(status)
+    subroutine cmd_backward_cut_sentence(status)
         type(status_type), intent(out) :: status
 
-        call backward_kill_sentence(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_backward_kill_sentence
+        call backward_cut_sentence(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_backward_cut_sentence
 
     subroutine cmd_mark_end_of_sentence(status)
         type(status_type), intent(out) :: status
@@ -859,14 +859,14 @@ contains
         call init_paragraph_variables()
         commands%forward_sentence%execute => cmd_forward_sentence
         commands%backward_sentence%execute => cmd_backward_sentence
-        commands%kill_sentence%execute => cmd_kill_sentence
-        commands%backward_kill_sentence%execute => cmd_backward_kill_sentence
+        commands%cut_sentence%execute => cmd_cut_sentence
+        commands%backward_cut_sentence%execute => cmd_backward_cut_sentence
         commands%mark_end_of_sentence%execute => cmd_mark_end_of_sentence
         commands%forward_paragraph%execute => cmd_forward_paragraph
         commands%backward_paragraph%execute => cmd_backward_paragraph
         commands%mark_paragraph%execute => cmd_mark_paragraph
-        commands%kill_paragraph%execute => cmd_kill_paragraph
-        commands%backward_kill_paragraph%execute => cmd_backward_kill_paragraph
+        commands%cut_paragraph%execute => cmd_cut_paragraph
+        commands%backward_cut_paragraph%execute => cmd_backward_cut_paragraph
         commands%transpose_paragraphs%execute => cmd_transpose_paragraphs
         commands%transpose_sentences%execute => cmd_transpose_sentences
     end subroutine syms_of_paragraphs

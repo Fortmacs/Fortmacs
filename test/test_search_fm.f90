@@ -27,7 +27,7 @@ module test_search_fm
     use error_fm, only: status_type, format_error, format_message, FM_SEARCH_FAILED, FM_GENERIC_ERROR, &
                         FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, narrow_to_region, widen
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, case_fold_search, &
@@ -71,7 +71,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create("search-test", h, st)
+        call get_or_make_buffer("search-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
@@ -83,7 +83,7 @@ contains
         type(status_type) :: st
 
         case_fold_search = .true.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     subroutine test_forward(error)
@@ -414,13 +414,13 @@ contains
     subroutine test_asynch_match_data(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        integer(int64) :: idx
+        integer(int64) :: index
 
-        idx = string_match("b+", "abbc", st)
+        index = string_match("b+", "abbc", st)
         call check(error, match_beginning(0, st) == 2 .and. match_end(0, st) == 4)
         if (allocated(error)) return
         running_asynch_code = .true.
-        idx = string_match("c", "abbc", st)
+        index = string_match("c", "abbc", st)
         call check(error, match_beginning(0, st) == 4)
         if (allocated(error)) return
         call restore_search_regs()
@@ -433,9 +433,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: idx
+        integer(int64) :: index
 
-        idx = string_match("b+", "abbc", st)
+        index = string_match("b+", "abbc", st)
         call check(error, fast_string_match("c", "abbc", .false., st) == 4)
         if (allocated(error)) return
         call check(error, fast_string_match("B", "abbc", .true., st) == 2 .and. &
@@ -451,6 +451,6 @@ contains
         call check(error, fast_looking_at("o+", 2_int64, 3_int64, st) == 1)
         if (allocated(error)) return
         call check(error, match_beginning(0, st) == 2 .and. match_end(0, st) == 4)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_fast_match
 end module test_search_fm

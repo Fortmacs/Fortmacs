@@ -32,7 +32,7 @@
 !> object, compared with `equal'), and one column descriptor (a
 !> `tabulated_list_desc_type': a string, maybe with a face) per column.
 !> A column sorts by its descriptors' strings (SORT true) or by a
-!> PREDICATE on two entries.
+!> TEST on two entries.
 !>
 !> Deferred: the fake header for `tabulated_list_use_header_line' false,
 !> image and button column descriptors and `button_buffer_map' in the
@@ -47,11 +47,11 @@ module tabulated_list_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
-    use data_fm, only: add_local_variables_killer
+    use data_fm, only: append_locals_clearer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, buffer_serial_live, erase_buffer, restore_buffer_modified
+    use buffer_fm, only: buffers, current, buffer_serial_live, erase_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, pos_bol, pos_eol, delete_region, is_eob
     use cmds_fm, only: forward_line, beginning_of_line, forward_char
@@ -83,7 +83,7 @@ module tabulated_list_fm
     !> different columns must have different names) and the WIDTH to
     !> reserve for it (for the final column, its value is ignored).  SORT
     !> true means it can sort the entries: by its descriptors' strings, or
-    !> by PREDICATE if that is associated.  RIGHT_ALIGN true means the
+    !> by TEST if that is associated.  RIGHT_ALIGN true means the
     !> column is right-aligned; PAD_RIGHT is the number of additional
     !> padding spaces to its right.  Port of an element (NAME WIDTH SORT .
     !> PROPS) of tabulated-list.el tabulated-list-format.
@@ -91,7 +91,7 @@ module tabulated_list_fm
         character(len=:), allocatable :: name
         integer :: width = 0
         logical :: sort = .false.
-        procedure(tabulated_list_predicate), pointer, nopass :: predicate => null()
+        procedure(tabulated_list_test_procedure), pointer, nopass :: test => null()
         logical :: right_align = .false.
         integer :: pad_right = 1
     end type tabulated_list_column_type
@@ -117,30 +117,30 @@ module tabulated_list_fm
     end type tabulated_list_entry_type
 
     abstract interface
-        !> A SORT predicate: whether entry A sorts before entry B.
+        !> A SORT test: whether entry A sorts before entry B.
         !> Not a port.
-        logical function tabulated_list_predicate(a, b)
+        logical function tabulated_list_test_procedure(a, b)
             import :: tabulated_list_entry_type
             implicit none(type, external)
             type(tabulated_list_entry_type), intent(in) :: a, b
-        end function tabulated_list_predicate
+        end function tabulated_list_test_procedure
 
         !> A function returning the entries (tabulated-list-entries as a
         !> function).  Not a port.
-        recursive subroutine tabulated_list_entries_proc(entries, status)
+        recursive subroutine tabulated_list_entries_procedure(entries, status)
             import :: tabulated_list_entry_type, status_type
             implicit none(type, external)
             type(tabulated_list_entry_type), allocatable, intent(out) :: entries(:)
             type(status_type), intent(out) :: status
-        end subroutine tabulated_list_entries_proc
+        end subroutine tabulated_list_entries_procedure
 
         !> A `tabulated_list_printer': insert ENTRY at point.  Not a port.
-        recursive subroutine tabulated_list_printer_proc(entry, status)
+        recursive subroutine tabulated_list_printer_procedure(entry, status)
             import :: tabulated_list_entry_type, status_type
             implicit none(type, external)
             type(tabulated_list_entry_type), intent(in) :: entry
             type(status_type), intent(out) :: status
-        end subroutine tabulated_list_printer_proc
+        end subroutine tabulated_list_printer_procedure
     end interface
 
     !> Indicator for columns sorted in ascending order, for GUI frames.
@@ -192,7 +192,7 @@ module tabulated_list_fm
         type(tabulated_list_column_type), allocatable :: format(:)
         !> tabulated-list-entries (a list), or ENTRIES_FUNCTION.
         type(tabulated_list_entry_type), allocatable :: entries(:)
-        procedure(tabulated_list_entries_proc), pointer, nopass :: entries_function => null()
+        procedure(tabulated_list_entries_procedure), pointer, nopass :: entries_function => null()
         !> tabulated-list-padding.
         integer :: padding = 0
         !> tabulated-list-sort-key: NAME and FLIP, none when SORT_NAME is
@@ -202,7 +202,7 @@ module tabulated_list_fm
         !> tabulated-list-use-header-line.
         logical :: use_header_line = .true.
         !> tabulated-list-printer (null for `tabulated_list_print_entry').
-        procedure(tabulated_list_printer_proc), pointer, nopass :: printer => null()
+        procedure(tabulated_list_printer_procedure), pointer, nopass :: printer => null()
         !> Whether tabulated-list--original-order is set.
         logical :: original_order = .false.
     end type local_type
@@ -213,7 +213,7 @@ module tabulated_list_fm
     !> and next rows while printing (for the available space of a column
     !> before a right-aligned one).
     type(tabulated_list_entry_type) :: near_rows(3)
-    logical :: have_near_rows = .false.
+    logical :: has_near_rows = .false.
 
 contains
 
@@ -229,11 +229,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -241,7 +241,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(cur)%serial)
+                locals(k) = local_type(serial=buffers(current)%serial)
                 return
             end if
         end do
@@ -253,14 +253,14 @@ contains
             grown(i) = locals(i)
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, locals)
         k = n + 1
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values but
     ! the permanent-local ones.  Not a port.
-    subroutine kill_tabulated_list_locals()
+    subroutine clear_tabulated_list_locals()
         integer :: k
 
         k = local_index(.false.)
@@ -268,7 +268,7 @@ contains
         locals(k)%use_header_line = .true.
         locals(k)%printer => null()
         locals(k)%original_order = .false.
-    end subroutine kill_tabulated_list_locals
+    end subroutine clear_tabulated_list_locals
 
     !> Set the current buffer's `tabulated_list_format' to COLUMNS, the
     !> format of the current Tabulated List mode buffer.  Port of
@@ -323,7 +323,7 @@ contains
     !> to make the entries.  Port of tabulated-list.el
     !> tabulated-list-entries (a function).
     subroutine set_tabulated_list_entries_function(fn)
-        procedure(tabulated_list_entries_proc) :: fn
+        procedure(tabulated_list_entries_procedure) :: fn
         integer :: k
 
         k = local_index(.true.)
@@ -439,7 +439,7 @@ contains
     !> for inserting a Tabulated List entry at point.  Port of
     !> tabulated-list.el tabulated-list-printer (set_local).
     subroutine set_tabulated_list_printer(fn)
-        procedure(tabulated_list_printer_proc) :: fn
+        procedure(tabulated_list_printer_procedure) :: fn
         integer :: k
 
         k = local_index(.true.)
@@ -514,7 +514,7 @@ contains
         character(len=*), intent(in) :: tag
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: advance
-        integer(int64) :: saved, beg, shortage, width
+        integer(int64) :: saved, beginning, shortage, width
         integer :: padding
         logical :: ro
 
@@ -530,10 +530,10 @@ contains
         call beginning_of_line()
 
         if (entry_index() > 0) then
-            beg = point()
-            ro = buffers(cur)%read_only
-            buffers(cur)%read_only = .false.
-            call goto_char(beg + padding)
+            beginning = point()
+            ro = buffers(current)%read_only
+            buffers(current)%read_only = .false.
+            call goto_char(beginning + padding)
             width = string_width(tag)
 
             ! (insert-and-inherit: the line's properties.)
@@ -543,8 +543,8 @@ contains
                 call insert_inheriting(truncate_string_to_width(tag, padding), status)
             end if
 
-            if (status%ok()) call delete_region(beg, beg + padding, status)
-            buffers(cur)%read_only = ro
+            if (status%ok()) call delete_region(beginning, beginning + padding, status)
+            buffers(current)%read_only = ro
         end if
 
         call goto_char(saved)
@@ -562,15 +562,15 @@ contains
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(value_type) :: plist
-        integer(int64) :: beg
+        integer(int64) :: beginning
         logical :: changed
 
-        beg = point()
-        call text_properties_at(beg, plist, status)
+        beginning = point()
+        call text_properties_at(beginning, plist, status)
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
-        if (allocated(plist%a)) call add_text_properties(beg, point(), plist, changed, status)
+        if (allocated(plist%a)) call add_text_properties(beginning, point(), plist, changed, status)
     end subroutine insert_inheriting
 
     !> Clear all tags from the padding area in the current buffer.  Port of
@@ -580,7 +580,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: saved, found
         integer :: padding
-        character(len=24) :: buf
+        character(len=24) :: buffer
         logical :: ro
 
         status = status_type()
@@ -593,19 +593,19 @@ contains
 
         saved = point()
         call goto_char(point_min())
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
         ! Match non-space in the first n characters.
-        write (buf, "(i0)") padding - 1
+        write (buffer, "(i0)") padding - 1
 
         do
-            call re_search_forward("^ \{0,"//trim(buf)//"\}[^ ]", found, status, noerror=1)
+            call re_search_forward("^ \{0,"//trim(buffer)//"\}[^ ]", found, status, noerror=1)
             if (.not. status%ok() .or. found == 0) exit
             call tabulated_list_put_tag(repeat(" ", padding), status)
             if (.not. status%ok()) exit
         end do
 
-        buffers(cur)%read_only = ro
+        buffers(current)%read_only = ro
         call goto_char(saved)
     end subroutine tabulated_list_clear_all_tags
 
@@ -631,11 +631,11 @@ contains
         x = max(locals(k)%padding, 0)
         len_fmt = size(format)
         ! Pre-compute width for available-space computation.
-        have_near_rows = .true.
+        has_near_rows = .true.
         call header_row(format, near_rows(1))
         call header_row(format, near_rows(2))
         call header_row(format, near_rows(3))
-        call header%add("", align_to=x)
+        call header%append("", align_to=x)
 
         do n = 1, len_fmt
             not_last_col = n < len_fmt
@@ -660,7 +660,7 @@ contains
 
             if (.not. format(n)%sort) then
                 ! An unsortable column
-                call add(label, "")
+                call append(label, "")
             else if (same(pname, sort_name)) then
                 ! The selected sort column
                 indicator = ""
@@ -673,43 +673,43 @@ contains
                     end if
                 end if
 
-                call add(label//indicator, "bold")
+                call append(label//indicator, "bold")
             else
                 ! Unselected sortable column.
-                call add(label, "")
+                call append(label, "")
             end if
 
             if (format(n)%pad_right >= 0) then
                 ! (The space that aligns the next column.)
-                call header%add("", align_to=next_x)
+                call header%append("", align_to=next_x)
             end if
 
             x = next_x
         end do
 
-        have_near_rows = .false.
+        has_near_rows = .false.
 
         if (locals(k)%use_header_line) then
-            buffers(cur)%header_line_format = header
+            buffers(current)%header_line_format = header
         end if
 
     contains
 
-        subroutine add(text, face)
+        subroutine append(text, face)
             character(len=*), intent(in) :: text, face
 
             if (format(n)%right_align) then
                 shift = width - int(string_width(text))
 
                 if (shift > 0) then
-                    call header%add(text, face, align_to=x + shift)
+                    call header%append(text, face, align_to=x + shift)
                     x = x + shift
                     return
                 end if
             end if
 
-            call header%add(text, face)
-        end subroutine add
+            call header%append(text, face)
+        end subroutine append
     end subroutine tabulated_list_init_header
 
     ! The column names as a row of descriptors (hcols).  Not a port.
@@ -817,8 +817,8 @@ contains
         logical function sorter(x, y)
             type(tabulated_list_entry_type), intent(in) :: x, y
 
-            if (associated(locals(k)%format(n)%predicate)) then
-                sorter = locals(k)%format(n)%predicate(x, y)
+            if (associated(locals(k)%format(n)%test)) then
+                sorter = locals(k)%format(n)%test(x, y)
             else
                 ! Default sorter checks column N:
                 sorter = string_less(x%cols(n)%text, y%cols(n)%text)
@@ -907,7 +907,7 @@ contains
         character(len=:), allocatable :: entry_id
         integer(int64) :: saved_pt, saved_col, reached, shortage
         integer :: k, n, i
-        logical :: remember, upd, ro, have_id
+        logical :: remember, upd, ro, has_id
 
         k = local_index(.true.)
         remember = .false.
@@ -926,13 +926,13 @@ contains
         if (.not. allocated(locals(k)%format)) allocate (locals(k)%format(0))
         n = sort_column(k, status)
         if (.not. status%ok()) return
-        have_id = .false.
+        has_id = .false.
         saved_col = 0
 
         if (remember) then
             entry_id = tabulated_list_get_id()
-            have_id = len(entry_id) > 0
-            if (have_id) saved_col = current_column()
+            has_id = len(entry_id) > 0
+            if (has_id) saved_col = current_column()
         end if
 
         ! Sort the entries, if necessary.
@@ -940,8 +940,8 @@ contains
         call copy_entries(entries, locals(k)%entries)
         ! Without a sorter, we have no way to just update.
         if (upd .and. n == 0) upd = .false.
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
 
         if (upd) then
             call goto_char(point_min())
@@ -959,7 +959,7 @@ contains
         end do
 
         if (upd .and. status%ok()) call delete_region(point(), point_max(), status)
-        buffers(cur)%read_only = ro
+        buffers(current)%read_only = ro
         if (.not. status%ok()) return
         call restore_buffer_modified(.false.)
 
@@ -979,7 +979,7 @@ contains
             integer :: here
             character(len=:), allocatable :: local_id
 
-            have_near_rows = .true.
+            has_near_rows = .true.
             here = entry_index(pos_bol(0_int64))
 
             if (here > 0 .and. pos_bol(0_int64) < point()) then
@@ -996,9 +996,9 @@ contains
                 near_rows(3) = entries(i)
             end if
 
-            if (have_id) then
+            if (has_id) then
                 if (same(entry_id, entries(i)%id)) then
-                    have_id = .false.
+                    has_id = .false.
                     saved_pt = point()
                 end if
             end if
@@ -1041,7 +1041,7 @@ contains
                 end do
             end if
 
-            have_near_rows = .false.
+            has_near_rows = .false.
         end subroutine print_one
 
         recursive subroutine print_with_printer(i)
@@ -1070,26 +1070,26 @@ contains
         type(status_type), intent(out) :: status
         type(tabulated_list_column_type), allocatable :: format(:)
         type(value_type) :: props(2)
-        integer(int64) :: beg
+        integer(int64) :: beginning
         integer :: x, n, padding
         logical :: ro, saved_near, changed
 
-        beg = point()
+        beginning = point()
         format = tabulated_list_format()
         padding = tabulated_list_padding()
         x = max(padding, 0)
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
         status = status_type()
         if (padding > 0) call insert(repeat(" ", x), status)
         ! Bind tabulated-list--near-rows if not bound yet (Bug#25506).
-        saved_near = have_near_rows
+        saved_near = has_near_rows
 
-        if (.not. have_near_rows) then
+        if (.not. has_near_rows) then
             near_rows(1) = entry
             near_rows(2) = entry
             near_rows(3) = entry
-            have_near_rows = .true.
+            has_near_rows = .true.
         end if
 
         do n = 1, size(format)
@@ -1098,16 +1098,16 @@ contains
             if (.not. status%ok()) exit
         end do
 
-        have_near_rows = saved_near
+        has_near_rows = saved_near
         if (status%ok()) call insert(achar(10), status)
 
         if (status%ok()) then
             props(1) = value_type(name="tabulated_list_id")
             props(2) = value_type(text=entry%id)
-            call add_text_properties(beg, point(), make_list(props), changed, status)
+            call add_text_properties(beginning, point(), make_list(props), changed, status)
         end if
 
-        buffers(cur)%read_only = ro
+        buffers(current)%read_only = ro
     end subroutine tabulated_list_print_entry
 
     ! The space available for column N of WIDTH: more than WIDTH when the
@@ -1220,9 +1220,9 @@ contains
         ! COLUMN).
         recursive subroutine insert_spaces(count, column)
             integer, intent(in) :: count, column
-            integer(int64) :: beg
+            integer(int64) :: beginning
 
-            beg = point()
+            beginning = point()
             call insert(repeat(" ", max(0, count)), status)
             if (.not. status%ok() .or. count <= 0) return
             spec(1) = value_type(name="space")
@@ -1230,7 +1230,7 @@ contains
             spec(3) = value_type(int(column, int64))
             align(1) = value_type(name="display")
             align(2) = make_list(spec)
-            call put_text_property(beg, point(), align(1), align(2), status)
+            call put_text_property(beginning, point(), align(1), align(2), status)
         end subroutine insert_spaces
     end function tabulated_list_print_col
 
@@ -1240,18 +1240,18 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), allocatable :: starts(:), ends(:)
         type(value_type), allocatable :: plists(:)
-        integer(int64) :: beg
+        integer(int64) :: beginning
         integer :: k
         logical :: changed
 
-        beg = point()
+        beginning = point()
         call insert(xstring(v), status)
         if (.not. status%ok()) return
         call string_intervals(v, starts, ends, plists)
 
         do k = 1, size(starts)
             if (.not. allocated(plists(k)%a)) cycle
-            call add_text_properties(beg + starts(k), beg + ends(k), plists(k), changed, status)
+            call add_text_properties(beginning + starts(k), beginning + ends(k), plists(k), changed, status)
             if (.not. status%ok()) return
         end do
     end subroutine insert_value
@@ -1275,10 +1275,10 @@ contains
         call tabulated_list_get_entry(entry, found)
         if (.not. found) return
         entry%id = tabulated_list_get_id()
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
         call delete_region(pos_bol(), pos_eol() + 1, status)
-        buffers(cur)%read_only = ro
+        buffers(current)%read_only = ro
     end subroutine tabulated_list_delete_entry
 
     !> Change the Tabulated List entry at point, setting COL to DESC.
@@ -1351,8 +1351,8 @@ contains
 
         status = status_type()
         if (pos >= eol) return
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
         call next_single_property_change(pos, value_type(name="tabulated_list_column_name"), next, found, st, eol)
         if (.not. found) next = eol
         call delete_region(pos, next, status)
@@ -1360,7 +1360,7 @@ contains
         if (status%ok()) then
             call goto_char(pos)
             k = local_index(.false.)
-            have_near_rows = .true.
+            has_near_rows = .true.
             here = entry_index(pos_bol(0_int64))
 
             if (here > 0 .and. pos_bol(0_int64) < pos_bol()) then
@@ -1379,7 +1379,7 @@ contains
             end if
 
             x = tabulated_list_print_col(c, desc, int(current_column()), status)
-            have_near_rows = .false.
+            has_near_rows = .false.
             change = .false.
             if (present(change_entry_data)) change = change_entry_data
             if (change) locals(k)%entries(e)%cols(c) = desc
@@ -1388,7 +1388,7 @@ contains
             call goto_char(opoint)
         end if
 
-        buffers(cur)%read_only = ro
+        buffers(current)%read_only = ro
     end subroutine tabulated_list_set_col
 
     ! ------------------------------------------------------------------
@@ -1691,11 +1691,11 @@ contains
         call major_modes%tabulated_list_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! (truncate-lines: not ported.)
-        buffers(cur)%undo_enabled = .false.
+        buffers(current)%undo_enabled = .false.
         call revert_buffer_function%set_local(revert_function)
         k = local_index(.true.)
         locals(k)%original_order = .false.
-        call major_modes%tabulated_list_mode%finish(saved, status)
+        call major_modes%tabulated_list_mode%end(saved, status)
     end subroutine tabulated_list_mode
 
     !> Define the mode, its keymap and options, and register the commands.
@@ -1716,7 +1716,7 @@ contains
         call tabulated_list_fake_header%define("tabulated_list_fake_header", "Face used on fake header lines.")
         call tabulated_list_fake_header%spec_entry(display_when(), face_attrs(overline=.true., underline=.true., &
                                                                               weight="bold"))
-        call add_local_variables_killer(kill_tabulated_list_locals)
+        call append_locals_clearer(clear_tabulated_list_locals)
         call major_modes%tabulated_list_mode%define("tabulated_list_mode", "Tabulated", tabulated_list_mode, &
                                                     tabulated_list_mode_hook, parent=major_modes%special_mode)
         tabulated_list_mode_map = major_modes%tabulated_list_mode%map

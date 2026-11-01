@@ -33,16 +33,16 @@ module test_syntax_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer, kill_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
-    use simple_fm, only: current_kill
+    use simple_fm, only: current_clipboard_entry
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward
     use syntax_fm, only: syntax_descriptor_type, string_to_syntax, syntax_class_to_char, char_syntax, &
-                         modify_syntax_entry, make_syntax_table, copy_syntax_table, free_syntax_table, &
+                         modify_syntax_entry, make_syntax_table, copy_syntax_table, destroy_syntax_table, &
                          set_syntax_table, standard_syntax_table, matching_paren, syntax_entry, scan_words, &
                          forward_word, is_word_boundary, SWORD, SOPEN, internal_describe_syntax_value
     use charscript_fm, only: char_script, script_names
@@ -78,15 +78,15 @@ contains
     !> A fresh buffer holding `text`, point at its start.
     subroutine temp_buffer(text)
         character(len=*), intent(in) :: text
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create(" *syntax-test*", buf, st)
-        call set_buffer(buf, st)
-        buffers(cur)%mark_active = .false.
-        buffers(cur)%syntax_table = handle_type()
+        call get_or_make_buffer(" *syntax-test*", buffer, st)
+        call set_buffer(buffer, st)
+        buffers(current)%mark_active = .false.
+        buffers(current)%syntax_table = handle_type()
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(point_min())
@@ -243,13 +243,13 @@ contains
         call modify_syntax_entry(iachar("_"), iachar("_"), "@", st, t1)
         call check(error, char_syntax(iachar("_")) == "_")
         if (allocated(error)) return
-        call free_syntax_table(t2, st)
+        call destroy_syntax_table(t2, st)
         call check(error, st%ok())
         if (allocated(error)) return
-        call free_syntax_table(standard_syntax_table(), st)
+        call destroy_syntax_table(standard_syntax_table(), st)
         call check(error,.not. st%ok(), "the standard table can't be freed")
-        buffers(cur)%syntax_table = handle_type()
-        call free_syntax_table(t1, st)
+        buffers(current)%syntax_table = handle_type()
+        call destroy_syntax_table(t1, st)
     end subroutine test_inheritance
 
     subroutine test_char_script(error)
@@ -340,7 +340,7 @@ contains
         call command_loop(st)
         call check(error, buffer_string() == " two three four")
         if (allocated(error)) return
-        call current_kill(0_int64, killed, st)
+        call current_clipboard_entry(0_int64, killed, st)
         call check(error, killed == "one", killed)
         if (allocated(error)) return
         call goto_char(point_max())
@@ -353,7 +353,7 @@ contains
         call key_parse("M-@ M-@", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, point() == 1 .and. mark_position() == 11 .and. buffers(cur)%mark_active, &
+        call check(error, point() == 1 .and. mark_position() == 11 .and. buffers(current)%mark_active, &
                    "M-@ twice marks two words")
     end subroutine test_word_keys
 
@@ -433,7 +433,7 @@ contains
         call modify_syntax_entry(iachar("+"), iachar("+"), "w", st, t1)
         call check(error, string_match("\w", "+", st) == 1, "now it is")
         call set_syntax_table(standard_syntax_table(), st)
-        call free_syntax_table(t1, st)
+        call destroy_syntax_table(t1, st)
     end subroutine test_regexp_cache
 
     !> Ports syntax-char-syntax (the interpreted half; there is no byte
@@ -444,15 +444,15 @@ contains
         type(handle_type) :: h, st_table
         type(status_type) :: st
 
-        call get_buffer_create(" *syntax-char-syntax*", h, st)
+        call get_or_make_buffer(" *syntax-char-syntax*", h, st)
         call set_buffer(h, st)
-        buffers(cur)%multibyte = .false.
+        buffers(current)%multibyte = .false.
         call make_syntax_table(st_table, st)
         call modify_syntax_entry(int(z'3FFF80'), int(z'3FFF80'), "_", st, st_table)
         call set_syntax_table(st_table, st)
         call check(error, char_syntax(128) == "_")
-        buffers(cur)%multibyte = .true.
-        call kill_buffer(h, st)
+        buffers(current)%multibyte = .true.
+        call close_buffer(h, st)
     end subroutine test_char_syntax_unibyte
 
     subroutine test_describe_syntax_value(error)

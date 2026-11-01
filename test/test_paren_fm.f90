@@ -27,18 +27,18 @@ module test_paren_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
     use data_fm, only: value_eq
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max
     use itree_fm, only: overlays_at, overlay_get
     use paren_fm, only: is_show_paren_unescaped, show_paren_categorize_paren, show_paren_locate_near_paren, &
                         show_paren_default, show_paren_data_type, show_paren_function, &
                         show_paren_when_point_inside_paren, show_paren_when_point_in_periphery, show_paren_style, &
-                        SHOW_PAREN_EXPRESSION, SHOW_PAREN_PARENTHESIS
+                        SHOW_PAREN_STYLE_EXPRESSION, SHOW_PAREN_STYLE_PARENTHESIS
     use simple_fm, only: blink_paren_open_paren_line_string, fundamental_mode, special_mode
     use modes_fm, only: minor_modes
     use bindings_fm, only: init_bindings
-    use timer_fm, only: execute_with_timer, free_timer
+    use timer_fm, only: execute_with_timer, destroy_timer
     use keyboard_fm, only: read_event, set_input_fd, discard_input
     use sysdep_fm, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, emacs_write
     use test_support, only: show_alone
@@ -75,7 +75,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call get_buffer_create("*paren-test*", h, st)
+        call get_or_make_buffer("*paren-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)
         call insert(text, st)
@@ -92,7 +92,7 @@ contains
         if (allocated(error)) return
         call insert("\", st)
         call check(error,.not. is_show_paren_unescaped(point()), "escaped")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_unescaped
 
     subroutine test_categorize_paren(error)
@@ -110,7 +110,7 @@ contains
         call goto_char(point_min())
         call show_paren_categorize_paren(point(), dir, outside)
         call check(error, dir == 1 .and. outside == point(), "open paren")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_categorize_paren
 
     !> Whether locate-near-paren gives (DIR . OUTSIDE), DIR 0 for nil.
@@ -143,7 +143,7 @@ contains
         if (allocated(error)) return
         call goto_char(point() + 1)
         call check(error, near(0, 0_int64), "after the open paren")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_locate_near_paren
 
     subroutine test_locate_near_paren_inside(error)
@@ -165,7 +165,7 @@ contains
         call goto_char(point() + 1)
         call check(error, near(1, point_min()), "after the open paren")
         show_paren_when_point_inside_paren = .false.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_locate_near_paren_inside
 
     subroutine test_locate_near_paren_in_periphery(error)
@@ -190,20 +190,20 @@ contains
         call goto_char(point() + 1)
         call check(error, near(0, 0_int64), "after the open paren")
         show_paren_when_point_in_periphery = .false.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_locate_near_paren_in_periphery
 
     !> Whether show-paren--default gives (HERE-BEG HERE-END THERE-BEG
     !> THERE-END MISMATCH), THERE-BEG 0 for nil.
-    logical function default_is(here_beg, here_end, there_beg, there_end, mismatch)
-        integer(int64), intent(in) :: here_beg, here_end, there_beg, there_end
+    logical function default_is(here_beginning, here_end, there_beginning, there_end, mismatch)
+        integer(int64), intent(in) :: here_beginning, here_end, there_beginning, there_end
         logical, intent(in) :: mismatch
         type(show_paren_data_type) :: data
         logical :: found
 
         call show_paren_default(found, data)
-        default_is = found .and. data%here_beg == here_beg .and. data%here_end == here_end .and. &
-                     data%there_beg == there_beg .and. data%there_end == there_end .and. (data%mismatch .eqv. mismatch)
+        default_is = found .and. data%here_beginning == here_beginning .and. data%here_end == here_end .and. &
+                     data%there_beginning == there_beginning .and. data%there_end == there_end .and. (data%mismatch .eqv. mismatch)
     end function default_is
 
     subroutine test_default(error)
@@ -221,7 +221,7 @@ contains
         if (allocated(error)) return
         call goto_char(point_min())
         call check(error, default_is(point(), point() + 1, point_max() - 1, point_max(), .false.), "forward")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_default
 
     !> The context line of the open paren matching the close paren at the
@@ -232,7 +232,7 @@ contains
         logical :: found
 
         call show_paren_default(found, data)
-        s = blink_paren_open_paren_line_string(min(data%here_beg, data%there_beg))
+        s = blink_paren_open_paren_line_string(min(data%here_beginning, data%there_beginning))
     end function open_paren_line
 
     subroutine test_open_paren_line(error)
@@ -244,20 +244,20 @@ contains
         call temp_buffer(h, "(defun foo ()"//achar(10)//"                  (dummy))")
         call goto_char(point_max())
         call check(error, open_paren_line(), "(defun foo ()")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         ! C-like
         call temp_buffer(h, "int foo() {"//achar(10)//"                 int blah;"//achar(10)//"             }")
         call goto_char(point_max())
         call check(error, open_paren_line(), "int foo() {")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         ! C-like with hanging {
         call temp_buffer(h, "int foo()"//achar(10)//"               {"//achar(10)//"                 int blah;"// &
                          achar(10)//"               }")
         call goto_char(point_max())
         call check(error, open_paren_line(), "int foo()...{")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_open_paren_line
 
     !> The face of the overlay at POS, or "" for none.
@@ -301,10 +301,10 @@ contains
         call check(error, face_at(4_int64) == "show_paren_match" .and. face_at(6_int64) == "show_paren_match" .and. &
                    face_at(1_int64) == "", "before an open paren")
         if (allocated(error)) return
-        show_paren_style = SHOW_PAREN_EXPRESSION
+        show_paren_style = SHOW_PAREN_STYLE_EXPRESSION
         call show_paren_function(st)
         call check(error, face_at(5_int64) == "show_paren_match_expression", "the expression")
-        show_paren_style = SHOW_PAREN_PARENTHESIS
+        show_paren_style = SHOW_PAREN_STYLE_PARENTHESIS
         if (allocated(error)) return
         call goto_char(2_int64)
         call show_paren_function(st)
@@ -315,7 +315,7 @@ contains
         call show_paren_function(st)
         call check(error, face_at(point_max() - 1) == "show_paren_mismatch" .and. &
                    face_at(point_max() - 2) == "show_paren_mismatch", "mismatched")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_function
 
     !> Show Paren mode is on by default; not in special-mode buffers; and
@@ -349,7 +349,7 @@ contains
         call minor_modes%show_paren_local_mode%enable(st)
         call show_paren_function(st)
         call check(error, face_at(1_int64) == "show_paren_match", "locally on again")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_modes
 
     subroutine write_x(status)
@@ -382,12 +382,12 @@ contains
         call read_event(ev, have, st)
         call check(error, have .and. face_at(1_int64) == "show_paren_match" .and. &
                    face_at(5_int64) == "show_paren_match", "highlighted after the delay")
-        call free_timer(key_timer)
+        call destroy_timer(key_timer)
         call reset_sys_modes(slave, old, st)
         call set_input_fd(-1_int32)
         call close_fd(slave)
         call close_fd(master)
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_idle_timer
 end module test_paren_fm

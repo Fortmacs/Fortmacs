@@ -32,12 +32,12 @@ module test_expression_motion_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer, transient_mark_mode
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer, transient_mark_mode
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position, widen
     use keyboard_fm, only: last_command
     use bindings_fm, only: init_bindings
-    use syntax_fm, only: modify_syntax_entry, make_syntax_table, copy_syntax_table, set_syntax_table, free_syntax_table, &
+    use syntax_fm, only: modify_syntax_entry, make_syntax_table, copy_syntax_table, set_syntax_table, destroy_syntax_table, &
                          standard_syntax_table, syntax_table
     use text_mode_fm, only: text_mode
     use simple_fm, only: deactivate_mark
@@ -84,15 +84,15 @@ contains
     !> A fresh buffer holding TEXT, point at its start.
     subroutine temp_buffer(text)
         character(len=*), intent(in) :: text
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *lisp-cmds-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *lisp-cmds-test*", buffer, st)
+        call set_buffer(buffer, st)
         call widen()
         call set_syntax_table(standard_syntax_table(), st)
-        buffers(cur)%mark_active = .false.
+        buffers(current)%mark_active = .false.
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(point_min())
@@ -153,7 +153,7 @@ contains
         type(status_type) :: st
 
         call set_syntax_table(standard_syntax_table(), st)
-        call free_syntax_table(table, st)
+        call destroy_syntax_table(table, st)
     end subroutine done
 
     !> Test behavior of prefix arg for `end_of_subprogram' (Bug#24427).
@@ -302,7 +302,7 @@ contains
         call delete_pair(1_int64, st)
         call check(error, buffer_string(), "foo")
         call set_syntax_table(old, st)
-        call free_syntax_table(table, st)
+        call destroy_syntax_table(table, st)
     end subroutine test_delete_pair_text_syntax
 
     subroutine test_subprogram_prompt(error)
@@ -326,7 +326,7 @@ contains
             call check(error, point() == 14, "end of f")
         end block checks
 
-        call subprogram_prompt_regexp%kill_local()
+        call subprogram_prompt_regexp%clear_local()
     end subroutine test_subprogram_prompt
 
     subroutine test_narrow_to_subprogram(error)

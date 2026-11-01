@@ -132,10 +132,10 @@ module sysdep_fm
     type(sys_string_type), allocatable :: environment(:)
     integer :: environment_count = 0
     logical :: environment_read = .false.
-    !> A C argument vector: the strings, NUL-terminated, in `buf', and a
+    !> A C argument vector: the strings, NUL-terminated, in `buffer', and a
     !> null-terminated array of pointers to them.
     type :: c_argv_type
-        character(kind=c_char), allocatable :: buf(:)
+        character(kind=c_char), allocatable :: buffer(:)
         type(c_ptr), allocatable :: ptrs(:)
     end type c_argv_type
 
@@ -370,14 +370,14 @@ contains
         if (c_ioctl_winsize(fd, TIOCSWINSZ, ws) < 0) call sys_error(status, "ioctl(TIOCSWINSZ)")
     end subroutine set_tty_size
 
-    !> Read up to len(buf) bytes from `fd' into `buf', retrying on EINTR.
+    !> Read up to len(buffer) bytes from `fd' into `buffer', retrying on EINTR.
     !> `nread' is the count (0 at end of file).
     !> Port of sysdep.c:emacs_read (via emacs_intr_read, not interruptible).
-    subroutine emacs_read(fd, buf, nread, status, err)
+    subroutine emacs_read(fd, buffer, nread, status, err)
         integer(int32), intent(in) :: fd
         ! A read buffer: its length is the caller's, by design.
         ! allow(assumed-size-character-intent)
-        character(len=*), intent(out) :: buf
+        character(len=*), intent(out) :: buffer
         integer(int64), intent(out) :: nread
         type(status_type), intent(out) :: status
         !> errno on failure, 0 on success.
@@ -389,7 +389,7 @@ contains
         if (present(err)) err = 0
 
         do
-            r = c_read(fd, buf, int(len(buf), c_size_t))
+            r = c_read(fd, buffer, int(len(buffer), c_size_t))
             if (r >= 0) exit
             e = errno()
 
@@ -403,12 +403,12 @@ contains
         nread = int(r, int64)
     end subroutine emacs_read
 
-    !> Write all of `buf' to `fd', retrying on EINTR and partial writes.
+    !> Write all of `buffer' to `fd', retrying on EINTR and partial writes.
     !> `written' is the number of bytes written before any error.
     !> Port of sysdep.c:emacs_full_write.
-    subroutine emacs_full_write(fd, buf, written, status, err)
+    subroutine emacs_full_write(fd, buffer, written, status, err)
         integer(int32), intent(in) :: fd
-        character(len=*), intent(in) :: buf
+        character(len=*), intent(in) :: buffer
         integer(int64), intent(out) :: written
         type(status_type), intent(out) :: status
         !> errno on failure, 0 on success.
@@ -417,12 +417,12 @@ contains
         integer(c_int) :: e
         integer(int64) :: n
 
-        n = len(buf, kind=int64)
+        n = len(buffer, kind=int64)
         written = 0
         if (present(err)) err = 0
 
         do while (written < n)
-            r = c_write(fd, buf(written + 1:), int(n - written, c_size_t))
+            r = c_write(fd, buffer(written + 1:), int(n - written, c_size_t))
 
             if (r < 0) then
                 e = errno()
@@ -436,14 +436,14 @@ contains
         end do
     end subroutine emacs_full_write
 
-    !> Write `buf' to `fd'.  Port of sysdep.c:emacs_write.
-    subroutine emacs_write(fd, buf, status)
+    !> Write `buffer' to `fd'.  Port of sysdep.c:emacs_write.
+    subroutine emacs_write(fd, buffer, status)
         integer(int32), intent(in) :: fd
-        character(len=*), intent(in) :: buf
+        character(len=*), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer(int64) :: written
 
-        call emacs_full_write(fd, buf, written, status)
+        call emacs_full_write(fd, buffer, written, status)
     end subroutine emacs_write
 
     !> True if `fd' has input within `timeout_ms' milliseconds (0: just
@@ -793,7 +793,7 @@ contains
     function emacs_get_current_dir_name() result(dir)
         character(len=:), allocatable :: dir
         character(len=:), allocatable :: pwd
-        character(kind=c_char, len=:), allocatable :: buf
+        character(kind=c_char, len=:), allocatable :: buffer
         type(file_stat_type) :: dotstat, pwdstat
         type(c_ptr) :: p
         integer :: length, stat, bufsize
@@ -820,10 +820,10 @@ contains
         bufsize = 256
 
         do
-            allocate (character(kind=c_char, len=bufsize) :: buf)
-            p = c_getcwd(buf, int(bufsize, c_size_t))
+            allocate (character(kind=c_char, len=bufsize) :: buffer)
+            p = c_getcwd(buffer, int(bufsize, c_size_t))
             if (c_associated(p)) exit
-            deallocate (buf)
+            deallocate (buffer)
 
             ! ERANGE: the buffer was too small; grow it and retry.
             if (errno() /= ERANGE .or. bufsize > 1048576) then
@@ -834,7 +834,7 @@ contains
             bufsize = 2*bufsize
         end do
 
-        dir = buf(1:index(buf, c_null_char) - 1)
+        dir = buffer(1:index(buffer, c_null_char) - 1)
     end function emacs_get_current_dir_name
 
     !> Home directory of the user called `name' (getpwnam).  `found' is
@@ -920,7 +920,7 @@ contains
         type(c_argv_type), intent(out), target :: argv
         integer :: k, j, off, n
 
-        allocate (argv%buf(sum([(len(args(k)%s) + 1, k=1, size(args))])))
+        allocate (argv%buffer(sum([(len(args(k)%s) + 1, k=1, size(args))])))
         allocate (argv%ptrs(size(args) + 1))
         off = 1
 
@@ -928,11 +928,11 @@ contains
             n = len(args(k)%s)
 
             do j = 1, n
-                argv%buf(off + j - 1) = args(k)%s(j:j)
+                argv%buffer(off + j - 1) = args(k)%s(j:j)
             end do
 
-            argv%buf(off + n) = c_null_char
-            argv%ptrs(k) = c_loc(argv%buf(off))
+            argv%buffer(off + n) = c_null_char
+            argv%ptrs(k) = c_loc(argv%buffer(off))
             off = off + n + 1
         end do
 
@@ -1546,24 +1546,24 @@ contains
         old = c_signal(SIGPIPE, transfer(1_c_intptr_t, c_null_funptr))
     end subroutine ignore_sigpipe
 
-    !> Write `buf' to `fd' without waiting: `written' is how much was
+    !> Write `buffer' to `fd' without waiting: `written' is how much was
     !> written before the pipe or terminal was full (EAGAIN) or an error
     !> (`err', errno; EAGAIN is not an error).  Not a port.
-    subroutine emacs_write_nonblock(fd, buf, written, err)
+    subroutine emacs_write_nonblock(fd, buffer, written, err)
         integer(int32), intent(in) :: fd
-        character(len=*), intent(in) :: buf
+        character(len=*), intent(in) :: buffer
         integer(int64), intent(out) :: written
         integer(int32), intent(out) :: err
         integer(c_long) :: r
         integer(c_int) :: e
         integer(int64) :: n
 
-        n = len(buf, kind=int64)
+        n = len(buffer, kind=int64)
         written = 0
         err = 0
 
         do while (written < n)
-            r = c_write(fd, buf(written + 1:), int(n - written, c_size_t))
+            r = c_write(fd, buffer(written + 1:), int(n - written, c_size_t))
 
             if (r < 0) then
                 e = errno()
@@ -1636,7 +1636,7 @@ contains
     integer(int32) function emacs_readlink(path, target) result(err)
         character(len=*), intent(in) :: path
         character(len=:), allocatable, intent(out) :: target
-        character(kind=c_char), allocatable :: buf(:)
+        character(kind=c_char), allocatable :: buffer(:)
         integer(c_long) :: n
         integer(c_size_t) :: size
         integer :: k
@@ -1646,8 +1646,8 @@ contains
         size = 256
 
         do
-            allocate (buf(size))
-            n = c_readlink(c_path(path), buf, size)
+            allocate (buffer(size))
+            n = c_readlink(c_path(path), buffer, size)
 
             if (n < 0) then
                 err = errno()
@@ -1656,14 +1656,14 @@ contains
 
             if (n < size) exit
             ! Truncated: try again with more room.
-            deallocate (buf)
+            deallocate (buffer)
             size = 2*size
         end do
 
         target = repeat(" ", int(n))
 
         do k = 1, int(n)
-            target(k:k) = buf(k)
+            target(k:k) = buffer(k)
         end do
     end function emacs_readlink
 
@@ -1689,16 +1689,16 @@ contains
         ! allow(assumed-size-character-intent)
         character(len=*), intent(inout) :: template
         integer(int32), intent(out) :: fd
-        character(len=len(template) + 1) :: buf
+        character(len=len(template) + 1) :: buffer
 
         err = 0
-        buf = c_path(template)
-        fd = c_mkostemp(buf, O_CLOEXEC)
+        buffer = c_path(template)
+        fd = c_mkostemp(buffer, O_CLOEXEC)
 
         if (fd < 0) then
             err = errno()
         else
-            template = buf(1:len(template))
+            template = buffer(1:len(template))
         end if
     end function emacs_mkostemp
 
@@ -1974,23 +1974,23 @@ contains
     !> Port of part of sysdep.c:init_system_name.
     function emacs_gethostname() result(hostname)
         character(len=:), allocatable :: hostname
-        character(kind=c_char, len=:), allocatable :: buf
+        character(kind=c_char, len=:), allocatable :: buffer
         integer :: size, n, err
 
         size = 256
 
         do
-            allocate (character(kind=c_char, len=size) :: buf)
-            buf = repeat(c_null_char, size)
-            err = c_gethostname(buf, int(size - 1, c_size_t))
-            n = index(buf, c_null_char) - 1
+            allocate (character(kind=c_char, len=size) :: buffer)
+            buffer = repeat(c_null_char, size)
+            err = c_gethostname(buffer, int(size - 1, c_size_t))
+            n = index(buffer, c_null_char) - 1
             ! Was the buffer large enough for the '\0'?
             if (n < size - 1 .or. size > 65536) exit
-            deallocate (buf)
+            deallocate (buffer)
             size = 2*size
         end do
 
-        hostname = buf(1:max(n, 0))
+        hostname = buffer(1:max(n, 0))
     end function emacs_gethostname
 
     !> The login names of all users of the password database, in its
@@ -2051,21 +2051,21 @@ contains
     integer(int32) function emacs_statvfs(path, total, free, avail) result(err)
         character(len=*), intent(in) :: path
         integer(int64), intent(out) :: total, free, avail
-        type(statvfs_type) :: buf
+        type(statvfs_type) :: buffer
 
         err = 0
         total = 0
         free = 0
         avail = 0
 
-        if (c_statvfs(c_path(path), buf) /= 0) then
+        if (c_statvfs(c_path(path), buffer) /= 0) then
             err = errno()
             return
         end if
 
-        total = buf%f_blocks*buf%f_frsize
-        free = buf%f_bfree*buf%f_frsize
-        avail = buf%f_bavail*buf%f_frsize
+        total = buffer%f_blocks*buffer%f_frsize
+        free = buffer%f_bfree*buffer%f_frsize
+        avail = buffer%f_bavail*buffer%f_frsize
     end function emacs_statvfs
 
     ! ------------------------------------------------------------------
@@ -2110,18 +2110,18 @@ contains
         type(inotify_raw_event_type), allocatable, intent(out) :: events(:)
         integer(int32), intent(out) :: err
         integer, parameter :: HEADER = 16, BUFSIZE = 65536
-        character(kind=c_char), allocatable :: buf(:)
+        character(kind=c_char), allocatable :: buffer(:)
         character(len=:), allocatable :: bytes, chunk
         type(inotify_raw_event_type), allocatable :: grown(:)
         integer(c_long) :: n
         integer :: i, k, count, namelen, nul
 
         err = 0
-        allocate (events(0), buf(BUFSIZE))
+        allocate (events(0), buffer(BUFSIZE))
         bytes = ""
 
         do
-            n = c_read(fd, buf, int(BUFSIZE, c_size_t))
+            n = c_read(fd, buffer, int(BUFSIZE, c_size_t))
 
             if (n < 0) then
                 if (errno() == EINTR) cycle
@@ -2133,7 +2133,7 @@ contains
             allocate (character(len=int(n)) :: chunk)
 
             do k = 1, int(n)
-                chunk(k:k) = buf(k)
+                chunk(k:k) = buffer(k)
             end do
 
             bytes = bytes//chunk

@@ -40,7 +40,7 @@
 !> PDB tracking, `python_interpreter' and `python_interpreter_args'),
 !> symbol completion (`python_completion_at_point'), the skeletons
 !> (skeleton.el), FFAP, `python_check', ElDoc, Hideshow, Imenu and
-!> `which_function', Outline mode's variables, `prettify_symbols_table',
+!> `which_function', Outline mode's variables, `prettify_symbols',
 !> Flymake, the import management commands (C-c C-i), tree-sitter
 !> (`python_ts_mode'), `add_log_current_subprogram_function'
 !> (`python_info_current_definition' is here), the menu,
@@ -54,12 +54,12 @@ module python_fm
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, list, list_elements, vtag, V_INTEGER
-    use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, &
-                       add_local_variables_killer
+    use data_fm, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
+                       append_locals_clearer
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command, real_this_command, last_command_event
-    use buffer_fm, only: buffers, cur, buffer_serial_live, current_buffer, buffer_chars_modified_tick, &
+    use buffer_fm, only: buffers, current, buffer_serial_live, current_buffer, buffer_chars_modified_tick, &
                          transient_mark_mode
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
@@ -74,7 +74,7 @@ module python_fm
                           widen, region_beginning, region_end, preceding_char, following_char, mark_position
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, post_self_insert_hook
     use insdel_fm, only: insert
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     use indent_fm, only: current_column, current_indentation, indent_line_to, indent_line_function, &
                          indent_region_function, indent_rigidly, indent_according_to_mode, indent_tabs_mode
     use search_fm, only: looking_at, re_search_forward, re_search_backward, search_backward, string_match, &
@@ -124,7 +124,7 @@ module python_fm
               is_python_info_current_line_empty, is_python_info_docstring, is_python_info_triple_quoted_string, &
               python_info_encoding_from_cookie, python_info_encoding, python_util_goto_line, python_util_forward_comment, &
               python_fill_paragraph, python_fill_comment, python_fill_string, python_fill_decorator, python_fill_paren, &
-              python_do_auto_fill, python_electric_pair_string_delimiter, python_fill_proc
+              python_do_auto_fill, python_electric_pair_string_delimiter, python_fill_procedure
 
     !> The syntax contexts of `python_syntax_context' and
     !> `python_syntax_context_type' (0 is none).
@@ -133,9 +133,10 @@ module python_fm
                                   PYTHON_CONTEXT_PAREN = 5
 
     !> The values of `python_fill_docstring_style'.
-    integer, parameter, public :: PYTHON_DOCSTRING_NONE = 0, PYTHON_DOCSTRING_DJANGO = 1, PYTHON_DOCSTRING_ONETWO = 2, &
-                                  PYTHON_DOCSTRING_PEP_257 = 3, PYTHON_DOCSTRING_PEP_257_NN = 4, &
-                                  PYTHON_DOCSTRING_SYMMETRIC = 5
+    integer, parameter, public :: PYTHON_FILL_DOCSTRING_STYLE_NONE = 0, PYTHON_FILL_DOCSTRING_STYLE_DJANGO = 1, &
+                                  PYTHON_FILL_DOCSTRING_STYLE_ONETWO = 2, &
+                                  PYTHON_FILL_DOCSTRING_STYLE_PEP_257 = 3, PYTHON_FILL_DOCSTRING_STYLE_PEP_257_NN = 4, &
+                                  PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC = 5
 
     !> The indentation contexts of `python_indent_context' (python.el's
     !> keywords :no-indent and the others).
@@ -161,23 +162,23 @@ module python_fm
     !>
     !> After customizing this variable, you must restart Emacs for it to take
     !> effect.  Port of python.el python-2-support.
-    type(logical_setting), target, public :: python_2_support = logical_setting(name="python_2_support", value=.false.)
+    type(logical_setting_type), target, public :: python_2_support = logical_setting_type(name="python_2_support", value=.false.)
 
     !> Default indentation offset for Python.  Port of python.el
     !> python-indent-offset.
-    type(integer_setting), target, public :: python_indent_offset = integer_setting(name="python_indent_offset", value=4)
+    type(integer_setting_type), target, public :: python_indent_offset = integer_setting_type(name="python_indent_offset", value=4)
 
     !> True tells Python mode to guess `python_indent_offset' value.  Port of
     !> python.el python-indent-guess-indent-offset.
-    type(logical_setting), target, public :: python_indent_guess_indent_offset_variable = &
-                                             logical_setting(name="python_indent_guess_indent_offset_variable", &
-                                                             value=.true.)
+    type(logical_setting_type), target, public :: python_indent_guess_indent_offset_variable = &
+                                                  logical_setting_type(name="python_indent_guess_indent_offset_variable", &
+                                                                       value=.true.)
 
     !> True means to emit a warning when indentation guessing fails.
     !> Port of python.el python-indent-guess-indent-offset-verbose.
-    type(logical_setting), target, public :: python_indent_guess_indent_offset_verbose = &
-                                             logical_setting(name="python_indent_guess_indent_offset_verbose", &
-                                                             value=.true.)
+    type(logical_setting_type), target, public :: python_indent_guess_indent_offset_verbose = &
+                                                  logical_setting_type(name="python_indent_guess_indent_offset_verbose", &
+                                                                       value=.true.)
 
     !> Commands that might trigger a `python_indent_line' call.  Port of
     !> python.el python-indent-trigger-commands.
@@ -207,8 +208,8 @@ module python_fm
     !> `python_indent_block_paren_deeper' to customize the case where
     !> non-whitespace characters follow the opening paren on the same
     !> line.  Port of python.el python-indent-def-block-scale.
-    type(integer_setting), target, public :: python_indent_def_block_scale = &
-                                             integer_setting(name="python_indent_def_block_scale", value=2)
+    type(integer_setting_type), target, public :: python_indent_def_block_scale = &
+                                                  integer_setting_type(name="python_indent_def_block_scale", value=2)
 
     !> Increase indentation inside parens of a block.
     !> If true, increase the indentation of the lines inside parens
@@ -230,25 +231,25 @@ module python_fm
     !> `python_indent_def_block_scale' to customize the case where
     !> non-whitespace character does not follow the opening paren on the
     !> same line.  Port of python.el python-indent-block-paren-deeper.
-    type(logical_setting), target, public :: python_indent_block_paren_deeper = &
-                                             logical_setting(name="python_indent_block_paren_deeper", value=.false.)
+    type(logical_setting_type), target, public :: python_indent_block_paren_deeper = &
+                                                  logical_setting_type(name="python_indent_block_paren_deeper", value=.false.)
 
     !> Function to use when navigating between expressions.  Port of
     !> python.el python-forward-sexp-function (null for the default, "CC-mode
     !> like").
-    procedure(python_forward_expression_proc), pointer, public :: python_forward_expression_function => null()
+    procedure(python_forward_expression_procedure), pointer, public :: python_forward_expression_function => null()
 
     !> Style used to fill docstrings.
     !> This affects `python_fill_string' behavior with regards to
     !> triple quotes positioning.
     !>
-    !> Possible values are PYTHON_DOCSTRING_DJANGO, _ONETWO, _PEP_257,
-    !> _PEP_257_NN, _SYMMETRIC, and PYTHON_DOCSTRING_NONE.  A value of
-    !> PYTHON_DOCSTRING_NONE won't care about quotes position and will treat
+    !> Possible values are PYTHON_FILL_DOCSTRING_STYLE_DJANGO, _ONETWO, _PEP_257,
+    !> _PEP_257_NN, _SYMMETRIC, and PYTHON_FILL_DOCSTRING_STYLE_NONE.  A value of
+    !> PYTHON_FILL_DOCSTRING_STYLE_NONE won't care about quotes position and will treat
     !> docstrings a normal string, any other value may result in one of
     !> the following docstring styles:
     !>
-    !> PYTHON_DOCSTRING_DJANGO:
+    !> PYTHON_FILL_DOCSTRING_STYLE_DJANGO:
     !>
     !>     """
     !>     Process foo, return bar.
@@ -260,7 +261,7 @@ module python_fm
     !>     If processing fails throw ProcessingError.
     !>     """
     !>
-    !> PYTHON_DOCSTRING_ONETWO:
+    !> PYTHON_FILL_DOCSTRING_STYLE_ONETWO:
     !>
     !>     """Process foo, return bar."""
     !>
@@ -271,26 +272,26 @@ module python_fm
     !>
     !>     """
     !>
-    !> PYTHON_DOCSTRING_PEP_257:
-    !>
-    !>     """Process foo, return bar."""
-    !>
-    !>     """Process foo, return bar.
-    !>
-    !>     If processing fails throw ProcessingError.
-    !>
-    !>     """
-    !>
-    !> PYTHON_DOCSTRING_PEP_257_NN:
+    !> PYTHON_FILL_DOCSTRING_STYLE_PEP_257:
     !>
     !>     """Process foo, return bar."""
     !>
     !>     """Process foo, return bar.
     !>
     !>     If processing fails throw ProcessingError.
+    !>
     !>     """
     !>
-    !> PYTHON_DOCSTRING_SYMMETRIC:
+    !> PYTHON_FILL_DOCSTRING_STYLE_PEP_257_NN:
+    !>
+    !>     """Process foo, return bar."""
+    !>
+    !>     """Process foo, return bar.
+    !>
+    !>     If processing fails throw ProcessingError.
+    !>     """
+    !>
+    !> PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC:
     !>
     !>     """Process foo, return bar."""
     !>
@@ -301,47 +302,47 @@ module python_fm
     !>     """
     !>
     !> Port of python.el python-fill-docstring-style.
-    type(integer_setting), target, public :: python_fill_docstring_style = &
-                                             integer_setting(name="python_fill_docstring_style", &
-                                                             value=PYTHON_DOCSTRING_PEP_257)
+    type(integer_setting_type), target, public :: python_fill_docstring_style = &
+                                                  integer_setting_type(name="python_fill_docstring_style", &
+                                                                       value=PYTHON_FILL_DOCSTRING_STYLE_PEP_257)
 
     abstract interface
         !> A function of `python_forward_expression_function': move across ARG
         !> expressions.
-        recursive subroutine python_forward_expression_proc(arg, status)
+        recursive subroutine python_forward_expression_procedure(arg, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: arg
             type(status_type), intent(out) :: status
-        end subroutine python_forward_expression_proc
+        end subroutine python_forward_expression_procedure
 
         !> A fill function of `python_fill_paragraph': DONE is its value
         !> (JUSTIFY absent for no justification).
-        recursive subroutine python_fill_proc(status, done, justify)
+        recursive subroutine python_fill_procedure(status, done, justify)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(out) :: done
             integer, intent(in), optional :: justify
-        end subroutine python_fill_proc
+        end subroutine python_fill_procedure
     end interface
 
     !> Function to fill comments.
     !> This is the function used by `python_fill_paragraph' to
     !> fill comments.  Port of python.el python-fill-comment-function.
-    procedure(python_fill_proc), pointer, public :: python_fill_comment_function => null()
+    procedure(python_fill_procedure), pointer, public :: python_fill_comment_function => null()
     !> Function to fill strings.
     !> This is the function used by `python_fill_paragraph' to
     !> fill strings.  Port of python.el python-fill-string-function.
-    procedure(python_fill_proc), pointer, public :: python_fill_string_function => null()
+    procedure(python_fill_procedure), pointer, public :: python_fill_string_function => null()
     !> Function to fill decorators.
     !> This is the function used by `python_fill_paragraph' to
     !> fill decorators.  Port of python.el python-fill-decorator-function.
-    procedure(python_fill_proc), pointer, public :: python_fill_decorator_function => null()
+    procedure(python_fill_procedure), pointer, public :: python_fill_decorator_function => null()
     !> Function to fill parens.
     !> This is the function used by `python_fill_paragraph' to
     !> fill parens.  Port of python.el python-fill-paren-function.
-    procedure(python_fill_proc), pointer, public :: python_fill_paren_function => null()
+    procedure(python_fill_procedure), pointer, public :: python_fill_paren_function => null()
 
     !> Regexp matching class or function definition.
     !> The name of the subprogram should be grouped so it can be retrieved
@@ -417,9 +418,9 @@ module python_fm
 
     abstract interface
         ! A motion of `nav_syntactically', true if it moved.
-        recursive logical function nav_motion()
+        recursive logical function nav_motion_procedure()
             implicit none(type, external)
-        end function nav_motion
+        end function nav_motion_procedure
     end interface
 
     integer, parameter :: NAV_BEGINNING_OF_BLOCK = 1, NAV_END_OF_BLOCK = 2
@@ -429,16 +430,16 @@ module python_fm
         character(len=:), allocatable :: s
     end type string_list_type
 
-    character(len=*), parameter :: DEF_RE = &
+    character(len=*), parameter :: DEF_REGEXP = &
                                    "\_<def[[:space:]]+\([_[:alpha:]][_[:word:]]*\)"
-    character(len=*), parameter :: CLASS_RE = &
+    character(len=*), parameter :: CLASS_REGEXP = &
                                    "\_<class[[:space:]]+\([_[:alpha:]][_[:word:]]*\)"
-    character(len=*), parameter :: KEYWORDS2_RE = &
+    character(len=*), parameter :: KEYWORDS2_REGEXP = &
                                    "\_<\(?:and\|del\|from\|not\|while\|as\|elif\|global\|or\|with\|assert\" &
                                    //"|else\|if\|pass\|yield\|break\|except\|import\|class\|in\|raise\|conti" &
                                    //"nue\|finally\|is\|return\|def\|for\|lambda\|try\|nonlocal\|async[[:spa" &
                                    //"ce:]]+\(?:def\|for\|with\)\|await\|match\|case\|self\)\_>"
-    character(len=*), parameter :: BUILTINS_RE = &
+    character(len=*), parameter :: BUILTINS_REGEXP = &
                                    "\(?:\_<\(?:__\(?:\(?:a\(?:ll\|nnotations\)\|bases\|c\(?:\(?:losur\|od\" &
                                    //")e\)\|d\(?:efaults\|ict\|oc\)\|firstlineno\|globals\|import\|kwdefault" &
                                    //"s\|m\(?:odule\|ro\)\|name\|package\|qualname\|\(?:static_attribute\|ty" &
@@ -452,12 +453,12 @@ module python_fm
                                    //"rty\)\)\|r\(?:ange\|e\(?:pr\|versed\)\|ound\)\|s\(?:et\(?:attr\)?\|lic" &
                                    //"e\|orted\|t\(?:aticmethod\|r\)\|u\(?:m\|per\)\)\|t\(?:\(?:upl\|yp\)e\)" &
                                    //"\|vars\|zip\)\_>\)"
-    character(len=*), parameter :: CONSTANTS_RE = &
+    character(len=*), parameter :: CONSTANTS_REGEXP = &
                                    "\_<\(?:Ellipsis\|False\|No\(?:ne\|tImplemented\)\|True\|__debug__\|c\(" &
                                    //"?:opyright\|redits\)\|exit\|license\|quit\)\_>"
-    character(len=*), parameter :: DECORATOR_RE = &
+    character(len=*), parameter :: DECORATOR_REGEXP = &
                                    "^["//TAB//" ]*\(@\(?:[[:word:]]\|_\)+\(?:\.\(?:[[:word:]]\|_\)+\)*\)"
-    character(len=*), parameter :: EXCEPTIONS_RE = &
+    character(len=*), parameter :: EXCEPTIONS_REGEXP = &
                                    "\(?:\_<\(?:A\(?:\(?:rithmetic\|ssertion\|ttribute\)Error\)\|B\(?:aseEx" &
                                    //"ception\(?:Group\)?\|lockingIOError\|rokenPipeError\|ufferError\|ytesW" &
                                    //"arning\)\|C\(?:\(?:hildProcess\|onnection\(?:Aborted\|Re\(?:fused\|set" &
@@ -476,107 +477,107 @@ module python_fm
                                    //"|E\(?:\(?:ncodeE\)?rror\)\|TranslateError\|Warning\)\)\|serWarning\)\|" &
                                    //"V\(?:\(?:MS\|alue\)Error\)\|W\(?:arning\|indowsError\)\|ZeroDivisionEr" &
                                    //"ror\)\_>\)"
-    character(len=*), parameter :: ASSIGN1_RE = &
+    character(len=*), parameter :: ASSIGN1_REGEXP = &
                                    "\*?\(?:[_[:alpha:]][_[:word:]]*\.\)*\([_[:alpha:]][_[:word:]]*\)\(?:\[" &
                                    //"[^]]+]\)?[[:space:]]*\(?::[[:space:]]*\([^"//LF//"%&*+/<->^|~-]+\)[[:space:]]" &
                                    //"*\)?\(\(?:\(?:\*\*\|//\|<<\|>>\|[%&*+/|^-]\)?=\)\)"
-    character(len=*), parameter :: SYMBOL_NAME_RE = &
+    character(len=*), parameter :: SYMBOL_NAME_REGEXP = &
                                    "[_[:alpha:]][_[:word:]]*"
-    character(len=*), parameter :: ASSIGN2_RE = &
+    character(len=*), parameter :: ASSIGN2_REGEXP = &
                                    "\(?:[([][[:space:]]*\)?\*?\(?:[_[:alpha:]][_[:word:]]*\.\)*\([_[:alpha" &
                                    //":]][_[:word:]]*\)\(?:\[[^]]+]\)?[[:space:]]*,[[:space:]]*\(?:\*?\(?:[_" &
                                    //"[:alpha:]][_[:word:]]*\.\)*[_[:alpha:]][_[:word:]]*\(?:\[[^]]+]\)?[[:s" &
                                    //"pace:]]*,[[:space:]]*\)*\(?:\*?\(?:[_[:alpha:]][_[:word:]]*\.\)*[_[:al" &
                                    //"pha:]][_[:word:]]*\(?:\[[^]]+]\)?[[:space:]]*\)?\(?:,[[:space:]]*\)?\(" &
                                    //"?:[])][[:space:]]*\)?\(\(?:\(?:\*\*\|//\|<<\|>>\|[%&*+/|^-]\)?=\)\)"
-    character(len=*), parameter :: GROUPED_TARGET_RE = &
+    character(len=*), parameter :: GROUPED_TARGET_REGEXP = &
                                    "\*?\(?:[_[:alpha:]][_[:word:]]*\.\)*\([_[:alpha:]][_[:word:]]*\)\(?:\[" &
                                    //"[^]]+]\)?"
-    character(len=*), parameter :: ASSIGN3_RE = &
+    character(len=*), parameter :: ASSIGN3_REGEXP = &
                                    "\(?:^\|;\|=\)[[:space:]]*[([][[:space:]]*\*?\(?:[_[:alpha:]][_[:word:]" &
                                    //"]*\.\)*\([_[:alpha:]][_[:word:]]*\)\(?:\[[^]]+]\)?[[:space:]]*[])][[:s" &
                                    //"pace:]]*\(\(?:\(?:\*\*\|//\|<<\|>>\|[%&*+/|^-]\)?=\)\)"
-    character(len=*), parameter :: OPERATOR_RE = &
+    character(len=*), parameter :: OPERATOR_REGEXP = &
                                    "\(?:!=\|\*\*\|//\|<[<=]\|==\|>[=>]\|[%&*+/<=>|~^-]\)"
-    character(len=*), parameter :: BYTES_ESCAPE_RE = &
+    character(len=*), parameter :: BYTES_ESCAPE_REGEXP = &
                                    "[^\]\(\\\\\|\\'\|\\a\|\\b\|\\f\|\\n\|\\r\|\\t\|\\v\|\\[0-7]\{1,3\}\|\\" &
                                    //"x[[:xdigit:]][[:xdigit:]]\)"
-    character(len=*), parameter :: STRING_ESCAPE_RE = &
+    character(len=*), parameter :: STRING_ESCAPE_REGEXP = &
                                    "[^\]\(\\\\\|\\'\|\\a\|\\b\|\\f\|\\n\|\\r\|\\t\|\\v\|\\[0-7]\{1,3\}\|\\" &
                                    //"x[[:xdigit:]][[:xdigit:]]\)\|[^\]\(?:\(?1:\\u[[:xdigit:]]\{4\}\)\|\(?1" &
                                    //":\\U[[:xdigit:]]\{8\}\)\|\(?1:\\N{[^z-a]*?}\)\)"
-    character(len=*), parameter :: NOT_RAW_BYTES_START_RE = &
+    character(len=*), parameter :: NOT_RAW_BYTES_START_REGEXP = &
                                    "\(?:\`\|[^[:alnum:]]\)[Bb]\(?:""""""\|'''\|[""']\)\'"
-    character(len=*), parameter :: NOT_RAW_STRING_START_RE = &
+    character(len=*), parameter :: NOT_RAW_STRING_START_REGEXP = &
                                    "\`\(?:\(?:[^[:alnum:]]?[FUfu]\)?\(?:""""""\|'''\)\|[^z-a]?[^[:alnum:]]\(?" &
                                    //":""""""\|'''\)\|\(?:[^z-a]\{0,2\}[^[:alnum:]]\)?[FUfu][""']\|\(?:[^z-a]\{0" &
                                    //",3\}[^""'[:alnum:]]\)?[""']\)\'"
-    character(len=*), parameter :: F_STRING_START_RE = &
+    character(len=*), parameter :: F_STRING_START_REGEXP = &
                                    "\<\(?:F[Rr]\|R[Ff]\|f[Rr]\|r[Ff]\|[Ff]\)\(?:""""""\|'''\|[""']\)"
-    character(len=*), parameter :: TRIPLE_QUOTES_RE = &
+    character(len=*), parameter :: TRIPLE_QUOTES_REGEXP = &
                                    "\(?:""""""\|'''\)"
-    character(len=*), parameter :: BEGINNING_OF_SUBPROGRAM_RE = &
+    character(len=*), parameter :: BEGINNING_OF_SUBPROGRAM_REGEXP = &
                                    "^[[:space:]]*\_<\(?:def\|class\|async[[:space:]]+def\)\_>\(?:[[:space:" &
                                    //"]]\|\\"//LF//"\)+\([_[:alpha:]][_[:word:]]*\)"
-    character(len=*), parameter :: BEGINNING_OF_BLOCK_RE = &
+    character(len=*), parameter :: BEGINNING_OF_BLOCK_REGEXP = &
                                    "^[[:space:]]*\_<\(?:def\|class\|if\|elif\|else\|try\|except\|finally\|" &
                                    //"for\|while\|with\|match\|case\|async[[:space:]]+\(?:def\|for\|with\)\)" &
                                    //"\_>"
-    character(len=*), parameter :: LINE_START_BLOCK_START_RE = &
+    character(len=*), parameter :: LINE_START_BLOCK_START_REGEXP = &
                                    "^\_<\(?:def\|class\|if\|elif\|else\|try\|except\|finally\|for\|while\|" &
                                    //"with\|match\|case\|async[[:space:]]+\(?:def\|for\|with\)\)\_>"
-    character(len=*), parameter :: BLOCK_START_RE = &
+    character(len=*), parameter :: BLOCK_START_REGEXP = &
                                    "\_<\(?:def\|class\|if\|elif\|else\|try\|except\|finally\|for\|while\|w" &
                                    //"ith\|match\|case\|async[[:space:]]+\(?:def\|for\|with\)\)\_>"
-    character(len=*), parameter :: BLOCK_START_SPACE_RE = &
+    character(len=*), parameter :: BLOCK_START_SPACE_REGEXP = &
                                    "\_<\(?:def\|class\|if\|elif\|else\|try\|except\|finally\|for\|while\|w" &
                                    //"ith\|match\|case\|async[[:space:]]+\(?:def\|for\|with\)\)\_>[[:space:]" &
                                    //"]*"
-    character(len=*), parameter :: BLOCK_ENDER_RE = &
+    character(len=*), parameter :: BLOCK_ENDER_REGEXP = &
                                    "\_<\(?:\(?:break\|continue\|pass\|r\(?:aise\|eturn\)\)\_>\|\(?:\(?:os\" &
                                    //"._?\|sys\.\)?exit\|quit\)[[:space:]]*(\)"
-    character(len=*), parameter :: DEDENTER_RE = &
+    character(len=*), parameter :: DEDENTER_REGEXP = &
                                    "\_<\(?:case\|e\(?:l\(?:if\|se\)\|xcept\)\|finally\)\_>"
-    character(len=*), parameter :: INDENT_REGION_SKIP_RE = &
+    character(len=*), parameter :: INDENT_REGION_SKIP_REGEXP = &
                                    "\_<\(?:def\|class\|if\|elif\|else\|try\|except\|finally\|for\|while\|w" &
                                    //"ith\|match\|case\|async[[:space:]]+\(?:def\|for\|with\)\)\_>\|\_<\(?:c" &
                                    //"ase\|e\(?:l\(?:if\|se\)\|xcept\)\|finally\)\_>\|\_<\(?:\(?:break\|cont" &
                                    //"inue\|pass\|r\(?:aise\|eturn\)\)\_>\|\(?:\(?:os\._?\|sys\.\)?exit\|qui" &
                                    //"t\)[[:space:]]*(\)"
-    character(len=*), parameter :: FORWARD_BLOCK_RE = &
+    character(len=*), parameter :: FORWARD_BLOCK_REGEXP = &
                                    "^[[:space:]]*\_<\(?:def\|class\|if\|elif\|else\|try\|except\|finally\|" &
                                    //"for\|while\|with\|match\|case\|async[[:space:]]+\(?:def\|for\|with\)\)" &
                                    //"\_>"
-    character(len=*), parameter :: CLOSE_PAREN_RE = &
+    character(len=*), parameter :: CLOSE_PAREN_REGEXP = &
                                    "[])}]"
-    character(len=*), parameter :: OPEN_PAREN_RE = &
+    character(len=*), parameter :: OPEN_PAREN_REGEXP = &
                                    "[([{]"
-    character(len=*), parameter :: IF_NAME_MAIN_RE = &
+    character(len=*), parameter :: IF_NAME_MAIN_REGEXP = &
                                    "^if[[:space:]]+__name__[[:space:]]+==[[:space:]]+\(?1:[""']\)__main__\1" &
                                    //"[[:space:]]*:"
-    character(len=*), parameter :: LINE_START_WS_RE = &
+    character(len=*), parameter :: LINE_START_WS_REGEXP = &
                                    "^[[:space:]]*"
-    character(len=*), parameter :: ASSIGNMENT_STATEMENT_RE = &
+    character(len=*), parameter :: ASSIGNMENT_STATEMENT_REGEXP = &
                                    "[^"//LF//"%&*+/<->^|~-]\(?:\(?:\*\*\|//\|<<\|>>\|[%&*+/|^-]\)?=\)\([^"//LF//"%&*+/<-" &
                                    //">^|~-]\)"
-    character(len=*), parameter :: EMPTY_LINE_RE = &
+    character(len=*), parameter :: EMPTY_LINE_REGEXP = &
                                    "^[[:space:]]*\(.*\)[[:space:]]*$"
-    character(len=*), parameter :: CODING_COOKIE_RE = &
+    character(len=*), parameter :: CODING_COOKIE_REGEXP = &
                                    "^#[[:space:]]*\(?:coding[:=][[:space:]]*\(?1:\(?:[[:word:]]\|-\)+\)\|-" &
                                    //"\*-[[:space:]]*coding:[[:space:]]*\(?1:\(?:[[:word:]]\|-\)+\)[[:space:" &
                                    //"]]*-\*-\|vim:[[:space:]]*set[[:space:]]+fileencoding[[:space:]]*=[[:sp" &
                                    //"ace:]]*\(?1:\(?:[[:word:]]\|-\)+\)[[:space:]]*:\)"
-    character(len=*), parameter :: OUTLINE_RE = &
+    character(len=*), parameter :: OUTLINE_REGEXP = &
                                    "[[:space:]]*\_<\(?:def\|class\|if\|elif\|else\|try\|except\|finally\|f" &
                                    //"or\|while\|with\|match\|case\|async[[:space:]]+\(?:def\|for\|with\)\)\" &
                                    //"_>"
-    character(len=*), parameter :: SELF_RE = &
+    character(len=*), parameter :: SELF_REGEXP = &
                                    "^\<self\>\."
-    character(len=*), parameter :: STRING_DELIM_SYNTAX_RE = &
+    character(len=*), parameter :: STRING_DELIM_SYNTAX_REGEXP = &
                                    "\s|"
-    character(len=*), parameter :: AUTO_MODE_RE = &
+    character(len=*), parameter :: AUTO_MODE_REGEXP = &
                                    "\(?:\.\(?:p\(?:th\|y[iw]?\)\)\|/\(?:SCons\(?:\(?:crip\|truc\)t\)\)\)\'"
-    character(len=*), parameter :: WALRUS_RE = &
+    character(len=*), parameter :: WALRUS_REGEXP = &
                                    "[^[:space:]]:$"
 
 contains
@@ -610,14 +611,14 @@ contains
         if (.not. associated(python_fill_paren_function)) python_fill_paren_function => python_fill_paren
 
         if (.not. allocated(python_nav_beginning_of_definition_regexp)) then
-            python_nav_beginning_of_definition_regexp = BEGINNING_OF_SUBPROGRAM_RE
+            python_nav_beginning_of_definition_regexp = BEGINNING_OF_SUBPROGRAM_REGEXP
         end if
 
-        if (.not. allocated(python_nav_beginning_of_block_regexp)) python_nav_beginning_of_block_regexp = BEGINNING_OF_BLOCK_RE
+        if (.not. allocated(python_nav_beginning_of_block_regexp)) python_nav_beginning_of_block_regexp = BEGINNING_OF_BLOCK_REGEXP
         call init_syntax_tables()
         call init_keywords()
         call init_rules()
-        call add_local_variables_killer(kill_python_locals)
+        call append_locals_clearer(clear_python_locals)
         call major_modes%python_base_mode%define("python_base_mode", "Python", python_base_mode, python_base_mode_hook, &
                                                  parent=major_modes%prog_mode, syntax_table=python_mode_syntax_table)
         python_base_mode_map = major_modes%python_base_mode%map
@@ -734,36 +735,36 @@ contains
         integer :: n
 
         h1(1) = h(1, "font_lock_function_name_face")
-        kw(1) = font_lock_keyword(DEF_RE, highlights=h1)
+        kw(1) = font_lock_keyword(DEF_REGEXP, highlights=h1)
         h1(1) = h(1, TY)
-        kw(2) = font_lock_keyword(CLASS_RE, highlights=h1)
+        kw(2) = font_lock_keyword(CLASS_REGEXP, highlights=h1)
         python_font_lock_keywords_level_1 = kw(1:2)
-        kw(3) = font_lock_keyword(KEYWORDS2_RE)
+        kw(3) = font_lock_keyword(KEYWORDS2_REGEXP)
         ! Builtins
-        kw(4) = font_lock_keyword(BUILTINS_RE, face="font_lock_builtin_face")
+        kw(4) = font_lock_keyword(BUILTINS_REGEXP, face="font_lock_builtin_face")
         python_font_lock_keywords_level_2 = kw(1:4)
         n = 0
         if (allocated(python_font_lock_keywords_maximum_decoration)) deallocate (python_font_lock_keywords_maximum_decoration)
-        call add(font_lock_keyword(matcher=python_font_lock_f_strings))
-        call add_level_2()
+        call append(font_lock_keyword(matcher=python_font_lock_f_strings))
+        call append_level_2()
         ! Constants
-        call add(font_lock_keyword(CONSTANTS_RE, face=CO))
+        call append(font_lock_keyword(CONSTANTS_REGEXP, face=CO))
         ! Decorators.
         h1(1) = h(1, TY)
-        call add(font_lock_keyword(DECORATOR_RE, highlights=h1))
+        call append(font_lock_keyword(DECORATOR_REGEXP, highlights=h1))
         ! Builtin Exceptions
-        call add(font_lock_keyword(EXCEPTIONS_RE, face=TY))
+        call append(font_lock_keyword(EXCEPTIONS_REGEXP, face=TY))
         ! single assignment with/without type hints, e.g.
         !   a: int = 5
-        !   b: Tuple[Optional[int], Union[Sequence[str], str]] = (None, 'foo')
+        !   b: Tuple[Optional[int], Union[Sequence[string], string]] = (None, 'foo')
         !   c: Collection = {1, 2, 3}
-        !   d: Mapping[int, str] = {1: 'bar', 2: 'baz'}
+        !   d: Mapping[int, string] = {1: 'bar', 2: 'baz'}
         h1(1) = h(0, TY)
-        a(1) = font_lock_anchored(h1, regexp=SYMBOL_NAME_RE, pre_match_form=assignment_1_pre_form)
+        a(1) = font_lock_anchored(h1, regexp=SYMBOL_NAME_REGEXP, pre_match_form=assignment_1_pre_form)
         h3(1) = h(1, VA)
         h3(2) = h(3, OP)
         h3(3) = a(1)
-        call add(font_lock_keyword(matcher=assignment_matcher_1, highlights=h3))
+        call append(font_lock_keyword(matcher=assignment_matcher_1, highlights=h3))
         ! multiple assignment
         ! (note that type hints are not allowed for multiple assignments)
         !   a, b, c = 1, 2, 3
@@ -781,36 +782,36 @@ contains
         !   [*a] = 5, 6
         ! are handled separately below
         h1(1) = h(1, VA)
-        a(1) = font_lock_anchored(h1, regexp=GROUPED_TARGET_RE, pre_match_form=assignment_2_pre_form)
+        a(1) = font_lock_anchored(h1, regexp=GROUPED_TARGET_REGEXP, pre_match_form=assignment_2_pre_form)
         h3(1) = h(1, VA)
         h3(2) = h(2, OP)
         h3(3) = a(1)
-        call add(font_lock_keyword(matcher=assignment_matcher_2, highlights=h3))
+        call append(font_lock_keyword(matcher=assignment_matcher_2, highlights=h3))
         ! special cases
         !   (a) = 5
         !   [a] = 5,
         !   [*a] = 5, 6
         h2(1) = h(1, VA)
         h2(2) = h(2, OP)
-        call add(font_lock_keyword(matcher=assignment_matcher_3, highlights=h2))
+        call append(font_lock_keyword(matcher=assignment_matcher_3, highlights=h2))
         ! Operators.
-        call add(font_lock_keyword(OPERATOR_RE, face=OP))
+        call append(font_lock_keyword(OPERATOR_REGEXP, face=OP))
         ! escape sequences within bytes literals
         !   "\\" "\'" "\a" "\b" "\f" "\n" "\r" "\t" "\v"
         !   "\ooo" character with octal value ooo
         !   "\xhh" character with hex value hh
         h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_YES)
-        call add(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
+        call append(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
         ! escape sequences within string literals, the same as appear in bytes
         ! literals in addition to:
         !   "\uxxxx" Character with 16-bit hex value xxxx
         !   "\Uxxxxxxxx" Character with 32-bit hex value xxxxxxxx
         !   "\N{name}" Character named name in the Unicode database
-        call add(font_lock_keyword(matcher=string_escape_matcher, highlights=h1))
+        call append(font_lock_keyword(matcher=string_escape_matcher, highlights=h1))
 
     contains
 
-        subroutine add(k)
+        subroutine append(k)
             type(font_lock_keyword_type), intent(in) :: k
             type(font_lock_keyword_type), allocatable :: grown(:)
 
@@ -826,15 +827,15 @@ contains
             grown(1:size(python_font_lock_keywords_maximum_decoration)) = python_font_lock_keywords_maximum_decoration
             grown(size(grown)) = k
             call move_alloc(grown, python_font_lock_keywords_maximum_decoration)
-        end subroutine add
+        end subroutine append
 
-        subroutine add_level_2()
+        subroutine append_level_2()
             integer :: k
 
             do k = 1, size(python_font_lock_keywords_level_2)
-                call add(python_font_lock_keywords_level_2(k))
+                call append(python_font_lock_keywords_level_2(k))
             end do
-        end subroutine add_level_2
+        end subroutine append_level_2
     end subroutine init_keywords
 
     ! The rules of python-syntax-propertize-function.
@@ -844,7 +845,7 @@ contains
 
         if (allocated(propertize_rules%rules)) return
         allocate (propertize_rules%rules(1))
-        propertize_rules%rules(1)%regexp = TRIPLE_QUOTES_RE
+        propertize_rules%rules(1)%regexp = TRIPLE_QUOTES_REGEXP
         hl = syntax_highlight_type(group=0)
         hl%after => stringify_after
         propertize_rules%rules(1)%highlights = [hl]
@@ -873,12 +874,12 @@ contains
     ! kill-all-local-variables: forget the current buffer's navigation
     ! cache.
     ! Not a port.
-    recursive subroutine kill_python_locals()
+    recursive subroutine clear_python_locals()
         integer :: k
 
         k = nav_cache_index(.false.)
         if (k > 0) nav_caches(k)%serial = 0
-    end subroutine kill_python_locals
+    end subroutine clear_python_locals
 
     ! ------------------------------------------------------------------
     ! Font-lock and syntax
@@ -1024,7 +1025,7 @@ contains
         if (ppss%instring < 0) return
         spos = ppss%comstr_start - 1
         call buffer_substring(max(spos - 4, point_min()), min(spos + 2, point_max()), before_quote, st)
-        if (string_match(F_STRING_START_RE, before_quote, st) <= 0) return
+        if (string_match(F_STRING_START_REGEXP, before_quote, st) <= 0) return
 
         if (point_min() < spos) then
             is_f_string = .true.
@@ -1043,7 +1044,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         type(parse_state_type) :: ppss
-        integer(int64) :: send, beg, end, pos, f, opoint
+        integer(int64) :: send, beginning, end, pos, f, opoint
         type(status_type) :: st
         logical :: saved_ignore
 
@@ -1053,7 +1054,7 @@ contains
 
         do
             do while (.not. is_f_string(ppss))
-                call re_search_forward(F_STRING_START_RE, f, st, bound=limit, noerror=SEARCH_MOVE)
+                call re_search_forward(F_STRING_START_REGEXP, f, st, bound=limit, noerror=SEARCH_MOVE)
                 if (.not. st%ok() .or. f <= 0) exit
                 ppss = ppss_here()
             end do
@@ -1081,7 +1082,7 @@ contains
                     ! Just skip over {{
                     call goto_char(point() + 1)
                 else
-                    beg = match_beginning(0, st)
+                    beginning = match_beginning(0, st)
                     saved_ignore = parse_expression_ignore_comments%value
                     parse_expression_ignore_comments%value = .false.
                     pos = scan_groups(point(), 1_int64, 1_int64, st)
@@ -1094,7 +1095,7 @@ contains
                     end if
 
                     call goto_char(end)
-                    call put_text_property(beg, end, value_type(name="face"), value_type(), st)
+                    call put_text_property(beginning, end, value_type(name="face"), value_type(), st)
                 end if
             end do
 
@@ -1144,7 +1145,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call assignment_matcher(ASSIGN1_RE, limit, found)
+        call assignment_matcher(ASSIGN1_REGEXP, limit, found)
     end subroutine assignment_matcher_1
 
     ! Not a port.
@@ -1154,7 +1155,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call assignment_matcher(ASSIGN2_RE, limit, found)
+        call assignment_matcher(ASSIGN2_REGEXP, limit, found)
     end subroutine assignment_matcher_2
 
     ! Not a port.
@@ -1164,7 +1165,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call assignment_matcher(ASSIGN3_RE, limit, found)
+        call assignment_matcher(ASSIGN3_REGEXP, limit, found)
     end subroutine assignment_matcher_3
 
     ! (progn (when-let* ((type-start (match-beginning 2)))
@@ -1236,7 +1237,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call string_bytes_literal_matcher(BYTES_ESCAPE_RE, NOT_RAW_BYTES_START_RE, limit, found)
+        call string_bytes_literal_matcher(BYTES_ESCAPE_REGEXP, NOT_RAW_BYTES_START_REGEXP, limit, found)
     end subroutine bytes_escape_matcher
 
     ! Not a port.
@@ -1246,7 +1247,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call string_bytes_literal_matcher(STRING_ESCAPE_RE, NOT_RAW_STRING_START_RE, limit, found)
+        call string_bytes_literal_matcher(STRING_ESCAPE_REGEXP, NOT_RAW_STRING_START_REGEXP, limit, found)
     end subroutine string_escape_matcher
 
     !> Count number of quotes around point (max is 3).
@@ -1348,15 +1349,15 @@ contains
     ! python.el:python-nav--beginning-of-defun.
     recursive logical function nav_beginning_of_subprogram_1(arg_in) result(found)
         integer(int64), intent(in) :: arg_in
-        integer(int64) :: arg, line_beg_pos, line_content_start, pos, min_indentation, body_indentation, f, opoint
+        integer(int64) :: arg, line_beginning_pos, line_content_start, pos, min_indentation, body_indentation, f, opoint
         logical :: backward, more
         type(status_type) :: st
 
         arg = arg_in
         if (arg == 0) arg = 1
         backward = arg > 0
-        line_beg_pos = line_beginning_position()
-        line_content_start = line_beg_pos + current_indentation()
+        line_beginning_pos = line_beginning_position()
+        line_content_start = line_beginning_pos + current_indentation()
         pos = point()
 
         if (is_python_info_current_line_empty()) then
@@ -1426,7 +1427,8 @@ contains
 
         if (found) then
             found = line_number_at_pos(pos) /= line_number_at_pos()
-            if (.not. found) found = point() >= line_beg_pos .and. point() <= line_content_start .and. pos > line_content_start
+            if (.not. found) found = point() >= line_beginning_pos &
+                                     .and. point() <= line_content_start .and. pos > line_content_start
         end if
 
         if (found) then
@@ -1480,30 +1482,30 @@ contains
     !> Returns false if point is not in a def or class.  Port of
     !> python.el:python-nav-end-of-defun.
     recursive logical function python_nav_end_of_definition() result(moved)
-        integer(int64) :: beg_subprogram_indent, beg_pos, f, shortage
+        integer(int64) :: beginning_subprogram_indent, beginning_pos, f, shortage
         logical :: ok, dummy
 
-        beg_pos = point()
+        beginning_pos = point()
         moved = .false.
         ok = python_info_looking_at_beginning_of_definition()
         if (.not. ok) ok = nav_beginning_of_subprogram(1_int64)
         if (.not. ok) ok = nav_beginning_of_subprogram(-1_int64)
         if (.not. ok) return
-        beg_subprogram_indent = current_indentation()
+        beginning_subprogram_indent = current_indentation()
 
         do
             f = python_nav_end_of_statement()
             dummy = python_util_forward_comment(1)
-            if (.not. (current_indentation() > beg_subprogram_indent .and. .not. is_eob())) exit
+            if (.not. (current_indentation() > beginning_subprogram_indent .and. .not. is_eob())) exit
         end do
 
         dummy = python_util_forward_comment(-1)
         shortage = forward_line(1_int64)
         ! Ensure point moves forward.
-        if (beg_pos > point()) call goto_char(beg_pos)
+        if (beginning_pos > point()) call goto_char(beginning_pos)
         ! Return non-nil if we did something (because then we were in a
         ! def/class).
-        moved = beg_pos /= point()
+        moved = beginning_pos /= point()
     end function python_nav_end_of_definition
 
     ! `python_nav_end_of_definition' as `end_of_subprogram_function'.
@@ -1521,7 +1523,7 @@ contains
     ! them, further in direction DIR (1 forward, -1 backward) than the
     ! previous place found.  Port of python.el:python-nav--syntactically.
     recursive integer(int64) function nav_syntactically(fn, dir) result(found)
-        procedure(nav_motion) :: fn
+        procedure(nav_motion_procedure) :: fn
         integer, intent(in) :: dir
         integer(int64) :: start_pos, prev_pos, newpos
         integer :: context
@@ -1659,7 +1661,7 @@ contains
         logical, intent(in), optional :: noend
         integer(int64) :: string_start, bs_pos, last_string_end, f, shortage, p
         character(len=:), allocatable :: message
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         type(parse_state_type) :: ppss
         type(status_type) :: st
         logical :: no_end, found
@@ -1694,7 +1696,7 @@ contains
 
                     if (ppss%instring == ST_STRING_STYLE) then
                         do
-                            call re_search_forward(TRIPLE_QUOTES_RE, f, st, noerror=SEARCH_NOERROR)
+                            call re_search_forward(TRIPLE_QUOTES_REGEXP, f, st, noerror=SEARCH_NOERROR)
                             if (.not. st%ok() .or. f <= 0) exit
 
                             if (python_syntax_context(PYTHON_CONTEXT_STRING) == 0) then
@@ -1719,7 +1721,7 @@ contains
                 if (st%ok()) then
                     call goto_char(p)
                 else
-                    call scan_error_data(st, message, beg, end)
+                    call scan_error_data(st, message, beginning, end)
                     call goto_char(end)
                 end if
             else
@@ -1776,11 +1778,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(nav_caches)) allocate (nav_caches(0))
 
         do k = 1, size(nav_caches)
-            if (nav_caches(k)%serial == buffers(cur)%serial) return
+            if (nav_caches(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -1788,7 +1790,7 @@ contains
 
         do k = 1, size(nav_caches)
             if (.not. buffer_serial_live(nav_caches(k)%serial)) then
-                nav_caches(k) = nav_cache_type(serial=buffers(cur)%serial)
+                nav_caches(k) = nav_cache_type(serial=buffers(current)%serial)
                 return
             end if
         end do
@@ -1800,7 +1802,7 @@ contains
             grown(i) = nav_caches(i)
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, nav_caches)
         k = n + 1
     end function nav_cache_index
@@ -1903,7 +1905,7 @@ contains
 
         p = python_nav_beginning_of_statement()
 
-        if (looking_at(BLOCK_START_RE, st)) then
+        if (looking_at(BLOCK_START_REGEXP, st)) then
             pos = point()
             return
         end if
@@ -1917,7 +1919,7 @@ contains
 
         pos = 0
 
-        if (looking_at(BLOCK_START_RE, st)) then
+        if (looking_at(BLOCK_START_REGEXP, st)) then
             if (current_indentation() == block_matching_indent) pos = point()
         end if
 
@@ -1999,7 +2001,7 @@ contains
             p = python_nav_end_of_statement()
 
             do
-                call re_search_forward(FORWARD_BLOCK_RE, f, st, noerror=SEARCH_NOERROR)
+                call re_search_forward(FORWARD_BLOCK_REGEXP, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) exit
                 if (python_syntax_context_type() == 0) exit
             end do
@@ -2011,7 +2013,7 @@ contains
             p = python_nav_beginning_of_statement()
 
             do
-                call re_search_backward(FORWARD_BLOCK_RE, f, st, noerror=SEARCH_NOERROR)
+                call re_search_backward(FORWARD_BLOCK_REGEXP, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) exit
                 if (python_syntax_context_type() == 0) exit
             end do
@@ -2022,7 +2024,7 @@ contains
         p = python_nav_beginning_of_statement()
         pos = 0
 
-        if ((orig_arg > 0 .and. point() < starting_pos) .or. .not. looking_at(BLOCK_START_RE, st)) then
+        if ((orig_arg > 0 .and. point() < starting_pos) .or. .not. looking_at(BLOCK_START_REGEXP, st)) then
             call goto_char(starting_pos)
         else if (point() /= starting_pos) then
             pos = point()
@@ -2060,9 +2062,9 @@ contains
 
         do
             if (arg > 0) then
-                call re_search_forward(CLOSE_PAREN_RE, f, st, noerror=SEARCH_NOERROR)
+                call re_search_forward(CLOSE_PAREN_REGEXP, f, st, noerror=SEARCH_NOERROR)
             else
-                call re_search_backward(OPEN_PAREN_RE, f, st, noerror=SEARCH_NOERROR)
+                call re_search_backward(OPEN_PAREN_REGEXP, f, st, noerror=SEARCH_NOERROR)
             end if
 
             if (.not. st%ok() .or. f <= 0) exit
@@ -2466,7 +2468,7 @@ contains
         pos = 0
 
         do
-            call re_search_forward(IF_NAME_MAIN_RE, f, st, noerror=SEARCH_NOERROR)
+            call re_search_forward(IF_NAME_MAIN_REGEXP, f, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. f <= 0) exit
 
             if (python_syntax_context_type() == 0) then
@@ -2505,8 +2507,8 @@ contains
         if (present(include_type)) incl = include_type
         ! (save-restriction (widen) (save-excursion ...))
         opoint = point()
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
         call widen()
         call end_of_line(1_int64)
         allocate (names(0))
@@ -2571,12 +2573,12 @@ contains
                 has_last = .true.
 
                 if (.not. incl .or. allocated(type)) then
-                    call add_name(match_string_no_properties(1))
+                    call append_name(match_string_no_properties(1))
                 else
                     matched = match_string_no_properties(0)
                     call split2(matched, first, second)
                     type = first
-                    call add_name(second)
+                    call append_name(second)
                 end if
             end if
 
@@ -2595,11 +2597,11 @@ contains
         end if
 
         call goto_char(opoint)
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
 
     contains
 
-        subroutine add_name(n)
+        subroutine append_name(n)
             character(len=*), intent(in) :: n
             type(string_list_type), allocatable :: grown(:)
             integer :: j
@@ -2612,7 +2614,7 @@ contains
             end do
 
             call move_alloc(grown, names)
-        end subroutine add_name
+        end subroutine append_name
 
         ! The first two words of S (split-string at whitespace).
         subroutine split2(s, w1, w2)
@@ -2660,7 +2662,7 @@ contains
 
         opoint = point()
         p = python_nav_beginning_of_statement()
-        starts = looking_at(BLOCK_START_RE, st)
+        starts = looking_at(BLOCK_START_REGEXP, st)
         call goto_char(opoint)
     end function is_python_info_statement_starts_block
 
@@ -2773,10 +2775,10 @@ contains
         found = .false.
 
         do
-            call re_search_backward(BLOCK_START_RE, f, st, noerror=SEARCH_NOERROR)
+            call re_search_backward(BLOCK_START_REGEXP, f, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. f <= 0) return
             md = match_data()
-            at_bol = looking_back(LINE_START_WS_RE, st, line_beginning_position())
+            at_bol = looking_back(LINE_START_WS_REGEXP, st, line_beginning_position())
             call set_match_data(md)
 
             if (at_bol) then
@@ -2795,7 +2797,7 @@ contains
         integer(int64), allocatable :: opening_blocks(:)
         integer(int64), allocatable :: collected(:), md(:)
         character(len=:), allocatable :: dedenter, keyword
-        integer(int64) :: opoint, dedenter_pos, cur_line, indentation, p, shortage
+        integer(int64) :: opoint, dedenter_pos, current_line, indentation, p, shortage
         logical :: no_back_indent, take
 
         allocate (opening_blocks(0), collected(0))
@@ -2804,7 +2806,7 @@ contains
 
         if (dedenter_pos > 0) then
             call goto_char(dedenter_pos)
-            cur_line = line_beginning_position()
+            current_line = line_beginning_position()
             dedenter = match_string_no_properties(0)
 
             do
@@ -2825,7 +2827,7 @@ contains
                     shortage = forward_line(1_int64)
                     no_back_indent = .true.
 
-                    do while (point() < cur_line)
+                    do while (point() < current_line)
                         no_back_indent = current_indentation() > indentation .or. is_python_info_current_line_empty() &
                                          .or. is_python_info_current_line_comment()
                         if (.not. no_back_indent) exit
@@ -2906,7 +2908,7 @@ contains
         p = python_nav_beginning_of_statement()
 
         if (python_syntax_context_type() == 0) then
-            if (looking_at(DEDENTER_RE, st)) then
+            if (looking_at(DEDENTER_REGEXP, st)) then
                 ! Exclude the first "case" in the block.
                 first_case = .false.
 
@@ -3034,7 +3036,7 @@ contains
         if (is_python_info_continuation_line() > 0) then
             shortage = forward_line(-1_int64)
             call back_to_indentation()
-            if (looking_at(BLOCK_START_RE, st)) pos = point()
+            if (looking_at(BLOCK_START_REGEXP, st)) pos = point()
         end if
 
         call goto_char(opoint)
@@ -3064,7 +3066,7 @@ contains
         end if
 
         do while (.not. found)
-            call re_search_forward(ASSIGNMENT_STATEMENT_RE, f, st, bound=line_end_position(), noerror=SEARCH_NOERROR)
+            call re_search_forward(ASSIGNMENT_STATEMENT_REGEXP, f, st, bound=line_end_position(), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. f <= 0) exit
             ! The assignment operator should not be inside a string.
             q = point()
@@ -3157,7 +3159,7 @@ contains
 
         opoint = point()
         call beginning_of_line(1_int64)
-        matched = looking_at(EMPTY_LINE_RE, st)
+        matched = looking_at(EMPTY_LINE_REGEXP, st)
         empty = len(match_string_no_properties(1)) == 0
         call goto_char(opoint)
     end function is_python_info_current_line_empty
@@ -3167,7 +3169,7 @@ contains
     !> point's current `syntax_ppss'.  Port of python.el:python-info-docstring-p.
     recursive logical function is_python_info_docstring(syntax_ppss_state) result(docstring)
         type(parse_state_type), intent(in), optional :: syntax_ppss_state
-        character(len=*), parameter :: RE = "[uU]?[rR]?[""']"
+        character(len=*), parameter :: regexp = "[uU]?[rR]?[""']"
         integer(int64) :: opoint, counter, indentation, backward_expression_point, last_backward_expression_point, p
         type(status_type) :: st
         logical :: dummy, more, has_last
@@ -3185,7 +3187,7 @@ contains
         counter = 1
         indentation = current_indentation()
 
-        if (is_python_info_assignment_statement() == 0 .and. looking_at(RE, st)) then
+        if (is_python_info_assignment_statement() == 0 .and. looking_at(regexp, st)) then
             ! Allow up to two consecutive docstrings only.
             has_last = .false.
             last_backward_expression_point = 0
@@ -3204,7 +3206,7 @@ contains
                     more = .not. (has_last .and. last_backward_expression_point == backward_expression_point)
                     last_backward_expression_point = backward_expression_point
                     has_last = .true.
-                    if (more) more = looking_at(RE, st)
+                    if (more) more = looking_at(regexp, st)
                 end if
 
                 call goto_char(p)
@@ -3221,7 +3223,7 @@ contains
                 if (is_bob()) then
                     p = point()
                     dummy = python_util_forward_comment()
-                    docstring = looking_at(RE, st)
+                    docstring = looking_at(regexp, st)
                     call goto_char(p)
                 end if
 
@@ -3268,16 +3270,16 @@ contains
         type(status_type) :: st
 
         opoint = point()
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
         call widen()
         call goto_char(point_min())
         shortage = forward_line(2_int64)
         call buffer_substring(point_min(), point(), first_two_lines, st)
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         call goto_char(opoint)
-        if (string_match(CODING_COOKIE_RE, first_two_lines, st) > 0) encoding = match_string_no_properties(1, &
-                                                                                                           first_two_lines)
+        if (string_match(CODING_COOKIE_REGEXP, first_two_lines, st) > 0) encoding = match_string_no_properties(1, &
+                                                                                                               first_two_lines)
     end subroutine python_info_encoding_from_cookie
 
     !> Return encoding for file.
@@ -3359,19 +3361,19 @@ contains
     !> python.el:python-indent-guess-indent-offset.
     recursive subroutine python_indent_guess_indent_offset()
         integer(int64) :: opoint, begv, zv_from_end, f, block_end, indentation, shortage
-        character(len=24) :: buf
+        character(len=24) :: buffer
         type(status_type) :: st
         logical :: is_end, dummy
 
         opoint = point()
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
         call widen()
         call goto_char(point_min())
         block_end = 0
 
         do while (block_end == 0)
-            call re_search_forward(LINE_START_BLOCK_START_RE, f, st, noerror=SEARCH_NOERROR)
+            call re_search_forward(LINE_START_BLOCK_START_REGEXP, f, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. f <= 0) exit
             if (python_syntax_context_type() /= 0) cycle
             call goto_char(line_end_position())
@@ -3407,11 +3409,11 @@ contains
         if (block_end > 0 .and. indentation /= 0) then
             call python_indent_offset%set_local(indentation)
         else if (python_indent_guess_indent_offset_verbose%value) then
-            write (buf, "(i0)") python_indent_offset%value
-            call message("Can't guess python_indent_offset, using defaults: "//trim(buf))
+            write (buffer, "(i0)") python_indent_offset%value
+            call message("Can't guess python_indent_offset, using defaults: "//trim(buffer))
         end if
 
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         call goto_char(opoint)
     end subroutine python_indent_guess_indent_offset
 
@@ -3590,7 +3592,7 @@ contains
             if (starts_in_newline) then
                 call goto_char(s)
                 call back_to_indentation()
-                cond = looking_at(BLOCK_START_RE, st)
+                cond = looking_at(BLOCK_START_REGEXP, st)
                 call goto_char(opoint)
 
                 if (cond) then
@@ -3662,7 +3664,7 @@ contains
 
             if (block_continuation_start > 0) then
                 call goto_char(block_continuation_start)
-                call re_search_forward(BLOCK_START_SPACE_RE, f, st, bound=line_end_position(), noerror=SEARCH_NOERROR)
+                call re_search_forward(BLOCK_START_SPACE_REGEXP, f, st, bound=line_end_position(), noerror=SEARCH_NOERROR)
                 kind = PYTHON_INDENT_AFTER_BACKSLASH_BLOCK_CONTINUATION
                 start = point()
                 call goto_char(opoint)
@@ -3734,7 +3736,7 @@ contains
                 call goto_char(line_end_position())
                 dummy = python_util_forward_comment(-1)
                 f = python_nav_beginning_of_statement()
-                cond = looking_at(BLOCK_ENDER_RE, st)
+                cond = looking_at(BLOCK_ENDER_REGEXP, st)
                 call goto_char(p)
 
                 if (cond) then
@@ -3971,7 +3973,7 @@ contains
         call indent_line_to(python_indent_calculate_indentation(previous), status)
         if (status%ok()) call python_info_dedenter_opening_block_message()
         call goto_char(mpos(m))
-        call free_marker(m, st)
+        call destroy_marker(m, st)
         if (follow_indentation_p) call back_to_indentation()
     end subroutine python_indent_line
 
@@ -4079,7 +4081,7 @@ contains
                 if (ok) then
                     q = point()
                     call back_to_indentation()
-                    ok = .not. looking_at(INDENT_REGION_SKIP_RE, st)
+                    ok = .not. looking_at(INDENT_REGION_SKIP_REGEXP, st)
                     call goto_char(q)
                 end if
 
@@ -4089,9 +4091,9 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call free_marker(endm, st)
+        call destroy_marker(endm, st)
         call goto_char(mpos(m))
-        call free_marker(m, st)
+        call destroy_marker(m, st)
         deactivate_mark_variable = saved_deactivate
     end subroutine python_indent_region
 
@@ -4202,7 +4204,7 @@ contains
             indentation = python_indent_calculate_indentation()
             if (current_indentation() < indentation) call indent_line_to(indentation, status)
             call goto_char(mpos(startm))
-            call free_marker(startm, st)
+            call destroy_marker(startm, st)
             return
         end if
 
@@ -4230,8 +4232,8 @@ contains
         end if
 
         call goto_char(mpos(endm))
-        call free_marker(startm, st)
-        call free_marker(endm, st)
+        call destroy_marker(startm, st)
+        call destroy_marker(endm, st)
         if (opoint < 0) continue
     end subroutine python_indent_post_self_insert_function
 
@@ -4290,12 +4292,12 @@ contains
         else
             ! Parens
             paren = python_syntax_context(PYTHON_CONTEXT_PAREN) > 0
-            if (.not. paren) paren = looking_at(OPEN_PAREN_RE, st)
+            if (.not. paren) paren = looking_at(OPEN_PAREN_REGEXP, st)
 
             if (.not. paren) then
                 q = point()
                 moved = skip_syntax_forward("^(", line_end_position())
-                paren = looking_at(OPEN_PAREN_RE, st)
+                paren = looking_at(OPEN_PAREN_REGEXP, st)
                 call goto_char(q)
             end if
 
@@ -4303,7 +4305,7 @@ contains
         end if
 
         call goto_char(mpos(m))
-        call free_marker(m, st)
+        call destroy_marker(m, st)
 
     contains
 
@@ -4336,28 +4338,28 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(out) :: done
         integer, intent(in), optional :: justify
-        type(handle_type) :: str_start, str_line_start, str_end
+        type(handle_type) :: string_start, string_line_start, str_end
         character(len=:), allocatable :: text
-        integer(int64) :: num_quotes, f, begv, zv_from_end, start_newlines, end_newlines, q, moved, e
+        integer(int64) :: quote_count, f, begv, zv_from_end, start_newlines, end_newlines, q, moved, e
         type(status_type) :: st
         logical :: multi_line_p
 
         done = .true.
-        call copy_marker_at(is_python_info_triple_quoted_string(), str_start, .false., status)
+        call copy_marker_at(is_python_info_triple_quoted_string(), string_start, .false., status)
         if (.not. status%ok()) return
         ! JT@2021-09-21: Since bug#49518's fix this will always be 1
-        num_quotes = python_syntax_count_quotes(after_char_at(mpos(str_start)), mpos(str_start))
+        quote_count = python_syntax_count_quotes(after_char_at(mpos(string_start)), mpos(string_start))
         q = point()
-        call goto_char(mpos(str_start))
+        call goto_char(mpos(string_start))
         call beginning_of_line()
-        call copy_marker_at(point(), str_line_start, .false., st)
-        call goto_char(mpos(str_start) + num_quotes)
-        call re_search_forward(STRING_DELIM_SYNTAX_RE, f, st, noerror=SEARCH_NOERROR)
+        call copy_marker_at(point(), string_line_start, .false., st)
+        call goto_char(mpos(string_start) + quote_count)
+        call re_search_forward(STRING_DELIM_SYNTAX_REGEXP, f, st, noerror=SEARCH_NOERROR)
         if (.not. st%ok() .or. f <= 0) call goto_char(point_max())
         call copy_marker_at(point(), str_end, .false., st)
         call goto_char(q)
         ! Docstring styles may vary for one-liners and multi-liners.
-        call buffer_substring(mpos(str_start), mpos(str_end), text, st)
+        call buffer_substring(mpos(string_start), mpos(str_end), text, st)
         multi_line_p = index(text, LF) > 0
         ! delimiters-style is a cons cell with the form
         ! (START-NEWLINES .  END-NEWLINES). When any of the expressions
@@ -4368,19 +4370,19 @@ contains
         end_newlines = 0
 
         select case (python_fill_docstring_style%value)
-        case (PYTHON_DOCSTRING_DJANGO)
+        case (PYTHON_FILL_DOCSTRING_STYLE_DJANGO)
             start_newlines = 1
             end_newlines = 1
-        case (PYTHON_DOCSTRING_ONETWO)
+        case (PYTHON_FILL_DOCSTRING_STYLE_ONETWO)
             if (multi_line_p) then
                 start_newlines = 1
                 end_newlines = 2
             end if
-        case (PYTHON_DOCSTRING_PEP_257)
+        case (PYTHON_FILL_DOCSTRING_STYLE_PEP_257)
             if (multi_line_p) end_newlines = 2
-        case (PYTHON_DOCSTRING_PEP_257_NN)
+        case (PYTHON_FILL_DOCSTRING_STYLE_PEP_257_NN)
             if (multi_line_p) end_newlines = 1
-        case (PYTHON_DOCSTRING_SYMMETRIC)
+        case (PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC)
             if (multi_line_p) then
                 start_newlines = 1
                 end_newlines = 1
@@ -4390,18 +4392,18 @@ contains
         end select
 
         ! (save-restriction (narrow-to-region ...) (fill-paragraph justify))
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
-        call narrow_to_region(mpos(str_line_start), mpos(str_end), status)
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
+        call narrow_to_region(mpos(string_line_start), mpos(str_end), status)
         if (status%ok()) call fill_paragraph(status, justify)
         call widen()
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         q = point()
 
-        if (is_python_info_docstring() .and. python_fill_docstring_style%value /= PYTHON_DOCSTRING_NONE) then
+        if (is_python_info_docstring() .and. python_fill_docstring_style%value /= PYTHON_FILL_DOCSTRING_STYLE_NONE) then
             ! Add the number of newlines indicated by the selected style
             ! at the start of the docstring.
-            call goto_char(mpos(str_start) + num_quotes)
+            call goto_char(mpos(string_start) + quote_count)
             e = point()
             moved = skip_syntax_forward("> ")
             call delete_region(e, point(), st)
@@ -4416,7 +4418,7 @@ contains
             ! Add the number of newlines indicated by the selected style
             ! at the end of the docstring.
             if (mpos(str_end) /= point_max()) then
-                call goto_char(mpos(str_end) - num_quotes)
+                call goto_char(mpos(str_end) - quote_count)
             else
                 call goto_char(mpos(str_end))
             end if
@@ -4434,9 +4436,9 @@ contains
         end if
 
         call goto_char(q)
-        call free_marker(str_start, st)
-        call free_marker(str_line_start, st)
-        call free_marker(str_end, st)
+        call destroy_marker(string_start, st)
+        call destroy_marker(string_line_start, st)
+        call destroy_marker(str_end, st)
     end subroutine python_fill_string
 
     !> Decorator fill function for `python_fill_paragraph'.
@@ -4467,8 +4469,8 @@ contains
         done = .true.
         status = status_type()
         ! (save-restriction (narrow-to-region ...))
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
 
         do while (python_syntax_context(PYTHON_CONTEXT_PAREN) > 0)
             call goto_char(point() - 1)
@@ -4516,7 +4518,7 @@ contains
         end do
 
         call widen()
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
     end subroutine python_fill_paren
 
     !> Like `do_auto_fill', but bind `fill_indent_according_to_mode'.
@@ -4596,15 +4598,15 @@ contains
         chars = [iachar(":"), electric_indent_chars_value()]
         call electric_indent_chars_set_local(chars)
         ! Add """ ... """ pairing to electric-pair-mode.
-        call post_self_insert_hook%add(python_electric_pair_string_delimiter, depth=90, local=.true.)
+        call post_self_insert_hook%append(python_electric_pair_string_delimiter, depth=90, local=.true.)
         call paragraph_start%set_local("\s-*$")
         call fill_paragraph_function%set_local(python_fill_paragraph)
         call normal_auto_fill_function%set_local(python_do_auto_fill)
         call beginning_of_subprogram_function%set_local(python_nav_beginning_of_definition)
         call end_of_subprogram_function%set_local(python_nav_end_of_definition_function)
-        call post_self_insert_hook%add(python_indent_post_self_insert_function, depth=90, local=.true.)
+        call post_self_insert_hook%append(python_indent_post_self_insert_function, depth=90, local=.true.)
         if (.not. installed_grep_hook) call install_grep_settings()
-        call major_modes%python_base_mode%finish(saved, status)
+        call major_modes%python_base_mode%end(saved, status)
     end subroutine python_base_mode
 
     ! (with-eval-after-load 'grep ...): the Python files alias and the
@@ -4676,7 +4678,7 @@ contains
         call font_lock_defaults%set_local(levels=levels, syntactic_face_function=python_font_lock_syntactic_face_function)
         call syntax_propertize_function%set_local(python_syntax_propertize_function)
         if (python_indent_guess_indent_offset_variable%value) call python_indent_guess_indent_offset()
-        call major_modes%python_mode%finish(saved, status)
+        call major_modes%python_mode%end(saved, status)
     end subroutine python_mode
 
     ! ------------------------------------------------------------------
@@ -4732,7 +4734,7 @@ contains
 
         status = status_type()
 
-        if (buffers(cur)%mark_active) then
+        if (buffers(current)%mark_active) then
             call region_beginning(start, status)
             if (status%ok()) call region_end(end, status)
         else
@@ -4950,14 +4952,14 @@ contains
     !> Fill a comment, string, decorator or paren (the command).  Port of
     !> python.el:python-fill-paragraph.
     recursive subroutine cmd_python_fill_paragraph(status)
-        use fill_fm, only: JUSTIFY_FULL
+        use fill_fm, only: DEFAULT_JUSTIFICATION_FULL
         type(status_type), intent(out) :: status
         logical :: done
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
             call python_fill_paragraph(status, done)
         else
-            call python_fill_paragraph(status, done, JUSTIFY_FULL)
+            call python_fill_paragraph(status, done, DEFAULT_JUSTIFICATION_FULL)
         end if
     end subroutine cmd_python_fill_paragraph
 end module python_fm

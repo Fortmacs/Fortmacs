@@ -47,7 +47,7 @@ module help_fns_fm
     use lisp_fm, only: value_type, make_list, list_elements, V_ARRAY, vtag, list_elt, xfixnum, V_NULL, V_INTEGER, V_NAME
     use handle_fm, only: handle_type
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
-    use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, kill_buffer, &
+    use buffer_fm, only: buffers, current, current_buffer, get_or_make_buffer, set_buffer, close_buffer, &
                          generate_new_buffer_name
     use editfns_fm, only: point_min, point_max, buffer_string
     use insdel_fm, only: insert
@@ -99,7 +99,7 @@ contains
         is_function_known = associated(find_command(name))
     end function is_function_known
 
-    !> Completion predicate for `describe_function'.  Not a port.
+    !> Completion test for `describe_function'.  Not a port.
     logical function is_function_name(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
@@ -239,15 +239,15 @@ contains
         filled = text
         if (len(text) == 0) return
         previous = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st)
         if (.not. st%ok()) return
         call set_buffer(temp, st)
-        buffers(cur)%undo_enabled = .false.
+        buffers(current)%undo_enabled = .false.
         call insert(text, st)
         call fill_region_as_paragraph(point_min(), point_max(), st, nosqueeze=nosqueeze)
         filled = buffer_string()
         call set_buffer(previous, st)
-        call kill_buffer(temp, st)
+        call close_buffer(temp, st)
     end function fill_text
 
     !> What describe-function says about function `name' after `lead'
@@ -459,7 +459,7 @@ contains
     !> minor modes and the global minor modes, each under a heading.
     !>
     !> For this to work correctly for a minor mode, the mode's indicator
-    !> variable (listed in `minor_mode_table') must also be a function
+    !> variable (listed in `minor_mode_lighters') must also be a function
     !> whose documentation describes the minor mode.  Port of
     !> help-fns.el:describe-mode (no BUFFER; the layout of
     !> `describe_mode_outline' true, without Outline minor mode itself).
@@ -485,9 +485,9 @@ contains
         integer :: k, nl, ng
 
         major = "fundamental_mode"
-        if (allocated(buffers(cur)%major_mode)) major = buffers(cur)%major_mode
+        if (allocated(buffers(current)%major_mode)) major = buffers(current)%major_mode
         mname = "Fundamental"
-        if (allocated(buffers(cur)%mode_name)) mname = buffers(cur)%mode_name
+        if (allocated(buffers(current)%mode_name)) mname = buffers(current)%mode_name
         ! The enabled minor modes, local and global.
         allocate (local_modes(minor_mode_count()), global_modes(minor_mode_count()))
         nl = 0
@@ -662,7 +662,7 @@ contains
         call with_help_window(text, status)
     end subroutine describe_name
 
-    !> Completion predicate for `describe_name': a function or a
+    !> Completion test for `describe_name': a function or a
     !> variable.  Not a port.
     logical function is_name_known(elt)
         type(value_type), intent(in) :: elt
@@ -720,7 +720,7 @@ contains
     !> descriptions of the minor modes, each on a separate page.
     !>
     !> For this to work correctly for a minor mode, the mode's indicator
-    !> variable (listed in `minor_mode_table') must also be a function
+    !> variable (listed in `minor_mode_lighters') must also be a function
     !> whose documentation describes the minor mode.  Port of
     !> help-fns.el:describe-mode (the command; its layout is that of
     !> `describe_mode_outline' true).

@@ -31,7 +31,7 @@
 module indent_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use callint_fm, only: prefix_arg_type
-    use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buffer_serial_live
+    use buffer_fm, only: buffers, current, buf_fetch_char, buf_next_char_len, buffer_serial_live
     use category_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
@@ -42,7 +42,7 @@ module indent_fm
     use textprop_fm, only: get_char_property, get_char_property_and_overlay, text_prop_means_invisible, &
                            next_property_change, next_single_property_change, get_property_and_range
     use itree_fm, only: next_overlay_change, overlay_end
-    use data_fm, only: logical_setting, integer_setting, setting_type
+    use data_fm, only: logical_setting_type, integer_setting_type, setting_type
     use editfns_fm, only: goto_char, pos_bol, point, insert_char_n
     use insdel_fm, only: del_range
     use xdisp_fm, only: glyph_columns, tab_width, row_start_type, display_line_rows, display_row_of, display_row, &
@@ -57,13 +57,13 @@ module indent_fm
 
     !> Indentation can insert tabs if this is true.  Port of indent.c
     !> indent-tabs-mode (one global value).
-    type(logical_setting), public :: indent_tabs_mode = logical_setting(name="indent_tabs_mode", value=.true.)
+    type(logical_setting_type), public :: indent_tabs_mode = logical_setting_type(name="indent_tabs_mode", value=.true.)
 
     ! ------------------------------------------------------------------
     ! indent.el, in the submodule indent_cmds_fm
     ! ------------------------------------------------------------------
 
-    public :: indent_line_proc, indent_region_proc, kill_indent_locals
+    public :: indent_line_procedure, indent_region_procedure, clear_indent_locals
     public :: indent_according_to_mode, indent_for_tab_command, insert_tab, indent_rigidly, indent_rigidly_left, &
               indent_rigidly_right, indent_rigidly_left_to_tab_stop, indent_rigidly_right_to_tab_stop, &
               indent_line_to, current_left_margin, move_to_left_margin, indent_to_left_margin, &
@@ -75,25 +75,25 @@ module indent_fm
     abstract interface
         !> An `indent_line_function': indent the current line; `noindent'
         !> says it could not (the value `noindent').  Not a port.
-        subroutine indent_line_proc(status, noindent)
+        subroutine indent_line_procedure(status, noindent)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(out) :: noindent
-        end subroutine indent_line_proc
+        end subroutine indent_line_procedure
 
         !> An `indent_region_function'.  Not a port.
-        subroutine indent_region_proc(start, end, status)
+        subroutine indent_region_procedure(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
             type(status_type), intent(out) :: status
-        end subroutine indent_region_proc
+        end subroutine indent_region_procedure
     end interface
 
     !> Default number of columns for margin-changing functions to indent.
     !> Port of indent.el standard-indent.
-    type(integer_setting), public :: standard_indent = integer_setting(name="standard_indent", value=4)
+    type(integer_setting_type), public :: standard_indent = integer_setting_type(name="standard_indent", value=4)
 
     !> Controls the operation of the TAB key.
     !> If true, hitting TAB always just indents the current line.
@@ -109,19 +109,19 @@ module indent_fm
     !> fewer than 2 elements, `tab_width' is used as the "last step".
     !> An unallocated or empty value means a tab stop every `tab_width' columns.  Port of
     !> indent.el tab-stop-list (unallocated or empty for none).
-    integer(int64), allocatable, public :: tab_stop_list(:)
+    integer(int64), allocatable, public :: tab_stops(:)
 
     !> A setting whose value is an indent-line function; null is the
     !> default, `indent_relative'.  Assign with `=>' to `value'.
-    type, extends(setting_type), public :: indent_line_setting
-        procedure(indent_line_proc), pointer, nopass :: value => null()
+    type, extends(setting_type), public :: indent_line_setting_type
+        procedure(indent_line_procedure), pointer, nopass :: value => null()
         !> The command a name given at run time resolved to, when `value'
         !> calls it (`indent_line_by_name'); null otherwise.
         type(command_type), pointer :: command => null()
     contains
         generic :: set_local => set_local_indent_line
         procedure, private :: set_local_indent_line => indent_line_set_local
-    end type indent_line_setting
+    end type indent_line_setting_type
 
     !> Function to indent the current line.
     !> This function will be called with no arguments.
@@ -130,19 +130,19 @@ module indent_fm
     !> Setting this function is all you need to make TAB indent appropriately.
     !> Don't rebind TAB unless you really need to.  Port of indent.el
     !> indent-line-function (null is the default, `indent_relative').
-    type(indent_line_setting), public :: indent_line_function = indent_line_setting(name="indent_line_function")
+    type(indent_line_setting_type), public :: indent_line_function = indent_line_setting_type(name="indent_line_function")
 
     !> One buffer's `indent_region_function'.
     type :: indent_region_entry_type
         integer(int64) :: serial = 0
-        procedure(indent_region_proc), pointer, nopass :: fn => null()
+        procedure(indent_region_procedure), pointer, nopass :: fn => null()
     end type indent_region_entry_type
 
     !> The type of `indent_region_function': a default `value' (assign
     !> with `=>'; null is `indent_region_line_by_line') and buffers' own
     !> (`set_local').
     type, public :: indent_region_function_type
-        procedure(indent_region_proc), pointer, nopass :: value => null()
+        procedure(indent_region_procedure), pointer, nopass :: value => null()
         type(indent_region_entry_type), allocatable :: entries(:)
     contains
         !> Make FN the current buffer's function (set_local).
@@ -150,7 +150,7 @@ module indent_fm
         !> The current buffer's function (null for the default).
         procedure :: current => current_indent_region
         !> Make the current buffer use the default again.
-        procedure :: kill_local => indent_region_kill_local
+        procedure :: clear_local => indent_region_clear_local
     end type indent_region_function_type
 
     !> Short cut function to indent region using `indent_according_to_mode'.
@@ -230,35 +230,35 @@ module indent_fm
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly
 
-        !> Indent all lines between BEG and END leftward by one space.  Port of
+        !> Indent all lines between BEGINNING and END leftward by one space.  Port of
         !> indent.el:indent-rigidly-left.
-        module subroutine indent_rigidly_left(beg, end, status)
+        module subroutine indent_rigidly_left(beginning, end, status)
             implicit none(type, external)
-            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(in) :: beginning, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_left
 
-        !> Indent all lines between BEG and END rightward by one space.
+        !> Indent all lines between BEGINNING and END rightward by one space.
         !> Port of indent.el:indent-rigidly-right.
-        module subroutine indent_rigidly_right(beg, end, status)
+        module subroutine indent_rigidly_right(beginning, end, status)
             implicit none(type, external)
-            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(in) :: beginning, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_right
 
-        !> Indent all lines between BEG and END leftward to a tab stop.
+        !> Indent all lines between BEGINNING and END leftward to a tab stop.
         !> Port of indent.el:indent-rigidly-left-to-tab-stop.
-        module subroutine indent_rigidly_left_to_tab_stop(beg, end, status)
+        module subroutine indent_rigidly_left_to_tab_stop(beginning, end, status)
             implicit none(type, external)
-            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(in) :: beginning, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_left_to_tab_stop
 
-        !> Indent all lines between BEG and END rightward to a tab stop.
+        !> Indent all lines between BEGINNING and END rightward to a tab stop.
         !> Port of indent.el:indent-rigidly-right-to-tab-stop.
-        module subroutine indent_rigidly_right_to_tab_stop(beg, end, status)
+        module subroutine indent_rigidly_right_to_tab_stop(beginning, end, status)
             implicit none(type, external)
-            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(in) :: beginning, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_right_to_tab_stop
 
@@ -387,7 +387,7 @@ module indent_fm
         !> Not a port.
         module function indent_line_function_name(p) result(name)
             implicit none(type, external)
-            procedure(indent_line_proc), pointer, intent(in) :: p
+            procedure(indent_line_procedure), pointer, intent(in) :: p
             character(len=:), allocatable :: name
         end function indent_line_function_name
 
@@ -397,7 +397,7 @@ module indent_fm
         module subroutine indent_line_function_named(name, p)
             implicit none(type, external)
             character(len=*), intent(in) :: name
-            procedure(indent_line_proc), pointer, intent(inout) :: p
+            procedure(indent_line_procedure), pointer, intent(inout) :: p
         end subroutine indent_line_function_named
 
         !> Indent the current line like the previous nonblank line.
@@ -430,7 +430,7 @@ module indent_fm
         end function indent_accumulate_tab_stops
 
         !> Insert spaces or tabs to next defined tab-stop column.
-        !> The variable `tab_stop_list' is an array of columns at which there are tab stops.
+        !> The variable `tab_stops' is an array of columns at which there are tab stops.
         !> Whether this inserts tabs or spaces depends on `indent_tabs_mode'.
         !> Port of indent.el:tab-to-tab-stop.
         module subroutine tab_to_tab_stop(status)
@@ -439,7 +439,7 @@ module indent_fm
         end subroutine tab_to_tab_stop
 
         !> Move point to next defined tab-stop column.
-        !> The variable `tab_stop_list' is an array of columns at which there are tab stops.
+        !> The variable `tab_stops' is an array of columns at which there are tab stops.
         !> Port of indent.el:move-to-tab-stop.
         module subroutine move_to_tab_stop(status)
             implicit none(type, external)
@@ -461,15 +461,15 @@ contains
     ! Not a port.
     subroutine indent_region_set_local(self, fn)
         class(indent_region_function_type), intent(inout) :: self
-        procedure(indent_region_proc) :: fn
+        procedure(indent_region_procedure) :: fn
         type(indent_region_entry_type), allocatable :: grown(:)
         integer :: i, n
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
@@ -478,7 +478,7 @@ contains
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%serial = buffers(current)%serial
                 self%entries(i)%fn => fn
                 return
             end if
@@ -492,7 +492,7 @@ contains
             grown(i)%fn => self%entries(i)%fn
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
     end subroutine indent_region_set_local
@@ -500,46 +500,46 @@ contains
     ! Not a port.
     function current_indent_region(self) result(fn)
         class(indent_region_function_type), intent(in) :: self
-        procedure(indent_region_proc), pointer :: fn
+        procedure(indent_region_procedure), pointer :: fn
         integer :: i
 
         fn => self%value
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
     end function current_indent_region
 
     ! Not a port.
-    subroutine indent_region_kill_local(self)
+    subroutine indent_region_clear_local(self)
         class(indent_region_function_type), intent(inout) :: self
         integer :: i
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%serial = 0
                 self%entries(i)%fn => null()
             end if
         end do
-    end subroutine indent_region_kill_local
+    end subroutine indent_region_clear_local
 
     !> kill-all-local-variables: forget the current buffer's
     !> `indent_region_function'.  Not a port.
-    subroutine kill_indent_locals()
-        call indent_region_function%kill_local()
-    end subroutine kill_indent_locals
+    subroutine clear_indent_locals()
+        call indent_region_function%clear_local()
+    end subroutine clear_indent_locals
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine indent_line_set_local(self, v)
-        class(indent_line_setting), intent(inout) :: self
-        procedure(indent_line_proc) :: v
+        class(indent_line_setting_type), intent(inout) :: self
+        procedure(indent_line_procedure) :: v
 
         call self%make_local()
         self%value => v
@@ -554,7 +554,7 @@ contains
     integer(int64) function current_column() result(col)
         integer(int64) :: pos, prev_pos, prev_col
 
-        pos = buffers(cur)%pt
+        pos = buffers(current)%pt
         call scan_for_column(pos, huge(0_int64), col, prev_pos, prev_col)
     end function current_column
 
@@ -607,7 +607,7 @@ contains
             end if
 
             byte = char_to_byte(scan)
-            c = buf_fetch_char(buffers(cur), byte)
+            c = buf_fetch_char(buffers(current), byte)
             if (c == 10) exit
             col = col + glyph_columns(c, int(col))
             scan = scan + 1
@@ -634,7 +634,7 @@ contains
         ! As for text properties, this gives a lower bound for where the
         ! invisible text property could change.
         call next_property_change(pos, proplimit, found, st)
-        if (.not. found) proplimit = buffers(cur)%zv
+        if (.not. found) proplimit = buffers(current)%zv
         proplimit = min(proplimit, overlay_limit)
 
         if (proplimit > pos + 100 .or. proplimit >= to) then
@@ -767,10 +767,10 @@ contains
         if (present(force)) pad = force
         split = pad
         if (present(coerce)) split = split .or. coerce
-        pos = buffers(cur)%zv
+        pos = buffers(current)%zv
         call scan_for_column(pos, column, reached, prev_pos, prev_col)
         c = 0
-        if (prev_pos < buffers(cur)%zv) c = buf_fetch_char(buffers(cur), char_to_byte(prev_pos))
+        if (prev_pos < buffers(current)%zv) c = buf_fetch_char(buffers(current), char_to_byte(prev_pos))
         call goto_char(pos)
         if (present(status)) status = status_type()
         if (.not. split) return
@@ -844,14 +844,14 @@ contains
         byte = char_to_byte(pos_bol())
         col = 0
 
-        do while (byte < buffers(cur)%zv_byte)
-            c = buf_fetch_char(buffers(cur), byte)
+        do while (byte < buffers(current)%zv_byte)
+            c = buf_fetch_char(buffers(current), byte)
 
-            if (c == 32 .or. (c == int(o'240') .and. .not. buffers(cur)%multibyte)) then
+            if (c == 32 .or. (c == int(o'240') .and. .not. buffers(current)%multibyte)) then
                 col = col + 1
             else if (c == 9) then
                 col = col + tw - mod(col, tw)
-            else if (c < 128 .or. .not. buffers(cur)%multibyte) then
+            else if (c < 128 .or. .not. buffers(current)%multibyte) then
                 exit
             else if (char_has_category(c, " ")) then
                 col = col + 1
@@ -859,7 +859,7 @@ contains
                 exit
             end if
 
-            byte = byte + buf_next_char_len(buffers(cur), byte)
+            byte = byte + buf_next_char_len(buffers(current), byte)
         end do
     end function current_indentation
 
@@ -894,10 +894,10 @@ contains
         integer :: nrows, k, width, ends, used
 
         width = window_text_width()
-        call display_line_rows(cur, line_beginning(cur, buffers(cur)%pt), width, rows, nrows, eol)
-        k = display_row_of(buffers(cur)%pt, rows, nrows)
+        call display_line_rows(current, line_beginning(current, buffers(current)%pt), width, rows, nrows, eol)
+        k = display_row_of(buffers(current)%pt, rows, nrows)
         row = rows(k)
-        call display_row(cur, row, width, buffers(cur)%pt, ends, x, used)
+        call display_row(current, row, width, buffers(current)%pt, ends, x, used)
         if (x < 0) x = 0
     end function screen_column
 
@@ -927,14 +927,14 @@ contains
             width = window_text_width()
         end if
 
-        bol = line_beginning(cur, buffers(cur)%pt)
-        call display_line_rows(cur, bol, width, rows, nrows, eol)
-        target = display_row_of(buffers(cur)%pt, rows, nrows) + lines
+        bol = line_beginning(current, buffers(current)%pt)
+        call display_line_rows(current, bol, width, rows, nrows, eol)
+        target = display_row_of(buffers(current)%pt, rows, nrows) + lines
         moved = lines
 
         ! Walk whole lines until the target row is in the current one.
         do while (target > nrows)
-            if (eol >= buffers(cur)%zv) then
+            if (eol >= buffers(current)%zv) then
                 moved = moved - (target - nrows)
                 target = nrows
                 exit
@@ -942,18 +942,18 @@ contains
 
             target = target - nrows
             bol = eol + 1
-            call display_line_rows(cur, bol, width, rows, nrows, eol)
+            call display_line_rows(current, bol, width, rows, nrows, eol)
         end do
 
         do while (target < 1)
-            if (bol <= buffers(cur)%begv) then
+            if (bol <= buffers(current)%begv) then
                 moved = moved + (1 - target)
                 target = 1
                 exit
             end if
 
-            bol = line_beginning(cur, bol - 1)
-            call display_line_rows(cur, bol, width, rows, nrows, eol)
+            bol = line_beginning(current, bol - 1)
+            call display_line_rows(current, bol, width, rows, nrows, eol)
             target = target + nrows
         end do
 
@@ -961,7 +961,7 @@ contains
 
         if (present(goal)) then
             row = rows(target)
-            call display_row(cur, row, width, -1_int64, ends, col, used, goal_x=goal, goal_pos=pos)
+            call display_row(current, row, width, -1_int64, ends, col, used, goal_x=goal, goal_pos=pos)
         end if
 
         call goto_char(pos)

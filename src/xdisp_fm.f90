@@ -96,7 +96,7 @@ module xdisp_fm
                            get_char_property_and_overlay, next_char_property_change, &
                            next_single_char_property_change, text_prop_means_invisible, propertized_substring
     use itree_fm, only: overlays_in, overlay_start, overlay_end, overlay_get
-    use buffer_fm, only: cur, set_buffer_internal
+    use buffer_fm, only: current, set_buffer_internal
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                          buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
@@ -119,14 +119,14 @@ module xdisp_fm
     use lisp_fm, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                        V_STRING, V_ARRAY, V_WINDOW
     use intervals_fm, only: textget
-    use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer, value_eq
+    use data_fm, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq
     use coding_fm, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
                          buffer_file_coding_system
-    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, is_buffer_live, temp_set_point_both, BEG, BEG_BYTE
-    use marker_fm, only: make_marker, set_marker, marker_position, free_marker
+    use buffer_fm, only: get_buffer, get_or_make_buffer, set_buffer, is_buffer_live, temp_set_point_both, BEGINNING, BEGINNING_BYTE
+    use marker_fm, only: make_marker, set_marker, marker_position, destroy_marker
     use insdel_fm, only: insert_1_both, del_range_both, inhibit_modification_hooks
     use search_fm, only: scan_newline
-    use lisp_fm, only: command_proc, value_type
+    use lisp_fm, only: command_procedure, value_type
     use bidi_fm, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_find_first_overridden, bidi_set_string, &
                        bidi_shelved_type, bidi_shelve_cache, bidi_unshelve_cache, NEUTRAL_DIR, L2R, R2L
     use editfns_fm, only: validate_region
@@ -136,13 +136,13 @@ module xdisp_fm
     private
 
     public :: add_minor_mode_lighter, mode_line_modes, mode_line_modes_faces
-    public :: set_mode_line_process, clear_mode_line_process, mode_line_process_text, add_mode_line_modes_entry, &
+    public :: set_mode_line_process, clear_mode_line_process, mode_line_process_text, append_mode_line_modes_entry, &
               mode_line_modes_prefix
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
-    public :: highlight_region_proc, unhighlight_region_proc
+    public :: highlight_region_procedure, unhighlight_region_procedure
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
 
     !> The window redisplay is displaying (it->w); the null handle
@@ -155,20 +155,20 @@ module xdisp_fm
         !> the `region' face (upstream's region overlay of priority
         !> 100); both 0 when the function shows the region itself.
         !> Not a port.
-        subroutine highlight_region_proc(start, end, window, rb, re)
+        subroutine highlight_region_procedure(start, end, window, rb, regexp)
             import :: int64, handle_type
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
             type(handle_type), intent(in) :: window
-            integer(int64), intent(out) :: rb, re
-        end subroutine highlight_region_proc
+            integer(int64), intent(out) :: rb, regexp
+        end subroutine highlight_region_procedure
 
         !> Remove the region highlighting of WINDOW.  Not a port.
-        subroutine unhighlight_region_proc(window)
+        subroutine unhighlight_region_procedure(window)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-        end subroutine unhighlight_region_proc
+        end subroutine unhighlight_region_procedure
     end interface
 
     !> Function to move the region-highlight overlay.
@@ -177,23 +177,23 @@ module xdisp_fm
     !> simple.el:redisplay-highlight-region-function.  (Ours: a procedure
     !> pointer; the overlay it keeps is its own business, not a window
     !> parameter.)
-    procedure(highlight_region_proc), pointer, public :: redisplay_highlight_region_function => &
+    procedure(highlight_region_procedure), pointer, public :: redisplay_highlight_region_function => &
         redisplay_highlight_overlay_function
 
     !> Function to remove the region-highlight overlay of a window.  Port
     !> of simple.el:redisplay-unhighlight-region-function.
-    procedure(unhighlight_region_proc), pointer, public :: redisplay_unhighlight_region_function => &
+    procedure(unhighlight_region_procedure), pointer, public :: redisplay_unhighlight_region_function => &
         redisplay_unhighlight_overlay_function
 
     !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
     !> Values of `message_log_max' other than a number of lines.
-    integer(int64), parameter, public :: MESSAGE_LOG_DISABLED = -1, MESSAGE_LOG_UNLIMITED = -2
+    integer(int64), parameter, public :: MESSAGE_LOG_MAX_NO = -1, MESSAGE_LOG_MAX_UNLIMITED = -2
 
     !> Maximum number of lines to keep in the message log buffer.
-    !> If MESSAGE_LOG_DISABLED, disable message logging.  If
-    !> MESSAGE_LOG_UNLIMITED, log messages but don't truncate the buffer
+    !> If MESSAGE_LOG_MAX_NO, disable message logging.  If
+    !> MESSAGE_LOG_MAX_UNLIMITED, log messages but don't truncate the buffer
     !> when it becomes large.  Port of xdisp.c message-log-max (named
     !> constants for none and no limit).
     integer(int64), public :: message_log_max = 1000
@@ -205,7 +205,7 @@ module xdisp_fm
     !> The major mode `message_dolog' puts a new *Messages* buffer in
     !> (simple.el's messages-buffer-mode, when it is defined); set by
     !> simple_fm.
-    procedure(command_proc), pointer, public :: messages_buffer_mode_function => null()
+    procedure(command_procedure), pointer, public :: messages_buffer_mode_function => null()
 
     !> xdisp.c:message_log_need_newline: the text last logged has no
     !> newline after it yet.
@@ -237,7 +237,7 @@ module xdisp_fm
     !> This controls the width of a TAB character on display.
     !> The value should be a positive integer.  Port of buffer.c tab-width
     !> (one value for all buffers until buffer-local variables exist).
-    type(integer_setting), public :: tab_width = integer_setting(name="tab_width", value=8)
+    type(integer_setting_type), public :: tab_width = integer_setting_type(name="tab_width", value=8)
 
     !> A nonzero value means truncate lines in windows narrower than the frame.
     !> For a value other than huge(0), truncate lines in each window narrower than the
@@ -262,31 +262,31 @@ module xdisp_fm
         !> Whether a minor-mode-alist entry's variable is true, for a
         !> variable kept in Fortran (such as `defining_kbd_macro').
         !> Not a port.
-        logical function lighter_active_proc()
+        logical function lighter_active_procedure()
             implicit none(type, external)
-        end function lighter_active_proc
+        end function lighter_active_procedure
         !> The TEXT a minor-mode-alist entry shows for buffer slot BI, whose
         !> variable holds the text itself ("" when it is unallocated).  (A
         !> subroutine: gfortran frees the target of a procedure pointer
         !> component returning an allocatable string when an array of the
         !> type is deallocated.) Not a port.
-        subroutine lighter_text_proc(bi, text)
+        subroutine lighter_text_procedure(bi, text)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: bi
             character(len=:), allocatable, intent(out) :: text
-        end subroutine lighter_text_proc
+        end subroutine lighter_text_procedure
     end interface
 
-    public :: lighter_active_proc, lighter_text_proc
+    public :: lighter_active_procedure, lighter_text_procedure
 
     !> An entry of minor-mode-alist: VARIABLE and its LIGHTER, shown in
     !> FACE (none if empty); ACTIVE, if associated, tells whether the
     !> variable is true.
     type :: lighter_type
         character(len=:), allocatable :: variable, lighter, face
-        procedure(lighter_active_proc), pointer, nopass :: active => null()
-        procedure(lighter_text_proc), pointer, nopass :: text => null()
+        procedure(lighter_active_procedure), pointer, nopass :: active => null()
+        procedure(lighter_text_procedure), pointer, nopass :: text => null()
     end type lighter_type
 
     !> A part of a mode line shown in another face: characters FIRST to
@@ -297,7 +297,7 @@ module xdisp_fm
     end type face_span_type
 
     type(lighter_type), allocatable :: lighters(:)
-    integer :: n_lighters = 0
+    integer :: lighter_count = 0
 
     !> One part of a `mode_line_process' construct: TEXT, in which "%s"
     !> stands for the status of the buffer's process (decode_mode_spec's
@@ -320,23 +320,23 @@ module xdisp_fm
     abstract interface
         !> The status of the process of buffer slot BI, as %s in a mode
         !> line shows it ("no process" if it has none).  Not a port.
-        subroutine process_status_proc(bi, status_name)
+        subroutine process_status_procedure(bi, status_name)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: bi
             character(len=:), allocatable, intent(out) :: status_name
-        end subroutine process_status_proc
+        end subroutine process_status_procedure
     end interface
 
     !> What %s shows: installed by process_fm (xdisp.c calls
     !> Fprocess_status); "no process" while it is null.
-    procedure(process_status_proc), pointer, public :: mode_line_process_status => null()
+    procedure(process_status_procedure), pointer, public :: mode_line_process_status => null()
 
     !> An element (VARIABLE TEXT) of `mode_line_modes', shown before its
     !> other parts while ACTIVE says VARIABLE is true.
     type :: modes_entry_type
         character(len=:), allocatable :: variable, text
-        procedure(lighter_active_proc), pointer, nopass :: active => null()
+        procedure(lighter_active_procedure), pointer, nopass :: active => null()
     end type modes_entry_type
 
     type(modes_entry_type), allocatable :: modes_entries(:)
@@ -365,9 +365,9 @@ module xdisp_fm
         character(len=:), allocatable :: s
         integer :: width = 0, align_to = -1
         !> The text properties of an overlay string that redisplay uses:
-        !> its runs of bytes [prop_beg(k), prop_end(k)) with their `face'
+        !> its runs of bytes [prop_beginning(k), prop_end(k)) with their `face'
         !> and `cursor' properties (unallocated for none).
-        integer(int64), allocatable :: prop_beg(:), prop_end(:)
+        integer(int64), allocatable :: prop_beginning(:), prop_end(:)
         type(value_type), allocatable :: prop_face(:), prop_cursor(:)
         !> An ITEM_STRETCH from a `(space ...)' display spec in an overlay
         !> string (it shows the cursor only through a `cursor' property).
@@ -405,7 +405,7 @@ module xdisp_fm
         !> Text hidden (invisible, or replaced by a display string) just
         !> before the next glyph that is not from an overlay string: that
         !> glyph shows the cursor for a point in it.
-        integer(int64) :: hidden_beg = 0, hidden_end = 0
+        integer(int64) :: hidden_beginning = 0, hidden_end = 0
     end type row_start_type
 
     !> What comes next on a row: the end of the accessible text, a buffer
@@ -734,7 +734,7 @@ contains
         integer :: invis, width, align_to
         logical :: ellipsis
 
-        saved = cur
+        saved = current
         call set_buffer_internal(bi)
         p = s%pos
         zv = buffers(bi)%zv
@@ -772,7 +772,7 @@ contains
                 ! a text property are shown, because 20.x did it that way
                 ! (an invisible overlay's strings come at its end).
                 if (ov%index == 0) call load_overlay_strings(p, s%items)
-                if (ellipsis) call add_item(s%items, ITEM_ELLIPSIS, "...")
+                if (ellipsis) call append_item(s%items, ITEM_ELLIPSIS, "...")
                 call hide(newpos)
             else
                 disp = get_char_property(p, value_type(name="display"))
@@ -782,7 +782,7 @@ contains
                     call load_overlay_strings(p, s%items)
 
                     if (len(xstring(disp)) > 0) then
-                        call add_item(s%items, ITEM_DISPLAY_STRING, xstring(disp))
+                        call append_item(s%items, ITEM_DISPLAY_STRING, xstring(disp))
                         call string_display_props(disp, s%items(size(s%items)))
                         call hide(endpos, p + 1)
                     else
@@ -796,7 +796,7 @@ contains
                 else if (space_spec(disp, width, align_to)) then
                     endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
-                    call add_item(s%items, ITEM_STRETCH, "", width, align_to)
+                    call append_item(s%items, ITEM_STRETCH, "", width, align_to)
                     call hide(endpos, p + 1)
                 else
                     call load_overlay_strings(p, s%items)
@@ -821,8 +821,8 @@ contains
             integer(int64), intent(in), optional :: from
 
             ! (Hidden text right after hidden text adds to it.)
-            if (s%hidden_end /= p .or. s%hidden_end <= s%hidden_beg) s%hidden_beg = p
-            if (present(from)) s%hidden_beg = max(s%hidden_beg, from)
+            if (s%hidden_end /= p .or. s%hidden_end <= s%hidden_beginning) s%hidden_beginning = p
+            if (present(from)) s%hidden_beginning = max(s%hidden_beginning, from)
             s%hidden_end = endpos
             s%resume = endpos
             s%resume_byte = buf_charpos_to_bytepos(bi, endpos)
@@ -842,7 +842,7 @@ contains
         integer(int64), intent(in) :: charpos
         type(display_item_type), allocatable, intent(inout) :: items(:)
         type(handle_type), allocatable :: vec(:)
-        type(value_type) :: str
+        type(value_type) :: overlay_string
         integer(int64), allocatable :: prio(:), ids(:)
         logical, allocatable :: after(:)
         type(display_item_type), allocatable :: entries(:)
@@ -866,13 +866,13 @@ contains
             invis = text_prop_means_invisible(overlay_get(vec(k), "invisible"))
 
             if (start == charpos .or. (end == charpos .and. invis /= 0)) then
-                str = overlay_get(vec(k), "before_string")
-                call record(vec(k), str, .false.)
+                overlay_string = overlay_get(vec(k), "before_string")
+                call record(vec(k), overlay_string, .false.)
             end if
 
             if (end == charpos .or. (start == charpos .and. invis /= 0)) then
-                str = overlay_get(vec(k), "after_string")
-                call record(vec(k), str, .true.)
+                overlay_string = overlay_get(vec(k), "after_string")
+                call record(vec(k), overlay_string, .true.)
             end if
         end do
 
@@ -1000,18 +1000,18 @@ contains
         do k = 1, size(starts)
             if (fringe_spec(textget(plists(k), value_type(name="display")))) then
                 ! Not shown on a terminal, which has no fringes.
-                call add_text(pos, starts(k))
+                call append_text(pos, starts(k))
                 pos = ends(k)
                 cycle
             end if
 
             if (.not. space_spec(textget(plists(k), value_type(name="display")), width, align_to)) cycle
-            call add_text(pos, starts(k))
-            call add_item(items, ITEM_STRETCH, "", width, align_to)
+            call append_text(pos, starts(k))
+            call append_item(items, ITEM_STRETCH, "", width, align_to)
 
             associate (it => items(size(items)))
                 it%from_overlay = .true.
-                it%prop_beg = [1_int64]
+                it%prop_beginning = [1_int64]
                 it%prop_end = [2_int64]
                 allocate (it%prop_face(1), it%prop_cursor(1))
                 it%prop_face(1) = textget(plists(k), value_type(name="face"))
@@ -1021,20 +1021,20 @@ contains
             pos = ends(k)
         end do
 
-        call add_text(pos, nchars)
+        call append_text(pos, nchars)
 
     contains
 
         !> The characters FROM to TO of STRING as an overlay string item.
-        subroutine add_text(from, to)
+        subroutine append_text(from, to)
             integer(int64), intent(in) :: from, to
             type(value_type) :: part
 
             if (to <= from) return
             part = propertized_substring(string, from, to)
-            call add_item(items, ITEM_OVERLAY_STRING, xstring(part))
+            call append_item(items, ITEM_OVERLAY_STRING, xstring(part))
             call string_display_props(part, items(size(items)))
-        end subroutine add_text
+        end subroutine append_text
     end subroutine add_overlay_string
 
     !> Record in ITEM the runs of overlay string STRING's `face' and
@@ -1049,7 +1049,7 @@ contains
         integer :: k, n, nb
 
         call string_intervals(string, starts, ends, plists)
-        allocate (item%prop_beg(size(starts)), item%prop_end(size(starts)), &
+        allocate (item%prop_beginning(size(starts)), item%prop_end(size(starts)), &
                   item%prop_face(size(starts)), item%prop_cursor(size(starts)))
         ! Character positions to bytes, walking the text once.
         byte = 1
@@ -1064,7 +1064,7 @@ contains
             end do
 
             n = n + 1
-            item%prop_beg(n) = byte
+            item%prop_beginning(n) = byte
 
             do while (chars < ends(k) .and. byte <= len(item%s))
                 call string_char_and_length(item%s, byte, c, nb)
@@ -1078,12 +1078,12 @@ contains
         end do
     end subroutine string_display_props
 
-    !> Append an item of KIND with string STR (and for a stretch, WIDTH
+    !> Append an item of KIND with string STRING (and for a stretch, WIDTH
     !> and ALIGN_TO) to ITEMS.  Not a port.
-    subroutine add_item(items, kind, str, width, align_to)
+    subroutine append_item(items, kind, string, width, align_to)
         type(display_item_type), allocatable, intent(inout) :: items(:)
         integer, intent(in) :: kind
-        character(len=*), intent(in) :: str
+        character(len=*), intent(in) :: string
         integer, intent(in), optional :: width, align_to
         type(display_item_type), allocatable :: grown(:)
         integer :: n
@@ -1093,11 +1093,11 @@ contains
         allocate (grown(n + 1))
         grown(1:n) = items
         grown(n + 1)%kind = kind
-        grown(n + 1)%s = str
+        grown(n + 1)%s = string
         if (present(width)) grown(n + 1)%width = width
         if (present(align_to)) grown(n + 1)%align_to = align_to
         call move_alloc(grown, items)
-    end subroutine add_item
+    end subroutine append_item
 
     !> Whether display property value V is a `(space . PROPS)' spec,
     !> with its width in columns, or the column to align to: `:width' N
@@ -1231,9 +1231,9 @@ contains
                     el%first = s%ibyte == 1
                     el%run = 0
 
-                    if (allocated(it%prop_beg)) then
-                        do n = 1, size(it%prop_beg)
-                            if (it%prop_beg(n) <= s%ibyte .and. s%ibyte < it%prop_end(n)) el%run = n
+                    if (allocated(it%prop_beginning)) then
+                        do n = 1, size(it%prop_beginning)
+                            if (it%prop_beginning(n) <= s%ibyte .and. s%ibyte < it%prop_end(n)) el%run = n
                         end do
                     end if
                 end associate
@@ -1294,7 +1294,7 @@ contains
         s%skip = 0
 
         if (.not. el%overlay_string .and. .not. el%display) then
-            s%hidden_beg = 0
+            s%hidden_beginning = 0
             s%hidden_end = 0
         end if
     end subroutine consume_element
@@ -1353,8 +1353,8 @@ contains
             return
         end if
 
-        if (s%hidden_end > s%hidden_beg) then
-            if (pt >= s%hidden_beg .and. pt < s%hidden_end) here = .true.
+        if (s%hidden_end > s%hidden_beginning) then
+            if (pt >= s%hidden_beginning .and. pt < s%hidden_end) here = .true.
         end if
 
         if (el%kind == EL_CHAR .or. el%kind == EL_NEWLINE .or. el%kind == EL_EOB) then
@@ -1384,7 +1384,7 @@ contains
     !> `cursor_col' are pixels and display_row_gui lays the row out;
     !> `cursor_hpos' is the glyph of the cursor, `ascent' and `descent'
     !> the row's (0 on a terminal).  Port of xdisp.c:display_line, in part.
-    subroutine display_row(bi, s, last_x, pt, ends, cursor_col, used, glyphs, rb, re, f, cursor_hpos, ascent, descent, &
+    subroutine display_row(bi, s, last_x, pt, ends, cursor_col, used, glyphs, rb, regexp, f, cursor_hpos, ascent, descent, &
                            goal_x, goal_pos)
         integer(int64), intent(in) :: bi
         type(row_start_type), intent(inout) :: s
@@ -1392,7 +1392,7 @@ contains
         integer(int64), intent(in) :: pt
         integer, intent(out) :: ends, cursor_col, used
         type(glyph_type), intent(inout), optional :: glyphs(:)
-        integer(int64), intent(in), optional :: rb, re
+        integer(int64), intent(in), optional :: rb, regexp
         type(frame_type), intent(inout), optional :: f
         integer, intent(out), optional :: cursor_hpos, ascent, descent
         !> The x to find the buffer position of (for vertical motion):
@@ -1418,9 +1418,9 @@ contains
         rbeg = 0
         rend = 0
 
-        if (present(rb) .and. present(re)) then
+        if (present(rb) .and. present(regexp)) then
             rbeg = rb
-            rend = re
+            rend = regexp
         end if
 
         if (present(cursor_hpos)) cursor_hpos = 0
@@ -1832,7 +1832,7 @@ contains
 
         next = limit
         if (fontifying) return
-        saved = cur
+        saved = current
         call set_buffer_internal(bi)
 
         if (.not. fontification_functions%empty()) then
@@ -1968,7 +1968,7 @@ contains
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: saved
 
-        saved = cur
+        saved = current
         call set_buffer_internal(bi)
         bol = raw_line_beginning(bi, pos)
 
@@ -2036,22 +2036,22 @@ contains
     !> (xdisp.c:compute_line_metrics).  The core of xdisp.c:try_window
     !> with display_line.  Port of xdisp.c:try_window, in part.
     subroutine layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, &
-                             end_pos, reached_end, region_beg, region_end, f, last_y, nrows, cursor_hpos)
+                             end_pos, reached_end, region_beginning, region_end, f, last_y, nrows, cursor_hpos)
         integer(int64), intent(in) :: bi, start, pt
         integer, intent(in) :: width
         type(glyph_row_type), intent(inout) :: rows(:)
         integer, intent(out) :: cursor_row, cursor_col
         integer(int64), intent(out) :: end_pos
         logical, intent(out) :: reached_end
-        !> The region to highlight with the region face, [region_beg, region_end).
-        integer(int64), intent(in), optional :: region_beg, region_end
+        !> The region to highlight with the region face, [region_beginning, region_end).
+        integer(int64), intent(in), optional :: region_beginning, region_end
         !> The frame whose faces the glyphs get (without it, all are in the
         !> default face).
         type(frame_type), intent(inout), optional :: f
         integer, intent(in), optional :: last_y
         integer, intent(out), optional :: nrows, cursor_hpos
         type(row_start_type) :: s
-        integer(int64) :: rb, re
+        integer(int64) :: rb, regexp
         integer :: r, ends, col, used, last_x, y, ylimit, hpos, asc, desc, k
         logical :: gui
 
@@ -2062,11 +2062,11 @@ contains
         gui = .false.
         if (present(f)) gui = associated(f%rif)
         rb = 0
-        re = 0
+        regexp = 0
 
-        if (present(region_beg) .and. present(region_end)) then
-            rb = region_beg
-            re = region_end
+        if (present(region_beginning) .and. present(region_end)) then
+            rb = region_beginning
+            regexp = region_end
         end if
 
         ! Room for the continuation glyph at the right edge.
@@ -2110,9 +2110,9 @@ contains
             end if
 
             if (present(f)) then
-                call display_row(bi, s, last_x, pt, ends, col, used, rows(r)%glyphs, rb, re, f, hpos, asc, desc)
+                call display_row(bi, s, last_x, pt, ends, col, used, rows(r)%glyphs, rb, regexp, f, hpos, asc, desc)
             else
-                call display_row(bi, s, last_x, pt, ends, col, used, rows(r)%glyphs, rb, re, cursor_hpos=hpos)
+                call display_row(bi, s, last_x, pt, ends, col, used, rows(r)%glyphs, rb, regexp, cursor_hpos=hpos)
             end if
 
             rows(r)%used = used
@@ -2241,13 +2241,13 @@ contains
     !> of priority 100 for WINDOW only (here the range redisplay
     !> paints, RB..RE).  Port of
     !> simple.el:redisplay--highlight-overlay-function.
-    subroutine redisplay_highlight_overlay_function(start, end, window, rb, re)
+    subroutine redisplay_highlight_overlay_function(start, end, window, rb, regexp)
         integer(int64), intent(in) :: start, end
         type(handle_type), intent(in) :: window
-        integer(int64), intent(out) :: rb, re
+        integer(int64), intent(out) :: rb, regexp
 
         rb = start
-        re = end
+        regexp = end
     end subroutine redisplay_highlight_overlay_function
 
     !> Port of simple.el:redisplay--unhighlight-overlay-function (the
@@ -2268,7 +2268,7 @@ contains
         type(glyph_row_type), allocatable :: rows(:)
         type(status_type) :: status
         integer(int64) :: bi, start, end_pos
-        integer(int64) :: rb, re, m, saved
+        integer(int64) :: rb, regexp, m, saved
         integer :: body, width, cursor_row, cursor_col, r, last_y, nrows, cursor_hpos, left, top, capacity
         integer(int32) :: mode_line_face
         logical :: reached_end, gui
@@ -2316,7 +2316,7 @@ contains
         ! simple.el:redisplay--update-region-highlight (run by
         ! pre-redisplay-functions upstream), in the window's buffer.
         rb = 0
-        re = 0
+        regexp = 0
         m = 0
 
         if (transient_mark_mode%value .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
@@ -2328,12 +2328,12 @@ contains
             end if
         end if
 
-        saved = cur
+        saved = current
         call set_buffer_internal(bi)
 
         if (m > 0) then
             call redisplay_highlight_region_function(min(pt, markers(m)%charpos), max(pt, markers(m)%charpos), &
-                                                     displayed_window, rb, re)
+                                                     displayed_window, rb, regexp)
         else
             call redisplay_unhighlight_region_function(displayed_window)
         end if
@@ -2343,7 +2343,7 @@ contains
 
         if (gui) then
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
-                               reached_end, rb, re, f, last_y, nrows, cursor_hpos)
+                               reached_end, rb, regexp, f, last_y, nrows, cursor_hpos)
             ! (Recentering in pixels is Deferred: the start stays.)
             call set_window_start(w, start, status, noforce=.true.)
             w%window_end_pos = end_pos
@@ -2368,7 +2368,7 @@ contains
         end if
 
         call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
-                           reached_end, rb, re, f)
+                           reached_end, rb, regexp, f)
 
         if (cursor_row < 0 .and. .not. w%force_start) then
             ! Point is not visible: recenter (scroll-conservatively 0),
@@ -2376,7 +2376,7 @@ contains
             ! from point.
             start = recenter_start(bi, pt, width - 1, body/2)
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
-                               reached_end, rb, re, f)
+                               reached_end, rb, regexp, f)
         end if
 
         call set_window_start(w, start, status, noforce=.true.)
@@ -2700,7 +2700,7 @@ contains
         integer(int64), intent(in) :: bi, start
         logical, intent(in) :: at_end
         character(len=:), allocatable :: s
-        character(len=8) :: buf
+        character(len=8) :: buffer
         integer(int64) :: begv, d
         integer :: percent
 
@@ -2718,8 +2718,8 @@ contains
             ! percent99: rounded up, at most 99.
             d = buffers(bi)%zv - begv
             percent = int(min(99_int64, (d - 1 + 100*(start - begv))/d))
-            write (buf, '(i2,"%")') percent
-            s = trim(buf)
+            write (buffer, '(i2,"%")') percent
+            s = trim(buffer)
         end if
     end function mode_line_percent
 
@@ -2733,7 +2733,7 @@ contains
         integer(int64), intent(in) :: bi, start, pt
         integer, intent(in) :: height
         character(len=:), allocatable :: s
-        character(len=20) :: buf
+        character(len=20) :: buffer
         integer(int64), parameter :: limit_width = 200
         integer(int64) :: distance, limit, byte, nlines, wanted
 
@@ -2761,8 +2761,8 @@ contains
             end if
         end if
 
-        write (buf, "(i0)") line_number(bi, pt)
-        s = trim(buf)
+        write (buffer, "(i0)") line_number(bi, pt)
+        s = trim(buffer)
     end function mode_line_line
 
     !> Lay out `text' as a mode line `width' columns wide in `row':
@@ -2898,20 +2898,20 @@ contains
     !> variable kept in Fortran).  TEXT, if present, gives the text for
     !> an entry (VARIABLE VARIABLE) whose variable holds the text (a
     !> Fortran-kept string, "" for none).  With FIRST, a new entry goes in
-    !> front (added to the front of `minor_mode_table').  Port of the mode-line part of
+    !> front (added to the front of `minor_mode_lighters').  Port of the mode-line part of
     !> subr.el:add-minor-mode (minor-mode-alist).
     subroutine add_minor_mode_lighter(variable, lighter, face, active, text, first)
         character(len=*), intent(in) :: variable, lighter
         character(len=*), intent(in), optional :: face
-        procedure(lighter_active_proc), optional :: active
-        procedure(lighter_text_proc), optional :: text
+        procedure(lighter_active_procedure), optional :: active
+        procedure(lighter_text_procedure), optional :: text
         logical, intent(in), optional :: first
         type(lighter_type), allocatable :: grown(:)
         integer :: i, k
 
         k = 0
 
-        do i = 1, n_lighters
+        do i = 1, lighter_count
             if (lighters(i)%variable == variable) then
                 k = i
                 exit
@@ -2921,18 +2921,18 @@ contains
         if (k == 0) then
             if (.not. allocated(lighters)) allocate (lighters(8))
 
-            if (n_lighters == size(lighters)) then
-                allocate (grown(2*n_lighters))
-                grown(1:n_lighters) = lighters
+            if (lighter_count == size(lighters)) then
+                allocate (grown(2*lighter_count))
+                grown(1:lighter_count) = lighters
                 call move_alloc(grown, lighters)
             end if
 
-            n_lighters = n_lighters + 1
-            k = n_lighters
+            lighter_count = lighter_count + 1
+            k = lighter_count
 
             if (present(first)) then
                 if (first) then
-                    do i = n_lighters, 2, -1
+                    do i = lighter_count, 2, -1
                         lighters(i) = lighters(i - 1)
                     end do
 
@@ -2977,10 +2977,10 @@ contains
         type(mode_line_process_entry_type), allocatable :: grown(:)
         integer :: k, n
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(process_entries)) allocate (process_entries(0))
-        call add_local_variables_killer(clear_mode_line_process)
-        k = process_entry_of(cur)
+        call append_locals_clearer(clear_mode_line_process)
+        k = process_entry_of(current)
 
         if (k == 0) then
             n = size(process_entries)
@@ -2993,20 +2993,20 @@ contains
 
             call move_alloc(grown, process_entries)
             k = n + 1
-            process_entries(k)%serial = buffers(cur)%serial
+            process_entries(k)%serial = buffers(current)%serial
         end if
 
         process_entries(k)%parts = parts
     end subroutine set_mode_line_process
 
     !> Make the current buffer's `mode_line_process' empty: when its
-    !> local variables are killed, as kill_all_local_variables does.
+    !> local variables are killed, as clear_all_local_variables does.
     !> Not a port.
     subroutine clear_mode_line_process()
         integer :: k
 
-        if (cur == 0) return
-        k = process_entry_of(cur)
+        if (current == 0) return
+        k = process_entry_of(current)
         if (k == 0) return
         deallocate (process_entries(k)%parts)
         allocate (process_entries(k)%parts(0))
@@ -3069,9 +3069,9 @@ contains
     !> front of `mode_line_modes', as compile.el adds
     !> (compilation-in-progress "[Compiling] ").  Port of the
     !> mode-line-modes part of an `add-to-list'.
-    subroutine add_mode_line_modes_entry(variable, text, active)
+    subroutine append_mode_line_modes_entry(variable, text, active)
         character(len=*), intent(in) :: variable, text
-        procedure(lighter_active_proc) :: active
+        procedure(lighter_active_procedure) :: active
         type(modes_entry_type), allocatable :: grown(:)
         integer :: k, n
 
@@ -3094,10 +3094,10 @@ contains
         end do
 
         call move_alloc(grown, modes_entries)
-    end subroutine add_mode_line_modes_entry
+    end subroutine append_mode_line_modes_entry
 
     !> The text the active entries of `mode_line_modes' added with
-    !> `add_mode_line_modes_entry' show before its "(".  Not a port.
+    !> `append_mode_line_modes_entry' show before its "(".  Not a port.
     function mode_line_modes_prefix() result(s)
         character(len=:), allocatable :: s
         integer :: k
@@ -3112,7 +3112,7 @@ contains
 
     !> The modes part of buffer BI's mode line: `mode_name', " Narrow"
     !> if the buffer is narrowed (%n), and the lighters of
-    !> `minor_mode_table' whose variables are .true. there.  Not a port.
+    !> `minor_mode_lighters' whose variables are .true. there.  Not a port.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
@@ -3157,7 +3157,7 @@ contains
             allocate (parts(0))
         end if
 
-        allocate (all_spans(max(1, n_lighters + size(parts))), all_faces(max(1, n_lighters + size(parts))))
+        allocate (all_spans(max(1, lighter_count + size(parts))), all_faces(max(1, lighter_count + size(parts))))
 
         do i = 1, size(parts)
             call decode_string(modes, chars, before)
@@ -3173,7 +3173,7 @@ contains
 
         if (buffers(bi)%begv > 1 .or. buffers(bi)%zv < buffers(bi)%text%z) modes = modes//" Narrow"
 
-        do i = 1, n_lighters
+        do i = 1, lighter_count
             if (associated(lighters(i)%text)) then
                 call lighters(i)%text(bi, text)
                 if (len(text) > 0) modes = modes//text
@@ -3853,7 +3853,7 @@ contains
 
     !> Like `message', without logging the text in *Messages*: as
     !> upstream's `message' with `message_log_max' bound to
-    !> MESSAGE_LOG_DISABLED, or the echo-area prompts of read-key-sequence.
+    !> MESSAGE_LOG_MAX_NO, or the echo-area prompts of read-key-sequence.
     !> Port of xdisp.c:message3_nolog (with xdisp.c:message1_nolog and
     !> xdisp.c:message3_frame_nolog).
     subroutine message_nolog(text)
@@ -3886,41 +3886,41 @@ contains
     recursive subroutine message_dolog(text, nlflag)
         character(len=*), intent(in) :: text
         logical, intent(in) :: nlflag
-        type(handle_type) :: oldbuf, buf, oldpoint, oldbegv, oldzv
+        type(handle_type) :: oldbuf, buffer, oldpoint, oldbegv, oldzv
         type(status_type) :: st
         integer(int64) :: this_bol, this_bol_byte, prev_bol, prev_bol_byte, dups, pos
         logical :: newbuffer, point_at_end, zv_at_end, old_inhibit
         character(len=24) :: dupstr
 
-        if (message_log_max == MESSAGE_LOG_DISABLED) return
+        if (message_log_max == MESSAGE_LOG_MAX_NO) return
         oldbuf = current_buffer()
         ! Ensure the Messages buffer exists, and switch to it.  If we
         ! created it, set the major-mode.
         newbuffer = .not. is_buffer_live(get_buffer(MESSAGES_BUFFER_NAME))
-        call get_buffer_create(MESSAGES_BUFFER_NAME, buf, st)
+        call get_or_make_buffer(MESSAGES_BUFFER_NAME, buffer, st)
         if (.not. st%ok()) return
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
 
         if (newbuffer .and. associated(messages_buffer_mode_function)) then
             call messages_buffer_mode_function(st)
             ! The mode's hooks may have switched buffers.
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
         end if
 
-        buffers(cur)%undo_enabled = .false.
+        buffers(current)%undo_enabled = .false.
         call make_marker(oldpoint)
         call make_marker(oldbegv)
         call make_marker(oldzv)
-        call set_marker(oldpoint, buffers(cur)%pt, st)
-        call set_marker(oldbegv, buffers(cur)%begv, st)
-        call set_marker(oldzv, buffers(cur)%zv, st)
-        point_at_end = buffers(cur)%pt == buffers(cur)%text%z
-        zv_at_end = buffers(cur)%zv == buffers(cur)%text%z
-        buffers(cur)%begv = BEG
-        buffers(cur)%begv_byte = BEG_BYTE
-        buffers(cur)%zv = buffers(cur)%text%z
-        buffers(cur)%zv_byte = buffers(cur)%text%z_byte
-        call temp_set_point_both(buffers(cur), buffers(cur)%text%z, buffers(cur)%text%z_byte)
+        call set_marker(oldpoint, buffers(current)%pt, st)
+        call set_marker(oldbegv, buffers(current)%begv, st)
+        call set_marker(oldzv, buffers(current)%zv, st)
+        point_at_end = buffers(current)%pt == buffers(current)%text%z
+        zv_at_end = buffers(current)%zv == buffers(current)%text%z
+        buffers(current)%begv = BEGINNING
+        buffers(current)%begv_byte = BEGINNING_BYTE
+        buffers(current)%zv = buffers(current)%text%z
+        buffers(current)%zv_byte = buffers(current)%text%z_byte
+        call temp_set_point_both(buffers(current), buffers(current)%text%z, buffers(current)%text%z_byte)
         if (len(text) > 0) call insert_1_both(text, chars_in_text(text), len(text, int64), .true., .false., .false., st)
 
         if (nlflag) then
@@ -3929,16 +3929,16 @@ contains
             old_inhibit = inhibit_modification_hooks%value
             inhibit_modification_hooks%value = .true.
             call insert_1_both(LF, 1_int64, 1_int64, .true., .false., .false., st)
-            call scan_newline(buffers(cur)%text%z, buffers(cur)%text%z_byte, BEG, BEG_BYTE, -2_int64)
-            this_bol = buffers(cur)%pt
-            this_bol_byte = buffers(cur)%pt_byte
+            call scan_newline(buffers(current)%text%z, buffers(current)%text%z_byte, BEGINNING, BEGINNING_BYTE, -2_int64)
+            this_bol = buffers(current)%pt
+            this_bol_byte = buffers(current)%pt_byte
 
             ! See if this line duplicates the previous one.  If so,
             ! combine duplicates.
-            if (this_bol > BEG) then
-                call scan_newline(buffers(cur)%pt, buffers(cur)%pt_byte, BEG, BEG_BYTE, -2_int64)
-                prev_bol = buffers(cur)%pt
-                prev_bol_byte = buffers(cur)%pt_byte
+            if (this_bol > BEGINNING) then
+                call scan_newline(buffers(current)%pt, buffers(current)%pt_byte, BEGINNING, BEGINNING_BYTE, -2_int64)
+                prev_bol = buffers(current)%pt
+                prev_bol_byte = buffers(current)%pt_byte
                 dups = message_log_check_duplicate(prev_bol_byte, this_bol_byte)
 
                 if (dups > 0) then
@@ -3946,7 +3946,7 @@ contains
 
                     if (dups > 1) then
                         write (dupstr, "(a,i0,a)") " [", dups, " times]"
-                        call temp_set_point_both(buffers(cur), buffers(cur)%text%z - 1, buffers(cur)%text%z_byte - 1)
+                        call temp_set_point_both(buffers(current), buffers(current)%text%z - 1, buffers(current)%text%z_byte - 1)
                         call insert_1_both(trim(dupstr), len_trim(dupstr, int64), len_trim(dupstr, int64), &
                                            .true., .false., .true., st)
                     end if
@@ -3956,36 +3956,37 @@ contains
             ! If we have more than the desired maximum number of lines in
             ! the *Messages* buffer now, delete the oldest ones.
             if (message_log_max >= 0) then
-                call scan_newline(buffers(cur)%text%z, buffers(cur)%text%z_byte, BEG, BEG_BYTE, -message_log_max - 1)
-                call del_range_both(BEG, BEG_BYTE, buffers(cur)%pt, buffers(cur)%pt_byte, .false., st)
+                call scan_newline(buffers(current)%text%z, buffers(current)%text%z_byte, BEGINNING, BEGINNING_BYTE, &
+                                  -message_log_max - 1)
+                call del_range_both(BEGINNING, BEGINNING_BYTE, buffers(current)%pt, buffers(current)%pt_byte, .false., st)
             end if
 
             inhibit_modification_hooks%value = old_inhibit
         end if
 
         call marker_position(oldbegv, pos, st)
-        buffers(cur)%begv = pos
-        buffers(cur)%begv_byte = buf_charpos_to_bytepos(cur, pos)
+        buffers(current)%begv = pos
+        buffers(current)%begv_byte = buf_charpos_to_bytepos(current, pos)
 
         if (zv_at_end) then
-            buffers(cur)%zv = buffers(cur)%text%z
-            buffers(cur)%zv_byte = buffers(cur)%text%z_byte
+            buffers(current)%zv = buffers(current)%text%z
+            buffers(current)%zv_byte = buffers(current)%text%z_byte
         else
             call marker_position(oldzv, pos, st)
-            buffers(cur)%zv = pos
-            buffers(cur)%zv_byte = buf_charpos_to_bytepos(cur, pos)
+            buffers(current)%zv = pos
+            buffers(current)%zv_byte = buf_charpos_to_bytepos(current, pos)
         end if
 
         if (point_at_end) then
-            call temp_set_point_both(buffers(cur), buffers(cur)%text%z, buffers(cur)%text%z_byte)
+            call temp_set_point_both(buffers(current), buffers(current)%text%z, buffers(current)%text%z_byte)
         else
             call marker_position(oldpoint, pos, st)
-            call temp_set_point_both(buffers(cur), pos, buf_charpos_to_bytepos(cur, pos))
+            call temp_set_point_both(buffers(current), pos, buf_charpos_to_bytepos(current, pos))
         end if
 
-        call free_marker(oldpoint, st)
-        call free_marker(oldbegv, st)
-        call free_marker(oldzv, st)
+        call destroy_marker(oldpoint, st)
+        call destroy_marker(oldbegv, st)
+        call destroy_marker(oldzv, st)
         if (is_buffer_live(oldbuf)) call set_buffer(oldbuf, st)
     end subroutine message_dolog
 
@@ -4003,7 +4004,7 @@ contains
         character(len=:), allocatable :: rest
 
         dups = 0
-        length = buffers(cur)%text%z_byte - 1 - this_bol_byte
+        length = buffers(current)%text%z_byte - 1 - this_bol_byte
         seen_dots = .false.
 
         do i = 0, length - 1
@@ -4034,7 +4035,7 @@ contains
         rest = ""
         i = k + 2
 
-        do while (i < buffers(cur)%text%z_byte)
+        do while (i < buffers(current)%text%z_byte)
             if (byte_at(i) == LF) exit
             rest = rest//byte_at(i)
             i = i + 1
@@ -4056,7 +4057,7 @@ contains
     character function byte_at(pos)
         integer(int64), intent(in) :: pos
 
-        byte_at = char(buf_fetch_byte(buffers(cur), pos))
+        byte_at = char(buf_fetch_byte(buffers(current), pos))
     end function byte_at
 
     !> The number of characters in the UTF-8 (internal encoding) `text'.
@@ -4213,7 +4214,7 @@ contains
         integer(int32) :: c
 
         dir = L2R
-        bi = cur
+        bi = current
         if (present(buffer)) call resolve_buffer(buffer, bi, st)
         if (.not. buffers(bi)%bidi_display_reordering .or. .not. buffers(bi)%multibyte) return
 
@@ -4222,29 +4223,29 @@ contains
             return
         end if
 
-        old = cur
+        old = current
         call set_buffer_internal(bi)
         itb_data = bidi_shelve_cache()
-        pos = buffers(cur)%pt
-        bytepos = buffers(cur)%pt_byte
+        pos = buffers(current)%pt
+        bytepos = buffers(current)%pt_byte
 
         ! Find the previous non-empty line: we need the direction of the
         ! current or previous paragraph.
-        if (pos >= buffers(cur)%zv .and. pos > buffers(cur)%begv) then
+        if (pos >= buffers(current)%zv .and. pos > buffers(current)%begv) then
             pos = pos - 1
-            bytepos = buf_charpos_to_bytepos(cur, pos)
+            bytepos = buf_charpos_to_bytepos(current, pos)
         end if
 
-        if (fast_looking_at("[         ]*"//achar(10), pos, buffers(cur)%zv, st) > 0) then
+        if (fast_looking_at("[         ]*"//achar(10), pos, buffers(current)%zv, st) > 0) then
             do
-                c = buf_fetch_byte(buffers(cur), bytepos)
+                c = buf_fetch_byte(buffers(current), bytepos)
                 if (.not. (c == 10 .or. c == 32 .or. c == 9 .or. c == 12)) exit
-                if (bytepos <= buffers(cur)%begv_byte) exit
+                if (bytepos <= buffers(current)%begv_byte) exit
                 bytepos = bytepos - 1
                 pos = pos - 1
             end do
 
-            do while (iand(buf_fetch_byte(buffers(cur), bytepos), int(z'C0', int32)) == int(z'80', int32))
+            do while (iand(buf_fetch_byte(buffers(current), bytepos), int(z'C0', int32)) == int(z'80', int32))
                 bytepos = bytepos - 1
             end do
         end if
@@ -4314,18 +4315,18 @@ contains
         else
             ! Nothing this fancy can happen in unibyte buffers, or in a
             ! buffer that disabled reordering, or if FROM is at EOB.
-            if (.not. buffers(cur)%bidi_display_reordering .or. .not. buffers(cur)%multibyte) return
+            if (.not. buffers(current)%bidi_display_reordering .or. .not. buffers(current)%multibyte) return
             call validate_region(from_pos, to_pos, status)
             if (.not. status%ok()) return
-            end = buffers(cur)%zv
+            end = buffers(current)%zv
             if (from_pos >= end) return
             itb_data = bidi_shelve_cache()
-            bpos = buf_charpos_to_bytepos(cur, from_pos)
+            bpos = buf_charpos_to_bytepos(current, from_pos)
 
-            if (from_pos == buffers(cur)%begv) then
-                itb%charpos = buffers(cur)%begv
-                itb%bytepos = buffers(cur)%begv_byte
-            else if (buf_fetch_byte(buffers(cur), bpos - 1) == 10) then
+            if (from_pos == buffers(current)%begv) then
+                itb%charpos = buffers(current)%begv
+                itb%bytepos = buffers(current)%begv_byte
+            else if (buf_fetch_byte(buffers(current), bpos - 1) == 10) then
                 itb%charpos = from_pos
                 itb%bytepos = bpos
             else
@@ -4348,7 +4349,7 @@ contains
             end do
 
             ! (Upstream compares with ZV for a string too.)
-            if (.not. (found == buffers(cur)%zv .and. itb%ch == 10 .and. itb%charpos < to_pos)) exit
+            if (.not. (found == buffers(current)%zv .and. itb%ch == 10 .and. itb%charpos < to_pos)) exit
         end do
 
         call bidi_unshelve_cache(itb_data, .false.)

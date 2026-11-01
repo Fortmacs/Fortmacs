@@ -29,7 +29,7 @@ module test_minibuf_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR, FM_VOID_VARIABLE, FM_INHIBITED_INTERACTION
-    use minibuf_fm, only: completion_regexp_list, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
+    use minibuf_fm, only: completion_regexps, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
                           minibuffer_setup_function, is_minibuffer, assoc_string
     use keyboard_fm, only: inhibit_interaction
     use lisp_fm, only: list, vtag, V_ARRAY, V_STRING, value_type
@@ -37,9 +37,9 @@ module test_minibuf_fm
     use lisp_fm, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
-    use data_fm, only: set, symbol_value, history_setting, find_history, HISTORY_LENGTH_UNLIMITED
+    use data_fm, only: set, symbol_value, history_setting_type, find_history, HISTORY_LENGTH_UNLIMITED
     use textprop_fm, only: get_text_property
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, kill_buffer, get_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer, close_buffer, get_buffer, &
                          erase_buffer, fill_column
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point
@@ -67,7 +67,7 @@ module test_minibuf_fm
     use minibuffer_fm, only: read_buffer, internal_complete_buffer, insert_default_directory, &
                              read_buffer_completion_ignore_case
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, write_region, &
-                         make_directory_internal, delete_file_internal, file_exists
+                         create_directory_internal, delete_file_internal, file_exists
     use files_fm, only: set_visited_file_name, write_file
     implicit none(type, external)
     private
@@ -131,29 +131,29 @@ contains
                     new_unittest("find-file-command", test_find_file_command), &
                     new_unittest("write-file", test_write_file), &
                     new_unittest("try-completion-string-list", test_try_string_list), &
-                    new_unittest("try-completion-string-list-predicate", test_try_string_list_pred), &
+                    new_unittest("try-completion-string-list-predicate", test_try_string_list_test), &
                     new_unittest("try-completion-symbol-list", test_try_symbol_list), &
-                    new_unittest("try-completion-symbol-list-predicate", test_try_symbol_list_pred), &
+                    new_unittest("try-completion-symbol-list-predicate", test_try_symbol_list_test), &
                     new_unittest("try-completion-symbol-alist", test_try_symbol_table), &
-                    new_unittest("try-completion-symbol-alist-predicate", test_try_symbol_table_pred), &
+                    new_unittest("try-completion-symbol-alist-predicate", test_try_symbol_table_test), &
                     new_unittest("try-completion-string-alist", test_try_string_table), &
-                    new_unittest("try-completion-string-alist-predicate", test_try_string_table_pred), &
+                    new_unittest("try-completion-string-alist-predicate", test_try_string_table_test), &
                     new_unittest("all-completions-string-list", test_all_string_list), &
-                    new_unittest("all-completions-string-list-predicate", test_all_string_list_pred), &
+                    new_unittest("all-completions-string-list-predicate", test_all_string_list_test), &
                     new_unittest("all-completions-symbol-list", test_all_symbol_list), &
-                    new_unittest("all-completions-symbol-list-predicate", test_all_symbol_list_pred), &
+                    new_unittest("all-completions-symbol-list-predicate", test_all_symbol_list_test), &
                     new_unittest("all-completions-symbol-alist", test_all_symbol_table), &
-                    new_unittest("all-completions-symbol-alist-predicate", test_all_symbol_table_pred), &
+                    new_unittest("all-completions-symbol-alist-predicate", test_all_symbol_table_test), &
                     new_unittest("all-completions-string-alist", test_all_string_table), &
-                    new_unittest("all-completions-string-alist-predicate", test_all_string_table_pred), &
+                    new_unittest("all-completions-string-alist-predicate", test_all_string_table_test), &
                     new_unittest("test-completion-string-list", test_test_string_list), &
-                    new_unittest("test-completion-string-list-predicate", test_test_string_list_pred), &
+                    new_unittest("test-completion-string-list-predicate", test_test_string_list_test), &
                     new_unittest("test-completion-symbol-list", test_test_symbol_list), &
-                    new_unittest("test-completion-symbol-list-predicate", test_test_symbol_list_pred), &
+                    new_unittest("test-completion-symbol-list-predicate", test_test_symbol_list_test), &
                     new_unittest("test-completion-symbol-alist", test_test_symbol_table), &
-                    new_unittest("test-completion-symbol-alist-predicate", test_test_symbol_table_pred), &
+                    new_unittest("test-completion-symbol-alist-predicate", test_test_symbol_table_test), &
                     new_unittest("test-completion-string-alist", test_test_string_table), &
-                    new_unittest("test-completion-string-alist-predicate", test_test_string_table_pred), &
+                    new_unittest("test-completion-string-alist-predicate", test_test_string_table_test), &
                     new_unittest("try-completion-string-list-completion-regexp", test_try_regexp_1), &
                     new_unittest("all-completions-string-list-completion-regexp", test_all_regexp_1), &
                     new_unittest("test-completion-string-list-completion-regexp", test_test_regexp_1), &
@@ -222,13 +222,13 @@ contains
     end subroutine type_text
 
     subroutine fresh_scratch()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
         last_message = ""
         call show_alone()
     end subroutine fresh_scratch
@@ -245,7 +245,7 @@ contains
         cb = current_buffer()
         call check(error, st%ok() .and. answer == "hello", answer)
         if (allocated(error)) return
-        call check(error, buffers(cur)%name == "*scratch*" .and. minibuf_level == 0 .and. &
+        call check(error, buffers(current)%name == "*scratch*" .and. minibuf_level == 0 .and. &
                    .not. selected_frame%minibuffer_selected, "back where it started")
         if (allocated(error)) return
         ! Initial input, edited.
@@ -271,7 +271,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message == "Quit", last_message)
         if (allocated(error)) return
-        call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
+        call check(error, buffers(current)%name == "*scratch*", buffers(current)%name)
         if (allocated(error)) return
         call type_keys("x C-g")
         call read_from_minibuffer("Say: ", answer, st)
@@ -378,7 +378,7 @@ contains
 
     subroutine test_add_to_history(error)
         type(error_type), allocatable, intent(out) :: error
-        type(history_setting), pointer :: h
+        type(history_setting_type), pointer :: h
         type(status_type) :: st
         integer :: i, saved
         character(len=8) :: num
@@ -398,7 +398,7 @@ contains
 
         do i = 1, 5
             write (num, "(i0)") i
-            call h%add(trim(num))
+            call h%append(trim(num))
         end do
 
         history_length = saved
@@ -409,9 +409,9 @@ contains
         ! history-delete-duplicates
         deallocate (h%items)
         history_delete_duplicates = .true.
-        call h%add("a")
-        call h%add("b")
-        call h%add("a")
+        call h%append("a")
+        call h%append("b")
+        call h%append("a")
         history_delete_duplicates = .false.
         call check(error, size(h%items) == 2, "duplicates deleted")
         if (allocated(error)) return
@@ -419,14 +419,14 @@ contains
         if (allocated(error)) return
         ! The history's own length.
         h%length = 1
-        call h%add("c")
+        call h%append("c")
         call check(error, size(h%items) == 1, "history length")
         if (allocated(error)) return
         call check(error, h%items(1)%text, "c")
         if (allocated(error)) return
         h%length = HISTORY_LENGTH_UNLIMITED
-        call h%add("d")
-        call h%add("e")
+        call h%append("d")
+        call h%append("e")
         call check(error, size(h%items) == 3, "no truncation")
         if (allocated(error)) return
         ! A name that is no history.
@@ -519,7 +519,7 @@ contains
         call read_y_or_n("Go?", answer, st)
         call check(error, st%code == FM_QUIT, "C-g quits")
         if (allocated(error)) return
-        call check(error, minibuf_level == 0 .and. buffers(cur)%name == "*scratch*", "back")
+        call check(error, minibuf_level == 0 .and. buffers(current)%name == "*scratch*", "back")
     end subroutine test_read_y_or_n_minibuffer
 
     !> y-or-n-p-use-read-key: one key in the echo area; ESC quits.
@@ -602,7 +602,7 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        buffers(cur)%directory = "/x/y/"
+        buffers(current)%directory = "/x/y/"
         ! Unchanged input gives the default.
         call type_keys("RET")
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
@@ -627,7 +627,7 @@ contains
         type(value_type) :: h
 
         call fresh_scratch()
-        buffers(cur)%directory = "/x/y/"
+        buffers(current)%directory = "/x/y/"
         call set(value_type(name="file_name_history"), value_type(), st)
         call type_keys("RET")
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
@@ -659,26 +659,26 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: name, dir
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call fresh_scratch()
         call init_fileio()
         dir = file_name_as_directory(emacs_wd)//"build/test-rfn-dir/"
-        call make_directory_internal(dir, st)
-        call get_buffer_create(" rfn-source", buf, st)
-        call set_buffer(buf, st)
+        call create_directory_internal(dir, st)
+        call get_or_make_buffer(" rfn-source", buffer, st)
+        call set_buffer(buffer, st)
         call insert("data", st)
         call write_region(dir//"only-file.txt", .false., st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call fresh_scratch()
-        buffers(cur)%directory = "/"
+        buffers(current)%directory = "/"
         insert_default_directory = .false.
         call type_keys("o n TAB RET")
         call read_file_name("File: ", name, st, dir=dir, mustmatch=REQUIRE_MATCH_YES)
         insert_default_directory = .true.
         call check(error, st%ok() .and. name == "only-file.txt", name)
         if (allocated(error)) return
-        call check(error, buffers(cur)%directory == "/", "the caller's directory is unchanged")
+        call check(error, buffers(current)%directory == "/", "the caller's directory is unchanged")
     end subroutine test_read_file_name_directory
 
     !> read-file-name-internal completes the name substitute-in-file-name
@@ -708,15 +708,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: name
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call fresh_scratch()
-        call get_buffer_create("Zebra-Buffer", buf, st)
+        call get_or_make_buffer("Zebra-Buffer", buffer, st)
         read_buffer_completion_ignore_case = .true.
         call type_keys("z e b TAB RET")
         call read_buffer("Buffer: ", name, st)
         read_buffer_completion_ignore_case = .false.
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call check(error, st%ok() .and. name == "Zebra-Buffer", name)
         if (allocated(error)) return
         call check(error,.not. completion_ignore_case%value, "completion-ignore-case restored")
@@ -729,12 +729,12 @@ contains
         type(value_type) :: result
         type(value_type), allocatable :: elts(:)
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer :: k
         logical :: internal
 
         call fresh_scratch()
-        call get_buffer_create(" internal-test", buf, st)
+        call get_or_make_buffer(" internal-test", buffer, st)
         call internal_complete_buffer("", COMPLETE_ALL, result, st)
         call list_elements(result, elts)
         internal = .false.
@@ -750,7 +750,7 @@ contains
         if (allocated(error)) return
         call internal_complete_buffer(" internal-test", COMPLETE_TEST, result, st)
         call check(error, allocated(result%a), "test-completion")
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
     end subroutine test_internal_complete_buffer
 
     !> Reading from the minibuffer with another window selected cancels
@@ -788,59 +788,59 @@ contains
     subroutine test_find_file_command(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         character(len=:), allocatable :: dir
 
         call fresh_scratch()
         call init_fileio()
         dir = file_name_as_directory(emacs_wd)//"build/test-minibuf"
-        call make_directory_internal(dir, st)
-        call get_buffer_create(" f-source", buf, st)
-        call set_buffer(buf, st)
+        call create_directory_internal(dir, st)
+        call get_or_make_buffer(" f-source", buffer, st)
+        call set_buffer(buffer, st)
         call insert("data", st)
         call write_region(dir//"/f.txt", .false., st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call fresh_scratch()
-        buffers(cur)%directory = file_name_as_directory(dir)
+        buffers(current)%directory = file_name_as_directory(dir)
         call type_text(achar(24)//achar(6)//"f.txt"//achar(13))
         call command_loop(st)
-        call check(error, buffers(cur)%name == "f.txt" .and. buffer_string() == "data", buffers(cur)%name)
+        call check(error, buffers(current)%name == "f.txt" .and. buffer_string() == "data", buffers(current)%name)
         if (allocated(error)) return
-        call kill_buffer(current_buffer(), st)
+        call close_buffer(current_buffer(), st)
     end subroutine test_find_file_command
 
     subroutine test_write_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         character(len=:), allocatable :: dir
         logical :: ok
 
         call fresh_scratch()
         call init_fileio()
         dir = file_name_as_directory(emacs_wd)//"build/test-minibuf/"
-        call make_directory_internal(dir, st)
+        call create_directory_internal(dir, st)
         call delete_file_internal(dir//"w1.txt", st)
         call delete_file_internal(dir//"w2.txt", st)
-        call get_buffer_create("unsaved", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("unsaved", buffer, st)
+        call set_buffer(buffer, st)
         call insert("text", st)
         call write_file(dir//"w1.txt", .true., st)
         call check(error, st%ok() .and. file_exists(dir//"w1.txt"), format_error(st))
         if (allocated(error)) return
-        call check(error, buffers(cur)%name == "w1.txt" .and. buffers(cur)%filename == dir//"w1.txt", &
-                   buffers(cur)%name)
+        call check(error, buffers(current)%name == "w1.txt" .and. buffers(current)%filename == dir//"w1.txt", &
+                   buffers(current)%name)
         if (allocated(error)) return
         ! A directory means the same file name there; overwriting asks.
         call type_text("y")
         call write_file(dir, .true., st)
         ok = st%ok()
-        call check(error, ok .and. buffers(cur)%filename == dir//"w1.txt", format_error(st))
+        call check(error, ok .and. buffers(current)%filename == dir//"w1.txt", format_error(st))
         if (allocated(error)) return
         call set_visited_file_name(dir//"w2.txt", st)
-        call check(error, buffers(cur)%name == "w2.txt" .and. .not. buffers(cur)%backed_up .and. &
-                   buffers(cur)%text%save_modiff < buffers(cur)%text%modiff, "renamed and modified")
-        call kill_buffer(current_buffer(), st)
+        call check(error, buffers(current)%name == "w2.txt" .and. .not. buffers(current)%backed_up .and. &
+                   buffers(current)%text%save_modiff < buffers(current)%text%modiff, "renamed and modified")
+        call close_buffer(current_buffer(), st)
     end subroutine test_write_file
 
     ! ------------------------------------------------------------------
@@ -905,18 +905,18 @@ contains
         if (vtag(v) == V_STRING) is_string = xstring(v) == s .and. len(xstring(v)) == len(s)
     end function is_string
 
-    !> minibuf-tests--try-completion and -pred for collection kind `kind`.
-    subroutine check_try(error, kind, pred)
+    !> minibuf-tests--try-completion and -test for collection kind `kind`.
+    subroutine check_try(error, kind, test)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: kind
-        logical, intent(in) :: pred
+        logical, intent(in) :: test
         type(completion_table_type) :: abcdef, abba
         type(value_type) :: r
         type(status_type) :: st
 
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
 
-        if (pred) then
+        if (test) then
             call try_completion("a", abcdef, r, st, memq_of_collection)
         else
             call try_completion("a", abcdef, r, st)
@@ -926,7 +926,7 @@ contains
         if (allocated(error)) return
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
 
-        if (pred) then
+        if (test) then
             call try_completion("a", abba, r, st, memq_of_collection)
             call check(error, is_string(r, "ab"), "a in +abba")
             if (allocated(error)) return
@@ -953,18 +953,18 @@ contains
         end if
     end subroutine check_try
 
-    !> minibuf-tests--all-completions and -pred for collection kind `kind`.
-    subroutine check_all(error, kind, pred)
+    !> minibuf-tests--all-completions and -test for collection kind `kind`.
+    subroutine check_all(error, kind, test)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: kind
-        logical, intent(in) :: pred
+        logical, intent(in) :: test
         type(completion_table_type) :: abcdef, abba
         type(value_type) :: r
         type(status_type) :: st
 
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
 
-        if (pred) then
+        if (test) then
             call all_completions("a", abcdef, r, st, memq_of_collection)
         else
             call all_completions("a", abcdef, r, st)
@@ -974,7 +974,7 @@ contains
         if (allocated(error)) return
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
 
-        if (pred) then
+        if (test) then
             call all_completions("a", abba, r, st, memq_of_collection)
         else
             call all_completions("a", abba, r, st)
@@ -983,7 +983,7 @@ contains
         call check(error, value_equal(r, list(value_type(text="abc"), value_type(text="abba"))), "a in +abba")
         if (allocated(error)) return
 
-        if (pred) then
+        if (test) then
             call all_completions("abc", abba, r, st, memq_of_collection)
         else
             call all_completions("abc", abba, r, st)
@@ -995,23 +995,23 @@ contains
         call check(error,.not. allocated(r%a), "abcd")
         if (allocated(error)) return
 
-        if (pred) then
+        if (test) then
             call all_completions("a", abba, r, st, ignore)
             call check(error,.not. allocated(r%a), "ignore")
         end if
     end subroutine check_all
 
-    !> minibuf-tests--test-completion and -pred for collection kind `kind`.
-    subroutine check_test(error, kind, pred)
+    !> minibuf-tests--test-completion and -test for collection kind `kind`.
+    subroutine check_test(error, kind, test)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: kind
-        logical, intent(in) :: pred
+        logical, intent(in) :: test
         type(completion_table_type) :: abcdef, abba
         logical :: abc, def, ab, abcd
 
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
 
-        if (pred) then
+        if (test) then
             abc = is_exact_completion("abc", abcdef, memq_of_collection)
         else
             abc = is_exact_completion("abc", abcdef)
@@ -1019,7 +1019,7 @@ contains
 
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
 
-        if (pred) then
+        if (test) then
             def = is_exact_completion("def", abba, memq_of_collection)
             ab = is_exact_completion("abba", abba, memq_of_collection)
             abcd = is_exact_completion("abcd", abba, memq_of_collection)
@@ -1032,7 +1032,7 @@ contains
         call check(error, abc .and. def .and. ab .and. .not. abcd)
         if (allocated(error)) return
 
-        if (pred) then
+        if (test) then
             call check(error,.not. is_exact_completion("abc", abcdef, ignore) .and. &
                        .not. is_exact_completion("def", abba, ignore), "ignore")
         end if
@@ -1044,11 +1044,11 @@ contains
         call check_try(error, 1, .false.)
     end subroutine test_try_string_list
 
-    subroutine test_try_string_list_pred(error)
+    subroutine test_try_string_list_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 1, .true.)
-    end subroutine test_try_string_list_pred
+    end subroutine test_try_string_list_test
 
     subroutine test_try_symbol_list(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1056,11 +1056,11 @@ contains
         call check_try(error, 2, .false.)
     end subroutine test_try_symbol_list
 
-    subroutine test_try_symbol_list_pred(error)
+    subroutine test_try_symbol_list_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 2, .true.)
-    end subroutine test_try_symbol_list_pred
+    end subroutine test_try_symbol_list_test
 
     subroutine test_try_symbol_table(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1068,11 +1068,11 @@ contains
         call check_try(error, 3, .false.)
     end subroutine test_try_symbol_table
 
-    subroutine test_try_symbol_table_pred(error)
+    subroutine test_try_symbol_table_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 3, .true.)
-    end subroutine test_try_symbol_table_pred
+    end subroutine test_try_symbol_table_test
 
     subroutine test_try_string_table(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1080,11 +1080,11 @@ contains
         call check_try(error, 4, .false.)
     end subroutine test_try_string_table
 
-    subroutine test_try_string_table_pred(error)
+    subroutine test_try_string_table_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_try(error, 4, .true.)
-    end subroutine test_try_string_table_pred
+    end subroutine test_try_string_table_test
 
     subroutine test_all_string_list(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1092,11 +1092,11 @@ contains
         call check_all(error, 1, .false.)
     end subroutine test_all_string_list
 
-    subroutine test_all_string_list_pred(error)
+    subroutine test_all_string_list_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 1, .true.)
-    end subroutine test_all_string_list_pred
+    end subroutine test_all_string_list_test
 
     subroutine test_all_symbol_list(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1104,11 +1104,11 @@ contains
         call check_all(error, 2, .false.)
     end subroutine test_all_symbol_list
 
-    subroutine test_all_symbol_list_pred(error)
+    subroutine test_all_symbol_list_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 2, .true.)
-    end subroutine test_all_symbol_list_pred
+    end subroutine test_all_symbol_list_test
 
     subroutine test_all_symbol_table(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1116,11 +1116,11 @@ contains
         call check_all(error, 3, .false.)
     end subroutine test_all_symbol_table
 
-    subroutine test_all_symbol_table_pred(error)
+    subroutine test_all_symbol_table_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 3, .true.)
-    end subroutine test_all_symbol_table_pred
+    end subroutine test_all_symbol_table_test
 
     subroutine test_all_string_table(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1128,11 +1128,11 @@ contains
         call check_all(error, 4, .false.)
     end subroutine test_all_string_table
 
-    subroutine test_all_string_table_pred(error)
+    subroutine test_all_string_table_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_all(error, 4, .true.)
-    end subroutine test_all_string_table_pred
+    end subroutine test_all_string_table_test
 
     subroutine test_test_string_list(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1140,11 +1140,11 @@ contains
         call check_test(error, 1, .false.)
     end subroutine test_test_string_list
 
-    subroutine test_test_string_list_pred(error)
+    subroutine test_test_string_list_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 1, .true.)
-    end subroutine test_test_string_list_pred
+    end subroutine test_test_string_list_test
 
     subroutine test_test_symbol_list(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1152,11 +1152,11 @@ contains
         call check_test(error, 2, .false.)
     end subroutine test_test_symbol_list
 
-    subroutine test_test_symbol_list_pred(error)
+    subroutine test_test_symbol_list_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 2, .true.)
-    end subroutine test_test_symbol_list_pred
+    end subroutine test_test_symbol_list_test
 
     subroutine test_test_symbol_table(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1164,11 +1164,11 @@ contains
         call check_test(error, 3, .false.)
     end subroutine test_test_symbol_table
 
-    subroutine test_test_symbol_table_pred(error)
+    subroutine test_test_symbol_table_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 3, .true.)
-    end subroutine test_test_symbol_table_pred
+    end subroutine test_test_symbol_table_test
 
     subroutine test_test_string_table(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1176,11 +1176,11 @@ contains
         call check_test(error, 4, .false.)
     end subroutine test_test_string_table
 
-    subroutine test_test_string_table_pred(error)
+    subroutine test_test_string_table_test(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_test(error, 4, .true.)
-    end subroutine test_test_string_table_pred
+    end subroutine test_test_string_table_test
 
     !> The global obarray as a collection (upstream's tests make their own
     !> obarrays): names with a prefix no other symbol has.
@@ -1322,14 +1322,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call completion_setup()
         call type_keys("b ? C-g")
         call completing_read("Prompt: ", completion_list_table(strings([character(len=6) :: "beta", "bar", "baz", &
                                                                         "foo"])), answer, st)
-        buf = get_buffer("*Completions*")
-        call set_buffer(buf, st)
+        buffer = get_buffer("*Completions*")
+        call set_buffer(buffer, st)
         call check(error, buffer_string() == "3 possible completions:"//achar(10)//"bar"//achar(10)//"baz"//achar(10)//"beta", &
                    buffer_string())
     end subroutine is_exact_completion_list_buffer
@@ -1341,7 +1341,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(value_type) :: face
 
         call completion_setup()
@@ -1349,8 +1349,8 @@ contains
         call type_keys("b ? C-g")
         call completing_read("Prompt: ", completion_list_table(strings([character(len=6) :: "beta", "bar"])), answer, st)
         completion_annotation_function => null()
-        buf = get_buffer("*Completions*")
-        call set_buffer(buf, st)
+        buffer = get_buffer("*Completions*")
+        call set_buffer(buffer, st)
         call check(error, buffer_string() == "2 possible completions:"//achar(10)//"bar (3)"//achar(10)//"beta (4)", &
                    buffer_string())
         if (allocated(error)) return
@@ -1362,10 +1362,10 @@ contains
     subroutine length_annotation(candidate, annotation)
         character(len=*), intent(in) :: candidate
         character(len=:), allocatable, intent(out) :: annotation
-        character(len=8) :: buf
+        character(len=8) :: buffer
 
-        write (buf, "(i0)") len(candidate)
-        annotation = " ("//trim(buf)//")"
+        write (buffer, "(i0)") len(candidate)
+        annotation = " ("//trim(buffer)//")"
     end subroutine length_annotation
 
     subroutine test_complete_and_exit(error)
@@ -1449,22 +1449,22 @@ contains
     subroutine test_file_name_completion(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(value_type) :: r
         character(len=:), allocatable :: dir
 
         call fresh_scratch()
         call init_fileio()
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-complete")
-        call make_directory_internal(dir, st)
-        call make_directory_internal(dir//"alpine", st)
-        call get_buffer_create(" c-source", buf, st)
-        call set_buffer(buf, st)
+        call create_directory_internal(dir, st)
+        call create_directory_internal(dir//"alpine", st)
+        call get_or_make_buffer(" c-source", buffer, st)
+        call set_buffer(buffer, st)
         call insert("data", st)
         call write_region(dir//"alpha.txt", .false., st)
         call write_region(dir//"beta.c", .false., st)
         call write_region(dir//"beta.o", .false., st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call fresh_scratch()
         call file_name_completion("al", dir, r, st)
         call check(error, vtag(r) == V_STRING .and. xstring(r) == "alp", "file_name_completion")
@@ -1484,12 +1484,12 @@ contains
                    "exists")
         if (allocated(error)) return
         ! C-x C-f with TAB.
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
         call type_keys("C-x C-f a l p h TAB RET")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "alpha.txt" .and. buffer_string() == "data", buffers(cur)%name)
+        call check(error, buffers(current)%name == "alpha.txt" .and. buffer_string() == "data", buffers(current)%name)
         if (allocated(error)) return
-        call kill_buffer(current_buffer(), st)
+        call close_buffer(current_buffer(), st)
     end subroutine test_file_name_completion
 
     !> M-q in the minibuffer fills its contents without the prompt
@@ -1509,7 +1509,7 @@ contains
 
     !> minibuf-tests--try-completion-regexp, --all-completions-regexp and
     !> --test-completion-regexp for collection kind KIND: with
-    !> completion_regexp_list (".") nothing changes, with ("X") nothing
+    !> completion_regexps (".") nothing changes, with ("X") nothing
     !> matches.
     subroutine check_regexp(error, kind, fn)
         type(error_type), allocatable, intent(out) :: error
@@ -1521,7 +1521,7 @@ contains
 
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
-        completion_regexp_list = [character(len=4) :: "."]
+        completion_regexps = [character(len=4) :: "."]
 
         select case (fn)
         case ("try")
@@ -1552,11 +1552,11 @@ contains
         end select
 
         if (allocated(error)) then
-            deallocate (completion_regexp_list)
+            deallocate (completion_regexps)
             return
         end if
 
-        completion_regexp_list = [character(len=4) :: "X"]
+        completion_regexps = [character(len=4) :: "X"]
 
         select case (fn)
         case ("try")
@@ -1564,7 +1564,7 @@ contains
             call check(error,.not. allocated(r%a), "a in abcdef")
 
             if (allocated(error)) then
-                deallocate (completion_regexp_list)
+                deallocate (completion_regexps)
                 return
             end if
 
@@ -1578,7 +1578,7 @@ contains
                        "nothing matches X")
         end select
 
-        deallocate (completion_regexp_list)
+        deallocate (completion_regexps)
     end subroutine check_regexp
 
     subroutine test_try_regexp_1(error)
@@ -1665,7 +1665,7 @@ contains
         call check(error,.not. have .and. minibuffer_depth() == 0, "none active")
         if (allocated(error)) return
         exit_hook_ran = .false.
-        call minibuffer_exit_hook%add(note_exit)
+        call minibuffer_exit_hook%append(note_exit)
         minibuffer_setup_function => note_depth
         call type_text("x"//achar(13))
         call read_from_minibuffer("Depth: ", answer, st)

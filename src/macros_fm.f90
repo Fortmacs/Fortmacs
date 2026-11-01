@@ -262,7 +262,7 @@ contains
         type(prefix_arg_type), intent(in) :: count
         logical, intent(in) :: is_string
         type(status_type), intent(out) :: status
-        procedure(kbd_macro_loop_proc), optional :: loopfunc
+        procedure(kbd_macro_loop_procedure), optional :: loopfunc
         type(value_type), allocatable :: saved_events(:)
         type(command_type), pointer :: saved_real_this_command
         type(status_type) :: hook_status

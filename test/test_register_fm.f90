@@ -27,7 +27,7 @@ module test_register_fm
     use error_fm, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, set_buffer_read_only, &
                          current_buffer, get_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, buffer_string, mark_position, buffer_substring
@@ -38,7 +38,7 @@ module test_register_fm
     use frame_fm, only: selected_frame, selected_window
     use window_fm, only: split_window, delete_other_windows, window_leaves, windows, get_buffer_window, is_window_live
     use rect_fm, only: rectangle_line_type
-    use register_fm, only: register_table, register_contents_type, get_register, set_register, point_to_register, &
+    use register_fm, only: registers, register_contents_type, get_register, set_register, point_to_register, &
                            jump_to_register, window_configuration_to_register, copy_to_register, insert_register, &
                            append_to_register, prepend_to_register, copy_rectangle_to_register, number_to_register, &
                            increment_register, file_to_register, buffer_to_register, is_register_jumpable, &
@@ -87,7 +87,7 @@ contains
         type(rectangle_line_type) :: none(0)
         integer :: k
 
-        call get_buffer_create("*register-test*", h, st)
+        call get_or_make_buffer("*register-test*", h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
@@ -97,9 +97,9 @@ contains
         call show_alone()
 
         ! Empty every register (an empty rectangle is nil).
-        if (allocated(register_table)) then
-            do k = 1, size(register_table)
-                call set_register(register_table(k)%name, none)
+        if (allocated(registers)) then
+            do k = 1, size(registers)
+                call set_register(registers(k)%name, none)
             end do
         end if
 
@@ -151,10 +151,10 @@ contains
         integer :: k
 
         all_empty = .true.
-        if (.not. allocated(register_table)) return
+        if (.not. allocated(registers)) return
 
-        do k = 1, size(register_table)
-            if (register_table(k)%value%kind /= REGISTER_EMPTY) all_empty = .false.
+        do k = 1, size(registers)
+            if (registers(k)%value%kind /= REGISTER_EMPTY) all_empty = .false.
         end do
     end function all_empty
 
@@ -187,7 +187,7 @@ contains
             if (allocated(error)) return
         end do
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_bug27634
 
     !> Run the command point_to_register.
@@ -231,7 +231,7 @@ contains
         if (allocated(error)) return
         call check(error, is_register_insertable(value_of(rc)) .and. is_register_insertable(value_of(ra)) .and. &
                    .not. is_register_insertable(value_of(rb)), "insertable")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_jumpable
 
     subroutine test_point_and_jump(error)
@@ -252,15 +252,15 @@ contains
         call check(error, point() == 10 .and. mark_position() == 1, "jumped, mark pushed")
         if (allocated(error)) return
         ! From another buffer: switches back.
-        call get_buffer_create("*register-other*", other, st)
+        call get_or_make_buffer("*register-other*", other, st)
         call set_buffer(other, st)
         call show_alone()
         call jump_to_register(ra, st)
-        call check(error, st%ok() .and. buffers(cur)%name == "*register-test*" .and. point() == 10, &
+        call check(error, st%ok() .and. buffers(current)%name == "*register-test*" .and. point() == 10, &
                    "switched")
         if (allocated(error)) return
         ! The buffer killed: the marker points nowhere.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call jump_to_register(ra, st)
         call check(error, st%code == FM_USER_ERROR .and. format_error(st) == "That register"//char(226)//char(128)// &
                    char(153)//"s buffer no longer exists", format_error(st))
@@ -272,7 +272,7 @@ contains
         call jump_to_register(rb, st)
         call check(error, format_error(st), "Register doesn"//char(226)//char(128)//char(153)// &
                    "t contain a buffer position or configuration")
-        call kill_buffer(other, st)
+        call close_buffer(other, st)
     end subroutine test_point_and_jump
 
     subroutine test_text(error)
@@ -314,7 +314,7 @@ contains
         if (allocated(error)) return
         call insert_register(iachar("z", int64), st)
         call check(error, format_error(st), "Register does not contain text")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_text
 
     subroutine test_append_prepend(error)
@@ -344,7 +344,7 @@ contains
         call append_to_register(rc, 1_int64, 4_int64, st)
         call check(error, format_error(st), "Register does not contain text")
         register_separator = -1
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_append_prepend
 
     subroutine test_numbers(error)
@@ -381,7 +381,7 @@ contains
         call point_to_register(rb, st)
         call increment_register(rb, st)
         call check(error, format_error(st), "Register does not contain a number or text")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_numbers
 
     subroutine test_rectangle(error)
@@ -411,7 +411,7 @@ contains
         if (allocated(error)) return
         call check(error, describe_register_1(ra, .true.), "Register a contains the rectangle:"//nl//"    bcd"//nl// &
                    "    hij"//nl//"    nop"//nl)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_rectangle
 
     subroutine test_window_configuration(error)
@@ -422,7 +422,7 @@ contains
 
         call fresh(h, "hello")
         call goto_char(3_int64)
-        call get_buffer_create("*register-other*", other, st)
+        call get_or_make_buffer("*register-other*", other, st)
         call split_window(selected_window(), 0, .false., .false., w, st)
         call window_configuration_to_register(ra)
         call check(error, describe_register_1(ra), &
@@ -436,12 +436,12 @@ contains
         call window_leaves(selected_frame%root_window, leaves)
         call check(error, st%ok() .and. size(leaves) == 2, "two windows again: "//format_error(st))
         if (allocated(error)) return
-        call check(error, buffers(cur)%name == "*register-test*" .and. point() == 3, &
+        call check(error, buffers(current)%name == "*register-test*" .and. point() == 3, &
                    "buffer and point")
         if (allocated(error)) return
         call delete_other_windows(selected_window(), st)
-        call kill_buffer(other, st)
-        call kill_buffer(h, st)
+        call close_buffer(other, st)
+        call close_buffer(h, st)
     end subroutine test_window_configuration
 
     subroutine test_file_and_buffer(error)
@@ -450,24 +450,24 @@ contains
         type(status_type) :: st
 
         call fresh(h, "hello")
-        call get_buffer_create("*register-other*", other, st)
+        call get_or_make_buffer("*register-other*", other, st)
         call buffer_to_register(other, ra)
         call check(error, describe_register_1(ra), "Register a contains the buffer #<buffer *register-other*>.")
         if (allocated(error)) return
         call jump_to_register(ra, st)
-        call check(error, st%ok() .and. buffers(cur)%name == "*register-other*", "switched")
+        call check(error, st%ok() .and. buffers(current)%name == "*register-other*", "switched")
         if (allocated(error)) return
         call set_buffer(h, st)
         call show_alone()
-        call kill_buffer(other, st)
+        call close_buffer(other, st)
         call jump_to_register(ra, st)
         call check(error, format_error(st), "Attempt to display deleted buffer")
         if (allocated(error)) return
-        call check(error, describe_register_1(ra), "Register a contains the buffer #<killed buffer>.")
+        call check(error, describe_register_1(ra), "Register a contains the buffer #<closed buffer>.")
         if (allocated(error)) return
         call file_to_register("/tmp/a""b", rb)
         call check(error, describe_register_1(rb), "Register b contains the file ""/tmp/a""""b"".")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_file_and_buffer
 
     subroutine test_describe(error)
@@ -509,7 +509,7 @@ contains
         if (allocated(error)) return
         call set_register(int(z'7F', int64), 1_int64)
         call check(error, describe_register_1(int(z'7F', int64)), "Register DEL contains 1")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_describe
 
     !> The contents of the buffer NAME.
@@ -549,8 +549,8 @@ contains
         call check(error, contents_of("*Output*"), "Register a contains 5"//nl// &
                    "Register b contains text starting with"//nl//"    some text"//nl)
         call delete_other_windows(selected_window(), st)
-        call kill_buffer(get_buffer("*Output*"), st)
-        call kill_buffer(h, st)
+        call close_buffer(get_buffer("*Output*"), st)
+        call close_buffer(h, st)
     end subroutine test_view_and_list
 
     !> C-h at the register prompt shows the preview, which goes away
@@ -574,7 +574,7 @@ contains
         call window_leaves(selected_frame%root_window, leaves)
         call check(error, size(leaves), 1)
         if (allocated(error)) return
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_preview
 
     !> The C-x r register keys.
@@ -616,6 +616,6 @@ contains
         if (allocated(error)) return
         call buffer_substring(1_int64, 4_int64, text, st)
         call check(error, text, "pha")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_keys
 end module test_register_fm

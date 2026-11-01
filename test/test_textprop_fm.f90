@@ -31,7 +31,7 @@ module test_textprop_fm
     use lisp_fm, only: list, value_type, make_keymap_ref
     use data_fm, only: value_eq, set
     use fns_fm, only: value_equal, put
-    use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, set_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, close_buffer, set_buffer, &
                          current_buffer, is_buffer_live, set_buffer_read_only, &
                          erase_buffer, inhibit_read_only, deactivate_mark_variable, UE_FIRST_CHANGE
     use undo_fm, only: undo_last_kind
@@ -47,7 +47,7 @@ module test_textprop_fm
                            text_property_not_all, text_property_stickiness, text_property_range_type, &
                            text_property_list, extend_property_ranges, copy_text_properties, inhibit_point_motion_hooks
     use eval_fm, only: property_function_type
-    use keymap_fm, only: make_sparse_keymap, free_keymap, get_local_map
+    use keymap_fm, only: make_sparse_keymap, destroy_keymap, get_local_map
     use intervals_fm, only: copy_intervals_to_string, compare_string_intervals
     implicit none(type, external)
     private
@@ -91,7 +91,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
     end subroutine enter
 
@@ -100,7 +100,7 @@ contains
         type(status_type) :: st
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     function prop_at(pos, name) result(v)
@@ -309,7 +309,7 @@ contains
                    vtag(prop_at(4_int64, "face")) == V_NULL, "after deletion")
         if (allocated(error)) return
         call delete_and_extract_region(1_int64, point_max(), s, st)
-        call check(error, buffers(cur)%text%intervals%n == 0, "all text gone: no intervals")
+        call check(error, buffers(current)%text%intervals%n == 0, "all text gone: no intervals")
         call leave(h, old)
     end subroutine test_edits
 
@@ -321,17 +321,17 @@ contains
 
         call enter("tt-mod", h, old)
         call insert("abc", st)
-        tick = buffers(cur)%text%modiff
-        chars_tick = buffers(cur)%text%chars_modiff
+        tick = buffers(current)%text%modiff
+        chars_tick = buffers(current)%text%chars_modiff
         call put_text_property(1_int64, 2_int64, value_type(name="face"), value_type(name="bold"), st)
-        call check(error, buffers(cur)%text%modiff > tick, "modiff did not advance")
+        call check(error, buffers(current)%text%modiff > tick, "modiff did not advance")
         if (allocated(error)) return
-        call check(error, buffers(cur)%text%chars_modiff, chars_tick)
+        call check(error, buffers(current)%text%chars_modiff, chars_tick)
         if (allocated(error)) return
         ! As textprop.c:modify_text_properties: the first change of an
         ! unmodified buffer is recorded for undo, and the mark deactivated
         ! (prepare_to_modify_buffer_1).
-        buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+        buffers(current)%text%save_modiff = buffers(current)%text%modiff
         deactivate_mark_variable = .false.
         call put_text_property(2_int64, 3_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, undo_last_kind() == UE_FIRST_CHANGE, "first change not recorded")
@@ -546,30 +546,30 @@ contains
     ! ------------------------------------------------------------------
 
     ! Property functions recording their calls in `tp_trace'.
-    subroutine tp_rec_mod(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine tp_rec_mod(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" M"//num(beg)//","//num(end)
+        tp_trace = tp_trace//" M"//num(beginning)//","//num(end)
     end subroutine tp_rec_mod
 
     ! See `tp_rec_mod'.
-    subroutine tp_rec_behind(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine tp_rec_behind(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" B"//num(beg)//","//num(end)
+        tp_trace = tp_trace//" B"//num(beginning)//","//num(end)
     end subroutine tp_rec_behind
 
     ! See `tp_rec_mod'.
-    subroutine tp_rec_front(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine tp_rec_front(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" F"//num(beg)//","//num(end)
+        tp_trace = tp_trace//" F"//num(beginning)//","//num(end)
     end subroutine tp_rec_front
 
     ! See `tp_rec_mod'.
@@ -593,10 +593,10 @@ contains
     function num(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function num
 
     !> Define the recording property functions.  Not a port.
@@ -662,15 +662,15 @@ contains
         call put_text_property(3_int64, 5_int64, value_type(name="intangible"), value_type(.true.), st)
         call goto_char(1_int64)
         call goto_char(4_int64)
-        call check(error, buffers(cur)%pt == 4, "intangible ignored by default")
+        call check(error, buffers(current)%pt == 4, "intangible ignored by default")
         if (allocated(error)) return
         inhibit_point_motion_hooks = .false.
         call goto_char(1_int64)
         call goto_char(4_int64)
-        call check(error, buffers(cur)%pt == 5, "forward past intangible text")
+        call check(error, buffers(current)%pt == 5, "forward past intangible text")
         call goto_char(6_int64)
         call goto_char(4_int64)
-        call check(error, buffers(cur)%pt == 3, "backward past intangible text")
+        call check(error, buffers(current)%pt == 3, "backward past intangible text")
         call remove_text_properties(1_int64, 7_int64, list(value_type(name="intangible"), value_type()), changed, st)
         call put_text_property(3_int64, 5_int64, value_type(name="point_entered"), value_type(name="tp_rec_entered"), st)
         call put_text_property(3_int64, 5_int64, value_type(name="point_left"), value_type(name="tp_rec_left"), st)
@@ -702,20 +702,20 @@ contains
         call insert("abcdef", st)
         call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
         call put_text_property(5_int64, 6_int64, value_type(name="mouse_face"), value_type(name="highlight"), st)
-        call text_property_list(cur, 1_int64, 7_int64, ranges, st)
+        call text_property_list(current, 1_int64, 7_int64, ranges, st)
         call check(error, size(ranges) == 2, "two ranges")
         if (allocated(error)) return
         call check(error, ranges(1)%start == 5 .and. ranges(1)%end == 6 .and. ranges(2)%start == 2 .and. &
                    ranges(2)%end == 4, "last first")
         if (allocated(error)) return
-        call text_property_list(cur, 1_int64, 7_int64, ranges, st, value_type(name="face"))
+        call text_property_list(current, 1_int64, 7_int64, ranges, st, value_type(name="face"))
         call check(error, size(ranges) == 1, "only face")
         if (allocated(error)) return
         call extend_property_ranges(ranges, 4_int64, 6_int64)
         call check(error, ranges(1)%end == 6, "extended to the new end")
         if (allocated(error)) return
         s = value_type(text="bcd")
-        call copy_intervals_to_string(s, buffers(cur)%text%intervals, 2_int64, 3_int64)
+        call copy_intervals_to_string(s, buffers(current)%text%intervals, 2_int64, 3_int64)
         call check(error, value_eq(string_get_text_property(1_int64, value_type(name="face"), s), value_type(name="bold")), &
                    "string properties")
         if (allocated(error)) return
@@ -724,7 +724,7 @@ contains
                                                                                          value_type(name="bold"))), &
                                                                          value_type(text="d")), 3_int64), "same properties")
         if (allocated(error)) return
-        call copy_text_properties(2_int64, 4_int64, cur, 5_int64, cur, modified, st)
+        call copy_text_properties(2_int64, 4_int64, current, 5_int64, current, modified, st)
         call check(error, modified .and. value_eq(prop_at(6_int64, "face"), value_type(name="bold")), "copied")
         call leave(h, old)
     end subroutine test_property_lists
@@ -757,6 +757,6 @@ contains
         map = get_local_map(1_int64, "local_map")
         call check(error, value_eq(map, make_keymap_ref(km)), "local_map property")
         call leave(h, old)
-        call free_keymap(km, st)
+        call destroy_keymap(km, st)
     end subroutine test_local_map
 end module test_textprop_fm

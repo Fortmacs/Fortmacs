@@ -27,7 +27,7 @@ module test_keyboard_fm
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: list, value_type, xfixnum, vtag, V_INTEGER
     use data_fm, only: value_eq
-    use keymap_fm, only: define_key, free_keymap, key_description, key_parse, make_keymap, &
+    use keymap_fm, only: define_key, destroy_keymap, key_description, key_parse, make_keymap, &
                          make_sparse_keymap, use_global_map, overriding_terminal_local_map, key_binding
     use callint_fm, only: is_command, current_prefix_arg, command_type, prefix_arg, prefix_numeric_value
     use keyboard_fm, only: command_loop, command_loop_step, discard_input, input_decode_map, &
@@ -38,7 +38,7 @@ module test_keyboard_fm
                            unread_command_events, ring_bell_hook, read_key_sequence_vs, clear_this_command_keys, &
                            read_char, read_char_exclusive, lossage_size, inhibit_interaction, &
                            translate_upper_case_key_bindings, this_command_key_events, this_single_command_keys, &
-                           this_single_command_raw_keys, set__this_command_keys, echo_keystrokes, echo_keystrokes_help, &
+                           this_single_command_raw_keys, set_this_command_keys, echo_keystrokes, echo_keystrokes_help, &
                            cancel_echoing, event_convert_list, event_name_parse_modifiers, make_ctrl_char, &
                            recursion_depth, top_level, recursive_edit, post_command_hook, safe_execute_hooks, echo_now
     use fns_fm, only: value_equal
@@ -203,7 +203,7 @@ contains
     !> point at 1, the global bindings in place.
     subroutine adjust_buffer(h)
         use bindings_fm, only: init_bindings
-        use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
+        use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer
         use insdel_fm, only: insert
         use editfns_fm, only: goto_char
         use test_support, only: show_alone
@@ -213,7 +213,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("*adjust*", h, st)
+        call get_or_make_buffer("*adjust*", h, st)
         call switch_to_buffer("*adjust*", st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -241,7 +241,7 @@ contains
     !> With an ellipsis, it stops at the end.
     subroutine test_adjust_invisible(error)
         use textprop_fm, only: put_text_property
-        use buffer_fm, only: kill_buffer
+        use buffer_fm, only: close_buffer
         use lisp_fm, only: value_type
         use subr_fm, only: add_to_invisibility_spec
         type(error_type), allocatable, intent(out) :: error
@@ -263,14 +263,14 @@ contains
         call check(error, point_after(1_int64, "C-f C-f") == 5, "ellipsis C-f C-f")
         if (allocated(error)) return
         call check(error, point_after(7_int64, "C-b C-b") == 5, "ellipsis C-b C-b")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call show_scratch()
     end subroutine test_adjust_invisible
 
     !> Point leaves text a display string replaces (3 to 5).
     subroutine test_adjust_display(error)
         use textprop_fm, only: put_text_property
-        use buffer_fm, only: kill_buffer
+        use buffer_fm, only: close_buffer
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -284,18 +284,18 @@ contains
         call check(error, point_after(7_int64, "C-b C-b") == 5, "back to its end")
         if (allocated(error)) return
         call check(error, point_after(7_int64, "C-b C-b C-b") == 3, "back over it")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call show_scratch()
     end subroutine test_adjust_display
 
     !> Leave *scratch* current and shown alone, for the suites that follow.
     subroutine show_scratch()
-        use buffer_fm, only: get_buffer_create, set_buffer
+        use buffer_fm, only: get_or_make_buffer, set_buffer
         use test_support, only: show_alone
         type(handle_type) :: h
         type(status_type) :: st
 
-        call get_buffer_create("*scratch*", h, st)
+        call get_or_make_buffer("*scratch*", h, st)
         call set_buffer(h, st)
         call show_alone()
     end subroutine show_scratch
@@ -316,7 +316,7 @@ contains
         type(handle_type), intent(in) :: km
         type(status_type) :: st
 
-        call free_keymap(km, st)
+        call destroy_keymap(km, st)
     end subroutine free
 
     !> The next event as a fixnum (-1 if none or not a fixnum).
@@ -1015,7 +1015,7 @@ contains
         call clear_this_command_keys(keep_record=.true.)
         call check(error, size(this_command_key_events()) == 0, "clear")
         if (allocated(error)) return
-        call set__this_command_keys(char(195)//char(184)//"y")
+        call set_this_command_keys(char(195)//char(184)//"y")
         call check(error, key_description(this_command_key_events()), "M-x y")
         input_decode_map = null_handle()
         call free(decode)
@@ -1060,7 +1060,7 @@ contains
         call check(error, last_message, "")
         if (allocated(error)) return
         call cancel_echoing()
-        call set__this_command_keys(char(24))
+        call set_this_command_keys(char(24))
         call echo_now()
         call check(error, last_message, "C-x- (C-h for help)")
         if (allocated(error)) return
@@ -1156,7 +1156,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message, "")
         if (allocated(error)) return
-        call post_command_hook%add(cmd_fail)
+        call post_command_hook%append(cmd_fail)
         call safe_execute_hooks(post_command_hook)
         call check(error, last_message, "Error in post_command_hook (cmd-fail): (user_error ""Boom"")")
         if (allocated(error)) return

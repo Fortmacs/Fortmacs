@@ -19,8 +19,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Where upstream takes a PREDICATE function object, these take an
-!> optional Fortran procedure with the `value_predicate' interface; the
+!> Where upstream takes a TEST function object, these take an
+!> optional Fortran procedure with the `value_test_procedure' interface; the
 !> default is `eq' (data_fm:value_eq), as upstream.
 module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -41,14 +41,14 @@ module fns_fm
     abstract interface
         !> A two-argument test such as `eq', `equal' or `string<'.
         !> Not a port.
-        logical function value_predicate(a, b)
+        logical function value_test_procedure(a, b)
             import :: value_type
             implicit none(type, external)
             type(value_type), intent(in) :: a, b
-        end function value_predicate
+        end function value_test_procedure
     end interface
 
-    public :: value_predicate
+    public :: value_test_procedure
     public :: value_equal
     public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, schars, substring
 
@@ -192,7 +192,7 @@ contains
 
     !> True if `a' sorts before `b', comparing characters by code.
     !> Symbols stand for their names; anything else compares false (the
-    !> predicate interface has no status).  Port of fns.c:Fstring_lessp
+    !> test interface has no status).  Port of fns.c:Fstring_lessp
     !> (string_cmp).
     logical function is_string_less(a, b)
         type(value_type), intent(in) :: a, b
@@ -358,10 +358,10 @@ contains
     pure function int_text(n) result(text)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: text
-        character(len=21) :: buf
+        character(len=21) :: buffer
 
-        write (buf, "(i0)") n
-        text = trim(buf)
+        write (buffer, "(i0)") n
+        text = trim(buffer)
     end function int_text
 
     !> Number of characters in UTF-8 string `s'.  Port of lisp.h:SCHARS.
@@ -453,13 +453,13 @@ contains
         is_string_greater = is_string_less(b, a)
     end function is_string_greater
 
-    !> Compare with `predicate', or `eq' by default.  Not a port.
-    logical function matches(a, b, predicate)
+    !> Compare with `test', or `eq' by default.  Not a port.
+    logical function matches(a, b, test)
         type(value_type), intent(in) :: a, b
-        procedure(value_predicate), optional :: predicate
+        procedure(value_test_procedure), optional :: test
 
-        if (present(predicate)) then
-            matches = predicate(a, b)
+        if (present(test)) then
+            matches = test(a, b)
         else
             matches = value_eq(a, b)
         end if
@@ -467,9 +467,9 @@ contains
 
     !> Value of `prop' in property list `plist', or nil.  Degenerate
     !> plists (odd length) are tolerated.  Port of fns.c:Fplist_get.
-    function plist_get(plist, prop, predicate) result(v)
+    function plist_get(plist, prop, test) result(v)
         type(value_type), intent(in) :: plist, prop
-        procedure(value_predicate), optional :: predicate
+        procedure(value_test_procedure), optional :: test
         type(value_type) :: v
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
@@ -477,7 +477,7 @@ contains
         call list_elements(plist, elems)
 
         do k = 1, size(elems, kind=int64) - 1, 2
-            if (matches(elems(k), prop, predicate)) then
+            if (matches(elems(k), prop, test)) then
                 v = elems(k + 1)
                 return
             end if
@@ -487,11 +487,11 @@ contains
     !> Set `prop' to `val' in `plist', adding the pair at the end if absent.
     !> An odd-length plist is a wrong-type-argument (plistp), as upstream.
     !> Port of fns.c:Fplist_put.
-    subroutine plist_put(plist, prop, val, status, predicate)
+    subroutine plist_put(plist, prop, val, status, test)
         type(value_type), intent(inout) :: plist
         type(value_type), intent(in) :: prop, val
         type(status_type), intent(out) :: status
-        procedure(value_predicate), optional :: predicate
+        procedure(value_test_procedure), optional :: test
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k, n
 
@@ -504,7 +504,7 @@ contains
         n = size(elems, kind=int64)
 
         do k = 1, n - 1, 2
-            if (matches(elems(k), prop, predicate)) then
+            if (matches(elems(k), prop, test)) then
                 elems(k + 1) = val
                 plist = make_list(elems)
                 return
@@ -522,9 +522,9 @@ contains
 
     !> The tail of `plist' starting at `prop', or nil.
     !> Port of fns.c:Fplist_member.
-    function plist_member(plist, prop, predicate) result(tail)
+    function plist_member(plist, prop, test) result(tail)
         type(value_type), intent(in) :: plist, prop
-        procedure(value_predicate), optional :: predicate
+        procedure(value_test_procedure), optional :: test
         type(value_type) :: tail
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
@@ -532,7 +532,7 @@ contains
         call list_elements(plist, elems)
 
         do k = 1, size(elems, kind=int64), 2
-            if (matches(elems(k), prop, predicate)) then
+            if (matches(elems(k), prop, test)) then
                 tail = list_tail(plist, k - 1)
                 return
             end if

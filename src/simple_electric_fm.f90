@@ -64,7 +64,7 @@ contains
     ! it as a reminder that this function usually likes to be run after
     ! others since it does `sit_for'.  That's also the reason it get a
     ! `priority' prop of 100.
-    call post_self_insert_hook%add(blink_paren_post_self_insert_function, depth=90)
+    call post_self_insert_hook%append(blink_paren_post_self_insert_function, depth=90)
     end procedure syms_of_simple_electric
 
     !> The syntax descriptor of the character after POS (syntax-after):
@@ -86,7 +86,7 @@ contains
     type(syntax_descriptor_type) :: end_syntax, start_syntax
     integer(int32) :: c
     integer :: matching_paren
-    logical :: found, have_start
+    logical :: found, has_start
 
     mismatch = .false.
     call syntax_after(end - 1, end_syntax, found)
@@ -105,9 +105,9 @@ contains
     if (found .and. c == matching_paren) mismatch = .false.
     ! The cdr might hold a new paren-class info rather than a
     ! matching-char info, in which case the two CDRs should match.
-    call syntax_after(start, start_syntax, have_start)
+    call syntax_after(start, start_syntax, has_start)
 
-    if (have_start) then
+    if (has_start) then
         if (start_syntax%match == matching_paren) mismatch = .false.
     end if
     end procedure blink_matching_check_mismatch
@@ -125,14 +125,14 @@ contains
     type(syntax_descriptor_type) :: code
     type(status_type) :: st
     logical :: saved_ignore, found, mismatch, visible
-    procedure(blink_matching_check_proc), pointer :: check
+    procedure(blink_matching_check_procedure), pointer :: check
 
     status = status_type()
     if (is_bob() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NO) return
     oldpos = point()
     ! (save-excursion (save-restriction ...))
-    savedb = buffers(cur)%begv
-    savedz = buffers(cur)%text%z - buffers(cur)%zv
+    savedb = buffers(current)%begv
+    savedz = buffers(current)%text%z - buffers(current)%zv
     call syntax_propertize(point(), st)
 
     if (blink_matching_paren_distance >= 0) then
@@ -161,7 +161,7 @@ contains
 
     parse_expression_ignore_comments%value = saved_ignore
     call widen()
-    call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     call goto_char(oldpos)
     mismatch = .false.
     check => current_blink_matching_check_function()
@@ -218,7 +218,7 @@ contains
     end procedure blink_matching_open
 
     module procedure blink_paren_open_paren_line_string
-    integer(int64) :: opoint, bol, moved, first_beg, first_end, last_end
+    integer(int64) :: opoint, bol, moved, first_beginning, first_end, last_end
     character(len=:), allocatable :: a
     type(status_type) :: st
     logical :: not_bol, not_eol, not_bob
@@ -227,7 +227,7 @@ contains
 
     opoint = point()
     call goto_char(pos)
-    ! Capture the regions in terms of (beg . end) pairs whose
+    ! Capture the regions in terms of (beginning . end) pairs whose
     ! buffer-substrings we want to show as a context string.
     moved = skip_chars_backward(" "//TAB, st)
     not_bol = .not. is_bol()
@@ -257,12 +257,12 @@ contains
                 ! Otherwise show the previous nonblank line, if there is
                 ! one.
                 moved = skip_chars_backward(LF//" "//TAB, st)
-                first_beg = line_beginning_position()
+                first_beginning = line_beginning_position()
                 call end_of_line()
                 moved = skip_chars_backward(" "//TAB, st)
                 first_end = point()
                 allocate (regions(2, 2))
-                regions(:, 1) = [first_beg, first_end]
+                regions(:, 1) = [first_beginning, first_end]
                 regions(:, 2) = [pos, pos + 1]
             else
                 ! There is nothing to show except the char itself.
@@ -387,16 +387,16 @@ contains
             call delete_horizontal_space(.true., status)
         end if
 
-        call free_marker(pos2, st)
+        call destroy_marker(pos2, st)
         call marker_position(here, opos, st)
         call goto_char(opos)
-        call free_marker(here, st)
+        call destroy_marker(here, st)
         if (.not. status%ok()) exit body
         call indent_according_to_mode(status)
     end block body
 
     minor_modes%electric_indent_mode%state%value = saved
-    call free_marker(pos, st)
+    call destroy_marker(pos, st)
     end procedure reindent_then_newline_and_indent
 
     !> Reindent current line, insert newline, then indent the new line.
@@ -413,14 +413,14 @@ contains
     !> Delete characters backward, changing tabs into spaces.
     !> The exact behavior depends on `backward_delete_char_untabify_method'.
     !>
-    !> Delete ARG chars, and kill (save in kill ring) if KILLP is true.
+    !> Delete ARG chars, and cut (save in clipboard history) if CUT is true.
     !>
     !> If Transient Mark mode is enabled, the mark is active, and ARG is 1,
     !> delete the text in the region and deactivate the mark instead.
     !> To disable this, set option `delete_active_region' to false.
     !>
     !> Interactively, ARG is the prefix arg (default 1)
-    !> and KILLP is true if a prefix arg was specified.  Port of
+    !> and CUT is true if a prefix arg was specified.  Port of
     !> simple.el:backward-delete-char-untabify (the command, "*p\nP").
     subroutine cmd_backward_delete_char_untabify(status)
         type(status_type), intent(out) :: status
@@ -442,7 +442,7 @@ contains
     type(value_type) :: extracted
 
     kill = .false.
-    if (present(killp)) kill = killp
+    if (present(cut)) kill = cut
 
     if (is_use_region() .and. delete_active_region .and. arg == 1) then
         ! Delete the text of the region and deactivate the mark, in the
@@ -451,7 +451,7 @@ contains
         return
     end if
 
-    if (backward_delete_char_untabify_method == UNTABIFY_METHOD_UNTABIFY) then
+    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY) then
         count = arg
         call copy_marker_at(point(), here, .false., st)
 
@@ -466,7 +466,7 @@ contains
                 if (status%ok()) call delete_char(1_int64, status)
 
                 if (.not. status%ok()) then
-                    call free_marker(here, st)
+                    call destroy_marker(here, st)
                     return
                 end if
             end if
@@ -477,12 +477,12 @@ contains
 
         call marker_position(here, opoint, st)
         call goto_char(opoint)
-        call free_marker(here, st)
+        call destroy_marker(here, st)
     end if
 
     skip = ""
-    if (backward_delete_char_untabify_method == UNTABIFY_METHOD_HUNGRY) skip = " "//TAB
-    if (backward_delete_char_untabify_method == UNTABIFY_METHOD_ALL) skip = " "//TAB//LF//achar(13)
+    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY) skip = " "//TAB
+    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL) skip = " "//TAB//LF//achar(13)
     n = arg
 
     if (len(skip) > 0) then

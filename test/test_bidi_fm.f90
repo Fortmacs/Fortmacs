@@ -28,7 +28,7 @@ module test_bidi_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, buffers, cur
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, buffers, current
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use bidi_fm, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_move_to_visually_next, bidi_get_type, &
@@ -68,7 +68,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(" *bidi-test*", h, st)
+        call get_or_make_buffer(" *bidi-test*", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
@@ -89,7 +89,7 @@ contains
 
         do while (n < size(order))
             call bidi_move_to_visually_next(it)
-            if (it%charpos >= buffers(cur)%zv .or. it%ch == 10) exit
+            if (it%charpos >= buffers(current)%zv .or. it%ch == 10) exit
             n = n + 1
             order(n) = it%charpos
             levels(n) = it%resolved_level
@@ -131,17 +131,17 @@ contains
         call buffer_with("  "//HEB//" abc"//LF//LF//"123 xyz"//LF, h)
         call check(error, current_bidi_paragraph_direction() == R2L, "right to left")
         if (allocated(error)) return
-        call goto_char(buffers(cur)%zv)
+        call goto_char(buffers(current)%zv)
         call check(error, current_bidi_paragraph_direction() == L2R, "the second paragraph")
         if (allocated(error)) return
-        buffers(cur)%bidi_paragraph_direction = R2L
+        buffers(current)%bidi_paragraph_direction = R2L
         call check(error, current_bidi_paragraph_direction() == R2L, "forced")
         if (allocated(error)) return
-        buffers(cur)%bidi_paragraph_direction = NEUTRAL_DIR
-        buffers(cur)%bidi_display_reordering = .false.
+        buffers(current)%bidi_paragraph_direction = NEUTRAL_DIR
+        buffers(current)%bidi_display_reordering = .false.
         call goto_char(1_int64)
         call check(error, current_bidi_paragraph_direction() == L2R, "no reordering")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_paragraph_direction
 
     !> Hebrew in a left-to-right line is shown reversed (UAX#9 L2).
@@ -159,7 +159,7 @@ contains
         call check(error, all(order(1:9) == [1, 2, 3, 6, 5, 4, 7, 8, 9]), "order")
         if (allocated(error)) return
         call check(error, all(levels(1:9) == [0, 0, 0, 1, 1, 1, 0, 0, 0]), "levels")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_visual_order
 
     !> European numbers after Hebrew in a left-to-right paragraph: the
@@ -178,7 +178,7 @@ contains
         call check(error, all(order(1:6) == [5, 6, 4, 3, 2, 1]), "order")
         if (allocated(error)) return
         call check(error, all(levels(1:6) == [2, 2, 1, 1, 1, 1]), "levels")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_numbers
 
     subroutine test_overrides_1(error)
@@ -194,8 +194,8 @@ contains
             "  /* end admins only ‮ { ⁦*/"//LF// &
             "  return 0;"//LF// &
             "}", h)
-        call check(error, bidi_find_overridden_directionality(1_int64, buffers(cur)%zv, st) == 46, "46")
-        call kill_buffer(h, st)
+        call check(error, bidi_find_overridden_directionality(1_int64, buffers(current)%zv, st) == 46, "46")
+        call close_buffer(h, st)
     end subroutine test_overrides_1
 
     subroutine test_overrides_2(error)
@@ -216,8 +216,8 @@ contains
             '  printf ("luser: %d\n", is_restricted_user ("luser"));'//LF// &
             '  printf ("nobody: %d\n", is_restricted_user ("nobody"));'//LF// &
             "}", h)
-        call check(error, bidi_find_overridden_directionality(1_int64, buffers(cur)%zv, st) == 138, "138")
-        call kill_buffer(h, st)
+        call check(error, bidi_find_overridden_directionality(1_int64, buffers(current)%zv, st) == 138, "138")
+        call close_buffer(h, st)
     end subroutine test_overrides_2
 
     subroutine test_overrides_3(error)
@@ -238,8 +238,8 @@ contains
             '  printf ("luser: %d\n", is_restricted_user ("luser"));'//LF// &
             '  printf ("nobody: %d\n", is_restricted_user ("nobody"));'//LF// &
             "}", h)
-        call check(error, bidi_find_overridden_directionality(1_int64, buffers(cur)%zv, st) == 138, "138")
-        call kill_buffer(h, st)
+        call check(error, bidi_find_overridden_directionality(1_int64, buffers(current)%zv, st) == 138, "138")
+        call close_buffer(h, st)
     end subroutine test_overrides_3
 
     !> A string OBJECT: positions are 0-based; nothing overridden is -1.

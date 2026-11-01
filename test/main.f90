@@ -316,16 +316,16 @@ program tester
 
 contains
 
-    !> Fetch command-line argument `idx`, leaving `arg` unallocated if absent.
-    subroutine get_argument(idx, arg)
-        integer, intent(in) :: idx
+    !> Fetch command-line argument `index`, leaving `arg` unallocated if absent.
+    subroutine get_argument(index, arg)
+        integer, intent(in) :: index
         character(len=:), allocatable, intent(out) :: arg
         integer :: length, astat
 
-        call get_command_argument(idx, length=length, status=astat)
+        call get_command_argument(index, length=length, status=astat)
         if (astat /= 0 .or. length == 0) return
         allocate (character(len=length) :: arg)
-        call get_command_argument(idx, arg, status=astat)
+        call get_command_argument(index, arg, status=astat)
         if (astat /= 0) deallocate (arg)
     end subroutine get_argument
 end program tester

@@ -30,15 +30,15 @@ module test_keymap_fm
     use lisp_fm, only: list, make_keymap_ref, V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
-    use keymap_fm, only: copy_keymap, current_global_map, current_local_map, define_key, free_keymap, &
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
+    use keymap_fm, only: copy_keymap, current_global_map, current_local_map, define_key, destroy_keymap, &
                          key_binding, key_description, key_parse, is_keymap_full, is_keymap_live, &
                          keymap_parent, keymap_prompt, is_keymap, lookup_key, make_keymap, &
                          make_sparse_keymap, push_key_description, set_keymap_parent, &
                          single_key_description, use_local_map, is_key_valid, keymap_set, &
                          keymap_global_set, define_key_range, where_is_internal
     use subr_fm, only: global_set_key
-    use keymap_fm, only: text_char_description, minor_mode_key_binding, current_minor_mode_maps, add_minor_mode_map
+    use keymap_fm, only: text_char_description, minor_mode_key_binding, current_minor_mode_maps, append_minor_mode_map
     use error_fm, only: format_error
     use data_fm, only: set
     use print_fm, only: readable_repr
@@ -81,7 +81,7 @@ contains
                     new_unittest("keymap-key-parse", test_key_parse), &
                     new_unittest("keymap--key-description", test_key_description), &
                     new_unittest("keymap-key-binding", test_key_binding), &
-                    new_unittest("keymap-free", test_free), &
+                    new_unittest("keymap-free", test_destroy), &
                     new_unittest("subr-test-key-valid-p", test_is_key_valid), &
                     new_unittest("keymap-set-consistency", test_keymap_set), &
                     new_unittest("keymap-global-set", test_keymap_global_set), &
@@ -128,7 +128,7 @@ contains
         type(handle_type), intent(in) :: km
         type(status_type) :: st
 
-        call free_keymap(km, st)
+        call destroy_keymap(km, st)
     end subroutine free
 
     subroutine test_make_keymap(error)
@@ -501,8 +501,8 @@ contains
         call set_keymap_parent(child, parent, st)
         call define_key(parent, kbd("C-x C-f"), value_type(name="find_file"), st)
         call define_key(parent, kbd("C-x C-s"), value_type(name="save_buffer"), st)
-        call define_key(child, kbd("C-x k"), value_type(name="kill_buffer"), st)
-        call check(error, value_eq(lookup(ref(child), kbd("C-x k")), value_type(name="kill_buffer")), "child")
+        call define_key(child, kbd("C-x k"), value_type(name="close_buffer"), st)
+        call check(error, value_eq(lookup(ref(child), kbd("C-x k")), value_type(name="close_buffer")), "child")
         if (allocated(error)) return
         call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), value_type(name="find_file")), "parent")
         if (allocated(error)) return
@@ -686,7 +686,7 @@ contains
     !> Local maps take precedence over the global map.
     subroutine test_key_binding(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: global, local, buf, h
+        type(handle_type) :: global, local, buffer, h
         type(status_type) :: st
         type(value_type) :: v
 
@@ -695,8 +695,8 @@ contains
         if (allocated(error)) return
         call define_key(global, kbd("C-x C-f"), value_type(name="find_file"), st)
         call define_key(global, kbd("C-f"), value_type(name="forward_char"), st)
-        call get_buffer_create("*keymap-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("*keymap-test*", buffer, st)
+        call set_buffer(buffer, st)
         call make_sparse_keymap(local)
         call use_local_map(local, st)
         h = current_local_map()
@@ -716,11 +716,11 @@ contains
         call key_binding(kbd("C-f"), v, st)
         call check(error, value_eq(v, value_type(name="forward_char")), "no local map")
         call free(local)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
     end subroutine test_key_binding
 
-    !> free_keymap frees the prefix maps define_key made.
-    subroutine test_free(error)
+    !> destroy_keymap frees the prefix maps define_key made.
+    subroutine test_destroy(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map, prefix
         type(status_type) :: st
@@ -732,16 +732,16 @@ contains
         prefix = xhandle(v)
         call check(error, is_keymap_live(prefix), "prefix live")
         if (allocated(error)) return
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
         call check(error, st%ok() .and. .not. is_keymap_live(prefix), "prefix freed")
         if (allocated(error)) return
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "stale")
-    end subroutine test_free
+    end subroutine test_destroy
 
     subroutine test_is_key_valid(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: n_tilde = char(195)//char(177), u_umlaut = char(195)//char(188)
+        character(len=*), parameter :: tilde_count = char(195)//char(177), u_umlaut = char(195)//char(188)
         character(len=16), allocatable :: valid(:), invalid(:)
         integer :: k
 
@@ -757,7 +757,7 @@ contains
                  "A-H-a", "A-SPC", "A-TAB", "A-a", "A-c A-c A-c", &
                  "C-M-a", "C-M-<up>", &
                  "DEL", "ESC C-a", "ESC", "LFD", "NUL", "RET", "SPC", "TAB", &
-                 n_tilde, u_umlaut, char(195)//char(182), char(196)//char(159), &
+                 tilde_count, u_umlaut, char(195)//char(182), char(196)//char(159), &
                  char(213)//char(161), "C-"//u_umlaut, "M-"//u_umlaut, "H-"//u_umlaut, &
                  "s-<return>", "C-M-<return>", "<mouse-1>", "<Scroll_Lock>"]
         invalid = [character(len=16) :: " X", "a  b", "foobar", "return", "[f1]", "< right >", &
@@ -884,7 +884,7 @@ contains
         key(1) = value_type(name="C-RET")
         call define_key(km, key, value_type(name="ignore"), st)
         call check(error, format_error(st), "To bind the key C-RET, use [?\C-\r], not [C-RET]")
-        call free_keymap(km, st)
+        call destroy_keymap(km, st)
     end subroutine test_string_keys
 
     !> keymap-prompt looks at the parents; minor-mode-key-binding gives the
@@ -906,7 +906,7 @@ contains
         if (allocated(error)) return
         call make_sparse_keymap(mm)
         call define_key(mm, kbd_keys("C-c z"), value_type(name="ignore"), st)
-        call add_minor_mode_map("keymap_test_mode", mm)
+        call append_minor_mode_map("keymap_test_mode", mm)
         call set(value_type(name="keymap_test_mode"), value_type(.true.), st)
         call current_minor_mode_maps(maps)
         call check(error, any(maps%index == mm%index), "current-minor-mode-maps")
@@ -916,8 +916,8 @@ contains
         if (allocated(error)) return
         call check(error, trim(modes(1)), "keymap_test_mode")
         call set(value_type(name="keymap_test_mode"), value_type(), st)
-        call free_keymap(km, st)
-        call free_keymap(parent, st)
+        call destroy_keymap(km, st)
+        call destroy_keymap(parent, st)
     end subroutine test_prompt_minor
 
     !> The events of key description TEXT.

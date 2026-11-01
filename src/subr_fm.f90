@@ -28,9 +28,9 @@ module subr_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use lisp_fm, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
                        list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
-    use data_fm, only: symbol_value, set, value_eq, history_setting, find_history, history_length, history_delete_duplicates
+    use data_fm, only: symbol_value, set, value_eq, history_setting_type, find_history, history_length, history_delete_duplicates
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified, &
+    use buffer_fm, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified, &
                          invisibility_entry_type
     use insdel_fm, only: inhibit_modification_hooks
     use keyboard_fm, only: read_event, discard_input, this_command_keys
@@ -73,10 +73,10 @@ module subr_fm
         logical :: pulsing = .false.
         integer :: pulse_index = 0
     end type progress_reporter_type
-    public :: after_hook_proc, add_delayed_after_hook, silent_modifications_type, silent_modifications_begin, &
+    public :: after_hook_procedure, add_delayed_after_hook, silent_modifications_type, silent_modifications_begin, &
               silent_modifications_end
     public :: execute_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
-              kill_delayed_mode_hooks
+              clear_delayed_mode_hooks
 
     !> Normal hook run in major mode functions, before the mode hooks.
     !> Port of subr.el change-major-mode-after-body-hook.
@@ -163,11 +163,11 @@ module subr_fm
     abstract interface
         !> A function run after a mode's hooks (a minor mode's :after-hook,
         !> an element of `delayed_after_hook_functions').  Not a port.
-        subroutine after_hook_proc(status)
+        subroutine after_hook_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine after_hook_proc
+        end subroutine after_hook_procedure
     end interface
 
     interface
@@ -318,11 +318,11 @@ module subr_fm
         end subroutine delay_mode_hooks_end
 
         !> Forget the current buffer's `delayed_mode_hooks' (a local
-        !> variable that `kill_all_local_variables' kills).  (In
+        !> variable that `clear_all_local_variables' kills).  (In
         !> subr_hooks_fm.) Not a port.
-        module subroutine kill_delayed_mode_hooks()
+        module subroutine clear_delayed_mode_hooks()
             implicit none(type, external)
-        end subroutine kill_delayed_mode_hooks
+        end subroutine clear_delayed_mode_hooks
 
         !> Whether mode hooks are being delayed in the current buffer (the
         !> variable `delay_mode_hooks').  (In subr_hooks_fm.) Not a port.
@@ -337,7 +337,7 @@ module subr_fm
         !> hooks are delayed.)  (In subr_hooks_fm.) Not a port.
         module subroutine add_delayed_after_hook(fn)
             implicit none(type, external)
-            procedure(after_hook_proc) :: fn
+            procedure(after_hook_procedure) :: fn
         end subroutine add_delayed_after_hook
     end interface
 
@@ -392,8 +392,8 @@ contains
     ! Port of subr.el:replace-string-in-region and
     ! subr.el:replace-regexp-in-region, in part (their shared body).
     recursive subroutine replace_in_region(pattern, replacement, regexp_flag, matches, status, start, end)
-        use marker_fm, only: copy_marker_at, marker_position, free_marker
-        use buffer_fm, only: buffers, cur
+        use marker_fm, only: copy_marker_at, marker_position, destroy_marker
+        use buffer_fm, only: buffers, current
         use search_fm, only: case_fold_search, search_forward, replace_match
         use error_fm, only: set_error, FM_GENERIC_ERROR
         character(len=*), intent(in) :: pattern, replacement
@@ -432,11 +432,11 @@ contains
 
         ! (save-excursion (goto-char start) (save-restriction ...))
         call copy_marker_at(point(), opoint, .false., st)
-        narrowed = buffers(cur)%begv /= 1 .or. buffers(cur)%zv /= buffers(cur)%text%z
+        narrowed = buffers(current)%begv /= 1 .or. buffers(current)%zv /= buffers(current)%text%z
 
         if (narrowed) then
-            call copy_marker_at(buffers(cur)%begv, obeg, .false., st)
-            call copy_marker_at(buffers(cur)%zv, oend, .true., st)
+            call copy_marker_at(buffers(current)%begv, obeg, .false., st)
+            call copy_marker_at(buffers(current)%zv, oend, .true., st)
         end if
 
         call goto_char(s)
@@ -470,13 +470,13 @@ contains
             call marker_position(obeg, s, st)
             call marker_position(oend, e, st)
             call narrow_to_region(s, e, st)
-            call free_marker(obeg, st)
-            call free_marker(oend, st)
+            call destroy_marker(obeg, st)
+            call destroy_marker(oend, st)
         end if
 
         call marker_position(opoint, pos, st)
         call goto_char(pos)
-        call free_marker(opoint, st)
+        call destroy_marker(opoint, st)
     end subroutine replace_in_region
 
     !> Add ELEMENT to `buffer_invisibility_spec'.
@@ -496,9 +496,9 @@ contains
         type(invisibility_entry_type), allocatable :: grown(:)
         integer :: n
 
-        if (cur == 0) return
+        if (current == 0) return
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (b%invisibility_spec_t) then
                 b%invisibility_spec_t = .false.
                 if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
@@ -535,9 +535,9 @@ contains
         logical, allocatable :: keep(:)
         integer :: k
 
-        if (cur == 0) return
+        if (current == 0) return
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (b%invisibility_spec_t .or. .not. allocated(b%invisibility_spec)) then
                 b%invisibility_spec_t = .false.
                 if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
@@ -614,10 +614,10 @@ contains
         type(silent_modifications_type), intent(out) :: s
         type(status_type) :: st
 
-        if (cur == 0) return
+        if (current == 0) return
         call is_buffer_modified(current_buffer(), s%modified, st)
-        s%undo_enabled = buffers(cur)%undo_enabled
-        buffers(cur)%undo_enabled = .false.
+        s%undo_enabled = buffers(current)%undo_enabled
+        buffers(current)%undo_enabled = .false.
         call symbol_value(value_type(name="inhibit_read_only"), s%inhibit_read_only, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         s%inhibit_modification_hooks = inhibit_modification_hooks%value
@@ -631,10 +631,10 @@ contains
         type(silent_modifications_type), intent(in) :: s
         type(status_type) :: st
 
-        if (cur == 0) return
+        if (current == 0) return
         inhibit_modification_hooks = s%inhibit_modification_hooks
         call set(value_type(name="inhibit_read_only"), s%inhibit_read_only, st)
-        buffers(cur)%undo_enabled = s%undo_enabled
+        buffers(current)%undo_enabled = s%undo_enabled
         call restore_buffer_modified(s%modified)
     end subroutine silent_modifications_end
 
@@ -761,7 +761,7 @@ contains
         logical, intent(in), optional :: keep_all
         logical, intent(out), optional :: added
         type(status_type), intent(out), optional :: status
-        type(history_setting), pointer :: history
+        type(history_setting_type), pointer :: history
 
         if (present(added)) added = .false.
         if (present(status)) status = status_type()
@@ -772,7 +772,7 @@ contains
             return
         end if
 
-        call history%add(newelt, maxelt, keep_all, added)
+        call history%append(newelt, maxelt, keep_all, added)
     end subroutine add_to_history
 
     !> Beep to tell the user this binding is undefined.  Port of
@@ -919,18 +919,18 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
-        integer(int64) :: b, e, idx
+        integer(int64) :: b, e, index
 
         b = 0
         if (present(start)) b = string_index_to_offset(regexp, start)
         e = string_index_to_offset(regexp, pos)
-        idx = string_match(regexp(b + 1:e), "", status, inhibit_modify=.true.)
+        index = string_match(regexp(b + 1:e), "", status, inhibit_modify=.true.)
         context = .true.
         if (status%code /= FM_INVALID_REGEXP) return
         context = .not. (status%detail == """Unmatched [ or [^""" .or. status%detail == """Unmatched \{""" .or. &
                          status%detail == """Trailing backslash""")
         status = status_type()
-        if (idx < 0) continue
+        if (index < 0) continue
     end function is_subregexp_context
 
     !> Whether REGEXP matches STRING, as `string_match' finds; this function
@@ -1059,7 +1059,7 @@ contains
         real(real64) :: one_percent, now
         integer(int64) :: percentage
         logical :: enough_time_passed
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
         if (real(value, real64) < reporter%next_value) return
         ! See if enough time has passed since the last update.
@@ -1089,8 +1089,8 @@ contains
         if (.not. enough_time_passed) return
 
         if (percentage > 0) then
-            write (buf, "(i0)") percentage
-            call message(reporter%text//trim(buf)//"%")
+            write (buffer, "(i0)") percentage
+            call message(reporter%text//trim(buffer)//"%")
         else
             call message(reporter%text)
         end if
@@ -1147,15 +1147,15 @@ contains
     !> Port of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
     !> forward-symbol, beginning-op thing-at-point--beginning-of-symbol,
     !> whose search failing is an error ignored).
-    subroutine bounds_of_identifier_at_point(beg, end, found)
-        integer(int64), intent(out) :: beg, end
+    subroutine bounds_of_identifier_at_point(beginning, end, found)
+        integer(int64), intent(out) :: beginning, end
         logical, intent(out) :: found
-        integer(int64) :: orig, at, real_end, real_beg
+        integer(int64) :: orig, at, real_end, real_beginning
         type(status_type) :: st
         logical :: ok
 
         found = .false.
-        beg = 0
+        beginning = 0
         end = 0
         orig = point()
         ! If the buffer is totally empty, give up.
@@ -1177,16 +1177,16 @@ contains
             return
         end if
 
-        beg = point()
+        beginning = point()
 
-        if (beg <= orig) then
+        if (beginning <= orig) then
             ! If that brings us all the way back to ORIG, it worked.  But
             ! END may not be the real end.  So find the real end that
-            ! corresponds to BEG.
+            ! corresponds to BEGINNING.
             call forward_identifier(1_int64)
             real_end = point()
 
-            if (orig <= real_end .and. beg < real_end) then
+            if (orig <= real_end .and. beginning < real_end) then
                 end = real_end
                 found = .true.
             end if
@@ -1202,10 +1202,10 @@ contains
                 call beginning_of_identifier(ok)
 
                 if (ok) then
-                    real_beg = point()
+                    real_beginning = point()
 
-                    if (real_beg <= orig .and. orig <= end .and. real_beg < end) then
-                        beg = real_beg
+                    if (real_beginning <= orig .and. orig <= end .and. real_beginning < end) then
+                        beginning = real_beginning
                         found = .true.
                     end if
                 end if
@@ -1235,12 +1235,12 @@ contains
     subroutine find_tag_default(tag, found)
         character(len=:), allocatable, intent(out) :: tag
         logical, intent(out) :: found
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         type(status_type) :: st
 
         tag = ""
-        call bounds_of_identifier_at_point(beg, end, found)
-        if (found) call buffer_substring(beg, end, tag, st)
+        call bounds_of_identifier_at_point(beginning, end, found)
+        if (found) call buffer_substring(beginning, end, tag, st)
     end subroutine find_tag_default
 
     !> Return regexp that matches the default tag at point.

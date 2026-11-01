@@ -53,8 +53,8 @@ module termchar_fm
                    cc_backtab = BIG, cc_abs = BIG, cc_habs = BIG, cc_vabs = BIG
     end type cm_type
 
-    !> Port of termchar.h:struct tty_display_info (the parts in use).
-    type, public :: tty_display_info
+    !> Port of termchar.h:struct tty_display_info_type (the parts in use).
+    type, public :: tty_display_info_type
         !> File descriptors; -1 when not attached to a terminal.
         integer(int32) :: input = -1, output = -1
         character(len=:), allocatable :: name, type
@@ -102,13 +102,13 @@ module termchar_fm
         logical :: tf_hazeltine = .false., tf_insmode_motion = .false., &
                    tf_standout_motion = .false., tf_underscore = .false., &
                    tf_teleray = .false., tf_rgb_separate = .false.
-    end type tty_display_info
+    end type tty_display_info_type
 
 contains
 
     !> Append raw bytes to the output (fwrite to tty->output).  Not a port.
     subroutine tty_put_bytes(tty, bytes)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         character(len=*), intent(in) :: bytes
         character(len=:), allocatable :: grown
         integer(int64) :: n
@@ -131,7 +131,7 @@ contains
     !> macros of term.c (emacs_tputs with cm.c:cmputc); padding is dropped.
     !> Port of term.c:OUTPUT and term.c:OUTPUT_IF.
     subroutine tty_output(tty, cap)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap
 
         if (.not. allocated(cap)) return
@@ -140,7 +140,7 @@ contains
 
     !> The pending output, which is then discarded.  Not a port.
     function tty_take_output(tty) result(s)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         character(len=:), allocatable :: s
 
         s = ""
@@ -151,7 +151,7 @@ contains
     !> Write the pending output to the terminal (fflush of tty->output).
     !> Without an output descriptor the output stays pending.  Not a port.
     subroutine tty_flush(tty, status)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         type(status_type), intent(out) :: status
         integer(int64) :: written
 

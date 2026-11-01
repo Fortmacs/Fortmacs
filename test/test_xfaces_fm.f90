@@ -25,7 +25,7 @@ module test_xfaces_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, resolve_buffer
     use insdel_fm, only: insert
     use lisp_fm, only: list, value_type
     use textprop_fm, only: put_text_property
@@ -35,7 +35,7 @@ module test_xfaces_fm
     use frame_fm, only: frame_type, selected_frame
     use terminfo_fm, only: terminfo_type, builtin_xterm
     use term_fm, only: init_tty_entry
-    use termchar_fm, only: tty_display_info
+    use termchar_fm, only: tty_display_info_type
     use tty_colors_fm, only: tty_color_clear, tty_register_colors
     use xfaces_fm, only: init_frame_faces, merge_face_ref, lookup_named_face, merge_faces, lookup_face, &
                          face_at_buffer_position, is_tty_supports_face_attributes, frame_background_mode
@@ -188,7 +188,7 @@ contains
 
         call init_faces()
         call init_frame_faces(f, "dumb")
-        call get_buffer_create("*xfaces*", h, st)
+        call get_or_make_buffer("*xfaces*", h, st)
         call set_buffer(h, st)
         call insert("abcdef", st)
         call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
@@ -212,14 +212,14 @@ contains
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 1_int64, endpos, 100_int64, 3_int64, 6_int64)
         call check(error, id == DEFAULT_FACE_ID .and. endpos == 2, "before the region")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_face_at_position
 
     !> display-supports-face-attributes-p on xterm and on a terminal
     !> without capabilities.
     subroutine test_supports(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: saved
+        type(tty_display_info_type) :: saved
         type(terminfo_type) :: ti
         type(face_attributes_type) :: a
         type(status_type) :: st

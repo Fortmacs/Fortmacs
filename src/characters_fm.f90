@@ -42,32 +42,32 @@ module characters_fm
     implicit none(type, external)
     private
 
-    public :: syntax_entry_proc, characters_syntax, category_define_proc, category_entry_proc, characters_categories
+    public :: syntax_entry_procedure, characters_syntax, category_define_procedure, category_entry_procedure, characters_categories
 
     abstract interface
         !> Give the characters `from' to `to' the syntax `descriptor'
         !> (as for `modify_syntax_entry').  Not a port.
-        subroutine syntax_entry_proc(from, to, descriptor)
+        subroutine syntax_entry_procedure(from, to, descriptor)
             implicit none(type, external)
             integer, intent(in) :: from, to
             character(len=*), intent(in) :: descriptor
-        end subroutine syntax_entry_proc
+        end subroutine syntax_entry_procedure
 
         !> Define category `category' with `docstring' (as for
         !> `define_category').  Not a port.
-        recursive subroutine category_define_proc(category, docstring)
+        recursive subroutine category_define_procedure(category, docstring)
             implicit none(type, external)
             character, intent(in) :: category
             character(len=*), intent(in) :: docstring
-        end subroutine category_define_proc
+        end subroutine category_define_procedure
 
         !> Add category `category' to the characters `from' to `to' (as
         !> for `modify_category_entry').  Not a port.
-        recursive subroutine category_entry_proc(from, to, category)
+        recursive subroutine category_entry_procedure(from, to, category)
             implicit none(type, external)
             integer, intent(in) :: from, to
             character, intent(in) :: category
-        end subroutine category_entry_proc
+        end subroutine category_entry_procedure
     end interface
 
 contains
@@ -75,7 +75,7 @@ contains
     !> Make characters.el's standard-syntax-table entries through
     !> `entry', in characters.el's order.  Not a port.
     subroutine characters_syntax(entry)
-        procedure(syntax_entry_proc) :: entry
+        procedure(syntax_entry_procedure) :: entry
         ! CJK parentheses, in more than one charset.
         integer, parameter :: cjk_parens(*) = [int(z'3008'), int(z'3009'), int(z'300A'), int(z'300B'), &
                                                int(z'300C'), int(z'300D'), int(z'300E'), int(z'300F'), &
@@ -261,8 +261,8 @@ contains
     !> Latin, | line breakable, and space for indent (which it gives to no
     !> character).  Not a port.
     subroutine characters_categories(define, entry)
-        procedure(category_define_proc) :: define
-        procedure(category_entry_proc) :: entry
+        procedure(category_define_procedure) :: define
+        procedure(category_entry_procedure) :: entry
         character(len=*), parameter :: nl = new_line("a")
         integer :: k
 

@@ -30,7 +30,7 @@ module test_window_fm
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, buffers, cur, buffer_list, current_buffer, &
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, buffers, current, buffer_list, current_buffer, &
                          get_buffer, is_buffer_live
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, last_message
@@ -46,7 +46,7 @@ module test_window_fm
                          move_to_window_line_top_bottom, scroll_error_top_bottom, display_buffer, quit_window, &
                          select_window, switch_to_buffer, DEDICATED_STRONG, QR_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
-                         free_window_configuration, fit_window_to_buffer, bury_buffer, is_window_live, &
+                         destroy_window_configuration, fit_window_to_buffer, bury_buffer, is_window_live, &
                          is_window, window_buffer, window_parent, window_top_child, window_left_child, &
                          window_next_sibling, window_prev_sibling, frame_root_window, frame_selected_window, &
                          minibuffer_window, is_window_minibuffer, minibuffer_selected_window, window_total_height, &
@@ -54,7 +54,7 @@ module test_window_fm
                          window_body_width, window_mode_line_height, window_header_line_height, &
                          window_tab_line_height, window_hscroll, window_dedication, set_window_dedication, &
                          window_use_time, window_bump_use_time, next_window, previous_window, window_list, &
-                         window_list_1, window_part_at, window_at, force_window_update, MINIBUF_ALWAYS, MINIBUF_NEVER, &
+                         window_list_1, window_part_at, window_at, force_window_update, MINIBUF_YES, MINIBUF_NO, &
                          ON_TEXT, ON_VERTICAL_BORDER, ON_MODE_LINE, ON_NOTHING, DEDICATED_NONE
     use simple_fm, only: goal_column
     use keyboard_fm, only: this_command, last_command, kbd_store_bytes, command_loop, &
@@ -85,7 +85,7 @@ contains
                     new_unittest("other-window", test_other_window), &
                     new_unittest("delete-window", test_delete), &
                     new_unittest("switch-to-buffer", test_switch_to_buffer), &
-                    new_unittest("kill-buffer", test_kill_buffer), &
+                    new_unittest("kill-buffer", test_close_buffer), &
                     new_unittest("display-buffer-and-quit-window", test_display_buffer), &
                     new_unittest("previous-and-next-buffer", test_previous_next_buffer), &
                     new_unittest("switch-to-buffer-dedicated", test_switch_dedicated), &
@@ -122,7 +122,7 @@ contains
         character(len=7) :: text
         integer :: k
 
-        call get_buffer_create("window-test", h, st)
+        call get_or_make_buffer("window-test", h, st)
         call set_buffer(h, st)
 
         do k = 1, 30
@@ -147,7 +147,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
         selected_frame%garbaged = .true.
@@ -411,7 +411,7 @@ contains
         selected_frame%root_window = null_handle()
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
-        call get_buffer_create("split-test", h, st)
+        call get_or_make_buffer("split-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
@@ -428,7 +428,7 @@ contains
 
         do k = 1, size(all)
             if (buffers(all(k)%index)%name == "split-test" .or. buffers(all(k)%index)%name == "other-test") then
-                call kill_buffer(all(k), st)
+                call close_buffer(all(k), st)
             end if
         end do
 
@@ -576,7 +576,7 @@ contains
         call execute_keys("C-x 2 C-x b o t h e r - t e s t RET")
         ws = leaves()
         o = current_buffer()
-        call check(error, buffers(cur)%name == "other-test" .and. windows(ws(1)%index)%buffer%index == o%index &
+        call check(error, buffers(current)%name == "other-test" .and. windows(ws(1)%index)%buffer%index == o%index &
                    .and. windows(ws(2)%index)%buffer%index == h%index, "the selected window shows the new buffer")
         if (allocated(error)) return
         ! RET takes the default, the other buffer (one not shown in a
@@ -598,9 +598,9 @@ contains
         end function same_buffer
     end subroutine test_switch_to_buffer
 
-    !> C-x k kills a buffer; the windows showing it go back to the buffer
+    !> C-x k closes a buffer; the windows showing it go back to the buffer
     !> they showed before.  A modified file buffer asks first.
-    subroutine test_kill_buffer(error)
+    subroutine test_close_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(handle_type), allocatable :: ws(:)
@@ -613,18 +613,18 @@ contains
         call check(error,.not. is_buffer_live(get_buffer("other-test")), "killed")
         if (allocated(error)) return
         call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
-                   windows(ws(2)%index)%buffer%index == h%index .and. buffers(cur)%name == "split-test", &
+                   windows(ws(2)%index)%buffer%index == h%index .and. buffers(current)%name == "split-test", &
                    "both windows show split-test")
         if (allocated(error)) return
         ! A modified buffer visiting a file asks; "no" keeps it.
-        buffers(cur)%filename = "/nonexistent/split-test"
+        buffers(current)%filename = "/nonexistent/split-test"
         call execute_keys("C-x k RET n o RET")
         call check(error, is_buffer_live(h), "no: kept")
         if (allocated(error)) return
         call execute_keys("C-x k RET y e s RET")
         call check(error,.not. is_buffer_live(h), "yes: killed")
         call leave_frame()
-    end subroutine test_kill_buffer
+    end subroutine test_close_buffer
 
     !> display-buffer pops up a new window below the selected one (which
     !> stays selected); showing the buffer again reuses that window; q
@@ -636,14 +636,14 @@ contains
         type(status_type) :: st
 
         call enter_frame("abc", h)
-        call get_buffer_create("other-test", o, st)
+        call get_or_make_buffer("other-test", o, st)
         call display_buffer(o, w, st)
         ws = leaves()
         call check(error, st%ok() .and. size(ws) == 2, "a new window below")
         if (.not. allocated(error)) call check(error, same_window(w, ws(2)) .and. &
                                                windows(w%index)%buffer%index == o%index, "a new window below")
         if (allocated(error)) return
-        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. buffers(cur)%name == "split-test" &
+        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. buffers(current)%name == "split-test" &
                    .and. windows(w%index)%quit_restore%kind == QR_WINDOW, "selection unchanged")
         if (allocated(error)) return
         call display_buffer(o, again, st)
@@ -654,7 +654,7 @@ contains
         ws = leaves()
         call check(error, st%ok() .and. size(ws) == 1, "quit-window deletes it")
         if (.not. allocated(error)) call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
-                                               buffers(cur)%name == "split-test", "quit-window deletes it")
+                                               buffers(current)%name == "split-test", "quit-window deletes it")
         call leave_frame()
     end subroutine test_display_buffer
 
@@ -668,19 +668,19 @@ contains
         call enter_frame("abcdef", h)
         call goto_char(3_int64)
         call execute_keys("C-x b o t h e r - t e s t RET")
-        call check(error, buffers(cur)%name == "other-test", buffers(cur)%name)
+        call check(error, buffers(current)%name == "other-test", buffers(current)%name)
         if (allocated(error)) return
         call execute_keys("C-x <left>")
-        call check(error, buffers(cur)%name == "split-test" .and. point() == 3, buffers(cur)%name//" "//last_message)
+        call check(error, buffers(current)%name == "split-test" .and. point() == 3, buffers(current)%name//" "//last_message)
         if (allocated(error)) return
         call execute_keys("C-x <right>")
-        call check(error, buffers(cur)%name == "other-test", buffers(cur)%name)
+        call check(error, buffers(current)%name == "other-test", buffers(current)%name)
         if (allocated(error)) return
         ! Point moves in split-test meanwhile; the window's point stays.
         call set_buffer(h, st)
         call goto_char(6_int64)
         call execute_keys("C-x b s p l i t - t e s t RET")
-        call check(error, buffers(cur)%name == "split-test" .and. point() == 3, "window point restored")
+        call check(error, buffers(current)%name == "split-test" .and. point() == 3, "window point restored")
         call leave_frame()
     end subroutine test_previous_next_buffer
 
@@ -704,7 +704,7 @@ contains
         ws = leaves()
         call check(error, st%ok() .and. size(ws) == 2, "popped to another window")
         if (.not. allocated(error)) call check(error, same_window(selected_frame%selected_window, ws(2)) .and. &
-                                               buffers(cur)%name == "other-test" .and. &
+                                               buffers(current)%name == "other-test" .and. &
                                                windows(ws(1)%index)%buffer%index == h%index, "popped to another window")
         call leave_frame()
     end subroutine test_switch_dedicated
@@ -758,18 +758,18 @@ contains
         call goto_char(3_int64)
         call current_window_configuration(config)
         call execute_keys("C-x 1 C-x b o t h e r - t e s t RET")
-        call check(error, size(leaves()) == 1 .and. buffers(cur)%name == "other-test", "changed")
+        call check(error, size(leaves()) == 1 .and. buffers(current)%name == "other-test", "changed")
         if (allocated(error)) return
         call set_window_configuration(config)
-        call free_window_configuration(config)
+        call destroy_window_configuration(config)
         ws = leaves()
         call check(error, size(ws) == 2, "two windows again")
         if (.not. allocated(error)) call check(error, is_window_live(ws(2)) .and. same_window(ws(1), top) .and. &
                                                same_window(selected_frame%selected_window, top), "two windows again")
         if (allocated(error)) return
-        call check(error, buffers(cur)%name == "split-test" .and. windows(ws(2)%index)%buffer%index == h%index .and. &
+        call check(error, buffers(current)%name == "split-test" .and. windows(ws(2)%index)%buffer%index == h%index .and. &
                    windows(ws(1)%index)%total_lines == 12 .and. windows(ws(2)%index)%total_lines == 11, &
-                   buffers(cur)%name)
+                   buffers(current)%name)
         if (allocated(error)) return
         ! Point in the current buffer is not restored.
         call check(error, point() == 3, "point")
@@ -819,8 +819,8 @@ contains
         call execute_keys("C-x b o t h e r - t e s t RET")
         windows(selected_frame%selected_window%index)%dedicated = DEDICATED_STRONG
         call bury_buffer(st)
-        call check(error, st%ok() .and. buffers(cur)%name == "split-test" .and. &
-                   windows(selected_frame%selected_window%index)%dedicated == 0, buffers(cur)%name)
+        call check(error, st%ok() .and. buffers(current)%name == "split-test" .and. &
+                   windows(selected_frame%selected_window%index)%dedicated == 0, buffers(current)%name)
         call leave_frame()
     end subroutine test_bury_dedicated
 
@@ -897,20 +897,20 @@ contains
         ws = leaves()
         mini = minibuffer_window()
         call check(error, same_window(next_window(ws(3), status=st), ws(1)) .and. &
-                   same_window(next_window(ws(3), MINIBUF_ALWAYS, st), mini) .and. &
-                   same_window(next_window(mini, MINIBUF_ALWAYS, st), ws(1)) .and. &
+                   same_window(next_window(ws(3), MINIBUF_YES, st), mini) .and. &
+                   same_window(next_window(mini, MINIBUF_YES, st), ws(1)) .and. &
                    same_window(next_window(status=st), ws(2)), "next-window")
         if (allocated(error)) return
         call check(error, same_window(previous_window(ws(1), status=st), ws(3)) .and. &
-                   same_window(previous_window(ws(1), MINIBUF_ALWAYS, st), mini) .and. &
-                   same_window(previous_window(ws(3), MINIBUF_NEVER, st), ws(2)), "previous-window")
+                   same_window(previous_window(ws(1), MINIBUF_YES, st), mini) .and. &
+                   same_window(previous_window(ws(3), MINIBUF_NO, st), ws(2)), "previous-window")
         if (allocated(error)) return
         list = window_list(status=st)
         call check(error, size(list) == 3, "window-list")
         if (allocated(error)) return
         call check(error, same_window(list(1), ws(1)) .and. same_window(list(3), ws(3)), "window-list order")
         if (allocated(error)) return
-        list = window_list_1(ws(2), MINIBUF_ALWAYS, st)
+        list = window_list_1(ws(2), MINIBUF_YES, st)
         call check(error, size(list) == 4, "window-list-1")
         if (allocated(error)) return
         call check(error, same_window(list(1), ws(2)) .and. same_window(list(3), mini) .and. &

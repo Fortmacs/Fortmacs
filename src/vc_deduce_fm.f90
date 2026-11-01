@@ -67,7 +67,7 @@ contains
 
     module procedure vc_dir_ensure_buffer
     character(len=:), allocatable :: file
-    type(handle_type) :: buf
+    type(handle_type) :: buffer
     type(status_type) :: st
 
     status = status_type()
@@ -75,8 +75,8 @@ contains
     if (.not. handled) return
     call vc_dir_current_file(file, status)
     if (.not. status%ok()) return
-    call find_file_noselect(file, buf, status)
+    call find_file_noselect(file, buffer, status)
     if (.not. status%ok()) return
-    call set_buffer(buf, st)
+    call set_buffer(buffer, st)
     end procedure vc_dir_ensure_buffer
 end submodule vc_deduce_fm

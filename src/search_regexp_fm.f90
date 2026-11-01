@@ -59,7 +59,7 @@ submodule(search_fm) search_regexp_fm
         !> In use by a match in progress, which a nested search (from
         !> syntax-propertize) must not recompile.
         logical :: busy = .false.
-        type(re_pattern_buffer_type) :: buf
+        type(re_pattern_buffer_type) :: buffer
     end type regexp_cache_type
 
     type(regexp_cache_type), save :: searchbufs(REGEXP_CACHE_SIZE)
@@ -88,9 +88,9 @@ contains
                 if (.not. cp%valid) cycle
                 if (cp%busy) cycle
                 if (cp%regexp /= pattern .or. len(cp%regexp) /= len(pattern)) cycle
-                if ((cp%buf%translate .neqv. translate) .or. (cp%posix .neqv. posix)) cycle
+                if ((cp%buffer%translate .neqv. translate) .or. (cp%posix .neqv. posix)) cycle
 
-                if (cp%buf%used_syntax) then
+                if (cp%buffer%used_syntax) then
                     if (.not. same_handle(cp%syntax_table, syntax_table())) cycle
                     if (cp%syntax_modiff /= syntax_modiff) cycle
                 end if
@@ -119,15 +119,15 @@ contains
         associate (cp => searchbufs(k))
             cp%valid = .false.
             cp%used_at = clock
-            cp%buf%translate = translate
+            cp%buffer%translate = translate
             cp%posix = posix
             cp%has_whitespace_regexp = has_ws
 
             if (has_ws) then
                 cp%whitespace_regexp = search_spaces_regexp
-                call re_compile_pattern(pattern, cp%buf, status, posix, search_spaces_regexp)
+                call re_compile_pattern(pattern, cp%buffer, status, posix, search_spaces_regexp)
             else
-                call re_compile_pattern(pattern, cp%buf, status, posix)
+                call re_compile_pattern(pattern, cp%buffer, status, posix)
             end if
 
             ! If the compiled pattern hard codes some of the contents of the
@@ -173,8 +173,8 @@ contains
 
         do i = 0, size(regs%starts) - 1
             if (regs%starts(i) >= 0) then
-                search_regs_start(i) = byte_to_char(regs%starts(i) + buffers(cur)%begv_byte)
-                search_regs_end(i) = byte_to_char(regs%ends(i) + buffers(cur)%begv_byte)
+                search_regs_start(i) = byte_to_char(regs%starts(i) + buffers(current)%begv_byte)
+                search_regs_end(i) = byte_to_char(regs%ends(i) + buffers(current)%begv_byte)
             end if
         end do
 
@@ -182,18 +182,18 @@ contains
         last_search_in_string = .false.
     end subroutine set_regs_from_buffer
 
-    !> Make the match data from `regs', offsets in STR.  Not a port.
-    subroutine set_regs_from_string(regs, str)
+    !> Make the match data from `regs', offsets in STRING.  Not a port.
+    subroutine set_regs_from_string(regs, string)
         type(re_registers_type), intent(in) :: regs
-        character(len=*), intent(in) :: str
+        character(len=*), intent(in) :: string
         integer :: i
 
         call ensure_search_regs(size(regs%starts))
 
         do i = 0, size(regs%starts) - 1
             if (regs%starts(i) >= 0) then
-                search_regs_start(i) = string_offset_to_index(str, regs%starts(i))
-                search_regs_end(i) = string_offset_to_index(str, regs%ends(i))
+                search_regs_start(i) = string_offset_to_index(string, regs%starts(i))
+                search_regs_end(i) = string_offset_to_index(string, regs%ends(i))
             end if
         end do
 
@@ -213,9 +213,9 @@ contains
     if (.not. status%ok()) return
     subj = buffer_to_subject()
 
-    associate (b => buffers(cur))
+    associate (b => buffers(current))
         call freeze_pattern(k)
-        i = re_match(searchbufs(k)%buf, subj, b%pt_byte - b%begv_byte, regs, b%zv_byte - b%begv_byte)
+        i = re_match(searchbufs(k)%buffer, subj, b%pt_byte - b%begv_byte, regs, b%zv_byte - b%begv_byte)
         call unfreeze_pattern(k)
     end associate
 
@@ -234,12 +234,12 @@ contains
     integer(int64) :: val
     integer :: k
 
-    idx = 0
+    index = 0
     call compile_pattern(regexp, fold, .false., k, status)
     if (.not. status%ok()) return
     subj = string_to_subject(string)
     call freeze_pattern(k)
-    val = re_search(searchbufs(k)%buf, subj, 0_int64, len(string, kind=int64), stop=len(string, kind=int64))
+    val = re_search(searchbufs(k)%buffer, subj, 0_int64, len(string, kind=int64), stop=len(string, kind=int64))
     call unfreeze_pattern(k)
 
     if (val == -2) then
@@ -247,7 +247,7 @@ contains
         return
     end if
 
-    if (val >= 0) idx = string_offset_to_index(string, val)
+    if (val >= 0) index = string_offset_to_index(string, val)
     end procedure fast_string_match
 
     !> Port of search.c:fast_looking_at.
@@ -265,13 +265,13 @@ contains
         limit_byte = string_index_to_offset(string, limit)
         subj = string_to_subject(string)
     else
-        pos_byte = char_to_byte(pos) - buffers(cur)%begv_byte
-        limit_byte = char_to_byte(limit) - buffers(cur)%begv_byte
+        pos_byte = char_to_byte(pos) - buffers(current)%begv_byte
+        limit_byte = char_to_byte(limit) - buffers(current)%begv_byte
         subj = buffer_to_subject()
     end if
 
     call freeze_pattern(k)
-    length = re_match(searchbufs(k)%buf, subj, pos_byte, stop=limit_byte)
+    length = re_match(searchbufs(k)%buffer, subj, pos_byte, stop=limit_byte)
     call unfreeze_pattern(k)
     if (length == -2) call matcher_overflow(status)
     end procedure fast_looking_at
@@ -282,9 +282,9 @@ contains
     type(re_registers_type) :: regs
     integer(int64) :: pos, pos_byte, nchars, val
     integer :: k
-    character(len=21) :: buf
+    character(len=21) :: buffer
 
-    idx = 0
+    index = 0
     status = status_type()
     if (running_asynch_code) call save_search_regs()
     pos = 1
@@ -297,8 +297,8 @@ contains
             pos = nchars + pos + 1
         else if (pos < 1 .or. pos > nchars + 1) then
             ! args_out_of_range (string, start).
-            write (buf, "(i0)") start
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//trim(buf))
+            write (buffer, "(i0)") start
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//trim(buffer))
             return
         end if
     end if
@@ -308,7 +308,7 @@ contains
     if (.not. status%ok()) return
     subj = string_to_subject(string)
     call freeze_pattern(k)
-    val = re_search(searchbufs(k)%buf, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
+    val = re_search(searchbufs(k)%buffer, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
                     len(string, kind=int64))
     call unfreeze_pattern(k)
 
@@ -319,12 +319,12 @@ contains
 
     if (val < 0) return
     if (modify_data) call set_regs_from_string(regs, string)
-    idx = string_offset_to_index(string, val)
+    index = string_offset_to_index(string, val)
     end procedure string_match_1
 
     !> Regexp search for `search_buffer'.  Port of
     !> search.c:search_buffer_re.
-    module procedure search_buffer_re
+    module procedure search_buffer_regexp
     type(re_subject_type) :: subj
     type(re_registers_type) :: regs
     integer(int64) :: n, pos, pos_byte, val, begv_byte
@@ -334,7 +334,7 @@ contains
     call compile_pattern(string, fold, posix, k, status)
     if (.not. status%ok()) return
     subj = buffer_to_subject()
-    begv_byte = buffers(cur)%begv_byte
+    begv_byte = buffers(current)%begv_byte
     n = n_in
     pos = pos_in
     pos_byte = pos_byte_in
@@ -342,7 +342,7 @@ contains
     do while (n < 0)
         ! Don't allow match past current point.
         call freeze_pattern(k)
-        val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
+        val = re_search(searchbufs(k)%buffer, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         pos_byte - begv_byte)
         call unfreeze_pattern(k)
 
@@ -365,7 +365,7 @@ contains
 
     do while (n > 0)
         call freeze_pattern(k)
-        val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
+        val = re_search(searchbufs(k)%buffer, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         lim_byte - begv_byte)
         call unfreeze_pattern(k)
 
@@ -386,7 +386,7 @@ contains
     end do
 
     np = pos
-    end procedure search_buffer_re
+    end procedure search_buffer_regexp
 
     ! ------------------------------------------------------------------
     ! Replacing the match
@@ -394,7 +394,7 @@ contains
 
     module procedure replace_match
     integer, parameter :: NOCHANGE = 0, ALL_CAPS = 1, CAP_INITIAL = 2
-    integer :: case_action, sub, num_regs, idx, k
+    integer :: case_action, sub, num_regs, position, k
     integer(int64) :: sub_start, sub_end, opoint, newpoint, nchars, inschars
     integer(int32) :: c, prevc, clen
     logical :: is_literal, some_multiletter_word, some_lowercase, some_uppercase, some_nonuppercase_initial
@@ -434,7 +434,7 @@ contains
         nchars = string_chars(string)
         if (.not. (1 <= sub_start .and. sub_end <= nchars + 1)) call missing()
     else
-        if (.not. (buffers(cur)%begv <= sub_start .and. sub_end <= buffers(cur)%zv)) call missing()
+        if (.not. (buffers(current)%begv <= sub_start .and. sub_end <= buffers(current)%zv)) call missing()
     end if
 
     if (.not. status%ok()) return
@@ -560,7 +560,7 @@ contains
     end if
 
     ! Record point.  A nonpositive OPOINT is actually an offset from ZV.
-    associate (b => buffers(cur))
+    associate (b => buffers(current))
         if (b%pt <= sub_start) then
             opoint = b%pt
         else
@@ -580,7 +580,7 @@ contains
             call string_char_and_length(newtext, i, c, clen)
             piece = newtext(i:i + clen - 1)
             i = i + clen
-            idx = -1
+            position = -1
 
             if (c == iachar("\")) then
                 c = 0
@@ -593,9 +593,9 @@ contains
                 piece = ""
 
                 if (c == iachar("&")) then
-                    idx = sub
+                    position = sub
                 else if (iachar("1") <= c .and. c <= iachar("9") .and. c - iachar("0") < num_regs) then
-                    if (search_regs_start(c - iachar("0")) >= 1) idx = c - iachar("0")
+                    if (search_regs_start(c - iachar("0")) >= 1) position = c - iachar("0")
                 else if (c == iachar("\")) then
                     piece = "\"
                 else
@@ -605,7 +605,7 @@ contains
             end if
 
             ! If we want to copy part of a previous match, use that text.
-            if (idx >= 0) call buffer_substring(search_regs_start(idx), search_regs_end(idx), piece, status)
+            if (position >= 0) call buffer_substring(search_regs_start(position), search_regs_end(position), piece, status)
             text = text//piece
         end do
     end if
@@ -623,7 +623,7 @@ contains
     end if
 
     ! Put point back where it was in the text, if possible.
-    associate (b => buffers(cur))
+    associate (b => buffers(current))
         if (opoint <= 0) opoint = opoint + b%zv
         opoint = max(b%begv, min(opoint, b%zv))
         call temp_set_point_both(b, opoint, char_to_byte(opoint))
@@ -653,10 +653,10 @@ contains
     pure function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=21) :: buf
+        character(len=21) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function int_text
 
     logical function present_true(flag)
@@ -675,13 +675,13 @@ contains
         word_or_identifier = syn == SWORD .or. (case_identifiers_as_words%value .and. syn == SSYMBOL)
     end function word_or_identifier
 
-    !> Characters B to E (exclusive, 1-based) of STR.
-    function substring(str, b, e) result(sub_text)
-        character(len=*), intent(in) :: str
+    !> Characters B to E (exclusive, 1-based) of STRING.
+    function substring(replacement_text, b, e) result(sub_text)
+        character(len=*), intent(in) :: replacement_text
         integer(int64), intent(in) :: b, e
         character(len=:), allocatable :: sub_text
 
-        sub_text = str(string_index_to_offset(str, b) + 1:string_index_to_offset(str, e))
+        sub_text = replacement_text(string_index_to_offset(replacement_text, b) + 1:string_index_to_offset(replacement_text, e))
     end function substring
     end procedure replace_match
 
@@ -691,9 +691,9 @@ contains
 
     !> The search commands read their argument in the minibuffer
     !> (interactive "MSearch: " and "sRE search: ").  Not a port.
-    subroutine search_cmd(prompt, re, posix, direction, status)
+    subroutine search_cmd(prompt, regexp, posix, direction, status)
         character(len=*), intent(in) :: prompt
-        logical, intent(in) :: re, posix
+        logical, intent(in) :: regexp, posix
         integer(int64), intent(in) :: direction
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: string
@@ -701,7 +701,7 @@ contains
 
         call read_string(prompt, string, status)
         if (.not. status%ok()) return
-        call search_command(string, direction, re, posix, found, status)
+        call search_command(string, direction, regexp, posix, found, status)
     end subroutine search_cmd
 
     subroutine cmd_search_forward(status)

@@ -27,10 +27,10 @@ module test_inotify_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, generate_new_buffer_name
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
     use insdel_fm, only: insert
     use fileio_fm, only: write_region
-    use files_fm, only: make_temp_file, delete_file
+    use files_fm, only: create_temp_file, delete_file
     use keyboard_fm, only: read_event
     use inotify_fm, only: watch_descriptor_type, inotify_event_type, inotify_add_watch, inotify_rm_watch, &
                           is_inotify_valid, INOTIFY_ALL_EVENTS, INOTIFY_IGNORED
@@ -44,9 +44,9 @@ module test_inotify_fm
     logical :: success = .false.
 
     abstract interface
-        logical function pred_proc()
+        logical function test_procedure()
             implicit none(type, external)
-        end function pred_proc
+        end function test_procedure
     end interface
 
 contains
@@ -70,17 +70,17 @@ contains
         character(len=:), allocatable :: msg
 
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *inotify-test*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *inotify-test*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call write_region(file, .false., st, message=msg)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
 
     !> Read events for up to SECONDS, until DONE returns true.
     subroutine wait_until(done, seconds)
-        procedure(pred_proc) :: done
+        procedure(test_procedure) :: done
         real, intent(in) :: seconds
         type(value_type) :: ev
         type(status_type) :: st
@@ -93,13 +93,13 @@ contains
         end do
     end subroutine wait_until
 
-    logical function have_events()
-        have_events = events > 0
-    end function have_events
+    logical function has_events()
+        has_events = events > 0
+    end function has_events
 
-    logical function have_success()
-        have_success = success
-    end function have_success
+    logical function has_success()
+        has_success = success
+    end function has_success
 
     recursive subroutine count_event(event, status)
         type(inotify_event_type), intent(in) :: event
@@ -136,7 +136,7 @@ contains
         type(watch_descriptor_type) :: wd
         type(status_type) :: st
 
-        call make_temp_file("inotify-test", temp_file, st)
+        call create_temp_file("inotify-test", temp_file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         events = 0
@@ -144,7 +144,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call write_file(temp_file, "Foo"//achar(10))
-        call wait_until(have_events, 5.0)
+        call wait_until(has_events, 5.0)
         call check(error, events > 0, "no events")
         if (.not. allocated(error)) call check(error, is_inotify_valid(wd), "valid")
         call inotify_rm_watch(wd, st)
@@ -159,7 +159,7 @@ contains
         type(watch_descriptor_type) :: wd
         type(status_type) :: st
 
-        call make_temp_file("inotify-test", temp_file, st)
+        call create_temp_file("inotify-test", temp_file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         success = .false.
@@ -167,7 +167,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call delete_file(temp_file, st)
-        call wait_until(have_success, 5.0)
+        call wait_until(has_success, 5.0)
         call check(error, success, "no ignored event")
     end subroutine test_stop_delivery
 end module test_inotify_fm

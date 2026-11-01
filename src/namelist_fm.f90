@@ -71,11 +71,11 @@ module namelist_fm
         type(namelist_value_type), allocatable :: values(:)
     contains
         !> Append a character constant to the values.
-        procedure :: add_string => item_add_string
+        procedure :: append_string => item_append_string
         !> Append an integer to the values.
-        procedure :: add_integer => item_add_integer
+        procedure :: append_integer => item_append_integer
         !> Append a logical to the values.
-        procedure :: add_logical => item_add_logical
+        procedure :: append_logical => item_append_logical
     end type namelist_item_type
 
     !> A group `&NAME ... /'.
@@ -84,7 +84,7 @@ module namelist_fm
         type(namelist_item_type), allocatable :: items(:)
     contains
         !> Append an object.
-        procedure :: add => group_add
+        procedure :: append => group_append
     end type namelist_group_type
 
 contains
@@ -111,7 +111,7 @@ contains
         call move_alloc(grown, self%values)
     end subroutine item_add_value
 
-    subroutine item_add_string(self, string)
+    subroutine item_append_string(self, string)
         class(namelist_item_type), intent(inout) :: self
         character(len=*), intent(in) :: string
         type(namelist_value_type) :: v
@@ -119,9 +119,9 @@ contains
         v%kind = NAMELIST_STRING
         v%string = string
         call item_add_value(self, v)
-    end subroutine item_add_string
+    end subroutine item_append_string
 
-    subroutine item_add_integer(self, n)
+    subroutine item_append_integer(self, n)
         class(namelist_item_type), intent(inout) :: self
         integer(int64), intent(in) :: n
         type(namelist_value_type) :: v
@@ -129,9 +129,9 @@ contains
         v%kind = NAMELIST_INTEGER
         v%integer = n
         call item_add_value(self, v)
-    end subroutine item_add_integer
+    end subroutine item_append_integer
 
-    subroutine item_add_logical(self, b)
+    subroutine item_append_logical(self, b)
         class(namelist_item_type), intent(inout) :: self
         logical, intent(in) :: b
         type(namelist_value_type) :: v
@@ -139,9 +139,9 @@ contains
         v%kind = NAMELIST_LOGICAL
         v%logical = b
         call item_add_value(self, v)
-    end subroutine item_add_logical
+    end subroutine item_append_logical
 
-    subroutine group_add(self, item)
+    subroutine group_append(self, item)
         class(namelist_group_type), intent(inout) :: self
         type(namelist_item_type), intent(in) :: item
         type(namelist_item_type), allocatable :: grown(:)
@@ -157,7 +157,7 @@ contains
 
         grown(n + 1) = item
         call move_alloc(grown, self%items)
-    end subroutine group_add
+    end subroutine group_append
 
     ! ------------------------------------------------------------------
     ! Writing
@@ -187,7 +187,7 @@ contains
     function namelist_text(group) result(text)
         type(namelist_group_type), intent(in) :: group
         character(len=:), allocatable :: text
-        character(len=24) :: buf
+        character(len=24) :: buffer
         integer :: k, j
 
         text = "&"//group%name//achar(10)
@@ -198,12 +198,12 @@ contains
                     text = text//" "//it%name
 
                     if (it%subscripted) then
-                        write (buf, "(i0)") it%lower
-                        text = text//"("//trim(buf)
+                        write (buffer, "(i0)") it%lower
+                        text = text//"("//trim(buffer)
 
                         if (it%upper /= it%lower) then
-                            write (buf, "(i0)") it%upper
-                            text = text//":"//trim(buf)
+                            write (buffer, "(i0)") it%upper
+                            text = text//":"//trim(buffer)
                         end if
 
                         text = text//")"
@@ -237,8 +237,8 @@ contains
 
             select case (v%kind)
             case (NAMELIST_INTEGER)
-                write (buf, "(i0)") v%integer
-                s = trim(buf)
+                write (buffer, "(i0)") v%integer
+                s = trim(buffer)
             case (NAMELIST_LOGICAL)
                 if (v%logical) then
                     s = ".true."
@@ -302,7 +302,7 @@ contains
 
                 call read_item(item)
                 if (.not. status%ok()) return
-                call group%add(item)
+                call group%append(item)
             end do
 
             n = size(groups)
@@ -583,7 +583,7 @@ contains
         end function lower
 
         subroutine syntax_error()
-            character(len=12) :: buf
+            character(len=12) :: buffer
             integer :: line, k
 
             line = 1
@@ -592,8 +592,8 @@ contains
                 if (text(k:k) == achar(10)) line = line + 1
             end do
 
-            write (buf, "(i0)") line
-            call set_error(status, FM_INVALID_READ_SYNTAX, "namelist syntax, line "//trim(buf))
+            write (buffer, "(i0)") line
+            call set_error(status, FM_INVALID_READ_SYNTAX, "namelist syntax, line "//trim(buffer))
         end subroutine syntax_error
     end subroutine read_namelist
 end module namelist_fm

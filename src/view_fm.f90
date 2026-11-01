@@ -43,10 +43,10 @@ module view_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE, format_message
     use handle_fm, only: handle_type
     use lisp_fm, only: list
-    use data_fm, only: add_local_variables_killer
+    use data_fm, only: append_locals_clearer
     use eval_fm, only: hook_type, change_major_mode_hook
-    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, resolve_buffer, buffer_handle, &
-                         is_buffer_modified, kill_buffer, get_file_buffer
+    use buffer_fm, only: buffers, current, current_buffer, is_buffer_live, resolve_buffer, buffer_handle, &
+                         is_buffer_modified, close_buffer, get_file_buffer
     use editfns_fm, only: point, point_min, point_max, goto_char, is_eob, line_end_position
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use search_fm, only: re_search_forward, looking_at, SEARCH_NOERROR
@@ -54,7 +54,7 @@ module view_fm
     use files_fm, only: find_file_noselect, view_read_only
     use window_fm, only: windows, is_window_live, window_leaves, window_body_lines, scroll_up_command, &
                          scroll_down_command, recenter, is_pos_visible_in_window, quit_window, switch_to_buffer, &
-                         pop_to_buffer, display_action_table_type, next_screen_context_lines, scroll_error_top_bottom, &
+                         pop_to_buffer, display_action_parameters_type, next_screen_context_lines, scroll_error_top_bottom, &
                          other_buffer, same_handle, QR_NONE
     use frame_fm, only: selected_frame, selected_window
     use keymap_fm, only: keymap_set
@@ -73,18 +73,18 @@ module view_fm
     private
 
     public :: syms_of_view, view_mode, view_mode_enter, view_mode_exit, view_file, view_file_other_window, &
-              view_buffer, view_buffer_other_window, kill_buffer_if_not_modified, view_exit_action_proc, &
+              view_buffer, view_buffer_other_window, close_buffer_if_not_modified, view_exit_action_procedure, &
               view_mode_enabled, view_exit_and_edit, view_read_only_value, set_view_read_only_local, view_search
 
     abstract interface
         !> A `view_exit_action': called with the viewed BUFFER when finished
         !> viewing.  Not a port.
-        recursive subroutine view_exit_action_proc(buffer, status)
+        recursive subroutine view_exit_action_procedure(buffer, status)
             import :: handle_type, status_type
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
-        end subroutine view_exit_action_proc
+        end subroutine view_exit_action_procedure
     end interface
 
     !> True means scrolling past the end of buffer exits View mode.
@@ -135,7 +135,7 @@ module view_fm
         logical :: has_last_regexp = .false., last_no = .false.
         character(len=:), allocatable :: last_regexp
         !> view-exit-action
-        procedure(view_exit_action_proc), pointer, nopass :: exit_action => null()
+        procedure(view_exit_action_procedure), pointer, nopass :: exit_action => null()
         !> The buffer-local value of `view_read_only'.
         logical :: has_view_read_only = .false., view_read_only = .false.
     end type view_local_type
@@ -171,11 +171,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(cur)%serial) then
+            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if
@@ -191,7 +191,7 @@ contains
 
             locals(i) = view_local_type()
             locals(i)%set = .true.
-            locals(i)%serial = buffers(cur)%serial
+            locals(i)%serial = buffers(current)%serial
             k = i
             return
         end do
@@ -202,18 +202,18 @@ contains
         call move_alloc(grown, locals)
         locals(n + 1) = view_local_type()
         locals(n + 1)%set = .true.
-        locals(n + 1)%serial = buffers(cur)%serial
+        locals(n + 1)%serial = buffers(current)%serial
         k = n + 1
     end function local_index
 
     !> kill-all-local-variables: View mode's buffer-local variables.
     !> Not a port.
-    subroutine kill_view_locals()
+    subroutine clear_view_locals()
         integer :: k
 
         k = local_index(.false.)
         if (k > 0) locals(k) = view_local_type()
-    end subroutine kill_view_locals
+    end subroutine clear_view_locals
 
     !> The value of `view_read_only' in the current buffer: its
     !> buffer-local value if it has one.  Not a port.
@@ -247,27 +247,27 @@ contains
     ! Entering and exiting
     ! ------------------------------------------------------------------
 
-    !> Like `kill_buffer', but does nothing if buffer BUF is modified.
+    !> Like `close_buffer', but does nothing if buffer BUFFER is modified.
     !> Port of view.el:kill-buffer-if-not-modified.
-    recursive subroutine kill_buffer_if_not_modified(buf, status)
-        type(handle_type), intent(in) :: buf
+    recursive subroutine close_buffer_if_not_modified(buffer, status)
+        type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         logical :: modified
 
         status = status_type()
-        if (.not. is_buffer_live(buf)) return
-        call is_buffer_modified(buf, modified, status)
+        if (.not. is_buffer_live(buffer)) return
+        call is_buffer_modified(buffer, modified, status)
         if (.not. status%ok()) return
-        if (.not. modified) call kill_buffer(buf, status)
-    end subroutine kill_buffer_if_not_modified
+        if (.not. modified) call close_buffer(buffer, status)
+    end subroutine close_buffer_if_not_modified
 
-    !> `kill_buffer' as an exit action.  Not a port.
-    recursive subroutine kill_buffer_action(buf, status)
-        type(handle_type), intent(in) :: buf
+    !> `close_buffer' as an exit action.  Not a port.
+    recursive subroutine close_buffer_action(buffer, status)
+        type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
 
-        call kill_buffer(buf, status)
-    end subroutine kill_buffer_action
+        call close_buffer(buffer, status)
+    end subroutine close_buffer_action
 
     !> Whether the current buffer's major mode is special (its
     !> `mode_class' property is `special').  Not a port.
@@ -275,19 +275,19 @@ contains
         type(major_mode_type), pointer :: p
 
         special_major_mode = .false.
-        if (.not. allocated(buffers(cur)%major_mode)) return
-        p => major_mode_named(buffers(cur)%major_mode)
+        if (.not. allocated(buffers(current)%major_mode)) return
+        p => major_mode_named(buffers(current)%major_mode)
         if (associated(p)) special_major_mode = p%special
     end function special_major_mode
 
     !> View FILE in View mode, returning to previous buffer when done.
-    !> The buffer is killed when done unless it was visited before (or is
+    !> The buffer is closed when done unless it was visited before (or is
     !> modified).  Port of view.el:view-file.
     recursive subroutine view_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: absname
-        type(handle_type) :: had_a_buf, buffer
+        type(handle_type) :: had_a_buffer, buffer
 
         status = status_type()
 
@@ -298,12 +298,12 @@ contains
 
         call expand_file_name(file, absname, status)
         if (.not. status%ok()) return
-        had_a_buf = get_file_buffer(absname)
+        had_a_buffer = get_file_buffer(absname)
         call find_file_noselect(file, buffer, status)
         if (.not. status%ok()) return
 
-        if (had_a_buf%index == 0) then
-            call view_buffer(buffer, status, kill_buffer_if_not_modified)
+        if (had_a_buffer%index == 0) then
+            call view_buffer(buffer, status, close_buffer_if_not_modified)
         else
             call view_buffer(buffer, status)
         end if
@@ -335,7 +335,7 @@ contains
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: absname
-        type(handle_type) :: had_a_buf, buf_to_view
+        type(handle_type) :: had_a_buffer, buffer_to_view
 
         status = status_type()
 
@@ -346,14 +346,14 @@ contains
 
         call expand_file_name(file, absname, status)
         if (.not. status%ok()) return
-        had_a_buf = get_file_buffer(absname)
-        call find_file_noselect(file, buf_to_view, status)
+        had_a_buffer = get_file_buffer(absname)
+        call find_file_noselect(file, buffer_to_view, status)
         if (.not. status%ok()) return
 
-        if (had_a_buf%index == 0) then
-            call view_buffer_other_window(buf_to_view, status, kill_buffer_if_not_modified)
+        if (had_a_buffer%index == 0) then
+            call view_buffer_other_window(buffer_to_view, status, close_buffer_if_not_modified)
         else
-            call view_buffer_other_window(buf_to_view, status)
+            call view_buffer_other_window(buffer_to_view, status)
         end if
     end subroutine view_file_other_window
 
@@ -389,7 +389,7 @@ contains
     recursive subroutine view_buffer(buffer, status, exit_action)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        procedure(view_exit_action_proc), optional :: exit_action
+        procedure(view_exit_action_procedure), optional :: exit_action
         integer(int64) :: b
 
         call resolve_buffer(buffer, b, status)
@@ -467,8 +467,8 @@ contains
     recursive subroutine view_buffer_other_window(buffer, status, exit_action)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        procedure(view_exit_action_proc), optional :: exit_action
-        type(display_action_table_type) :: table
+        procedure(view_exit_action_procedure), optional :: exit_action
+        type(display_action_parameters_type) :: table
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer t))
         table%inhibit_same_window = .true.
@@ -585,15 +585,15 @@ contains
     !> \[view_exit_and_edit]        exit View mode, and make the current buffer editable
     !>           even if it was not editable before entry to View mode.
     !> \[view_quit_all]        quit View mode, restoring all windows to previous state.
-    !> \[view_leave]        quit View mode and maybe switch buffers, but don't kill this buffer.
-    !> \[view_kill_and_leave]        quit View mode, kill current buffer and go back to other buffer.
+    !> \[view_leave]        quit View mode and maybe switch buffers, but don't close this buffer.
+    !> \[view_close_and_leave]        quit View mode, kill current buffer and go back to other buffer.
     !>
-    !> The effect of \[view_leave], \[view_quit] and \[view_kill_and_leave] depends on how view_mode was entered.  If it was
+    !> The effect of \[view_leave], \[view_quit] and \[view_close_and_leave] depends on how view_mode was entered.  If it was
     !> entered by view_file, view_file_other_window, or the Dired mode v command,
-    !> then \[view_quit] will try to kill the current buffer.
+    !> then \[view_quit] will try to close the current buffer.
     !> If view_mode was entered from another buffer, by \[view_buffer],
     !> \[view_buffer_other_window], \[view_file], or \[view_file_other_window],
-    !> then \[view_leave], \[view_quit] and \[view_kill_and_leave] will return to that buffer.
+    !> then \[view_leave], \[view_quit] and \[view_close_and_leave] will return to that buffer.
     !>
     !> Entry to view_mode runs the normal hook `view_mode_hook'.  Port of
     !> view.el:view-mode.
@@ -624,14 +624,14 @@ contains
 
         ! Always leave view mode before changing major mode.
         ! This is to guarantee that the buffer-read-only variable is restored.
-        call change_major_mode_hook%add(view_disable, local=.true.)
+        call change_major_mode_hook%append(view_disable, local=.true.)
         k = local_index(.true.)
         locals(k)%has_page_size = .false.
         locals(k)%has_half_page_size = .false.
-        locals(k)%old_read_only = buffers(cur)%read_only
-        buffers(cur)%read_only = .true.
-        buffers(cur)%read_only_mode_state = .true.
-        buffers(cur)%read_only_mode_state_set = .true.
+        locals(k)%old_read_only = buffers(current)%read_only
+        buffers(current)%read_only = .true.
+        buffers(current)%read_only_mode_state = .true.
+        buffers(current)%read_only_mode_state_set = .true.
     end subroutine view_enable
 
     !> Port of view.el:view--disable (no overlays).
@@ -651,11 +651,11 @@ contains
         if (k > 0) locals(k)%has_view_read_only = .false.
         ! Reset the read-only state memory as well, so that `revert_buffer'
         ! won't make the buffer read-only again.
-        if (buffers(cur)%read_only_mode_state_set) buffers(cur)%read_only_mode_state = .false.
+        if (buffers(current)%read_only_mode_state_set) buffers(current)%read_only_mode_state = .false.
 
-        if (buffers(cur)%read_only) then
-            buffers(cur)%read_only = .false.
-            if (k > 0) buffers(cur)%read_only = locals(k)%old_read_only
+        if (buffers(current)%read_only) then
+            buffers(current)%read_only = .false.
+            if (k > 0) buffers(current)%read_only = locals(k)%old_read_only
         end if
     end subroutine view_disable
 
@@ -671,7 +671,7 @@ contains
     !> view.el:view-mode-enter (QUIT-RESTORE is deferred).
     recursive subroutine view_mode_enter(status, exit_action)
         type(status_type), intent(out) :: status
-        procedure(view_exit_action_proc), optional :: exit_action
+        procedure(view_exit_action_procedure), optional :: exit_action
         integer :: k
 
         status = status_type()
@@ -712,7 +712,7 @@ contains
     recursive subroutine view_mode_exit(status, exit_only, exit_action, all_windows)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: exit_only, all_windows
-        procedure(view_exit_action_proc), optional :: exit_action
+        procedure(view_exit_action_procedure), optional :: exit_action
         type(handle_type) :: buffer
         type(handle_type), allocatable :: wins(:)
         logical :: only, all, old_read_only
@@ -846,7 +846,7 @@ contains
         if (k > 0) locals(k)%old_read_only = saved_old
     end subroutine view_exit_and_edit
 
-    !> Quit View mode and maybe switch buffers, but don't kill this buffer.
+    !> Quit View mode and maybe switch buffers, but don't close this buffer.
     !> Port of view.el:View-leave.
     recursive subroutine view_leave(status)
         type(status_type), intent(out) :: status
@@ -855,11 +855,11 @@ contains
     end subroutine view_leave
 
     !> Quit View mode, trying to restore window and buffer to previous state.
-    !> Maybe kill this buffer.  Try to restore selected window to previous state
+    !> Maybe close this buffer.  Try to restore selected window to previous state
     !> and go to previous buffer or window.  Port of view.el:View-quit.
     recursive subroutine view_quit(status)
         type(status_type), intent(out) :: status
-        procedure(view_exit_action_proc), pointer :: action
+        procedure(view_exit_action_procedure), pointer :: action
         integer :: k
 
         action => null()
@@ -879,7 +879,7 @@ contains
     !> view.el:View-quit-all.
     recursive subroutine view_quit_all(status)
         type(status_type), intent(out) :: status
-        procedure(view_exit_action_proc), pointer :: action
+        procedure(view_exit_action_procedure), pointer :: action
         integer :: k
 
         action => null()
@@ -893,14 +893,14 @@ contains
         end if
     end subroutine view_quit_all
 
-    !> Quit View mode, kill current buffer and return to previous buffer.
+    !> Quit View mode, close current buffer and return to previous buffer.
     !> Port of view.el:View-kill-and-leave.
-    recursive subroutine view_kill_and_leave(status)
+    recursive subroutine view_close_and_leave(status)
         type(status_type), intent(out) :: status
-        procedure(view_exit_action_proc), pointer :: action
+        procedure(view_exit_action_procedure), pointer :: action
         integer :: k
 
-        action => kill_buffer_action
+        action => close_buffer_action
         k = local_index(.false.)
 
         if (k > 0) then
@@ -908,7 +908,7 @@ contains
         end if
 
         call view_mode_exit(status, exit_action=action, all_windows=.true.)
-    end subroutine view_kill_and_leave
+    end subroutine view_close_and_leave
 
     ! ------------------------------------------------------------------
     ! Some help routines
@@ -1531,7 +1531,7 @@ contains
                                           body=view_mode_body)
         view_mode_map = minor_modes%view_mode%map
         call register_keymap_name("view_mode_map", view_mode_map)
-        call add_local_variables_killer(kill_view_locals)
+        call append_locals_clearer(clear_view_locals)
         commands%view_mode%execute => view_mode
         commands%view_file%execute => cmd_view_file
         commands%view_file_other_window%execute => cmd_view_file_other_window
@@ -1542,7 +1542,7 @@ contains
         commands%view_leave%execute => view_leave
         commands%view_quit%execute => view_quit
         commands%view_quit_all%execute => view_quit_all
-        commands%view_kill_and_leave%execute => view_kill_and_leave
+        commands%view_close_and_leave%execute => view_close_and_leave
         commands%view_goto_percent%execute => view_goto_percent
         commands%view_goto_line%execute => view_goto_line
         commands%view_back_to_mark%execute => view_back_to_mark
@@ -1559,7 +1559,7 @@ contains
         commands%view_search_regexp_backward%execute => view_search_regexp_backward
         commands%view_search_last_regexp_forward%execute => view_search_last_regexp_forward
         commands%view_search_last_regexp_backward%execute => view_search_last_regexp_backward
-        call keymap_set(view_mode_map, "C", "view_kill_and_leave", st)
+        call keymap_set(view_mode_map, "C", "view_close_and_leave", st)
         call keymap_set(view_mode_map, "c", "view_leave", st)
         call keymap_set(view_mode_map, "Q", "view_quit_all", st)
         call keymap_set(view_mode_map, "E", "view_exit_and_edit", st)

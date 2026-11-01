@@ -33,7 +33,7 @@ module auth_source_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: list, value_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, erase_buffer
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, is_buffer_live, erase_buffer
     use editfns_fm, only: buffer_size
     use textprop_fm, only: put_text_property, remove_list_of_text_properties
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
@@ -74,30 +74,31 @@ contains
     ! auth-source.el:read-passwd--hide-password.
     recursive subroutine read_passwd_hide_password(status)
         type(status_type), intent(out) :: status
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: nbytes
-        integer(int64) :: beg, i
+        integer(int64) :: beginning, i
         type(status_type) :: st
         logical :: changed
 
         status = status_type()
-        beg = minibuffer_prompt_end()
+        beginning = minibuffer_prompt_end()
 
         if (read_hide_char >= 0) then
-            call char_string(read_hide_char, buf, nbytes, st)
+            call char_string(read_hide_char, buffer, nbytes, st)
         else
-            buf = "*"
+            buffer = "*"
             nbytes = 1
         end if
 
-        do i = 0, buffer_size() - beg
+        do i = 0, buffer_size() - beginning
             if (password_hidden) then
-                call put_text_property(i + beg, i + beg + 1, value_type(name="display"), value_type(text=buf(1:nbytes)), st)
+                call put_text_property(i + beginning, i + beginning + 1, value_type(name="display"), &
+                                       value_type(text=buffer(1:nbytes)), st)
             else
-                call remove_list_of_text_properties(i + beg, i + beg + 1, list(value_type(name="display")), changed, st)
+                call remove_list_of_text_properties(i + beginning, i + beginning + 1, list(value_type(name="display")), changed, st)
             end if
 
-            call put_text_property(i + beg, i + beg + 1, value_type(name="help_echo"), &
+            call put_text_property(i + beginning, i + beginning + 1, value_type(name="help_echo"), &
                                    value_type(text="C-u: Clear password"//achar(10)//"TAB: Toggle password visibility"), st)
         end do
     end subroutine read_passwd_hide_password
@@ -209,10 +210,10 @@ contains
         minibuf = current_buffer()
         ! Turn off electricity.
         call post_self_insert_hook%clear()
-        buffers(cur)%undo_enabled = .false.
+        buffers(current)%undo_enabled = .false.
         call use_local_map(minor_modes%read_passwd_mode%map, st)
         call minor_modes%read_passwd_mode%enable(st)
-        call post_command_hook%add(read_passwd_hide_password, local=.true.)
+        call post_command_hook%append(read_passwd_hide_password, local=.true.)
     end subroutine read_passwd_setup
 
     !> Read a password, prompting with PROMPT, and return password as a
@@ -280,7 +281,7 @@ contains
             ! the minibuffer is not always properly reset later on, so
             ! undo whatever we've done here (bug#11392).
             call post_command_hook%remove(read_passwd_hide_password, local=.true.)
-            call post_self_insert_hook%kill_local()
+            call post_self_insert_hook%clear_local()
             ! And of course, don't keep the sensitive data around.
             call erase_buffer(st)
             call set_buffer(old, st)

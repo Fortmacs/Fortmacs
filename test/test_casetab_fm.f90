@@ -29,9 +29,9 @@ module test_casetab_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use chartab_fm, only: make_char_table, char_table_ref, char_table_set, char_table_extra_table, &
-                          set_char_table_extra_table, copy_char_table, free_char_table
+                          set_char_table_extra_table, copy_char_table, destroy_char_table
     use casetab_fm, only: downcase, upcase, case_canon, is_uppercase, is_lowercase, is_case_table, current_case_table, &
                           standard_case_table, set_case_table
     use uni_case_fm, only: canon_count, canon_keys, canon_values
@@ -109,7 +109,7 @@ contains
         call check(error, case_canon(8490_int32) == 8490 .and. downcase(8490_int32) == 8490, "Kelvin sign")
         if (allocated(error)) return
         call check(error, is_uppercase(931_int32) .and. is_lowercase(962_int32) .and. &
-                   .not. is_uppercase(49_int32) .and. .not. is_lowercase(49_int32), "predicates")
+                   .not. is_uppercase(49_int32) .and. .not. is_lowercase(49_int32), "tests")
     end subroutine test_canon
 
     !> The canonicalize table `set_case_table' computes for the standard
@@ -158,16 +158,16 @@ contains
         ! An EQUIVALENCES table without a CANONICALIZE table.
         call set_char_table_extra_table(tbl, 2, other, st)
         call check(error,.not. is_case_table(tbl))
-        call free_char_table(other, st)
-        call free_char_table(tbl, st)
+        call destroy_char_table(other, st)
+        call destroy_char_table(tbl, st)
     end subroutine test_is_case_table
 
     subroutine test_set_case_table(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, tbl, cur_table
+        type(handle_type) :: h, tbl, current_table
         type(status_type) :: st
 
-        call get_buffer_create(" *casetab-test*", h, st)
+        call get_or_make_buffer(" *casetab-test*", h, st)
         call set_buffer(h, st)
         ! A table where a and b are one case pair (b is a's upper case).
         call make_char_table(tbl, "case_table", st)
@@ -176,8 +176,8 @@ contains
         call set_case_table(tbl, st)
         call check(error, st%ok())
         if (allocated(error)) return
-        cur_table = current_case_table()
-        call check(error, cur_table%index == tbl%index)
+        current_table = current_case_table()
+        call check(error, current_table%index == tbl%index)
         if (allocated(error)) return
         call check(error, downcase(iachar("b")) == iachar("a") .and. upcase(iachar("a")) == iachar("b"))
         if (allocated(error)) return
@@ -185,7 +185,7 @@ contains
         if (allocated(error)) return
         call check(error, is_uppercase(iachar("b")) .and. is_lowercase(iachar("a")))
         if (allocated(error)) return
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         ! Other buffers keep the standard table.
         call check(error, downcase(iachar("B")) == iachar("b"))
     end subroutine test_set_case_table

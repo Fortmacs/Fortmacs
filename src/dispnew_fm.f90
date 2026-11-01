@@ -665,12 +665,12 @@ contains
     subroutine ding(arg, status)
         logical, intent(in), optional :: arg
         type(status_type), intent(inout), optional :: status
-        logical :: have_arg
+        logical :: has_arg
 
-        have_arg = .false.
-        if (present(arg)) have_arg = arg
+        has_arg = .false.
+        if (present(arg)) has_arg = arg
 
-        if (have_arg .or. .not. present(status)) then
+        if (has_arg .or. .not. present(status)) then
             call ring_bell()
         else
             call bitch_at_user(status)

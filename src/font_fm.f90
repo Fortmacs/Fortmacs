@@ -73,34 +73,34 @@ module font_fm
     contains
         !> The id (> 0) of the font for the fully specified face
         !> attributes `lface', 0 if there is none (font.c:font_load_for_lface).
-        procedure(load_for_lface_proc), deferred :: load_for_lface
+        procedure(load_for_lface_procedure), deferred :: load_for_lface
         !> The metrics of font `id'.
-        procedure(font_proc), deferred :: font
+        procedure(font_procedure), deferred :: font
         !> The metrics of character `c' in font `id'; `found' is false if
         !> the font has no glyph for it (encode_char gives FONT_INVALID_CODE).
-        procedure(text_extents_proc), deferred :: text_extents
+        procedure(text_extents_procedure), deferred :: text_extents
     end type font_driver_type
 
     abstract interface
         ! Not a port.
-        integer function load_for_lface_proc(self, lface) result(id)
+        integer function load_for_lface_procedure(self, lface) result(id)
             import :: font_driver_type, face_attributes_type
             implicit none(type, external)
             class(font_driver_type), intent(inout) :: self
             type(face_attributes_type), intent(in) :: lface
-        end function load_for_lface_proc
+        end function load_for_lface_procedure
 
         ! Not a port.
-        function font_proc(self, id) result(ft)
+        function font_procedure(self, id) result(ft)
             import :: font_driver_type, font_type
             implicit none(type, external)
             class(font_driver_type), intent(in) :: self
             integer, intent(in) :: id
             type(font_type) :: ft
-        end function font_proc
+        end function font_procedure
 
         ! Not a port.
-        subroutine text_extents_proc(self, id, c, metrics, found)
+        subroutine text_extents_procedure(self, id, c, metrics, found)
             import :: font_driver_type, font_metrics_type, int32
             implicit none(type, external)
             class(font_driver_type), intent(in) :: self
@@ -108,6 +108,6 @@ module font_fm
             integer(int32), intent(in) :: c
             type(font_metrics_type), intent(out) :: metrics
             logical, intent(out) :: found
-        end subroutine text_extents_proc
+        end subroutine text_extents_procedure
     end interface
 end module font_fm

@@ -30,10 +30,10 @@ module test_buffer_fm
     use error_fm, only: status_type, FM_INVALID_HANDLE, FM_BUFFER_READ_ONLY, &
                         FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use buffer_fm, only: barf_if_buffer_read_only, beg, buffer_chars_modified_tick, buffer_last_name, &
+    use buffer_fm, only: barf_if_buffer_read_only, beginning, buffer_chars_modified_tick, buffer_last_name, &
                          is_buffer_live, is_buffer_modified, buffer_modified_tick, buffer_name, &
-                         buffers, cur, current_buffer, generate_new_buffer_name, get_buffer, &
-                         get_buffer_create, kill_buffer, modiff_incr, rename_buffer, resolve_buffer, &
+                         buffers, current, current_buffer, generate_new_buffer_name, get_buffer, &
+                         get_or_make_buffer, close_buffer, modiff_incr, rename_buffer, resolve_buffer, &
                          restore_buffer_modified, set_buffer, set_buffer_read_only, buffer_enable_undo, &
                          set_buffer_modified, buffer_file_name, find_buffer, bury_buffer_internal, record_buffer
     use eval_fm, only: buffer_list_update_hook
@@ -78,15 +78,15 @@ contains
         type(error_type), allocatable, intent(inout) :: error
         type(status_type) :: st
 
-        call get_buffer_create(name, h, st)
-        call check(error, st%ok(), "get_buffer_create failed: "//name)
+        call get_or_make_buffer(name, h, st)
+        call check(error, st%ok(), "get_or_make_buffer failed: "//name)
     end subroutine make
 
     subroutine discard(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine discard
 
     subroutine test_create(error)
@@ -107,7 +107,7 @@ contains
         call check(error, name, "tb-create")
         if (allocated(error)) return
         call resolve_buffer(a, i, st)
-        call check(error, buffers(i)%text%z, BEG)
+        call check(error, buffers(i)%text%z, BEGINNING)
         if (allocated(error)) return
         call check(error, buffers(i)%text%gap_size, 20_int64)
         if (allocated(error)) return
@@ -120,7 +120,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call get_buffer_create("", h, st)
+        call get_or_make_buffer("", h, st)
         call check(error, st%code, FM_GENERIC_ERROR)
     end subroutine test_empty_name
 
@@ -199,10 +199,10 @@ contains
 
         call make("tb-kill", h, error)
         if (allocated(error)) return
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call check(error, st%ok(), "kill failed")
         if (allocated(error)) return
-        call check(error,.not. is_buffer_live(h), "killed buffer still live")
+        call check(error,.not. is_buffer_live(h), "closed buffer still live")
         if (allocated(error)) return
         call buffer_name(h, name, st)
         call check(error, st%code, FM_INVALID_HANDLE)
@@ -230,11 +230,11 @@ contains
         call make("tb-kc-b", b, error)
         if (allocated(error)) return
         call set_buffer(b, st)
-        call kill_buffer(b, st)
+        call close_buffer(b, st)
         ! The newest other non-hidden buffer becomes current.
-        call check(error, cur /= 0, "no current buffer after kill")
+        call check(error, current /= 0, "no current buffer after kill")
         if (allocated(error)) return
-        call check(error, buffers(cur)%name(1:1) /= " ", "hidden buffer became current")
+        call check(error, buffers(current)%name(1:1) /= " ", "hidden buffer became current")
         if (allocated(error)) return
         call check(error, is_buffer_live(current_buffer()), "current buffer not live")
         if (allocated(error)) return
@@ -351,12 +351,12 @@ contains
         bluh_runs = bluh_runs + 1
     end subroutine count_bluh
 
-    !> `get_buffer_create' with INHIBIT_BUFFER_HOOKS runs no
-    !> `buffer_list_update_hook', then nor does killing the buffer; without
+    !> `get_or_make_buffer' with INHIBIT_BUFFER_HOOKS runs no
+    !> `buffer_list_update_hook', then nor does closing the buffer; without
     !> it, both run the hook.  Port of buffer-tests.el
     !> buffer-tests-inhibit-buffer-hooks (the `buffer_list_update_hook'
-    !> part; `kill_buffer_hook' is files_fm's and
-    !> `kill_buffer_query_functions' is not ported).
+    !> part; `close_buffer_hook' is files_fm's and
+    !> `close_buffer_query_functions' is not ported).
     subroutine test_inhibit_buffer_hooks(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -364,19 +364,19 @@ contains
         integer :: runs
 
         old = current_buffer()
-        call buffer_list_update_hook%add(count_bluh)
+        call buffer_list_update_hook%append(count_bluh)
         bluh_runs = 0
         ! Inhibited.
-        call get_buffer_create(" foo", h, st, inhibit_buffer_hooks=.true.)
-        call kill_buffer(h, st)
+        call get_or_make_buffer(" foo", h, st, inhibit_buffer_hooks=.true.)
+        call close_buffer(h, st)
         runs = bluh_runs
         ! Not inhibited.
-        call get_buffer_create(" foo", h, st)
-        call check(error, runs == 0 .and. bluh_runs == 1, "run once, by get_buffer_create")
-        call kill_buffer(h, st)
+        call get_or_make_buffer(" foo", h, st)
+        call check(error, runs == 0 .and. bluh_runs == 1, "run once, by get_or_make_buffer")
+        call close_buffer(h, st)
         call buffer_list_update_hook%remove(count_bluh)
         if (allocated(error)) return
-        call check(error, bluh_runs == 2, "and by kill_buffer")
+        call check(error, bluh_runs == 2, "and by close_buffer")
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine test_inhibit_buffer_hooks
 
@@ -392,7 +392,7 @@ contains
         call make("*bluh-test*", h, error)
         if (allocated(error)) return
         call set_buffer(h, st)
-        call buffer_list_update_hook%add(count_bluh)
+        call buffer_list_update_hook%append(count_bluh)
         bluh_runs = 0
         call rename_buffer("*bluh-test-2*", .false., actual, st)
         call bury_buffer_internal(h)

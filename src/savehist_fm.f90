@@ -49,17 +49,17 @@ module savehist_fm
     use easy_mmode_fm, only: mode_called_interactively
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
-    use timer_fm, only: execute_with_timer, free_timer, is_timer
-    use buffer_fm, only: get_buffer_create, generate_new_buffer_name, set_buffer, kill_buffer, current_buffer
+    use timer_fm, only: execute_with_timer, destroy_timer, is_timer
+    use buffer_fm, only: get_or_make_buffer, generate_new_buffer_name, set_buffer, close_buffer, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
     use fileio_fm, only: file_exists, file_attributes, file_stat_type, set_file_modes, write_region, &
                          insert_file_contents, file_name_directory, expand_file_name
-    use files_fm, only: make_directory
+    use files_fm, only: create_directory
     use config_fm, only: state_directory
     use coding_fm, only: coding_system_for_write
     use minibuf_fm, only: minibuffer_history_variable, minibuffer_setup_hook
-    use keyboard_fm, only: kill_emacs_hook
+    use keyboard_fm, only: exit_emacs_hook
     use xdisp_fm, only: message
     use namelist_fm, only: namelist_group_type, namelist_item_type, namelist_value_type, read_namelist, namelist_text, &
                            NAMELIST_STRING, NAMELIST_INTEGER, NAMELIST_LOGICAL
@@ -92,7 +92,7 @@ module savehist_fm
     !> the value is a list) before saving the value:
     !>
     !>     savehist_additional_variables = [savehist_variable_type(name="search_ring"), &
-    !>                                      savehist_variable_type(name="kill_ring", max_size=20)]
+    !>                                      savehist_variable_type(name="clipboard_history", max_size=20)]
     !>
     !> The contents of variables should be printable.  You don't need to
     !> add minibuffer history variables to this list, all minibuffer
@@ -101,7 +101,7 @@ module savehist_fm
     !>
     !> User options should be saved with the Customize interface.  This
     !> list is useful for saving automatically updated variables that are
-    !> not minibuffer histories, such as `compile_command' or `kill_ring'.
+    !> not minibuffer histories, such as `compile_command' or `clipboard_history'.
     !>
     !> NOTE: If this variable is not empty, then Fortmacs will not try to
     !> handle gracefully concurrent modifications to the `savehist_file',
@@ -183,7 +183,7 @@ contains
     !> Cancel `savehist_autosave' timer, if set.  Port of
     !> savehist.el:savehist--cancel-timer.
     subroutine savehist_cancel_timer()
-        if (is_timer(savehist_timer)) call free_timer(savehist_timer)
+        if (is_timer(savehist_timer)) call destroy_timer(savehist_timer)
         savehist_timer = handle_type()
     end subroutine savehist_cancel_timer
 
@@ -283,7 +283,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=64), allocatable :: old_names(:)
         type(value_type), allocatable :: old_values(:)
-        type(value_type) :: v, cur_value
+        type(value_type) :: v, current_value
         type(status_type) :: st
         logical :: bound
         integer :: k, n
@@ -323,10 +323,10 @@ contains
         ! extracted from the file, so put it back in.
         do k = 1, n
             if (len_trim(old_names(k)) == 0) cycle
-            call symbol_value(value_type(name=trim(old_names(k))), cur_value, st)
+            call symbol_value(value_type(name=trim(old_names(k))), current_value, st)
             if (.not. st%ok()) cycle
-            if (value_equal(old_values(k), cur_value)) cycle
-            v = savehist_merge(old_values(k), cur_value)
+            if (value_equal(old_values(k), current_value)) cycle
+            v = savehist_merge(old_values(k), current_value)
             call set(value_type(name=trim(old_names(k))), v, st)
         end do
     end subroutine savehist_reload
@@ -420,11 +420,11 @@ contains
 
         text = ""
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
         call insert_file_contents(file, .false., inserted, status)
         if (status%ok()) text = buffer_string()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine file_text
 
@@ -448,19 +448,19 @@ contains
 
         ! Keep the first element first.
         do while (i <= size(o) .and. j <= size(n))
-            call add(o(i))
-            call add(n(j))
+            call append(o(i))
+            call append(n(j))
             i = i + 1
             j = j + 1
         end do
 
         do while (i <= size(o))
-            call add(o(i))
+            call append(o(i))
             i = i + 1
         end do
 
         do while (j <= size(n))
-            call add(n(j))
+            call append(n(j))
             j = j + 1
         end do
 
@@ -469,7 +469,7 @@ contains
     contains
 
         !> Append E unless an equal element is there already (delete-dups).
-        subroutine add(e)
+        subroutine append(e)
             type(value_type), intent(in) :: e
 
             dup = .false.
@@ -484,17 +484,17 @@ contains
             if (dup) return
             m = m + 1
             res(m) = e
-        end subroutine add
+        end subroutine append
     end function savehist_merge
 
     !> Hook Savehist into Fortmacs.
     !> Normally invoked by calling `savehist_mode' to set the minor mode.
-    !> Installs `savehist_autosave' in `kill_emacs_hook' and on a timer.
+    !> Installs `savehist_autosave' in `exit_emacs_hook' and on a timer.
     !> To undo this, call `savehist_uninstall'.  Port of
     !> savehist.el:savehist-install.
     subroutine savehist_install()
-        call minibuffer_setup_hook%add(savehist_minibuffer_hook_proc)
-        call kill_emacs_hook%add(savehist_autosave_timer)
+        call minibuffer_setup_hook%append(savehist_minibuffer_hook_adapter)
+        call exit_emacs_hook%append(savehist_autosave_timer)
         call savehist_manage_timer()
     end subroutine savehist_install
 
@@ -502,8 +502,8 @@ contains
     !> Normally invoked by calling `savehist_mode' to unset the minor mode.
     !> Port of savehist.el:savehist-uninstall.
     subroutine savehist_uninstall()
-        call minibuffer_setup_hook%remove(savehist_minibuffer_hook_proc)
-        call kill_emacs_hook%remove(savehist_autosave_timer)
+        call minibuffer_setup_hook%remove(savehist_minibuffer_hook_adapter)
+        call exit_emacs_hook%remove(savehist_autosave_timer)
         call savehist_manage_timer()
     end subroutine savehist_uninstall
 
@@ -561,16 +561,16 @@ contains
             if (.not. allocated(savehist_minibuffer_history_variables)) allocate (savehist_minibuffer_history_variables(0))
 
             if (size(savehist_minibuffer_history_variables) == 0) then
-                call item%add_logical(.false.)
+                call item%append_logical(.false.)
             else
                 call subscript(item, size(savehist_minibuffer_history_variables))
 
                 do k = 1, size(savehist_minibuffer_history_variables)
-                    call item%add_string(trim(savehist_minibuffer_history_variables(k)))
+                    call item%append_string(trim(savehist_minibuffer_history_variables(k)))
                 end do
             end if
 
-            call group%add(item)
+            call group%append(item)
 
             do k = 1, size(savehist_minibuffer_history_variables)
                 ! (A variable, not an associate name: with gfortran, `cycle' out
@@ -588,12 +588,12 @@ contains
                 call list_elements(value, elems)
 
                 do j = 1, size(elems)
-                    call add_value(item, elems(j), ok)
+                    call append_value(item, elems(j), ok)
                 end do
 
                 if (.not. allocated(item%values)) cycle
                 call subscript(item, size(item%values))
-                call group%add(item)
+                call group%append(item)
             end do
         end if
 
@@ -614,19 +614,19 @@ contains
                     if (var%max_size >= 0) m = min(m, var%max_size)
 
                     do j = 1, m
-                        call add_value(item, elems(j), ok)
+                        call append_value(item, elems(j), ok)
                     end do
 
                     if (m == 0) then
-                        call item%add_logical(.false.)
+                        call item%append_logical(.false.)
                     else
                         call subscript(item, m)
                     end if
                 else
-                    call add_value(item, value, ok)
+                    call append_value(item, value, ok)
                 end if
 
-                call group%add(item)
+                call group%append(item)
             end associate
         end do
 
@@ -641,15 +641,15 @@ contains
 
         ! Ensure that the directory exists before saving.
         dir = file_name_directory(savehist_file)
-        if (.not. file_exists(dir)) call make_directory(dir, st, parents=.true.)
+        if (.not. file_exists(dir)) call create_directory(dir, st, parents=.true.)
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
         coding_system_for_write = savehist_coding_system
         call write_region(savehist_file, .false., status, message=wrote)
         call coding_system_for_write%clear()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call set_buffer(old, st)
 
         if (.not. status%ok()) then
@@ -680,7 +680,7 @@ contains
     end subroutine savehist_save
 
     !> Add V to ITEM's values if it can be written (OK).  Not a port.
-    subroutine add_value(item, v, ok)
+    subroutine append_value(item, v, ok)
         type(namelist_item_type), intent(inout) :: item
         type(value_type), intent(in) :: v
         logical, intent(out) :: ok
@@ -689,18 +689,18 @@ contains
 
         select case (vtag(v))
         case (V_STRING)
-            call item%add_string(xstring(v))
+            call item%append_string(xstring(v))
         case (V_INTEGER)
-            call item%add_integer(xfixnum(v))
+            call item%append_integer(xfixnum(v))
         case (V_NULL)
-            call item%add_logical(.false.)
+            call item%append_logical(.false.)
         case (V_NAME)
             ok = xsymbol(v) == SYM_T
-            if (ok) call item%add_logical(.true.)
+            if (ok) call item%append_logical(.true.)
         case default
             ok = .false.
         end select
-    end subroutine add_value
+    end subroutine append_value
 
     !> Save the minibuffer history if it has been modified since the
     !> last save.  Does nothing if Savehist mode is off.  Port of
@@ -712,7 +712,7 @@ contains
         if (minor_modes%savehist_mode%enabled()) call savehist_save(status, auto_save=.true.)
     end subroutine savehist_autosave
 
-    !> savehist_autosave for the timer and `kill_emacs_hook'.  Not a port.
+    !> savehist_autosave for the timer and `exit_emacs_hook'.  Not a port.
     recursive subroutine savehist_autosave_timer(status)
         type(status_type), intent(out) :: status
 
@@ -739,11 +739,11 @@ contains
                     return
                 end if
 
-                call add_value(scratch, elems(k), printable)
+                call append_value(scratch, elems(k), printable)
                 if (.not. printable) return
             end do
         case default
-            call add_value(scratch, value, printable)
+            call append_value(scratch, value, printable)
         end select
     end function savehist_printable
 
@@ -770,12 +770,12 @@ contains
     end subroutine savehist_minibuffer_hook
 
     !> savehist_minibuffer_hook on `minibuffer_setup_hook'.  Not a port.
-    recursive subroutine savehist_minibuffer_hook_proc(status)
+    recursive subroutine savehist_minibuffer_hook_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call savehist_minibuffer_hook()
-    end subroutine savehist_minibuffer_hook_proc
+    end subroutine savehist_minibuffer_hook_adapter
 
     recursive subroutine cmd_savehist_save(status)
         type(status_type), intent(out) :: status

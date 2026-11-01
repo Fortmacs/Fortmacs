@@ -25,7 +25,7 @@ module test_cmds_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, &
+    use buffer_fm, only: get_or_make_buffer, close_buffer, set_buffer, &
                          current_buffer, is_buffer_live
     use insdel_fm, only: insert, move_gap_both
     use search_fm, only: find_newline, find_before_next_newline
@@ -70,7 +70,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
     end subroutine enter
 
@@ -79,7 +79,7 @@ contains
         type(status_type) :: st
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     !> Three lines with a multibyte char, gap placed mid-text.

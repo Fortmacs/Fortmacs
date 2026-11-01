@@ -58,7 +58,7 @@ module kmacro_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, command_type
     use data_fm, only: value_eq
-    use keymap_fm, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, free_keymap
+    use keymap_fm, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, destroy_keymap
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_function
     use buffer_fm, only: is_buffer_live, buffers
     use marker_fm, only: marker_position
@@ -92,12 +92,12 @@ module kmacro_fm
               kmacro_view_macro_repeat, kmacro_redisplay, kmacro_keyboard_quit, kmacro_execute, kmacro, syms_of_kmacro
 
     !> Values of `kmacro_execute_repeat_key' other than a character:
-    !> KMACRO_EXECUTE_REPEAT_DISABLED and KMACRO_EXECUTE_REPEAT_LAST_KEY (the last key).
-    integer, parameter, public :: KMACRO_EXECUTE_REPEAT_DISABLED = -1, KMACRO_EXECUTE_REPEAT_LAST_KEY = -2
+    !> KMACRO_EXECUTE_REPEAT_KEY_NO and KMACRO_EXECUTE_REPEAT_KEY_LAST (the last key).
+    integer, parameter, public :: KMACRO_EXECUTE_REPEAT_KEY_NO = -1, KMACRO_EXECUTE_REPEAT_KEY_LAST = -2
 
     !> Values of `kmacro_reg_add_counter''s and `kmacro_quit_counter''s
-    !> PRED: =, < and >.
-    integer, parameter, public :: KMACRO_PRED_EQUAL = 0, KMACRO_PRED_LESS = 1, KMACRO_PRED_GREATER = 2
+    !> TEST: =, < and >.
+    integer, parameter, public :: KMACRO_TEST_EQUAL = 0, KMACRO_TEST_LESS = 1, KMACRO_TEST_GREATER = 2
 
     !> Values of `kmacro_execute_macro''s NO_REPEAT: KMACRO_REPEAT_YES, KMACRO_REPEAT_NO and KMACRO_REPEAT_REPEATING.
     integer, parameter, public :: KMACRO_REPEAT_YES = 0, KMACRO_REPEAT_NO = 1, KMACRO_REPEAT_REPEATING = 2
@@ -131,10 +131,10 @@ module kmacro_fm
     logical, public :: kmacro_repeat_no_prefix = .true.
 
     !> Allow repeating macro call using last key or a specific key.
-    !> In Fortran: KMACRO_EXECUTE_REPEAT_DISABLED (none),
-    !> KMACRO_EXECUTE_REPEAT_LAST_KEY (the last key) or a character.  Port of
+    !> In Fortran: KMACRO_EXECUTE_REPEAT_KEY_NO (none),
+    !> KMACRO_EXECUTE_REPEAT_KEY_LAST (the last key) or a character.  Port of
     !> kmacro.el kmacro-call-repeat-key (a key name is Deferred).
-    integer, public :: kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_LAST_KEY
+    integer, public :: kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
 
     !> Repeat macro call with original arg when true; repeat once if false.
     !> Port of kmacro.el kmacro-call-repeat-with-arg.
@@ -367,12 +367,12 @@ contains
         call set_register(register, kmacro_counter)
     end subroutine kmacro_reg_save_counter
 
-    !> Increment `kmacro_counter' by ARG if PRED returns true.
-    !> PRED (KMACRO_PRED_EQUAL, KMACRO_PRED_LESS or KMACRO_PRED_GREATER) is
+    !> Increment `kmacro_counter' by ARG if TEST returns true.
+    !> TEST (KMACRO_TEST_EQUAL, KMACRO_TEST_LESS or KMACRO_TEST_GREATER) is
     !> called with two arguments: `kmacro_counter' and REGISTER.  Port of
     !> kmacro.el:kmacro-reg-add-counter.
-    recursive subroutine kmacro_reg_add_counter(pred, register, arg, status)
-        integer, intent(in) :: pred
+    recursive subroutine kmacro_reg_add_counter(test, register, arg, status)
+        integer, intent(in) :: test
         integer(int64), intent(in) :: register, arg
         type(status_type), intent(out) :: status
         integer(int64) :: n
@@ -380,7 +380,7 @@ contains
         call register_to_number(register, n, status)
         if (.not. status%ok()) return
 
-        if (compare(pred, kmacro_counter, n)) then
+        if (compare(test, kmacro_counter, n)) then
             current_prefix_arg = prefix_arg_type()
             call kmacro_add_counter(arg, status)
         end if
@@ -443,7 +443,7 @@ contains
                 name = buffers(v%buffer%index)%name
                 s = "(buffer . #<buffer "//name//">)"
             else
-                s = "(buffer . #<killed buffer>)"
+                s = "(buffer . #<closed buffer>)"
             end if
         case default
             s = ".false."
@@ -452,28 +452,28 @@ contains
         st = status_type()
     end function register_value_repr
 
-    !> PRED applied to A and B.  Not a port.
-    logical function compare(pred, a, b)
-        integer, intent(in) :: pred
+    !> TEST applied to A and B.  Not a port.
+    logical function compare(test, a, b)
+        integer, intent(in) :: test
         integer(int64), intent(in) :: a, b
 
-        select case (pred)
-        case (KMACRO_PRED_LESS)
+        select case (test)
+        case (KMACRO_TEST_LESS)
             compare = a < b
-        case (KMACRO_PRED_GREATER)
+        case (KMACRO_TEST_GREATER)
             compare = a > b
         case default
             compare = a == b
         end select
     end function compare
 
-    !> Quit the keyboard macro if PRED returns true.
-    !> PRED (KMACRO_PRED_EQUAL, KMACRO_PRED_LESS or KMACRO_PRED_GREATER) is
+    !> Quit the keyboard macro if TEST returns true.
+    !> TEST (KMACRO_TEST_EQUAL, KMACRO_TEST_LESS or KMACRO_TEST_GREATER) is
     !> called with two arguments: `kmacro_counter' and ARG.
     !> ARG defaults to zero if there is no prefix argument.  Port of
     !> kmacro.el:kmacro-quit-counter.
-    recursive subroutine kmacro_quit_counter(pred, arg, status)
-        integer, intent(in) :: pred
+    recursive subroutine kmacro_quit_counter(test, arg, status)
+        integer, intent(in) :: test
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: a
@@ -483,7 +483,7 @@ contains
         a = arg
         if (current_prefix_arg%kind == PREFIX_NONE) a = 0
 
-        if (compare(pred, kmacro_counter, a)) then
+        if (compare(test, kmacro_counter, a)) then
             if (associated(commands%keyboard_quit%execute)) call commands%keyboard_quit%execute(status)
         end if
     end subroutine kmacro_quit_counter
@@ -967,14 +967,14 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(kmacro_type), allocatable :: ring(:)
-        type(kmacro_type) :: cur
+        type(kmacro_type) :: current
         logical :: found, have
         integer :: n, k
 
         status = status_type()
         if (is_kmacro_ring_empty()) return
         call kmacro_get_repeat_prefix(keys, found)
-        call kmacro_ring_head(cur, have)
+        call kmacro_ring_head(current, have)
         call kmacro_pop_ring1(.false.)
         n = ring_size()
         allocate (ring(n + 1))
@@ -983,7 +983,7 @@ contains
             ring(k) = kmacro_ring(k)
         end do
 
-        ring(n + 1) = cur
+        ring(n + 1) = current
         call move_alloc(ring, kmacro_ring)
         call display_last(status, trunc=.true.)
         if (.not. status%ok()) return
@@ -994,14 +994,14 @@ contains
     !> kmacro.el:kmacro-swap-ring.
     subroutine kmacro_swap_ring(status)
         type(status_type), intent(out) :: status
-        type(kmacro_type) :: cur
+        type(kmacro_type) :: current
         logical :: have
 
         status = status_type()
         if (is_kmacro_ring_empty()) return
-        call kmacro_ring_head(cur, have)
+        call kmacro_ring_head(current, have)
         call kmacro_pop_ring1(.false.)
-        call kmacro_push_ring(cur)
+        call kmacro_push_ring(current)
         call display_last(status, trunc=.true.)
     end subroutine kmacro_swap_ring
 
@@ -1211,9 +1211,9 @@ contains
         end if
 
         select case (kmacro_execute_repeat_key)
-        case (KMACRO_EXECUTE_REPEAT_LAST_KEY)
+        case (KMACRO_EXECUTE_REPEAT_KEY_LAST)
             continue
-        case (KMACRO_EXECUTE_REPEAT_DISABLED)
+        case (KMACRO_EXECUTE_REPEAT_KEY_NO)
             repeat_key = value_type()
         case default
             repeat_key = value_type(int(kmacro_execute_repeat_key, int64))
@@ -1325,7 +1325,7 @@ contains
         status = status_type()
 
         if (is_defining_kbd_macro()) then
-            if (kmacro_execute_repeat_key /= KMACRO_EXECUTE_REPEAT_DISABLED) then
+            if (kmacro_execute_repeat_key /= KMACRO_EXECUTE_REPEAT_KEY_NO) then
                 call kmacro_execute_macro(arg, status, nr, .true.)
             else
                 call kmacro_end_macro(arg, status)
@@ -1705,15 +1705,15 @@ contains
     end subroutine cmd_kmacro_reg_save_counter
 
     !> Read the register to compare and increment the counter by the
-    !> numeric prefix if PRED holds.  Not a port.
-    recursive subroutine reg_add_counter_command(pred, status)
-        integer, intent(in) :: pred
+    !> numeric prefix if TEST holds.  Not a port.
+    recursive subroutine reg_add_counter_command(test, status)
+        integer, intent(in) :: test
         type(status_type), intent(out) :: status
         integer(int64) :: register, arg
 
         arg = prefix_numeric_value(current_prefix_arg)
         call register_read_with_preview("Compare counter to register: ", register, status)
-        if (status%ok()) call kmacro_reg_add_counter(pred, register, arg, status)
+        if (status%ok()) call kmacro_reg_add_counter(test, register, arg, status)
     end subroutine reg_add_counter_command
 
     !> Increment counter by one if it is equal to register value.
@@ -1723,7 +1723,7 @@ contains
     recursive subroutine cmd_kmacro_reg_add_counter_equal(status)
         type(status_type), intent(out) :: status
 
-        call reg_add_counter_command(KMACRO_PRED_EQUAL, status)
+        call reg_add_counter_command(KMACRO_TEST_EQUAL, status)
     end subroutine cmd_kmacro_reg_add_counter_equal
 
     !> Increment counter by one if it is less than register value.
@@ -1733,7 +1733,7 @@ contains
     recursive subroutine cmd_kmacro_reg_add_counter_less(status)
         type(status_type), intent(out) :: status
 
-        call reg_add_counter_command(KMACRO_PRED_LESS, status)
+        call reg_add_counter_command(KMACRO_TEST_LESS, status)
     end subroutine cmd_kmacro_reg_add_counter_less
 
     !> Increment counter by one if it is greater than register value.
@@ -1743,7 +1743,7 @@ contains
     recursive subroutine cmd_kmacro_reg_add_counter_greater(status)
         type(status_type), intent(out) :: status
 
-        call reg_add_counter_command(KMACRO_PRED_GREATER, status)
+        call reg_add_counter_command(KMACRO_TEST_GREATER, status)
     end subroutine cmd_kmacro_reg_add_counter_greater
 
     !> Quit the keyboard macro if the counter is equal to ARG.
@@ -1752,7 +1752,7 @@ contains
     recursive subroutine cmd_kmacro_quit_counter_equal(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_quit_counter(KMACRO_PRED_EQUAL, prefix_numeric_value(current_prefix_arg), status)
+        call kmacro_quit_counter(KMACRO_TEST_EQUAL, prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_kmacro_quit_counter_equal
 
     !> Quit the keyboard macro if the counter is less than ARGS.
@@ -1761,7 +1761,7 @@ contains
     recursive subroutine cmd_kmacro_quit_counter_less(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_quit_counter(KMACRO_PRED_LESS, prefix_numeric_value(current_prefix_arg), status)
+        call kmacro_quit_counter(KMACRO_TEST_LESS, prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_kmacro_quit_counter_less
 
     !> Quit the keyboard macro if the counter is greater than ARG.
@@ -1770,7 +1770,7 @@ contains
     recursive subroutine cmd_kmacro_quit_counter_greater(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_quit_counter(KMACRO_PRED_GREATER, prefix_numeric_value(current_prefix_arg), status)
+        call kmacro_quit_counter(KMACRO_TEST_GREATER, prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_kmacro_quit_counter_greater
 
     !> Execute second keyboard macro in macro ring.
@@ -1918,7 +1918,7 @@ contains
         commands%kmacro_redisplay%execute => cmd_kmacro_redisplay
         kmacro_keyboard_quit_hook => kmacro_keyboard_quit
         ! The keymap is rebuilt.
-        if (is_keymap_live(kmacro_keymap)) call free_keymap(kmacro_keymap, st)
+        if (is_keymap_live(kmacro_keymap)) call destroy_keymap(kmacro_keymap, st)
         call make_sparse_keymap(kmacro_keymap)
         ! Start, end, execute macros
         call bind("s", "kmacro_start_macro")
@@ -1953,10 +1953,10 @@ contains
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function int_text
 
     !> The number of characters of the UTF-8 text S.  Not a port.

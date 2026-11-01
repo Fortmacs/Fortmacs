@@ -35,7 +35,7 @@
 !> `comint_replace_by_expanded_history', `comint_magic_space',
 !> `comint_insert_previous_argument' on C-c .), Isearch in the input
 !> history (`comint_history_isearch_backward_regexp' on M-r,
-!> `comint_history_isearch'), `comint_stop_subjob' (C-c C-z) and
+!> `comint_history_isearch'), `comint_suspend_subjob' (C-c C-z) and
 !> `comint_continue_subjob', and `comint_scroll_to_bottom_on_input' are
 !> ported.
 !>
@@ -46,7 +46,7 @@
 !> Completion: `comint_completion_at_point' on
 !> `completion_at_point_functions' runs `comint_dynamic_complete_functions'
 !> (history references, then file names quoted with `\' for
-!> `comint_file_name_quote_list'), `comint_dynamic_complete_filename',
+!> `comint_file_name_quote_chars'), `comint_dynamic_complete_filename',
 !> `comint_replace_by_expanded_filename',
 !> `comint_dynamic_list_filename_completions' and
 !> `comint_complete_input_ring' (C-x <up>).
@@ -69,12 +69,12 @@ module comint_fm
     use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY, value_type
     use error_fm, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, list, symbols, xsymbol, list_elements, command_proc
-    use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
-                       add_local_variables_killer, forward_setting
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, &
+    use lisp_fm, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
+    use data_fm, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+                       append_locals_clearer, forward_setting
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                          barf_if_buffer_read_only
-    use marker_fm, only: make_marker, free_marker, marker_buffer, marker_position, set_marker, copy_marker_at, &
+    use marker_fm, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, copy_marker_at, &
                          detach_marker
     use insdel_fm, only: insert
     use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, widen, narrow_to_region, delete_region, &
@@ -93,12 +93,12 @@ module comint_fm
     use keymap_fm, only: keymap_set, lookup_key, key_description, command_remapping, current_global_map, &
                          make_sparse_keymap, is_keymap_live, set_repeat_map
     use modes_fm, only: major_modes
-    use simple_fm, only: kill_region, copy_region_as_kill, push_mark, kill_whole_line, just_one_space
+    use simple_fm, only: cut_region, copy_region_quietly, push_mark, cut_whole_line, just_one_space
     use process_fm, only: process_arg_type, make_process, get_buffer_process, process_status, process_mark, &
                           process_buffer, delete_process, set_process_filter, process_send_string, process_send_region, &
-                          process_send_eof, interrupt_process, kill_process, quit_process, accept_process_output, &
+                          process_send_eof, interrupt_process, stop_process, quit_process, accept_process_output, &
                           is_process, process_connection_type, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
-                          stop_process, continue_process
+                          suspend_process, continue_process
     use window_fm, only: windows, window_type, window_point, set_window_point, set_window_start, recenter, &
                          window_leaves, window_text_cols, select_window, same_handle
     use frame_fm, only: selected_frame
@@ -118,7 +118,7 @@ module comint_fm
     use ring_fm, only: ring_type
     use version_fm, only: upstream_version
     use isearch_fm, only: isearch_mode, isearch_forward, isearch_success, isearch_error, isearch_nonincremental, &
-                          isearch_message_prefix, isearch_message_display, isearch_search_proc, isearch_pop_proc, &
+                          isearch_message_prefix, isearch_message_display, isearch_search_procedure, isearch_pop_procedure, &
                           isearch_search_fun_default, isearch_search_fun_function, isearch_message_function, &
                           isearch_wrap_function, isearch_push_state_function, isearch_mode_hook, isearch_mode_end_hook, &
                           isearch_message_prefix_add, set_isearch_barrier, set_isearch_opoint
@@ -130,15 +130,15 @@ module comint_fm
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use timer_fm, only: execute_at_time
     use lisp_fm, only: make_list, xstring, value_type
-    use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_unquote_proc, &
-                                completion_requote_proc, completion_quote_proc, completion_table_with_quoting, &
+    use minibuf_table_fm, only: completion_table_type, completion_test_procedure, completion_unquote_procedure, &
+                                completion_requote_procedure, completion_quote_procedure, completion_table_with_quoting, &
                                 capf_data_type, COMPLETION_FINISHED, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
                                 completion_list_table, completion_function_table
     use minibuf_fm, only: completion_ignore_case, quoting_table_call
-    use minibuffer_fm, only: completion_in_region, completion_in_region_mode_predicate, cir_predicate_proc, &
+    use minibuffer_fm, only: completion_in_region, completion_in_region_mode_test_function, cir_test_procedure, &
                              completions_visible, completion_at_point_functions, completion_file_name_table, &
                              read_file_name_completion_ignore_case, minibuffer_completion_table, &
-                             minibuffer_completion_predicate, minibuffer_completion_help
+                             minibuffer_completion_test_function, minibuffer_completion_help
     use eval_fm, only: capf_hook_type, capf_entry_type
     use search_fm, only: set_match_data, match_data
     use syntax_fm, only: skip_chars_backward
@@ -149,11 +149,11 @@ module comint_fm
     use fileio_fm, only: is_file_name_absolute
     use dired_fm, only: completion_ignored_extensions
     use regexp_opt_fm, only: regexp_opt_charset
-    use itree_fm, only: free_overlay
+    use itree_fm, only: destroy_overlay
     implicit none(type, external)
     private
 
-    public :: comint_mode, syms_of_comint, comint_check_proc, make_comint_in_buffer, make_comint, comint_execute, &
+    public :: comint_mode, syms_of_comint, comint_check_process, make_comint_in_buffer, make_comint, comint_execute, &
               comint_exec, comint_term_environment, is_comint_nonblank, comint_output_filter, comint_carriage_motion, &
               comint_send_input, comint_simple_send, comint_send_string, comint_send_region, comint_snapshot_last_prompt, &
               comint_get_old_input_default, comint_copy_old_input, comint_skip_prompt, is_comint_after_pmark, &
@@ -162,10 +162,10 @@ module comint_fm
               comint_previous_matching_input_from_input, comint_next_matching_input_from_input, comint_restore_input, &
               comint_delete_input, comint_delete_output, comint_write_output, comint_append_output_to_file, &
               comint_show_output, comint_show_maximum_output, comint_clear_buffer, comint_truncate_buffer, &
-              comint_strip_ctrl_m, comint_interrupt_subjob, comint_kill_subjob, comint_quit_subjob, comint_kill_input, &
+              comint_strip_ctrl_m, comint_interrupt_subjob, comint_stop_subjob, comint_quit_subjob, comint_cut_input, &
               comint_delchar_or_maybe_eof, comint_send_eof, comint_backward_matching_input, &
               comint_forward_matching_input, comint_next_prompt, comint_previous_prompt, comint_update_fence, &
-              comint_kill_whole_line, comint_kill_region, comint_get_next_from_history, comint_accumulate, &
+              comint_cut_whole_line, comint_cut_region, comint_get_next_from_history, comint_accumulate, &
               comint_goto_process_mark, comint_bol_or_process_mark, comint_set_process_mark, comint_read_input_ring, &
               comint_write_input_ring, comint_postoutput_scroll_to_bottom, comint_adjust_window_point, &
               comint_input_ring_item, comint_input_ring_length, comint_last_input_start, comint_last_input_end, &
@@ -175,62 +175,65 @@ module comint_fm
               comint_replace_by_expanded_history, comint_c_a_p_replace_by_expanded_history, &
               comint_replace_by_expanded_history_before_point, comint_magic_space, comint_insert_previous_argument, &
               comint_history_isearch_backward, comint_history_isearch_backward_regexp, comint_history_isearch_setup, &
-              comint_history_isearch_end, comint_goto_input, comint_preinput_scroll_to_bottom, comint_stop_subjob, &
+              comint_history_isearch_end, comint_goto_input, comint_preinput_scroll_to_bottom, comint_suspend_subjob, &
               comint_continue_subjob, comint_complete_input_ring, comint_word, comint_match_partial_filename, &
               comint_quote_filename, comint_unquote_argument, comint_requote_argument, &
               comint_completion_file_name_table, comint_file_name_completion_data, comint_filename_completion, &
               comint_completion_at_point, comint_dynamic_complete_filename, comint_replace_by_expanded_filename, &
               comint_dynamic_list_filename_completions, set_comint_completion_fignore, set_comint_quote_functions, &
               comint_directory
-    public :: comint_input_sender_proc, comint_get_old_input_proc, comint_input_filter_proc, comint_password_proc
+    public :: comint_input_sender_procedure, comint_get_old_input_procedure, comint_input_filter_procedure, &
+              comint_password_procedure
     public :: comint_send_invisible, comint_read_noecho, comint_watch_for_password_prompt, &
               set_comint_password_function, comint_password_prompt_regexp_default
 
     abstract interface
         !> A `comint_input_sender': send to PROCESS the input STRING.
         !> Not a port.
-        subroutine comint_input_sender_proc(process, string, status)
+        subroutine comint_input_sender_procedure(process, string, status)
             import :: handle_type, status_type
             implicit none(type, external)
             type(handle_type), intent(in) :: process
             character(len=*), intent(in) :: string
             type(status_type), intent(out) :: status
-        end subroutine comint_input_sender_proc
+        end subroutine comint_input_sender_procedure
 
         !> A `comint_get_old_input' function: the old text at point, as
         !> INPUT.  Not a port.
-        subroutine comint_get_old_input_proc(input, status)
+        subroutine comint_get_old_input_procedure(input, status)
             import :: status_type
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: input
             type(status_type), intent(out) :: status
-        end subroutine comint_get_old_input_proc
+        end subroutine comint_get_old_input_procedure
 
         !> A `comint_input_filter': whether INPUT may be saved on the input
         !> history.  Not a port.
-        logical function comint_input_filter_proc(input)
+        logical function comint_input_filter_procedure(input)
             implicit none(type, external)
             character(len=*), intent(in) :: input
-        end function comint_input_filter_proc
+        end function comint_input_filter_procedure
     end interface
 
     abstract interface
         !> A `comint_password_function': the password for PROMPT, FOUND
         !> false if normal password prompting should occur.  Not a port.
-        recursive subroutine comint_password_proc(prompt, password, found)
+        recursive subroutine comint_password_procedure(prompt, password, found)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             character(len=:), allocatable, intent(out) :: password
             logical, intent(out) :: found
-        end subroutine comint_password_proc
+        end subroutine comint_password_procedure
     end interface
 
     !> Values of `comint_move_point_for_output'.
-    integer, parameter, public :: COMINT_MOVE_NO = 0, COMINT_MOVE_YES = 1, COMINT_MOVE_ALL = 2, &
-                                  COMINT_MOVE_THIS = 3, COMINT_MOVE_OTHERS = 4
+    integer, parameter, public :: COMINT_MOVE_POINT_FOR_OUTPUT_NO = 0, COMINT_MOVE_POINT_FOR_OUTPUT_YES = 1, &
+                                  COMINT_MOVE_POINT_FOR_OUTPUT_ALL = 2, &
+                                  COMINT_MOVE_POINT_FOR_OUTPUT_THIS = 3, COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS = 4
 
     !> Values of `comint_move_point_for_matching_input'.
-    integer, parameter, public :: COMINT_MATCHING_AFTER_INPUT = 0, COMINT_MATCHING_END_OF_LINE = 1
+    integer, parameter, public :: COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT = 0, &
+                                  COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE = 1
 
     !> Regexp to recognize prompts in the inferior process.
     !> Defaults to "^", the null string at BOL.
@@ -248,7 +251,7 @@ module comint_fm
     !>
     !> This is a good thing to set in mode hooks.  Port of comint.el
     !> comint-prompt-regexp.
-    type(string_setting), target, public :: comint_prompt_regexp = string_setting(name="comint_prompt_regexp")
+    type(string_setting_type), target, public :: comint_prompt_regexp = string_setting_type(name="comint_prompt_regexp")
 
     !> If true, the comint prompt is read only.
     !> The read only region includes the newline before the prompt.
@@ -257,34 +260,34 @@ module comint_fm
     !>
     !> If you set this option to true, then the safe way to temporarily
     !> override the read-only-ness of comint prompts is to call
-    !> `comint_kill_whole_line' or `comint_kill_region' with no
+    !> `comint_cut_whole_line' or `comint_cut_region' with no
     !> narrowing in effect.  This way you will be certain that none of
     !> the remaining prompts will be accidentally messed up.  Port of
     !> comint.el comint-prompt-read-only.
-    type(logical_setting), target, public :: comint_prompt_read_only = &
-                                             logical_setting(name="comint_prompt_read_only", value=.false.)
+    type(logical_setting_type), target, public :: comint_prompt_read_only = &
+                                                  logical_setting_type(name="comint_prompt_read_only", value=.false.)
 
     !> If true, highlight input with `comint_highlight_input' face.
     !> Otherwise keep the original highlighting untouched.  Port of
     !> comint.el comint-highlight-input.
-    type(logical_setting), target, public :: comint_highlight_input = &
-                                             logical_setting(name="comint_highlight_input", value=.true.)
+    type(logical_setting_type), target, public :: comint_highlight_input = &
+                                                  logical_setting_type(name="comint_highlight_input", value=.true.)
 
     !> If true, don't add input matching the last on the input ring.
     !> This mirrors the optional behavior of bash.
     !>
     !> This variable is buffer-local.  Port of comint.el
     !> comint-input-ignoredups.
-    type(logical_setting), target, public :: comint_input_ignoredups = &
-                                             logical_setting(name="comint_input_ignoredups", value=.false.)
+    type(logical_setting_type), target, public :: comint_input_ignoredups = &
+                                                  logical_setting_type(name="comint_input_ignoredups", value=.false.)
 
     !> If allocated, name of the file to read/write input history.
     !> See also `comint_read_input_ring' and `comint_write_input_ring'.
     !> `comint_mode' makes this a buffer-local variable.  You probably want
     !> to set this in a mode hook, rather than customize the default
     !> value.  Port of comint.el comint-input-ring-file-name.
-    type(string_setting), target, public :: comint_input_ring_file_name = &
-                                            string_setting(name="comint_input_ring_file_name")
+    type(string_setting_type), target, public :: comint_input_ring_file_name = &
+                                                 string_setting_type(name="comint_input_ring_file_name")
 
     !> If allocated, the program to use for pagination of program output.
     !> If unallocated, use the default pager.
@@ -309,46 +312,47 @@ module comint_fm
     !> all of the output without any filtering or delays.  Comint will then
     !> set the PAGER variable to name that program, when it invokes
     !> external programs.  Port of comint.el comint-pager.
-    type(string_setting), target, public :: comint_pager = string_setting(name="comint_pager")
+    type(string_setting_type), target, public :: comint_pager = string_setting_type(name="comint_pager")
 
     !> The prefix to skip when parsing the input ring file.
     !> This is useful in Zsh when the extended_history option is on.  Port
     !> of comint.el comint-input-ring-file-prefix.
-    type(string_setting), target, public :: comint_input_ring_file_prefix = &
-                                            string_setting(name="comint_input_ring_file_prefix")
+    type(string_setting_type), target, public :: comint_input_ring_file_prefix = &
+                                                 string_setting_type(name="comint_input_ring_file_prefix")
 
     !> Controls whether interpreter output moves point to the end of the
     !> output.
-    !> If COMINT_MOVE_NO, then output never moves point to the output.
+    !> If COMINT_MOVE_POINT_FOR_OUTPUT_NO, then output never moves point to the output.
     !>  (If the output occurs at point, it is inserted before point.)
-    !> If COMINT_MOVE_YES or COMINT_MOVE_ALL, move point in all windows
+    !> If COMINT_MOVE_POINT_FOR_OUTPUT_YES or COMINT_MOVE_POINT_FOR_OUTPUT_ALL, move point in all windows
     !> showing the buffer.
-    !> If COMINT_MOVE_THIS, move point only the selected window.
-    !> If COMINT_MOVE_OTHERS, move point only in other windows, not in the
+    !> If COMINT_MOVE_POINT_FOR_OUTPUT_THIS, move point only the selected window.
+    !> If COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, move point only in other windows, not in the
     !> selected window.
     !>
-    !> The default is COMINT_MOVE_NO.
+    !> The default is COMINT_MOVE_POINT_FOR_OUTPUT_NO.
     !>
     !> See the variable `comint_scroll_show_maximum_output' and the
     !> function `comint_postoutput_scroll_to_bottom'.
     !> This variable is buffer-local in all Comint buffers.  Port of
     !> comint.el comint-move-point-for-output.
-    type(integer_setting), target, public :: comint_move_point_for_output = &
-                                             integer_setting(name="comint_move_point_for_output", value=COMINT_MOVE_NO)
+    type(integer_setting_type), target, public :: comint_move_point_for_output = &
+                                                  integer_setting_type(name="comint_move_point_for_output", &
+                                                                       value=COMINT_MOVE_POINT_FOR_OUTPUT_NO)
 
     !> Controls where to place point after matching input.
     !> \<comint_mode_map>This influences the commands
     !> \[comint_previous_matching_input_from_input] and
     !> \[comint_next_matching_input_from_input].
-    !> If COMINT_MATCHING_AFTER_INPUT, point will be positioned after the
+    !> If COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, point will be positioned after the
     !> input typed by the user, but before the rest of the history entry
-    !> that has been inserted.  If COMINT_MATCHING_END_OF_LINE, point will
+    !> that has been inserted.  If COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE, point will
     !> be positioned at the end of the current logical (not visual) line
     !> after insertion.  Port of comint.el
     !> comint-move-point-for-matching-input.
-    type(integer_setting), target, public :: comint_move_point_for_matching_input = &
-                                             integer_setting(name="comint_move_point_for_matching_input", &
-                                                             value=COMINT_MATCHING_AFTER_INPUT)
+    type(integer_setting_type), target, public :: comint_move_point_for_matching_input = &
+                                                  integer_setting_type(name="comint_move_point_for_matching_input", &
+                                                                       value=COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT)
 
     !> Controls how to scroll due to interpreter output.
     !> This variable applies when point is at the end of the buffer
@@ -364,31 +368,31 @@ module comint_fm
     !> `comint_postoutput_scroll_to_bottom'.
     !> This variable is buffer-local in all Comint buffers.  Port of
     !> comint.el comint-scroll-show-maximum-output.
-    type(logical_setting), target, public :: comint_scroll_show_maximum_output = &
-                                             logical_setting(name="comint_scroll_show_maximum_output", value=.true.)
+    type(logical_setting_type), target, public :: comint_scroll_show_maximum_output = &
+                                                  logical_setting_type(name="comint_scroll_show_maximum_output", value=.true.)
 
     !> The maximum size in lines for Comint buffers.
     !> Comint buffers are truncated from the top to be no greater than this
     !> number, if the function `comint_truncate_buffer' is on
     !> `comint_output_filter_functions'.  Port of comint.el
     !> comint-buffer-maximum-size.
-    type(integer_setting), target, public :: comint_buffer_maximum_size = &
-                                             integer_setting(name="comint_buffer_maximum_size", value=1024)
+    type(integer_setting_type), target, public :: comint_buffer_maximum_size = &
+                                                  integer_setting_type(name="comint_buffer_maximum_size", value=1024)
 
     !> Size of the input history ring in `comint_mode'.  Port of comint.el
     !> comint-input-ring-size.
-    type(integer_setting), target, public :: comint_input_ring_size = &
-                                             integer_setting(name="comint_input_ring_size", value=500)
+    type(integer_setting_type), target, public :: comint_input_ring_size = &
+                                                  integer_setting_type(name="comint_input_ring_size", value=500)
 
     !> Separator between commands in the history file.  Port of comint.el
     !> comint-input-ring-separator.
-    type(string_setting), target, public :: comint_input_ring_separator = &
-                                            string_setting(name="comint_input_ring_separator")
+    type(string_setting_type), target, public :: comint_input_ring_separator = &
+                                                 string_setting_type(name="comint_input_ring_separator")
 
     !> Regexp for history entries that should be ignored when Comint
     !> initializes.  Port of comint.el comint-input-history-ignore.
-    type(string_setting), target, public :: comint_input_history_ignore = &
-                                            string_setting(name="comint_input_history_ignore")
+    type(string_setting_type), target, public :: comint_input_history_ignore = &
+                                                 string_setting_type(name="comint_input_history_ignore")
 
     !> If true, assume that the subprocess echoes any input.
     !> If so, delete one copy of the input so that only one copy eventually
@@ -396,13 +400,13 @@ module comint_fm
     !>
     !> This variable is buffer-local.  Port of comint.el
     !> comint-process-echoes.
-    type(logical_setting), target, public :: comint_process_echoes = &
-                                             logical_setting(name="comint_process_echoes", value=.false.)
+    type(logical_setting_type), target, public :: comint_process_echoes = &
+                                                  logical_setting_type(name="comint_process_echoes", value=.false.)
 
     !> True means go to the end of the line before sending input.
     !> See `comint_send_input'.  Port of comint.el comint-eol-on-send.
-    type(logical_setting), target, public :: comint_eol_on_send = &
-                                             logical_setting(name="comint_eol_on_send", value=.true.)
+    type(logical_setting_type), target, public :: comint_eol_on_send = &
+                                                  logical_setting_type(name="comint_eol_on_send", value=.true.)
 
     !> If true, use `comint_prompt_regexp' to recognize prompts.
     !> If false, then program output and user-input are given different
@@ -410,8 +414,8 @@ module comint_fm
     !> (in particular, common movement commands such as
     !> `beginning_of_line' respect field boundaries in a natural way).
     !> Port of comint.el comint-use-prompt-regexp.
-    type(logical_setting), target, public :: comint_use_prompt_regexp = &
-                                             logical_setting(name="comint_use_prompt_regexp", value=.false.)
+    type(logical_setting_type), target, public :: comint_use_prompt_regexp = &
+                                                  logical_setting_type(name="comint_use_prompt_regexp", value=.false.)
 
     !> Values of `comint_input_autoexpand'.
     integer, parameter, public :: COMINT_AUTOEXPAND_NO = 0, COMINT_AUTOEXPAND_ON_COMPLETION = 1, COMINT_AUTOEXPAND_INPUT = 2, &
@@ -428,26 +432,26 @@ module comint_fm
     !>
     !> This variable is buffer-local.  Port of comint.el
     !> comint-input-autoexpand.
-    type(integer_setting), target, public :: comint_input_autoexpand = &
-                                             integer_setting(name="comint_input_autoexpand", value=COMINT_AUTOEXPAND_NO)
+    type(integer_setting_type), target, public :: comint_input_autoexpand = &
+                                                  integer_setting_type(name="comint_input_autoexpand", value=COMINT_AUTOEXPAND_NO)
 
     !> Values of `comint_scroll_to_bottom_on_input'.
-    integer, parameter, public :: COMINT_SCROLL_ON_INPUT_NO = 0, COMINT_SCROLL_ON_INPUT_YES = 1, &
-                                  COMINT_SCROLL_ON_INPUT_ALL = 2, COMINT_SCROLL_ON_INPUT_THIS = 3
+    integer, parameter, public :: COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO = 0, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES = 1, &
+                                  COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL = 2, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS = 3
 
     !> Controls whether input to interpreter causes window to scroll.
-    !> If COMINT_SCROLL_ON_INPUT_NO, then do not scroll.  If
-    !> COMINT_SCROLL_ON_INPUT_YES or COMINT_SCROLL_ON_INPUT_ALL, scroll all
-    !> windows showing buffer.  If COMINT_SCROLL_ON_INPUT_THIS, scroll only
+    !> If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, then do not scroll.  If
+    !> COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES or COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, scroll all
+    !> windows showing buffer.  If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, scroll only
     !> the selected window.
     !>
-    !> The default is COMINT_SCROLL_ON_INPUT_NO.
+    !> The default is COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO.
     !>
     !> See `comint_preinput_scroll_to_bottom'.  This variable is
     !> buffer-local.  Port of comint.el comint-scroll-to-bottom-on-input.
-    type(integer_setting), target, public :: comint_scroll_to_bottom_on_input = &
-                                             integer_setting(name="comint_scroll_to_bottom_on_input", &
-                                                             value=COMINT_SCROLL_ON_INPUT_NO)
+    type(integer_setting_type), target, public :: comint_scroll_to_bottom_on_input = &
+                                                  integer_setting_type(name="comint_scroll_to_bottom_on_input", &
+                                                                       value=COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO)
 
     !> If true, `comint_insert_previous_argument' counts args from the
     !> end.  If this variable is false, the default,
@@ -457,9 +461,9 @@ module comint_fm
     !> `number' counts from the beginning (variable is false), while in
     !> zsh, it counts from the end.  Port of comint.el
     !> comint-insert-previous-argument-from-end.
-    type(logical_setting), target, public :: comint_insert_previous_argument_from_end = &
-                                             logical_setting(name="comint_insert_previous_argument_from_end", &
-                                                             value=.false.)
+    type(logical_setting_type), target, public :: comint_insert_previous_argument_from_end = &
+                                                  logical_setting_type(name="comint_insert_previous_argument_from_end", &
+                                                                       value=.false.)
 
     !> Values of `comint_history_isearch'.
     integer, parameter, public :: COMINT_HISTORY_ISEARCH_NO = 0, COMINT_HISTORY_ISEARCH_DWIM = 1, &
@@ -474,8 +478,8 @@ module comint_fm
     !> comint buffer, they search in the comint buffer.  If
     !> COMINT_HISTORY_ISEARCH_NO, Isearch operates on the whole comint
     !> buffer.  Port of comint.el comint-history-isearch.
-    type(integer_setting), target, public :: comint_history_isearch = &
-                                             integer_setting(name="comint_history_isearch", value=COMINT_HISTORY_ISEARCH_NO)
+    type(integer_setting_type), target, public :: comint_history_isearch = &
+                                                integer_setting_type(name="comint_history_isearch", value=COMINT_HISTORY_ISEARCH_NO)
 
     !> Value to use for TERM when the system uses terminfo.
     !> If the system's terminfo database contains a definition for the
@@ -483,14 +487,14 @@ module comint_fm
     !> set this to "dumb-emacs-ansi" and then some terminfo-aware programs
     !> will send colorized output when run under Comint.  Port of comint.el
     !> comint-terminfo-terminal.
-    type(string_setting), target, public :: comint_terminfo_terminal = &
-                                            string_setting(name="comint_terminfo_terminal")
+    type(string_setting_type), target, public :: comint_terminfo_terminal = &
+                                                 string_setting_type(name="comint_terminfo_terminal")
 
     !> If false, Comint will interpret `carriage control' characters in
     !> output.  See `comint_carriage_motion' for details.  Port of
     !> comint.el comint-inhibit-carriage-motion.
-    type(logical_setting), target, public :: comint_inhibit_carriage_motion = &
-                                             logical_setting(name="comint_inhibit_carriage_motion", value=.false.)
+    type(logical_setting_type), target, public :: comint_inhibit_carriage_motion = &
+                                                  logical_setting_type(name="comint_inhibit_carriage_motion", value=.false.)
 
     !> The characters to recognize as separate arguments in input.
     !> Strings comprising a character in this list will separate the
@@ -502,8 +506,8 @@ module comint_fm
     !>
     !> This is a good thing to set in mode hooks.  Port of comint.el
     !> comint-delimiter-argument-list (the characters as a string).
-    type(string_setting), target, public :: comint_delimiter_argument_list = &
-                                            string_setting(name="comint_delimiter_argument_list")
+    type(string_setting_type), target, public :: comint_delimiter_arguments = &
+                                                 string_setting_type(name="comint_delimiter_arguments")
 
     !> True directs the `comint_input_sender' function not to send a
     !> newline.  Port of comint.el comint-input-sender-no-newline.
@@ -603,9 +607,9 @@ module comint_fm
         type(handle_type) :: last_prompt_start, last_prompt_end
         character(len=:), allocatable :: stored_incomplete_input
         character(len=:), allocatable :: matching_input_from_input_string
-        procedure(comint_get_old_input_proc), pointer, nopass :: get_old_input => null()
-        procedure(comint_input_sender_proc), pointer, nopass :: input_sender => null()
-        procedure(comint_input_filter_proc), pointer, nopass :: input_filter => null()
+        procedure(comint_get_old_input_procedure), pointer, nopass :: get_old_input => null()
+        procedure(comint_input_sender_procedure), pointer, nopass :: input_sender => null()
+        procedure(comint_input_filter_procedure), pointer, nopass :: input_filter => null()
         !> comint-insert-previous-argument-last-start-pos and
         !> comint-insert-previous-argument-last-index.
         type(handle_type) :: insert_previous_argument_last_start_pos
@@ -614,13 +618,13 @@ module comint_fm
         !> comint-history-isearch-message-overlay.
         type(handle_type) :: history_isearch_message_overlay
         !> comint-password-function.
-        procedure(comint_password_proc), pointer, nopass :: password_function => null()
+        procedure(comint_password_procedure), pointer, nopass :: password_function => null()
         !> comint-completion-fignore.
         character(len=8), allocatable :: completion_fignore(:)
         !> comint-unquote-function and comint-requote-function (null for the
         !> default values).
-        procedure(completion_unquote_proc), pointer, nopass :: unquote => null()
-        procedure(completion_requote_proc), pointer, nopass :: requote => null()
+        procedure(completion_unquote_procedure), pointer, nopass :: unquote => null()
+        procedure(completion_requote_procedure), pointer, nopass :: requote => null()
     end type comint_buffer_type
 
     !> Regexp matching prompts for passwords in the inferior process.
@@ -667,24 +671,24 @@ module comint_fm
     !> If true, automatically list possibilities on partial completion.
     !> This mirrors the optional behavior of tcsh.  Port of comint.el
     !> comint-completion-autolist.
-    type(logical_setting), target, public :: comint_completion_autolist = &
-                                             logical_setting(name="comint_completion_autolist", value=.false.)
+    type(logical_setting_type), target, public :: comint_completion_autolist = &
+                                                  logical_setting_type(name="comint_completion_autolist", value=.false.)
 
     !> The string FILESUFFIX added to file names on unambiguous or exact
     !> completion (" " by default; the empty string adds none).
     !> This mirrors the optional behavior of tcsh.  Port of comint.el
     !> comint-completion-addsuffix (.true. is " ", .false. is "", and the obsolete
     !> two values, DIRSUFFIX and FILESUFFIX, give FILESUFFIX).
-    type(string_setting), target, public :: comint_completion_addsuffix = &
-                                            string_setting(name="comint_completion_addsuffix")
+    type(string_setting_type), target, public :: comint_completion_addsuffix = &
+                                                 string_setting_type(name="comint_completion_addsuffix")
 
     !> If true, use shortest completion if characters cannot be added.
     !> This mirrors the optional behavior of tcsh.
     !>
     !> A true value is useful if `comint_completion_autolist' is true too.
     !> Port of comint.el comint-completion-recexact.
-    type(logical_setting), target, public :: comint_completion_recexact = &
-                                             logical_setting(name="comint_completion_recexact", value=.false.)
+    type(logical_setting_type), target, public :: comint_completion_recexact = &
+                                                  logical_setting_type(name="comint_completion_recexact", value=.false.)
 
     !> List of suffixes to be disregarded during file completion.
     !> This mirrors the optional behavior of bash and tcsh.
@@ -699,7 +703,7 @@ module comint_fm
     !> This is used by Comint's and shell's completion functions, and by
     !> shell's directory tracking functions.  Port of comint.el
     !> comint-file-name-prefix.
-    type(string_setting), target, public :: comint_file_name_prefix = string_setting(name="comint_file_name_prefix")
+    type(string_setting_type), target, public :: comint_file_name_prefix = string_setting_type(name="comint_file_name_prefix")
 
     !> String of characters valid in a file name.
     !> Note that all non-ASCII characters are considered valid in a file
@@ -707,14 +711,14 @@ module comint_fm
     !>
     !> This is a good thing to set in mode hooks.  Port of comint.el
     !> comint-file-name-chars.
-    type(string_setting), target, public :: comint_file_name_chars = string_setting(name="comint_file_name_chars")
+    type(string_setting_type), target, public :: comint_file_name_chars = string_setting_type(name="comint_file_name_chars")
 
     !> The characters to quote with `\' when in a file name.
     !>
     !> This is a good thing to set in mode hooks.  Port of comint.el
     !> comint-file-name-quote-list (a string of the characters).
-    type(string_setting), target, public :: comint_file_name_quote_list = &
-                                            string_setting(name="comint_file_name_quote_list")
+    type(string_setting_type), target, public :: comint_file_name_quote_chars = &
+                                                 string_setting_type(name="comint_file_name_quote_chars")
 
     !> List of functions called to perform completion.
     !> Works like `completion_at_point_functions'.
@@ -728,12 +732,12 @@ module comint_fm
     !> Function to use for completion of quoted data.
     !> See `completion_table_with_quoting' and `comint_requote_function'.
     !> Port of comint.el comint-unquote-function.
-    procedure(completion_unquote_proc), pointer, public :: comint_unquote_function => comint_unquote_argument
+    procedure(completion_unquote_procedure), pointer, public :: comint_unquote_function => comint_unquote_argument
 
     !> Function to use for completion of quoted data.
     !> See `completion_table_with_quoting' and `comint_unquote_function'.
     !> Port of comint.el comint-requote-function.
-    procedure(completion_requote_proc), pointer, public :: comint_requote_function => comint_requote_argument
+    procedure(completion_requote_procedure), pointer, public :: comint_requote_function => comint_requote_argument
 
 contains
 
@@ -760,7 +764,7 @@ contains
         type(comint_buffer_type), allocatable :: kept(:)
         integer :: i, n
 
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) return
         if (.not. allocated(comint_buffers)) allocate (comint_buffers(0))
         n = 0
@@ -771,12 +775,12 @@ contains
                 n = n + 1
                 call move_entry(comint_buffers(i), kept(n))
             else
-                call kill_local(comint_buffers(i))
+                call clear_local(comint_buffers(i))
             end if
         end do
 
         n = n + 1
-        kept(n)%serial = buffers(cur)%serial
+        kept(n)%serial = buffers(current)%serial
         kept(n)%buffer = current_buffer()
         call move_alloc(kept, comint_buffers)
         comint_buffers = comint_buffers(1:n)
@@ -792,15 +796,15 @@ contains
     end subroutine move_entry
 
     !> Free the markers of entry E and forget its local variables.  Not a port.
-    subroutine kill_local(e)
+    subroutine clear_local(e)
         type(comint_buffer_type), intent(inout) :: e
         type(status_type) :: st
 
         if (.not. e%local) return
-        call free_marker(e%last_input_start, st)
-        call free_marker(e%last_input_end, st)
-        call free_marker(e%last_output_start, st)
-        call free_marker(e%accum_marker, st)
+        call destroy_marker(e%last_input_start, st)
+        call destroy_marker(e%last_input_end, st)
+        call destroy_marker(e%last_output_start, st)
+        call destroy_marker(e%accum_marker, st)
         call forget_last_prompt(e)
         if (allocated(e%stored_incomplete_input)) deallocate (e%stored_incomplete_input)
         e%matching_input_from_input_string = ""
@@ -809,7 +813,7 @@ contains
         e%input_filter => null()
 
         if (e%insert_previous_argument_last_start_pos%index /= 0) then
-            call free_marker(e%insert_previous_argument_last_start_pos, st)
+            call destroy_marker(e%insert_previous_argument_last_start_pos, st)
         end if
 
         e%insert_previous_argument_last_start_pos = null_handle()
@@ -820,7 +824,7 @@ contains
         e%requote => null()
         e%password_function => null()
         e%local = .false.
-    end subroutine kill_local
+    end subroutine clear_local
 
     ! Not a port.
     subroutine forget_last_prompt(e)
@@ -828,19 +832,19 @@ contains
         type(status_type) :: st
 
         if (.not. e%has_last_prompt) return
-        call free_marker(e%last_prompt_start, st)
-        call free_marker(e%last_prompt_end, st)
+        call destroy_marker(e%last_prompt_start, st)
+        call destroy_marker(e%last_prompt_end, st)
         e%has_last_prompt = .false.
     end subroutine forget_last_prompt
 
     !> Forget the current buffer's local Comint variables (not the
-    !> permanent ones), as `kill_all_local_variables' does.  Not a port.
-    subroutine kill_comint_locals()
+    !> permanent ones), as `clear_all_local_variables' does.  Not a port.
+    subroutine clear_comint_locals()
         integer :: k
 
-        k = entry_of(cur)
-        if (k /= 0) call kill_local(comint_buffers(k))
-    end subroutine kill_comint_locals
+        k = entry_of(current)
+        if (k /= 0) call clear_local(comint_buffers(k))
+    end subroutine clear_comint_locals
 
     !> The current buffer's entry with its local variables (made as
     !> comint-mode makes them if the buffer has none).  Not a port.
@@ -881,7 +885,7 @@ contains
         integer :: k
 
         has_input_ring = .false.
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) has_input_ring = comint_buffers(k)%has_ring
     end function has_input_ring
 
@@ -890,7 +894,7 @@ contains
         integer :: k
 
         comint_input_ring_length = 0
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (comint_buffers(k)%has_ring) comint_input_ring_length = comint_buffers(k)%input_ring%count()
     end function comint_input_ring_length
@@ -904,7 +908,7 @@ contains
         integer :: k
 
         item = ""
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (comint_buffers(k)%has_ring) call comint_buffers(k)%input_ring%ref(index, item, st)
     end function comint_input_ring_item
@@ -927,7 +931,7 @@ contains
         integer :: k
 
         comint_last_input_start = 0
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) comint_last_input_start = marker_pos(comint_buffers(k)%last_input_start)
     end function comint_last_input_start
 
@@ -937,7 +941,7 @@ contains
         integer :: k
 
         comint_last_input_end = 0
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) comint_last_input_end = marker_pos(comint_buffers(k)%last_input_end)
     end function comint_last_input_end
 
@@ -947,7 +951,7 @@ contains
         integer :: k
 
         comint_last_output_start = 0
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) comint_last_output_start = marker_pos(comint_buffers(k)%last_output_start)
     end function comint_last_output_start
 
@@ -958,7 +962,7 @@ contains
         integer :: k
 
         is_comint_pty = .true.
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) is_comint_pty = comint_buffers(k)%ptyp
     end function is_comint_pty
 
@@ -972,10 +976,10 @@ contains
     !> of `comint_use_prompt_regexp'.  Port of the buffer-local setting of comint.el
     !> comint-get-old-input.
     subroutine set_comint_get_old_input(fn)
-        procedure(comint_get_old_input_proc) :: fn
+        procedure(comint_get_old_input_procedure) :: fn
         integer :: k
 
-        if (cur == 0) return
+        if (current == 0) return
         k = local_entry()
         comint_buffers(k)%get_old_input => fn
     end subroutine set_comint_get_old_input
@@ -989,24 +993,24 @@ contains
     !> This is called from the user command `comint_send_input'.  Port of
     !> the buffer-local setting of comint.el comint-input-sender.
     subroutine set_comint_input_sender(fn)
-        procedure(comint_input_sender_proc) :: fn
+        procedure(comint_input_sender_procedure) :: fn
         integer :: k
 
-        if (cur == 0) return
+        if (current == 0) return
         k = local_entry()
         comint_buffers(k)%input_sender => fn
     end subroutine set_comint_input_sender
 
     !> Give the current buffer its own `comint_input_filter': the
-    !> predicate for filtering additions to input history.
+    !> test for filtering additions to input history.
     !> Takes one argument, the input.  If true, the input may be saved on
     !> the input history list.  Default is to save anything that isn't all
     !> whitespace.  Port of the buffer-local setting of comint.el comint-input-filter.
     subroutine set_comint_input_filter(fn)
-        procedure(comint_input_filter_proc) :: fn
+        procedure(comint_input_filter_procedure) :: fn
         integer :: k
 
-        if (cur == 0) return
+        if (current == 0) return
         k = local_entry()
         comint_buffers(k)%input_filter => fn
     end subroutine set_comint_input_filter
@@ -1018,10 +1022,10 @@ contains
     !> comint.el comint-password-function (buffer-local); without FN, null.
     !> Not a port.
     subroutine set_comint_password_function(fn)
-        procedure(comint_password_proc), optional :: fn
+        procedure(comint_password_procedure), optional :: fn
         integer :: k
 
-        if (cur == 0) return
+        if (current == 0) return
         k = local_entry()
 
         if (present(fn)) then
@@ -1055,21 +1059,21 @@ contains
 
     !> The current buffer's process, or an error: "Current buffer has no
     !> process".  Not a port.
-    subroutine current_process(proc, status)
-        type(handle_type), intent(out) :: proc
+    subroutine current_process(process, status)
+        type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
 
         status = status_type()
-        proc = get_buffer_process(current_buffer())
-        if (proc%index == 0) call set_error(status, FM_USER_ERROR, "Current buffer has no process")
+        process = get_buffer_process(current_buffer())
+        if (process%index == 0) call set_error(status, FM_USER_ERROR, "Current buffer has no process")
     end subroutine current_process
 
-    !> The position of the process mark of PROC (0 if it points nowhere).
+    !> The position of the process mark of PROCESS (0 if it points nowhere).
     !> Not a port.
-    integer(int64) function pmark_pos(proc)
-        type(handle_type), intent(in) :: proc
+    integer(int64) function pmark_pos(process)
+        type(handle_type), intent(in) :: process
 
-        pmark_pos = marker_pos(process_mark(proc))
+        pmark_pos = marker_pos(process_mark(process))
     end function pmark_pos
 
     !> The text properties (`rear_nonsticky' with `comint__prompt_rear_nonsticky').
@@ -1143,7 +1147,7 @@ contains
         call major_modes%comint_mode%begin(saved, status)
         if (.not. status%ok()) return
         call comint_mode_body()
-        call major_modes%comint_mode%finish(saved, status)
+        call major_modes%comint_mode%end(saved, status)
     end subroutine comint_mode
 
     !> The body of comint-mode (also run by the modes derived from it,
@@ -1158,7 +1162,7 @@ contains
         k = current_entry()
         call make_locals(k)
         call comint_prompt_regexp%make_local()
-        call comint_delimiter_argument_list%make_local()
+        call comint_delimiter_arguments%make_local()
         call comint_input_ring_size%make_local()
         call comint_input_ring_file_name%make_local()
         call comint_input_autoexpand%make_local()
@@ -1175,27 +1179,27 @@ contains
             comint_buffers(k)%has_ring = .true.
         end if
 
-        call pre_command_hook%add(comint_preinput_scroll_to_bottom, depth=90, local=.true.)
+        call pre_command_hook%append(comint_preinput_scroll_to_bottom, depth=90, local=.true.)
         call font_lock_defaults%set_local(keywords_only=.true.)
         call comint_file_name_chars%make_local()
-        call comint_file_name_quote_list%make_local()
+        call comint_file_name_quote_chars%make_local()
         ! dir tracking on remote files
         call comint_file_name_prefix%set_local("")
-        call isearch_mode_hook%add(comint_history_isearch_setup, local=.true.)
-        call completion_at_point_functions%add(comint_completion_at_point, local=.true.)
+        call isearch_mode_hook%append(comint_history_isearch_setup, local=.true.)
+        call completion_at_point_functions%append(comint_completion_at_point, local=.true.)
     end subroutine comint_mode_body
 
     !> Return true if there is a living process associated with BUFFER.
     !> Living means the status is `run' (`open' and `stop' are not
     !> ported).  Port of comint.el:comint-check-proc.
-    logical function comint_check_proc(buffer)
+    logical function comint_check_process(buffer)
         type(handle_type), intent(in) :: buffer
-        type(handle_type) :: proc
+        type(handle_type) :: process
 
-        comint_check_proc = .false.
-        proc = get_buffer_process(buffer)
-        if (proc%index /= 0) comint_check_proc = process_status(proc) == "run"
-    end function comint_check_proc
+        comint_check_process = .false.
+        process = get_buffer_process(buffer)
+        if (process%index /= 0) comint_check_process = process_status(process) == "run"
+    end function comint_check_process
 
     !> Make a Comint process NAME in BUFFER, running PROGRAM.
     !> If BUFFER_NAME is absent, it defaults to NAME surrounded by `*'s.
@@ -1219,16 +1223,16 @@ contains
         type(process_arg_type), allocatable :: args(:)
 
         if (present(buffer_name)) then
-            call get_buffer_create(buffer_name, result, status)
+            call get_or_make_buffer(buffer_name, result, status)
         else
-            call get_buffer_create("*"//name//"*", result, status)
+            call get_or_make_buffer("*"//name//"*", result, status)
         end if
 
         if (.not. status%ok()) return
         ! If no process, or nuked process, crank up a new one and put
         ! buffer in comint mode.  Otherwise, leave buffer and existing
         ! process alone.
-        if (comint_check_proc(result)) return
+        if (comint_check_process(result)) return
         old = current_buffer()
         call set_buffer(result, status)
         if (.not. status%ok()) return
@@ -1289,13 +1293,13 @@ contains
         character(len=*), intent(in) :: program
         type(status_type), intent(out) :: status
         type(process_arg_type), intent(in), optional :: switches(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         character(len=:), allocatable :: name
 
         name = file_name_nondirectory(program)
-        call make_comint(name, program, buf, status, switches=switches)
+        call make_comint(name, program, buffer, status, switches=switches)
         if (.not. status%ok()) return
-        call switch_to_buffer(buffers(buf%index)%name, status)
+        call switch_to_buffer(buffers(buffer%index)%name, status)
     end subroutine comint_execute
 
     !> The command: read PROGRAM and run it.  The interactive form of
@@ -1335,7 +1339,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
         type(process_arg_type), intent(in), optional :: environment(:)
-        type(handle_type) :: old, proc
+        type(handle_type) :: old, process
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer :: k
@@ -1344,29 +1348,29 @@ contains
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         ! Blast any old process.
-        proc = get_buffer_process(buffer)
-        if (proc%index /= 0) call delete_process(proc, st)
+        process = get_buffer_process(buffer)
+        if (process%index /= 0) call delete_process(process, st)
         ! Crank up a new process.
-        call comint_exec_1(name, buffer, command, switches, proc, status, environment)
+        call comint_exec_1(name, buffer, command, switches, process, status, environment)
 
         if (.not. status%ok()) then
             if (is_buffer_live(old)) call set_buffer(old, st)
             return
         end if
 
-        call set_process_filter(proc, st, comint_output_filter)
+        call set_process_filter(process, st, comint_output_filter)
         ! t if pty, nil if pipe.
         k = current_entry()
         comint_buffers(k)%ptyp = process_connection_type%value
         ! Jump to the end, and set the process mark.
         call goto_char(point_max())
-        call set_marker(process_mark(proc), point(), st)
+        call set_marker(process_mark(process), point(), st)
 
         ! Feed it the startfile.
         if (present(startfile)) then
             call temp_buffer_file_contents(startfile, text, status)
             if (.not. status%ok()) return
-            call comint_send_string(proc, text, status)
+            call comint_send_string(process, text, status)
             if (.not. status%ok()) return
         end if
 
@@ -1377,7 +1381,7 @@ contains
     !> The contents of FILE (with-temp-buffer, insert-file-contents,
     !> buffer-string).  Not a port.
     subroutine temp_buffer_file_contents(file, text, status)
-        use buffer_fm, only: kill_buffer, generate_new_buffer_name
+        use buffer_fm, only: close_buffer, generate_new_buffer_name
         use editfns_fm, only: buffer_string
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: text
@@ -1388,22 +1392,22 @@ contains
 
         text = ""
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, status)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
         if (.not. status%ok()) return
         call set_buffer(tmp, st)
         call insert_file_contents(file, .false., inserted, status)
         if (status%ok()) text = buffer_string()
         call set_buffer(old, st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
     end subroutine temp_buffer_file_contents
 
     !> Crank up the process for comint-exec in the appropriate environment.
     !> Port of comint.el:comint-exec-1.
-    recursive subroutine comint_exec_1(name, buffer, command, switches, proc, status, environment)
+    recursive subroutine comint_exec_1(name, buffer, command, switches, process, status, environment)
         character(len=*), intent(in) :: name, command
         type(handle_type), intent(in) :: buffer
         type(process_arg_type), intent(in) :: switches(:)
-        type(handle_type), intent(out) :: proc
+        type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
         type(process_arg_type), intent(in), optional :: environment(:)
         type(process_arg_type), allocatable :: env(:), argv(:)
@@ -1412,22 +1416,22 @@ contains
         integer :: k
 
         call comint_term_environment(env)
-        call add_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
-        if (allocated(comint_pager%value)) call add_arg(env, "PAGER="//comint_pager%value)
+        call append_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
+        if (allocated(comint_pager%value)) call append_arg(env, "PAGER="//comint_pager%value)
 
         if (present(environment)) then
             do k = 1, size(environment)
-                call add_arg(env, environment(k)%s)
+                call append_arg(env, environment(k)%s)
             end do
         end if
 
-        had_dir = allocated(buffers(cur)%directory)
-        if (had_dir) saved_dir = buffers(cur)%directory
+        had_dir = allocated(buffers(current)%directory)
+        if (had_dir) saved_dir = buffers(current)%directory
 
         if (had_dir) then
-            if (.not. is_file_accessible_directory(saved_dir)) buffers(cur)%directory = "/"
+            if (.not. is_file_accessible_directory(saved_dir)) buffers(current)%directory = "/"
         else
-            buffers(cur)%directory = "/"
+            buffers(current)%directory = "/"
         end if
 
         allocate (argv(size(switches) + 1))
@@ -1437,12 +1441,12 @@ contains
             argv(k + 1)%s = switches(k)%s
         end do
 
-        call make_process(name, argv, proc, status, buffer=buffer, environment=env)
+        call make_process(name, argv, process, status, buffer=buffer, environment=env)
 
         if (had_dir) then
-            buffers(cur)%directory = saved_dir
+            buffers(current)%directory = saved_dir
         else
-            deallocate (buffers(cur)%directory)
+            deallocate (buffers(current)%directory)
         end if
         ! (Coding systems are not ported.)
     end subroutine comint_exec_1
@@ -1464,13 +1468,13 @@ contains
         env(3)%s = "COLUMNS="//trim(cols)
     end subroutine comint_term_environment
 
-    !> Return true if STR contains non-whitespace syntax.  Port of
+    !> Return true if STRING contains non-whitespace syntax.  Port of
     !> comint.el:comint-nonblank-p.
-    logical function is_comint_nonblank(str)
-        character(len=*), intent(in) :: str
+    logical function is_comint_nonblank(string)
+        character(len=*), intent(in) :: string
         type(status_type) :: st
 
-        is_comint_nonblank = string_match("\`\s *\'", str, st, inhibit_modify=.true.) == 0
+        is_comint_nonblank = string_match("\`\s *\'", string, st, inhibit_modify=.true.) == 0
     end function is_comint_nonblank
 
     ! ------------------------------------------------------------------
@@ -1497,7 +1501,7 @@ contains
     !> See also `comint_input_ignoredups' and `comint_write_input_ring'.
     !> Port of comint.el:comint-read-input-ring.
     subroutine comint_read_input_ring(silent)
-        use buffer_fm, only: kill_buffer, generate_new_buffer_name
+        use buffer_fm, only: close_buffer, generate_new_buffer_name
         logical, intent(in), optional :: silent
         type(ring_type) :: ring
         type(handle_type) :: old, tmp
@@ -1505,7 +1509,7 @@ contains
         character(len=:), allocatable :: file, separator, prefix, ignore, history, last
         integer(int64) :: inserted, found, start, end
         integer :: count, ring_size, ring_max_size, k
-        logical :: quiet, ignoredups, have_prefix, keep
+        logical :: quiet, ignoredups, has_prefix, keep
 
         quiet = .false.
         if (present(silent)) quiet = silent
@@ -1527,12 +1531,12 @@ contains
         ! Use possibly buffer-local values of these variables.
         ring_max_size = int(comint_input_ring_size%value)
         separator = comint_input_ring_separator%value
-        have_prefix = allocated(comint_input_ring_file_prefix%value)
-        if (have_prefix) prefix = comint_input_ring_file_prefix%value
+        has_prefix = allocated(comint_input_ring_file_prefix%value)
+        if (has_prefix) prefix = comint_input_ring_file_prefix%value
         ignore = comint_input_history_ignore%value
         ignoredups = comint_input_ignoredups%value
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
         call set_buffer(tmp, st)
         call insert_file_contents(file, .false., inserted, st)
         call goto_char(point_max())
@@ -1549,7 +1553,7 @@ contains
                 call goto_char(point_min())
             end if
 
-            if (have_prefix) then
+            if (has_prefix) then
                 ! Skip zsh extended_history stamps.
                 if (looking_at(prefix, st)) call goto_char(match_end(0, st))
             end if
@@ -1575,7 +1579,7 @@ contains
         end do
 
         call set_buffer(old, st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
         k = current_entry()
         comint_buffers(k)%input_ring = ring
         comint_buffers(k)%has_ring = .true.
@@ -1594,14 +1598,14 @@ contains
     !> See also `comint_read_input_ring'.  Port of
     !> comint.el:comint-write-input-ring.
     subroutine comint_write_input_ring()
-        use buffer_fm, only: kill_buffer, generate_new_buffer_name
+        use buffer_fm, only: close_buffer, generate_new_buffer_name
         type(handle_type) :: old, tmp
         type(status_type) :: st
         type(ring_type) :: ring
         character(len=:), allocatable :: file, separator, item, msg
         integer :: k, index
 
-        k = entry_of(cur)
+        k = entry_of(current)
         if (.not. allocated(comint_input_ring_file_name%value)) return
         if (len(comint_input_ring_file_name%value) == 0) return
         if (k == 0) return
@@ -1620,7 +1624,7 @@ contains
         ! Write it all out into a buffer first.  Much faster, but messier,
         ! than writing it one line at a time.
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
         call set_buffer(tmp, st)
 
         do while (index > 0)
@@ -1631,7 +1635,7 @@ contains
 
         call write_region(file, .false., st, message=msg)
         call set_buffer(old, st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
     end subroutine comint_write_input_ring
 
     !> Read a regexp with PROMPT: REGEXP, and the prefix argument as N.
@@ -1689,7 +1693,7 @@ contains
             return
         end if
 
-        k = entry_of(cur)
+        k = entry_of(current)
 
         if (k == 0) then
             call set_error(status, FM_USER_ERROR, "Empty input ring")
@@ -1713,7 +1717,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (comint_buffers(k)%input_ring_index < 0) return
         call comint_delete_input(status)
@@ -1756,7 +1760,7 @@ contains
         integer :: k
         logical :: leaving
 
-        k = entry_of(cur)
+        k = entry_of(current)
         leaving = .false.
 
         if (k /= 0) then
@@ -1802,7 +1806,7 @@ contains
 
         pos = -1
         status = status_type()
-        k = entry_of(cur)
+        k = entry_of(current)
 
         if (k == 0) then
             call set_error(status, FM_USER_ERROR, "No history")
@@ -1864,22 +1868,22 @@ contains
     !> Port of comint.el:comint-delete-input.
     subroutine comint_delete_input(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         integer(int64) :: from
         integer :: k
 
         status = status_type()
         from = 0
-        k = entry_of(cur)
+        k = entry_of(current)
 
         if (k /= 0) then
             if (comint_buffers(k)%local) from = marker_pos(comint_buffers(k)%accum_marker)
         end if
 
         if (from == 0) then
-            call current_process(proc, status)
+            call current_process(process, status)
             if (.not. status%ok()) return
-            from = pmark_pos(proc)
+            from = pmark_pos(process)
         end if
 
         ! Can't use kill-region as it sets this-command.
@@ -1912,7 +1916,7 @@ contains
             return
         end if
 
-        k = entry_of(cur)
+        k = entry_of(current)
         wrap = .false.
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. present(restore)) then
@@ -1930,7 +1934,7 @@ contains
         if (comint_buffers(k)%input_ring_index < 0) then
             call execute_get_old_input(old, status)
             if (.not. status%ok()) return
-            k = entry_of(cur)
+            k = entry_of(current)
             comint_buffers(k)%stored_incomplete_input = old
         end if
 
@@ -1951,7 +1955,7 @@ contains
         integer :: k
 
         item = ""
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) call comint_buffers(k)%input_ring%ref(pos, item, st)
     end subroutine comint_input_ring_ref
 
@@ -1986,7 +1990,7 @@ contains
     subroutine comint_previous_matching_input_from_input(n, status)
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         integer(int64) :: opoint, from
         integer :: k
         character(len=:), allocatable :: text
@@ -2000,9 +2004,9 @@ contains
             from = marker_pos(comint_buffers(k)%accum_marker)
 
             if (from == 0) then
-                call current_process(proc, status)
+                call current_process(process, status)
                 if (.not. status%ok()) return
-                from = pmark_pos(proc)
+                from = pmark_pos(process)
             end if
 
             call buffer_substring(from, point(), text, status)
@@ -2014,7 +2018,7 @@ contains
         call comint_previous_matching_input("^"//regexp_quote(comint_buffers(k)%matching_input_from_input_string), &
                                             n, status, .true.)
         if (.not. status%ok()) return
-        if (comint_move_point_for_matching_input%value == COMINT_MATCHING_AFTER_INPUT) call goto_char(opoint)
+        if (comint_move_point_for_matching_input%value == COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT) call goto_char(opoint)
     end subroutine comint_previous_matching_input_from_input
 
     !> Search forwards through input history for match for current input.
@@ -2065,7 +2069,7 @@ contains
     end subroutine comint_add_to_input_history
 
     !> Return an array of arguments from ARG, backwards.
-    !> Break it up at the delimiters in `comint_delimiter_argument_list'.
+    !> Break it up at the delimiters in `comint_delimiter_arguments'.
     !> Characters marked LITERAL (e.g., backslash-escaped characters) are
     !> not considered to be delimiters.  Port of comint.el:comint-delim-arg
     !> (the `literal' text property of the string as an array).
@@ -2078,7 +2082,7 @@ contains
         character :: ch
 
         delims = ""
-        if (allocated(comint_delimiter_argument_list%value)) delims = comint_delimiter_argument_list%value
+        if (allocated(comint_delimiter_arguments%value)) delims = comint_delimiter_arguments%value
 
         if (len(delims) == 0) then
             allocate (args(1))
@@ -2118,7 +2122,7 @@ contains
     !> whitespace separates arguments, except within quotes and except
     !> for a space or tab that immediately follows a backslash.  Also, a
     !> run of one or more of a single character in
-    !> `comint_delimiter_argument_list' is a separate argument.
+    !> `comint_delimiter_arguments' is a separate argument.
     !> Argument 0 is the command name.  Port of comint.el:comint-arguments.
     function comint_arguments(string, nth, mth) result(res)
         character(len=*), intent(in) :: string
@@ -2133,17 +2137,17 @@ contains
         type(process_arg_type), allocatable :: args(:), parts(:)
         logical, allocatable :: literal(:)
         type(status_type) :: st
-        integer(int64) :: idx, mb, me, b1, e1, q
-        integer :: pos, count, beg, n, m, k
-        logical :: quotes, have_beg
+        integer(int64) :: index, mb, me, b1, e1, q
+        integer :: pos, count, beginning, n, m, k
+        logical :: quotes, has_beginning
 
         allocate (args(0))
         allocate (literal(len(string)))
         literal = .false.
         pos = 1
         count = 0
-        have_beg = .false.
-        beg = 0
+        has_beginning = .false.
+        beginning = 0
         quotes = .false.
 
         ! Build a list of all the args until we have as many as we want.
@@ -2152,8 +2156,8 @@ contains
                 if (mth >= 0 .and. count > mth) exit
             end if
 
-            idx = string_match(ARGPART, string, st, start=int(pos, int64))
-            if (idx == 0) exit
+            index = string_match(ARGPART, string, st, start=int(pos, int64))
+            if (index == 0) exit
             mb = match_beginning(0, st)
             me = match_end(0, st)
             ! Apply the `literal' text property to backslash-escaped
@@ -2163,22 +2167,22 @@ contains
             if (b1 > 0) literal(b1:e1 - 1) = .true.
             q = match_beginning(2, st)
 
-            if (have_beg .and. pos == mb) then
+            if (has_beginning .and. pos == mb) then
                 ! It's contiguous, part of the same arg.
                 pos = int(me)
                 quotes = quotes .or. q > 0
             else
                 ! It's a new separate arg.
-                if (have_beg) call push_arg()
+                if (has_beginning) call prepend_current_arg()
                 count = size(args)
                 quotes = q > 0
-                beg = int(mb)
-                have_beg = .true.
+                beginning = int(mb)
+                has_beginning = .true.
                 pos = int(me)
             end if
         end do
 
-        if (have_beg) call push_arg()
+        if (has_beginning) call prepend_current_arg()
         count = size(args)
 
         if (.not. present(nth)) then
@@ -2209,18 +2213,18 @@ contains
 
     contains
 
-        subroutine push_arg()
-            character(len=:), allocatable :: str
+        subroutine prepend_current_arg()
+            character(len=:), allocatable :: piece
 
-            str = string(beg:pos - 1)
+            piece = string(beginning:pos - 1)
 
             if (quotes) then
-                call prepend_arg(args, str)
+                call prepend_arg(args, piece)
             else
-                call comint_delim_arg(str, literal(beg:pos - 1), parts)
+                call comint_delim_arg(piece, literal(beginning:pos - 1), parts)
                 args = [parts, args]
             end if
-        end subroutine push_arg
+        end subroutine prepend_current_arg
     end function comint_arguments
 
     !> Return FILENAME with environment variables substituted.
@@ -2270,16 +2274,16 @@ contains
         logical, intent(in), optional :: no_newline, artificial
         !> Send with SENDER instead of `comint_input_sender' (the binding
         !> comint-skip-input makes).
-        procedure(comint_input_sender_proc), optional :: sender
+        procedure(comint_input_sender_procedure), optional :: sender
         !> False to run no `comint_input_filter_functions' (the binding
         !> comint-skip-input makes).
         logical, intent(in), optional :: run_filters
-        type(handle_type) :: proc, pmark
+        type(handle_type) :: process, pmark
         type(value_type) :: saved, props
         type(silent_modifications_type) :: silent
         type(status_type) :: st
         character(len=:), allocatable :: intxt, input, history, copy
-        integer(int64) :: pm, beg, end, echo_len, lie, lis, start
+        integer(int64) :: pm, beginning, end, echo_len, lie, lis, start
         logical :: nonl, art, changed, got, filters, expanded
         integer :: k
 
@@ -2290,12 +2294,12 @@ contains
         filters = .true.
         if (present(run_filters)) filters = run_filters
         ! Note that the input string does not include its terminal newline.
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
         k = local_entry()
         call widen()
-        pmark = process_mark(proc)
-        pm = pmark_pos(proc)
+        pmark = process_mark(process)
+        pm = pmark_pos(process)
 
         if (point() >= pm) then
             if (comint_eol_on_send%value) then
@@ -2362,7 +2366,7 @@ contains
         end if
 
         k = local_entry()
-        beg = marker_pos(pmark)
+        beginning = marker_pos(pmark)
 
         if (nonl) then
             end = point()
@@ -2372,12 +2376,12 @@ contains
 
         call silent_modifications_begin(silent)
 
-        if (end > beg) then
+        if (end > beginning) then
             if (comint_highlight_input%value) then
                 props = list(value_type(name="font_lock_face"), value_type(name="comint_highlight_input"), &
-                             value_type(name="comint__fontify_input_inhibit_fontification"), value_type(.true.), &
+                             value_type(name="comint_fontify_input_inhibit_fontification"), value_type(.true.), &
                              value_type(name="front_sticky"), value_type(.true.))
-                call add_text_properties(beg, end, props, changed, st)
+                call add_text_properties(beginning, end, props, changed, st)
             end if
 
             if (.not. comint_use_prompt_regexp%value) then
@@ -2387,8 +2391,8 @@ contains
                 ! field to make cursor movement between input and output
                 ! fields smoother.
                 props = list(value_type(name="mouse_face"), value_type(name="highlight"), value_type(name="help_echo"), &
-                             make_str("mouse-2: insert after prompt as new input"))
-                call add_text_properties(beg, end, props, changed, st)
+                             make_string("mouse-2: insert after prompt as new input"))
+                call add_text_properties(beginning, end, props, changed, st)
             end if
         end if
 
@@ -2416,9 +2420,9 @@ contains
         comint_input_sender_no_newline = nonl
 
         if (present(sender)) then
-            call sender(proc, input, status)
+            call sender(process, input, status)
         else
-            call comint_buffers(k)%input_sender(proc, input, status)
+            call comint_buffers(k)%input_sender(process, input, status)
         end if
 
         comint_input_sender_no_newline = .false.
@@ -2433,7 +2437,7 @@ contains
 
             ! Wait for all input to be echoed.
             do while (lie + echo_len > point_max())
-                call accept_process_output(got, st, proc)
+                call accept_process_output(got, st, process)
                 if (.not. got) exit
                 if (.not. same_text(lis, point_max() - echo_len, lie, point_max())) exit
             end do
@@ -2483,13 +2487,13 @@ contains
     end subroutine comint_send_input
 
     ! Not a port.
-    function make_str(s) result(v)
+    function make_string(s) result(v)
         use lisp_fm, only: value_type
         character(len=*), intent(in) :: s
         type(value_type) :: v
 
         v = value_type(text=s)
-    end function make_str
+    end function make_string
 
     !> The command: send input to process.  The interactive form of
     !> comint.el:comint-send-input.
@@ -2509,7 +2513,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (.not. comint_buffers(k)%has_last_prompt) return
         call silent_modifications_begin(silent)
@@ -2523,7 +2527,7 @@ contains
         call forget_last_prompt(comint_buffers(k))
     end subroutine comint_snapshot_last_prompt
 
-    !> Default function for sending to PROC input STRING.
+    !> Default function for sending to PROCESS input STRING.
     !> This just sends STRING plus a newline.  To override this, set the
     !> hook `comint_input_sender'.  Port of comint.el:comint-simple-send.
     recursive subroutine comint_simple_send(process, string, status)
@@ -2580,13 +2584,13 @@ contains
     !> comint-snapshot-last-prompt in the buffer of PROCESS.  Not a port.
     subroutine snapshot_in_buffer_of(process)
         type(handle_type), intent(in) :: process
-        type(handle_type) :: old, buf
+        type(handle_type) :: old, buffer
         type(status_type) :: st
 
-        buf = process_buffer(process)
-        if (.not. is_buffer_live(buf)) return
+        buffer = process_buffer(process)
+        if (.not. is_buffer_live(buffer)) return
         old = current_buffer()
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call comint_snapshot_last_prompt()
         call set_buffer(old, st)
     end subroutine snapshot_in_buffer_of
@@ -2608,13 +2612,13 @@ contains
         integer(int64) :: opoint, lbeg, de, moved
         logical :: changed
         integer(int32) :: ch
-        logical :: have_delete_end
+        logical :: has_delete_end
 
         call copy_marker_at(point(), saved_point, .false., st)
         call goto_char(start)
         call inhibit_read_only_begin(inhibit)
         lbeg = line_beginning_position()
-        have_delete_end = .false.
+        has_delete_end = .false.
 
         ! If the preceding text is marked as "must-overwrite", record it in
         ! delete-end.
@@ -2623,7 +2627,7 @@ contains
 
             if (allocated(v%a)) then
                 call copy_marker_at(point(), delete_end, .false., st)
-                have_delete_end = .true.
+                has_delete_end = .true.
                 call remove_text_properties(lbeg, start, list(value_type(name="comint_must_overwrite"), value_type()), changed, st)
             end if
         end if
@@ -2642,11 +2646,11 @@ contains
                 if (point() > lbeg) call delete_char(-1_int64, st)
             else if (ch == 10) then
                 ! CH = LF
-                if (have_delete_end) then
+                if (has_delete_end) then
                     call marker_position(delete_end, de, st)
                     if (de < point()) call delete_region(lbeg, de, st)
-                    call free_marker(delete_end, st)
-                    have_delete_end = .false.
+                    call destroy_marker(delete_end, st)
+                    has_delete_end = .false.
                 end if
 
                 call forward_char(st, 1_int64)
@@ -2655,7 +2659,7 @@ contains
                 ! CH = CR
                 call delete_char(1_int64, st)
 
-                if (have_delete_end) then
+                if (has_delete_end) then
                     call marker_position(delete_end, de, st)
 
                     if (de < point()) then
@@ -2663,12 +2667,12 @@ contains
                     end if
                 else
                     call copy_marker_at(point(), delete_end, .false., st)
-                    have_delete_end = .true.
+                    has_delete_end = .true.
                 end if
             end if
         end do
 
-        if (have_delete_end) then
+        if (has_delete_end) then
             call marker_position(delete_end, de, st)
 
             if (de < point()) then
@@ -2681,14 +2685,14 @@ contains
                 call put_text_property(lbeg, de, value_type(name="comint_must_overwrite"), value_type(.true.), st)
             end if
 
-            call free_marker(delete_end, st)
+            call destroy_marker(delete_end, st)
         end if
 
         call widen()
         ! (save-excursion restores point.)
         call marker_position(saved_point, opoint, st)
         call goto_char(opoint)
-        call free_marker(saved_point, st)
+        call destroy_marker(saved_point, st)
         call inhibit_read_only_end(inhibit)
     end subroutine comint_carriage_motion
 
@@ -2701,7 +2705,7 @@ contains
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        type(handle_type) :: oprocbuf, saved_point, rbeg, rend, pmark
+        type(handle_type) :: old_process_buffer, saved_point, rbeg, rend, pmark
         type(value_type) :: inhibit
         type(silent_modifications_type) :: silent
         type(status_type) :: st
@@ -2712,10 +2716,10 @@ contains
         integer :: k
 
         status = status_type()
-        oprocbuf = process_buffer(process)
-        ! First check for killed buffer or no input.
-        if (.not. is_buffer_live(oprocbuf)) return
-        call set_buffer(oprocbuf, status)
+        old_process_buffer = process_buffer(process)
+        ! First check for closed buffer or no input.
+        if (.not. is_buffer_live(old_process_buffer)) return
+        call set_buffer(old_process_buffer, status)
         if (.not. status%ok()) return
         k = local_entry()
         ! Run preoutput filters.
@@ -2727,7 +2731,7 @@ contains
         call copy_marker_at(point(), saved_point, .true., st)
         ! We temporarily remove any buffer narrowing, in case the process
         ! mark is outside of the restriction.
-        narrowed = buffers(cur)%begv > 1 .or. buffers(cur)%zv < buffers(cur)%text%z
+        narrowed = buffers(current)%begv > 1 .or. buffers(current)%zv < buffers(current)%text%z
         call copy_marker_at(point_min(), rbeg, .false., st)
         call copy_marker_at(point_max(), rend, .true., st)
         call widen()
@@ -2812,35 +2816,35 @@ contains
             call narrow_to_region(marker_pos(rbeg), marker_pos(rend), st)
         end if
 
-        call free_marker(rbeg, st)
-        call free_marker(rend, st)
+        call destroy_marker(rbeg, st)
+        call destroy_marker(rend, st)
         call goto_char(marker_pos(saved_point))
-        call free_marker(saved_point, st)
+        call destroy_marker(saved_point, st)
         call inhibit_read_only_end(inhibit)
     end subroutine comint_output_filter
 
-    !> Mark the text from BEG to END as process output.  Port of
+    !> Mark the text from BEGINNING to END as process output.  Port of
     !> comint.el:comint--mark-as-output.
-    subroutine comint_mark_as_output(beg, end)
-        integer(int64), intent(in) :: beg, end
+    subroutine comint_mark_as_output(beginning, end)
+        integer(int64), intent(in) :: beginning, end
         type(silent_modifications_type) :: silent
         type(status_type) :: st
         logical :: changed
 
         call silent_modifications_begin(silent)
-        call add_text_properties(beg, end, rear_nonsticky_plist(), changed, st)
-        call add_text_properties(beg, end, list(value_type(name="front_sticky"), &
-                                                list(value_type(name="field"), &
-                                                     value_type(name="inhibit_line_move_field_capture")), &
-                                                value_type(name="field"), value_type(name="output"), &
-                                                value_type(name="inhibit_line_move_field_capture"), value_type(.true.)), changed, &
+        call add_text_properties(beginning, end, rear_nonsticky_plist(), changed, st)
+        call add_text_properties(beginning, end, list(value_type(name="front_sticky"), &
+                                                      list(value_type(name="field"), &
+                                                           value_type(name="inhibit_line_move_field_capture")), &
+                                                      value_type(name="field"), value_type(name="output"), &
+                                                 value_type(name="inhibit_line_move_field_capture"), value_type(.true.)), changed, &
                                  st)
         ! Text inserted by a user in the middle of process output should be
         ! marked as output.  (Text property hooks are not ported: the
         ! property is set as upstream sets it.)
-        call add_text_properties(beg, end, list(value_type(name="insert_in_front_hooks"), &
-                                                list(value_type(name="comint__mark_as_output"), &
-                                                     value_type(name="comint__mark_yanked_as_output"))), changed, st)
+        call add_text_properties(beginning, end, list(value_type(name="insert_in_front_hooks"), &
+                                                      list(value_type(name="comint__mark_as_output"), &
+                                                           value_type(name="comint_mark_pasted_as_output"))), changed, st)
         call silent_modifications_end(silent)
     end subroutine comint_mark_as_output
 
@@ -2912,12 +2916,12 @@ contains
         if (.not. (wp < pm)) return
 
         select case (comint_move_point_for_output%value)
-        case (COMINT_MOVE_YES, COMINT_MOVE_ALL)
+        case (COMINT_MOVE_POINT_FOR_OUTPUT_YES, COMINT_MOVE_POINT_FOR_OUTPUT_ALL)
             move = .true.
-        case (COMINT_MOVE_THIS)
+        case (COMINT_MOVE_POINT_FOR_OUTPUT_THIS)
             ! Maybe user wants point to jump to end.
             move = same_handle(window, selected_frame%selected_window)
-        case (COMINT_MOVE_OTHERS)
+        case (COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS)
             move = .not. same_handle(window, selected_frame%selected_window)
         case default
             move = .false.
@@ -2925,7 +2929,7 @@ contains
 
         if (.not. move) then
             ! If point was at the end, keep it at end.
-            k = entry_of(cur)
+            k = entry_of(current)
             los = 0
             if (k /= 0) los = marker_pos(comint_buffers(k)%last_output_start)
             move = los /= 0 .and. wp >= los
@@ -2965,14 +2969,14 @@ contains
     subroutine truncate_to(maximum, status)
         integer(int64), intent(in) :: maximum
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(value_type) :: inhibit
         integer(int64) :: opoint, shortage
 
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
         opoint = point()
-        call goto_char(pmark_pos(proc))
+        call goto_char(pmark_pos(process))
         shortage = forward_line(-maximum)
         call beginning_of_line()
         call inhibit_read_only_begin(inhibit)
@@ -2999,7 +3003,7 @@ contains
         use search_fm, only: re_search_forward, replace_match
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(status_type) :: st
         integer(int64) :: opoint, found, pm, from
         logical :: inter
@@ -3008,9 +3012,9 @@ contains
         status = status_type()
         inter = .false.
         if (present(interactive)) inter = interactive
-        proc = get_buffer_process(current_buffer())
+        process = get_buffer_process(current_buffer())
 
-        if (proc%index == 0) then
+        if (process%index == 0) then
             ! This function may be used in `comint-output-filter-functions',
             ! and in that case, if there's no process, then we should do
             ! nothing.  If interactive, report an error.
@@ -3018,9 +3022,9 @@ contains
             return
         end if
 
-        pm = pmark_pos(proc)
+        pm = pmark_pos(process)
         opoint = point()
-        k = entry_of(cur)
+        k = entry_of(current)
         from = 0
 
         if (k /= 0) then
@@ -3107,14 +3111,14 @@ contains
     !> comint.el:comint-copy-old-input.
     subroutine comint_copy_old_input(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         character(len=:), allocatable :: input
 
         call execute_get_old_input(input, status)
         if (.not. status%ok()) return
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
-        call goto_char(pmark_pos(proc))
+        call goto_char(pmark_pos(process))
         call insert(input, status)
     end subroutine comint_copy_old_input
 
@@ -3134,11 +3138,11 @@ contains
     !> Return true if point is after the process output marker.  Port of
     !> comint.el:comint-after-pmark-p.
     logical function is_comint_after_pmark()
-        type(handle_type) :: proc
+        type(handle_type) :: process
 
         is_comint_after_pmark = .false.
-        proc = get_buffer_process(current_buffer())
-        if (proc%index /= 0) is_comint_after_pmark = pmark_pos(proc) <= point()
+        process = get_buffer_process(current_buffer())
+        if (process%index /= 0) is_comint_after_pmark = pmark_pos(process) <= point()
     end function is_comint_after_pmark
 
     !> Return the buffer position of the beginning of the line, after any
@@ -3209,38 +3213,38 @@ contains
     ! ------------------------------------------------------------------
 
     !> Delete all output from interpreter since last input.
-    !> If KILL (interactively, the prefix), save the killed text in the
-    !> kill ring.
+    !> If KILL (interactively, the prefix), save the cut text in the
+    !> clipboard history.
     !>
     !> This command does not delete the prompt.  Port of
     !> comint.el:comint-delete-output.
     recursive subroutine comint_delete_output(status, kill)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: kill
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(value_type) :: inhibit
         type(status_type) :: st
         character(len=:), allocatable :: replacement, prompt
         integer(int64) :: opoint, pm, lie, shortage
         integer :: k
 
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
         k = local_entry()
         call inhibit_read_only_begin(inhibit)
         opoint = point()
-        call goto_char(pmark_pos(proc))
+        call goto_char(pmark_pos(process))
         shortage = forward_line(0_int64)
         pm = point()
         lie = marker_pos(comint_buffers(k)%last_input_end)
 
         if (present(kill)) then
-            if (kill) call copy_region_as_kill(lie, pm, st)
+            if (kill) call copy_region_quietly(lie, pm, st)
         end if
 
         call delete_region(lie, pm, st)
         pm = lie
-        call goto_char(pmark_pos(proc))
+        call goto_char(pmark_pos(process))
         call buffer_substring(pm, point(), prompt, st)
         replacement = "*** output flushed ***"//achar(10)//prompt
         call delete_region(pm, point(), st)
@@ -3253,7 +3257,7 @@ contains
 
         call inhibit_read_only_end(inhibit)
         ! Output message and put back prompt.
-        call comint_output_filter(proc, replacement, status)
+        call comint_output_filter(process, replacement, status)
     end subroutine comint_delete_output
 
     !> The command: with a prefix argument, kill the output.
@@ -3276,7 +3280,7 @@ contains
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: append
-        type(handle_type) :: proc
+        type(handle_type) :: process
         integer(int64) :: opoint, shortage, e
         character(len=:), allocatable :: msg
         integer :: k
@@ -3288,11 +3292,11 @@ contains
             end if
         end if
 
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
         k = local_entry()
         opoint = point()
-        call goto_char(pmark_pos(proc))
+        call goto_char(pmark_pos(process))
         shortage = forward_line(0_int64)
         e = point()
         call goto_char(opoint)
@@ -3343,7 +3347,7 @@ contains
         status = status_type()
         call push_mark()
         pos = 0
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) pos = marker_pos(comint_buffers(k)%last_input_end)
         if (pos == 0) pos = point_max()
 
@@ -3375,15 +3379,15 @@ contains
         call interrupt_process(status, current_group=is_comint_pty())
     end subroutine comint_interrupt_subjob
 
-    !> Send kill signal to the current subjob.  Port of
-    !> comint.el:comint-kill-subjob.
-    recursive subroutine comint_kill_subjob(status)
+    !> Send stop signal to the current subjob.  Port of
+    !> comint.el:comint-stop-subjob.
+    recursive subroutine comint_stop_subjob(status)
         type(status_type), intent(out) :: status
 
         call comint_skip_input(status)
         if (.not. status%ok()) return
-        call kill_process(status, current_group=is_comint_pty())
-    end subroutine comint_kill_subjob
+        call stop_process(status, current_group=is_comint_pty())
+    end subroutine comint_stop_subjob
 
     !> Send quit signal to the current subjob.  Port of
     !> comint.el:comint-quit-subjob.
@@ -3402,7 +3406,7 @@ contains
     !> comint.el:comint-skip-input.
     recursive subroutine comint_skip_input(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc, marker
+        type(handle_type) :: process, marker
         type(value_type) :: inhibit
         type(status_type) :: st
         integer(int64) :: pos
@@ -3412,9 +3416,9 @@ contains
         if (.not. status%ok()) return
         call end_of_line()
         pos = point()
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
-        marker = process_mark(proc)
+        marker = process_mark(process)
         call inhibit_read_only_begin(inhibit)
         keys = ""
         if (allocated(this_command_keys)) keys = key_description(this_command_keys)
@@ -3423,18 +3427,18 @@ contains
         call inhibit_read_only_end(inhibit)
     end subroutine comint_skip_input
 
-    !> Kill all text from last stuff output by interpreter to point.  Port of
+    !> Cut all text from last stuff output by interpreter to point.  Port of
     !> comint.el:comint-kill-input.
-    subroutine comint_kill_input(status)
+    subroutine comint_cut_input(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         integer(int64) :: pm
 
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
-        pm = pmark_pos(proc)
-        if (point() > pm) call kill_region(pm, point(), status)
-    end subroutine comint_kill_input
+        pm = pmark_pos(process)
+        if (point() > pm) call cut_region(pm, point(), status)
+    end subroutine comint_cut_input
 
     !> Behave like the global binding or send an EOF to subprocess.
     !> Sends an EOF only if point is at the end of the buffer and there is
@@ -3443,13 +3447,13 @@ contains
         use keymap_fm, only: is_keymap
         use lisp_fm, only: make_keymap_ref, value_type
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(value_type) :: cmd, remap
         logical :: eof
 
-        proc = get_buffer_process(current_buffer())
+        process = get_buffer_process(current_buffer())
         eof = .false.
-        if (is_eob() .and. proc%index /= 0) eof = point() == pmark_pos(proc)
+        if (is_eob() .and. process%index /= 0) eof = point() == pmark_pos(process)
 
         if (eof) then
             call comint_send_eof(status)
@@ -3557,15 +3561,15 @@ contains
         integer, intent(in) :: n_in
         character(len=:), allocatable :: saved
         integer(int64) :: pos, input_pos, prev_pos, left
-        logical :: have_saved, have_input
+        logical :: has_saved, has_input
         integer :: n
 
         n = n_in
 
         if (comint_use_prompt_regexp%value) then
             ! Use comint-prompt-regexp.
-            have_saved = allocated(paragraph_start%value)
-            if (have_saved) saved = paragraph_start%value
+            has_saved = allocated(paragraph_start%value)
+            if (has_saved) saved = paragraph_start%value
             paragraph_start%value = comint_prompt_regexp%value
 
             if (n > 0) then
@@ -3577,7 +3581,7 @@ contains
             left = forward_paragraph(int(n, int64))
             call comint_skip_prompt()
 
-            if (have_saved) then
+            if (has_saved) then
                 paragraph_start%value = saved
             else
                 deallocate (paragraph_start%value)
@@ -3585,7 +3589,7 @@ contains
         else
             ! Use input fields.
             pos = point()
-            have_input = .false.
+            has_input = .false.
             input_pos = 0
 
             do while (n /= 0)
@@ -3603,7 +3607,7 @@ contains
                         ! There's always an input field at the end of the
                         ! buffer, but it has a `field' property of nil.
                         input_pos = point_max()
-                        have_input = .true.
+                        has_input = .true.
                     end if
 
                     ! Stop iterating.
@@ -3616,11 +3620,11 @@ contains
                     end if
 
                     input_pos = pos
-                    have_input = .true.
+                    has_input = .true.
                 end if
             end do
 
-            if (have_input) call goto_char(input_pos)
+            if (has_input) call goto_char(input_pos)
         end if
     end subroutine comint_next_prompt
 
@@ -3698,15 +3702,15 @@ contains
         end if
     end function front_sticky_read_only
 
-    !> Kill current line, ignoring read-only and field properties.
-    !> With prefix arg COUNT, kill that many lines starting from the
-    !> current line.  If COUNT is negative, kill backward.  Also kill the
+    !> Cut current line, ignoring read-only and field properties.
+    !> With prefix arg COUNT, cut that many lines starting from the
+    !> current line.  If COUNT is negative, cut backward.  Also cut the
     !> preceding newline, instead of the trailing one.
-    !> If COUNT is zero, kill current line but exclude the trailing
+    !> If COUNT is zero, cut current line but exclude the trailing
     !> newline.  The read-only status of newlines is updated with
     !> `comint_update_fence', if necessary.  Port of
     !> comint.el:comint-kill-whole-line.
-    subroutine comint_kill_whole_line(count, status)
+    subroutine comint_cut_whole_line(count, status)
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
         type(value_type) :: inhibit
@@ -3715,13 +3719,13 @@ contains
         call inhibit_read_only_begin(inhibit)
         saved = inhibit_field_text_motion
         inhibit_field_text_motion = .true.
-        call kill_whole_line(count, status)
+        call cut_whole_line(count, status)
         if (count >= 0) call comint_update_fence()
         inhibit_field_text_motion = saved
         call inhibit_read_only_end(inhibit)
-    end subroutine comint_kill_whole_line
+    end subroutine comint_cut_whole_line
 
-    !> Like `kill_region', but ignore read-only properties, if safe.
+    !> Like `cut_region', but ignore read-only properties, if safe.
     !> This command assumes that the buffer contains read-only "prompts"
     !> which are regions with front-sticky read-only properties at the
     !> beginning of a line, with the preceding newline being read-only to
@@ -3731,26 +3735,26 @@ contains
     !> is, if any part of a prompt is deleted, the entire prompt must be
     !> deleted and all remaining prompts should stay at the beginning of a
     !> line.  If this is not the case, this command just calls
-    !> `kill_region' with all read-only properties intact.  The read-only
+    !> `cut_region' with all read-only properties intact.  The read-only
     !> status of newlines is updated using `comint_update_fence', if
     !> necessary.  Port of comint.el:comint-kill-region.
-    subroutine comint_kill_region(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine comint_cut_region(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         type(value_type) :: inhibit, lst, ro
         type(status_type) :: st
-        integer(int64) :: opoint, true_beg, true_end
-        logical :: beg_is_bol, end_is_bol, beg_bad, end_bad
+        integer(int64) :: opoint, true_beginning, true_end
+        logical :: beginning_is_bol, end_is_bol, beginning_bad, end_bad
 
         opoint = point()
-        true_beg = min(beg, end)
-        true_end = max(beg, end)
-        call goto_char(true_beg)
-        beg_is_bol = is_bol()
-        call get_text_property(true_beg, value_type(name="front_sticky"), lst, st)
-        call get_text_property(true_beg, value_type(name="read_only"), ro, st)
-        beg_bad = .false.
-        if (allocated(ro%a)) beg_bad = front_sticky_read_only(lst)
+        true_beginning = min(beginning, end)
+        true_end = max(beginning, end)
+        call goto_char(true_beginning)
+        beginning_is_bol = is_bol()
+        call get_text_property(true_beginning, value_type(name="front_sticky"), lst, st)
+        call get_text_property(true_beginning, value_type(name="read_only"), ro, st)
+        beginning_bad = .false.
+        if (allocated(ro%a)) beginning_bad = front_sticky_read_only(lst)
         call goto_char(true_end)
         end_is_bol = is_bol()
         call get_text_property(true_end, value_type(name="front_sticky"), lst, st)
@@ -3759,17 +3763,17 @@ contains
         if (allocated(ro%a)) end_bad = front_sticky_read_only(lst)
         call goto_char(opoint)
 
-        if ((.not. beg_is_bol .and. (beg_bad .or. end_bad)) .or. (.not. end_is_bol .and. end_bad)) then
-            call kill_region(beg, end, status)
+        if ((.not. beginning_is_bol .and. (beginning_bad .or. end_bad)) .or. (.not. end_is_bol .and. end_bad)) then
+            call cut_region(beginning, end, status)
         else
             call inhibit_read_only_begin(inhibit)
-            call kill_region(beg, end, status)
+            call cut_region(beginning, end, status)
             opoint = point()
             call comint_update_fence()
             call goto_char(opoint)
             call inhibit_read_only_end(inhibit)
         end if
-    end subroutine comint_kill_region
+    end subroutine comint_cut_region
 
     !> After fetching a line from input history, this fetches the following
     !> line.  In other words, this recalls the input line after the line
@@ -3780,7 +3784,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = entry_of(cur)
+        k = entry_of(current)
 
         if (k /= 0) then
             if (comint_buffers(k)%save_input_ring_index >= 0) then
@@ -3801,7 +3805,7 @@ contains
     !> comint.el:comint-accumulate.
     subroutine comint_accumulate(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(value_type) :: inhibit
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -3810,10 +3814,10 @@ contains
 
         status = status_type()
         k = local_entry()
-        proc = get_buffer_process(current_buffer())
+        process = get_buffer_process(current_buffer())
 
-        if (proc%index /= 0) then
-            pm = pmark_pos(proc)
+        if (process%index /= 0) then
+            pm = pmark_pos(process)
             am = marker_pos(comint_buffers(k)%accum_marker)
 
             if (am == 0) then
@@ -3851,11 +3855,11 @@ contains
     subroutine comint_goto_process_mark(status, interactive)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
-        type(handle_type) :: proc
+        type(handle_type) :: process
 
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
-        call goto_char(pmark_pos(proc))
+        call goto_char(pmark_pos(process))
 
         if (present(interactive)) then
             if (interactive) call message("Point is now at the process mark")
@@ -3896,12 +3900,12 @@ contains
     !> comint.el:comint-set-process-mark.
     subroutine comint_set_process_mark(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(status_type) :: st
 
-        call current_process(proc, status)
+        call current_process(process, status)
         if (.not. status%ok()) return
-        call set_marker(process_mark(proc), point(), st)
+        call set_marker(process_mark(process), point(), st)
         call message("Process mark set")
     end subroutine comint_set_process_mark
 
@@ -4008,22 +4012,22 @@ contains
         call comint_bol(current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_comint_bol
 
-    !> Kill current line, ignoring read-only and field properties.
-    subroutine cmd_comint_kill_whole_line(status)
+    !> Cut current line, ignoring read-only and field properties.
+    subroutine cmd_comint_cut_whole_line(status)
         type(status_type), intent(out) :: status
 
-        call comint_kill_whole_line(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_comint_kill_whole_line
+        call comint_cut_whole_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_comint_cut_whole_line
 
-    !> Like `kill_region', but ignore read-only properties, if safe.
-    subroutine cmd_comint_kill_region(status)
+    !> Like `cut_region', but ignore read-only properties, if safe.
+    subroutine cmd_comint_cut_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
-        call comint_kill_region(b, e, status)
-    end subroutine cmd_comint_kill_region
+        call comint_cut_region(b, e, status)
+    end subroutine cmd_comint_cut_region
 
     !> Append output from interpreter since last input to FILENAME.
     subroutine cmd_comint_append_output_to_file(status)
@@ -4048,7 +4052,7 @@ contains
         integer :: k
 
         item = ""
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (.not. comint_buffers(k)%has_ring) return
 
@@ -4064,7 +4068,7 @@ contains
         integer :: k
 
         ring_length = 0
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (comint_buffers(k)%has_ring) ring_length = comint_buffers(k)%input_ring%count()
     end function ring_length
@@ -4083,28 +4087,28 @@ contains
         integer :: k
 
         input_ring_index = -1
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k > 0) input_ring_index = comint_buffers(k)%input_ring_index
     end function input_ring_index
 
-    !> Return true if the number of quotes between BEG and END is odd.
+    !> Return true if the number of quotes between BEGINNING and END is odd.
     !> Quotes are single and double.  Port of
     !> comint.el:comint-within-quotes.
-    logical function comint_within_quotes(beg, end)
-        integer(int64), intent(in) :: beg, end
+    logical function comint_within_quotes(beginning, end)
+        integer(int64), intent(in) :: beginning, end
         integer :: countsq, countdq
 
-        countsq = comint_how_many_region("\(^\|[^\]\)'", beg, end)
-        countdq = comint_how_many_region("\(^\|[^\]\)""", beg, end)
+        countsq = comint_how_many_region("\(^\|[^\]\)'", beginning, end)
+        countdq = comint_how_many_region("\(^\|[^\]\)""", beginning, end)
         comint_within_quotes = modulo(countsq, 2) == 1 .or. modulo(countdq, 2) == 1
     end function comint_within_quotes
 
-    !> Return number of matches for REGEXP from BEG to END.  Port of
+    !> Return number of matches for REGEXP from BEGINNING to END.  Port of
     !> comint.el:comint-how-many-region.
-    integer function comint_how_many_region(regexp, beg, end) result(count)
+    integer function comint_how_many_region(regexp, beginning, end) result(count)
         use search_fm, only: re_search_forward, match_data, set_match_data
         character(len=*), intent(in) :: regexp
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         integer(int64), allocatable :: saved(:)
         type(status_type) :: st
         integer(int64) :: opoint, pos
@@ -4112,7 +4116,7 @@ contains
         count = 0
         opoint = point()
         saved = match_data()
-        call goto_char(beg)
+        call goto_char(beginning)
 
         do
             call re_search_forward(regexp, pos, st, bound=end, noerror=SEARCH_NOERROR)
@@ -4223,13 +4227,13 @@ contains
         char_after_is = s == c
     end function char_after_is
 
-    ! Whether REGEXP matches STR (without changing the match data).
+    ! Whether REGEXP matches STRING (without changing the match data).
     ! Not a port.
-    logical function smatch(regexp, str)
-        character(len=*), intent(in) :: regexp, str
+    logical function smatch(regexp, string)
+        character(len=*), intent(in) :: regexp, string
         type(status_type) :: st
 
-        smatch = string_match(regexp, str, st, inhibit_modify=.true.) > 0
+        smatch = string_match(regexp, string, st, inhibit_modify=.true.) > 0
     end function smatch
 
     !> Expand input command history references before point.
@@ -4266,9 +4270,9 @@ contains
         done = .false.
         if (.not. has_history_references(silent, start)) return
         ! Looks like there might be history references in the command.
-        tick = buffers(cur)%text%modiff
+        tick = buffers(current)%text%modiff
         call comint_replace_by_expanded_history_before_point(silent, status, start)
-        done = tick /= buffers(cur)%text%modiff
+        done = tick /= buffers(current)%text%modiff
     end function comint_replace_by_expanded_history
 
     ! Whether there are input command history references at point to
@@ -4324,7 +4328,7 @@ contains
         character(len=:), allocatable :: exp, pref, old, new, input
         type(status_type) :: st
         type(handle_type) :: opoint
-        integer(int64) :: toend, beg, moved, mb1, me1, mb2, me2, mb4, me4, pos, mb0, me0
+        integer(int64) :: toend, beginning, moved, mb1, me1, mb2, me2, mb4, me4, pos, mb0, me0
         integer :: number, hpos
         logical :: quiet, dry, matched, found
 
@@ -4338,12 +4342,12 @@ contains
         toend = line_end_position() - point()
 
         if (present(start)) then
-            beg = start
+            beginning = start
         else
-            beg = comint_line_beginning_position()
+            beginning = comint_line_beginning_position()
         end if
 
-        call goto_char(beg)
+        call goto_char(beginning)
 
         do
             moved = skip_chars_forward("^!^", st, line_end_position() - toend)
@@ -4356,7 +4360,7 @@ contains
             ! with plings, with the range string to `comint-args'.
             call set_input_ring_index(-1)
 
-            if (char_after_is(point() - 1, "\") .or. comint_within_quotes(beg, point())) then
+            if (char_after_is(point() - 1, "\") .or. comint_within_quotes(beginning, point())) then
                 ! The history is quoted, or we're in quotes.
                 call goto_char(point() + 1)
             else if (looking_at("![0-9]+\($\|[^-]\)", st)) then
@@ -4384,7 +4388,7 @@ contains
                     call replace_match(comint_args(comint_previous_input_string(number), mb2, me2), st, &
                                        fixedcase=.true., literal=.true.)
                     call set_input_ring_index(number)
-                    call message("History item: "//int_str(number + 1))
+                    call message("History item: "//int_string(number + 1))
                 else
                     call goto_char(match_end(0, st))
                     call message("Relative reference exceeds input history size")
@@ -4443,7 +4447,7 @@ contains
                     call set_input_ring_index(hpos)
                     call comint_input_ring_ref(hpos, input)
                     call replace_match(comint_args(input, mb4, me4), st, fixedcase=.true., literal=.true.)
-                    call message("History item: "//int_str(hpos + 1))
+                    call message("History item: "//int_string(hpos + 1))
                 end if
             else if (looking_at("\^\([^^]+\)\^?\([^^]*\)\^?", st)) then
                 ! Quick substitution on the previous input line.
@@ -4475,7 +4479,7 @@ contains
         end do
 
         call goto_char(marker_pos(opoint))
-        call free_marker(opoint, st)
+        call destroy_marker(opoint, st)
 
     contains
 
@@ -4518,14 +4522,14 @@ contains
     end subroutine search_forward
 
     ! N as decimal digits.  Not a port.
-    function int_str(n) result(s)
+    function int_string(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=16) :: buf
+        character(len=16) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
-    end function int_str
+        write (buffer, "(i0)") n
+        s = trim(buffer)
+    end function int_string
 
     !> Expand input history references before point and insert ARG
     !> spaces.  A useful command to bind to SPC.  See
@@ -4571,24 +4575,24 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: input_string
         type(status_type) :: st
-        integer :: k, idx
+        integer :: k, argument_index
         logical :: has
 
         status = status_type()
         k = local_entry()
-        idx = index
+        argument_index = index
         has = has_index
 
         if (associated(last_command, this_command)) then
             ! Delete last input inserted by this command.
             call delete_region(marker_pos(comint_buffers(k)%insert_previous_argument_last_start_pos), point(), st)
-            idx = comint_buffers(k)%insert_previous_argument_last_index
+            argument_index = comint_buffers(k)%insert_previous_argument_last_index
             has = comint_buffers(k)%has_insert_previous_argument_last_index
         else
             ! This is a non-repeat invocation, so initialize state.
-            if (has .and. comint_insert_previous_argument_from_end%value) idx = -idx
+            if (has .and. comint_insert_previous_argument_from_end%value) argument_index = -argument_index
             comint_buffers(k)%input_ring_index = -1
-            comint_buffers(k)%insert_previous_argument_last_index = idx
+            comint_buffers(k)%insert_previous_argument_last_index = argument_index
             comint_buffers(k)%has_insert_previous_argument_last_index = has
 
             ! First usage; initialize to a marker
@@ -4612,7 +4616,7 @@ contains
         input_string = comint_previous_input_string(0)
 
         if (has) then
-            call insert(comint_arguments(input_string, idx, idx), st)
+            call insert(comint_arguments(input_string, argument_index, argument_index), st)
         else
             call insert(comint_arguments(input_string), st)
         end if
@@ -4687,7 +4691,7 @@ contains
         call isearch_message_function%set_local(comint_history_isearch_message)
         call isearch_wrap_function%set_local(comint_history_isearch_wrap)
         call isearch_push_state_function%set_local(comint_history_isearch_push_state)
-        call isearch_mode_end_hook%add(comint_history_isearch_end, local=.true.)
+        call isearch_mode_end_hook%append(comint_history_isearch_end, local=.true.)
     end subroutine comint_history_isearch_setup
 
     !> Clean up the comint after terminating Isearch in comint.  Port of
@@ -4705,10 +4709,10 @@ contains
         end if
 
         if (allocated(isearch_message_prefix_add)) deallocate (isearch_message_prefix_add)
-        call isearch_search_fun_function%kill_local()
-        call isearch_message_function%kill_local()
-        call isearch_wrap_function%kill_local()
-        call isearch_push_state_function%kill_local()
+        call isearch_search_fun_function%clear_local()
+        call isearch_message_function%clear_local()
+        call isearch_wrap_function%clear_local()
+        call isearch_push_state_function%clear_local()
         ! Force isearch to not change mark.
         call set_isearch_opoint(point())
         call isearch_mode_end_hook%remove(comint_history_isearch_end, local=.true.)
@@ -4754,7 +4758,7 @@ contains
     !> Return the proper search function, for Isearch in input history.
     !> Port of comint.el:comint-history-isearch-search.
     recursive subroutine comint_history_isearch_search(fn)
-        procedure(isearch_search_proc), pointer, intent(out) :: fn
+        procedure(isearch_search_procedure), pointer, intent(out) :: fn
 
         fn => history_search
     end subroutine comint_history_isearch_search
@@ -4767,8 +4771,8 @@ contains
         logical, intent(in) :: noerror
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
-        procedure(isearch_search_proc), pointer :: search_fun
-        type(handle_type) :: proc
+        procedure(isearch_search_procedure), pointer :: search_fun
+        type(handle_type) :: process
         type(status_type) :: st
         logical :: found
 
@@ -4780,8 +4784,8 @@ contains
         ! output when searching forward.  Lazy-highlight calls this lambda
         ! with the bound arg, so skip the prompt and the output.
         if (bound > 0 .and. isearch_forward .and. .not. is_comint_after_pmark()) then
-            call current_process(proc, st)
-            if (st%ok()) call goto_char(pmark_pos(proc))
+            call current_process(process, st)
+            if (st%ok()) call goto_char(pmark_pos(process))
         end if
 
         ! 1. First try searching in the initial comint text
@@ -4873,11 +4877,11 @@ contains
         end if
 
         call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "display", &
-                         make_str(isearch_message_prefix(isearch_nonincremental, ellipsis)), st)
+                         make_string(isearch_message_prefix(isearch_nonincremental, ellipsis)), st)
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
             ! Display the current history index.
-            call message("History item: "//int_str(comint_buffers(k)%input_ring_index + 1))
+            call message("History item: "//int_string(comint_buffers(k)%input_ring_index + 1))
         else
             ! Or clear a previous isearch message.
             call message("")
@@ -4909,9 +4913,9 @@ contains
     !> comint.el:comint-history-isearch-push-state.
     recursive subroutine comint_history_isearch_push_state(data, pop)
         character(len=:), allocatable, intent(out) :: data
-        procedure(isearch_pop_proc), pointer, intent(out) :: pop
+        procedure(isearch_pop_procedure), pointer, intent(out) :: pop
 
-        data = int_str(input_ring_index())
+        data = int_string(input_ring_index())
         pop => comint_history_isearch_pop_state
     end subroutine comint_history_isearch_push_state
 
@@ -4936,7 +4940,7 @@ contains
     !> Movement occurs if point in the selected window is not after the
     !> process mark, and `this_command' is an insertion command.
     !> Insertion commands recognized are `self_insert_command',
-    !> `comint_magic_space', `yank', and `hilit_yank'.  Depends on the
+    !> `comint_magic_space', `paste', and `hilit_paste'.  Depends on the
     !> value of `comint_scroll_to_bottom_on_input'.
     !>
     !> This function should be a pre-command hook.  Port of
@@ -4949,16 +4953,16 @@ contains
 
         status = status_type()
         scroll = int(comint_scroll_to_bottom_on_input%value)
-        if (scroll == COMINT_SCROLL_ON_INPUT_NO) return
+        if (scroll == COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO) return
         ! (Upstream's list also has hilit-yank, which is not ported.)
         if (.not. (associated(this_command, commands%self_insert_command) .or. &
-                   associated(this_command, commands%comint_magic_space) .or. associated(this_command, commands%yank))) return
+                   associated(this_command, commands%comint_magic_space) .or. associated(this_command, commands%paste))) return
         current = current_buffer()
         process = get_buffer_process(current)
         if (process%index == 0) return
         if (point() >= pmark_pos(process)) return
 
-        if (scroll == COMINT_SCROLL_ON_INPUT_THIS) then
+        if (scroll == COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS) then
             call goto_char(point_max())
         else
             call window_leaves(selected_frame%root_window, leaves)
@@ -4980,13 +4984,13 @@ contains
     !> do this, use \[comint_continue_subjob] to resume the process.
     !> (This is not a problem with most shells, since they ignore this
     !> signal.)  Port of comint.el:comint-stop-subjob.
-    recursive subroutine comint_stop_subjob(status)
+    recursive subroutine comint_suspend_subjob(status)
         type(status_type), intent(out) :: status
 
         call comint_skip_input(status)
         if (.not. status%ok()) return
-        call stop_process(status, current_group=is_comint_pty())
-    end subroutine comint_stop_subjob
+        call suspend_process(status, current_group=is_comint_pty())
+    end subroutine comint_suspend_subjob
 
     !> Send CONT signal to process buffer's process group.
     !> Useful if you accidentally suspend the top-level process.  Port of
@@ -5004,9 +5008,9 @@ contains
     !> The default value of `comint_password_prompt_regexp', made from
     !> `password_word_equivalents' and `password_colon_equivalents'.
     !> Port of the value of comint.el comint-password-prompt-regexp.
-    function comint_password_prompt_regexp_default() result(re)
-        character(len=:), allocatable :: re
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+    function comint_password_prompt_regexp_default() result(regexp)
+        character(len=:), allocatable :: regexp
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         character(len=:), allocatable :: colons
         type(status_type) :: st
         integer(int32) :: nbytes
@@ -5015,39 +5019,39 @@ contains
         colons = ""
 
         do i = 1, size(password_colon_equivalents)
-            call char_string(password_colon_equivalents(i), buf, nbytes, st)
-            colons = colons//buf(1:nbytes)
+            call char_string(password_colon_equivalents(i), buffer, nbytes, st)
+            colons = colons//buffer(1:nbytes)
         end do
 
-        re = "\(^ *\|"// &
-             regexp_opt([character(len=24) :: "Enter", "enter", "Enter same", "enter same", "Enter the", "enter the", &
-                         "Current", &
-                         ! Ansible.  (Bug#78442)
-                         "Vault", "SSH", "BECOME", &
-                         "Enter Auth", "enter auth", "Old", "old", "New", "new", "login", &
-                         "Kerberos", "CVS", "UNIX", " SMB", "LDAP", "PEM", "SUDO", &
-                         "[sudo]", "[sudo: authenticate]", "[su: authenticate]", &
-                         "doas", "Repeat", "Bad", "Retype", "Verify"], REGEXP_OPT_GROUP)// &
-             ! Allow for user name to precede password equivalent
-             ! (Bug#31075).
-             " +.*\)"// &
-             "\(?:"//regexp_opt(password_word_equivalents)//"\|Response\)"// &
-             "\(?:\(?:, try\)? *again\| (empty for no passphrase)\| (again)\)?"// &
-             ! "[[:alpha:]]" used to be "for", which fails to match
-             ! non-English.
-             "\(?: [[:alpha:]]+ .+\)?[[:blank:]]*"// &
-             "["//colons//"][[:space:]]*\'"// &
-             ! The ccrypt encryption dialog doesn't end with a colon, so
-             ! treat it specially.
-             "\|^Enter encryption key: (repeat) *\'"// &
-             ! Ansible.  The vault-id syntax is a guess.  (Bug#78442)
-             "\|^Vault password ([^@-][^@]*): \'"// &
-             ! Default openssh format: "user@host's password:".
-             "\|^[^@ "//achar(9)//achar(10)//"]+@[^@ "//achar(9)//achar(10)//"]+'s password: *\'"// &
-             ! openssh-8.6p1 format: "(user@host) Password:".
-             ! "(user@host) Password for user@host:"  (Bug#79424)
-             "\|^([^)@ "//achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+) Password\(?: for [^)@ "// &
-             achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+\)?: *\'"
+        regexp = "\(^ *\|"// &
+                 regexp_opt([character(len=24) :: "Enter", "enter", "Enter same", "enter same", "Enter the", "enter the", &
+                             "Current", &
+                             ! Ansible.  (Bug#78442)
+                             "Vault", "SSH", "BECOME", &
+                             "Enter Auth", "enter auth", "Old", "old", "New", "new", "login", &
+                             "Kerberos", "CVS", "UNIX", " SMB", "LDAP", "PEM", "SUDO", &
+                             "[sudo]", "[sudo: authenticate]", "[su: authenticate]", &
+                             "doas", "Repeat", "Bad", "Retype", "Verify"], REGEXP_OPT_GROUP)// &
+                 ! Allow for user name to precede password equivalent
+                 ! (Bug#31075).
+                 " +.*\)"// &
+                 "\(?:"//regexp_opt(password_word_equivalents)//"\|Response\)"// &
+                 "\(?:\(?:, try\)? *again\| (empty for no passphrase)\| (again)\)?"// &
+                 ! "[[:alpha:]]" used to be "for", which fails to match
+                 ! non-English.
+                 "\(?: [[:alpha:]]+ .+\)?[[:blank:]]*"// &
+                 "["//colons//"][[:space:]]*\'"// &
+                 ! The ccrypt encryption dialog doesn't end with a colon, so
+                 ! treat it specially.
+                 "\|^Enter encryption key: (repeat) *\'"// &
+                 ! Ansible.  The vault-id syntax is a guess.  (Bug#78442)
+                 "\|^Vault password ([^@-][^@]*): \'"// &
+                 ! Default openssh format: "user@host's password:".
+                 "\|^[^@ "//achar(9)//achar(10)//"]+@[^@ "//achar(9)//achar(10)//"]+'s password: *\'"// &
+                 ! openssh-8.6p1 format: "(user@host) Password:".
+                 ! "(user@host) Password for user@host:"  (Bug#79424)
+                 "\|^([^)@ "//achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+) Password\(?: for [^)@ "// &
+                 achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+\)?: *\'"
     end function comint_password_prompt_regexp_default
 
     !> Read a password with PROMPT (obsolete: use `read_passwd').  Port of
@@ -5069,8 +5073,8 @@ contains
     recursive subroutine comint_send_invisible(status, prompt)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: prompt
-        type(handle_type) :: proc, wbuf
-        character(len=:), allocatable :: prefix, prefix_prompt, str
+        type(handle_type) :: process, wbuf
+        character(len=:), allocatable :: prefix, prefix_prompt, string
         integer :: k
         logical :: found
 
@@ -5080,13 +5084,13 @@ contains
         if (same_handle(wbuf, current_buffer())) then
             prefix = ""
         else
-            prefix = "(In buffer "//buffers(cur)%name//") "
+            prefix = "(In buffer "//buffers(current)%name//") "
         end if
 
-        proc = get_buffer_process(current_buffer())
+        process = get_buffer_process(current_buffer())
 
-        if (proc%index == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Buffer "//buffers(cur)%name//" has no process")
+        if (process%index == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Buffer "//buffers(current)%name//" has no process")
             return
         end if
 
@@ -5100,18 +5104,18 @@ contains
         k = local_entry()
 
         if (associated(comint_buffers(k)%password_function)) then
-            call comint_buffers(k)%password_function(prefix_prompt, str, found)
+            call comint_buffers(k)%password_function(prefix_prompt, string, found)
         end if
 
         if (.not. found) then
-            call read_passwd(prefix_prompt, str, status)
+            call read_passwd(prefix_prompt, string, status)
             found = status%ok()
         end if
 
         if (found) then
             call comint_snapshot_last_prompt()
             k = local_entry()
-            call comint_buffers(k)%input_sender(proc, str, status)
+            call comint_buffers(k)%input_sender(process, string, status)
         else
             call message("Warning: text will be echoed")
             status = status_type()
@@ -5244,7 +5248,7 @@ contains
     recursive subroutine send_pending_password(status)
         type(status_type), intent(out) :: status
         type(pending_prompt_type) :: p
-        type(handle_type) :: old, proc
+        type(handle_type) :: old, process
         type(status_type) :: st
 
         status = status_type()
@@ -5260,8 +5264,8 @@ contains
         if (comint_prompt_recursion_depth > 10) then
             call message("Password prompt recursion too deep")
         else
-            proc = get_buffer_process(current_buffer())
-            if (proc%index /= 0) call comint_send_invisible(status, p%prompt)
+            process = get_buffer_process(current_buffer())
+            if (process%index /= 0) call comint_send_invisible(status, p%prompt)
         end if
 
         comint_prompt_recursion_depth = comint_prompt_recursion_depth - 1
@@ -5280,14 +5284,14 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: elems(:)
         type(completion_table_type) :: table
-        procedure(cir_predicate_proc), pointer :: saved_pred
+        procedure(cir_test_procedure), pointer :: saved_test
         character(len=:), allocatable :: item
         type(status_type) :: st
         integer :: k, i, n
         logical :: res
 
         status = status_type()
-        k = entry_of(cur)
+        k = entry_of(current)
         n = 0
 
         if (k /= 0) then
@@ -5308,14 +5312,14 @@ contains
 
         table = completion_list_table(make_list(elems), "comint_input")
         table%unsorted = .true.
-        saved_pred => completion_in_region_mode_predicate
-        completion_in_region_mode_predicate => completions_shown
+        saved_test => completion_in_region_mode_test_function
+        completion_in_region_mode_test_function => completions_shown
         res = completion_in_region(comint_line_beginning_position(), point_max(), table)
-        completion_in_region_mode_predicate => saved_pred
+        completion_in_region_mode_test_function => saved_test
     end subroutine comint_complete_input_ring
 
     ! Whether *Completions* is shown (minibuffer--completions-visible as
-    ! the `completion_in_region_mode_predicate' of
+    ! the `completion_in_region_mode_test_function' of
     ! `comint_complete_input_ring').  Port of
     ! minibuffer.el:minibuffer--completions-visible.
     recursive logical function completions_shown()
@@ -5392,18 +5396,18 @@ contains
         call goto_char(here)
     end subroutine comint_word
 
-    ! The characters of `comint_file_name_quote_list'.  Not a port.
+    ! The characters of `comint_file_name_quote_chars'.  Not a port.
     function quote_chars() result(chars)
         integer(int32), allocatable :: chars(:)
         integer(int32) :: c, n
         integer(int64) :: i
 
         allocate (chars(0))
-        if (.not. allocated(comint_file_name_quote_list%value)) return
+        if (.not. allocated(comint_file_name_quote_chars%value)) return
         i = 1
 
-        do while (i <= len(comint_file_name_quote_list%value))
-            call string_char_and_length(comint_file_name_quote_list%value, i, c, n)
+        do while (i <= len(comint_file_name_quote_chars%value))
+            call string_char_and_length(comint_file_name_quote_chars%value, i, c, n)
             chars = [chars, c]
             i = i + n
         end do
@@ -5427,7 +5431,7 @@ contains
         integer(int64), intent(in) :: upos_in
         character(len=:), allocatable, intent(out) :: ustr
         integer(int64), intent(out) :: qupos
-        character(len=:), allocatable :: re, value
+        character(len=:), allocatable :: regexp, value
         integer(int64) :: upos, qpos, match, mend
         type(status_type) :: st
         logical :: found
@@ -5436,11 +5440,11 @@ contains
         qpos = 0
         ustr = ""
         qupos = -1
-        re = "\$\(?:\([[:alpha:]][[:alnum:]]*\)\|{\(?1:[^{}]+\)}\)"
-        if (size(quote_chars()) > 0) re = re//"\|\\\(.\)"
+        regexp = "\$\(?:\([[:alpha:]][[:alnum:]]*\)\|{\(?1:[^{}]+\)}\)"
+        if (size(quote_chars()) > 0) regexp = regexp//"\|\\\(.\)"
 
         do
-            match = string_match(re, qstr, st, start=qpos + 1)
+            match = string_match(regexp, qstr, st, start=qpos + 1)
             if (match == 0) exit
             match = match - 1
             mend = match_end(0, st) - 1
@@ -5461,12 +5465,12 @@ contains
 
     contains
 
-        subroutine push(str, end)
-            character(len=*), intent(in) :: str
+        subroutine push(string, end)
+            character(len=*), intent(in) :: string
             integer(int64), intent(in) :: end
 
-            ustr = ustr//str
-            upos = upos - schars(str)
+            ustr = ustr//string
+            upos = upos - schars(string)
 
             if (qupos < 0 .and. upos <= 0) then
                 if (end < 0) then
@@ -5478,15 +5482,15 @@ contains
         end subroutine push
     end subroutine unquote_requote_argument
 
-    !> STR with environment variables substituted and quoting `\'
+    !> STRING with environment variables substituted and quoting `\'
     !> removed, as USTR (the default `comint_unquote_function').  Port of
     !> comint.el:comint--unquote-argument.
-    recursive subroutine comint_unquote_argument(str, ustr)
-        character(len=*), intent(in) :: str
+    recursive subroutine comint_unquote_argument(string, ustr)
+        character(len=*), intent(in) :: string
         character(len=:), allocatable, intent(out) :: ustr
         integer(int64) :: qupos
 
-        call unquote_requote_argument(str, 0_int64, ustr, qupos)
+        call unquote_requote_argument(string, 0_int64, ustr, qupos)
     end subroutine comint_unquote_argument
 
     !> The default `comint_requote_function'.  See
@@ -5496,7 +5500,7 @@ contains
         integer(int64), intent(in) :: upos
         character(len=*), intent(in) :: qstr
         integer(int64), intent(out) :: qpos
-        procedure(completion_quote_proc), pointer, intent(out) :: qfun
+        procedure(completion_quote_procedure), pointer, intent(out) :: qfun
         character(len=:), allocatable :: ustr
 
         call unquote_requote_argument(qstr, upos, ustr, qpos)
@@ -5520,7 +5524,7 @@ contains
     end subroutine comint_match_partial_filename
 
     !> Return FILENAME with magic characters quoted, as QUOTED.
-    !> Magic characters are those in `comint_file_name_quote_list'.
+    !> Magic characters are those in `comint_file_name_quote_chars'.
     !> Port of comint.el:comint-quote-filename.
     recursive subroutine comint_quote_filename(filename, quoted)
         character(len=*), intent(in) :: filename
@@ -5549,25 +5553,25 @@ contains
     !> The file name completion table of comint: `completion_file_name_table'
     !> with `comint_file_name_prefix' before absolute file names.  Port of
     !> comint.el:comint-completion-file-name-table.
-    recursive subroutine comint_completion_file_name_table(string, action, result, status, pred, suffix)
+    recursive subroutine comint_completion_file_name_table(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(status_type) :: st
 
         if (.not. is_file_name_absolute(string)) then
-            call completion_file_name_table(string, action, result, status, pred, suffix)
+            call completion_file_name_table(string, action, result, status, test, suffix)
             return
         end if
 
         select case (action)
         case (COMPLETE_ALL, COMPLETE_TEST)
-            call completion_file_name_table(comint_file_name_prefix%value//string, action, result, status, pred, suffix)
+            call completion_file_name_table(comint_file_name_prefix%value//string, action, result, status, test, suffix)
         case (COMPLETE_TRY)
-            call completion_file_name_table(comint_file_name_prefix%value//string, action, result, status, pred, suffix)
+            call completion_file_name_table(comint_file_name_prefix%value//string, action, result, status, test, suffix)
 
             if (vtag(result) == V_STRING) then
                 if (string_match("\`"//regexp_quote(comint_file_name_prefix%value), xstring(result), st) > 0) then
@@ -5575,7 +5579,7 @@ contains
                 end if
             end if
         case default
-            call completion_file_name_table(string, action, result, status, pred, suffix)
+            call completion_file_name_table(string, action, result, status, test, suffix)
         end select
     end subroutine comint_completion_file_name_table
 
@@ -5585,17 +5589,17 @@ contains
     ! `comint_completion_fignore' (the lambda of
     ! comint--complete-file-name-data).  Port of
     ! comint.el:comint--complete-file-name-data, in part.
-    recursive subroutine file_name_table(string, action, result, status, pred, suffix)
+    recursive subroutine file_name_table(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(completion_table_type) :: table
         character(len=len(completion_ignored_extensions)) :: saved_extensions(size(completion_ignored_extensions))
-        procedure(completion_unquote_proc), pointer :: unquote
-        procedure(completion_requote_proc), pointer :: requote
+        procedure(completion_unquote_procedure), pointer :: unquote
+        procedure(completion_requote_procedure), pointer :: requote
         character(len=8), allocatable :: fignore(:)
         logical :: saved_case
         integer :: k, n
@@ -5606,7 +5610,7 @@ contains
         saved_extensions = completion_ignored_extensions
         completion_ignore_case%value = read_file_name_completion_ignore_case
         completion_ignored_extensions = ""
-        k = entry_of(cur)
+        k = entry_of(current)
 
         if (k /= 0) then
             if (allocated(comint_buffers(k)%completion_fignore)) fignore = comint_buffers(k)%completion_fignore
@@ -5619,7 +5623,7 @@ contains
             completion_ignored_extensions(1:n) = fignore(1:n)
         end if
 
-        call quoting_table_call(table, string, action, result, status, pred, suffix)
+        call quoting_table_call(table, string, action, result, status, test, suffix)
         completion_ignore_case%value = saved_case
         completion_ignored_extensions = saved_extensions
     end subroutine file_name_table
@@ -5627,13 +5631,13 @@ contains
     ! The current buffer's `comint_unquote_function' and
     ! `comint_requote_function'.  Not a port.
     subroutine quote_functions(unquote, requote)
-        procedure(completion_unquote_proc), pointer, intent(out) :: unquote
-        procedure(completion_requote_proc), pointer, intent(out) :: requote
+        procedure(completion_unquote_procedure), pointer, intent(out) :: unquote
+        procedure(completion_requote_procedure), pointer, intent(out) :: requote
         integer :: k
 
         unquote => comint_unquote_function
         requote => comint_requote_function
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (associated(comint_buffers(k)%unquote)) unquote => comint_buffers(k)%unquote
         if (associated(comint_buffers(k)%requote)) requote => comint_buffers(k)%requote
@@ -5643,8 +5647,8 @@ contains
     !> `comint_requote_function' (set_local), UNQUOTE and REQUOTE.
     !> Not a port.
     subroutine set_comint_quote_functions(unquote, requote)
-        procedure(completion_unquote_proc) :: unquote
-        procedure(completion_requote_proc) :: requote
+        procedure(completion_unquote_procedure) :: unquote
+        procedure(completion_requote_procedure) :: requote
         integer :: k
 
         k = local_entry()
@@ -5756,9 +5760,9 @@ contains
         type(status_type) :: st
 
         ! Looks like there might be history references in the command.
-        tick = buffers(cur)%text%modiff
+        tick = buffers(current)%text%modiff
         call comint_replace_by_expanded_history_before_point(status=st)
-        changed = tick /= buffers(cur)%text%modiff
+        changed = tick /= buffers(current)%text%modiff
     end function perform_expand_history
 
     !> Run `comint_dynamic_complete_functions' until one returns
@@ -5846,25 +5850,25 @@ contains
         type(status_type), intent(out) :: status
         type(capf_data_type) :: data
         type(completion_table_type) :: saved_table
-        procedure(completion_predicate), pointer :: saved_pred
+        procedure(completion_test_procedure), pointer :: saved_test
         type(handle_type) :: ol
 
         status = status_type()
         call comint_file_name_completion_data(data)
         saved_table = minibuffer_completion_table
-        saved_pred => minibuffer_completion_predicate
+        saved_test => minibuffer_completion_test_function
         minibuffer_completion_table = data%table
-        minibuffer_completion_predicate => null()
+        minibuffer_completion_test_function => null()
         call make_overlay(ol, data%start, data%end, status, rear_advance=.true.)
 
         if (status%ok()) then
             call overlay_put(ol, "field", value_type(name="completion"), status)
             call minibuffer_completion_help()
-            call free_overlay(ol)
+            call destroy_overlay(ol)
         end if
 
         minibuffer_completion_table = saved_table
-        minibuffer_completion_predicate => saved_pred
+        minibuffer_completion_test_function => saved_test
     end subroutine comint_dynamic_list_filename_completions
 
     ! ------------------------------------------------------------------
@@ -5882,12 +5886,12 @@ contains
         comint_mode_map = major_modes%comint_mode%map
         call define_faces()
         if (.not. allocated(comint_prompt_regexp%value)) comint_prompt_regexp = "^"
-        if (.not. allocated(comint_delimiter_argument_list%value)) comint_delimiter_argument_list = ""
+        if (.not. allocated(comint_delimiter_arguments%value)) comint_delimiter_arguments = ""
         if (.not. allocated(comint_input_ring_separator%value)) comint_input_ring_separator = achar(10)
         if (.not. allocated(comint_input_history_ignore%value)) comint_input_history_ignore = "^#"
         if (.not. allocated(comint_terminfo_terminal%value)) comint_terminfo_terminal = "dumb"
         call forward_setting(comint_prompt_regexp)
-        call forward_setting(comint_delimiter_argument_list)
+        call forward_setting(comint_delimiter_arguments)
         call forward_setting(comint_prompt_read_only)
         call forward_setting(comint_highlight_input)
         call forward_setting(comint_input_ignoredups)
@@ -5909,17 +5913,17 @@ contains
         if (.not. allocated(comint_completion_addsuffix%value)) comint_completion_addsuffix = " "
         if (.not. allocated(comint_file_name_prefix%value)) comint_file_name_prefix = ""
         if (.not. allocated(comint_file_name_chars%value)) comint_file_name_chars = "[]~/A-Za-z0-9+@:_.$#%,={}-"
-        if (.not. allocated(comint_file_name_quote_list%value)) comint_file_name_quote_list = ""
+        if (.not. allocated(comint_file_name_quote_chars%value)) comint_file_name_quote_chars = ""
         call forward_setting(comint_file_name_prefix)
         call forward_setting(comint_file_name_chars)
-        call forward_setting(comint_file_name_quote_list)
-        call comint_dynamic_complete_functions%add(comint_filename_completion)
-        call comint_dynamic_complete_functions%add(comint_c_a_p_replace_by_expanded_history)
+        call forward_setting(comint_file_name_quote_chars)
+        call comint_dynamic_complete_functions%append(comint_filename_completion)
+        call comint_dynamic_complete_functions%append(comint_c_a_p_replace_by_expanded_history)
         ! (The default value lists comint-postoutput-scroll-to-bottom
         ! before comint-watch-for-password-prompt; `add' puts a function
         ! first.)
-        call comint_output_filter_functions%add(comint_watch_for_password_prompt)
-        call comint_output_filter_functions%add(comint_postoutput_scroll_to_bottom)
+        call comint_output_filter_functions%append(comint_watch_for_password_prompt)
+        call comint_output_filter_functions%append(comint_postoutput_scroll_to_bottom)
         call syms_of_mule_conf()
 
         if (.not. allocated(comint_password_prompt_regexp)) then
@@ -5927,7 +5931,7 @@ contains
         end if
 
         commands%comint_send_invisible%execute => cmd_comint_send_invisible
-        call add_local_variables_killer(kill_comint_locals)
+        call append_locals_clearer(clear_comint_locals)
         ! Keys:
         call keymap_set(comint_mode_map, "M-p", "comint_previous_input", st)
         call keymap_set(comint_mode_map, "M-n", "comint_next_input", st)
@@ -5947,10 +5951,10 @@ contains
         call keymap_set(comint_mode_map, "C-c SPC", "comint_accumulate", st)
         call keymap_set(comint_mode_map, "C-c C-x", "comint_get_next_from_history", st)
         call keymap_set(comint_mode_map, "C-c C-a", "comint_bol_or_process_mark", st)
-        call keymap_set(comint_mode_map, "C-c C-u", "comint_kill_input", st)
-        call keymap_set(comint_mode_map, "C-c C-w", "backward_kill_word", st)
+        call keymap_set(comint_mode_map, "C-c C-u", "comint_cut_input", st)
+        call keymap_set(comint_mode_map, "C-c C-w", "backward_cut_word", st)
         call keymap_set(comint_mode_map, "C-c C-c", "comint_interrupt_subjob", st)
-        call keymap_set(comint_mode_map, "C-c C-z", "comint_stop_subjob", st)
+        call keymap_set(comint_mode_map, "C-c C-z", "comint_suspend_subjob", st)
         call keymap_set(comint_mode_map, "C-c C-\", "comint_quit_subjob", st)
         call keymap_set(comint_mode_map, "C-c RET", "comint_copy_old_input", st)
         call keymap_set(comint_mode_map, "C-c C-o", "comint_delete_output", st)
@@ -5992,11 +5996,11 @@ contains
         commands%comint_bol%execute => cmd_comint_bol
         commands%comint_goto_process_mark%execute => cmd_comint_goto_process_mark
         commands%comint_set_process_mark%execute => comint_set_process_mark
-        commands%comint_kill_input%execute => comint_kill_input
+        commands%comint_cut_input%execute => comint_cut_input
         commands%comint_interrupt_subjob%execute => comint_interrupt_subjob
-        commands%comint_kill_subjob%execute => comint_kill_subjob
-        commands%comint_quit_subjob%execute => comint_quit_subjob
         commands%comint_stop_subjob%execute => comint_stop_subjob
+        commands%comint_quit_subjob%execute => comint_quit_subjob
+        commands%comint_suspend_subjob%execute => comint_suspend_subjob
         commands%comint_continue_subjob%execute => comint_continue_subjob
         commands%comint_replace_by_expanded_history%execute => cmd_comint_replace_by_expanded_history
         commands%comint_magic_space%execute => cmd_comint_magic_space
@@ -6012,8 +6016,8 @@ contains
         commands%comint_strip_ctrl_m%execute => cmd_comint_strip_ctrl_m
         commands%comint_next_prompt%execute => cmd_comint_next_prompt
         commands%comint_previous_prompt%execute => cmd_comint_previous_prompt
-        commands%comint_kill_whole_line%execute => cmd_comint_kill_whole_line
-        commands%comint_kill_region%execute => cmd_comint_kill_region
+        commands%comint_cut_whole_line%execute => cmd_comint_cut_whole_line
+        commands%comint_cut_region%execute => cmd_comint_cut_region
         commands%comint_complete_input_ring%execute => comint_complete_input_ring
         commands%comint_dynamic_complete_filename%execute => cmd_comint_dynamic_complete_filename
         commands%comint_replace_by_expanded_filename%execute => comint_replace_by_expanded_filename
@@ -6033,7 +6037,7 @@ contains
     end subroutine define_faces
 
     !> Add S at the end of LIST.  Not a port.
-    subroutine add_arg(list, s)
+    subroutine append_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -6049,7 +6053,7 @@ contains
 
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine add_arg
+    end subroutine append_arg
 
     !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)

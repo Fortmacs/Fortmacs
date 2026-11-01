@@ -68,7 +68,7 @@ module faces_fm
 
     !> States of a face attribute: unspecified, .false., .true., a color,
     !> typed attributes, an array (of face names), a value (number).
-    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_OFF = 1, FACE_ON = 2, FACE_COLOR = 3, &
+    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_NO = 1, FACE_YES = 2, FACE_COLOR = 3, &
                                   FACE_PLIST = 4, FACE_LIST = 5, FACE_VALUE = 6
 
     !> Underline styles (`style' of `face_underline').
@@ -196,15 +196,15 @@ module faces_fm
     !> part of display-supports-face-attributes-p, installed by xfaces_fm).
     abstract interface
         ! Not a port.
-        logical function supports_function(attrs)
+        logical function supports_procedure(attrs)
             import :: face_attributes_type
             implicit none(type, external)
             type(face_attributes_type), intent(in) :: attrs
-        end function supports_function
+        end function supports_procedure
     end interface
 
     !> The function testing a `supports' condition; null: never supported.
-    procedure(supports_function), pointer, public :: display_supports_face_attributes_p => null()
+    procedure(supports_procedure), pointer, public :: display_supports_face_attributes_p => null()
 
     !> A face.  The components inherited from face_attributes_type are the
     !> attributes the configuration gives the face; `lface' is what it has
@@ -494,9 +494,9 @@ contains
         logical, intent(in) :: value
 
         if (value) then
-            self%state = FACE_ON
+            self%state = FACE_YES
         else
-            self%state = FACE_OFF
+            self%state = FACE_NO
         end if
     end subroutine logical_to_flag
 
@@ -517,9 +517,9 @@ contains
         self%position = .false.
 
         if (value) then
-            self%state = FACE_ON
+            self%state = FACE_YES
         else
-            self%state = FACE_OFF
+            self%state = FACE_NO
         end if
     end subroutine logical_to_line
 
@@ -555,7 +555,7 @@ contains
         if (value) then
             self%state = FACE_VALUE
         else
-            self%state = FACE_OFF
+            self%state = FACE_NO
         end if
     end subroutine logical_to_box
 
@@ -611,7 +611,7 @@ contains
         if (allocated(self%names)) deallocate (self%names)
 
         if (len_trim(name) == 0) then
-            self%state = FACE_OFF
+            self%state = FACE_NO
             return
         end if
 
@@ -629,7 +629,7 @@ contains
         if (allocated(self%names)) deallocate (self%names)
 
         if (size(names) == 0) then
-            self%state = FACE_OFF
+            self%state = FACE_NO
             return
         end if
 
@@ -1553,7 +1553,7 @@ contains
 
     !> Whether RGB is more readable against white than black.
     !> RGB is a 3-element array (R G B), each component in the range [0,1].
-    !> This predicate can be used both for determining a suitable (black or
+    !> This test can be used both for determining a suitable (black or
     !> white) contrast color with RGB as background and as foreground.
     !> Port of faces.el:color-dark-p.
     logical function is_color_dark(rgb, status)

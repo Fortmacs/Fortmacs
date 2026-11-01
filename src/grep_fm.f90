@@ -40,7 +40,7 @@
 !> Not ported yet (Deferred): C-c C-f
 !> (`next_error_follow_minor_mode'), the menu and tool bar, the `keymap'
 !> of the abbreviated part of a command (RET and mouse-2 on it; M-x
-!> `grep_find_toggle_abbreviation' works), `kill_transform_function'
+!> `grep_find_toggle_abbreviation' works), `clipboard_history_transform_function'
 !> (the NUL of `--null' is copied as is), the outline functions of
 !> `grep_use_headings', `grep_window_height' and `grep_search_path'
 !> (compile_fm defers `compilation_window_height' and
@@ -56,11 +56,11 @@ module grep_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, make_list, list, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
-    use data_fm, only: symbol_value, add_local_variables_killer, history_setting, forward_setting
+    use data_fm, only: symbol_value, append_locals_clearer, history_setting_type, forward_setting
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, generate_new_buffer_name, &
-                         kill_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
-    use marker_fm, only: copy_marker_at, free_marker, marker_position, set_marker
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
+                         close_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
+    use marker_fm, only: copy_marker_at, destroy_marker, marker_position, set_marker
     use insdel_fm, only: insert, insert_before_markers
     use editfns_fm, only: point, point_min, point_max, goto_char, line_beginning_position, line_end_position, &
                           buffer_substring, mark_position, char_after
@@ -73,13 +73,13 @@ module grep_fm
                        silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use fileio_fm, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
                          is_file_accessible_directory
-    use files_fm, only: save_some_buffers, file_name_extension, wildcard_to_regexp, make_temp_file, delete_file
+    use files_fm, only: save_some_buffers, file_name_extension, wildcard_to_regexp, create_temp_file, delete_file
     use callproc_fm, only: execute_process
     use simple_fm, only: read_shell_command, next_error_last_buffer, shell_command_switch
     use callproc_fm, only: shell_file_name, init_callproc
     use minibuf_fm, only: read_from_minibuffer, read_string, minibuffer_string_type
     use minibuf_table_fm, only: completion_table_type, completion_function_table, completion_list_table, &
-                                completion_predicate, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
+                                completion_test_procedure, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_fm, only: try_completion, all_completions, is_exact_completion
     use minibuffer_fm, only: completing_read, read_directory_name, completion_file_name_table, &
                              read_file_name_completion_ignore_case
@@ -102,18 +102,18 @@ module grep_fm
                             FONT_LOCK_OVERRIDE_YES
     use font_lock_fm, only: font_lock_highlight
     use faces_fm, only: named_face_type, display_when, face_attrs
-    use vc_hooks_fm, only: vc_directory_exclusion_list
+    use vc_hooks_fm, only: vc_directory_exclusions
     use dired_fm, only: completion_ignored_extensions
     use xdisp_fm, only: message, mode_line_part_type
     use compile_fm, only: compilation_start, compilation_set_mode_locals, compilation_update_mode_line, &
                           compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
-                          compilation_transform_type, compilation_transform_file_match_table, &
+                          compilation_transform_type, compilation_transform_file_matches, &
                           compilation_error_face, compilation_scroll_output, compilation_first_column, &
                           compilation_error_screen_columns, compilation_disable_input, compilation_filter_hook, &
                           compilation_filter_start, compilation_info_face, compilation_warning_face, &
                           compilation_minor_mode_map, compilation_message_info, compilation_message_info_type, &
-                          kill_compilation, syms_of_compile, compilation_message_location, COMPILATION_SCROLL_NO, &
-                          COMPILATION_SCROLL_YES
+                          stop_compilation, syms_of_compile, compilation_message_location, COMPILATION_SCROLL_OUTPUT_NO, &
+                          COMPILATION_SCROLL_OUTPUT_YES
     implicit none(type, external)
     private
 
@@ -166,35 +166,35 @@ module grep_fm
         !> The test of an element of `grep_find_ignored_files_variable' and
         !> `grep_find_ignored_directories': whether the element applies to
         !> the search directory DIR.  Not a port.
-        logical function grep_ignore_predicate(dir)
+        logical function grep_ignore_test_procedure(dir)
             implicit none(type, external)
             character(len=*), intent(in) :: dir
-        end function grep_ignore_predicate
+        end function grep_ignore_test_procedure
 
         !> `grep_read_files_function': the file name whose extension gives
         !> the default for `grep_read_files' (FOUND false for none).
         !> Not a port.
-        subroutine grep_read_files_proc(name, found)
+        subroutine grep_read_files_procedure(name, found)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: name
             logical, intent(out) :: found
-        end subroutine grep_read_files_proc
+        end subroutine grep_read_files_procedure
 
         !> A function value of `grep_save_buffers': called with each buffer
         !> current, whether that buffer should be saved.  Not a port.
-        logical function grep_save_buffers_proc()
+        logical function grep_save_buffers_procedure()
             implicit none(type, external)
-        end function grep_save_buffers_proc
+        end function grep_save_buffers_procedure
     end interface
 
-    public :: grep_ignore_predicate, grep_read_files_proc, grep_save_buffers_proc
+    public :: grep_ignore_test_procedure, grep_read_files_procedure, grep_save_buffers_procedure
 
     !> An element of `grep_find_ignored_files_variable' and
     !> `grep_find_ignored_directories': the file or directory NAME, which
     !> applies to a search directory only if APPLIES (when given) says so.
     type, public :: grep_ignore_type
         character(len=64) :: name = ""
-        procedure(grep_ignore_predicate), pointer, nopass :: applies => null()
+        procedure(grep_ignore_test_procedure), pointer, nopass :: applies => null()
     end type grep_ignore_type
 
     !> Use special markers to highlight grep matches.
@@ -341,16 +341,16 @@ module grep_fm
     type(grep_files_alias_type), allocatable, public :: grep_files_aliases(:)
 
     !> List of names of sub-directories which `rgrep' shall not recurse
-    !> into.  If an element has a predicate (APPLIES), it is called on the
+    !> into.  If an element has a test (APPLIES), it is called on the
     !> search directory to determine whether NAME should not be recursed
     !> into.
     !>
-    !> The default value is inherited from `vc_directory_exclusion_list'.
+    !> The default value is inherited from `vc_directory_exclusions'.
     !> Port of grep.el grep-find-ignored-directories.
     type(grep_ignore_type), allocatable, public :: grep_find_ignored_directories(:)
 
     !> List of file names which `rgrep' and `lgrep' shall exclude.
-    !> If an element has a predicate (APPLIES), it is called on the search
+    !> If an element has a test (APPLIES), it is called on the search
     !> directory to determine whether NAME should not be excluded.  Port of
     !> grep.el grep-find-ignored-files (renamed: the function
     !> `grep_find_ignored_files' has its name).
@@ -359,12 +359,12 @@ module grep_fm
     !> If not GREP_SAVE_BUFFERS_NO, save buffers before running the grep
     !> commands.  If GREP_SAVE_BUFFERS_ASK, ask before saving.  If
     !> `grep_save_buffers_function' is set, call it with no arguments with
-    !> each buffer current, as a predicate to determine whether that buffer
+    !> each buffer current, as a test to determine whether that buffer
     !> should be saved or not.  Port of grep.el grep-save-buffers.
     integer, public :: grep_save_buffers = GREP_SAVE_BUFFERS_ASK
 
     !> The function value of `grep_save_buffers' (null for none).
-    procedure(grep_save_buffers_proc), pointer, public :: grep_save_buffers_function => null()
+    procedure(grep_save_buffers_procedure), pointer, public :: grep_save_buffers_function => null()
 
     !> If true, column numbers in grep hits are screen columns.
     !> See `compilation_error_screen_columns'.  Port of grep.el
@@ -396,7 +396,7 @@ module grep_fm
     !> Regexp used to match grep hits.
     !> See `compilation_error_regexp_names' for format details.  Port of
     !> grep.el grep-regexp-alist.
-    type(compilation_rule_type), allocatable, public :: grep_regexp_table(:)
+    type(compilation_rule_type), allocatable, public :: grep_regexps(:)
 
     !> Value to use for `compilation_first_column' in grep buffers.  Port
     !> of grep.el grep-first-column.
@@ -447,7 +447,7 @@ module grep_fm
     !> grep.el grep-mode-font-lock-keywords.
     type(font_lock_keyword_type), allocatable, public :: grep_mode_font_lock_keywords(:)
 
-    !> Rules added to `compilation_transform_file_match_table' in
+    !> Rules added to `compilation_transform_file_matches' in
     !> `grep_mode'.  These prevent the "Grep finished" lines from being
     !> misinterpreted as matches (bug#77732).  Port of grep.el
     !> grep-compilation-transform-finished-rules.
@@ -489,7 +489,7 @@ module grep_fm
     type(hook_type), target, public :: grep_edit_mode_hook = hook_type(name="grep_edit_mode_hook")
 
     !> The function giving the default file name of `grep_read_files'.
-    procedure(grep_read_files_proc), pointer, public :: grep_read_files_function => null()
+    procedure(grep_read_files_procedure), pointer, public :: grep_read_files_function => null()
 
     !> Whether `lgrep' passes "--directories=skip" (DIRECTORIES_SKIP_YES), not (DIRECTORIES_SKIP_NO)
     !> or does not know yet (DIRECTORIES_SKIP_UNKNOWN).
@@ -518,13 +518,13 @@ module grep_fm
         type(grep_defaults_type) :: defaults, localhost
     end type grep_host_defaults_type
 
-    type(grep_host_defaults_type) :: grep_host_defaults_table
+    type(grep_host_defaults_type) :: grep_host_defaults
 
     ! The buffer-local variables of grep buffers: grep-num-matches-found
     ! and grep--heading-state (LIMIT, a marker, and the last HEADING).
     type :: grep_local_type
         type(handle_type) :: buffer
-        integer(int64) :: num_matches_found = 0
+        integer(int64) :: found_match_count = 0
         logical :: has_heading_state = .false.
         type(handle_type) :: heading_limit
         character(len=:), allocatable :: heading
@@ -542,15 +542,15 @@ module grep_fm
     character(len=*), parameter :: NULL_DEVICE = "/dev/null"
 
     !> History list for grep.  Port of grep.el grep-history.
-    type(history_setting), target, public :: grep_history = history_setting(name="grep_history")
+    type(history_setting_type), target, public :: grep_history = history_setting_type(name="grep_history")
     !> History list for `grep_find'.  Port of grep.el grep-find-history.
-    type(history_setting), target, public :: grep_find_history = history_setting(name="grep_find_history")
+    type(history_setting_type), target, public :: grep_find_history = history_setting_type(name="grep_find_history")
     !> History of `lgrep' and `rgrep' regexp args.  Port of grep.el
     !> grep-regexp-history.
-    type(history_setting), target, public :: grep_regexp_history = history_setting(name="grep_regexp_history")
+    type(history_setting_type), target, public :: grep_regexp_history = history_setting_type(name="grep_regexp_history")
     !> History of `lgrep' and `rgrep' files args.  Port of grep.el
     !> grep-files-history.
-    type(history_setting), target, public :: grep_files_history = history_setting(name="grep_files_history")
+    type(history_setting_type), target, public :: grep_files_history = history_setting_type(name="grep_files_history")
 
 contains
 
@@ -574,7 +574,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. is_buffer_live(locals(k)%buffer)) then
-                call kill_local(k)
+                call clear_local(k)
                 locals(k)%buffer = h
                 return
             end if
@@ -593,18 +593,18 @@ contains
     end function local_entry
 
     !> Free what entry K holds and make it unused.  Not a port.
-    subroutine kill_local(k)
+    subroutine clear_local(k)
         integer, intent(in) :: k
         type(grep_local_type) :: empty
         type(status_type) :: st
 
-        if (locals(k)%heading_limit%index /= 0) call free_marker(locals(k)%heading_limit, st)
+        if (locals(k)%heading_limit%index /= 0) call destroy_marker(locals(k)%heading_limit, st)
         locals(k) = empty
-    end subroutine kill_local
+    end subroutine clear_local
 
     !> Forget the current buffer's grep variables, when
-    !> `kill_all_local_variables' runs.  Not a port.
-    subroutine kill_grep_locals()
+    !> `clear_all_local_variables' runs.  Not a port.
+    subroutine clear_grep_locals()
         type(handle_type) :: h
         integer :: k
 
@@ -613,17 +613,17 @@ contains
 
         do k = 1, size(locals)
             if (locals(k)%buffer%index == h%index .and. locals(k)%buffer%generation == h%generation) then
-                call kill_local(k)
+                call clear_local(k)
                 return
             end if
         end do
-    end subroutine kill_grep_locals
+    end subroutine clear_grep_locals
 
     ! ------------------------------------------------------------------
     ! Settings
     ! ------------------------------------------------------------------
 
-    !> Set the given settings, and update `grep_host_defaults_table'.
+    !> Set the given settings, and update `grep_host_defaults'.
     !> The settings are `grep_command', `grep_template',
     !> `grep_use_null_device', `grep_find_command', `grep_find_template',
     !> `grep_find_use_xargs', `grep_use_null_filename_separator',
@@ -637,9 +637,9 @@ contains
                                          use_null_filename_separator, highlight_matches
         logical, intent(in), optional :: quoting_style
 
-        if (grep_host_defaults_table%has_defaults) then
-            call set_defaults(grep_host_defaults_table%defaults)
-            if (grep_host_defaults_table%has_localhost) call set_defaults(grep_host_defaults_table%localhost)
+        if (grep_host_defaults%has_defaults) then
+            call set_defaults(grep_host_defaults%defaults)
+            if (grep_host_defaults%has_localhost) call set_defaults(grep_host_defaults%localhost)
         end if
 
         if (present(command)) grep_command = command
@@ -743,39 +743,39 @@ contains
 
     !> The column (relative to the end of the match) of the first grep
     !> match on a line, from the faces `grep_filter' put there: COL of the
-    !> `grep_regexp_table' rule.  Not a port.
+    !> `grep_regexps' rule.  Not a port.
     subroutine first_match_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
-        integer(int64) :: beg, end, mbeg
+        integer(int64) :: beginning, end, mbeg
         type(status_type) :: st
 
         number = 0
         found = .false.
         if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_NO) return
-        beg = match_end(0, st)
-        end = line_end_at(beg)
-        call text_property_any(beg, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
-        if (found) number = mbeg - beg
+        beginning = match_end(0, st)
+        end = line_end_at(beginning)
+        call text_property_any(beginning, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
+        if (found) number = mbeg - beginning
     end subroutine first_match_column
 
     !> The end column of the first grep match on a line: END-COL of the
-    !> `grep_regexp_table' rule.  Not a port.
+    !> `grep_regexps' rule.  Not a port.
     subroutine first_match_end_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
-        integer(int64) :: beg, end, mbeg, mend
+        integer(int64) :: beginning, end, mbeg, mend
         type(status_type) :: st
 
         number = 0
         found = .false.
         if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_NO) return
-        beg = match_end(0, st)
-        end = line_end_at(beg)
-        call text_property_any(beg, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
+        beginning = match_end(0, st)
+        end = line_end_at(beginning)
+        call text_property_any(beginning, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
         if (.not. found) return
         call next_single_property_change(mbeg, value_type(name="font_lock_face"), mend, found, st, end)
-        if (found) number = mend - beg - 1
+        if (found) number = mend - beginning - 1
     end subroutine first_match_end_column
 
     !> The end of the line at POS (save-excursion, goto-char,
@@ -790,40 +790,40 @@ contains
         call goto_char(opoint)
     end function line_end_at
 
-    !> The value of `grep_regexp_table'.  Not a port.
-    subroutine init_grep_regexp_table()
-        if (allocated(grep_regexp_table)) deallocate (grep_regexp_table)
-        allocate (grep_regexp_table(2))
-        grep_regexp_table(1)%regexp = "^\(?:" &
-                                      ! Parse using NUL characters when `--null' is used.  Note
-                                      ! that we must still assume no newlines in filenames due to
-                                      ! "foo: Is a directory." type messages.
-                                      //"\(?1:[^"//NUL//NL//"]+\)\(?3:"//NUL//"\)\(?2:[0-9]+\):" &
-                                      //"\|" &
-                                      ! Fallback if `--null' is not used, use a tight regexp to
-                                      ! handle weird file names (with colons in them) as well as
-                                      ! possible.  E.g., use [1-9][0-9]* rather than [0-9]+ so as
-                                      ! to accept ":034:" in file names.
-                                      //"\(?1:" &
-                                      //"\(?:[a-zA-Z]:\)?" & ! Allow "C:..." for w32.
-                                      //"[^"//NL//":]+?[^"//NL//"/:]\):["//TB//" ]*\(?2:[1-9][0-9]*\)["//TB//" ]*:" &
-                                      //"\)"
-        grep_regexp_table(1)%file = 1
-        grep_regexp_table(1)%line = 2
+    !> The value of `grep_regexps'.  Not a port.
+    subroutine init_grep_regexps()
+        if (allocated(grep_regexps)) deallocate (grep_regexps)
+        allocate (grep_regexps(2))
+        grep_regexps(1)%regexp = "^\(?:" &
+                                 ! Parse using NUL characters when `--null' is used.  Note
+                                 ! that we must still assume no newlines in filenames due to
+                                 ! "foo: Is a directory." type messages.
+                                 //"\(?1:[^"//NUL//NL//"]+\)\(?3:"//NUL//"\)\(?2:[0-9]+\):" &
+                                 //"\|" &
+                                 ! Fallback if `--null' is not used, use a tight regexp to
+                                 ! handle weird file names (with colons in them) as well as
+                                 ! possible.  E.g., use [1-9][0-9]* rather than [0-9]+ so as
+                                 ! to accept ":034:" in file names.
+                                 //"\(?1:" &
+                                 //"\(?:[a-zA-Z]:\)?" & ! Allow "C:..." for w32.
+                                 //"[^"//NL//":]+?[^"//NL//"/:]\):["//TB//" ]*\(?2:[1-9][0-9]*\)["//TB//" ]*:" &
+                                 //"\)"
+        grep_regexps(1)%file = 1
+        grep_regexps(1)%line = 2
         ! Calculate column positions (col . end-col) of first grep match on
         ! a line.
-        grep_regexp_table(1)%column_function => first_match_column
-        grep_regexp_table(1)%end_column_function => first_match_end_column
-        allocate (grep_regexp_table(1)%highlights(1))
-        grep_regexp_table(1)%highlights(1)%submatch = 3
-        grep_regexp_table(1)%highlights(1)%face = ""
-        grep_regexp_table(1)%highlights(1)%display = ":"
-        grep_regexp_table(2)%regexp = "^Binary file \(.+\) matches"
-        grep_regexp_table(2)%file = 1
-        grep_regexp_table(2)%type = 0
-        grep_regexp_table(2)%hyperlink = 1
-        allocate (grep_regexp_table(2)%highlights(0))
-    end subroutine init_grep_regexp_table
+        grep_regexps(1)%column_function => first_match_column
+        grep_regexps(1)%end_column_function => first_match_end_column
+        allocate (grep_regexps(1)%highlights(1))
+        grep_regexps(1)%highlights(1)%submatch = 3
+        grep_regexps(1)%highlights(1)%face = ""
+        grep_regexps(1)%highlights(1)%display = ":"
+        grep_regexps(2)%regexp = "^Binary file \(.+\) matches"
+        grep_regexps(2)%file = 1
+        grep_regexps(2)%type = 0
+        grep_regexps(2)%hyperlink = 1
+        allocate (grep_regexps(2)%highlights(0))
+    end subroutine init_grep_regexps
 
     !> The value of `grep_mode_font_lock_keywords' (the faces of the face
     !> variables are read when the keywords are made).  Not a port.
@@ -937,15 +937,15 @@ contains
     !> of matches so far.  Port of grep.el grep-mode-line-matches.
     subroutine grep_mode_line_matches(parts)
         type(mode_line_part_type), allocatable, intent(out) :: parts(:)
-        character(len=24) :: buf
+        character(len=24) :: buffer
         integer :: k
 
         k = local_entry()
-        write (buf, "(i0)") locals(k)%num_matches_found
+        write (buffer, "(i0)") locals(k)%found_match_count
         allocate (parts(3))
         parts(1)%text = " ["
         parts(1)%face = ""
-        parts(2)%text = trim(buf)
+        parts(2)%text = trim(buffer)
         parts(2)%face = grep_hit_face
         parts(3)%text = "]"
         parts(3)%face = ""
@@ -953,7 +953,7 @@ contains
 
     !> Sets `grep_last_buffer' and `compilation_window_height'.  Port of
     !> grep.el:grep-mode (`compilation_window_height', the tool bar,
-    !> `kill_transform_function' and the outline functions are Deferred).
+    !> `clipboard_history_transform_function' and the outline functions are Deferred).
     recursive subroutine grep_mode(status)
         type(status_type), intent(out) :: status
         type(compilation_directory_matcher_type) :: matcher
@@ -965,7 +965,8 @@ contains
         call major_modes%grep_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! The variables define-compilation-mode sets from the mode's name.
-        call compilation_scroll_output%set_local(merge(COMPILATION_SCROLL_YES, COMPILATION_SCROLL_NO, grep_scroll_output))
+        call compilation_scroll_output%set_local(merge(COMPILATION_SCROLL_OUTPUT_YES, COMPILATION_SCROLL_OUTPUT_NO, &
+                                                       grep_scroll_output))
         call compilation_first_column%set_local(grep_first_column)
         call init_grep_mode_font_lock_keywords()
         ! The body.
@@ -973,11 +974,11 @@ contains
         call compilation_error_face%set_local(grep_hit_face)
         n = size(grep_compilation_transform_finished_rules)
 
-        if (allocated(compilation_transform_file_match_table)) then
-            allocate (transforms(n + size(compilation_transform_file_match_table)))
+        if (allocated(compilation_transform_file_matches)) then
+            allocate (transforms(n + size(compilation_transform_file_matches)))
 
-            do i = 1, size(compilation_transform_file_match_table)
-                transforms(n + i) = compilation_transform_file_match_table(i)
+            do i = 1, size(compilation_transform_file_matches)
+                transforms(n + i) = compilation_transform_file_matches(i)
             end do
         else
             allocate (transforms(n))
@@ -991,16 +992,16 @@ contains
         ! regexp that can never match.
         matcher%regexp = "\`a\`"
         allocate (matcher%dir(0), matcher%leave(0))
-        call compilation_set_mode_locals(error_regexp_table=grep_regexp_table, directory_matcher=matcher, &
+        call compilation_set_mode_locals(error_regexp_table=grep_regexps, directory_matcher=matcher, &
                                          transform_file_match_table=transforms, error=grep_error, &
                                          mode_font_lock_keywords=grep_mode_font_lock_keywords, &
                                          mode_line_errors=grep_mode_line_matches, &
                                          process_setup_function=grep_process_setup)
         call compilation_disable_input%set_local(.true.)
         call compilation_error_screen_columns%set_local(grep_error_screen_columns)
-        if (grep_use_headings) call compilation_filter_hook%add(grep_heading_filter, depth=80, local=.true.)
-        call compilation_filter_hook%add(grep_filter, local=.true.)
-        call major_modes%grep_mode%finish(saved, status)
+        if (grep_use_headings) call compilation_filter_hook%append(grep_heading_filter, depth=80, local=.true.)
+        call compilation_filter_hook%append(grep_filter, local=.true.)
+        call major_modes%grep_mode%end(saved, status)
     end subroutine grep_mode
 
     !> Save the buffers before the grep commands run, as
@@ -1011,7 +1012,7 @@ contains
         status = status_type()
 
         if (associated(grep_save_buffers_function)) then
-            call save_some_buffers(.false., .false., status, save_predicate)
+            call save_some_buffers(.false., .false., status, save_test)
         else if (grep_save_buffers /= GREP_SAVE_BUFFERS_NO) then
             call save_some_buffers(grep_save_buffers /= GREP_SAVE_BUFFERS_ASK, .false., status)
         end if
@@ -1019,12 +1020,12 @@ contains
 
     ! Whether the current buffer should be saved, as the function in
     ! `grep_save_buffers' says.  Not a port.
-    logical function save_predicate()
-        save_predicate = grep_save_buffers_function()
-    end function save_predicate
+    logical function save_test()
+        save_test = grep_save_buffers_function()
+    end function save_test
 
     !> Setup compilation variables and buffer for `grep'.
-    !> Set up `compilation_exit_message_function' and run
+    !> Set up `compilation_exit_message_procedure' and run
     !> `grep_setup_hook'.  Port of grep.el:grep-process-setup.
     recursive subroutine grep_process_setup(environment, status)
         type(process_arg_type), allocatable, intent(inout) :: environment(:)
@@ -1052,7 +1053,7 @@ contains
         end if
 
         k = local_entry()
-        locals(k)%num_matches_found = 0
+        locals(k)%found_match_count = 0
         call compilation_set_mode_locals(exit_message_function=grep_exit_message)
         call grep_setup_hook%execute(status)
 
@@ -1081,14 +1082,14 @@ contains
         character(len=*), intent(in) :: process_status, msg
         integer, intent(in) :: exit_status
         character(len=:), allocatable, intent(out) :: message, code
-        character(len=24) :: buf
+        character(len=24) :: buffer
         type(status_type) :: st
         logical :: modified
         integer :: k
 
-        write (buf, "(i0)") exit_status
+        write (buffer, "(i0)") exit_status
         message = msg
-        code = trim(buf)
+        code = trim(buffer)
         if (process_status /= "exit") return
         ! This relies on the fact that `compilation_start' sets
         ! buffer-modified to false before running the command, so the
@@ -1098,13 +1099,13 @@ contains
         if (exit_status == 0 .and. modified) then
             k = local_entry()
 
-            if (locals(k)%num_matches_found > 0) then
-                write (buf, "(i0)") locals(k)%num_matches_found
+            if (locals(k)%found_match_count > 0) then
+                write (buffer, "(i0)") locals(k)%found_match_count
 
-                if (locals(k)%num_matches_found == 1) then
-                    message = "finished with "//trim(buf)//" match found"//NL
+                if (locals(k)%found_match_count == 1) then
+                    message = "finished with "//trim(buffer)//" match found"//NL
                 else
-                    message = "finished with "//trim(buf)//" matches found"//NL
+                    message = "finished with "//trim(buffer)//" matches found"//NL
                 end if
             else
                 message = "finished with matches found"//NL
@@ -1124,7 +1125,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: endm
         type(status_type) :: st
-        integer(int64) :: opoint, end, beg, found, mb, me, limit
+        integer(int64) :: opoint, end, beginning, found, mb, me, limit
         character(len=:), allocatable :: text
         integer :: k
 
@@ -1134,7 +1135,7 @@ contains
         end = point()
         call goto_char(compilation_filter_start)
         call forward_line_0()
-        beg = point()
+        beginning = point()
 
         ! Only operate on whole lines so we don't get caught with part of
         ! an escape sequence in one chunk and the rest in another.
@@ -1155,11 +1156,11 @@ contains
                 call put_text_property(mb, me, value_type(name="face"), value_type(), st)
                 call put_text_property(mb, me, value_type(name="font_lock_face"), value_type(name=grep_match_face), st)
                 k = local_entry()
-                locals(k)%num_matches_found = locals(k)%num_matches_found + 1
+                locals(k)%found_match_count = locals(k)%found_match_count + 1
             end do
 
             ! Delete all remaining escape sequences.
-            call goto_char(beg)
+            call goto_char(beginning)
 
             do while (status%ok())
                 call marker_position(endm, limit, st)
@@ -1169,7 +1170,7 @@ contains
                 call replace_match("", st, fixedcase=.true., literal=.true.)
             end do
 
-            call free_marker(endm, st)
+            call destroy_marker(endm, st)
             call compilation_update_mode_line()
         end if
 
@@ -1271,10 +1272,10 @@ contains
 
         old = current_buffer()
         dir = ""
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, st)
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
         call set_buffer(tmp, st)
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
     end subroutine temp_begin
 
     !> Kill the temporary buffer TMP and make OLD current again.
@@ -1283,7 +1284,7 @@ contains
         type(handle_type), intent(in) :: old, tmp
         type(status_type) :: st
 
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
         call set_buffer(old, st)
     end subroutine temp_end
 
@@ -1324,7 +1325,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: unit, ios
 
-        call make_temp_file("grep-test-", file, status)
+        call create_temp_file("grep-test-", file, status)
         if (.not. status%ok()) return
         open (newunit=unit, file=file, access="stream", form="unformatted", status="replace", action="write", &
               iostat=ios)
@@ -1358,17 +1359,17 @@ contains
         status = status_type()
 
         ! Keep default values.
-        if (.not. grep_host_defaults_table%has_defaults) then
-            grep_host_defaults_table%defaults = current_defaults()
-            grep_host_defaults_table%has_defaults = .true.
+        if (.not. grep_host_defaults%has_defaults) then
+            grep_host_defaults%defaults = current_defaults()
+            grep_host_defaults%has_defaults = .true.
         end if
 
         ! There are different defaults on different hosts.  They must be
         ! computed for every host once.
-        if (grep_host_defaults_table%has_localhost) then
-            d = grep_host_defaults_table%localhost
+        if (grep_host_defaults%has_localhost) then
+            d = grep_host_defaults%localhost
         else
-            d = grep_host_defaults_table%defaults
+            d = grep_host_defaults%defaults
         end if
 
         d%quoting_style = grep_quoting_style
@@ -1547,8 +1548,8 @@ contains
         end if
 
         ! Save defaults for this host.
-        grep_host_defaults_table%localhost = current_defaults()
-        grep_host_defaults_table%has_localhost = .true.
+        grep_host_defaults%localhost = current_defaults()
+        grep_host_defaults%has_localhost = .true.
 
     contains
 
@@ -1625,7 +1626,7 @@ contains
 
         m = mark_position()
 
-        if (transient_mark_mode%value .and. buffers(cur)%mark_active .and. m /= 0) then
+        if (transient_mark_mode%value .and. buffers(current)%mark_active .and. m /= 0) then
             if (point() /= m) then
                 call buffer_substring(min(point(), m), max(point(), m), tag, st)
                 return
@@ -1659,7 +1660,7 @@ contains
     !> to offer.  Port of grep.el:grep-default-command.
     function grep_default_command() result(command)
         character(len=:), allocatable :: command
-        character(len=:), allocatable :: tag_default, sh_arg_re, grep_default, pattern, ext
+        character(len=:), allocatable :: tag_default, sh_arg_regexp, grep_default, pattern, ext
         integer(int64), allocatable :: md(:)
         type(status_type) :: st
         logical :: found, matched
@@ -1667,7 +1668,7 @@ contains
 
         tag_default = shell_quote_argument(grep_tag_default())
         ! This a regexp to match single shell arguments.
-        sh_arg_re = "\(\(?:""\(?:[^""]\|\\""\)+""\|'[^']+'\|[^""' "//TB//NL//"]\)+\)"
+        sh_arg_regexp = "\(\(?:""\(?:[^""]\|\\""\)+""\|'[^']+'\|[^""' "//TB//NL//"]\)+\)"
         call history_first("grep_history", grep_default, found)
 
         if (.not. found) then
@@ -1678,7 +1679,7 @@ contains
         command = grep_default
 
         ! In the default command, find the arg that specifies the pattern.
-        if (string_match("[^ ]+\s +\(?:-[^ ]+\s +\)*"//sh_arg_re//"\(\s +\(\S +\)\)?", grep_default, st) == 0) then
+        if (string_match("[^ ]+\s +\(?:-[^ ]+\s +\)*"//sh_arg_regexp//"\(\s +\(\S +\)\)?", grep_default, st) == 0) then
             ! If the string is not yet complete.
             if (string_match("\(\)\'", grep_default, st) == 0) return
         end if
@@ -1687,19 +1688,19 @@ contains
 
         ! Maybe we will replace the pattern with the default tag.  But
         ! first, maybe replace the file name pattern.
-        if (allocated(buffers(cur)%filename)) then
+        if (allocated(buffers(current)%filename)) then
             b2 = match_beginning(2, st)
             matched = .false.
 
             if (b2 > 0) then
                 pattern = match_string(3, grep_default)
                 matched = string_match(wildcard_to_regexp(file_name_nondirectory(pattern)), &
-                                       file_name_nondirectory(buffers(cur)%filename), st) /= 0
+                                       file_name_nondirectory(buffers(current)%filename), st) /= 0
                 call set_match_data(md)
             end if
 
             if (.not. matched) then
-                call file_name_extension(buffers(cur)%filename, ext, found)
+                call file_name_extension(buffers(current)%filename, ext, found)
                 if (.not. found) ext = ""
 
                 ! (substring grep-default 0 (match-beginning 2)): the whole
@@ -1729,7 +1730,7 @@ contains
     !> While Grep runs asynchronously, you can use \[next_error] (M-x
     !> next_error), or \<grep_mode_map>\[compile_goto_error] in the *grep*
     !> buffer, to go to the lines where Grep found matches.  To kill the
-    !> Grep job before it finishes, type \[kill_compilation].
+    !> Grep job before it finishes, type \[stop_compilation].
     !>
     !> Noninteractively, COMMAND_ARGS should specify the Grep command-line
     !> arguments.
@@ -1816,9 +1817,9 @@ contains
         type(status_type) :: st
         type(handle_type) :: target_buffer, old
         type(handle_type) :: m(1), e(1)
-        integer(int64) :: pos, beg, end, opoint, location, next
+        integer(int64) :: pos, beginning, end, opoint, location, next
         logical :: found, changed
-        integer :: idx
+        integer :: index
 
         status = status_type()
         opoint = point()
@@ -1827,10 +1828,10 @@ contains
         pos = point_min()
 
         do
-            call next_region("compilation_annotation", pos, beg, end, found)
+            call next_region("compilation_annotation", pos, beginning, end, found)
             if (.not. found) exit
-            call add_text_properties(beg, end, list(value_type(name="read_only"), value_type(.true.), &
-                                                    value_type(name="front_sticky"), value_type(.true.)), &
+            call add_text_properties(beginning, end, list(value_type(name="read_only"), value_type(.true.), &
+                                                          value_type(name="front_sticky"), value_type(.true.)), &
                                      changed, st)
             pos = end
         end do
@@ -1838,16 +1839,16 @@ contains
         pos = point_min()
 
         do
-            call next_region("compilation_message", pos, beg, end, found)
+            call next_region("compilation_message", pos, beginning, end, found)
             if (.not. found) exit
             ! (Allow insertion of text right after prefix, but not before.)
-            call add_text_properties(beg, end, list(value_type(name="read_only"), value_type(.true.), &
-                                                    value_type(name="occur_prefix"), value_type(.true.), &
-                                                    value_type(name="front_sticky"), value_type(.true.), &
-                                                    value_type(name="rear_nonsticky"), value_type(.true.)), &
+            call add_text_properties(beginning, end, list(value_type(name="read_only"), value_type(.true.), &
+                                                          value_type(name="occur_prefix"), value_type(.true.), &
+                                                          value_type(name="front_sticky"), value_type(.true.), &
+                                                          value_type(name="rear_nonsticky"), value_type(.true.)), &
                                      changed, st)
             ! Update the markers if necessary.
-            call compilation_message_location(beg, target_buffer, location, found, status)
+            call compilation_message_location(beginning, target_buffer, location, found, status)
             if (.not. status%ok()) exit
 
             if (found) then
@@ -1856,7 +1857,7 @@ contains
                 call copy_marker_at(location, m(1), .false., st)
                 call copy_marker_at(location, e(1), .false., st)
                 call set_buffer(old, st)
-                idx = occur_add_target(m, e)
+                index = occur_add_target(m, e)
                 call next_single_property_change(end, value_type(name="compilation_message"), next, found, st)
 
                 if (.not. found) then
@@ -1864,7 +1865,8 @@ contains
                     next = line_end_position() + 1
                 end if
 
-                call put_text_property(beg, min(next, point_max()), value_type(name="occur_target"), value_type(int(idx, int64)), &
+                call put_text_property(beginning, min(next, point_max()), value_type(name="occur_target"), &
+                                       value_type(int(index, int64)), &
                                        st)
             end if
 
@@ -1913,7 +1915,7 @@ contains
     !> grep.el:grep-change-to-grep-edit-mode.
     recursive subroutine grep_change_to_grep_edit_mode(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         integer :: k
 
         status = status_type()
@@ -1923,9 +1925,9 @@ contains
             return
         end if
 
-        proc = get_buffer_process(current_buffer())
+        process = get_buffer_process(current_buffer())
 
-        if (proc%index /= 0) then
+        if (process%index /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot switch when grep is running")
             return
         end if
@@ -1936,14 +1938,14 @@ contains
         if (.not. status%ok()) return
         call grep_edit_prepare_buffer(status)
         if (.not. status%ok()) return
-        buffers(cur)%read_only = .false.
-        buffers(cur)%major_mode = "grep_edit_mode"
-        buffers(cur)%mode_name = "Grep-Edit"
+        buffers(current)%read_only = .false.
+        buffers(current)%major_mode = "grep_edit_mode"
+        buffers(current)%mode_name = "Grep-Edit"
         ! buffer-enable-undo.
-        buffers(cur)%undo_enabled = .true.
+        buffers(current)%undo_enabled = .true.
         call restore_buffer_modified(.false.)
-        if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
-        call after_change_functions%add(occur_after_change_function, local=.true.)
+        if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
+        call after_change_functions%append(occur_after_change_function, local=.true.)
         call execute_mode_hooks(status, grep_edit_mode_hook)
         if (.not. status%ok()) return
         call message(substitute_command_keys("Editing: Type \[grep_edit_save_changes] to return to Grep mode"))
@@ -1964,12 +1966,12 @@ contains
         call after_change_functions%remove(occur_after_change_function, local=.true.)
         k = local_entry()
         call use_local_map(locals(k)%edit_original_map, status)
-        buffers(cur)%read_only = .true.
-        buffers(cur)%major_mode = "grep_mode"
-        buffers(cur)%mode_name = "Grep"
+        buffers(current)%read_only = .true.
+        buffers(current)%major_mode = "grep_mode"
+        buffers(current)%mode_name = "Grep"
         ! buffer-disable-undo.
-        buffers(cur)%undo_enabled = .false.
-        if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
+        buffers(current)%undo_enabled = .false.
+        if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
         call message("Switching to Grep mode")
     end subroutine grep_edit_save_changes
 
@@ -2024,11 +2026,11 @@ contains
         character(len=*), intent(in), optional :: regexp, files, dir, excl
         character(len=*), intent(in), optional :: more_opts(:)
         character(len=:), allocatable :: command
-        character(len=:), allocatable :: opts, re
+        character(len=:), allocatable :: opts, pattern
         integer :: i
 
-        re = ""
-        if (present(regexp)) re = regexp
+        pattern = ""
+        if (present(regexp)) pattern = regexp
         ! opts: MORE_OPTS, then "-i" and the color option pushed in front.
         opts = ""
 
@@ -2039,12 +2041,12 @@ contains
             end do
         end if
 
-        if (case_fold_search%value .and. is_isearch_no_upper_case(re, .true.)) call add_front("-i")
+        if (case_fold_search%value .and. is_isearch_no_upper_case(pattern, .true.)) call prepend("-i")
 
         if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_ALWAYS) then
-            call add_front("--color=always")
+            call prepend("--color=always")
         else if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_AUTO) then
-            call add_front("--color=auto")
+            call prepend("--color=auto")
         end if
 
         command = template
@@ -2070,11 +2072,11 @@ contains
             call substitute("<X>", "")
         end if
 
-        call substitute("<R>", shell_quote_argument(re))
+        call substitute("<R>", shell_quote_argument(pattern))
 
     contains
 
-        subroutine add_front(opt)
+        subroutine prepend(opt)
             character(len=*), intent(in) :: opt
 
             if (len(opts) > 0) then
@@ -2082,7 +2084,7 @@ contains
             else
                 opts = opt
             end if
-        end subroutine add_front
+        end subroutine prepend
 
         subroutine substitute(keyword, value)
             character(len=*), intent(in) :: keyword, value
@@ -2112,18 +2114,18 @@ contains
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
         type(status_type) :: st
-        integer(int64) :: idx
+        integer(int64) :: index
 
         found = .true.
 
-        if (allocated(buffers(cur)%filename)) then
-            name = buffers(cur)%filename
+        if (allocated(buffers(current)%filename)) then
+            name = buffers(current)%filename
             return
         end if
 
-        name = buffers(cur)%name
-        idx = string_match("<[0-9]+>\'", name, st)
-        if (idx > 0) name = name(:idx - 1)
+        name = buffers(current)%name
+        index = string_match("<[0-9]+>\'", name, st)
+        if (index > 0) name = name(:index - 1)
     end subroutine grep_read_files_default
 
     !> Read a file-name pattern arg for interactive grep.
@@ -2205,12 +2207,12 @@ contains
         ! (delete-dups (delq nil (append (list default default-alias
         ! default-extension) (mapcar #'car grep-files-aliases)))).
         allocate (defaults(0))
-        call add_default(default)
-        if (has_alias) call add_default(default_alias)
-        if (has_ext) call add_default(default_extension)
+        call append_default(default)
+        if (has_alias) call append_default(default_alias)
+        if (has_ext) call append_default(default_extension)
 
         do i = 1, size(grep_files_aliases)
-            call add_default(trim(grep_files_aliases(i)%name))
+            call append_default(trim(grep_files_aliases(i)%name))
         end do
 
         call move_alloc(defaults, read_files_defaults)
@@ -2228,7 +2230,7 @@ contains
 
     contains
 
-        subroutine add_default(s)
+        subroutine append_default(s)
             character(len=*), intent(in) :: s
             type(minibuffer_string_type), allocatable :: grown(:)
             integer :: k
@@ -2245,7 +2247,7 @@ contains
 
             grown(size(grown))%s = s
             call move_alloc(grown, defaults)
-        end subroutine add_default
+        end subroutine append_default
     end subroutine grep_read_files
 
     !> The next word of S (split-string on whitespace) from START: B to E,
@@ -2281,12 +2283,12 @@ contains
     !> The completion table of `grep_read_files': (completion-table-merge
     !> defaults #'completion-file-name-table).  Port of
     !> minibuffer.el:completion-table-merge for those two tables.
-    recursive subroutine merged_files_table(string, action, result, status, pred, suffix)
+    recursive subroutine merged_files_table(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(completion_table_type) :: list_table
         type(value_type) :: r1, r2
@@ -2304,9 +2306,9 @@ contains
 
         select case (action)
         case (COMPLETE_TRY)
-            call try_completion(string, list_table, r1, status, pred)
+            call try_completion(string, list_table, r1, status, test)
             if (.not. status%ok()) return
-            call completion_file_name_table(string, COMPLETE_TRY, r2, status, pred)
+            call completion_file_name_table(string, COMPLETE_TRY, r2, status, test)
             if (.not. status%ok()) return
 
             if (is_string(r1) .or. is_string(r2)) then
@@ -2315,15 +2317,15 @@ contains
             end if
 
             ! (try-completion string (mapcar (lambda (value) (if (eq value
-            ! t) string value)) (delq nil retvals)) pred).
+            ! t) string value)) (delq nil retvals)) test).
             allocate (all(0))
-            call add_value(r1)
-            call add_value(r2)
-            call try_completion(string, completion_list_table(make_list(all)), result, status, pred)
+            call append_value(r1)
+            call append_value(r2)
+            call try_completion(string, completion_list_table(make_list(all)), result, status, test)
         case (COMPLETE_ALL)
-            call all_completions(string, list_table, r1, status, pred)
+            call all_completions(string, list_table, r1, status, test)
             if (.not. status%ok()) return
-            call completion_file_name_table(string, COMPLETE_ALL, r2, status, pred)
+            call completion_file_name_table(string, COMPLETE_ALL, r2, status, test)
             if (.not. status%ok()) return
             call list_elements(r1, e1)
             call list_elements(r2, e2)
@@ -2334,15 +2336,15 @@ contains
             result = make_list(all)
         case default
             ! (seq-some (lambda (table) (complete-with-action action table
-            ! string pred)) tables).
+            ! string test)) tables).
             result = value_type()
 
             if (action == COMPLETE_TEST) then
-                if (is_exact_completion(string, list_table, pred)) result = value_type(.true.)
+                if (is_exact_completion(string, list_table, test)) result = value_type(.true.)
             end if
 
             if (.not. status%ok()) return
-            if (.not. allocated(result%a)) call completion_file_name_table(string, action, result, status, pred, suffix)
+            if (.not. allocated(result%a)) call completion_file_name_table(string, action, result, status, test, suffix)
         end select
 
     contains
@@ -2354,7 +2356,7 @@ contains
             if (vtag(v) == V_STRING) is_string = xstring(v) == string .and. len(xstring(v)) == len(string)
         end function is_string
 
-        subroutine add_value(v)
+        subroutine append_value(v)
             type(value_type), intent(in) :: v
             type(value_type), allocatable :: grown(:)
 
@@ -2369,7 +2371,7 @@ contains
             end if
 
             call move_alloc(grown, all)
-        end subroutine add_value
+        end subroutine append_value
     end subroutine merged_files_table
 
     !> Include elements of LIST which are applicable to DIR.  Port of
@@ -2436,7 +2438,7 @@ contains
         character(len=:), allocatable :: command, d, edited, excl, saved_dir
         character(len=64), allocatable :: ignores(:)
         character(len=19), allocatable :: more(:)
-        logical :: conf, have_command, had_dir
+        logical :: conf, has_command, had_dir
         integer :: i
         type(handle_type) :: old
 
@@ -2456,11 +2458,11 @@ contains
         end if
 
         command = regexp
-        have_command = .true.
+        has_command = .true.
 
         if (.not. present(files)) then
             if (allocated(grep_command)) then
-                if (command == grep_command .and. len(command) == len(grep_command)) have_command = .false.
+                if (command == grep_command .and. len(command) == len(grep_command)) has_command = .false.
             end if
         else
             call expand_file_name(dir, d, status)
@@ -2503,12 +2505,12 @@ contains
             end if
         end if
 
-        if (.not. have_command) return
+        if (.not. has_command) return
         old = current_buffer()
-        had_dir = allocated(buffers(cur)%directory)
-        if (had_dir) saved_dir = buffers(cur)%directory
-        buffers(cur)%directory = file_name_as_directory(dir)
-        if (present(files)) buffers(cur)%directory = d
+        had_dir = allocated(buffers(current)%directory)
+        if (had_dir) saved_dir = buffers(current)%directory
+        buffers(current)%directory = file_name_as_directory(dir)
+        if (present(files)) buffers(current)%directory = d
         ! Setting process-setup-function makes exit-message-function work
         ! even when async processes aren't supported.
         call grep_save_buffers_now(status)
@@ -2526,9 +2528,9 @@ contains
         ! Set default-directory if we started lgrep in the *grep* buffer.
         if (status%ok() .and. same_buffer(next_error_last_buffer, current_buffer())) then
             if (present(files)) then
-                buffers(cur)%directory = d
+                buffers(current)%directory = d
             else
-                buffers(cur)%directory = file_name_as_directory(dir)
+                buffers(current)%directory = file_name_as_directory(dir)
             end if
         end if
     end subroutine lgrep
@@ -2598,7 +2600,7 @@ contains
         if (.not. status%ok()) return
 
         if (len(dir) == 0) then
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         end if
 
         confirm = n == 4
@@ -2637,7 +2639,7 @@ contains
         character(len=:), allocatable :: dir
 
         dir = "./"
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
     end function buffer_dir
 
     !> Recursively grep for REGEXP in FILES in directory tree rooted at
@@ -2656,7 +2658,7 @@ contains
     !> running, you can use \[next_error] (M-x next_error), or
     !> \<grep_mode_map>\[compile_goto_error] in the grep output buffer, to
     !> visit the lines where matches were found.  To kill the job before
-    !> it finishes, type \[kill_compilation].
+    !> it finishes, type \[stop_compilation].
     !>
     !> This command shares argument histories with \[lgrep] and
     !> \[grep_find].
@@ -2724,13 +2726,13 @@ contains
         call grep_save_buffers_now(status)
         if (.not. status%ok()) return
         old = current_buffer()
-        had_dir = allocated(buffers(cur)%directory)
-        if (had_dir) saved_dir = buffers(cur)%directory
-        buffers(cur)%directory = d
+        had_dir = allocated(buffers(current)%directory)
+        if (had_dir) saved_dir = buffers(current)%directory
+        buffers(current)%directory = d
         call compilation_start(command, status, mode=major_modes%grep_mode)
         call restore_directory(old, had_dir, saved_dir)
         ! Set default-directory if we started rgrep in the *grep* buffer.
-        if (status%ok() .and. same_buffer(next_error_last_buffer, current_buffer())) buffers(cur)%directory = d
+        if (status%ok() .and. same_buffer(next_error_last_buffer, current_buffer())) buffers(current)%directory = d
     end subroutine rgrep
 
     !> The command: read the arguments, then `rgrep'.  The interactive form
@@ -2839,26 +2841,26 @@ contains
         type(status_type), intent(out) :: status
         type(silent_modifications_type) :: silent
         type(value_type) :: display
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         logical :: found, changed
         type(status_type) :: st
 
         status = status_type()
         call silent_modifications_begin(silent)
-        call next_single_property_change(point_min(), value_type(name="abbreviated_command"), beg, found, st)
+        call next_single_property_change(point_min(), value_type(name="abbreviated_command"), beginning, found, st)
         end = 0
-        if (found) call next_single_property_change(beg, value_type(name="abbreviated_command"), end, found, st)
+        if (found) call next_single_property_change(beginning, value_type(name="abbreviated_command"), end, found, st)
 
         if (found .and. end > 0) then
-            call get_text_property(beg, value_type(name="display"), display, st)
+            call get_text_property(beginning, value_type(name="display"), display, st)
 
             if (allocated(display%a)) then
-                call remove_list_of_text_properties(beg, end, list(value_type(name="display"), value_type(name="help_echo"), &
-                                                                   value_type(name="mouse_face"), &
-                                                                   value_type(name="help_echo"), value_type(name="keymap")), &
+                call remove_list_of_text_properties(beginning, end, list(value_type(name="display"), value_type(name="help_echo"), &
+                                                                         value_type(name="mouse_face"), &
+                                                                         value_type(name="help_echo"), value_type(name="keymap")), &
                                                     changed, st)
             else
-                call add_text_properties(beg, end, grep_find_abbreviate_properties(), changed, st)
+                call add_text_properties(beginning, end, grep_find_abbreviate_properties(), changed, st)
             end if
         else
             call set_error(status, FM_USER_ERROR, "No abbreviated part to hide/show")
@@ -2916,7 +2918,7 @@ contains
         type(grep_host_defaults_type) :: saved_table
         type(grep_files_alias_type), allocatable :: saved_aliases(:)
         character(len=:), allocatable :: saved_program, regexp, files, dir, template
-        logical :: run, confirm, have_template
+        logical :: run, confirm, has_template
 
         ! Compute standard default values.
         call grep_compute_defaults(status)
@@ -2925,13 +2927,13 @@ contains
         ! `grep_compute_defaults' for grep program "zgrep", but not
         ! changing global values.
         saved = current_defaults()
-        saved_table = grep_host_defaults_table
+        saved_table = grep_host_defaults
         saved_program = grep_program
         call move_alloc(grep_files_aliases, saved_aliases)
         grep_program = "zgrep"
         if (allocated(grep_find_template)) deallocate (grep_find_template)
         if (allocated(grep_find_command)) deallocate (grep_find_command)
-        grep_host_defaults_table = grep_host_defaults_type()
+        grep_host_defaults = grep_host_defaults_type()
         ! `zgrep' doesn't support the `--null' option.
         grep_use_null_filename_separator = GREP_USE_NULL_FILENAME_SEPARATOR_NO
         ! Use for `grep_read_files'.
@@ -2939,12 +2941,12 @@ contains
                               grep_files_alias_type(name="gz", files="*.gz")]
         ! Recompute defaults using the values set above (saved and restored).
         call grep_compute_defaults(status)
-        have_template = allocated(grep_find_template)
-        if (have_template) template = grep_find_template
+        has_template = allocated(grep_find_template)
+        if (has_template) template = grep_find_template
 
         if (status%ok()) then
-            if (.not. have_template .and. .not. (allocated(grep_find_command) .and. &
-                                                 prefix_numeric_value(current_prefix_arg) == 16)) then
+            if (.not. has_template .and. .not. (allocated(grep_find_command) .and. &
+                                                prefix_numeric_value(current_prefix_arg) == 16)) then
                 call set_error(status, FM_GENERIC_ERROR, "grep.el: No `grep_find_template' available")
             else
                 call read_grep_args(grep_find_command, "grep_find_history", "Base directory: ", run, regexp, files, &
@@ -2955,13 +2957,13 @@ contains
         ! Restore the saved values.
         grep_program = saved_program
         call move_alloc(saved_aliases, grep_files_aliases)
-        grep_host_defaults_table = saved_table
+        grep_host_defaults = saved_table
         call set_defaults(saved)
         if (.not. status%ok()) return
 
         if (run) then
             call zrgrep(regexp, status, dir=buffer_dir())
-        else if (have_template) then
+        else if (has_template) then
             call zrgrep(regexp, status, files, dir, confirm, template)
         else
             call zrgrep(regexp, status, files, dir, confirm)
@@ -3032,13 +3034,13 @@ contains
         end if
 
         if (.not. allocated(grep_find_ignored_directories)) then
-            if (.not. allocated(vc_directory_exclusion_list)) then
+            if (.not. allocated(vc_directory_exclusions)) then
                 allocate (grep_find_ignored_directories(0))
             else
-                allocate (grep_find_ignored_directories(size(vc_directory_exclusion_list)))
+                allocate (grep_find_ignored_directories(size(vc_directory_exclusions)))
 
-                do i = 1, size(vc_directory_exclusion_list)
-                    grep_find_ignored_directories(i)%name = trim(vc_directory_exclusion_list(i))
+                do i = 1, size(vc_directory_exclusions)
+                    grep_find_ignored_directories(i)%name = trim(vc_directory_exclusions(i))
                 end do
             end if
         end if
@@ -3069,7 +3071,7 @@ contains
                                                               //"match\(?:es\)? found\)\|\(no matches found\)\).*"
         grep_compilation_transform_finished_rules(2)%regexp = "^Grep[/a-zA-Z]* \(exited abnormally\|interrupt\|" &
                                                               //"killed\|terminated\)\(?:.*with code \([0-9]+\)\)?.*"
-        call init_grep_regexp_table()
+        call init_grep_regexps()
         call init_grep_mode_font_lock_keywords()
         call grep_heading%define("grep_heading", "Face of headings when `grep_use_headings' is true.")
         call grep_heading%spec_entry(display_when(), face_attrs(inherit=grep_hit_face))
@@ -3101,12 +3103,12 @@ contains
         commands%rgrep%execute => cmd_rgrep
         commands%zrgrep%execute => cmd_zrgrep
         commands%rzgrep%execute => cmd_zrgrep
-        commands%kill_grep%execute => kill_compilation
+        commands%stop_grep%execute => stop_compilation
         commands%grep_find_toggle_abbreviation%execute => grep_find_toggle_abbreviation
         commands%grep_edit_mode%execute => grep_edit_mode
         commands%grep_change_to_grep_edit_mode%execute => grep_change_to_grep_edit_mode
         commands%grep_edit_save_changes%execute => grep_edit_save_changes
-        call add_local_variables_killer(kill_grep_locals)
+        call append_locals_clearer(clear_grep_locals)
 
     contains
 

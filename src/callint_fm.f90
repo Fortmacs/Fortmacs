@@ -35,12 +35,12 @@ module callint_fm
     use lisp_fm, only: value_type, V_ARRAY, V_STRING, vtag, xsymbol, symbols, V_NULL, &
                        V_NAME
     use lread_fm, only: intern
-    use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of, value_type
+    use lisp_fm, only: command_type, command_procedure, defined_command, defined_command_name_of, value_type
     use commands_fm, only: builtin_command, BUILTIN_COMMAND_NAMES
     implicit none(type, external)
     private
 
-    public :: command_proc, command_type, find_command, is_command, is_command_defined, &
+    public :: command_procedure, command_type, find_command, is_command, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of, command_of
     public :: execute_interactively, find_function, prefix_numeric_value, prefix_arg_repr
 
@@ -121,15 +121,15 @@ contains
         p => find_command(symbols(xsymbol(v))%name)
     end function command_of
 
-    !> The name of the function whose procedure is PROC ("" if none).
+    !> The name of the function whose procedure is EXECUTE ("" if none).
     !> Not a port.
-    function command_name_of(proc) result(name)
-        procedure(command_proc) :: proc
+    function command_name_of(execute) result(name)
+        procedure(command_procedure) :: execute
         character(len=:), allocatable :: name
         type(command_type), pointer :: p
         integer :: i
 
-        name = defined_command_name_of(proc)
+        name = defined_command_name_of(execute)
         if (len(name) > 0) return
 
         do i = 1, size(BUILTIN_COMMAND_NAMES)
@@ -137,7 +137,7 @@ contains
             if (.not. associated(p)) cycle
             if (.not. associated(p%execute)) cycle
 
-            if (associated(p%execute, proc)) then
+            if (associated(p%execute, execute)) then
                 name = trim(BUILTIN_COMMAND_NAMES(i))
                 return
             end if
@@ -308,15 +308,15 @@ contains
     function prefix_arg_repr(arg) result(text)
         type(prefix_arg_type), intent(in) :: arg
         character(len=:), allocatable :: text
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") arg%value
+        write (buffer, "(i0)") arg%value
 
         select case (arg%kind)
         case (PREFIX_NUMBER)
-            text = "prefix_arg_type(kind=PREFIX_NUMBER, value="//trim(buf)//")"
+            text = "prefix_arg_type(kind=PREFIX_NUMBER, value="//trim(buffer)//")"
         case (PREFIX_RAW)
-            text = "prefix_arg_type(kind=PREFIX_RAW, value="//trim(buf)//")"
+            text = "prefix_arg_type(kind=PREFIX_RAW, value="//trim(buffer)//")"
         case (PREFIX_MINUS)
             text = "prefix_arg_type(kind=PREFIX_MINUS)"
         case default

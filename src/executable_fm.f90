@@ -24,13 +24,13 @@
 !> `executable_find' (files_fm cannot use callproc_fm, which uses it).
 !>
 !> Deferred: `executable_interpret' (C-c C-x; it needs rule specifications
-!> in `compilation_error_regexp_names', so `executable_error_regexp_table'
+!> in `compilation_error_regexp_names', so `executable_error_regexps'
 !> is deferred with it) and `executable_command_find_posix_p' (needs
 !> `data_directory').
 module executable_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, format_error, FM_GENERIC_ERROR
-    use buffer_fm, only: buffers, cur, current_buffer
+    use buffer_fm, only: buffers, current, current_buffer
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, widen, narrow_to_region
     use search_fm, only: looking_at, string_match, match_beginning, match_end, replace_match, match_data, set_match_data
     use insdel_fm, only: insert
@@ -116,8 +116,8 @@ contains
 
         dir = "/"
 
-        if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (current /= 0) then
+            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         end if
 
         call locate_program(command, dir, path)
@@ -131,15 +131,15 @@ contains
 
         status = status_type()
         if (executable_chmod == EXECUTABLE_CHMOD_NONE) return
-        if (cur == 0) return
-        if (.not. allocated(buffers(cur)%filename)) return
-        if (is_file_executable(buffers(cur)%filename)) return
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        if (is_file_executable(buffers(current)%filename)) return
 
         if (executable_chmod < 0) then
-            call set_file_modes(buffers(cur)%filename, int(-executable_chmod, int32), status)
+            call set_file_modes(buffers(current)%filename, int(-executable_chmod, int32), status)
         else
-            call set_file_modes(buffers(cur)%filename, ior(int(executable_chmod, int32), &
-                                                           file_modes(buffers(cur)%filename)), status)
+            call set_file_modes(buffers(current)%filename, ior(int(executable_chmod, int32), &
+                                                               file_modes(buffers(current)%filename)), status)
         end if
     end subroutine executable_chmod_function
 
@@ -155,8 +155,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: argument_in
         logical, intent(in), optional :: no_query_flag, insert_flag
-        character(len=:), allocatable :: interpreter, argument, current
-        integer(int64) :: here, idx, mb1, me1
+        character(len=:), allocatable :: interpreter, argument, current_char
+        integer(int64) :: here, index, mb1, me1
         integer(int64), allocatable :: saved(:)
         logical :: noquery, insert_it, skip, ok, matched
 
@@ -178,9 +178,9 @@ contains
         end if
 
         result = interpreter
-        idx = string_match("\`/:", interpreter, status)
+        index = string_match("\`/:", interpreter, status)
 
-        if (idx > 0) then
+        if (index > 0) then
             argument = interpreter(3:)
         else
             argument = interpreter
@@ -192,18 +192,18 @@ contains
 
         ! For backward compatibility, allow `executable_prefix_env' to be
         ! overridden by custom `executable_prefix'.
-        idx = string_match("#!\([ "//achar(9)//"]*/usr/bin/env[ "//achar(9)//"]*\)?$", executable_prefix, status)
+        index = string_match("#!\([ "//achar(9)//"]*/usr/bin/env[ "//achar(9)//"]*\)?$", executable_prefix, status)
 
-        if (idx > 0) then
+        if (index > 0) then
             if (executable_prefix_env) argument = "/usr/bin/env "//file_name_nondirectory(argument)
         else
             argument = executable_prefix(3:)//argument
         end if
 
-        skip = buffers(cur)%read_only
+        skip = buffers(current)%read_only
 
-        if (.not. skip .and. allocated(buffers(cur)%filename)) then
-            skip = string_match(executable_magicless_file_regexp, buffers(cur)%filename, status) > 0
+        if (.not. skip .and. allocated(buffers(current)%filename)) then
+            skip = string_match(executable_magicless_file_regexp, buffers(current)%filename, status) > 0
         end if
 
         if (.not. skip) skip = .not. (insert_it .or. executable_insert)
@@ -211,7 +211,7 @@ contains
         if (skip) return
         here = point()
         call goto_char(point_min())
-        call after_save_hook%add(executable_chmod_function, local=.true.)
+        call after_save_hook%append(executable_chmod_function, local=.true.)
         matched = looking_at("#![ "//achar(9)//"]*\(.*\)$", status)
 
         if (matched) then
@@ -220,12 +220,12 @@ contains
             call goto_char(mb1)
             ! If the line ends in a space,
             ! don't offer to change it.
-            call buffer_substring(me1 - 1, me1, current, status)
-            ok = current /= " "
+            call buffer_substring(me1 - 1, me1, current_char, status)
+            ok = current_char /= " "
 
             if (ok) then
-                call buffer_substring(point(), me1, current, status)
-                ok = argument /= current .or. len(argument) /= len(current)
+                call buffer_substring(point(), me1, current_char, status)
+                ok = argument /= current_char .or. len(argument) /= len(current_char)
             end if
 
             if (ok) then
@@ -291,8 +291,8 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        if (cur == 0) return
-        if (buffers(cur)%text%z - 1 < 2) return
+        if (current == 0) return
+        if (buffers(current)%text%z - 1 < 2) return
         begv = point_min()
         zv = point_max()
         call widen()
@@ -301,12 +301,12 @@ contains
         if (.not. allocated(head)) return
         if (head /= "#!") return
 
-        if (.not. allocated(buffers(cur)%filename)) then
+        if (.not. allocated(buffers(current)%filename)) then
             call message("Unable to make file executable: Wrong type argument: expected character(len=*), unallocated")
             return
         end if
 
-        current_mode = file_modes(buffers(cur)%filename)
+        current_mode = file_modes(buffers(current)%filename)
 
         if (current_mode < 0) then
             call message("Unable to make file executable: Wrong type argument: expected integer")
@@ -315,7 +315,7 @@ contains
 
         add_mode = iand(int(o'111', int32), default_file_modes())
         if (iand(int(o'111', int32), current_mode) /= 0 .or. add_mode == 0) return
-        call set_file_modes(buffers(cur)%filename, ior(current_mode, add_mode), st)
+        call set_file_modes(buffers(current)%filename, ior(current_mode, add_mode), st)
         if (.not. st%ok()) call message("Unable to make file executable: "//format_error(st))
     end subroutine executable_make_buffer_file_executable_if_script
 

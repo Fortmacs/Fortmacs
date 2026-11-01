@@ -38,7 +38,7 @@ module map_ynp_fm
     implicit none(type, external)
     private
 
-    public :: map_read_y_or_n, ynp_prompter, ynp_actor
+    public :: map_read_y_or_n, ynp_prompter_procedure, ynp_actor_procedure
     public :: YNP_SKIP, YNP_ASK, YNP_ACT
     public :: read_answer, read_answer_type
 
@@ -75,20 +75,20 @@ module map_ynp_fm
 
     abstract interface
         !> Whether and how to ask about object `k'.  Not a port.
-        subroutine ynp_prompter(k, how, prompt)
+        subroutine ynp_prompter_procedure(k, how, prompt)
             implicit none(type, external)
             integer, intent(in) :: k
             integer, intent(out) :: how
             character(len=:), allocatable, intent(out) :: prompt
-        end subroutine ynp_prompter
+        end subroutine ynp_prompter_procedure
 
         !> Act on object `k'.  Not a port.
-        subroutine ynp_actor(k, status)
+        subroutine ynp_actor_procedure(k, status)
             import :: status_type
             implicit none(type, external)
             integer, intent(in) :: k
             type(status_type), intent(out) :: status
-        end subroutine ynp_actor
+        end subroutine ynp_actor_procedure
     end interface
 
     interface
@@ -107,8 +107,8 @@ module map_ynp_fm
         module subroutine map_read_y_or_n(n, prompter, actor, actions, status, help_object, help_objects, help_action)
             implicit none(type, external)
             integer, intent(in) :: n
-            procedure(ynp_prompter) :: prompter
-            procedure(ynp_actor) :: actor
+            procedure(ynp_prompter_procedure) :: prompter
+            procedure(ynp_actor_procedure) :: actor
             integer, intent(out) :: actions
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: help_object, help_objects, help_action
@@ -156,15 +156,15 @@ module map_ynp_fm
     !> The answers of the `read_answer' being asked with short answers
     !> (its help answer included), the message for a wrong key, and its
     !> minibuffer keymap (read-answer's short-answer-map), whose keys run
-    !> the anonymous commands `read_answer__select' and
-    !> `read_answer__reject'.
+    !> the anonymous commands `read_answer_select' and
+    !> `read_answer_reject'.
     type(read_answer_type), allocatable, public :: short_answers(:)
     !> The message for a key that is not one of the `short_answers'.
     character(len=:), allocatable, public :: short_answer_message
     !> The minibuffer keymap of the `short_answers' (read-answer's
     !> short-answer-map).
     type(handle_type), public :: short_answer_map
-    !> The anonymous commands `read_answer__select' and
-    !> `read_answer__reject' of `short_answer_map'.
+    !> The anonymous commands `read_answer_select' and
+    !> `read_answer_reject' of `short_answer_map'.
     type(command_type), target, public :: cmd_answer_select, cmd_answer_reject
 end module map_ynp_fm

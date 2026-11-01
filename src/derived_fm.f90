@@ -31,7 +31,7 @@
 !>         call my_mode_object%begin(saved, status)
 !>         if (.not. status%ok()) return
 !>         call fill_column%set_local(60)
-!>         call my_mode_object%finish(saved, status)
+!>         call my_mode_object%end(saved, status)
 !>     end subroutine my_mode
 !>
 !> with `call my_mode_object%define("my-mode", "My", my_mode, my_mode_hook,
@@ -41,10 +41,10 @@ module derived_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: command_proc
-    use data_fm, only: kill_all_local_variables
+    use lisp_fm, only: command_procedure
+    use data_fm, only: clear_all_local_variables
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use keymap_fm, only: make_sparse_keymap, is_keymap_live, keymap_parent, set_keymap_parent, use_local_map
     use subr_fm, only: delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
     use abbrev_fm, only: abbrev_table_type, local_abbrev_table, abbrev_table_set_local
@@ -75,7 +75,7 @@ module derived_fm
         !> Shown in the mode line (`mode_name').
         character(len=:), allocatable :: mode_name
         !> The mode's command.
-        procedure(command_proc), pointer, nopass :: execute => null()
+        procedure(command_procedure), pointer, nopass :: execute => null()
         !> The mode it is derived from (`derived_mode_parent'), or null.
         type(major_mode_type), pointer :: parent => null()
         !> Its keymap (`MODE-map'), inheriting the parent's.
@@ -100,7 +100,7 @@ module derived_fm
         !> variables), then set the mode's name, keymap and syntax table.
         procedure :: begin => major_mode_begin
         !> End the mode's body: run its hooks.
-        procedure :: finish => major_mode_end
+        procedure :: end => major_mode_end
         !> Whether the mode is derived from MODE (or is MODE).
         procedure :: derived_from => major_mode_derived_from
     end type major_mode_type
@@ -134,14 +134,14 @@ contains
 
     !> Define major mode SELF named NAME, shown as MODE_NAME, whose command
     !> is EXECUTE, derived from PARENT (none if absent: the body starts by
-    !> killing all local variables).  SYNTAX_TABLE, if present, is its
+    !> cutting all local variables).  SYNTAX_TABLE, if present, is its
     !> syntax table, ABBREV_TABLE its abbrev table (made known as
     !> NAME_abbrev_table).  Its keymap inherits PARENT's.  Port of
     !> derived.el:define-derived-mode.
     subroutine major_mode_define(self, name, mode_name, execute, hook, parent, syntax_table, abbrev_table)
         class(major_mode_type), intent(inout), target :: self
         character(len=*), intent(in) :: name, mode_name
-        procedure(command_proc) :: execute
+        procedure(command_procedure) :: execute
         type(hook_type), intent(inout), target, optional :: hook
         type(major_mode_type), intent(in), target, optional :: parent
         type(handle_type), intent(in), optional :: syntax_table
@@ -206,7 +206,7 @@ contains
 
         status = status_type()
         saved = .false.
-        if (cur == 0) return
+        if (current == 0) return
         call delay_mode_hooks_begin(saved)
 
         if (associated(self%parent)) then
@@ -217,11 +217,11 @@ contains
                 return
             end if
         else
-            call kill_all_local_variables()
+            call clear_all_local_variables()
         end if
 
-        buffers(cur)%major_mode = trim(self%name)
-        buffers(cur)%mode_name = self%mode_name
+        buffers(current)%major_mode = trim(self%name)
+        buffers(current)%mode_name = self%mode_name
 
         ! Identify special modes.
         if (associated(self%parent)) then
@@ -234,14 +234,14 @@ contains
             if (.not. allocated(self%abbrev_table%parents)) then
                 ! This can happen if the major mode defines the abbrev-table
                 ! to be its parent's.
-                if (.not. associated(self%abbrev_table, local_table)) call self%abbrev_table%add_parent(local_table)
+                if (.not. associated(self%abbrev_table, local_table)) call self%abbrev_table%append_parent(local_table)
             else if (size(self%abbrev_table%parents) == 0) then
-                if (.not. associated(self%abbrev_table, local_table)) call self%abbrev_table%add_parent(local_table)
+                if (.not. associated(self%abbrev_table, local_table)) call self%abbrev_table%append_parent(local_table)
             end if
         end if
 
         call use_local_map(self%map, status)
-        if (self%syntax_table%index /= 0) buffers(cur)%syntax_table = self%syntax_table
+        if (self%syntax_table%index /= 0) buffers(current)%syntax_table = self%syntax_table
         if (associated(self%abbrev_table)) call abbrev_table_set_local(self%abbrev_table)
     end subroutine major_mode_begin
 
@@ -338,9 +338,9 @@ contains
         type(major_mode_type), pointer :: m
 
         derived = .false.
-        if (cur == 0) return
-        if (.not. allocated(buffers(cur)%major_mode)) return
-        m => major_mode_named(buffers(cur)%major_mode)
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%major_mode)) return
+        m => major_mode_named(buffers(current)%major_mode)
         if (associated(m)) derived = m%derived_from(mode)
     end function is_derived_mode_object
 
@@ -350,9 +350,9 @@ contains
         character(len=*), intent(in) :: modes(:)
 
         derived = .false.
-        if (cur == 0) return
-        if (.not. allocated(buffers(cur)%major_mode)) return
-        derived = provided_mode_derived_p_names(buffers(cur)%major_mode, modes)
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%major_mode)) return
+        derived = provided_mode_derived_p_names(buffers(current)%major_mode, modes)
     end function is_derived_mode_names
 
     !> Return true if the current major mode is derived from the mode

@@ -525,7 +525,7 @@ contains
         character(len=:), allocatable :: s
         character(len=*), parameter :: pfs = "ACHMsS"
         integer(int64) :: bits(6), ch, ch2
-        character(len=24) :: buf
+        character(len=24) :: buffer
         character(len=MAX_MULTIBYTE_LENGTH) :: mb
         integer(int32) :: nb
         type(status_type) :: st
@@ -574,8 +574,8 @@ contains
             call char_string(int(ch2, int32), mb, nb, st)
             s = s//mb(1:nb)
         else
-            write (buf, "(o0)") ch2
-            s = s//"\"//trim(buf)
+            write (buffer, "(o0)") ch2
+            s = s//"\"//trim(buffer)
         end if
     end function event_description
 
@@ -583,10 +583,10 @@ contains
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function int_text
 
     !> The number of characters of the UTF-8 text S.  Not a port.

@@ -27,9 +27,9 @@ module test_dired_fm
     use error_fm, only: status_type, format_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list_length, list_elements, xstring, list_elt
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer
     use fileio_fm, only: write_region, delete_file_internal, delete_directory_internal, &
-                         make_directory_internal
+                         create_directory_internal
     use files_fm, only: temporary_file_directory
     use dired_fm, only: directory_files
     implicit none(type, external)
@@ -73,10 +73,10 @@ contains
         integer :: k
 
         testdir = temporary_file_directory()//"directory-files-test"
-        call get_buffer_create(" *dired-test*", h, st)
+        call get_or_make_buffer(" *dired-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
-        call make_directory_internal(testdir, st)
+        call create_directory_internal(testdir, st)
 
         body: block
             call directory_files(testdir, files, st)

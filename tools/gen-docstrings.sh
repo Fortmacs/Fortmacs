@@ -261,7 +261,7 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
         }
         # A setting object (data_fm): its initial value is the value=
         # argument of its constructor.
-        if (type ~ /_setting\)/) {
+        if (type ~ /_setting_type\)/) {
             init = ""
             if (match(rest, /value[ \t]*=[ \t]*[^,)]+/)) {
                 init = substr(rest, RSTART, RLENGTH)
@@ -517,16 +517,16 @@ function lit(s, ind,    out) {
 function okind(i,    t) {
     t = vtype[i]
     if (varr[i]) return "OPTION_NONE"
-    if (venum[i] != "" && (t ~ /^integer/ || t ~ /integer_setting\)/)) return "OPTION_CHOICE"
-    if (t ~ /logical_setting\)/ || t ~ /^logical/) return "OPTION_LOGICAL"
-    if (t ~ /integer_setting\)/ || t ~ /^integer/) return "OPTION_INTEGER"
+    if (venum[i] != "" && (t ~ /^integer/ || t ~ /integer_setting_type\)/)) return "OPTION_CHOICE"
+    if (t ~ /logical_setting_type\)/ || t ~ /^logical/) return "OPTION_LOGICAL"
+    if (t ~ /integer_setting_type\)/ || t ~ /^integer/) return "OPTION_INTEGER"
     if (t ~ /^real/) return "OPTION_REAL"
-    if (t ~ /string_setting\)/ || t ~ /^character/) return "OPTION_STRING"
+    if (t ~ /string_setting_type\)/ || t ~ /^character/) return "OPTION_STRING"
     return "OPTION_NONE"
 }
 
 # Whether variable i is a setting object (it can have buffer-local values).
-function osetting(i) { return vtype[i] ~ /(logical|integer|string)_setting\)/ }
+function osetting(i) { return vtype[i] ~ /(logical|integer|string)_setting_type\)/ }
 
 # Fortran statements assigning `val` to variable i, given buffer-locally
 # when `local` is true and the variable is a setting object.
@@ -577,12 +577,12 @@ $1 == "V" {
     vinit[nv] = $7; vdoc[nv] = $8
     mods[$3] = mods[$3] (mods[$3] == "" ? "" : ", ") $4
     # The procedures naming the value of a procedure setting.
-    if ($5 ~ /function_setting\)/ && !named_cmd++)
+    if ($5 ~ /function_setting_type\)/ && !named_cmd++)
         mods["callint_fm.f90"] = mods["callint_fm.f90"] (mods["callint_fm.f90"] == "" ? "" : ", ") "command_name_of"
     # A prefix argument is shown as its structure constructor.
     if ($5 ~ /prefix_arg_type\)/ && !named_prefix++)
         mods["callint_fm.f90"] = mods["callint_fm.f90"] (mods["callint_fm.f90"] == "" ? "" : ", ") "prefix_arg_repr"
-    if ($5 ~ /indent_line_setting\)/ && !named_indent++)
+    if ($5 ~ /indent_line_setting_type\)/ && !named_indent++)
         mods["indent_fm.f90"] = mods["indent_fm.f90"] (mods["indent_fm.f90"] == "" ? "" : ", ") "indent_line_function_name"
     if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
         venum[nv] = group[$7]
@@ -773,7 +773,7 @@ END {
         if (venum[i] != "") {
             # The value of a setting object is its value component.
             ex = vfort[i]
-            if (vtype[i] ~ /_setting\)/) ex = ex "%value"
+            if (vtype[i] ~ /_setting_type\)/) ex = ex "%value"
             print "            select case (" ex ")"
             n = split(venum[i], defs, ",")
             for (k = 1; k <= n; k++) {
@@ -791,14 +791,14 @@ END {
             # prefix argument its structure constructor.  Other derived types
             # (hooks, keymaps, syntax tables) have no printed representation
             # yet: help leaves the value out.
-            if (vtype[i] ~ /(integer|logical)_setting\)/) print "            entry%value = repr(" vfort[i] "%value)"
-            else if (vtype[i] ~ /string_setting\)/) {
+            if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
+            else if (vtype[i] ~ /string_setting_type\)/) {
                 print "            if (allocated(" vfort[i] "%value)) then"
                 print "                entry%value = repr(" vfort[i] "%value)"
                 print "            else"
                 print "                entry%value = \"unallocated\""
                 print "            end if"
-            } else if (vtype[i] ~ /function_setting\)/) {
+            } else if (vtype[i] ~ /function_setting_type\)/) {
                 print "            if (associated(" vfort[i] "%value)) then"
                 print "                entry%value = command_name_of(" vfort[i] "%value)"
                 print "            else"
@@ -812,7 +812,7 @@ END {
                 print "            end if"
             } else if (vtype[i] ~ /^type\(prefix_arg_type\)/)
                 print "            entry%value = prefix_arg_repr(" vfort[i] ")"
-            else if (vtype[i] ~ /indent_line_setting\)/)
+            else if (vtype[i] ~ /indent_line_setting_type\)/)
                 print "            entry%value = indent_line_function_name(" vfort[i] "%value)"
             else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_repr(" vfort[i] ")"
             else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
@@ -1003,10 +1003,10 @@ END {
     print "    function repr_integer(v) result(s)"
     print "        integer, intent(in) :: v"
     print "        character(len=:), allocatable :: s"
-    print "        character(len=12) :: buf"
+    print "        character(len=12) :: digits"
     print ""
-    print "        write (buf, \"(i0)\") v"
-    print "        s = trim(buf)"
+    print "        write (digits, \"(i0)\") v"
+    print "        s = trim(digits)"
     print "    end function repr_integer"
     print ""
     print "    ! A real with at least one digit"
@@ -1014,10 +1014,10 @@ END {
     print "    function repr_real(v) result(s)"
     print "        real, intent(in) :: v"
     print "        character(len=:), allocatable :: s"
-    print "        character(len=32) :: buf"
+    print "        character(len=32) :: digits"
     print ""
-    print "        write (buf, \"(f0.6)\") v"
-    print "        s = trim(buf)"
+    print "        write (digits, \"(f0.6)\") v"
+    print "        s = trim(digits)"
     print "        do while (len(s) > 2)"
     print "            if (s(len(s):len(s)) /= \"0\" .or. s(len(s) - 1:len(s) - 1) == \".\") exit"
     print "            s = s(1:len(s) - 1)"
@@ -1031,10 +1031,10 @@ END {
     print "    function repr_int64(v) result(s)"
     print "        integer(int64), intent(in) :: v"
     print "        character(len=:), allocatable :: s"
-    print "        character(len=21) :: buf"
+    print "        character(len=21) :: digits"
     print ""
-    print "        write (buf, \"(i0)\") v"
-    print "        s = trim(buf)"
+    print "        write (digits, \"(i0)\") v"
+    print "        s = trim(digits)"
     print "    end function repr_int64"
     print ""
     print "    !> An array of integers as a Fortran array constructor."

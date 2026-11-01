@@ -52,8 +52,8 @@ module shell_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xstring, vtag, V_NULL, V_NAME
-    use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, kill_buffer, &
+    use data_fm, only: string_setting_type, logical_setting_type, forward_setting, append_locals_clearer
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, close_buffer, &
                          generate_new_buffer_name
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, is_eob
@@ -82,19 +82,19 @@ module shell_fm
     use commands_fm, only: commands
     use process_fm, only: process_arg_type, get_buffer_process, process_filter, process_sentinel, set_process_filter, &
                           set_process_sentinel, process_send_string, accept_process_output, is_process_live, &
-                          process_buffer, process_command, process_filter_proc, process_sentinel_proc, process_name
-    use comint_fm, only: comint_mode, comint_check_proc, make_comint_in_buffer, comint_prompt_regexp, &
-                         comint_delimiter_argument_list, comint_input_ring_size, comint_input_ring_file_name, &
+                          process_buffer, process_command, process_filter_procedure, process_sentinel_procedure, process_name
+    use comint_fm, only: comint_mode, comint_check_process, make_comint_in_buffer, comint_prompt_regexp, &
+                         comint_delimiter_arguments, comint_input_ring_size, comint_input_ring_file_name, &
                          comint_input_ring_file_prefix, comint_preoutput_filter_functions, comint_input_filter_functions, &
                          comint_use_prompt_regexp, comint_read_input_ring, comint_write_input_ring, comint_bol, &
                          comint_arguments, comint_substitute_in_file_name, comint_input_ring_length, &
                          set_comint_get_old_input, comint_next_prompt, comint_previous_prompt, syms_of_comint
     use compile_fm, only: cd
-    use data_fm, only: integer_setting
+    use data_fm, only: integer_setting_type
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: make_list, list_elements, value_type
     use eval_fm, only: capf_hook_type, capf_entry_type
-    use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_quote_proc, capf_data_type, &
+    use minibuf_table_fm, only: completion_table_type, completion_test_procedure, completion_quote_procedure, capf_data_type, &
                                 completion_function_table, completion_list_table, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuf_fm, only: complete_with_action
     use minibuffer_fm, only: completion_in_region, completion_file_name_table, completion_at_point_functions
@@ -106,7 +106,7 @@ module shell_fm
     use editfns_fm, only: is_eol, char_after, delete_region
     use frame_fm, only: selected_frame
     use sysdep_fm, only: sys_string_type, emacs_environment
-    use comint_fm, only: comint_file_name_chars, comint_file_name_quote_list, comint_file_name_prefix, &
+    use comint_fm, only: comint_file_name_chars, comint_file_name_quote_chars, comint_file_name_prefix, &
                          comint_dynamic_complete_functions, comint_filename_completion, comint_completion_at_point, &
                          comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
                          comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
@@ -125,7 +125,7 @@ module shell_fm
     public :: COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
     public :: shell_command_completion, shell_environment_variable_completion
     public :: shell, shell_mode, shell_command_mode, syms_of_shell, shell_get_old_input, shell_directory_tracker, &
-              shell_unquote_argument, shell__unquote_argument, shell_parse_pcomplete_arguments, &
+              shell_unquote_argument, shell_unquote_argument_internal, shell_parse_pcomplete_arguments, &
               shell_process_cd, shell_process_pushd, shell_process_popd, shell_cd, &
               shell_dirstack_message, shell_forward_command, shell_backward_command, shell_narrow_to_prompt, &
               shell_eval_command, shell_filter_ctrl_a_ctrl_b, shell_filter_ring_bell, shell_write_history_on_exit, &
@@ -136,7 +136,7 @@ module shell_fm
     !> match this regexp, Emacs will write out the command history when the
     !> shell finishes, and won't remove backslashes when it unquotes shell
     !> arguments.  Port of shell.el shell-dumb-shell-regexp.
-    type(string_setting), public :: shell_dumb_shell_regexp = string_setting(name="shell_dumb_shell_regexp")
+    type(string_setting_type), public :: shell_dumb_shell_regexp = string_setting_type(name="shell_dumb_shell_regexp")
 
     !> Regexp to match prompts in the inferior shell.
     !> Defaults to "^[^#$%>\n]*[#$%>] *", which works pretty well.
@@ -151,66 +151,66 @@ module shell_fm
     !> does, Shell mode may become confused trying to distinguish prompt
     !> from input on lines which don't start with a prompt.  Port of
     !> shell.el shell-prompt-pattern.
-    type(string_setting), public :: shell_prompt_pattern = string_setting(name="shell_prompt_pattern")
+    type(string_setting_type), public :: shell_prompt_regexp = string_setting_type(name="shell_prompt_regexp")
 
     !> The characters to recognize as separate arguments in input.
-    !> This variable is used to initialize `comint_delimiter_argument_list'
+    !> This variable is used to initialize `comint_delimiter_arguments'
     !> in the shell buffer.  The value may depend on the operating system
     !> or shell.  Port of shell.el shell-delimiter-argument-list (the
     !> characters as a string).
-    type(string_setting), public :: shell_delimiter_argument_list = &
-                                    string_setting(name="shell_delimiter_argument_list")
+    type(string_setting_type), public :: shell_delimiter_arguments = &
+                                         string_setting_type(name="shell_delimiter_arguments")
 
     !> Regexp to match a single command within a pipeline.
     !> This is used for directory tracking and does not do a perfect job.
     !> Port of shell.el shell-command-regexp.
-    type(string_setting), public :: shell_command_regexp = string_setting(name="shell_command_regexp")
+    type(string_setting_type), public :: shell_command_regexp = string_setting_type(name="shell_command_regexp")
 
     !> Regexp to match a single command within a pipeline.
     !> This is used for directory tracking and does not do a perfect job.
     !> Port of shell.el shell-command-separator-regexp.
-    type(string_setting), public :: shell_command_separator_regexp = &
-                                    string_setting(name="shell_command_separator_regexp")
+    type(string_setting_type), public :: shell_command_separator_regexp = &
+                                         string_setting_type(name="shell_command_separator_regexp")
 
     !> Regexp to match subshell commands equivalent to popd.  Port of
     !> shell.el shell-popd-regexp.
-    type(string_setting), public :: shell_popd_regexp = string_setting(name="shell_popd_regexp")
+    type(string_setting_type), public :: shell_popd_regexp = string_setting_type(name="shell_popd_regexp")
 
     !> Regexp to match subshell commands equivalent to pushd.  Port of
     !> shell.el shell-pushd-regexp.
-    type(string_setting), public :: shell_pushd_regexp = string_setting(name="shell_pushd_regexp")
+    type(string_setting_type), public :: shell_pushd_regexp = string_setting_type(name="shell_pushd_regexp")
 
     !> If true, make pushd with no arg behave as "pushd ~" (like cd).
     !> This mirrors the optional behavior of tcsh.  Port of shell.el
     !> shell-pushd-tohome.
-    type(logical_setting), public :: shell_pushd_tohome = logical_setting(name="shell_pushd_tohome", value=.false.)
+    type(logical_setting_type), public :: shell_pushd_tohome = logical_setting_type(name="shell_pushd_tohome", value=.false.)
 
     !> If true, make "pushd +n" pop the nth dir to the stack top.
     !> This mirrors the optional behavior of tcsh.  Port of shell.el
     !> shell-pushd-dextract.
-    type(logical_setting), public :: shell_pushd_dextract = logical_setting(name="shell_pushd_dextract", value=.false.)
+    type(logical_setting_type), public :: shell_pushd_dextract = logical_setting_type(name="shell_pushd_dextract", value=.false.)
 
     !> If true, make pushd only add unique directories to the stack.
     !> This mirrors the optional behavior of tcsh.  Port of shell.el
     !> shell-pushd-dunique.
-    type(logical_setting), public :: shell_pushd_dunique = logical_setting(name="shell_pushd_dunique", value=.false.)
+    type(logical_setting_type), public :: shell_pushd_dunique = logical_setting_type(name="shell_pushd_dunique", value=.false.)
 
     !> Regexp to match subshell commands equivalent to cd.  Port of
     !> shell.el shell-cd-regexp.
-    type(string_setting), public :: shell_cd_regexp = string_setting(name="shell_cd_regexp")
+    type(string_setting_type), public :: shell_cd_regexp = string_setting_type(name="shell_cd_regexp")
 
     !> If true, show the directory stack following directory change.
     !> This is effective only if directory tracking is enabled.  Port of
     !> shell.el shell-dirtrack-verbose.
-    type(logical_setting), public :: shell_dirtrack_verbose = &
-                                     logical_setting(name="shell_dirtrack_verbose", value=.true.)
+    type(logical_setting_type), public :: shell_dirtrack_verbose = &
+                                          logical_setting_type(name="shell_dirtrack_verbose", value=.true.)
 
     !> If allocated, the file name to use for explicitly requested inferior
     !> shells.  When unallocated, such interactive shell sessions fall back
     !> to using the shell specified in either the environment variable
     !> "ESHELL" or `shell_file_name'.  Port of shell.el
     !> explicit-shell-file-name.
-    type(string_setting), target, public :: explicit_shell_file_name = string_setting(name="explicit_shell_file_name")
+    type(string_setting_type), target, public :: explicit_shell_file_name = string_setting_type(name="explicit_shell_file_name")
 
     !> Args passed to inferior shell by \[shell], if the shell is csh.
     !> Value is an array of strings, which may be empty.  Port of shell.el
@@ -227,18 +227,18 @@ module shell_fm
     !> directory.  You can make this variable buffer-local to change it,
     !> per shell-mode instance.  Useful for shells like zsh that has this
     !> feature.  Port of shell.el shell-has-auto-cd.
-    type(logical_setting), target, public :: shell_has_auto_cd = logical_setting(name="shell_has_auto_cd", value=.false.)
+    type(logical_setting_type), target, public :: shell_has_auto_cd = logical_setting_type(name="shell_has_auto_cd", value=.false.)
 
     !> Whether `shell_get_old_input' includes "\" lines.  Port of shell.el
     !> shell-get-old-input-include-continuation-lines.
-    type(logical_setting), public :: shell_get_old_input_include_continuation_lines = &
-                                     logical_setting(name="shell_get_old_input_include_continuation_lines", &
-                                                     value=.false.)
+    type(logical_setting_type), public :: shell_get_old_input_include_continuation_lines = &
+                                          logical_setting_type(name="shell_get_old_input_include_continuation_lines", &
+                                                               value=.false.)
 
-    !> Kill a shell buffer after the shell process terminates.  Port of
+    !> Close a shell buffer after the shell process terminates.  Port of
     !> shell.el shell-kill-buffer-on-exit.
-    type(logical_setting), public :: shell_kill_buffer_on_exit = &
-                                     logical_setting(name="shell_kill_buffer_on_exit", value=.false.)
+    type(logical_setting_type), public :: shell_close_buffer_on_exit = &
+                                          logical_setting_type(name="shell_close_buffer_on_exit", value=.false.)
 
     !> The history file name used in `shell_mode'.
     !> When it is a string, this file name will be used.
@@ -247,7 +247,7 @@ module shell_fm
     !> If no history file name can be determined, a default according to
     !> the shell type is used.  Port of shell.el shell-history-file-name
     !> (the value t is Deferred).
-    type(string_setting), target, public :: shell_history_file_name = string_setting(name="shell_history_file_name")
+    type(string_setting_type), target, public :: shell_history_file_name = string_setting_type(name="shell_history_file_name")
 
     !> Command used by `shell_resync_dirs' to query the shell.  Port of
     !> shell.el shell-dirstack-query.
@@ -277,19 +277,19 @@ module shell_fm
 
     !> The directory a buffer's list shows for it (its shell's directory
     !> for a shell buffer).  Port of menu-bar.el list-buffers-directory.
-    type(string_setting), target, public :: list_buffers_directory = string_setting(name="list_buffers_directory")
+    type(string_setting_type), target, public :: list_buffers_directory = string_setting_type(name="list_buffers_directory")
 
     !> A shell buffer's own state: shell.el's buffer-local shell-dirstack
     !> and shell-last-dir, shell--start-prog (permanent), and the sentinel
-    !> wrapped for `shell_kill_buffer_on_exit'.
+    !> wrapped for `shell_close_buffer_on_exit'.
     type :: shell_buffer_type
         integer(int64) :: serial = 0
         type(handle_type) :: buffer
         character(len=:), allocatable :: start_prog
         type(process_arg_type), allocatable :: dirstack(:)
         character(len=:), allocatable :: last_dir
-        procedure(process_sentinel_proc), pointer, nopass :: kill_sentinel => null()
-        logical :: kill_on_exit = .false.
+        procedure(process_sentinel_procedure), pointer, nopass :: close_sentinel => null()
+        logical :: close_on_exit = .false.
     end type shell_buffer_type
 
     type(shell_buffer_type), allocatable :: shell_buffers(:)
@@ -308,14 +308,14 @@ module shell_fm
     !> This variable is used to initialize `comint_file_name_chars' in the
     !> shell buffer.  The value may depend on the operating system or
     !> shell.  Port of shell.el shell-file-name-chars.
-    type(string_setting), public :: shell_file_name_chars = string_setting(name="shell_file_name_chars")
+    type(string_setting_type), public :: shell_file_name_chars = string_setting_type(name="shell_file_name_chars")
 
     !> The characters to quote when in a file name.
-    !> This variable is used to initialize `comint_file_name_quote_list'
+    !> This variable is used to initialize `comint_file_name_quote_chars'
     !> in the shell buffer.  The value may depend on the operating system
     !> or shell.  Port of shell.el shell-file-name-quote-list (the
     !> characters as a string).
-    type(string_setting), public :: shell_file_name_quote_list = string_setting(name="shell_file_name_quote_list")
+    type(string_setting_type), public :: shell_file_name_quote_chars = string_setting_type(name="shell_file_name_quote_chars")
 
     !> List of functions called to perform completion.
     !> This variable is used to initialize
@@ -329,8 +329,8 @@ module shell_fm
     !>
     !> Detecting executability of files may slow command completion
     !> considerably.  Port of shell.el shell-completion-execonly.
-    type(logical_setting), public :: shell_completion_execonly = &
-                                     logical_setting(name="shell_completion_execonly", value=.true.)
+    type(logical_setting_type), public :: shell_completion_execonly = &
+                                          logical_setting_type(name="shell_completion_execonly", value=.true.)
 
     !> If not COMINT_AUTOEXPAND_NO, expand input command history
     !> references on completion.  This mirrors the optional behavior of
@@ -343,8 +343,8 @@ module shell_fm
     !>
     !> This variable supplies a default for `comint_input_autoexpand', for
     !> Shell mode only.  Port of shell.el shell-input-autoexpand.
-    type(integer_setting), public :: shell_input_autoexpand = &
-                                     integer_setting(name="shell_input_autoexpand", value=COMINT_AUTOEXPAND_HISTORY)
+    type(integer_setting_type), public :: shell_input_autoexpand = &
+                                          integer_setting_type(name="shell_input_autoexpand", value=COMINT_AUTOEXPAND_HISTORY)
 
     ! The closures of the completion data: the commands of
     ! shell--command-completion-data, the suffix of
@@ -380,7 +380,7 @@ contains
         type(shell_buffer_type), allocatable :: kept(:)
         integer :: i, n
 
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) return
         if (.not. allocated(shell_buffers)) allocate (shell_buffers(0))
         allocate (kept(size(shell_buffers) + 1))
@@ -393,7 +393,7 @@ contains
         end do
 
         n = n + 1
-        kept(n)%serial = buffers(cur)%serial
+        kept(n)%serial = buffers(current)%serial
         kept(n)%buffer = current_buffer()
         allocate (kept(n)%dirstack(0))
         shell_buffers = kept(1:n)
@@ -402,15 +402,15 @@ contains
 
     !> Forget the buffer-local shell-dirstack and shell-last-dir.
     !> Not a port.
-    subroutine kill_shell_locals()
+    subroutine clear_shell_locals()
         integer :: k
 
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         if (allocated(shell_buffers(k)%dirstack)) deallocate (shell_buffers(k)%dirstack)
         allocate (shell_buffers(k)%dirstack(0))
         if (allocated(shell_buffers(k)%last_dir)) deallocate (shell_buffers(k)%last_dir)
-    end subroutine kill_shell_locals
+    end subroutine clear_shell_locals
 
     !> The current buffer's directory stack (shell-dirstack): the
     !> directories saved by pushd, the most recent first.
@@ -422,7 +422,7 @@ contains
         type(process_arg_type), allocatable, intent(out) :: stack(:)
         integer :: k
 
-        k = entry_of(cur)
+        k = entry_of(current)
 
         if (k == 0) then
             allocate (stack(0))
@@ -437,8 +437,8 @@ contains
 
         dir = ""
 
-        if (cur > 0) then
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (current > 0) then
+            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         end if
     end function default_directory
 
@@ -526,12 +526,12 @@ contains
     !> Parse whitespace separated arguments from the start of the current
     !> command to point: ARGS, and the positions where they begin.  Port of
     !> shell.el:shell--parse-pcomplete-arguments (a non-empty
-    !> `comint_file_name_quote_list', as on GNU/Linux).
+    !> `comint_file_name_quote_chars', as on GNU/Linux).
     subroutine shell_parse_pcomplete_arguments(args, begins)
         use subr_fm, only: match_string
         type(process_arg_type), allocatable, intent(out) :: args(:)
         integer(int64), allocatable, intent(out) :: begins(:)
-        character(len=*), parameter :: ARG_RE = "\(?:[^ "//achar(9)//achar(10)//"\""';]+\|'\([^']*\)'?\|"// &
+        character(len=*), parameter :: ARG_REGEXP = "\(?:[^ "//achar(9)//achar(10)//"\""';]+\|'\([^']*\)'?\|"// &
                                        """\(\(?:[^""\]\|\\.\)*\)""?\|\\\(\(?:.\|"//achar(10)//"\)?\)\)"
         type(status_type) :: st
         character(len=:), allocatable :: arg, part, text
@@ -550,7 +550,7 @@ contains
             begins = [begins, point()]
             arg = ""
 
-            do while (looking_at(ARG_RE, st))
+            do while (looking_at(ARG_REGEXP, st))
                 call goto_char(match_end(0, st))
 
                 if (match_beginning(3, st) > 0) then
@@ -574,7 +574,7 @@ contains
                 arg = arg//part
             end do
 
-            call add_arg(args, arg)
+            call append_arg(args, arg)
         end do
 
         call goto_char(opoint)
@@ -612,12 +612,12 @@ contains
         integer(int64), allocatable :: begins(:)
 
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
         call set_buffer(tmp, st)
         call insert(string, st)
         call shell_parse_pcomplete_arguments(args, begins)
         call set_buffer(old, st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
     end subroutine split_string_shell_command
 
     ! ------------------------------------------------------------------
@@ -632,7 +632,7 @@ contains
         integer(int64), intent(in) :: upos_in
         character(len=:), allocatable, intent(out) :: ustr
         integer(int64), intent(out) :: qupos
-        character(len=:), allocatable :: re, value, c
+        character(len=:), allocatable :: regexp, value, c
         integer(int64) :: upos, qpos, match, mend, e
         type(status_type) :: st
         logical :: found, dquotes
@@ -642,11 +642,11 @@ contains
         ustr = ""
         qupos = -1
         dquotes = .false.
-        re = "[""']\|\$\(?:\([[:alpha:]][[:alnum:]]*\)\|{\(?1:[^{}]+\)}\)"
-        if (len(comint_file_name_quote_list%value) > 0) re = re//"\|\\\(.\)"
+        regexp = "[""']\|\$\(?:\([[:alpha:]][[:alnum:]]*\)\|{\(?1:[^{}]+\)}\)"
+        if (len(comint_file_name_quote_chars%value) > 0) regexp = regexp//"\|\\\(.\)"
 
         do
-            match = string_match(re, qstr, st, start=qpos + 1)
+            match = string_match(regexp, qstr, st, start=qpos + 1)
             if (match == 0) exit
             match = match - 1
             mend = match_end(0, st) - 1
@@ -687,12 +687,12 @@ contains
 
     contains
 
-        subroutine push(str, end)
-            character(len=*), intent(in) :: str
+        subroutine push(string, end)
+            character(len=*), intent(in) :: string
             integer(int64), intent(in) :: end
 
-            ustr = ustr//str
-            upos = upos - schars(str)
+            ustr = ustr//string
+            upos = upos - schars(string)
 
             if (qupos < 0 .and. upos <= 0) then
                 if (end < 0) then
@@ -704,30 +704,30 @@ contains
         end subroutine push
     end subroutine unquote_requote_argument
 
-    !> STR with environment variables substituted and shell quoting
+    !> STRING with environment variables substituted and shell quoting
     !> removed, as USTR (Shell mode's `comint_unquote_function').  Port of
     !> shell.el:shell--unquote-argument.
-    recursive subroutine shell__unquote_argument(str, ustr)
-        character(len=*), intent(in) :: str
+    recursive subroutine shell_unquote_argument_internal(string, ustr)
+        character(len=*), intent(in) :: string
         character(len=:), allocatable, intent(out) :: ustr
         integer(int64) :: qupos
 
-        call unquote_requote_argument(str, 0_int64, ustr, qupos)
-    end subroutine shell__unquote_argument
+        call unquote_requote_argument(string, 0_int64, ustr, qupos)
+    end subroutine shell_unquote_argument_internal
 
     !> Shell mode's `comint_requote_function'.  See
     !> `completion_table_with_quoting'.  Port of
     !> shell.el:shell--requote-argument.
-    recursive subroutine shell__requote_argument(upos, qstr, qpos, qfun)
+    recursive subroutine shell_requote_argument(upos, qstr, qpos, qfun)
         integer(int64), intent(in) :: upos
         character(len=*), intent(in) :: qstr
         integer(int64), intent(out) :: qpos
-        procedure(completion_quote_proc), pointer, intent(out) :: qfun
+        procedure(completion_quote_procedure), pointer, intent(out) :: qfun
         character(len=:), allocatable :: ustr
 
         call unquote_requote_argument(qstr, upos, ustr, qpos)
         qfun => comint_quote_filename
-    end subroutine shell__requote_argument
+    end subroutine shell_requote_argument
 
     !> Completion function for shell command names.
     !> This is the value of `pcomplete_command_completion_function' for
@@ -757,7 +757,7 @@ contains
         logical, intent(out) :: found
 
         if (shell_completion_execonly%value) then
-            call pcomplete_entries(table, predicate=is_executable)
+            call pcomplete_entries(table, test=is_executable)
         else
             call pcomplete_entries(table)
         end if
@@ -765,7 +765,7 @@ contains
         found = .true.
     end subroutine executable_entries_form
 
-    ! `is_file_executable' as a file predicate.  Not a port.
+    ! `is_file_executable' as a file test.  Not a port.
     recursive logical function is_executable(file)
         character(len=*), intent(in) :: file
 
@@ -839,11 +839,11 @@ contains
             colon = index(path, ":")
 
             if (colon == 0) then
-                call add_front(path_dirs, path)
+                call prepend(path_dirs, path)
                 exit
             end if
 
-            call add_front(path_dirs, path(1:colon - 1))
+            call prepend(path_dirs, path(1:colon - 1))
             path = path(colon + 1:)
             found = .true.
         end do
@@ -937,7 +937,7 @@ contains
     end subroutine grow
 
     ! Add S at the start of LIST.  Not a port.
-    subroutine add_front(list, s)
+    subroutine prepend(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -952,24 +952,24 @@ contains
         end do
 
         call move_alloc(grown, list)
-    end subroutine add_front
+    end subroutine prepend
 
     ! The table of shell--command-completion-data: file names for a
     ! string with a slash, else the commands found.  Port of
     ! shell.el:shell--command-completion-data, in part.
-    recursive subroutine command_table(string, action, result, status, pred, suffix)
+    recursive subroutine command_table(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
 
         if (index(string, "/") > 0) then
-            call completion_file_name_table(string, action, result, status, pred, suffix)
+            call completion_file_name_table(string, action, result, status, test, suffix)
         else
             call complete_with_action(action, completion_list_table(command_completions), string, result, status, &
-                                      pred, suffix)
+                                      test, suffix)
         end if
     end subroutine command_table
 
@@ -1026,19 +1026,19 @@ contains
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         type(status_type) :: st
-        integer(int64) :: opoint, beg, found
+        integer(int64) :: opoint, beginning, found
         logical :: argument
 
         status = status_type()
         data = capf_data_type()
         opoint = point()
-        beg = comint_line_beginning_position()
-        call re_search_backward("[;|&]", found, st, bound=beg, noerror=SEARCH_NOERROR)
+        beginning = comint_line_beginning_position()
+        call re_search_backward("[;|&]", found, st, bound=beginning, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
             call goto_char(match_end(0, st))
         else
-            call goto_char(beg)
+            call goto_char(beginning)
         end if
 
         call re_search_forward("[^ "//achar(9)//"]["//" "//achar(9)//"]", found, st, bound=opoint, &
@@ -1337,27 +1337,27 @@ contains
         if (.not. status%ok()) return
         call shell_mode_body(status)
         if (.not. status%ok()) return
-        call major_modes%shell_mode%finish(saved, status)
+        call major_modes%shell_mode%end(saved, status)
     end subroutine shell_mode
 
     !> The body of shell-mode.  Port of the body of shell.el:shell-mode.
     recursive subroutine shell_mode_body(status)
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type) :: keywords(3)
-        type(handle_type) :: proc
+        type(handle_type) :: process
         character(len=:), allocatable :: shell, hfile, hsize, expanded
         type(status_type) :: st
-        logical :: have_hfile, found
+        logical :: has_hfile, found
         integer :: k, n, ios
 
-        comint_prompt_regexp = shell_prompt_pattern%value
+        comint_prompt_regexp = shell_prompt_regexp%value
         call shell_completion_vars()
         call paragraph_separate%set_local("\'")
         call paragraph_start%set_local(comint_prompt_regexp%value)
         call shell_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         k = current_entry()
-        call kill_shell_locals()
+        call clear_shell_locals()
         call set_comint_get_old_input(shell_get_old_input)
         call minor_modes%shell_dirtrack_mode%enable(status)
         if (.not. status%ok()) return
@@ -1378,17 +1378,17 @@ contains
             k = current_entry()
             shell = ""
             if (allocated(shell_buffers(k)%start_prog)) shell = shell_buffers(k)%start_prog
-            have_hfile = allocated(shell_history_file_name%value)
+            has_hfile = allocated(shell_history_file_name%value)
 
-            if (have_hfile) then
+            if (has_hfile) then
                 hfile = shell_history_file_name%value
             else
-                call getenv("HISTFILE", hfile, have_hfile)
+                call getenv("HISTFILE", hfile, has_hfile)
             end if
 
-            if (have_hfile) have_hfile = len(hfile) > 0
+            if (has_hfile) has_hfile = len(hfile) > 0
 
-            if (.not. have_hfile) then
+            if (.not. has_hfile) then
                 select case (shell)
                 case ("bash")
                     hfile = "~/.bash_history"
@@ -1421,8 +1421,8 @@ contains
             ! doesn't do this itself.
             if (allocated(comint_input_ring_file_name%value)) then
                 if (string_match(shell_dumb_shell_regexp%value, shell, st) /= 0) then
-                    proc = get_buffer_process(current_buffer())
-                    call set_process_sentinel(proc, st, shell_write_history_on_exit)
+                    process = get_buffer_process(current_buffer())
+                    call set_process_sentinel(process, st, shell_write_history_on_exit)
                 end if
             end if
 
@@ -1441,7 +1441,7 @@ contains
             end select
 
             ! Bypass a bug in certain versions of bash.
-            if (shell == "bash") call comint_preoutput_filter_functions%add(shell_filter_ctrl_a_ctrl_b, local=.true.)
+            if (shell == "bash") call comint_preoutput_filter_functions%append(shell_filter_ctrl_a_ctrl_b, local=.true.)
             ! Skip extended history for zsh.
             if (shell == "zsh") call comint_input_ring_file_prefix%set_local(": [[:digit:]]+:[[:digit:]]+;")
             call comint_read_input_ring(.true.)
@@ -1460,21 +1460,21 @@ contains
             call set_comint_completion_fignore([character(len=8) ::])
         end if
 
-        call comint_delimiter_argument_list%set_local(shell_delimiter_argument_list%value)
+        call comint_delimiter_arguments%set_local(shell_delimiter_arguments%value)
         call comint_file_name_chars%set_local(shell_file_name_chars%value)
-        call comint_file_name_quote_list%set_local(shell_file_name_quote_list%value)
+        call comint_file_name_quote_chars%set_local(shell_file_name_quote_chars%value)
         call comint_file_name_prefix%set_local("")
         ! (setq-local comint-dynamic-complete-functions
         ! shell-dynamic-complete-functions)
         fns = shell_dynamic_complete_functions%functions()
-        call comint_dynamic_complete_functions%add(comint_filename_completion, local=.true.)
+        call comint_dynamic_complete_functions%append(comint_filename_completion, local=.true.)
         call comint_dynamic_complete_functions%clear()
 
         do k = size(fns), 1, -1
-            call comint_dynamic_complete_functions%add(fns(k)%fn, local=.true.)
+            call comint_dynamic_complete_functions%append(fns(k)%fn, local=.true.)
         end do
 
-        call set_comint_quote_functions(shell__unquote_argument, shell__requote_argument)
+        call set_comint_quote_functions(shell_unquote_argument_internal, shell_requote_argument)
         call pcomplete_parse_arguments_function%set_local(shell_parse_pcomplete_arguments)
 
         if (allocated(comint_completion_addsuffix%value)) then
@@ -1492,7 +1492,7 @@ contains
         call comint_input_autoexpand%set_local(shell_input_autoexpand%value)
         ! Not needed in shell-mode because it's inherited from comint-mode,
         ! but placed here for read-shell-command.
-        call completion_at_point_functions%add(comint_completion_at_point, local=.true.)
+        call completion_at_point_functions%append(comint_completion_at_point, local=.true.)
     end subroutine shell_completion_vars
 
     !> shell.el shell-font-lock-keywords: additional expressions to
@@ -1527,21 +1527,21 @@ contains
         call ansi_color_apply_face_function%set_local(shell_apply_ansi_color)
         call expand_file_name(default_directory(), expanded, st)
         call list_buffers_directory%set_local(expanded)
-        call major_modes%shell_command_mode%finish(saved, status)
+        call major_modes%shell_command_mode%end(saved, status)
     end subroutine shell_command_mode
 
-    !> Apply FACE as the ansi-color face for the text between BEG and END.
+    !> Apply FACE as the ansi-color face for the text between BEGINNING and END.
     !> Port of shell.el:shell-apply-ansi-color.
-    recursive subroutine shell_apply_ansi_color(beg, end, face)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine shell_apply_ansi_color(beginning, end, face)
+        integer(int64), intent(in) :: beginning, end
         type(ansi_color_face_type), intent(in) :: face
         type(status_type) :: st
         type(value_type) :: v
 
         if (face%is_empty()) return
         v = ansi_color_face_value(face)
-        call put_text_property(beg, end, value_type(name="ansi_color_face"), v, st)
-        call put_text_property(beg, end, value_type(name="font_lock_face"), v, st)
+        call put_text_property(beginning, end, value_type(name="ansi_color_face"), v, st)
+        call put_text_property(beginning, end, value_type(name="font_lock_face"), v, st)
     end subroutine shell_apply_ansi_color
 
     !> Reapply ansi-color faces to the existing contents of the buffer.
@@ -1552,8 +1552,8 @@ contains
         integer(int64) :: pos, end, saved_begv, saved_zv
         logical :: found
 
-        saved_begv = buffers(cur)%begv
-        saved_zv = buffers(cur)%zv
+        saved_begv = buffers(current)%begv
+        saved_zv = buffers(current)%zv
         call widen()
         pos = point_min()
         call next_single_property_change(pos, value_type(name="ansi_color_face"), end, found, st)
@@ -1589,7 +1589,7 @@ contains
     !> this may be lost, due to a timing error, if the shell discards input
     !> when it starts up).  The buffer is put in Shell mode, giving commands
     !> for sending input and controlling the subjobs of the shell.  See
-    !> `shell_mode'.  See also the variable `shell_prompt_pattern'.
+    !> `shell_mode'.  See also the variable `shell_prompt_regexp'.
     !>
     !> The shell file name (sans directories) is used to choose the
     !> arguments: `explicit_bash_args' for bash, `explicit_csh_args' for
@@ -1601,7 +1601,7 @@ contains
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: buffer_name, file_name
-        type(handle_type) :: buf, proc
+        type(handle_type) :: buffer, process
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
         character(len=:), allocatable :: prog, name, startfile, contents, out
@@ -1611,29 +1611,29 @@ contains
 
         result = null_handle()
 
-        if (present(buffer_name) .or. .not. is_derived_mode("shell_mode") .or. comint_check_proc(current_buffer())) then
+        if (present(buffer_name) .or. .not. is_derived_mode("shell_mode") .or. comint_check_process(current_buffer())) then
             if (present(buffer_name)) then
-                call get_buffer_create(buffer_name, buf, status)
+                call get_or_make_buffer(buffer_name, buffer, status)
             else
-                call get_buffer_create("*shell*", buf, status)
+                call get_or_make_buffer("*shell*", buffer, status)
             end if
 
             if (.not. status%ok()) return
         else
             ! If the current buffer is a dead shell buffer, use it.
-            buf = current_buffer()
+            buffer = current_buffer()
         end if
 
         ! The buffer's window must be correctly set when we call comint (so
         ! that comint sets the COLUMNS env var properly).
-        call pop_to_buffer_same_window(buf, status)
+        call pop_to_buffer_same_window(buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         if (present(file_name)) call explicit_shell_file_name%set_local(file_name)
 
         ! Rain or shine, BUFFER must be current by now.
-        if (.not. comint_check_proc(buf)) then
+        if (.not. comint_check_process(buffer)) then
             if (allocated(explicit_shell_file_name%value)) then
                 prog = explicit_shell_file_name%value
             else
@@ -1662,18 +1662,18 @@ contains
                 args(1)%s = "-i"
             end select
 
-            call make_comint_in_buffer("shell", prog, buf, status, buffer_name=buffers(buf%index)%name, switches=args)
+            call make_comint_in_buffer("shell", prog, buffer, status, buffer_name=buffers(buffer%index)%name, switches=args)
             if (.not. status%ok()) return
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call shell_mode(status)
             if (.not. status%ok()) return
 
             if (file_exists(startfile)) then
                 ! Wait until the prompt has appeared.
-                proc = get_buffer_process(buf)
+                process = get_buffer_process(buffer)
 
-                do while (start_point == point() .and. is_process_live(proc))
-                    call accept_process_output(got, st, proc, 0.1)
+                do while (start_point == point() .and. is_process_live(process))
+                    call accept_process_output(got, st, process, 0.1)
                 end do
 
                 call file_contents(startfile, contents, st)
@@ -1682,15 +1682,15 @@ contains
             end if
         end if
 
-        if (shell_kill_buffer_on_exit%value) then
-            proc = get_buffer_process(buf)
+        if (shell_close_buffer_on_exit%value) then
+            process = get_buffer_process(buffer)
             k = current_entry()
-            call process_sentinel(proc, shell_buffers(k)%kill_sentinel)
-            shell_buffers(k)%kill_on_exit = .true.
-            call set_process_sentinel(proc, st, kill_buffer_sentinel)
+            call process_sentinel(process, shell_buffers(k)%close_sentinel)
+            shell_buffers(k)%close_on_exit = .true.
+            call set_process_sentinel(process, st, close_buffer_sentinel)
         end if
 
-        result = buf
+        result = buffer
     end subroutine shell
 
     !> The contents of FILE.  Not a port.
@@ -1705,52 +1705,52 @@ contains
 
         text = ""
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, status)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
         if (.not. status%ok()) return
         call set_buffer(tmp, st)
         call insert_file_contents(file, .false., inserted, status)
         if (status%ok()) text = buffer_string()
         call set_buffer(old, st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
     end subroutine file_contents
 
     !> The sentinel `shell' gives the process when
-    !> `shell_kill_buffer_on_exit': the previous sentinel, then kill the
+    !> `shell_close_buffer_on_exit': the previous sentinel, then close the
     !> buffer once the process is no longer live.
     !> Port of part of shell.el:shell.
-    recursive subroutine kill_buffer_sentinel(proc, event, status)
+    recursive subroutine close_buffer_sentinel(process, event, status)
         use process_fm, only: internal_default_process_sentinel
-        type(handle_type), intent(in) :: proc
+        type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: event
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
         integer :: k
 
         status = status_type()
-        buf = process_buffer(proc)
+        buffer = process_buffer(process)
 
-        if (.not. is_buffer_live(buf)) then
-            call internal_default_process_sentinel(proc, event, status)
+        if (.not. is_buffer_live(buffer)) then
+            call internal_default_process_sentinel(process, event, status)
             return
         end if
 
-        k = entry_of(buf%index)
+        k = entry_of(buffer%index)
 
         if (k /= 0) then
-            if (associated(shell_buffers(k)%kill_sentinel)) then
-                call shell_buffers(k)%kill_sentinel(proc, event, status)
+            if (associated(shell_buffers(k)%close_sentinel)) then
+                call shell_buffers(k)%close_sentinel(process, event, status)
             else
-                call internal_default_process_sentinel(proc, event, status)
+                call internal_default_process_sentinel(process, event, status)
             end if
         end if
 
-        if (.not. is_process_live(proc)) then
+        if (.not. is_process_live(process)) then
             old = current_buffer()
-            call kill_buffer(buf, st)
+            call close_buffer(buffer, st)
             if (is_buffer_live(old)) call set_buffer(old, st)
         end if
-    end subroutine kill_buffer_sentinel
+    end subroutine close_buffer_sentinel
 
     !> The command: with a prefix argument, read the buffer name.  The
     !> interactive form of shell.el:shell.
@@ -1759,27 +1759,27 @@ contains
     !> `*shell*').
     recursive subroutine cmd_shell(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, proc
+        type(handle_type) :: buffer, process
         character(len=:), allocatable :: name, default
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
-            call shell(buf, status)
+            call shell(buffer, status)
             return
         end if
 
         ! If the current buffer is an inactive shell buffer, use it as the
         ! default.
-        proc = get_buffer_process(current_buffer())
+        process = get_buffer_process(current_buffer())
 
-        if (buffers(cur)%major_mode == "shell_mode" .and. proc%index == 0) then
-            default = buffers(cur)%name
+        if (buffers(current)%major_mode == "shell_mode" .and. process%index == 0) then
+            default = buffers(current)%name
         else
             default = generate_new_buffer_name("*shell*")
         end if
 
         call read_buffer("Shell buffer: ", name, status, def=default)
         if (.not. status%ok()) return
-        call shell(buf, status, buffer_name=name)
+        call shell(buffer, status, buffer_name=name)
     end subroutine cmd_shell
 
     !> Eval COMMAND in the current shell process and return the result in
@@ -1788,20 +1788,20 @@ contains
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
-        procedure(process_filter_proc), pointer :: old_filter
+        type(handle_type) :: process
+        procedure(process_filter_procedure), pointer :: old_filter
         type(status_type) :: st
         character(len=:), allocatable :: last, prev
-        logical :: have_prev, got, done
+        logical :: has_prev, got, done
         integer :: k
 
         result = ""
-        proc = get_buffer_process(current_buffer())
-        call process_filter(proc, old_filter)
+        process = get_buffer_process(current_buffer())
+        call process_filter(process, old_filter)
         eval_result = ""
-        call set_process_filter(proc, st, collect_output)
-        call process_send_string(command, status, proc)
-        have_prev = .false.
+        call set_process_filter(process, st, collect_output)
+        call process_send_string(command, status, process)
+        has_prev = .false.
 
         ! Wait until we get a prompt (which will be a line without a
         ! newline).  This is far from fool-proof -- if something outputs
@@ -1815,7 +1815,7 @@ contains
                 last = eval_result(k + 1:)
 
                 if (len(last) > 0) then
-                    if (.not. have_prev) then
+                    if (.not. has_prev) then
                         done = .true.
                     else
                         done = .not. (last == prev .and. len(last) == len(prev))
@@ -1823,20 +1823,20 @@ contains
 
                     if (done) then
                         prev = last
-                        have_prev = .true.
+                        has_prev = .true.
                     end if
                 end if
             end if
 
-            if (done .or. .not. is_process_live(proc)) exit
-            call accept_process_output(got, st, proc, 0.1)
+            if (done .or. .not. is_process_live(process)) exit
+            call accept_process_output(got, st, process, 0.1)
         end do
 
         ! Restore old filter.
         if (associated(old_filter)) then
-            call set_process_filter(proc, st, old_filter)
+            call set_process_filter(process, st, old_filter)
         else
-            call set_process_filter(proc, st)
+            call set_process_filter(process, st)
         end if
 
         ! Remove the prompt.
@@ -1911,17 +1911,17 @@ contains
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: event
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
         status = status_type()
         ! Write history.
         call comint_write_input_ring()
-        buf = process_buffer(process)
+        buffer = process_buffer(process)
 
-        if (is_buffer_live(buf)) then
+        if (is_buffer_live(buffer)) then
             old = current_buffer()
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call insert(achar(10)//"Process "//process_name(process)//" "//event//achar(10), status)
             call set_buffer(old, st)
         end if
@@ -1950,7 +1950,7 @@ contains
 
         if (enable) then
             call list_buffers_directory%set_local(default_directory())
-            call comint_input_filter_functions%add(shell_directory_tracker, local=.true.)
+            call comint_input_filter_functions%append(shell_directory_tracker, local=.true.)
         else
             call list_buffers_directory%make_local()
             call list_buffers_directory%clear()
@@ -1972,13 +1972,13 @@ contains
     !>
     !> Environment variables are expanded, see function
     !> `substitute_in_file_name'.  Port of shell.el:shell-directory-tracker.
-    recursive subroutine shell_directory_tracker(str, status)
+    recursive subroutine shell_directory_tracker(string, status)
         use search_fm, only: case_fold_search
-        character(len=*), intent(in) :: str
+        character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
         type(status_type) :: st
         character(len=:), allocatable :: cmd, arg1, part, cmd_subst_fn
-        integer(int64) :: start, end, idx
+        integer(int64) :: start, end, index
         logical :: saved_fold
 
         status = status_type()
@@ -1989,15 +1989,15 @@ contains
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
         ! Skip whitespace.
-        idx = string_match("^"//shell_command_separator_regexp%value, str, st)
+        index = string_match("^"//shell_command_separator_regexp%value, string, st)
         start = match_end(0, st)
 
         do
             if (.not. st%ok()) exit
-            idx = string_match(shell_command_regexp%value, str, st, start=start)
-            if (idx == 0 .or. .not. st%ok()) exit
+            index = string_match(shell_command_regexp%value, string, st, start=start)
+            if (index == 0 .or. .not. st%ok()) exit
             end = match_end(0, st)
-            part = str(start:end - 1)
+            part = string(start:end - 1)
             cmd = comint_arguments(part, 0, 0)
             arg1 = comint_arguments(part, 1, 1)
             if (len(arg1) > 0) arg1 = shell_unquote_argument(arg1)
@@ -2017,7 +2017,7 @@ contains
             end if
 
             ! Skip again.
-            idx = string_match(shell_command_separator_regexp%value, str, st, start=end)
+            index = string_match(shell_command_separator_regexp%value, string, st, start=end)
             start = match_end(0, st)
         end do
 
@@ -2202,16 +2202,16 @@ contains
         end do
     end function has_dir
 
-    !> If STR is of the form +n, for n>0, return n.  Otherwise, -1.
+    !> If STRING is of the form +n, for n>0, return n.  Otherwise, -1.
     !> Port of shell.el:shell-extract-num.
-    integer function shell_extract_num(str) result(n)
-        character(len=*), intent(in) :: str
+    integer function shell_extract_num(string) result(n)
+        character(len=*), intent(in) :: string
         type(status_type) :: st
         integer :: ios
 
         n = -1
-        if (string_match("^\+[1-9][0-9]*$", str, st) == 0) return
-        read (str(2:), *, iostat=ios) n
+        if (string_match("^\+[1-9][0-9]*$", string, st) == 0) return
+        read (string(2:), *, iostat=ios) n
         if (ios /= 0) n = -1
     end function shell_extract_num
 
@@ -2392,8 +2392,8 @@ contains
         if (associated(major_modes%shell_mode%execute)) return
         if (.not. associated(major_modes%comint_mode%execute)) call syms_of_comint()
         if (.not. allocated(shell_dumb_shell_regexp%value)) shell_dumb_shell_regexp = "cmd\(proxy\)?\.exe"
-        if (.not. allocated(shell_prompt_pattern%value)) shell_prompt_pattern = "^[^#$%>"//achar(10)//"]*[#$%>] *"
-        if (.not. allocated(shell_delimiter_argument_list%value)) shell_delimiter_argument_list = "|&<>();"
+        if (.not. allocated(shell_prompt_regexp%value)) shell_prompt_regexp = "^[^#$%>"//achar(10)//"]*[#$%>] *"
+        if (.not. allocated(shell_delimiter_arguments%value)) shell_delimiter_arguments = "|&<>();"
         if (.not. allocated(shell_command_regexp%value)) shell_command_regexp = "[^;&|"//achar(10)//"]+"
 
         if (.not. allocated(shell_command_separator_regexp%value)) then
@@ -2406,18 +2406,18 @@ contains
         if (.not. allocated(shell_dirstack_query)) shell_dirstack_query = "dirs"
         if (.not. allocated(shell_file_name_chars%value)) shell_file_name_chars = "[]~/A-Za-z0-9+@:_.$#%,={}-"
 
-        if (.not. allocated(shell_file_name_quote_list%value)) then
-            shell_file_name_quote_list = shell_delimiter_argument_list%value//" $*!""'`#\"
+        if (.not. allocated(shell_file_name_quote_chars%value)) then
+            shell_file_name_quote_chars = shell_delimiter_arguments%value//" $*!""'`#\"
         end if
 
         ! (The default value, in reverse order: `add' puts a function first.)
-        call shell_dynamic_complete_functions%add(comint_filename_completion)
-        call shell_dynamic_complete_functions%add(shell_filename_completion)
-        call shell_dynamic_complete_functions%add(pcomplete_completions_at_point)
-        call shell_dynamic_complete_functions%add(shell_c_a_p_replace_by_expanded_directory)
-        call shell_dynamic_complete_functions%add(shell_command_completion)
-        call shell_dynamic_complete_functions%add(shell_environment_variable_completion)
-        call shell_dynamic_complete_functions%add(comint_c_a_p_replace_by_expanded_history)
+        call shell_dynamic_complete_functions%append(comint_filename_completion)
+        call shell_dynamic_complete_functions%append(shell_filename_completion)
+        call shell_dynamic_complete_functions%append(pcomplete_completions_at_point)
+        call shell_dynamic_complete_functions%append(shell_c_a_p_replace_by_expanded_directory)
+        call shell_dynamic_complete_functions%append(shell_command_completion)
+        call shell_dynamic_complete_functions%append(shell_environment_variable_completion)
+        call shell_dynamic_complete_functions%append(comint_c_a_p_replace_by_expanded_history)
 
         if (.not. allocated(explicit_csh_args)) then
             allocate (explicit_csh_args(1))
@@ -2444,7 +2444,7 @@ contains
         shell_command_mode_map = major_modes%shell_command_mode%map
         call minor_modes%shell_dirtrack_mode%define("shell_dirtrack_mode", hook=shell_dirtrack_mode_hook, &
                                                     body=shell_dirtrack_body)
-        call add_local_variables_killer(kill_shell_locals)
+        call append_locals_clearer(clear_shell_locals)
         call keymap_set(shell_mode_map, "C-c C-f", "shell_forward_command", st)
         call keymap_set(shell_mode_map, "C-c C-b", "shell_backward_command", st)
         call keymap_set(shell_mode_map, "TAB", "completion_at_point", st)
@@ -2472,7 +2472,7 @@ contains
     end subroutine syms_of_shell
 
     !> Add S at the end of LIST.  Not a port.
-    subroutine add_arg(list, s)
+    subroutine append_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -2488,7 +2488,7 @@ contains
 
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine add_arg
+    end subroutine append_arg
 
     !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)

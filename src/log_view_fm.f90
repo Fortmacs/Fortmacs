@@ -25,10 +25,10 @@
 !> region (d, =, D, M-RET, M-n, M-p), visiting a revision (f) and
 !> copying revision IDs (w).
 !>
-!> The buffer-local variables `log_view_file_re', `log_view_message_re',
+!> The buffer-local variables `log_view_file_regexp', `log_view_message_regexp',
 !> `log_view_per_file_logs', `log_view_expanded_log_entry_function',
 !> `log_view_vc_fileset' and `log_view_vc_backend' are set with
-!> `set_log_view_file_re' and its siblings, as `set_local' does.
+!> `set_log_view_file_regexp' and its siblings, as `set_local' does.
 !>
 !> Deferred: `log_view_modify_change_comment' (e, needing the backend's
 !> `modify-change-comment'), `log_view_annotate_version' (a, needing
@@ -47,16 +47,16 @@ module log_view_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xstring, vtag, V_NULL
-    use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
+    use data_fm, only: symbol_value, set, append_locals_clearer, value_eq
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_serial_live, is_buffer_live, deactivate_mark_variable
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, buffer_serial_live, is_buffer_live, deactivate_mark_variable
     use commands_fm, only: commands
     use modes_fm, only: major_modes
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, line_beginning_position, &
                           delete_region, region_beginning, region_end
     use insdel_fm, only: insert
     use cmds_fm, only: forward_line
-    use search_fm, only: looking_at, search_re_forward => re_search_forward, search_re_backward => re_search_backward, &
+    use search_fm, only: looking_at, search_regexp_forward => re_search_forward, search_regexp_backward => re_search_backward, &
                          match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string_no_properties, looking_back
     use textprop_fm, only: get_text_property, put_text_property, next_single_property_change, get_char_property, &
@@ -64,7 +64,7 @@ module log_view_fm
     use itree_fm, only: make_overlay, overlay_put, delete_overlay, overlay_get, overlay_end
     use easy_mmode_fm, only: easy_mmode_next, easy_mmode_prev
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use simple_fm, only: is_use_region, kill_new, line_number_at_pos, special_mode
+    use simple_fm, only: is_use_region, copy_to_clipboard_history, line_number_at_pos, special_mode
     use syntax_fm, only: skip_syntax_backward
     use xdisp_fm, only: message
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT
@@ -77,15 +77,15 @@ module log_view_fm
     implicit none(type, external)
     private
 
-    public :: log_view_entry_proc, log_view_mode, log_view_msg_next, log_view_msg_prev, log_view_file_next, &
+    public :: log_view_entry_procedure, log_view_mode, log_view_msg_next, log_view_msg_prev, log_view_file_next, &
               log_view_file_prev, log_view_goto_rev, log_view_msg_and_diff_next, log_view_msg_and_diff_prev, &
               log_view_current_file, log_view_current_entry, is_log_view_inside_comment, log_view_current_tag, &
               log_view_toggle_mark_entry, log_view_mark_entry, log_view_unmark_entry, log_view_unmark_all_entries, &
               log_view_get_marked, log_view_toggle_entry_display, log_view_display_entry_and_diff, &
               log_view_beginning_of_entry, log_view_end_of_entry, log_view_find_revision, log_view_diff, &
-              log_view_diff_changeset, log_view_diff_common, log_view_copy_revision_as_kill, &
-              log_view_file_re, log_view_message_re, log_view_per_file_logs, log_view_vc_fileset, log_view_vc_backend, &
-              set_log_view_file_re, set_log_view_message_re, set_log_view_per_file_logs, &
+              log_view_diff_changeset, log_view_diff_common, log_view_copy_revision, &
+              log_view_file_regexp, log_view_message_regexp, log_view_per_file_logs, log_view_vc_fileset, log_view_vc_backend, &
+              set_log_view_file_regexp, set_log_view_message_regexp, set_log_view_per_file_logs, &
               set_log_view_expanded_log_entry_function, set_log_view_vc_fileset, set_log_view_vc_backend, &
               set_log_view_font_lock_keywords, log_view_font_lock_keywords, syms_of_log_view
 
@@ -93,12 +93,12 @@ module log_view_fm
         !> `log_view_expanded_log_entry_function': return in TEXT the detailed
         !> description of the Log View entry REVISION (FOUND .false. for none).
         !> Not a port.
-        recursive subroutine log_view_entry_proc(revision, text, found)
+        recursive subroutine log_view_entry_procedure(revision, text, found)
             implicit none(type, external)
             character(len=*), intent(in) :: revision
             character(len=:), allocatable, intent(out) :: text
             logical, intent(out) :: found
-        end subroutine log_view_entry_proc
+        end subroutine log_view_entry_procedure
     end interface
 
     !> Hook run at the end of `log_view_mode'.
@@ -115,17 +115,17 @@ module log_view_fm
     type(handle_type), public :: log_view_mode_map
 
     !> Regexp matching the text identifying the file (the default value of
-    !> `log_view_file_re').
+    !> `log_view_file_regexp').
     !> The match group number 1 should match the file name itself.
-    character(len=*), parameter, public :: LOG_VIEW_FILE_RE_DEFAULT = &
+    character(len=*), parameter, public :: LOG_VIEW_FILE_REGEXP_DEFAULT = &
                                            "^\(?:Working file: \(?1:.+\)" &       ! RCS and CVS.
                                            //"\|\(?:SCCS/s\.\|Changes to \)\(?1:.+\):" & ! SCCS and Darcs.
                                            //"\)"//achar(10)  ! Include the \n for font-lock reasons.
 
     !> Regexp matching the text identifying a revision (the default value
-    !> of `log_view_message_re').
+    !> of `log_view_message_regexp').
     !> The match group number 1 should match the revision number itself.
-    character(len=*), parameter, public :: LOG_VIEW_MESSAGE_RE_DEFAULT = &
+    character(len=*), parameter, public :: LOG_VIEW_MESSAGE_REGEXP_DEFAULT = &
                                            "^\(?:revision \(?1:[.0-9]+\)\(?:"//achar(9)//".*\)?" & ! RCS and CVS.
                                            //"\|r\(?1:[0-9]+\) | .* | .*" &                         ! Subversion.
                                            //"\|D \(?1:[.0-9]+\) .*" &                              ! SCCS.
@@ -142,7 +142,7 @@ module log_view_fm
                                            //"\)$"
 
     ! "^cvs[.ex]* [a-z]+: Logging \\(.+\\)$"
-    character(len=*), parameter :: LOG_VIEW_DIR_RE = "^cvs[.ex]* [a-z]+: Logging \(.+\)$"
+    character(len=*), parameter :: LOG_VIEW_DIR_REGEXP = "^cvs[.ex]* [a-z]+: Logging \(.+\)$"
 
     ! The buffer-local values of a Log View buffer, by serial number:
     ! log-view-file-re, log-view-message-re, log-view-per-file-logs,
@@ -150,10 +150,10 @@ module log_view_fm
     ! log-view-vc-fileset and log-view-vc-backend.
     type :: local_type
         integer(int64) :: serial = 0
-        character(len=:), allocatable :: file_re, message_re
+        character(len=:), allocatable :: file_regexp, message_regexp
         logical :: has_per_file_logs = .false.
         logical :: per_file_logs = .true.
-        procedure(log_view_entry_proc), pointer, nopass :: expanded => null()
+        procedure(log_view_entry_procedure), pointer, nopass :: expanded => null()
         logical :: has_keywords = .false.
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: has_fileset = .false.
@@ -179,11 +179,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -191,7 +191,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(cur)%serial)
+                locals(k) = local_type(serial=buffers(current)%serial)
                 return
             end if
         end do
@@ -203,49 +203,49 @@ contains
             grown(i) = locals(i)
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, locals)
         k = n + 1
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
-    subroutine kill_log_view_locals()
+    subroutine clear_log_view_locals()
         integer :: k
 
         k = local_index(.false.)
         if (k > 0) locals(k) = local_type()
-    end subroutine kill_log_view_locals
+    end subroutine clear_log_view_locals
 
-    !> The current buffer's `log_view_file_re': the regexp matching the
+    !> The current buffer's `log_view_file_regexp': the regexp matching the
     !> text identifying the file.  The match group number 1 should match
     !> the file name itself.  Not a port.
-    function log_view_file_re() result(re)
-        character(len=:), allocatable :: re
+    function log_view_file_regexp() result(regexp)
+        character(len=:), allocatable :: regexp
         integer :: k
 
-        re = LOG_VIEW_FILE_RE_DEFAULT
+        regexp = LOG_VIEW_FILE_REGEXP_DEFAULT
         k = local_index(.false.)
 
         if (k > 0) then
-            if (allocated(locals(k)%file_re)) re = locals(k)%file_re
+            if (allocated(locals(k)%file_regexp)) regexp = locals(k)%file_regexp
         end if
-    end function log_view_file_re
+    end function log_view_file_regexp
 
-    !> The current buffer's `log_view_message_re': the regexp matching the
+    !> The current buffer's `log_view_message_regexp': the regexp matching the
     !> text identifying a revision.  The match group number 1 should match
     !> the revision number itself.  Not a port.
-    function log_view_message_re() result(re)
-        character(len=:), allocatable :: re
+    function log_view_message_regexp() result(regexp)
+        character(len=:), allocatable :: regexp
         integer :: k
 
-        re = LOG_VIEW_MESSAGE_RE_DEFAULT
+        regexp = LOG_VIEW_MESSAGE_REGEXP_DEFAULT
         k = local_index(.false.)
 
         if (k > 0) then
-            if (allocated(locals(k)%message_re)) re = locals(k)%message_re
+            if (allocated(locals(k)%message_regexp)) regexp = locals(k)%message_regexp
         end if
-    end function log_view_message_re
+    end function log_view_message_regexp
 
     !> The current buffer's `log_view_per_file_logs': true if the logs are
     !> shown one file at a time.  Not a port.
@@ -310,27 +310,27 @@ contains
         ! is not ported.)
         allocate (keywords(2))
         h(1) = font_lock_highlight(0, face="log_view_file", override=FONT_LOCK_OVERRIDE_APPEND)
-        keywords(1) = font_lock_keyword(log_view_file_re(), highlights=h)
-        keywords(2) = font_lock_keyword(log_view_message_re(), face="log_view_message")
+        keywords(1) = font_lock_keyword(log_view_file_regexp(), highlights=h)
+        keywords(2) = font_lock_keyword(log_view_message_regexp(), face="log_view_message")
     end subroutine log_view_font_lock_keywords
 
-    !> Give the current buffer its own `log_view_file_re', RE (set_local).  Not a port.
-    subroutine set_log_view_file_re(re)
-        character(len=*), intent(in) :: re
+    !> Give the current buffer its own `log_view_file_regexp', RE (set_local).  Not a port.
+    subroutine set_log_view_file_regexp(regexp)
+        character(len=*), intent(in) :: regexp
         integer :: k
 
         k = local_index(.true.)
-        locals(k)%file_re = re
-    end subroutine set_log_view_file_re
+        locals(k)%file_regexp = regexp
+    end subroutine set_log_view_file_regexp
 
-    !> Give the current buffer its own `log_view_message_re', RE (set_local).  Not a port.
-    subroutine set_log_view_message_re(re)
-        character(len=*), intent(in) :: re
+    !> Give the current buffer its own `log_view_message_regexp', RE (set_local).  Not a port.
+    subroutine set_log_view_message_regexp(regexp)
+        character(len=*), intent(in) :: regexp
         integer :: k
 
         k = local_index(.true.)
-        locals(k)%message_re = re
-    end subroutine set_log_view_message_re
+        locals(k)%message_regexp = regexp
+    end subroutine set_log_view_message_regexp
 
     !> Give the current buffer its own `log_view_per_file_logs', FLAG (set_local).  Not a port.
     subroutine set_log_view_per_file_logs(flag)
@@ -344,7 +344,7 @@ contains
 
     !> Give the current buffer its own `log_view_expanded_log_entry_function', FN (set_local).  Not a port.
     subroutine set_log_view_expanded_log_entry_function(fn)
-        procedure(log_view_entry_proc) :: fn
+        procedure(log_view_entry_procedure) :: fn
         integer :: k
 
         k = local_index(.true.)
@@ -395,10 +395,10 @@ contains
         if (.not. associated(major_modes%log_view_mode%execute)) call syms_of_log_view()
         call major_modes%log_view_mode%begin(saved, status)
         if (.not. status%ok()) return
-        buffers(cur)%read_only = .true.
+        buffers(current)%read_only = .true.
         call log_view_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
-        call major_modes%log_view_mode%finish(saved, status)
+        call major_modes%log_view_mode%end(saved, status)
     end subroutine log_view_mode
 
     ! ------------------------------------------------------------------
@@ -416,7 +416,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(log_view_message_re(), "log message", n, status)
+        call easy_mmode_next(log_view_message_regexp(), "log message", n, status)
     end subroutine log_view_msg_next
 
     !> Go to the previous COUNT'th log message.
@@ -429,7 +429,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_prev(log_view_message_re(), "log message", n, status)
+        call easy_mmode_prev(log_view_message_regexp(), "log message", n, status)
     end subroutine log_view_msg_prev
 
     !> Go to the next COUNT'th file.
@@ -442,7 +442,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(log_view_file_re(), "file", n, status)
+        call easy_mmode_next(log_view_file_regexp(), "file", n, status)
     end subroutine log_view_file_next
 
     !> Go to the previous COUNT'th file.
@@ -455,7 +455,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_prev(log_view_file_re(), "file", n, status)
+        call easy_mmode_prev(log_view_file_regexp(), "file", n, status)
     end subroutine log_view_file_prev
 
     !> Go to revision REV (FOUND false if there is none).  Port of
@@ -517,16 +517,16 @@ contains
         use fileio_fm, only: expand_file_name
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: name, cvsdir, dir, re
+        character(len=:), allocatable :: name, cvsdir, dir, regexp
         integer(int64) :: opoint, shortage, found
         type(status_type) :: st
 
         status = status_type()
         opoint = point()
         shortage = forward_line(1_int64)
-        re = log_view_file_re()
-        call search_re_backward(re, found, st, noerror=SEARCH_NOERROR)
-        if (found == 0) call search_re_forward(re, found, st, noerror=SEARCH_NOERROR)
+        regexp = log_view_file_regexp()
+        call search_regexp_backward(regexp, found, st, noerror=SEARCH_NOERROR)
+        if (found == 0) call search_regexp_forward(regexp, found, st, noerror=SEARCH_NOERROR)
 
         if (found == 0) then
             call goto_char(opoint)
@@ -535,7 +535,7 @@ contains
         end if
 
         name = match_string_no_properties(1)
-        call search_re_backward(LOG_VIEW_DIR_RE, found, st, noerror=SEARCH_NOERROR)
+        call search_regexp_backward(LOG_VIEW_DIR_REGEXP, found, st, noerror=SEARCH_NOERROR)
         dir = ""
 
         if (found /= 0) then
@@ -548,26 +548,26 @@ contains
     end subroutine log_view_current_file
 
     !> Return the position and revision tag of the Log View entry at POS.
-    !> This is (BEG, TAG), where BEG is a buffer position and TAG is a
+    !> This is (BEGINNING, TAG), where BEGINNING is a buffer position and TAG is a
     !> string.  If POS is absent, it defaults to point.
     !> If there is no entry at POS, FOUND is false.
     !>
-    !> If optional arg MOVE is true, move point to BEG if found.
+    !> If optional arg MOVE is true, move point to BEGINNING if found.
     !> Otherwise, don't move point.  Port of
     !> log-view.el:log-view-current-entry.
-    recursive subroutine log_view_current_entry(beg, tag, found, pos, move)
-        integer(int64), intent(out) :: beg
+    recursive subroutine log_view_current_entry(beginning, tag, found, pos, move)
+        integer(int64), intent(out) :: beginning
         character(len=:), allocatable, intent(out) :: tag
         logical, intent(out) :: found
         integer(int64), intent(in), optional :: pos
         logical, intent(in), optional :: move
         integer(int64) :: opoint, shortage, p
         logical :: looping, separator
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         type(status_type) :: st
 
         found = .false.
-        beg = 0
+        beginning = 0
         tag = ""
         opoint = point()
         if (present(pos)) call goto_char(pos)
@@ -581,26 +581,26 @@ contains
             shortage = forward_line(1_int64)
         end if
 
-        re = log_view_message_re()
+        regexp = log_view_message_regexp()
         looping = .true.
         p = 0
 
         do while (looping)
-            call search_re_backward(re, p, st, noerror=SEARCH_MOVE)
+            call search_regexp_backward(regexp, p, st, noerror=SEARCH_MOVE)
             looping = .false.
             if (p /= 0) looping = is_log_view_inside_comment(point())
         end do
 
         if (p /= 0) then
             found = .true.
-            beg = p
+            beginning = p
             tag = match_string_no_properties(1)
         end if
 
         call goto_char(opoint)
 
         if (present(move)) then
-            if (move .and. found) call goto_char(beg)
+            if (move .and. found) call goto_char(beginning)
         end if
     end subroutine log_view_current_entry
 
@@ -623,9 +623,9 @@ contains
         character(len=:), allocatable, intent(out) :: tag
         logical, intent(out) :: has
         integer(int64), intent(in), optional :: pos
-        integer(int64) :: beg
+        integer(int64) :: beginning
 
-        call log_view_current_entry(beg, tag, has, pos)
+        call log_view_current_entry(beginning, tag, has, pos)
     end subroutine log_view_current_tag
 
     ! ------------------------------------------------------------------
@@ -637,16 +637,16 @@ contains
     !> log-view.el:log-view-toggle-mark-entry.
     recursive subroutine log_view_toggle_mark_entry(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, beg
+        integer(int64) :: opoint, beginning
         character(len=:), allocatable :: tag
         logical :: found
 
         status = status_type()
         opoint = point()
-        call log_view_current_entry(beg, tag, found)
+        call log_view_current_entry(beginning, tag, found)
 
         if (found) then
-            if (vtag(get_char_property(beg, value_type(name="log_view_self"))) /= V_NULL) then
+            if (vtag(get_char_property(beginning, value_type(name="log_view_self"))) /= V_NULL) then
                 call log_view_unmark_entry(1_int64, status)
             else
                 call log_view_mark_entry(1_int64, status)
@@ -661,11 +661,11 @@ contains
     ! active region is excluded in the case that the region ends right at
     ! the beginning of the line, or after only non-word characters.
     ! Port of log-view.el:log-view--mark-unmark.
-    recursive subroutine mark_unmark(mark, arg, status, beg, end, restore)
+    recursive subroutine mark_unmark(mark, arg, status, beginning, end, restore)
         logical, intent(in) :: mark
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
+        integer(int64), intent(in), optional :: beginning, end
         !> The table of `log_view__restore_marks' (marks the entries whose
         !> tags are in it, moves past the others).
         character(len=*), intent(in), optional :: restore(:)
@@ -674,12 +674,12 @@ contains
 
         status = status_type()
 
-        if (present(beg) .neqv. present(end)) then
+        if (present(beginning) .neqv. present(end)) then
             call set_error(status, FM_GENERIC_ERROR, "log-view--mark-unmark called with invalid arguments")
             return
         end if
 
-        if (present(beg)) then
+        if (present(beginning)) then
             processed_line = -1
             ! Exclude the region's last line if the region ends right
             ! at the beginning of that line or almost at the beginning.
@@ -696,7 +696,7 @@ contains
                 lastl = line_number_at_pos()
             end if
 
-            call goto_char(beg)
+            call goto_char(beginning)
 
             do
                 n = line_number_at_pos()
@@ -750,7 +750,7 @@ contains
     !> If the region is active in Transient Mark mode, mark all entries.
     !> When called with a prefix argument, mark that many log entries.
     !> When called from a program, mark ARG entries or all entries lying
-    !> between BEG and END.  If BEG and END are supplied, ARG is ignored.
+    !> between BEGINNING and END.  If BEGINNING and END are supplied, ARG is ignored.
     !>
     !> When entries are marked, some commands that usually operate on the entry
     !> at point will instead operate on all marked entries.
@@ -758,18 +758,18 @@ contains
     !>
     !> Programs can use `log_view_get_marked' to obtain a list of all
     !> marked revisions.  Port of log-view.el:log-view-mark-entry.
-    recursive subroutine log_view_mark_entry(arg, status, beg, end)
+    recursive subroutine log_view_mark_entry(arg, status, beginning, end)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
+        integer(int64), intent(in), optional :: beginning, end
 
-        call mark_unmark(.true., arg, status, beg, end)
+        call mark_unmark(.true., arg, status, beginning, end)
     end subroutine log_view_mark_entry
 
     ! Mark the log entry at point.  Port of log-view.el:log-view--mark-entry.
     recursive subroutine mark_entry(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end, opoint
+        integer(int64) :: beginning, end, opoint
         character(len=:), allocatable :: tag
         type(value_type) :: expanded
         type(handle_type) :: ov
@@ -777,24 +777,24 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        call log_view_current_entry(beg, tag, found)
+        call log_view_current_entry(beginning, tag, found)
 
         if (found) then
             opoint = point()
-            call goto_char(beg)
+            call goto_char(beginning)
 
-            if (vtag(get_char_property(beg, value_type(name="log_view_self"))) == V_NULL) then
-                call get_text_property(beg, value_type(name="log_view_entry_expanded"), expanded, st)
+            if (vtag(get_char_property(beginning, value_type(name="log_view_self"))) == V_NULL) then
+                call get_text_property(beginning, value_type(name="log_view_entry_expanded"), expanded, st)
 
                 if (allocated(expanded%a)) then
-                    call next_single_property_change(beg, value_type(name="log_view_comment"), end, found, st)
+                    call next_single_property_change(beginning, value_type(name="log_view_comment"), end, found, st)
                     if (.not. found) end = point_max()
                 else
                     call log_view_end_of_entry()
                     end = point()
                 end if
 
-                call make_overlay(ov, beg, end, st)
+                call make_overlay(ov, beginning, end, st)
                 call overlay_put(ov, "face", value_type(name="log_view_file"), st)
                 ! This is used to check if the overlay is present.
                 call overlay_put(ov, "log_view_self", value_type(.true.), st)
@@ -811,31 +811,31 @@ contains
     !> If the region is active in Transient Mark mode, unmark all entries.
     !> When called with a prefix argument, unmark that many log entries.
     !> When called from a program, mark ARG entries or all entries lying
-    !> between BEG and END.  If BEG and END are supplied, ARG is ignored.
+    !> between BEGINNING and END.  If BEGINNING and END are supplied, ARG is ignored.
     !>
     !> See `log_view_mark_entry'.  Port of log-view.el:log-view-unmark-entry.
-    recursive subroutine log_view_unmark_entry(arg, status, beg, end)
+    recursive subroutine log_view_unmark_entry(arg, status, beginning, end)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
+        integer(int64), intent(in), optional :: beginning, end
 
-        call mark_unmark(.false., arg, status, beg, end)
+        call mark_unmark(.false., arg, status, beginning, end)
     end subroutine log_view_unmark_entry
 
     ! Unmark the log entry at point.  Port of
     ! log-view.el:log-view--unmark-entry.
     recursive subroutine unmark_entry(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg
+        integer(int64) :: beginning
         character(len=:), allocatable :: tag
         type(value_type) :: v
         type(handle_type) :: ov
         logical :: found
 
-        call log_view_current_entry(beg, tag, found)
+        call log_view_current_entry(beginning, tag, found)
 
         if (found) then
-            call get_char_property_and_overlay(beg, value_type(name="log_view_self"), v, ov)
+            call get_char_property_and_overlay(beginning, value_type(name="log_view_self"), v, ov)
             if (allocated(v%a) .and. ov%index /= 0) call delete_overlay(ov)
         end if
 
@@ -894,7 +894,7 @@ contains
     !> log-view.el:log-view-toggle-entry-display.
     recursive subroutine log_view_toggle_entry_display(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, beg, pos, last
+        integer(int64) :: opoint, beginning, pos, last
         character(len=:), allocatable :: tag, long_entry
         type(value_type) :: expanded, saved, props(4)
         logical :: found, has, changed
@@ -907,14 +907,14 @@ contains
         if (k == 0) return
         if (.not. associated(locals(k)%expanded)) return
         opoint = point()
-        call log_view_current_entry(beg, tag, found, move=.true.)
+        call log_view_current_entry(beginning, tag, found, move=.true.)
         if (.not. found) return
         call bind_inhibit_read_only(saved)
-        call get_text_property(beg, value_type(name="log_view_entry_expanded"), expanded, status)
+        call get_text_property(beginning, value_type(name="log_view_entry_expanded"), expanded, status)
 
         if (allocated(expanded%a)) then
             ! If the entry is expanded, collapse it.
-            call next_single_property_change(beg, value_type(name="log_view_comment"), pos, found, status)
+            call next_single_property_change(beginning, value_type(name="log_view_comment"), pos, found, status)
             has = found
             if (has) has = is_log_view_inside_comment(pos)
 
@@ -924,7 +924,8 @@ contains
                 call next_single_property_change(pos, value_type(name="log_view_comment"), last, found, status)
                 if (.not. found) last = point_max()
                 call delete_region(pos, last, status)
-                if (status%ok()) call put_text_property(beg, beg + 1, value_type(name="log_view_entry_expanded"), value_type(), &
+                if (status%ok()) call put_text_property(beginning, beginning + 1, value_type(name="log_view_entry_expanded"), &
+                                                        value_type(), &
                                                         status)
                 if (opoint < pos) call goto_char(opoint)
             end if
@@ -933,15 +934,16 @@ contains
             call locals(k)%expanded(tag, long_entry, has)
 
             if (has) then
-                call put_text_property(beg, beg + 1, value_type(name="log_view_entry_expanded"), value_type(.true.), status)
+                call put_text_property(beginning, beginning + 1, value_type(name="log_view_entry_expanded"), &
+                                       value_type(.true.), status)
                 call log_view_end_of_entry()
-                beg = point()
+                beginning = point()
                 if (status%ok()) call insert(long_entry//LF, status)
                 props(1) = value_type(name="font_lock_face")
                 props(2) = value_type(name="log_view_commit_body")
                 props(3) = value_type(name="log_view_comment")
                 props(4) = value_type(.true.)
-                if (status%ok()) call add_properties(beg, point(), props, changed, status)
+                if (status%ok()) call add_properties(beginning, point(), props, changed, status)
                 call goto_char(opoint)
             end if
         end if
@@ -950,16 +952,16 @@ contains
         deactivate_mark_variable = .false.
     end subroutine log_view_toggle_entry_display
 
-    ! (add-text-properties BEG END PROPS).  Not a port.
-    recursive subroutine add_properties(beg, end, props, changed, status)
+    ! (add-text-properties BEGINNING END PROPS).  Not a port.
+    recursive subroutine add_properties(beginning, end, props, changed, status)
         use lisp_fm, only: make_list, value_type
         use textprop_fm, only: add_text_properties
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         type(value_type), intent(in) :: props(:)
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
 
-        call add_text_properties(beg, end, make_list(props), changed, status)
+        call add_text_properties(beginning, end, make_list(props), changed, status)
     end subroutine add_properties
 
     !> Expand current Log View entry, if possible, and also display its diff.
@@ -973,7 +975,7 @@ contains
         use frame_fm, only: selected_window
         use window_fm, only: select_window
         type(status_type), intent(out) :: status
-        integer(int64) :: beg
+        integer(int64) :: beginning
         character(len=:), allocatable :: tag
         type(value_type) :: expanded
         type(handle_type) :: sw
@@ -981,10 +983,10 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        call log_view_current_entry(beg, tag, found)
+        call log_view_current_entry(beginning, tag, found)
 
         if (found) then
-            call get_text_property(beg, value_type(name="log_view_entry_expanded"), expanded, st)
+            call get_text_property(beginning, value_type(name="log_view_entry_expanded"), expanded, st)
             if (.not. allocated(expanded%a)) call log_view_toggle_entry_display(status)
             if (.not. status%ok()) return
         end if
@@ -1004,12 +1006,12 @@ contains
     !>
     !> This is Log View mode's default `beginning_of_subprogram_function'.
     !> It assumes that a log entry starts with a line matching
-    !> `log_view_message_re'.  FOUND is the result.  Port of
+    !> `log_view_message_regexp'.  FOUND is the result.  Port of
     !> log-view.el:log-view-beginning-of-defun.
     recursive subroutine log_view_beginning_of_entry(found, arg)
         logical, intent(out) :: found
         integer(int64), intent(in), optional :: arg
-        integer(int64) :: n, beg, shortage
+        integer(int64) :: n, beginning, shortage
         character(len=:), allocatable :: tag
         logical :: has
 
@@ -1027,12 +1029,12 @@ contains
 
         do while (n > 0)
             n = n - 1
-            call log_view_current_entry(beg, tag, has)
+            call log_view_current_entry(beginning, tag, has)
 
             if (.not. has) then
                 call goto_char(point_min())
                 found = .false.
-            else if (beg >= point()) then
+            else if (beginning >= point()) then
                 if (.not. is_bob()) then
                     shortage = forward_line(-1_int64)
                     n = n + 1
@@ -1040,7 +1042,7 @@ contains
 
                 found = .false.
             else
-                call goto_char(beg)
+                call goto_char(beginning)
                 found = .true.
             end if
         end do
@@ -1049,17 +1051,17 @@ contains
     ! Move forward to the next Log View entry.  Port of
     ! log-view.el:log-view-end-of-defun-1.
     recursive subroutine end_of_subprogram_1()
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         integer(int64) :: found, shortage
         logical :: looping
         type(status_type) :: st
 
-        re = log_view_message_re()
+        regexp = log_view_message_regexp()
         looping = .true.
-        if (looking_at(re, st)) call goto_char(match_end(0, st))
+        if (looking_at(regexp, st)) call goto_char(match_end(0, st))
 
         do while (looping)
-            call search_re_forward(re, found, st, noerror=SEARCH_MOVE)
+            call search_regexp_forward(regexp, found, st, noerror=SEARCH_MOVE)
 
             if (found /= 0) then
                 if (.not. is_log_view_inside_comment(point())) then
@@ -1130,7 +1132,7 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, tag
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer(int64) :: opoint
         logical :: has
 
@@ -1142,11 +1144,11 @@ contains
 
         if (status%ok()) then
             call log_view_current_tag(tag, has)
-            call vc_find_revision(file, tag, buf, status, log_view_vc_backend())
+            call vc_find_revision(file, tag, buffer, status, log_view_vc_backend())
         end if
 
         call goto_char(opoint)
-        if (status%ok()) call switch_to_buffer(buffers(buf%index)%name, status)
+        if (status%ok()) call switch_to_buffer(buffers(buffer%index)%name, status)
     end subroutine log_view_find_revision
 
     ! ------------------------------------------------------------------
@@ -1162,11 +1164,11 @@ contains
     !> Unlike `log_view_diff_changeset', this function only shows the
     !> part of the changeset which affected the currently considered
     !> file(s).  Port of log-view.el:log-view-diff.
-    recursive subroutine log_view_diff(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine log_view_diff(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
-        call log_view_diff_common(beg, end, status)
+        call log_view_diff_common(beginning, end, status)
     end subroutine log_view_diff
 
     !> Get the diff between two revisions.
@@ -1178,8 +1180,8 @@ contains
     !> Unlike `log_view_diff' this function shows the whole changeset,
     !> including changes affecting other files than the currently
     !> considered file(s).  Port of log-view.el:log-view-diff-changeset.
-    recursive subroutine log_view_diff_changeset(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine log_view_diff_changeset(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root, saved
         logical :: found
@@ -1196,30 +1198,30 @@ contains
 
         call vc_root_dir(root, found, status)
         if (.not. status%ok()) return
-        saved = buffers(cur)%directory
-        if (found) buffers(cur)%directory = root
-        call log_view_diff_common(beg, end, status, .true.)
-        buffers(cur)%directory = saved
+        saved = buffers(current)%directory
+        if (found) buffers(current)%directory = root
+        call log_view_diff_common(beginning, end, status, .true.)
+        buffers(current)%directory = saved
     end subroutine log_view_diff_changeset
 
-    !> The diff between the revisions at BEG and END (the one before when
+    !> The diff between the revisions at BEGINNING and END (the one before when
     !> they are the same), of the current file(s), or with WHOLE_CHANGESET
     !> of all files.  Port of log-view.el:log-view-diff-common.
-    recursive subroutine log_view_diff_common(beg, end, status, whole_changeset)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine log_view_diff_common(beginning, end, status, whole_changeset)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: whole_changeset
         character(len=:), allocatable :: to, fr, prev, file
         type(vc_fileset_type) :: fs
-        integer(int64) :: fr_beg, opoint, last
+        integer(int64) :: fr_beginning, opoint, last
         logical :: has_to, has_fr, whole, changes, has, previous
         type(vc_string_type), allocatable :: fileset(:)
 
         status = status_type()
         whole = .false.
         if (present(whole_changeset)) whole = whole_changeset
-        call log_view_current_tag(to, has_to, beg)
-        call log_view_current_entry(fr_beg, fr, has_fr, end)
+        call log_view_current_tag(to, has_to, beginning)
+        call log_view_current_entry(fr_beginning, fr, has_fr, end)
         ! When TO and FR are the same, or when point is on a line after
         ! the last entry, look at the previous revision.
         previous = has_to .eqv. has_fr
@@ -1281,10 +1283,10 @@ contains
         end if
     end subroutine log_view_diff_common
 
-    !> Copy the ID of the revision at point to the kill ring.
+    !> Copy the ID of the revision at point to the clipboard history.
     !> If there are marked revisions, copy the IDs of those, separated by
     !> spaces.  Port of log-view.el:log-view-copy-revision-as-kill.
-    recursive subroutine log_view_copy_revision_as_kill(status)
+    recursive subroutine log_view_copy_revision(status)
         type(status_type), intent(out) :: status
         type(vc_string_type), allocatable :: revisions(:)
         character(len=:), allocatable :: found, rev
@@ -1301,7 +1303,7 @@ contains
                 found = found//" "//revisions(k)%s
             end do
 
-            call kill_new(found)
+            call copy_to_clipboard_history(found)
             call message(found)
         else
             if (size(revisions) == 1) then
@@ -1312,13 +1314,13 @@ contains
             end if
 
             if (has) then
-                call kill_new(rev)
+                call copy_to_clipboard_history(rev)
                 call message(rev)
             else
                 call set_error(status, FM_USER_ERROR, "No revision at point")
             end if
         end if
-    end subroutine log_view_copy_revision_as_kill
+    end subroutine log_view_copy_revision
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -1351,15 +1353,15 @@ contains
 
     ! (if (use-region-p) (region-beginning) (point)) and the end.
     ! Not a port.
-    subroutine region_args(beg, end)
-        integer(int64), intent(out) :: beg, end
+    subroutine region_args(beginning, end)
+        integer(int64), intent(out) :: beginning, end
         type(status_type) :: st
 
-        beg = point()
+        beginning = point()
         end = point()
 
         if (is_use_region()) then
-            call region_beginning(beg, st)
+            call region_beginning(beginning, st)
             call region_end(end, st)
         end if
     end subroutine region_args
@@ -1369,13 +1371,13 @@ contains
     recursive subroutine mark_command(mark, status)
         logical, intent(in) :: mark
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         type(status_type) :: st
 
         if (is_use_region()) then
-            call region_beginning(beg, st)
+            call region_beginning(beginning, st)
             call region_end(end, st)
-            call mark_unmark(mark, count_arg(), status, beg, end)
+            call mark_unmark(mark, count_arg(), status, beginning, end)
         else
             call mark_unmark(mark, count_arg(), status)
         end if
@@ -1437,18 +1439,18 @@ contains
 
     recursive subroutine cmd_log_view_diff(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
 
-        call region_args(beg, end)
-        call log_view_diff(beg, end, status)
+        call region_args(beginning, end)
+        call log_view_diff(beginning, end, status)
     end subroutine cmd_log_view_diff
 
     recursive subroutine cmd_log_view_diff_changeset(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
 
-        call region_args(beg, end)
-        call log_view_diff_changeset(beg, end, status)
+        call region_args(beginning, end)
+        call log_view_diff_changeset(beginning, end, status)
     end subroutine cmd_log_view_diff_changeset
 
     ! ------------------------------------------------------------------
@@ -1500,7 +1502,7 @@ contains
         commands%log_view_find_revision%execute => cmd_log_view_find_revision
         commands%log_view_diff%execute => cmd_log_view_diff
         commands%log_view_diff_changeset%execute => cmd_log_view_diff_changeset
-        commands%log_view_copy_revision_as_kill%execute => log_view_copy_revision_as_kill
+        commands%log_view_copy_revision%execute => log_view_copy_revision
         call keymap_set(log_view_mode_map, "RET", "log_view_toggle_entry_display", st)
         call keymap_set(log_view_mode_map, "M-RET", "log_view_display_entry_and_diff", st)
         call keymap_set(log_view_mode_map, "m", "log_view_mark_entry", st)
@@ -1514,9 +1516,9 @@ contains
         call keymap_set(log_view_mode_map, "p", "log_view_msg_prev", st)
         call keymap_set(log_view_mode_map, "M-n", "log_view_msg_and_diff_next", st)
         call keymap_set(log_view_mode_map, "M-p", "log_view_msg_and_diff_prev", st)
-        call keymap_set(log_view_mode_map, "w", "log_view_copy_revision_as_kill", st)
+        call keymap_set(log_view_mode_map, "w", "log_view_copy_revision", st)
         call keymap_set(log_view_mode_map, "TAB", "log_view_msg_next", st)
         call keymap_set(log_view_mode_map, "<backtab>", "log_view_msg_prev", st)
-        call add_local_variables_killer(kill_log_view_locals)
+        call append_locals_clearer(clear_log_view_locals)
     end subroutine syms_of_log_view
 end module log_view_fm

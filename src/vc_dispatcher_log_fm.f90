@@ -53,7 +53,7 @@ contains
     if (size(files) == 1 .and. .not. vc_dispatcher_browsing()) parent = get_file_buffer(files(1)%s)
     if (parent%index == 0) parent = current_buffer()
     immediate = has_comment .and. .not. ic
-    call get_buffer_create(logbuf, logb, status)
+    call get_or_make_buffer(logbuf, logb, status)
     if (.not. status%ok()) return
 
     if (immediate) then
@@ -110,20 +110,20 @@ contains
     end function substitute_keys
 
     module procedure vc_log_edit
-    type(vc_string_type), allocatable :: current(:)
+    type(vc_string_type), allocatable :: current_fileset(:)
     type(handle_type) :: parent
     logical :: setup, has
 
     status = status_type()
     parent = vc_parent_buffer()
-    buffers(cur)%directory = buffers(parent%index)%directory
+    buffers(current)%directory = buffers(parent%index)%directory
     ! Setup a new log message if the log buffer is "empty",
     ! or was previously used for a different set of files.
     setup = is_log_edit_empty_buffer()
 
     if (.not. setup) then
-        call vc_log_fileset(current, has)
-        if (has) setup = .not. same_files(current, fileset)
+        call vc_log_fileset(current_fileset, has)
+        if (has) setup = .not. same_files(current_fileset, fileset)
     end if
 
     pending_fileset = fileset
@@ -139,12 +139,12 @@ contains
     if (.not. status%ok()) return
     ! (set-buffer-modified-p nil)
     call restore_buffer_modified(.false.)
-    if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+    if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
 
 contains
 
     recursive subroutine execute_log_edit(diff)
-        procedure(command_proc) :: diff
+        procedure(command_procedure) :: diff
         integer :: b
 
         b = 0
@@ -217,7 +217,7 @@ contains
             if (found) then
                 files(i)%s = file_relative_name(fileset(i)%s, root)
             else
-                files(i)%s = file_relative_name(fileset(i)%s, buffers(cur)%directory)
+                files(i)%s = file_relative_name(fileset(i)%s, buffers(current)%directory)
             end if
         end do
     end subroutine log_listfun
@@ -294,7 +294,7 @@ contains
         if (.not. status%ok()) return
 
         do k = 1, size(fileset)
-            call vc_resynch_buffer(fileset(k)%s, buffers(cur)%directory, status, keep=.true., noquery=VC_NOQUERY_YES)
+            call vc_resynch_buffer(fileset(k)%s, buffers(current)%directory, status, keep=.true., noquery=VC_NOQUERY_YES)
             if (.not. status%ok()) return
         end do
 

@@ -62,16 +62,16 @@ module intervals_fm
 
 contains
 
-    !> Make `iv' one interval covering `length' characters from `beg'.
+    !> Make `iv' one interval covering `length' characters from `beginning'.
     !> Port of intervals.c:create_root_interval.
-    pure subroutine create_root_interval(iv, beg, length)
+    pure subroutine create_root_interval(iv, beginning, length)
         type(intervals_type), intent(inout) :: iv
-        integer(int64), intent(in) :: beg, length
+        integer(int64), intent(in) :: beginning, length
 
         if (allocated(iv%runs)) deallocate (iv%runs)
         allocate (iv%runs(8))
         iv%n = 1
-        iv%runs(1)%position = beg
+        iv%runs(1)%position = beginning
         iv%runs(1)%length = length
     end subroutine create_root_interval
 
@@ -197,7 +197,7 @@ contains
 
     !> Value of text property `prop' in `plist' (text properties), falling back to the
     !> `category' value's attributes, then to the first of the properties
-    !> `char_property_alias_table' gives as alternatives for `prop'.
+    !> `char_property_aliases' gives as alternatives for `prop'.
     !> Port of intervals.c:textget and intervals.c:lookup_char_property
     !> (default-text-properties is not consulted yet).
     function textget(plist, prop) result(val)
@@ -231,7 +231,7 @@ contains
         if (allocated(fallback%a)) return
         ! Check for alternative properties.
         call ensure_obarray()
-        id = intern("char_property_alias_table")
+        id = intern("char_property_aliases")
         if (.not. symbols(id)%bound) return
         if (vtag(symbols(id)%val) /= V_ARRAY) return
         call list_elements(symbols(id)%val, aliases)
@@ -479,13 +479,13 @@ contains
             end if
 
             if (use_left) then
-                call add_prop(sym, lval)
-                if (tmem(sym, lfront)) call add_front(sym)
-                if (tmem(sym, lrear)) call add_rear(sym)
+                call append_prop(sym, lval)
+                if (tmem(sym, lfront)) call append_front(sym)
+                if (tmem(sym, lrear)) call append_rear(sym)
             else if (use_right) then
-                call add_prop(sym, rval)
-                if (tmem(sym, rfront)) call add_front(sym)
-                if (tmem(sym, rrear)) call add_rear(sym)
+                call append_prop(sym, rval)
+                if (tmem(sym, rfront)) call append_front(sym)
+                if (tmem(sym, rrear)) call append_rear(sym)
             end if
         end do
 
@@ -502,13 +502,13 @@ contains
             ! Since rval is known to be nil in this loop, the test
             ! simplifies.
             if (.not. (tmem(sym, lrear) .or. nonsticky)) then
-                call add_prop(sym, lval)
-                if (tmem(sym, lfront)) call add_front(sym)
+                call append_prop(sym, lval)
+                if (tmem(sym, lfront)) call append_front(sym)
             else if (tmem(sym, rfront)) then
                 ! The value is nil, but we still inherit the stickiness
                 ! from the right.
-                call add_front(sym)
-                if (tmem(sym, rrear)) call add_rear(sym)
+                call append_front(sym)
+                if (tmem(sym, rrear)) call append_rear(sym)
             end if
         end do
 
@@ -557,27 +557,27 @@ contains
 
     contains
 
-        subroutine add_prop(s, v)
+        subroutine append_prop(s, v)
             type(value_type), intent(in) :: s, v
 
             out(n + 1) = s
             out(n + 2) = v
             n = n + 2
-        end subroutine add_prop
+        end subroutine append_prop
 
-        subroutine add_front(s)
+        subroutine append_front(s)
             type(value_type), intent(in) :: s
 
             nf = nf + 1
             front(nf) = s
-        end subroutine add_front
+        end subroutine append_front
 
-        subroutine add_rear(s)
+        subroutine append_rear(s)
             type(value_type), intent(in) :: s
 
             nr = nr + 1
             rear(nr) = s
-        end subroutine add_rear
+        end subroutine append_rear
     end function merge_properties_sticky
 
     !> The properties that text inserted at POSITION of the text with

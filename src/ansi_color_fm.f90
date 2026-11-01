@@ -42,9 +42,9 @@ module ansi_color_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, list, xstring, make_list
-    use data_fm, only: integer_setting, logical_setting, add_local_variables_killer, set, symbol_value
-    use buffer_fm, only: buffers, cur, current_buffer
-    use marker_fm, only: make_marker, free_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
+    use data_fm, only: integer_setting_type, logical_setting_type, append_locals_clearer, set, symbol_value
+    use buffer_fm, only: buffers, current, current_buffer
+    use marker_fm, only: make_marker, destroy_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
                          marker_buffer
     use editfns_fm, only: point, point_min, goto_char, delete_region, buffer_substring
     use search_fm, only: string_match, re_search_forward, match_beginning, match_end, SEARCH_NOERROR
@@ -63,7 +63,7 @@ module ansi_color_fm
               ansi_color_apply_overlay_face, ansi_color_apply_text_property_face, ansi_color_make_extent, &
               ansi_color_process_output, ansi_color_compilation_filter, ansi_color_for_comint_mode_on, &
               ansi_color_for_comint_mode_off, ansi_color_for_comint_mode_filter, ansi_color_code_as_hex, &
-              syms_of_ansi_color, ansi_color_face_proc, reset_ansi_color_context, ansi_color_face_value
+              syms_of_ansi_color, ansi_color_face_procedure, reset_ansi_color_context, ansi_color_face_value
 
     !> A pointer to a named face, an element of
     !> `ansi_color_face_type%faces'.  Not a port.
@@ -86,13 +86,13 @@ module ansi_color_fm
 
     abstract interface
         !> An `ansi_color_apply_face_function': apply FACE (empty for
-        !> none) to the text between BEG and END.  Not a port.
-        recursive subroutine ansi_color_face_proc(beg, end, face)
+        !> none) to the text between BEGINNING and END.  Not a port.
+        recursive subroutine ansi_color_face_procedure(beginning, end, face)
             import :: int64, ansi_color_face_type
             implicit none(type, external)
-            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(in) :: beginning, end
             type(ansi_color_face_type), intent(in) :: face
-        end subroutine ansi_color_face_proc
+        end subroutine ansi_color_face_procedure
     end interface
 
     !> Face used to render bold text.  Port of ansi-color.el:ansi-color-bold.
@@ -235,8 +235,8 @@ module ansi_color_fm
     !> If set to true, combining ANSI bold and a color produces the bright
     !> version of that color.  Port of ansi-color.el
     !> ansi-color-bold-is-bright.
-    type(logical_setting), public :: ansi_color_bold_is_bright = logical_setting(name="ansi_color_bold_is_bright", &
-                                                                                 value=.false.)
+    type(logical_setting_type), public :: ansi_color_bold_is_bright = logical_setting_type(name="ansi_color_bold_is_bright", &
+                                                                                           value=.false.)
 
     !> Regexp matching an ANSI control sequence.  Port of ansi-color.el
     !> ansi-color-control-seq-regexp.
@@ -269,8 +269,8 @@ module ansi_color_fm
     !> \[ansi_color_for_comint_mode_off]
     !> \[ansi_color_for_comint_mode_filter]
     !> Port of ansi-color.el ansi-color-for-comint-mode.
-    type(integer_setting), public :: ansi_color_for_comint_mode = integer_setting(name="ansi_color_for_comint_mode", &
-                                                                                  value=ANSI_COLOR_YES)
+    type(integer_setting_type), public :: ansi_color_for_comint_mode = integer_setting_type(name="ansi_color_for_comint_mode", &
+                                                                                            value=ANSI_COLOR_YES)
 
     !> Determines what to do with compilation output.
     !> If ANSI_COLOR_NO, do nothing.
@@ -285,18 +285,18 @@ module ansi_color_fm
     !> `ansi_color_compilation_filter' must be in
     !> `compilation_filter_hook'.  Port of ansi-color.el
     !> ansi-color-for-compilation-mode.
-    type(integer_setting), public :: ansi_color_for_compilation_mode = &
-                                     integer_setting(name="ansi_color_for_compilation_mode", value=ANSI_COLOR_YES)
+    type(integer_setting_type), public :: ansi_color_for_compilation_mode = &
+                                          integer_setting_type(name="ansi_color_for_compilation_mode", value=ANSI_COLOR_YES)
 
     ! A buffer's own `ansi_color_apply_face_function'.
     type :: face_function_entry_type
         integer(int64) :: serial = 0
-        procedure(ansi_color_face_proc), pointer, nopass :: fn => null()
+        procedure(ansi_color_face_procedure), pointer, nopass :: fn => null()
     end type face_function_entry_type
 
     !> Function for applying an Ansi Color face to text in a buffer.
-    !> This function should accept three arguments: BEG, END, and FACE,
-    !> and it should apply face FACE to the text between BEG and END.
+    !> This function should accept three arguments: BEGINNING, END, and FACE,
+    !> and it should apply face FACE to the text between BEGINNING and END.
     !> Port of ansi-color.el ansi-color-apply-face-function (set with
     !> `set_local'; the default is `ansi_color_apply_overlay_face').
     type, public :: ansi_color_apply_face_function_type
@@ -349,11 +349,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(contexts)) allocate (contexts(0))
 
         do i = 1, size(contexts)
-            if (contexts(i)%serial == buffers(cur)%serial) then
+            if (contexts(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if
@@ -363,7 +363,7 @@ contains
 
         do i = 1, size(contexts)
             if (contexts(i)%serial == 0) then
-                contexts(i)%serial = buffers(cur)%serial
+                contexts(i)%serial = buffers(current)%serial
                 k = i
                 return
             end if
@@ -372,13 +372,13 @@ contains
         n = size(contexts)
         allocate (grown(n + 1))
         grown(1:n) = contexts
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, contexts)
         k = n + 1
     end function context_slot
 
     !> Set the current buffer's `ansi_color_context' and
-    !> `ansi_color_context_region' to empty (as `kill_all_local_variables'
+    !> `ansi_color_context_region' to empty (as `clear_all_local_variables'
     !> does).  Not a port.
     subroutine reset_ansi_color_context()
         type(status_type) :: st
@@ -386,7 +386,7 @@ contains
 
         k = context_slot(.false.)
         if (k == 0) return
-        if (contexts(k)%region_marker%index /= 0) call free_marker(contexts(k)%region_marker, st)
+        if (contexts(k)%region_marker%index /= 0) call destroy_marker(contexts(k)%region_marker, st)
         contexts(k) = context_type()
     end subroutine reset_ansi_color_context
 
@@ -394,15 +394,15 @@ contains
     ! Not a port.
     subroutine face_function_set_local(self, fn)
         class(ansi_color_apply_face_function_type), intent(inout) :: self
-        procedure(ansi_color_face_proc) :: fn
+        procedure(ansi_color_face_procedure) :: fn
         type(face_function_entry_type), allocatable :: grown(:)
         integer :: i, n
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
@@ -411,7 +411,7 @@ contains
         n = size(self%entries)
         allocate (grown(n + 1))
         grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
     end subroutine face_function_set_local
@@ -419,31 +419,31 @@ contains
     ! The current buffer's value of the face function.  Not a port.
     function current_face_function(self) result(fn)
         class(ansi_color_apply_face_function_type), intent(in) :: self
-        procedure(ansi_color_face_proc), pointer :: fn
+        procedure(ansi_color_face_procedure), pointer :: fn
         integer :: i
 
         fn => ansi_color_apply_overlay_face
-        if (cur == 0 .or. .not. allocated(self%entries)) return
+        if (current == 0 .or. .not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
+            if (self%entries(i)%serial == buffers(current)%serial) fn => self%entries(i)%fn
         end do
     end function current_face_function
 
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
-    subroutine kill_ansi_color_locals()
+    subroutine clear_ansi_color_locals()
         integer :: i
 
         call reset_ansi_color_context()
-        if (cur == 0 .or. .not. allocated(ansi_color_apply_face_function%entries)) return
+        if (current == 0 .or. .not. allocated(ansi_color_apply_face_function%entries)) return
 
         do i = 1, size(ansi_color_apply_face_function%entries)
-            if (ansi_color_apply_face_function%entries(i)%serial == buffers(cur)%serial) then
+            if (ansi_color_apply_face_function%entries(i)%serial == buffers(current)%serial) then
                 ansi_color_apply_face_function%entries(i) = face_function_entry_type()
             end if
         end do
-    end subroutine kill_ansi_color_locals
+    end subroutine clear_ansi_color_locals
 
     ! ------------------------------------------------------------------
     ! Convenience functions for comint modes (eg. shell-mode)
@@ -492,16 +492,16 @@ contains
     recursive subroutine ansi_color_process_output(ignored, status)
         character(len=*), intent(in) :: ignored
         type(status_type), intent(out) :: status
-        type(handle_type) :: proc
+        type(handle_type) :: process
         integer(int64) :: start, end
 
         status = status_type()
         if (len(ignored) < 0) return
-        proc = get_buffer_process(current_buffer())
-        if (proc%index == 0) return
+        process = get_buffer_process(current_buffer())
+        if (process%index == 0) return
         start = comint_last_output_start()
         if (start <= 0) start = point_min()
-        call marker_position(process_mark(proc), end, status)
+        call marker_position(process_mark(process), end, status)
 
         if (.not. status%ok()) then
             status = status_type()
@@ -739,7 +739,7 @@ contains
         character(len=*), intent(in) :: seq
         integer(int64), allocatable, intent(out) :: codes(:)
         type(status_type) :: st
-        integer(int64) :: pos, idx, n, mb, me
+        integer(int64) :: pos, index, n, mb, me
         integer :: ios
         character(len=:), allocatable :: digits
 
@@ -747,8 +747,8 @@ contains
         pos = 0
 
         do
-            idx = string_match(ansi_color_parameter_regexp, seq, st, start=pos + 1)
-            if (idx == 0) exit
+            index = string_match(ansi_color_parameter_regexp, seq, st, start=pos + 1)
+            if (index == 0) exit
             pos = match_end(0, st) - 1
             mb = match_beginning(1, st) - 1
             me = match_end(1, st) - 1
@@ -894,7 +894,7 @@ contains
     function ansi_color_code_as_hex(color) result(hex)
         integer(int64), intent(in) :: color
         character(len=:), allocatable :: hex
-        character(len=8) :: buf
+        character(len=8) :: buffer
         integer(int64) :: c, res, frac, color_num
 
         if (color < 16) then
@@ -922,8 +922,8 @@ contains
             end do
         end if
 
-        write (buf, "(a,z6.6)") "#", res
-        hex = trim(buf)
+        write (buffer, "(a,z6.6)") "#", res
+        hex = trim(buffer)
     end function ansi_color_code_as_hex
 
     ! ------------------------------------------------------------------
@@ -1005,7 +1005,7 @@ contains
         end if
 
         call goto_char(opoint)
-        call free_marker(end_marker, st)
+        call destroy_marker(end_marker, st)
     end subroutine ansi_color_filter_region
 
     !> Translates SGR control sequences into overlays or extents.
@@ -1029,14 +1029,14 @@ contains
     recursive subroutine ansi_color_apply_on_region(begin, end, preserve_sequences)
         integer(int64), intent(in) :: begin, end
         logical, intent(in), optional :: preserve_sequences
-        procedure(ansi_color_face_proc), pointer :: apply
+        procedure(ansi_color_face_procedure), pointer :: apply
         type(handle_type) :: start_marker, end_marker, ov
         type(face_vec_type) :: face_vec
         type(ansi_color_face_type) :: faces
         type(status_type) :: st
         character(len=:), allocatable :: seq
         integer(int64), allocatable :: codes(:)
-        integer(int64) :: opoint, pos, esc_beg, esc_end, old_start, last_mb
+        integer(int64) :: opoint, pos, esc_beginning, esc_end, old_start, last_mb
         logical :: preserve
         integer :: k
 
@@ -1055,15 +1055,15 @@ contains
             call re_search_forward(ansi_color_control_seq_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. pos == 0) exit
             ! Extract escape sequence.
-            esc_beg = match_beginning(0, st)
+            esc_beginning = match_beginning(0, st)
             esc_end = point()
             ! Colorize the old block from start to end using old face.
             old_start = mpos(start_marker)
             ! Store new start position.
             call set_marker(start_marker, esc_end, st)
-            call apply(old_start, esc_beg, face_vec_face(face_vec))
+            call apply(old_start, esc_beginning, face_vec_face(face_vec))
             ! If this is a color sequence,
-            call buffer_substring(esc_beg, esc_end, seq, st)
+            call buffer_substring(esc_beginning, esc_end, seq, st)
 
             if (seq(len(seq):len(seq)) == "m") then
                 call parse_codes(seq, codes)
@@ -1072,11 +1072,11 @@ contains
 
             if (preserve) then
                 ! Make the escape sequence transparent.
-                call make_overlay(ov, esc_beg, esc_end, st)
+                call make_overlay(ov, esc_beginning, esc_end, st)
                 call overlay_put(ov, "invisible", value_type(.true.), st)
             else
                 ! Otherwise, strip.
-                call delete_region(esc_beg, esc_end, st)
+                call delete_region(esc_beginning, esc_end, st)
             end if
 
             call goto_char(mpos(start_marker))
@@ -1115,33 +1115,33 @@ contains
         contexts(k)%region_face_vec = face_vec
         call goto_char(opoint)
         ! Clean up our temporary marker.
-        call free_marker(end_marker, st)
+        call destroy_marker(end_marker, st)
     end subroutine ansi_color_apply_on_region
 
-    !> Make an overlay from BEG to END, and apply face FACE.
+    !> Make an overlay from BEGINNING to END, and apply face FACE.
     !> If FACE is empty, do nothing.  Port of
     !> ansi-color.el:ansi-color-apply-overlay-face.
-    recursive subroutine ansi_color_apply_overlay_face(beg, end, face)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine ansi_color_apply_overlay_face(beginning, end, face)
+        integer(int64), intent(in) :: beginning, end
         type(ansi_color_face_type), intent(in) :: face
         type(handle_type) :: ov
         type(status_type) :: st
 
         if (face%is_empty()) return
-        call ansi_color_make_extent(beg, end, ov)
+        call ansi_color_make_extent(beginning, end, ov)
         call overlay_put(ov, "face", ansi_color_face_value(face), st)
     end subroutine ansi_color_apply_overlay_face
 
-    !> Set the `font_lock_face' property to FACE in region BEG..END.
+    !> Set the `font_lock_face' property to FACE in region BEGINNING..END.
     !> If FACE is empty, do nothing.  Port of
     !> ansi-color.el:ansi-color-apply-text-property-face.
-    recursive subroutine ansi_color_apply_text_property_face(beg, end, face)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine ansi_color_apply_text_property_face(beginning, end, face)
+        integer(int64), intent(in) :: beginning, end
         type(ansi_color_face_type), intent(in) :: face
         type(status_type) :: st
 
         if (face%is_empty()) return
-        call put_text_property(beg, end, value_type(name="font_lock_face"), ansi_color_face_value(face), st)
+        call put_text_property(beginning, end, value_type(name="font_lock_face"), ansi_color_face_value(face), st)
     end subroutine ansi_color_apply_text_property_face
 
     !> Make an extent for the range [FROM, TO) in the current buffer.
@@ -1387,7 +1387,7 @@ contains
         commands%ansi_color_for_comint_mode_on%execute => ansi_color_for_comint_mode_on
         commands%ansi_color_for_comint_mode_off%execute => ansi_color_for_comint_mode_off
         commands%ansi_color_for_comint_mode_filter%execute => ansi_color_for_comint_mode_filter
-        call add_local_variables_killer(kill_ansi_color_locals)
-        call comint_output_filter_functions%add(ansi_color_process_output)
+        call append_locals_clearer(clear_ansi_color_locals)
+        call comint_output_filter_functions%append(ansi_color_process_output)
     end subroutine syms_of_ansi_color
 end module ansi_color_fm

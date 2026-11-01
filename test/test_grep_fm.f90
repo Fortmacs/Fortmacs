@@ -33,7 +33,7 @@ module test_grep_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xstring, vtag, V_STRING
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                          is_buffer_live, set_buffer_read_only, current_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char
@@ -90,20 +90,20 @@ contains
         integer(int64) :: found
 
         display = ""
-        call get_buffer_create(" *grep-test*", h, st)
+        call get_or_make_buffer(" *grep-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call grep_compute_defaults(st)
         call insert(rgrep_default_command("search", "*"), st)
         call grep_mode(st)
-        buffers(cur)%read_only = .false.
+        buffers(current)%read_only = .false.
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
         call goto_char(point_min())
         call re_search_forward("find ", found, st)
         call get_text_property(point(), value_type(name="display"), v, st)
         if (vtag(v) == V_STRING) display = xstring(v)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end function rgrep_abbreviation
 
     !> Port of grep-tests.el grep-tests--rgrep-abbreviate-properties-gnu-linux
@@ -165,21 +165,21 @@ contains
     end subroutine test_heading_regexp_with_null
 
     !> Port of compile-tests.el compile--test-error-line for the grep test
-    !> cases (no rule name, no column): parse STR and check the message at
+    !> cases (no rule name, no column): parse STRING and check the message at
     !> POS (1) has LINE and FILE; INFO gets the message.
-    subroutine grep_error_line(error, str, line, file, info)
+    subroutine grep_error_line(error, string, line, file, info)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: str, file
+        character(len=*), intent(in) :: string, file
         integer(int64), intent(in) :: line
         type(compilation_message_info_type), intent(out) :: info
         type(status_type) :: st
         logical :: found
         character(len=:), allocatable :: what
 
-        what = "testcase: "//str
+        what = "testcase: "//string
         call erase_buffer(st)
         call compilation_forget_errors()
-        call insert(str, st)
+        call insert(string, st)
         call compilation_parse_errors(point_min(), point_max(), st)
         call check(error, st%ok(), what//": "//format_error(st))
         if (allocated(error)) return
@@ -196,7 +196,7 @@ contains
     end subroutine grep_error_line
 
     !> Port of compile-tests.el compile-test-grep-regexps: the
-    !> `grep_regexp_table' regexps, on file names that NUL bytes or colons
+    !> `grep_regexps' regexps, on file names that NUL bytes or colons
     !> separate from the line numbers.
     subroutine test_grep_regexps(error)
         type(error_type), allocatable, intent(out) :: error
@@ -206,13 +206,13 @@ contains
         integer(int64) :: errors, warnings, infos
 
         call init_bindings()
-        call get_buffer_create(" *grep-regexps*", h, st)
+        call get_or_make_buffer(" *grep-regexps*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call grep_mode(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        buffers(cur)%read_only = .false.
+        buffers(current)%read_only = .false.
         call minor_modes%font_lock_mode%disable(st)
         ! Bug#32051.
         call pair("c:/Users/my.name/src/project\src\kbhit.hpp", "29:#include <termios.h>", 29_int64)
@@ -230,7 +230,7 @@ contains
         if (allocated(error)) return
         call compilation_message_counts(errors, warnings, infos)
         call check(error, errors, 8_int64, "errors")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
 
     contains
 
@@ -301,20 +301,20 @@ contains
 
     !> Wait until the grep in *grep* has finished.
     subroutine wait_grep()
-        type(handle_type) :: buf, proc
+        type(handle_type) :: buffer, process
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
 
-        buf = get_buffer("*grep*")
+        buffer = get_buffer("*grep*")
         call system_clock(start, rate)
 
         do
-            proc = get_buffer_process(buf)
-            if (proc%index == 0) exit
+            process = get_buffer_process(buffer)
+            if (process%index == 0) exit
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > TIMEOUT) exit
-            call accept_process_output(got, st, proc, 1.0)
+            call accept_process_output(got, st, process, 1.0)
         end do
     end subroutine wait_grep
 
@@ -322,7 +322,7 @@ contains
     !> the matches that `next_error' visits.
     subroutine test_grep_execute(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
         character(len=:), allocatable :: dir, path, text
         integer(int64) :: errors, warnings, infos
@@ -337,20 +337,20 @@ contains
         write (unit, "(a)") "gamma"
         write (unit, "(a)") "needle delta"
         close (unit)
-        call get_buffer_create("*grep-test*", h, st)
+        call get_or_make_buffer("*grep-test*", h, st)
         call set_buffer(h, st)
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
         call show_alone()
         call set_buffer(h, st)
         call grep("grep -nH -e needle fortmacs-grep-test.txt", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_grep()
-        buf = get_buffer("*grep*")
-        call check(error, is_buffer_live(buf), "*grep*")
+        buffer = get_buffer("*grep*")
+        call check(error, is_buffer_live(buffer), "*grep*")
         if (allocated(error)) return
-        call set_buffer(buf, st)
-        call check(error, buffers(cur)%major_mode, "grep_mode")
+        call set_buffer(buffer, st)
+        call check(error, buffers(current)%major_mode, "grep_mode")
         if (allocated(error)) return
         text = buffer_string()
         call check(error, index(text, "Grep started at") > 0, text)
@@ -363,7 +363,7 @@ contains
         ! next-error visits the first match, then the second.
         call next_error(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, buffers(cur)%name, "fortmacs-grep-test.txt")
+        if (.not. allocated(error)) call check(error, buffers(current)%name, "fortmacs-grep-test.txt")
         if (.not. allocated(error)) call check(error, point(), 7_int64, "line 2")
         if (allocated(error)) return
         call next_error(st)
@@ -373,10 +373,10 @@ contains
         call next_error(st)
         call check(error,.not. st%ok(), "past last hit")
         if (.not. allocated(error)) call check(error, format_error(st), "Past last grep hit")
-        call kill_buffer(get_buffer("fortmacs-grep-test.txt"), st)
-        call set_buffer_read_only(buf, .false., st)
-        call kill_buffer(buf, st)
-        call kill_buffer(h, st)
+        call close_buffer(get_buffer("fortmacs-grep-test.txt"), st)
+        call set_buffer_read_only(buffer, .false., st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
         open (newunit=unit, file=path, status="old")
         close (unit, status="delete")
     end subroutine test_grep_execute
@@ -385,7 +385,7 @@ contains
     !> of the file's buffer, and C-c C-c returns to Grep mode.
     subroutine test_grep_edit(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf, file_buf
+        type(handle_type) :: h, buffer, file_buffer
         type(status_type) :: st
         character(len=:), allocatable :: dir, path, text
         integer(int64) :: found
@@ -398,20 +398,20 @@ contains
         write (unit, "(a)") "alpha"
         write (unit, "(a)") "beta needle"
         close (unit)
-        call get_buffer_create("*grep-test*", h, st)
+        call get_or_make_buffer("*grep-test*", h, st)
         call set_buffer(h, st)
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
         call show_alone()
         call set_buffer(h, st)
         call grep("grep -nH -e needle fortmacs-grep-edit-test.txt", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_grep()
-        buf = get_buffer("*grep*")
-        call set_buffer(buf, st)
+        buffer = get_buffer("*grep*")
+        call set_buffer(buffer, st)
         call grep_change_to_grep_edit_mode(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "grep_edit_mode")
+        if (.not. allocated(error)) call check(error, buffers(current)%major_mode, "grep_edit_mode")
         if (allocated(error)) return
         ! The end of the match line, after "needle".
         call goto_char(point_min())
@@ -421,23 +421,23 @@ contains
         call insert("X", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        file_buf = get_buffer("fortmacs-grep-edit-test.txt")
-        call check(error, is_buffer_live(file_buf), "the file's buffer")
+        file_buffer = get_buffer("fortmacs-grep-edit-test.txt")
+        call check(error, is_buffer_live(file_buffer), "the file's buffer")
         if (allocated(error)) return
-        call set_buffer(file_buf, st)
+        call set_buffer(file_buffer, st)
         text = buffer_string()
         call check(error, text, "alpha"//new_line("a")//"beta needleX"//new_line("a"))
         if (allocated(error)) return
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call grep_edit_save_changes(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "grep_mode")
-        call set_buffer(file_buf, st)
+        if (.not. allocated(error)) call check(error, buffers(current)%major_mode, "grep_mode")
+        call set_buffer(file_buffer, st)
         call restore_buffer_modified(.false.)
-        call kill_buffer(file_buf, st)
-        call set_buffer_read_only(buf, .false., st)
-        call kill_buffer(buf, st)
-        call kill_buffer(h, st)
+        call close_buffer(file_buffer, st)
+        call set_buffer_read_only(buffer, .false., st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
         open (newunit=unit, file=path, status="old")
         close (unit, status="delete")
     end subroutine test_grep_edit

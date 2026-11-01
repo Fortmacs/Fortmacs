@@ -21,11 +21,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> An emulation of the X color functionality for character terminals.
-!> The terminal's colors are kept in `tty_defined_color_table', which
+!> The terminal's colors are kept in `tty_defined_colors', which
 !> associates the colors the terminal supports with the small integers
 !> (indices) sent to the terminal to switch them on.  A color is looked up
 !> there first; if it is not found, its X RGB values (from
-!> `color_name_rgb_table', tty_colors_rgb_fm) are used to find the
+!> `color_name_rgbs', tty_colors_rgb_fm) are used to find the
 !> supported color nearest to it in RGB space.
 !>
 !> The list is set up at startup by `tty_register_colors': the 8 standard
@@ -49,7 +49,7 @@ module tty_colors_fm
     implicit none(type, external)
     private
 
-    public :: tty_color_type, tty_color_table, tty_modify_color_table, tty_register_default_colors, &
+    public :: tty_color_type, tty_colors, tty_modify_colors, tty_register_default_colors, &
               tty_color_canonicalize, tty_color_24bit, tty_color_define, tty_color_clear, &
               tty_color_off_gray_diag, tty_color_approximate, tty_color_standard_values, &
               tty_color_translate, tty_color_by_index, tty_color_values, tty_color_desc, &
@@ -58,7 +58,7 @@ module tty_colors_fm
 
     !> A terminal color: its NAME, the INDEX sent to the terminal to
     !> switch it on, and, if `has_rgb', the intensities of its red, green
-    !> and blue components (0..65535).  An element of `tty_color_table'.
+    !> and blue components (0..65535).  An element of `tty_colors'.
     type :: tty_color_type
         character(len=:), allocatable :: name
         integer :: index = 0
@@ -81,11 +81,11 @@ module tty_colors_fm
                                                                           65535, 65535, 65535], [3, 8])
 
     !> A table of defined terminal colors and their RGB values.
-    !> See the docstring of `tty_color_table' for the details.  Port of
+    !> See the docstring of `tty_colors' for the details.  Port of
     !> xfaces.c:tty-defined-color-alist; the first
     !> `tty_defined_color_count' elements are in use.
-    type(tty_color_type), allocatable :: tty_defined_color_table(:)
-    !> The number of colors in `tty_defined_color_table'.
+    type(tty_color_type), allocatable :: tty_defined_colors(:)
+    !> The number of colors in `tty_defined_colors'.
     integer, protected, public :: tty_defined_color_count = 0
     !> The number of colors the terminal supports, as `display-color-cells'
     !> reports it (term.c TN_max_colors): 16777216 for a 24-bit terminal.
@@ -95,13 +95,13 @@ module tty_colors_fm
     !> Called where upstream calls `clear-face-cache' after the color
     !> mappings change (realized faces would use stale colors).  Installed
     !> by the face code; nothing when absent.
-    procedure(clear_face_cache_proc), pointer, public :: clear_face_cache_hook => null()
+    procedure(clear_face_cache_procedure), pointer, public :: clear_face_cache_hook => null()
 
     abstract interface
         !> The type of `clear_face_cache_hook'.  Not a port.
-        subroutine clear_face_cache_proc()
+        subroutine clear_face_cache_procedure()
             implicit none(type, external)
-        end subroutine clear_face_cache_proc
+        end subroutine clear_face_cache_procedure
     end interface
 
     interface
@@ -143,7 +143,7 @@ contains
         if (len(a) == len(b)) same_string = a == b
     end function same_string
 
-    !> The position of `name' in `tty_defined_color_table', 0 if absent
+    !> The position of `name' in `tty_defined_colors', 0 if absent
     !> (`assoc').  Not a port.
     integer function table_position(name) result(pos)
         character(len=*), intent(in) :: name
@@ -152,7 +152,7 @@ contains
         pos = 0
 
         do i = 1, tty_defined_color_count
-            if (same_string(tty_defined_color_table(i)%name, name)) then
+            if (same_string(tty_defined_colors(i)%name, name)) then
                 pos = i
                 return
             end if
@@ -170,24 +170,24 @@ contains
     !> color will not be considered by `tty_color_translate' as an
     !> approximation to another color.  Port of
     !> term/tty-colors.el:tty-color-alist.
-    function tty_color_table() result(colors)
+    function tty_colors() result(colors)
         type(tty_color_type), allocatable :: colors(:)
         integer :: i
 
         allocate (colors(tty_defined_color_count))
 
         do i = 1, tty_defined_color_count
-            colors(i) = tty_defined_color_table(i)
+            colors(i) = tty_defined_colors(i)
         end do
-    end function tty_color_table
+    end function tty_colors
 
     !> Put the association NAME, INDEX, RGB into the table of terminal colors.
-    !> See `tty_color_table' for details.  If the association for NAME
+    !> See `tty_colors' for details.  If the association for NAME
     !> already exists in the color table, it is modified to specify INDEX
     !> and RGB (absent `rgb': no RGB values).  Otherwise, it is appended to
     !> the end of the color table.  Port of
     !> term/tty-colors.el:tty-modify-color-alist.
-    subroutine tty_modify_color_table(name, index, rgb)
+    subroutine tty_modify_colors(name, index, rgb)
         character(len=*), intent(in) :: name
         integer, intent(in) :: index
         integer, intent(in), optional :: rgb(3)
@@ -198,35 +198,35 @@ contains
 
         if (pos == 0) then
             ! Keep the colors in the order they are registered.
-            if (.not. allocated(tty_defined_color_table)) allocate (tty_defined_color_table(16))
+            if (.not. allocated(tty_defined_colors)) allocate (tty_defined_colors(16))
 
-            if (tty_defined_color_count == size(tty_defined_color_table)) then
-                allocate (grown(2*size(tty_defined_color_table)))
+            if (tty_defined_color_count == size(tty_defined_colors)) then
+                allocate (grown(2*size(tty_defined_colors)))
 
                 do i = 1, tty_defined_color_count
-                    call move_alloc(tty_defined_color_table(i)%name, grown(i)%name)
-                    grown(i)%index = tty_defined_color_table(i)%index
-                    grown(i)%has_rgb = tty_defined_color_table(i)%has_rgb
-                    grown(i)%rgb = tty_defined_color_table(i)%rgb
+                    call move_alloc(tty_defined_colors(i)%name, grown(i)%name)
+                    grown(i)%index = tty_defined_colors(i)%index
+                    grown(i)%has_rgb = tty_defined_colors(i)%has_rgb
+                    grown(i)%rgb = tty_defined_colors(i)%rgb
                 end do
 
-                call move_alloc(grown, tty_defined_color_table)
+                call move_alloc(grown, tty_defined_colors)
             end if
 
             tty_defined_color_count = tty_defined_color_count + 1
             pos = tty_defined_color_count
-            tty_defined_color_table(pos)%name = name
+            tty_defined_colors(pos)%name = name
         end if
 
-        tty_defined_color_table(pos)%index = index
-        tty_defined_color_table(pos)%has_rgb = present(rgb)
+        tty_defined_colors(pos)%index = index
+        tty_defined_colors(pos)%has_rgb = present(rgb)
 
         if (present(rgb)) then
-            tty_defined_color_table(pos)%rgb = rgb
+            tty_defined_colors(pos)%rgb = rgb
         else
-            tty_defined_color_table(pos)%rgb = -1
+            tty_defined_colors(pos)%rgb = -1
         end if
-    end subroutine tty_modify_color_table
+    end subroutine tty_modify_colors
 
     !> Register the default set of colors for a character terminal.
     !> Port of term/tty-colors.el:tty-register-default-colors.
@@ -250,7 +250,7 @@ contains
     function tty_color_canonicalize(color) result(canon)
         character(len=*), intent(in) :: color
         character(len=:), allocatable :: canon
-        character(len=:), allocatable :: lower, buf
+        character(len=:), allocatable :: lower, buffer
         integer :: i, n
         logical :: match
 
@@ -269,17 +269,17 @@ contains
         end if
 
         lower = downcase_string(color)
-        allocate (character(len=len(lower)) :: buf)
+        allocate (character(len=len(lower)) :: buffer)
         n = 0
 
         do i = 1, len(lower)
             if (lower(i:i) /= " ") then
                 n = n + 1
-                buf(n:n) = lower(i:i)
+                buffer(n:n) = lower(i:i)
             end if
         end do
 
-        canon = buf(1:n)
+        canon = buffer(1:n)
     end function tty_color_canonicalize
 
     !> Return 24-bit color pixel value for RGB value `rgb'.
@@ -320,16 +320,16 @@ contains
 
             pixel = tty_color_24bit(rgb)
             if (pixel < 0) pixel = index
-            call tty_modify_color_table(tty_color_canonicalize(name), pixel, rgb)
+            call tty_modify_colors(tty_color_canonicalize(name), pixel, rgb)
         else
-            call tty_modify_color_table(tty_color_canonicalize(name), index)
+            call tty_modify_colors(tty_color_canonicalize(name), index)
         end if
     end subroutine tty_color_define
 
     !> Clear the list of supported tty colors.  Port of
     !> term/tty-colors.el:tty-color-clear.
     subroutine tty_color_clear()
-        if (allocated(tty_defined_color_table)) deallocate (tty_defined_color_table)
+        if (allocated(tty_defined_colors)) deallocate (tty_defined_colors)
         tty_defined_color_count = 0
     end subroutine tty_color_clear
 
@@ -360,7 +360,7 @@ contains
         end if
     end function tty_color_off_gray_diag
 
-    !> The position in `tty_defined_color_table' of the color that best
+    !> The position in `tty_defined_colors' of the color that best
     !> approximates `rgb', 0 if none has RGB values.  Not a port.
     integer function approximate_position(rgb) result(best)
         integer, intent(in) :: rgb(3)
@@ -380,10 +380,10 @@ contains
         do i = 1, tty_defined_color_count
             ! If the RGB values of the candidate color are unknown, we
             ! never consider it for approximating another color.
-            if (.not. tty_defined_color_table(i)%has_rgb) cycle
-            try_r = shifta(tty_defined_color_table(i)%rgb(1), 8)
-            try_g = shifta(tty_defined_color_table(i)%rgb(2), 8)
-            try_b = shifta(tty_defined_color_table(i)%rgb(3), 8)
+            if (.not. tty_defined_colors(i)%has_rgb) cycle
+            try_r = shifta(tty_defined_colors(i)%rgb(1), 8)
+            try_g = shifta(tty_defined_colors(i)%rgb(2), 8)
+            try_b = shifta(tty_defined_colors(i)%rgb(3), 8)
             dif_r = r - try_r
             dif_g = g - try_g
             dif_b = b - try_b
@@ -398,7 +398,7 @@ contains
         end do
     end function approximate_position
 
-    !> Copy element `pos' of `tty_defined_color_table' to the outputs.
+    !> Copy element `pos' of `tty_defined_colors' to the outputs.
     !> Not a port.
     subroutine describe(pos, index, r, g, b, name, has_rgb)
         integer, intent(in) :: pos
@@ -406,15 +406,15 @@ contains
         character(len=:), allocatable, intent(out), optional :: name
         logical, intent(out), optional :: has_rgb
 
-        index = tty_defined_color_table(pos)%index
-        r = tty_defined_color_table(pos)%rgb(1)
-        g = tty_defined_color_table(pos)%rgb(2)
-        b = tty_defined_color_table(pos)%rgb(3)
-        if (present(name)) name = tty_defined_color_table(pos)%name
-        if (present(has_rgb)) has_rgb = tty_defined_color_table(pos)%has_rgb
+        index = tty_defined_colors(pos)%index
+        r = tty_defined_colors(pos)%rgb(1)
+        g = tty_defined_colors(pos)%rgb(2)
+        b = tty_defined_colors(pos)%rgb(3)
+        if (present(name)) name = tty_defined_colors(pos)%name
+        if (present(has_rgb)) has_rgb = tty_defined_colors(pos)%has_rgb
     end subroutine describe
 
-    !> Find the color in `tty_color_table' that best approximates RGB.
+    !> Find the color in `tty_colors' that best approximates RGB.
     !> The value is its NAME, INDEX and R, G, B; `found' is false when no
     !> color qualifies.
     !> The argument RGB should be an rgb value, that is, an array of three
@@ -654,7 +654,7 @@ contains
         end do
     end subroutine tty_color_standard_values
 
-    !> Look COLOR up in `tty_color_table' as it is (no canonicalization):
+    !> Look COLOR up in `tty_colors' as it is (no canonicalization):
     !> `found' tells whether it is there, with its INDEX and R, G, B (-1
     !> each without RGB values).  The `assoc' xfaces.c:map_tty_color does.
     !> Not a port.
@@ -680,13 +680,13 @@ contains
     !> where each primary color can be given with 1 to 4 hex digits.
     !>
     !> If COLOR is a color name that is found among supported colors in
-    !> `tty_color_table', the associated index is returned.  Otherwise, the
+    !> `tty_colors', the associated index is returned.  Otherwise, the
     !> RGB values of the color, either as given by the argument or from
-    !> looking up the name in `color_name_rgb_table', are used to find the
+    !> looking up the name in `color_name_rgbs', are used to find the
     !> supported color that is the best approximation for COLOR in the RGB
     !> space.
     !> If COLOR is neither a valid RGB specification of the color, nor a
-    !> name of a color in `color_name_rgb_table', the returned value is -1.
+    !> name of a color in `color_name_rgbs', the returned value is -1.
     !> Port of term/tty-colors.el:tty-color-translate.
     integer function tty_color_translate(color) result(index)
         character(len=*), intent(in) :: color
@@ -702,24 +702,24 @@ contains
     !> `found' is false when no color has that index; when several have it,
     !> the last one registered wins.  Port of
     !> term/tty-colors.el:tty-color-by-index.
-    subroutine tty_color_by_index(idx, name, found, r, g, b)
-        integer, intent(in) :: idx
+    subroutine tty_color_by_index(index, name, found, r, g, b)
+        integer, intent(in) :: index
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
         integer, intent(out), optional :: r, g, b
-        integer :: i, pos, index, rr, gg, bb
+        integer :: i, pos, color_index, rr, gg, bb
 
         pos = 0
 
         do i = 1, tty_defined_color_count
-            if (tty_defined_color_table(i)%index == idx) pos = i
+            if (tty_defined_colors(i)%index == index) pos = i
         end do
 
         found = pos > 0
         rr = -1
         gg = -1
         bb = -1
-        if (found) call describe(pos, index, rr, gg, bb, name)
+        if (found) call describe(pos, color_index, rr, gg, bb, name)
         if (present(r)) r = rr
         if (present(g)) g = gg
         if (present(b)) b = bb
@@ -800,9 +800,9 @@ contains
         count = 0
 
         do i = 1, tty_defined_color_count
-            if (.not. tty_defined_color_table(i)%has_rgb) cycle
-            if (tty_defined_color_table(i)%rgb(1) == tty_defined_color_table(i)%rgb(2) .and. &
-                tty_defined_color_table(i)%rgb(2) == tty_defined_color_table(i)%rgb(3)) count = count + 1
+            if (.not. tty_defined_colors(i)%has_rgb) cycle
+            if (tty_defined_colors(i)%rgb(1) == tty_defined_colors(i)%rgb(2) .and. &
+                tty_defined_colors(i)%rgb(2) == tty_defined_colors(i)%rgb(3)) count = count + 1
         end do
     end function tty_color_gray_shades
 end module tty_colors_fm

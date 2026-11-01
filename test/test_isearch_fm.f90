@@ -34,10 +34,10 @@ module test_isearch_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list_length, list_elt, xstring
     use data_fm, only: set, symbol_value
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, mark_position
-    use simple_fm, only: kill_new
+    use simple_fm, only: copy_to_clipboard_history
     use keymap_fm, only: key_parse, overriding_terminal_local_map
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
     use callint_fm, only: prefix_arg
@@ -66,8 +66,8 @@ contains
                     new_unittest("isearch-prefix-argument", test_prefix), &
                     new_unittest("isearch-search-ring", test_ring), &
                     new_unittest("isearch-nonincremental", test_nonincremental), &
-                    new_unittest("isearch-yank", test_yank), &
-                    new_unittest("isearch-yank-word-or-char", test_yank_word), &
+                    new_unittest("isearch-yank", test_paste), &
+                    new_unittest("isearch-yank-word-or-char", test_paste_word), &
                     new_unittest("isearch-regexp", test_regexp), &
                     new_unittest("isearch-regexp-incomplete-and-fallback", test_regexp_fallback), &
                     new_unittest("isearch-toggle-regexp", test_toggle_regexp), &
@@ -85,7 +85,7 @@ contains
         call init_bindings()
         call discard_input()
         prefix_arg = prefix_arg_type()
-        call get_buffer_create("isearch-test", h, st)
+        call get_or_make_buffer("isearch-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
@@ -99,7 +99,7 @@ contains
         type(status_type) :: st
 
         if (isearch_active) call isearch_done()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     !> Type `keys` (kbd syntax) into the command loop.
@@ -307,34 +307,34 @@ contains
         call leave(h)
     end subroutine test_nonincremental
 
-    subroutine test_yank(error)
+    subroutine test_paste(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
         call enter("Foo bar"//achar(10)//"foo bar", h)
-        ! C-M-y yanks characters, downcased (search-upper-case not-yanks).
+        ! C-M-y pastes characters, downcased (search-upper-case not-yanks).
         call type_keys("C-s C-M-y C-M-y")
         call check(error, isearch_string == "fo" .and. point() == 3, isearch_string)
         if (allocated(error)) return
-        ! M-s C-e yanks the rest of the line.
+        ! M-s C-e pastes the rest of the line.
         call type_keys("M-s C-e")
         call check(error, isearch_string == "foo bar" .and. point() == 8, isearch_string)
         if (allocated(error)) return
         call type_keys("RET")
         call goto_char(1_int64)
-        ! C-y yanks the last kill; M-y replaces it with the one before.
-        call kill_new("BAR")
-        call kill_new("oo b")
+        ! C-y pastes the last kill; M-y replaces it with the one before.
+        call copy_to_clipboard_history("BAR")
+        call copy_to_clipboard_history("oo b")
         call type_keys("C-s C-y")
         call check(error, isearch_string == "oo b" .and. point() == 6, isearch_string)
         if (allocated(error)) return
         call type_keys("M-y")
         call check(error, isearch_string == "bar" .and. point() == 8, isearch_string)
         call leave(h)
-    end subroutine test_yank
+    end subroutine test_paste
 
-    !> C-w yanks a word, or a character when no word follows.
-    subroutine test_yank_word(error)
+    !> C-w pastes a word, or a character when no word follows.
+    subroutine test_paste_word(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
@@ -350,7 +350,7 @@ contains
         call type_keys("C-w")
         call check(error, isearch_string == "foo bar," .and. point() == 9, isearch_string)
         call leave(h)
-    end subroutine test_yank_word
+    end subroutine test_paste_word
 
     function ring() result(v)
         type(value_type) :: v

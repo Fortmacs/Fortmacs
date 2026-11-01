@@ -42,9 +42,9 @@ module add_log_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use data_fm, only: string_setting, forward_setting
+    use data_fm, only: string_setting_type, forward_setting
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_file_buffer, &
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_file_buffer, &
                          is_buffer_live
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, is_file_directory, &
                          file_exists, file_name_as_directory, directory_file_name
@@ -71,26 +71,26 @@ module add_log_fm
 
     !> Regexp matching the file names of unindented ChangeLog entries.
     !> Port of add-log.el change-log-unindented-file-names-re.
-    character(len=*), parameter, public :: change_log_unindented_file_names_re = "^[*] \([^ ,:(["//achar(10)//"]+\)"
+    character(len=*), parameter, public :: change_log_unindented_file_names_regexp = "^[*] \([^ ,:(["//achar(10)//"]+\)"
 
     !> Regexp matching a tag name in change log entries.  Port of
     !> add-log.el change-log-tag-re.
-    character(len=*), parameter, public :: change_log_tag_re = &
+    character(len=*), parameter, public :: change_log_tag_regexp = &
                                            "(\(\(?:\sw\|\s_\)+\(?:[, "//achar(9)//"]+\(?:\sw\|\s_\)+\)*\))"
 
     !> A function giving (in S) the date for a ChangeLog header.
     abstract interface
         ! Not a port.
-        subroutine add_log_time_function(s)
+        subroutine add_log_time_procedure(s)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: s
-        end subroutine add_log_time_function
+        end subroutine add_log_time_procedure
     end interface
 
     !> Name of a change log file for \[add_change_log_entry].  Port of
     !> add-log.el change-log-default-name (unallocated when unset; becomes
     !> buffer-local when `find_change_log' sets it).
-    type(string_setting), public :: change_log_default_name = string_setting(name="change_log_default_name")
+    type(string_setting_type), public :: change_log_default_name = string_setting_type(name="change_log_default_name")
 
     !> Normal hook run by `change_log_mode'.  Port of add-log.el
     !> change-log-mode-hook.
@@ -111,7 +111,7 @@ module add_log_fm
     !> date in international ISO 8601 format,
     !> and `current_time_string' are two valid values.  Port of add-log.el
     !> add-log-time-format.
-    procedure(add_log_time_function), pointer, public :: add_log_time_format => add_log_iso8601_time_string
+    procedure(add_log_time_procedure), pointer, public :: add_log_time_format => add_log_iso8601_time_string
 
     !> If true, don't create ChangeLog files for log entries.
     !> If a ChangeLog file does not already exist, a true value
@@ -178,7 +178,7 @@ contains
                 if (point() >= end) exit
             end if
 
-            tagged = looking_at(change_log_tag_re, status)
+            tagged = looking_at(change_log_tag_regexp, status)
             if (.not. status%ok()) return
             if (.not. tagged) exit
             tag = match_string_no_properties(1)
@@ -201,11 +201,11 @@ contains
                 j = index(tag(i:), ",")
 
                 if (j == 0) then
-                    call add(tag(i:))
+                    call append(tag(i:))
                     exit
                 end if
 
-                call add(tag(i:i + j - 2))
+                call append(tag(i:i + j - 2))
                 i = i + j
 
                 do while (i <= len(tag))
@@ -215,7 +215,7 @@ contains
             end do
         end subroutine split_tag
 
-        subroutine add(name)
+        subroutine append(name)
             character(len=*), intent(in) :: name
             type(change_log_string_type), allocatable :: grown(:)
             integer :: n
@@ -226,7 +226,7 @@ contains
             grown(1:n) = names
             grown(n + 1)%s = name
             call move_alloc(grown, names)
-        end subroutine add
+        end subroutine append
     end subroutine change_log_read_subprograms
 
     !> Return the date in ISO 8601 form (YYYY-MM-DD), local time, as S.
@@ -235,12 +235,12 @@ contains
     !> points to it).
     subroutine add_log_iso8601_time_string(s)
         character(len=:), allocatable, intent(out) :: s
-        character(len=10) :: buf
+        character(len=10) :: buffer
         integer :: v(8)
 
         call date_and_time(values=v)
-        write (buf, "(i4.4,'-',i2.2,'-',i2.2)") v(1), v(2), v(3)
-        s = buf
+        write (buffer, "(i4.4,'-',i2.2,'-',i2.2)") v(1), v(2), v(3)
+        s = buffer
     end subroutine add_log_iso8601_time_string
 
     !> Return (system-dependent) default name for a change log file.
@@ -296,15 +296,15 @@ contains
 
             if (present(buffer_file)) then
                 source = buffer_file
-            else if (allocated(buffers(cur)%filename)) then
-                source = buffers(cur)%filename
+            else if (allocated(buffers(current)%filename)) then
+                source = buffers(current)%filename
             end if
 
             if (len(source) > 0) then
                 call file_chase_links(source, chased, st)
                 file_name = file_name_directory(chased)
             else
-                file_name = buffers(cur)%directory
+                file_name = buffers(current)%directory
             end if
 
             if (is_file_directory(file_name)) then
@@ -318,7 +318,7 @@ contains
             call file_chase_links(file_name, chased, st)
             call expand_file_name(chased, file_name, st)
             cbase = file_name_nondirectory(change_log_name())
-            ! locate-dominating-file with the predicate.
+            ! locate-dominating-file with the test.
             dir = file_name_directory(abbreviate_file_name(file_name))
             found = .false.
 
@@ -366,17 +366,17 @@ contains
     !> Find a ChangeLog buffer for CHANGELOG_FILE_NAME.
     !> Respect `add_log__pseudo_changelog_buffer_name', which see.  Port of
     !> add-log.el:add-log-find-changelog-buffer.
-    subroutine add_log_find_changelog_buffer(changelog_file_name, buf, status)
+    subroutine add_log_find_changelog_buffer(changelog_file_name, buffer, status)
         character(len=*), intent(in) :: changelog_file_name
-        type(handle_type), intent(out) :: buf
+        type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
 
         status = status_type()
 
         if (file_exists(changelog_file_name) .or. .not. add_log_dont_create_changelog_file) then
-            call find_file_noselect(changelog_file_name, buf, status)
+            call find_file_noselect(changelog_file_name, buffer, status)
         else
-            call get_buffer_create(add_log_pseudo_changelog_buffer_name(changelog_file_name), buf, status)
+            call get_or_make_buffer(add_log_pseudo_changelog_buffer_name(changelog_file_name), buffer, status)
         end if
     end subroutine add_log_find_changelog_buffer
 
@@ -408,7 +408,7 @@ contains
         call paragraph_start%set_local("\s *$\|"//achar(12)//"\|^\<")
         call paragraph_separate%set_local(paragraph_start%value)
         call page_delimiter%set_local("^\<\|^"//achar(12))
-        call major_modes%change_log_mode%finish(saved, status)
+        call major_modes%change_log_mode%end(saved, status)
     end subroutine change_log_mode
 
     !> The faces of add-log.el.  Not a port.

@@ -51,16 +51,16 @@ module ibuffer_fm
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xfixnum, xstring, list, vtag, V_INTEGER, V_STRING
     use eval_fm, only: hook_type, change_major_mode_hook
-    use data_fm, only: add_local_variables_killer
+    use data_fm, only: append_locals_clearer
     use modes_fm, only: major_modes, minor_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
-                         buffer_handle, buffer_list, buffer_serial_live, kill_buffer, is_buffer_modified, &
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
+                         buffer_handle, buffer_list, buffer_serial_live, close_buffer, is_buffer_modified, &
                          restore_buffer_modified, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, is_eob, is_bob, pos_bol, pos_eol, delete_region, &
                           buffer_size, buffer_substring, following_char, point_marker
-    use marker_fm, only: marker_position, free_marker
+    use marker_fm, only: marker_position, destroy_marker
     use cmds_fm, only: forward_line, beginning_of_line
     use textprop_fm, only: get_text_property, put_text_property, next_single_property_change, &
                            previous_single_property_change
@@ -82,7 +82,7 @@ module ibuffer_fm
     use process_fm, only: get_buffer_process, process_status, process_name
     use frame_fm, only: selected_frame, selected_window, frame_lines, frame_cols
     use window_fm, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
-                         display_action_table_type, delete_other_windows, split_window, other_window, bury_buffer, &
+                         display_action_parameters_type, delete_other_windows, split_window, other_window, bury_buffer, &
                          pop_to_buffer, select_window, get_buffer_window, fit_window_to_buffer, window_leaves, is_window_live, &
                          window_configuration_type, current_window_configuration, set_window_configuration
     use view_fm, only: view_buffer
@@ -96,16 +96,16 @@ module ibuffer_fm
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_BACKGROUND_DARK
     use ibuf_macs_fm, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
                             ibuffer_column_spec_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
-                            ibuffer_op_type, ibuffer_show_predicate_type, ibuffer_fontification_type, &
-                            ibuffer_directory_abbrev_type, ibuffer_column_proc, ibuffer_summarizer_proc, &
-                            ibuffer_sorter_proc, ibuffer_form_proc, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, &
-                            IBUFFER_ALIGN_RIGHT, IBUFFER_OP_SKIPPED, IBUFFER_OP_DONE, IBUFFER_OP_KILL, IBUFFER_MODIFIER_NEVER, &
-                            IBUFFER_MODIFIER_ALWAYS, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN, ibuffer_filter_type, &
+                            ibuffer_op_type, ibuffer_show_test_type, ibuffer_fontification_type, &
+                            ibuffer_directory_abbrev_type, ibuffer_column_procedure, ibuffer_summarizer_procedure, &
+                            ibuffer_sorter_procedure, ibuffer_form_procedure, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, &
+                            IBUFFER_ALIGN_RIGHT, IBUFFER_OP_SKIPPED, IBUFFER_OP_DONE, IBUFFER_OP_REMOVE, IBUFFER_MODIFIER_NO, &
+                            IBUFFER_MODIFIER_YES, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN, ibuffer_filter_type, &
                             ibuffer_saved_filters_type, ibuffer_saved_filter_type, ibuffer_filter_groups_type, &
                             ibuffer_saved_filter_groups_type, ibuffer_filter_def_type, ibuffer_filter_formats_type, &
                             ibuffer_filter_format_type, ibuffer_or, ibuffer_and, ibuffer_not, ibuffer_major_mode, &
-                            ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_predicate_proc, &
-                            ibuffer_filter_test_proc, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
+                            ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_test_procedure, &
+                            ibuffer_filter_test_procedure, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
                             IBUFFER_FILTER_OR, IBUFFER_FILTER_SAVED
     implicit none(type, external)
     private
@@ -120,7 +120,7 @@ module ibuffer_fm
               ibuffer_visit_buffer, ibuffer_visit_buffer_other_window, ibuffer_visit_buffer_other_window_noselect, &
               ibuffer_visit_buffer_1_window, ibuffer_bury_buffer, ibuffer_do_view, ibuffer_do_view_horizontally, &
               ibuffer_find_file, ibuffer_do_save, ibuffer_do_toggle_modified, ibuffer_do_toggle_read_only, &
-              ibuffer_do_delete, ibuffer_do_kill_on_deletion_marks, ibuffer_recompile_formats, is_ibuffer_hidden_buffer, &
+              ibuffer_do_delete, ibuffer_do_close_on_deletion_marks, ibuffer_recompile_formats, is_ibuffer_hidden_buffer, &
               ibuffer_operate, ibuffer_confirm_operation_on, ibuffer_buffer_file_name, ibuffer_save_marks_begin, &
               ibuffer_save_marks_end, ibuffer_state_type, syms_of_ibuffer
     public :: define_ibuffer_column, define_ibuffer_sorter, ibuffer_do_sort_by
@@ -130,28 +130,28 @@ module ibuffer_fm
               ibuffer_and_filter, ibuffer_save_filters, ibuffer_delete_saved_filters, ibuffer_add_saved_filters, &
               ibuffer_switch_to_saved_filters, ibuffer_filters_to_filter_group, ibuffer_set_filter_groups_by_mode, &
               ibuffer_pop_filter_group, ibuffer_decompose_filter_group, ibuffer_clear_filter_groups, &
-              ibuffer_kill_filter_group, ibuffer_yank_filter_group, ibuffer_save_filter_groups, &
+              ibuffer_cut_filter_group, ibuffer_paste_filter_group, ibuffer_save_filter_groups, &
               ibuffer_delete_saved_filter_groups, ibuffer_switch_to_saved_filter_groups, ibuffer_filter_by_mode, &
               ibuffer_filter_by_used_mode, ibuffer_filter_by_derived_mode, ibuffer_filter_by_name, &
               ibuffer_filter_by_process, ibuffer_filter_by_starred_name, ibuffer_filter_by_filename, &
               ibuffer_filter_by_basename, ibuffer_filter_by_file_extension, ibuffer_filter_by_directory, &
               ibuffer_filter_by_size_gt, ibuffer_filter_by_size_lt, ibuffer_filter_by_modified, &
-              ibuffer_filter_by_visiting_file, ibuffer_filter_by_content, ibuffer_filter_by_predicate, &
+              ibuffer_filter_by_visiting_file, ibuffer_filter_by_content, ibuffer_filter_by_test, &
               ibuffer_list_buffer_modes, ibuffer_filtering_qualifiers, ibuffer_set_filtering_qualifiers, &
               ibuffer_filter_groups, ibuffer_set_filter_groups
     ! (Public for the submodule ibuf_ext_fm: gfortran emits no private
     ! procedure that only a submodule uses.)
-    public :: buf_matches_predicates, buf_matches_regexps, form_compressed, has_prop, has_string_prop, &
+    public :: buffer_matches_tests, buffer_matches_regexps, form_compressed, has_prop, has_string_prop, &
               ibuffer_abbreviate_file_name, ibuffer_set_mark_1, jump_to_buffer_by_name, line_serial, map_marked_lines, &
               mode_name_of, serial_buffer, string_prop, update_mode_line_process, ibuffer_local_index, filter_symbol
     public :: ibuffer_column, ibuffer_text
 
     !> The values of `ibuffer_always_show_last_buffer'.
-    integer, parameter, public :: IBUFFER_SHOW_LAST_NEVER = 0, IBUFFER_SHOW_LAST_ALWAYS = 1, &
-                                  IBUFFER_SHOW_LAST_NOMINI = 2
+    integer, parameter, public :: IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO = 0, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES = 1, &
+                                  IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI = 2
     !> The values of `ibuffer_use_header_line'.
-    integer, parameter, public :: IBUFFER_HEADER_LINE_NO = 0, IBUFFER_HEADER_LINE_FILTERS = 1, &
-                                  IBUFFER_HEADER_LINE_TITLE = 2
+    integer, parameter, public :: IBUFFER_USE_HEADER_LINE_NO = 0, IBUFFER_USE_HEADER_LINE_FILTERS = 1, &
+                                  IBUFFER_USE_HEADER_LINE_TITLE = 2
     !> The values of the SHRINK argument of `ibuffer'
     !> (`ibuffer-shrink-to-minimum-size').
     integer, parameter, public :: IBUFFER_SHRINK_NO = 0, IBUFFER_SHRINK_YES = 1, IBUFFER_SHRINK_ONEWINDOW = 2
@@ -167,7 +167,7 @@ module ibuffer_fm
     !> `ibuffer_columns', which allows you to define your own columns
     !> for display.
     !>
-    !> Each format added with `ibuffer_formats%add' is an array of
+    !> Each format added with `ibuffer_formats%append' is an array of
     !> entries: `ibuffer_column(NAME, MIN_SIZE, MAX_SIZE, ALIGN, ELIDE)'
     !> names a column, `ibuffer_text(STRING)' is a literal string to
     !> display.  Predefined columns are: mark modified read_only locked
@@ -209,15 +209,15 @@ module ibuffer_fm
     logical, public :: ibuffer_always_compile_formats = .false.
 
     !> An array describing how to fontify buffers.
-    !> Each element has a PRIORITY, a PREDICATE (a logical function called in the
-    !> buffer), and the FACE to use for fontification.  If the PREDICATE
+    !> Each element has a PRIORITY, a TEST (a logical function called in the
+    !> buffer), and the FACE to use for fontification.  If the TEST
     !> returns .true., then FACE will be put on the buffer name.  The
     !> element with the highest PRIORITY takes precedence.
     !>
-    !> If you change this variable, you must kill the Ibuffer buffer and
+    !> If you change this variable, you must close the Ibuffer buffer and
     !> recreate it for the change to take effect.  Port of ibuffer.el
     !> ibuffer-fontification-alist.
-    type(ibuffer_fontification_type), allocatable, public :: ibuffer_fontification_table(:)
+    type(ibuffer_fontification_type), allocatable, public :: ibuffer_fontifications(:)
 
     !> Show buffer sizes in human-readable format.
     !> Use the function `file_size_human_readable' for formatting.  Port
@@ -261,23 +261,23 @@ module ibuffer_fm
     !> ibuffer-eliding-string.
     character(len=:), allocatable, public :: ibuffer_eliding_string
 
-    !> An array of predicates for buffers to display conditionally.
+    !> An array of tests for buffers to display conditionally.
     !>
-    !> A predicate can be a regexp or a function.
+    !> A test can be a regexp or a function.
     !> If a regexp, then it will be matched against the buffer's name.
     !> If a function, it will be called with the buffer as an argument, and
     !> should return true if this buffer should be shown.
     !>
-    !> Viewing of buffers hidden because of these predicates may be customized
-    !> via `ibuffer_default_display_maybe_show_predicates' and is toggled by
+    !> Viewing of buffers hidden because of these tests may be customized
+    !> via `ibuffer_default_display_maybe_show_tests' and is toggled by
     !> giving a prefix argument to `ibuffer_update'.
     !> Note that this specialized filtering occurs before real filtering.
     !> Port of ibuffer.el ibuffer-maybe-show-predicates.
-    type(ibuffer_show_predicate_type), allocatable, public :: ibuffer_maybe_show_predicates(:)
+    type(ibuffer_show_test_type), allocatable, public :: ibuffer_maybe_show_tests(:)
 
-    !> True means show buffers that match `ibuffer_maybe_show_predicates'.
+    !> True means show buffers that match `ibuffer_maybe_show_tests'.
     !> Port of ibuffer.el ibuffer-default-display-maybe-show-predicates.
-    logical, public :: ibuffer_default_display_maybe_show_predicates = .false.
+    logical, public :: ibuffer_default_display_maybe_show_tests = .false.
 
     !> If true, then forward and backwards movement commands cycle.  Port
     !> of ibuffer.el ibuffer-movement-cycle.
@@ -313,24 +313,24 @@ module ibuffer_fm
     !> state, size, etc.  Port of ibuffer.el ibuffer-view-ibuffer.
     logical, public :: ibuffer_view_ibuffer = .false.
 
-    !> If not IBUFFER_SHOW_LAST_NEVER, always display the previous buffer:
-    !> IBUFFER_SHOW_LAST_ALWAYS always, IBUFFER_SHOW_LAST_NOMINI always
+    !> If not IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, always display the previous buffer:
+    !> IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES always, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI always
     !> except a minibuffer.  This variable takes precedence over
-    !> filtering, and even `ibuffer_never_show_predicates'.  Port of
+    !> filtering, and even `ibuffer_never_show_tests'.  Port of
     !> ibuffer.el ibuffer-always-show-last-buffer.
-    integer, public :: ibuffer_always_show_last_buffer = IBUFFER_SHOW_LAST_NEVER
+    integer, public :: ibuffer_always_show_last_buffer = IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO
 
     !> If true, only offer buffers visible in the Ibuffer buffer
     !> in completion lists of the `ibuffer_jump_to_buffer' command.  Port of
     !> ibuffer.el ibuffer-jump-offer-only-visible-buffers.
     logical, public :: ibuffer_jump_offer_only_visible_buffers = .false.
 
-    !> If not IBUFFER_HEADER_LINE_NO, display a header line.
-    !> If the variable's value is IBUFFER_HEADER_LINE_FILTERS, the header line
-    !> displays the current filters.  For IBUFFER_HEADER_LINE_TITLE,
+    !> If not IBUFFER_USE_HEADER_LINE_NO, display a header line.
+    !> If the variable's value is IBUFFER_USE_HEADER_LINE_FILTERS, the header line
+    !> displays the current filters.  For IBUFFER_USE_HEADER_LINE_TITLE,
     !> display the column titles.  Port of ibuffer.el
     !> ibuffer-use-header-line.
-    integer, public :: ibuffer_use_header_line = IBUFFER_HEADER_LINE_FILTERS
+    integer, public :: ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_FILTERS
 
     !> The default directory to use for a new Ibuffer buffer.
     !> If unallocated, inherit the directory of the buffer in which
@@ -391,25 +391,25 @@ module ibuffer_fm
     !> ibuffer-filter-group-name-face.
     character(len=:), allocatable, public :: ibuffer_filter_group_name_face
 
-    !> An array of file name abbreviations like `directory_abbrev_table'.
+    !> An array of file name abbreviations like `directory_abbrevs'.
     !> Port of ibuffer.el ibuffer-directory-abbrev-alist.
-    type(ibuffer_directory_abbrev_type), allocatable, public :: ibuffer_directory_abbrev_table(:)
+    type(ibuffer_directory_abbrev_type), allocatable, public :: ibuffer_directory_abbrevs(:)
 
-    !> A list of predicates (a regexp or function) for buffers not to
+    !> A list of tests (a regexp or function) for buffers not to
     !> display.  If a regexp, then it will be matched against the buffer's
     !> name.  If a function, it will be called with the buffer as an
     !> argument, and should return true if this buffer should not be
     !> shown.  Port of ibuf-ext.el ibuffer-never-show-predicates.
-    type(ibuffer_show_predicate_type), allocatable, public :: ibuffer_never_show_predicates(:)
+    type(ibuffer_show_test_type), allocatable, public :: ibuffer_never_show_tests(:)
 
-    !> A list of predicates (a regexp or function) for buffers to always
+    !> A list of tests (a regexp or function) for buffers to always
     !> display.  If a regexp, then it will be matched against the buffer's
     !> name.  If a function, it will be called with the buffer as an
     !> argument, and should return true if this buffer should be shown.
-    !> Note that buffers matching one of these predicates will be shown
+    !> Note that buffers matching one of these tests will be shown
     !> regardless of any active filters in this buffer.  Port of
     !> ibuf-ext.el ibuffer-always-show-predicates.
-    type(ibuffer_show_predicate_type), allocatable, public :: ibuffer_always_show_predicates(:)
+    type(ibuffer_show_test_type), allocatable, public :: ibuffer_always_show_tests(:)
 
     !> A list of regexps for buffers ignored by
     !> `ibuffer_mark_by_content_regexp'.  Buffers whose name matches a
@@ -439,7 +439,7 @@ module ibuffer_fm
     !> `ibuffer_switch_to_saved_filters' and `ibuffer_save_filters').  The
     !> variable `ibuffer_save_with_custom' affects how this information is
     !> saved for future sessions.  Add one with
-    !> `ibuffer_saved_filters%add(NAME, F1, F2, ...)'.  Port of ibuf-ext.el
+    !> `ibuffer_saved_filters%append(NAME, F1, F2, ...)'.  Port of ibuf-ext.el
     !> ibuffer-saved-filters.
     type(ibuffer_saved_filters_type), public :: ibuffer_saved_filters
 
@@ -458,18 +458,18 @@ module ibuffer_fm
     !>
     !> You most likely do not want to modify this variable directly; see
     !> `define_ibuffer_filter'.  Port of ibuf-ext.el ibuffer-filtering-alist.
-    type(ibuffer_filter_def_type), allocatable, public :: ibuffer_filtering_table(:)
+    type(ibuffer_filter_def_type), allocatable, public :: ibuffer_filterings(:)
 
     !> Special formats used when a filter is active.
     !>
     !> For example, suppose that when you add a filter for buffers whose
     !> major mode is `text_mode', you only want to see the mark and the
     !> name of the buffer.  You could accomplish that by adding
-    !> `call fmts%add([ibuffer_column("mark"), ibuffer_text(" "),
+    !> `call fmts%append([ibuffer_column("mark"), ibuffer_text(" "),
     !> ibuffer_column("name")])' and `call
-    !> ibuffer_filter_format_table%add("mode", fmts)'.  Port of ibuf-ext.el
+    !> ibuffer_filter_formats%append("mode", fmts)'.  Port of ibuf-ext.el
     !> ibuffer-filter-format-alist.
-    type(ibuffer_filter_formats_type), public :: ibuffer_filter_format_table
+    type(ibuffer_filter_formats_type), public :: ibuffer_filter_formats
 
     !> If true, then use Custom to save interactively changed variables.
     !> Currently, this only applies to `ibuffer_saved_filters' and
@@ -501,12 +501,12 @@ module ibuffer_fm
 
     abstract interface
         ! A function `ibuffer_map_lines' calls for each buffer.  Not a port.
-        recursive integer function map_proc(buf, mark)
+        recursive integer function map_procedure(buffer, mark)
             import :: handle_type
             implicit none(type, external)
-            type(handle_type), intent(in) :: buf
+            type(handle_type), intent(in) :: buffer
             character, intent(in) :: mark
-        end function map_proc
+        end function map_procedure
     end interface
 
     ! The buffer-local variables of an Ibuffer buffer.
@@ -519,7 +519,7 @@ module ibuffer_fm
         ! ibuffer-shrink-to-minimum-size.
         integer :: shrink = IBUFFER_SHRINK_NO
         ! ibuffer-display-maybe-show-predicates.
-        logical :: display_maybe_show_predicates = .false.
+        logical :: display_maybe_show_tests = .false.
         ! ibuffer-current-format (0-based; -1 for nil).
         integer :: current_format = -1
         ! ibuffer-did-modification.
@@ -533,7 +533,7 @@ module ibuffer_fm
         ! killed first).
         type(ibuffer_filter_type), allocatable :: qualifiers(:)
         type(ibuffer_filter_groups_type) :: filter_groups
-        type(ibuffer_saved_filter_type), allocatable :: group_kill_ring(:)
+        type(ibuffer_saved_filter_type), allocatable :: cut_filter_groups(:)
         ! A buffer-local `ibuffer_formats' (the FORMATS of `ibuffer').
         logical :: has_formats = .false.
         type(ibuffer_formats_type) :: formats
@@ -570,15 +570,15 @@ module ibuffer_fm
     integer(int64) :: read_only_arg = huge(0_int64)
 
     ! The function and mark of `map_on_mark'.
-    procedure(map_proc), pointer :: on_mark_fn => null()
+    procedure(map_procedure), pointer :: on_mark_fn => null()
     character :: on_mark_mark = " "
 
     interface
-        !> Whether BUF should be shown (ibuffer-ext-visible-p).  (In
+        !> Whether BUFFER should be shown (ibuffer-ext-visible-p).  (In
         !> ibuf_ext_fm.)  Port of ibuf-ext.el:ibuffer-ext-visible-p.
-        recursive module logical function is_ibuffer_ext_visible(buf, all, ibuffer_buf, status) result(visible)
+        recursive module logical function is_ibuffer_ext_visible(buffer, all, ibuffer_buf, status) result(visible)
             implicit none(type, external)
-            type(handle_type), intent(in) :: buf, ibuffer_buf
+            type(handle_type), intent(in) :: buffer, ibuffer_buf
             logical, intent(in) :: all
             type(status_type), intent(out) :: status
         end function is_ibuffer_ext_visible
@@ -599,28 +599,28 @@ module ibuffer_fm
             logical, intent(in), optional :: noempty, nodefault
         end subroutine ibuffer_generate_filter_groups
 
-        !> Return true if BUF passes all FILTERS.
+        !> Return true if BUFFER passes all FILTERS.
         !>
-        !> BUF is a buffer, and FILTERS is a list of filter specifications
+        !> BUFFER is a buffer, and FILTERS is a list of filter specifications
         !> with the same structure as `ibuffer_filtering_qualifiers'.
         !> Port of ibuf-ext.el:ibuffer-included-in-filters-p.  (In
         !> ibuf_ext_fm.)
-        recursive module logical function is_ibuffer_included_in_filters(buf, filters, status) result(included)
+        recursive module logical function is_ibuffer_included_in_filters(buffer, filters, status) result(included)
             implicit none(type, external)
-            type(handle_type), intent(in) :: buf
+            type(handle_type), intent(in) :: buffer
             type(ibuffer_filter_type), intent(in) :: filters(:)
             type(status_type), intent(out) :: status
         end function is_ibuffer_included_in_filters
 
-        !> Return true if BUF pass FILTER.
+        !> Return true if BUFFER pass FILTER.
         !>
-        !> BUF is a buffer, and FILTER is a filter specification, with the
+        !> BUFFER is a buffer, and FILTER is a filter specification, with the
         !> same structure as an element of the list
         !> `ibuffer_filtering_qualifiers'.  Port of
         !> ibuf-ext.el:ibuffer-included-in-filter-p.  (In ibuf_ext_fm.)
-        recursive module logical function is_ibuffer_included_in_filter(buf, filter, status) result(included)
+        recursive module logical function is_ibuffer_included_in_filter(buffer, filter, status) result(included)
             implicit none(type, external)
-            type(handle_type), intent(in) :: buf
+            type(handle_type), intent(in) :: buffer
             type(ibuffer_filter_type), intent(in) :: filter
             type(status_type), intent(out) :: status
         end function is_ibuffer_included_in_filter
@@ -791,22 +791,22 @@ module ibuffer_fm
             type(status_type), intent(out) :: status
         end subroutine ibuffer_clear_filter_groups
 
-        !> Kill the filter group named NAME.
-        !> The group will be added to `ibuffer_filter_group_kill_ring'.
+        !> Cut the filter group named NAME.
+        !> The group will be added to `ibuffer_cut_filter_groups'.
         !> Port of ibuf-ext.el:ibuffer-kill-filter-group.  (In ibuf_ext_fm.)
-        recursive module subroutine ibuffer_kill_filter_group(name, status)
+        recursive module subroutine ibuffer_cut_filter_group(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             type(status_type), intent(out) :: status
-        end subroutine ibuffer_kill_filter_group
+        end subroutine ibuffer_cut_filter_group
 
-        !> Yank the last killed filter group before group named NAME.
+        !> Paste the last cut filter group before group named NAME.
         !> Port of ibuf-ext.el:ibuffer-yank-filter-group.  (In ibuf_ext_fm.)
-        recursive module subroutine ibuffer_yank_filter_group(name, status)
+        recursive module subroutine ibuffer_paste_filter_group(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             type(status_type), intent(out) :: status
-        end subroutine ibuffer_yank_filter_group
+        end subroutine ibuffer_paste_filter_group
 
         !> Save all active filter groups GROUPS as NAME.
         !> They are added to `ibuffer_saved_filter_groups'.  Interactively,
@@ -896,11 +896,11 @@ module ibuffer_fm
         !> Limit current view to buffers for which QUALIFIER returns true.
         !> Port of ibuf-ext.el:ibuffer-filter-by-predicate.  (In
         !> ibuf_ext_fm.)
-        recursive module subroutine ibuffer_filter_by_predicate(qualifier, status)
+        recursive module subroutine ibuffer_filter_by_test(qualifier, status)
             implicit none(type, external)
-            procedure(ibuffer_buffer_predicate_proc) :: qualifier
+            procedure(ibuffer_buffer_test_procedure) :: qualifier
             type(status_type), intent(out) :: status
-        end subroutine ibuffer_filter_by_predicate
+        end subroutine ibuffer_filter_by_test
 
         !> Create a completion table of buffer modes currently in use.
         !> If INCLUDE_PARENTS is true then include parent modes.  Port of
@@ -932,11 +932,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -944,7 +944,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(cur)%serial)
+                locals(k) = local_type(serial=buffers(current)%serial)
                 call init_local(k)
                 return
             end if
@@ -957,7 +957,7 @@ contains
             grown(i) = locals(i)
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, locals)
         k = n + 1
         call init_local(k)
@@ -970,17 +970,17 @@ contains
         locals(k)%sorting_mode = ""
         locals(k)%last_sorting_mode = ""
         allocate (locals(k)%tmp_hide(0), locals(k)%tmp_show(0), locals(k)%hidden_groups(0))
-        allocate (locals(k)%qualifiers(0), locals(k)%filter_groups%groups(0), locals(k)%group_kill_ring(0))
+        allocate (locals(k)%qualifiers(0), locals(k)%filter_groups%groups(0), locals(k)%cut_filter_groups(0))
     end subroutine init_local
 
     ! kill-all-local-variables: forget the Ibuffer state.  Not a port.
-    subroutine kill_ibuffer_locals()
+    subroutine clear_ibuffer_locals()
         integer :: k
 
         k = ibuffer_local_index(.false.)
         if (k == 0) return
         locals(k) = local_type(serial=-1)
-    end subroutine kill_ibuffer_locals
+    end subroutine clear_ibuffer_locals
 
     !> The filters currently acting on the buffer list of the current
     !> Ibuffer buffer (empty if no filters are in effect): the top of the
@@ -1056,18 +1056,18 @@ contains
 
         if (k > 0) then
             ! ibuffer-active-formats-name: the formats of the last filter in
-            ! `ibuffer_filter_format_table'.
+            ! `ibuffer_filter_formats'.
             found = 0
 
-            if (allocated(ibuffer_filter_format_table%entries)) then
+            if (allocated(ibuffer_filter_formats%entries)) then
                 do j = 1, size(locals(k)%qualifiers)
-                    i = ibuffer_filter_format_table%find(filter_symbol(locals(k)%qualifiers(j)))
+                    i = ibuffer_filter_formats%find(filter_symbol(locals(k)%qualifiers(j)))
                     if (i > 0) found = i
                 end do
             end if
 
             if (found > 0) then
-                f = ibuffer_filter_format_table%entries(found)%formats
+                f = ibuffer_filter_formats%entries(found)%formats
                 return
             end if
 
@@ -1194,27 +1194,27 @@ contains
     end function ibuffer_current_mark
 
     !> Return the buffer on the current line (the null handle for none or
-    !> a killed buffer).  If MUST_BE_LIVE, an error condition occurs in STATUS if
+    !> a closed buffer).  If MUST_BE_LIVE, an error condition occurs in STATUS if
     !> there is none or it has been killed.  Port of
     !> ibuffer.el:ibuffer-current-buffer.
-    function ibuffer_current_buffer(status, must_be_live) result(buf)
+    function ibuffer_current_buffer(status, must_be_live) result(buffer)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: must_be_live
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer(int64) :: serial
         logical :: live
 
         status = status_type()
         serial = line_serial(pos_bol())
-        buf = serial_buffer(serial)
+        buffer = serial_buffer(serial)
         live = .false.
         if (present(must_be_live)) live = must_be_live
         if (.not. live) return
 
         if (serial == 0) then
             call set_error(status, FM_GENERIC_ERROR, "No buffer on this line")
-        else if (buf%index == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Buffer #<killed buffer> has been killed; " &
+        else if (buffer%index == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Buffer #<closed buffer> has been closed; " &
                            //substitute_command_keys("use `\[ibuffer_update]' to update"))
         end if
     end function ibuffer_current_buffer
@@ -1283,16 +1283,16 @@ contains
     !> point.  Port of ibuffer.el:ibuffer-find-file.
     recursive subroutine ibuffer_find_file(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
         character(len=:), allocatable :: dir, file
 
         old = current_buffer()
-        dir = buffers(cur)%directory
-        buf = ibuffer_current_buffer(st)
+        dir = buffers(current)%directory
+        buffer = ibuffer_current_buffer(st)
 
-        if (buf%index /= 0) then
-            if (allocated(buffers(buf%index)%directory)) dir = buffers(buf%index)%directory
+        if (buffer%index /= 0) then
+            if (allocated(buffers(buffer%index)%directory)) dir = buffers(buffer%index)%directory
         end if
 
         call read_file_name("Find file: ", file, status, dir=dir)
@@ -1449,11 +1449,11 @@ contains
     recursive subroutine ibuffer_visit_buffer(status, single)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: single
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        buf = ibuffer_current_buffer(status, .true.)
+        buffer = ibuffer_current_buffer(status, .true.)
         if (.not. status%ok()) return
-        call switch_to_buffer(buffers(buf%index)%name, status)
+        call switch_to_buffer(buffers(buffer%index)%name, status)
         if (.not. status%ok()) return
 
         if (present(single)) then
@@ -1472,20 +1472,20 @@ contains
     recursive subroutine ibuffer_visit_buffer_other_window(status, noselect)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noselect
-        type(handle_type) :: buf, window
+        type(handle_type) :: buffer, window
         logical :: nosel
 
         nosel = .false.
         if (present(noselect)) nosel = noselect
-        buf = ibuffer_current_buffer(status, .true.)
+        buffer = ibuffer_current_buffer(status, .true.)
         if (.not. status%ok()) return
         call bury_buffer(status, current_buffer())
         if (.not. status%ok()) return
 
         if (nosel) then
-            call display_buffer(buf, window, status)
+            call display_buffer(buffer, window, status)
         else
-            call switch_to_buffer_other_window(buf, status)
+            call switch_to_buffer_other_window(buffer, status)
         end if
     end subroutine ibuffer_visit_buffer_other_window
 
@@ -1515,13 +1515,13 @@ contains
     !> ibuffer.el:ibuffer-bury-buffer.
     recursive subroutine ibuffer_bury_buffer(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer(int64) :: line, shortage
 
-        buf = ibuffer_current_buffer(status, .true.)
+        buffer = ibuffer_current_buffer(status, .true.)
         if (.not. status%ok()) return
         line = 1 + count_lines(1_int64, point())
-        call bury_buffer(status, buf)
+        call bury_buffer(status, buffer)
         if (.not. status%ok()) return
         call ibuffer_update(status, .false., .true.)
         if (.not. status%ok()) return
@@ -1590,7 +1590,7 @@ contains
     !> ibuffer-map-marked-lines: FUNC on the marked lines, then redisplay.
     !> Port of ibuffer.el:ibuffer-map-marked-lines.
     recursive integer function map_marked_lines(func, status) result(count)
-        procedure(map_proc) :: func
+        procedure(map_procedure) :: func
         type(status_type), intent(out) :: status
         type(status_type) :: st
 
@@ -1635,7 +1635,7 @@ contains
         integer, intent(in) :: n
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, old, new
+        type(handle_type) :: buffer, old, new
         type(window_configuration_type) :: config
         type(status_type) :: st
         character(len=24) :: count
@@ -1650,14 +1650,14 @@ contains
         end if
 
         old = current_buffer()
-        call get_buffer_create("*Ibuffer confirmation*", buf, status)
+        call get_or_make_buffer("*Ibuffer confirmation*", buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
-        buffers(cur)%read_only = .false.
+        call set_buffer(buffer, status)
+        buffers(current)%read_only = .false.
         call erase_buffer(st)
         call ibuffer_columnize_and_insert_list(names, n, st)
         call goto_char(point_min())
-        buffers(cur)%read_only = .true.
+        buffers(current)%read_only = .true.
         call set_buffer(old, st)
         ! Now attempt to display the buffer...
         call current_window_configuration(config)
@@ -1674,7 +1674,7 @@ contains
             end if
         end if
 
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call set_window_configuration(config)
         call set_buffer(old, st)
     end subroutine ibuffer_confirm_operation_on
@@ -1682,7 +1682,7 @@ contains
     ! ibuffer-map-lines-nomodify.  Port of
     ! ibuffer.el:ibuffer-map-lines-nomodify.
     recursive integer function map_lines_nomodify(func, status) result(count)
-        procedure(map_proc) :: func
+        procedure(map_procedure) :: func
         type(status_type), intent(out) :: status
 
         count = ibuffer_map_lines(func, status, nomodify=.true.)
@@ -1715,8 +1715,8 @@ contains
     end subroutine ibuffer_buffer_names_with_mark
 
     ! Not a port (a lambda of ibuffer.el).
-    recursive integer function collect_name(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function collect_name(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         character(len=256), allocatable :: grown(:)
 
@@ -1730,7 +1730,7 @@ contains
         end if
 
         map_nnames = map_nnames + 1
-        map_names(map_nnames) = buffers(buf%index)%name
+        map_names(map_nnames) = buffers(buffer%index)%name
     end function collect_name
 
     !> The names of the marked buffers.  Port of
@@ -1772,21 +1772,21 @@ contains
     end function ibuffer_count_marked_lines
 
     ! Not a port (a lambda of ibuffer.el).
-    recursive integer function any_marked(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function any_marked(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
 
-        if (buf%index < 0) continue
+        if (buffer%index < 0) continue
         r = IBUFFER_OP_SKIPPED
         if (mark /= " ") r = IBUFFER_OP_DONE
     end function any_marked
 
     ! Not a port (a lambda of ibuffer.el).
-    recursive integer function mark_is(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function mark_is(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
 
-        if (buf%index < 0) continue
+        if (buffer%index < 0) continue
         r = IBUFFER_OP_SKIPPED
         if (mark == map_mark) r = IBUFFER_OP_DONE
     end function mark_is
@@ -1794,7 +1794,7 @@ contains
     ! ibuffer-map-deletion-lines.  Port of
     ! ibuffer.el:ibuffer-map-deletion-lines.
     recursive integer function map_deletion_lines(func, status) result(count)
-        procedure(map_proc) :: func
+        procedure(map_procedure) :: func
         type(status_type), intent(out) :: status
 
         count = map_on_mark(ibuffer_deletion_char, func, status)
@@ -1810,9 +1810,9 @@ contains
 
         name = ""
 
-        if (allocated(buffers(cur)%filename)) then
-            if (len(buffers(cur)%filename) > 0) then
-                name = buffers(cur)%filename
+        if (allocated(buffers(current)%filename)) then
+            if (len(buffers(current)%filename) > 0) then
+                name = buffers(current)%filename
                 return
             end if
         end if
@@ -1828,7 +1828,7 @@ contains
         if (len(dirname) > 0) call expand_file_name(dirname, name, st)
     end function ibuffer_buffer_file_name
 
-    !> Abbreviate FILENAME using `ibuffer_directory_abbrev_table'.  Port of
+    !> Abbreviate FILENAME using `ibuffer_directory_abbrevs'.  Port of
     !> ibuffer.el:ibuffer--abbreviate-file-name.
     function ibuffer_abbreviate_file_name(filename) result(abbrev)
         character(len=*), intent(in) :: filename
@@ -1839,9 +1839,9 @@ contains
 
         abbrev = filename
 
-        if (allocated(ibuffer_directory_abbrev_table)) then
-            do k = 1, size(ibuffer_directory_abbrev_table)
-                m = string_match(trim(ibuffer_directory_abbrev_table(k)%from), abbrev, st)
+        if (allocated(ibuffer_directory_abbrevs)) then
+            do k = 1, size(ibuffer_directory_abbrevs)
+                m = string_match(trim(ibuffer_directory_abbrevs(k)%from), abbrev, st)
 
                 if (st%ok() .and. m == 1) then
                     call apply_abbrev(k)
@@ -1860,7 +1860,7 @@ contains
             type(status_type) :: st2
 
             e = match_end(0, st2)
-            abbrev = trim(ibuffer_directory_abbrev_table(i)%to)//abbrev(e:)
+            abbrev = trim(ibuffer_directory_abbrevs(i)%to)//abbrev(e:)
         end subroutine apply_abbrev
     end function ibuffer_abbreviate_file_name
 
@@ -1876,7 +1876,7 @@ contains
         type(status_type), intent(out) :: status
         type(ibuffer_op_type) :: saved_op
         character(len=256), allocatable :: names(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer :: n, count, k
         logical :: answer
         character(len=24) :: c
@@ -1901,10 +1901,10 @@ contains
                 return
             end if
 
-            buf = ibuffer_current_buffer(st)
+            buffer = ibuffer_current_buffer(st)
             n = 1
             names(1) = ""
-            if (buf%index /= 0) names(1) = buffers(buf%index)%name
+            if (buffer%index /= 0) names(1) = buffers(buffer%index)%name
 
             if (op%deletion) then
                 call ibuffer_set_mark(ibuffer_deletion_char, status)
@@ -1942,7 +1942,7 @@ contains
         current_op = saved_op
         if (.not. status%ok()) return
         k = ibuffer_local_index(.true.)
-        if (op%modifier_p == IBUFFER_MODIFIER_ALWAYS) locals(k)%did_modification = .true.
+        if (op%modifier_p == IBUFFER_MODIFIER_YES) locals(k)%did_modification = .true.
 
         if (associated(op%after)) then
             call op%after(status)
@@ -1959,10 +1959,10 @@ contains
         end if
     end subroutine ibuffer_operate
 
-    ! The mapping function of an operation: its BODY for BUF.  Not a port
+    ! The mapping function of an operation: its BODY for BUFFER.  Not a port
     ! (the lambda define-ibuffer-op maps).
-    recursive integer function op_line(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function op_line(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         type(handle_type) :: old
         type(status_type) :: st, ignore
@@ -1972,18 +1972,18 @@ contains
 
         r = IBUFFER_OP_SKIPPED
         before = .false.
-        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE) call is_buffer_modified(buf, before, ignore)
+        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE) call is_buffer_modified(buffer, before, ignore)
 
         if (current_op%complex) then
-            call current_op%body(buf, mark, r, st)
+            call current_op%body(buffer, mark, r, st)
         else
             old = current_buffer()
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             saved = point()
-            call current_op%body(buf, mark, r, st)
+            call current_op%body(buffer, mark, r, st)
 
-            if (is_buffer_live(buf)) then
-                call set_buffer(buf, ignore)
+            if (is_buffer_live(buffer)) then
+                call set_buffer(buffer, ignore)
                 call goto_char(min(saved, point_max()))
             end if
 
@@ -1993,8 +1993,8 @@ contains
 
         if (.not. st%ok()) call message(format_message_of(st))
 
-        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE .and. is_buffer_live(buf)) then
-            call is_buffer_modified(buf, after, ignore)
+        if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE .and. is_buffer_live(buffer)) then
+            call is_buffer_modified(buffer, after, ignore)
 
             if (before .neqv. after) then
                 k = ibuffer_local_index(.true.)
@@ -2026,8 +2026,8 @@ contains
     end subroutine ibuffer_do_save
 
     ! Not a port (the body of ibuffer.el's define-ibuffer-op do-save).
-    recursive subroutine save_body(buf, mark, result, status)
-        type(handle_type), intent(in) :: buf
+    recursive subroutine save_body(buffer, mark, result, status)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         integer, intent(out) :: result
         type(status_type), intent(out) :: status
@@ -2038,18 +2038,18 @@ contains
 
         if (mark == achar(0)) continue
         result = IBUFFER_OP_DONE
-        call is_buffer_modified(buf, modified, status)
+        call is_buffer_modified(buffer, modified, status)
         if (.not. status%ok() .or. .not. modified) return
         old = current_buffer()
 
-        if (.not. allocated(buffers(buf%index)%filename)) then
+        if (.not. allocated(buffers(buffer%index)%filename)) then
             ! Handle the case where we're prompted for a file name.
             call current_window_configuration(config)
-            call switch_to_buffer(buffers(buf%index)%name, status)
+            call switch_to_buffer(buffers(buffer%index)%name, status)
             if (status%ok()) call save_buffer(1_int64, .false., status)
             call set_window_configuration(config)
         else
-            call set_buffer(buf, status)
+            call set_buffer(buffer, status)
             if (status%ok()) call save_buffer(1_int64, .false., status)
         end if
 
@@ -2063,15 +2063,15 @@ contains
         type(ibuffer_op_type) :: op
 
         op%opstring = "(un)marked as modified"
-        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
+        op%modifier_p = IBUFFER_MODIFIER_YES
         op%body => toggle_modified_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_toggle_modified
 
     ! Not a port (the body of ibuffer.el's define-ibuffer-op
     ! do-toggle-modified).
-    recursive subroutine toggle_modified_body(buf, mark, result, status)
-        type(handle_type), intent(in) :: buf
+    recursive subroutine toggle_modified_body(buffer, mark, result, status)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         integer, intent(out) :: result
         type(status_type), intent(out) :: status
@@ -2079,7 +2079,7 @@ contains
 
         if (mark == achar(0)) continue
         result = IBUFFER_OP_DONE
-        call is_buffer_modified(buf, modified, status)
+        call is_buffer_modified(buffer, modified, status)
         call restore_buffer_modified(.not. modified)
     end subroutine toggle_modified_body
 
@@ -2096,7 +2096,7 @@ contains
         read_only_arg = huge(0_int64)
         if (present(arg)) read_only_arg = arg
         op%opstring = "toggled read only status in"
-        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
+        op%modifier_p = IBUFFER_MODIFIER_YES
         op%body => toggle_read_only_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_toggle_read_only
@@ -2116,13 +2116,13 @@ contains
 
     ! Not a port (the body of ibuffer.el's define-ibuffer-op
     ! do-toggle-read-only).
-    recursive subroutine toggle_read_only_body(buf, mark, result, status)
-        type(handle_type), intent(in) :: buf
+    recursive subroutine toggle_read_only_body(buffer, mark, result, status)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         integer, intent(out) :: result
         type(status_type), intent(out) :: status
 
-        if (mark == achar(0) .or. buf%index < 0) continue
+        if (mark == achar(0) .or. buffer%index < 0) continue
         result = IBUFFER_OP_DONE
 
         if (read_only_arg == huge(0_int64)) then
@@ -2143,41 +2143,41 @@ contains
         status = status_type()
     end subroutine ibuffer_do_toggle_lock
 
-    !> Kill marked buffers as with `kill_this_buffer'.  Port of
+    !> Close marked buffers as with `close_this_buffer'.  Port of
     !> ibuffer.el:ibuffer-do-delete.
     recursive subroutine ibuffer_do_delete(status)
         type(status_type), intent(out) :: status
         type(ibuffer_op_type) :: op
 
-        op%opstring = "killed"
-        op%active_opstring = "kill"
+        op%opstring = "closed"
+        op%active_opstring = "close"
         op%dangerous = .true.
         op%complex = .true.
-        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
-        op%body => kill_body
+        op%modifier_p = IBUFFER_MODIFIER_YES
+        op%body => close_body
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_delete
 
-    !> Kill buffers marked for deletion as with `kill_this_buffer'.
+    !> Close buffers marked for deletion as with `close_this_buffer'.
     !> Port of ibuffer.el:ibuffer-do-kill-on-deletion-marks.
-    recursive subroutine ibuffer_do_kill_on_deletion_marks(status)
+    recursive subroutine ibuffer_do_close_on_deletion_marks(status)
         type(status_type), intent(out) :: status
         type(ibuffer_op_type) :: op
 
-        op%opstring = "killed"
-        op%active_opstring = "kill"
+        op%opstring = "closed"
+        op%active_opstring = "close"
         op%dangerous = .true.
         op%complex = .true.
         op%deletion = .true.
-        op%modifier_p = IBUFFER_MODIFIER_ALWAYS
-        op%body => kill_body
+        op%modifier_p = IBUFFER_MODIFIER_YES
+        op%body => close_body
         call ibuffer_operate(op, status)
-    end subroutine ibuffer_do_kill_on_deletion_marks
+    end subroutine ibuffer_do_close_on_deletion_marks
 
     ! Not a port (the body of ibuffer.el's define-ibuffer-op
     ! do-kill-on-deletion-marks).
-    recursive subroutine kill_body(buf, mark, result, status)
-        type(handle_type), intent(in) :: buf
+    recursive subroutine close_body(buffer, mark, result, status)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         integer, intent(out) :: result
         type(status_type), intent(out) :: status
@@ -2186,15 +2186,15 @@ contains
 
         if (mark == achar(0)) continue
         old = current_buffer()
-        call kill_buffer(buf, status)
+        call close_buffer(buffer, status)
         call set_buffer(old, st)
 
-        if (status%ok() .and. .not. is_buffer_live(buf)) then
-            result = IBUFFER_OP_KILL
+        if (status%ok() .and. .not. is_buffer_live(buffer)) then
+            result = IBUFFER_OP_REMOVE
         else
             result = IBUFFER_OP_SKIPPED
         end if
-    end subroutine kill_body
+    end subroutine close_body
 
     ! ------------------------------------------------------------------
     ! Marks
@@ -2235,11 +2235,11 @@ contains
     end subroutine cmd_ibuffer_unmark_all
 
     ! Not a port (a lambda of ibuffer.el).
-    recursive integer function unmark_any(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function unmark_any(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
 
-        if (buf%index < 0) continue
+        if (buffer%index < 0) continue
         if (mark /= " ") call ibuffer_set_mark_1(" ")
         r = IBUFFER_OP_DONE
     end function unmark_any
@@ -2292,11 +2292,11 @@ contains
     end subroutine cmd_ibuffer_toggle_marks
 
     ! Not a port (a lambda of ibuffer.el).
-    recursive integer function toggle_mark(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function toggle_mark(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
 
-        if (buf%index < 0) continue
+        if (buffer%index < 0) continue
         r = IBUFFER_OP_SKIPPED
 
         if (mark == ibuffer_marked_char) then
@@ -2343,12 +2343,12 @@ contains
     end subroutine cmd_ibuffer_change_marks
 
     ! Not a port (a lambda of ibuffer.el).
-    recursive integer function change_mark(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function change_mark(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         type(status_type) :: st
 
-        if (buf%index < 0) continue
+        if (buffer%index < 0) continue
         r = IBUFFER_OP_SKIPPED
 
         if (mark == map_mark) then
@@ -2560,11 +2560,11 @@ contains
     end subroutine mark_on_buffer_identity
 
     ! Not a port (a lambda of ibuf-ext.el).
-    recursive integer function mark_always(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function mark_always(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
 
-        if (buf%index < 0 .or. mark == achar(0)) continue
+        if (buffer%index < 0 .or. mark == achar(0)) continue
         call ibuffer_set_mark_1(map_mark)
         r = IBUFFER_OP_DONE
     end function mark_always
@@ -2579,13 +2579,13 @@ contains
 
         call assert_ibuffer_mode(status)
         if (.not. status%ok()) return
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
         call ibuffer_set_mark_1(mark)
         k = ibuffer_local_index(.true.)
         locals(k)%did_modification = .true.
         call ibuffer_redisplay_current(status)
-        buffers(cur)%read_only = ro
+        buffers(current)%read_only = ro
         call beginning_of_line()
     end subroutine ibuffer_set_mark
 
@@ -2593,18 +2593,18 @@ contains
     !> ibuffer.el:ibuffer-set-mark-1.
     recursive subroutine ibuffer_set_mark_1(mark)
         character, intent(in) :: mark
-        integer(int64) :: beg, end, serial
+        integer(int64) :: beginning, end, serial
         type(status_type) :: st
         logical :: ro
 
-        beg = pos_bol()
+        beginning = pos_bol()
         end = pos_eol()
-        serial = line_serial(beg)
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
-        call put_text_property(beg, end, value_type(name="ibuffer_properties"), value_type(serial), st)
-        call put_text_property(beg, end, value_type(name="ibuffer_mark"), value_type(int(iachar(mark), int64)), st)
-        buffers(cur)%read_only = ro
+        serial = line_serial(beginning)
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
+        call put_text_property(beginning, end, value_type(name="ibuffer_properties"), value_type(serial), st)
+        call put_text_property(beginning, end, value_type(name="ibuffer_mark"), value_type(int(iachar(mark), int64)), st)
+        buffers(current)%read_only = ro
     end subroutine ibuffer_set_mark_1
 
     ! ------------------------------------------------------------------
@@ -2747,9 +2747,9 @@ contains
         type(status_type), intent(out) :: status
         type(ibuffer_cell_type) :: cell
         type(handle_type) :: menu
-        character(len=:), allocatable :: str, ellipsis_text
+        character(len=:), allocatable :: string, ellipsis_text
         integer :: column, min, max, strlen, tmp1, tmp2, offset, ell_at, ell_len, str_len
-        integer(int64) :: beg
+        integer(int64) :: beginning
         logical :: from_end_p, min_used, max_used
         type(status_type) :: st
 
@@ -2769,16 +2769,16 @@ contains
         call set_buffer(menu, st)
         if (.not. allocated(cell%text)) cell%text = ""
         if (.not. allocated(cell%face)) cell%face = ""
-        str = cell%text
-        ! The original text is STR(OFFSET+1:OFFSET+STR_LEN) of the result;
+        string = cell%text
+        ! The original text is STRING(OFFSET+1:OFFSET+STR_LEN) of the result;
         ! an ellipsis ELL_LEN long is at ELL_AT (0 for none).
         offset = 0
-        str_len = len(str)
+        str_len = len(string)
         ell_at = 0
         ell_len = 0
         min_used = min >= 0
         max_used = max > 0
-        strlen = int(string_width(str))
+        strlen = int(string_width(string))
 
         if (min_used .and. strlen < min) then
             tmp1 = min - strlen
@@ -2787,35 +2787,35 @@ contains
             select case (spec%align)
             case (IBUFFER_ALIGN_RIGHT)
                 offset = tmp1
-                str = repeat(" ", tmp2)//repeat(" ", tmp1 - tmp2)//str
+                string = repeat(" ", tmp2)//repeat(" ", tmp1 - tmp2)//string
             case (IBUFFER_ALIGN_CENTER)
                 offset = tmp2
-                str = repeat(" ", tmp2)//str//repeat(" ", tmp1 - tmp2)
+                string = repeat(" ", tmp2)//string//repeat(" ", tmp1 - tmp2)
             case default
-                str = str//repeat(" ", tmp2)//repeat(" ", tmp1 - tmp2)
+                string = string//repeat(" ", tmp2)//repeat(" ", tmp1 - tmp2)
             end select
         else if (max_used .and. strlen > max) then
             if (from_end_p) then
-                str = truncate_string_to_width(str, strlen, strlen - max, " ")
+                string = truncate_string_to_width(string, strlen, strlen - max, " ")
             else
-                str = truncate_string_to_width(str, max, padding=" ")
+                string = truncate_string_to_width(string, max, padding=" ")
             end if
 
-            str_len = len(str)
-            strlen = int(string_width(str))
+            str_len = len(string)
+            strlen = int(string_width(string))
 
             if (spec%elide .and. strlen > 5) then
                 ellipsis_text = ibuffer_eliding_string
 
                 if (from_end_p) then
-                    str = ellipsis_text//substring_after_width(str, int(string_width(ibuffer_eliding_string)))
+                    string = ellipsis_text//substring_after_width(string, int(string_width(ibuffer_eliding_string)))
                     ell_at = 1
                     offset = len(ellipsis_text)
-                    str_len = len(str) - offset
+                    str_len = len(string) - offset
                 else
-                    str = truncate_string_to_width(str, strlen - int(string_width(ellipsis_text)), padding=".") &
-                          //ellipsis_text
-                    ell_at = len(str) - len(ellipsis_text) + 1
+                    string = truncate_string_to_width(string, strlen - int(string_width(ellipsis_text)), padding=".") &
+                             //ellipsis_text
+                    ell_at = len(string) - len(ellipsis_text) + 1
                     str_len = ell_at - 1
                 end if
 
@@ -2823,49 +2823,50 @@ contains
             end if
         end if
 
-        beg = point()
-        call insert(str, status)
+        beginning = point()
+        call insert(string, status)
         if (.not. status%ok()) return
 
         ! The column's properties on its text (concat keeps them; the
         ! padding has none).
         if (str_len > 0) then
-            if (len(cell%face) > 0) call put_text_property(beg + offset, beg + offset + str_len, &
+            if (len(cell%face) > 0) call put_text_property(beginning + offset, beginning + offset + str_len, &
                                                            value_type(name="font_lock_face"), value_type(name=cell%face), st)
-            if (allocated(cell%mouse_face)) call put_text_property(beg + offset, beg + offset + str_len, &
+            if (allocated(cell%mouse_face)) call put_text_property(beginning + offset, beginning + offset + str_len, &
                                                                    value_type(name="mouse_face"), &
                                                                    value_type(name=cell%mouse_face), st)
-            if (cell%name_column) call put_text_property(beg + offset, beg + offset + str_len, &
+            if (cell%name_column) call put_text_property(beginning + offset, beginning + offset + str_len, &
                                                          value_type(name="ibuffer_name_column"), value_type(.true.), st)
         end if
 
-        if (ell_at > 0) call put_text_property(beg + ell_at - 1, beg + ell_at - 1 + ell_len, value_type(name="font_lock_face"), &
+        if (ell_at > 0) call put_text_property(beginning + ell_at - 1, beginning + ell_at - 1 + ell_len, &
+                                               value_type(name="font_lock_face"), &
                                                value_type(name="bold"), st)
 
         if (associated(ibuffer_columns(column)%summarizer)) then
-            cell%text = str
+            cell%text = string
             call add_summary(column, cell)
         end if
     end subroutine insert_column
 
-    ! (substring STR (string-width ...)) for ASCII-width text: STR after
+    ! (substring STRING (string-width ...)) for ASCII-width text: STRING after
     ! its first N characters.  Not a port.
-    function substring_after_width(str, n) result(s)
-        character(len=*), intent(in) :: str
+    function substring_after_width(string, n) result(s)
+        character(len=*), intent(in) :: string
         integer, intent(in) :: n
         character(len=:), allocatable :: s
 
-        if (n >= len(str)) then
+        if (n >= len(string)) then
             s = ""
         else
-            s = str(n + 1:)
+            s = string(n + 1:)
         end if
     end function substring_after_width
 
-    ! ibuffer-format-column: STR padded with WIDTH spaces by ALIGNMENT.
+    ! ibuffer-format-column: STRING padded with WIDTH spaces by ALIGNMENT.
     ! Port of ibuffer.el:ibuffer-format-column.
-    function ibuffer_format_column(str, width, alignment) result(s)
-        character(len=*), intent(in) :: str
+    function ibuffer_format_column(string, width, alignment) result(s)
+        character(len=*), intent(in) :: string
         integer, intent(in) :: width, alignment
         character(len=:), allocatable :: s
         character(len=:), allocatable :: left, right
@@ -2875,18 +2876,18 @@ contains
 
         select case (alignment)
         case (IBUFFER_ALIGN_RIGHT)
-            s = left//right//str
+            s = left//right//string
         case (IBUFFER_ALIGN_CENTER)
-            s = left//str//right
+            s = left//string//right
         case default
-            s = str//left//right
+            s = string//left//right
         end select
     end function ibuffer_format_column
 
-    !> The face of the name of BUF, marked with MARK (a mark character;
+    !> The face of the name of BUFFER, marked with MARK (a mark character;
     !> "" for none).  Port of ibuffer.el:ibuffer-buffer-name-face.
-    recursive function ibuffer_buffer_name_face(buf, mark) result(face)
-        type(handle_type), intent(in) :: buf
+    recursive function ibuffer_buffer_name_face(buffer, mark) result(face)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         character(len=:), allocatable :: face
         type(handle_type) :: old
@@ -2900,20 +2901,20 @@ contains
             face = ibuffer_marked_face
         else if (mark == ibuffer_deletion_char) then
             face = ibuffer_deletion_face
-        else if (allocated(ibuffer_fontification_table)) then
+        else if (allocated(ibuffer_fontifications)) then
             level = -1
             old = current_buffer()
 
-            do k = 1, size(ibuffer_fontification_table)
-                if (ibuffer_fontification_table(k)%priority <= level) cycle
-                if (.not. associated(ibuffer_fontification_table(k)%form)) cycle
-                call set_buffer(buf, st)
-                hit = ibuffer_fontification_table(k)%form()
+            do k = 1, size(ibuffer_fontifications)
+                if (ibuffer_fontifications(k)%priority <= level) cycle
+                if (.not. associated(ibuffer_fontifications(k)%form)) cycle
+                call set_buffer(buffer, st)
+                hit = ibuffer_fontifications(k)%form()
                 call set_buffer(old, st)
 
                 if (hit) then
-                    level = ibuffer_fontification_table(k)%priority
-                    face = trim(ibuffer_fontification_table(k)%face)
+                    level = ibuffer_fontifications(k)%priority
+                    face = trim(ibuffer_fontifications(k)%face)
                 end if
             end do
         end if
@@ -2926,23 +2927,24 @@ contains
         character, intent(in) :: mark
         type(ibuffer_column_spec_type), intent(in) :: entries(:)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg
+        integer(int64) :: beginning
         type(status_type) :: st
         integer :: k
 
         call assert_ibuffer_mode(status)
         if (.not. status%ok()) return
-        beg = point()
+        beginning = point()
 
         do k = 1, size(entries)
             call insert_column(entries(k), buffer, mark, status)
             if (.not. status%ok()) return
         end do
 
-        if (point() > beg) then
-            call put_text_property(beg, point(), value_type(name="ibuffer_properties"), value_type(buffers(buffer%index)%serial), &
+        if (point() > beginning) then
+            call put_text_property(beginning, point(), value_type(name="ibuffer_properties"), &
+                                   value_type(buffers(buffer%index)%serial), &
                                    st)
-            call put_text_property(beg, point(), value_type(name="ibuffer_mark"), value_type(int(iachar(mark), int64)), st)
+            call put_text_property(beginning, point(), value_type(name="ibuffer_mark"), value_type(int(iachar(mark), int64)), st)
         end if
 
         call insert(achar(10), status)
@@ -2953,7 +2955,7 @@ contains
     recursive subroutine ibuffer_redisplay_current(status)
         type(status_type), intent(out) :: status
         type(ibuffer_column_spec_type), allocatable :: entries(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character :: mark
         integer(int64) :: saved, shortage, m
@@ -2966,15 +2968,15 @@ contains
         call current_format_entries(entries, status)
         if (.not. status%ok()) return
         call clear_summary_columns()
-        buf = ibuffer_current_buffer(st)
-        if (buf%index == 0) return
+        buffer = ibuffer_current_buffer(st)
+        if (buffer%index == 0) return
         mark = ibuffer_current_mark()
         saved = point()
-        ro = buffers(cur)%read_only
-        buffers(cur)%read_only = .false.
+        ro = buffers(current)%read_only
+        buffers(current)%read_only = .false.
         call delete_region(point(), min(point_max(), pos_eol() + 1), status)
-        if (status%ok()) call ibuffer_insert_buffer_line(buf, mark, entries, status)
-        buffers(cur)%read_only = ro
+        if (status%ok()) call ibuffer_insert_buffer_line(buffer, mark, entries, status)
+        buffers(current)%read_only = ro
         m = saved
         call goto_char(m)
         if (shrink_of() /= IBUFFER_SHRINK_NO) call ibuffer_shrink_to_fit()
@@ -2992,9 +2994,9 @@ contains
     ! ibuffer.el:ibuffer-map-on-mark.
     recursive integer function map_on_mark(mark, func, status) result(count)
         character, intent(in) :: mark
-        procedure(map_proc) :: func
+        procedure(map_procedure) :: func
         type(status_type), intent(out) :: status
-        procedure(map_proc), pointer :: saved_fn
+        procedure(map_procedure), pointer :: saved_fn
         character :: saved_mark
 
         saved_fn => on_mark_fn
@@ -3007,12 +3009,12 @@ contains
     end function map_on_mark
 
     ! Not a port (the lambda of ibuffer-map-on-mark).
-    recursive integer function on_mark(buf, mk) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function on_mark(buffer, mk) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mk
 
         r = IBUFFER_OP_SKIPPED
-        if (mk == on_mark_mark) r = on_mark_fn(buf, on_mark_mark)
+        if (mk == on_mark_mark) r = on_mark_fn(buffer, on_mark_mark)
     end function on_mark
 
     !> Call FUNCTION for each buffer.
@@ -3026,13 +3028,13 @@ contains
     !> number of lines it affected.  Port of
     !> ibuffer.el:ibuffer-map-lines.
     recursive integer function ibuffer_map_lines(func, status, nomodify, group) result(count)
-        procedure(map_proc) :: func
+        procedure(map_procedure) :: func
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: nomodify
         character(len=*), intent(in), optional :: group
         integer(int64) :: orig_target_line, target_line_offset, start, shortage, saved
         integer :: total, result
-        type(handle_type) :: buf, m
+        type(handle_type) :: buffer, m
         type(status_type) :: st
         logical :: nomod, in_group
         integer :: k
@@ -3051,7 +3053,7 @@ contains
         orig_target_line = 1 + count_lines(start, point())
         target_line_offset = orig_target_line
         total = 0
-        buffers(cur)%read_only = .false.
+        buffers(current)%read_only = .false.
         call goto_char(point_min())
         call ibuffer_forward_line(0_int64, .true.)
 
@@ -3059,9 +3061,9 @@ contains
             if (is_eob() .or. has_prop(point(), "ibuffer_summary")) exit
             call ibuffer_forward_line(0_int64, .true.)
             if (is_eob() .or. has_prop(point(), "ibuffer_summary")) exit
-            buf = ibuffer_current_buffer(st)
+            buffer = ibuffer_current_buffer(st)
 
-            if (is_buffer_live(buf)) then
+            if (is_buffer_live(buffer)) then
                 in_group = .true.
                 if (present(group)) in_group = string_prop(point(), "ibuffer_filter_group") == group &
                                                .and. has_string_prop(point(), "ibuffer_filter_group")
@@ -3069,16 +3071,16 @@ contains
                 if (in_group) then
                     ! (save-excursion)
                     call point_marker(m)
-                    result = func(buf, ibuffer_current_mark())
+                    result = func(buffer, ibuffer_current_mark())
                     call marker_position(m, saved, st)
-                    call free_marker(m, st)
+                    call destroy_marker(m, st)
                     call goto_char(saved)
                 else
                     result = IBUFFER_OP_SKIPPED
                 end if
             else
                 ! Kill the line if the buffer is dead
-                result = IBUFFER_OP_KILL
+                result = IBUFFER_OP_REMOVE
             end if
 
             ! A given mapping function should return:
@@ -3090,7 +3092,7 @@ contains
             select case (result)
             case (IBUFFER_OP_SKIPPED)
                 shortage = forward_line(1_int64)
-            case (IBUFFER_OP_KILL)
+            case (IBUFFER_OP_REMOVE)
                 call delete_region(pos_bol(), min(point_max(), pos_eol() + 1), st)
                 count = count + 1
                 if (total < orig_target_line) target_line_offset = target_line_offset - 1
@@ -3106,7 +3108,7 @@ contains
         ! "*Ibuffer confirmation*".
         k = ibuffer_local_index(.true.)
         if (minor_modes%ibuffer_auto_mode%enabled() .and. count > 1 .and. .not. ibuffer_expert) count = count - 1
-        buffers(cur)%read_only = .true.
+        buffers(current)%read_only = .true.
         if (.not. nomod) call restore_buffer_modified(.false.)
         call goto_char(point_min())
         call ibuffer_forward_line(0_int64)
@@ -3135,8 +3137,8 @@ contains
     end subroutine ibuffer_get_marked_buffers
 
     !> Return in STATES the buffers of the Ibuffer buffer with their marks
-    !> (BUF . MARK); with POS, also the point at the beginning of each
-    !> line (BUF MARK POINT).  Port of ibuffer.el:ibuffer-current-state-list.
+    !> (BUFFER . MARK); with POS, also the point at the beginning of each
+    !> line (BUFFER MARK POINT).  Port of ibuffer.el:ibuffer-current-state-list.
     recursive subroutine ibuffer_current_state_list(states, status, pos)
         type(ibuffer_state_type), allocatable, intent(out) :: states(:)
         type(status_type), intent(out) :: status
@@ -3164,13 +3166,13 @@ contains
     end subroutine ibuffer_current_state_list
 
     ! Not a port (the lambda of ibuffer-current-state-list).
-    recursive integer function collect_state(buf, mark) result(r)
-        type(handle_type), intent(in) :: buf
+    recursive integer function collect_state(buffer, mark) result(r)
+        type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         type(ibuffer_state_type), allocatable :: grown(:)
 
         r = IBUFFER_OP_SKIPPED
-        if (.not. is_buffer_live(buf)) return
+        if (.not. is_buffer_live(buffer)) return
 
         if (map_nstates == size(map_states)) then
             allocate (grown(2*size(map_states)))
@@ -3179,12 +3181,12 @@ contains
         end if
 
         map_nstates = map_nstates + 1
-        map_states(map_nstates)%buffer = buf
+        map_states(map_nstates)%buffer = buffer
         map_states(map_nstates)%mark = mark
         if (map_with_pos) map_states(map_nstates)%point = point()
     end function collect_state
 
-    ! ibuffer-current-buffers-with-marks: (BUF . MARK) for each of
+    ! ibuffer-current-buffers-with-marks: (BUFFER . MARK) for each of
     ! CURBUFS, with the marks the buffers have in the list.  Port of
     ! ibuffer.el:ibuffer-current-buffers-with-marks.
     recursive subroutine current_buffers_with_marks(curbufs, states, status)
@@ -3213,29 +3215,29 @@ contains
 
     !> ibuffer-buf-matches-predicates.  Port of
     !> ibuffer.el:ibuffer-buf-matches-predicates.
-    recursive logical function buf_matches_predicates(buf, predicates) result(hit)
-        type(handle_type), intent(in) :: buf
-        type(ibuffer_show_predicate_type), intent(in) :: predicates(:)
+    recursive logical function buffer_matches_tests(buffer, tests) result(hit)
+        type(handle_type), intent(in) :: buffer
+        type(ibuffer_show_test_type), intent(in) :: tests(:)
         integer :: k
         integer(int64) :: m
         type(status_type) :: st
 
         hit = .false.
 
-        do k = 1, size(predicates)
-            if (len_trim(predicates(k)%regexp) > 0) then
-                m = string_match(trim(predicates(k)%regexp), buffers(buf%index)%name, st)
+        do k = 1, size(tests)
+            if (len_trim(tests(k)%regexp) > 0) then
+                m = string_match(trim(tests(k)%regexp), buffers(buffer%index)%name, st)
                 if (st%ok() .and. m > 0) hit = .true.
-            else if (associated(predicates(k)%predicate)) then
-                if (predicates(k)%predicate(buf)) hit = .true.
+            else if (associated(tests(k)%test)) then
+                if (tests(k)%test(buffer)) hit = .true.
             end if
         end do
-    end function buf_matches_predicates
+    end function buffer_matches_tests
 
-    !> (ibuffer-buf-matches-predicates BUF REGEXPS) for a list of regexps.
+    !> (ibuffer-buf-matches-predicates BUFFER REGEXPS) for a list of regexps.
     !> Port of ibuffer.el:ibuffer-buf-matches-predicates, for regexps.
-    logical function buf_matches_regexps(buf, regexps) result(hit)
-        type(handle_type), intent(in) :: buf
+    logical function buffer_matches_regexps(buffer, regexps) result(hit)
+        type(handle_type), intent(in) :: buffer
         character(len=*), intent(in) :: regexps(:)
         integer :: k
         integer(int64) :: m
@@ -3244,10 +3246,10 @@ contains
         hit = .false.
 
         do k = 1, size(regexps)
-            m = string_match(trim(regexps(k)), buffers(buf%index)%name, st)
+            m = string_match(trim(regexps(k)), buffers(buffer%index)%name, st)
             if (st%ok() .and. m > 0) hit = .true.
         end do
-    end function buf_matches_regexps
+    end function buffer_matches_regexps
 
     ! ibuffer-filter-buffers.  Port of ibuffer.el:ibuffer-filter-buffers.
     recursive subroutine filter_buffers(ibuffer_buf, last, bmarklist, all, result, status)
@@ -3267,7 +3269,7 @@ contains
             ! This takes precedence over anything else
             keep = .false.
 
-            if (ibuffer_always_show_last_buffer /= IBUFFER_SHOW_LAST_NEVER .and. last%index /= 0) then
+            if (ibuffer_always_show_last_buffer /= IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO .and. last%index /= 0) then
                 keep = last%index == bmarklist(k)%buffer%index
             end if
 
@@ -3285,16 +3287,16 @@ contains
         result = result(1:n)
     end subroutine filter_buffers
 
-    !> The default member of `ibuffer_maybe_show_predicates'.
-    !> True if BUF is not visiting a file and its name begins with a
+    !> The default member of `ibuffer_maybe_show_tests'.
+    !> True if BUFFER is not visiting a file and its name begins with a
     !> space.  Port of ibuffer.el:ibuffer-hidden-buffer-p.
-    recursive logical function is_ibuffer_hidden_buffer(buf) result(hidden)
-        type(handle_type), intent(in) :: buf
+    recursive logical function is_ibuffer_hidden_buffer(buffer) result(hidden)
+        type(handle_type), intent(in) :: buffer
 
         hidden = .false.
-        if (.not. is_buffer_live(buf)) return
+        if (.not. is_buffer_live(buffer)) return
 
-        associate (b => buffers(buf%index))
+        associate (b => buffers(buffer%index))
             if (len(b%name) == 0) return
             if (b%name(1:1) /= " ") return
             hidden = .true.
@@ -3517,16 +3519,16 @@ contains
         if (allocated(buffers(buffer%index)%mode_name)) name = buffers(buffer%index)%mode_name
     end function mode_name_of
 
-    ! "(PROC STATUS)" of buffer BUFFER's process ("" for none).  Not a port.
+    ! "(PROCESS STATUS)" of buffer BUFFER's process ("" for none).  Not a port.
     function process_text(buffer) result(text)
         type(handle_type), intent(in) :: buffer
         character(len=:), allocatable :: text
-        type(handle_type) :: proc
+        type(handle_type) :: process
 
         text = ""
-        proc = get_buffer_process(buffer)
-        if (proc%index == 0) return
-        text = "("//process_name(proc)//" "//process_status(proc)//")"
+        process = get_buffer_process(buffer)
+        if (process%index == 0) return
+        text = "("//process_name(process)//" "//process_status(process)//")"
     end function process_text
 
     ! define-ibuffer-column process.  Port of ibuffer.el's
@@ -3597,18 +3599,18 @@ contains
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         type(ibuffer_cell_type) :: cell
-        character(len=:), allocatable :: proc, filename
+        character(len=:), allocatable :: process, filename
 
-        proc = process_text(buffer)
+        process = process_text(buffer)
         cell = column_filename(buffer, mark)
         filename = cell%text
 
-        if (len(proc) > 0) then
+        if (len(process) > 0) then
             ! (The process part is in italics upstream.)
             if (len(filename) > 0) then
-                cell%text = proc//" "//filename
+                cell%text = process//" "//filename
             else
-                cell%text = proc
+                cell%text = process
             end if
 
             cell%process = .true.
@@ -3619,15 +3621,15 @@ contains
     subroutine summarize_filename_and_process(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=:), allocatable, intent(out) :: text
-        integer :: procs, files, k
+        integer :: processes, files, k
         character(len=24) :: c
 
-        procs = 0
+        processes = 0
         files = 0
 
         do k = 1, size(cells)
             if (len(cells(k)%text) == 0) cycle
-            if (cells(k)%process) procs = procs + 1
+            if (cells(k)%process) processes = processes + 1
             files = files + 1
         end do
 
@@ -3642,12 +3644,12 @@ contains
 
         text = text//", "
 
-        if (procs == 0) then
+        if (processes == 0) then
             text = text//"no processes"
-        else if (procs == 1) then
+        else if (processes == 1) then
             text = text//"1 process"
         else
-            write (c, "(i0)") procs
+            write (c, "(i0)") processes
             text = text//trim(c)//" processes"
         end if
     end subroutine summarize_filename_and_process
@@ -3658,9 +3660,9 @@ contains
     !> replaced.  Port of ibuf-macs.el:define-ibuffer-column.
     subroutine define_ibuffer_column(name, make, title, summarizer)
         character(len=*), intent(in) :: name
-        procedure(ibuffer_column_proc) :: make
+        procedure(ibuffer_column_procedure) :: make
         character(len=*), intent(in), optional :: title
-        procedure(ibuffer_summarizer_proc), optional :: summarizer
+        procedure(ibuffer_summarizer_procedure), optional :: summarizer
         type(ibuffer_column_type), allocatable :: grown(:)
         integer :: k, n
 
@@ -3707,11 +3709,11 @@ contains
     end function capitalize_name
 
     !> Add a method of sorting named NAME, described by DESCRIPTION, with
-    !> the predicate LESS.  Port of ibuf-macs.el:define-ibuffer-sorter
+    !> the test LESS.  Port of ibuf-macs.el:define-ibuffer-sorter
     !> (the entry of `ibuffer-sorting-functions-alist').
     subroutine define_ibuffer_sorter(name, description, less)
         character(len=*), intent(in) :: name, description
-        procedure(ibuffer_sorter_proc) :: less
+        procedure(ibuffer_sorter_procedure) :: less
         type(ibuffer_sorter_type), allocatable :: grown(:)
         integer :: k, n
 
@@ -3745,19 +3747,19 @@ contains
     !> ibuf-macs.el:define-ibuffer-filter.
     subroutine define_ibuffer_filter(name, description, test)
         character(len=*), intent(in) :: name, description
-        procedure(ibuffer_filter_test_proc) :: test
+        procedure(ibuffer_filter_test_procedure) :: test
         type(ibuffer_filter_def_type), allocatable :: grown(:)
         integer :: n
 
-        if (.not. allocated(ibuffer_filtering_table)) allocate (ibuffer_filtering_table(0))
-        n = size(ibuffer_filtering_table)
+        if (.not. allocated(ibuffer_filterings)) allocate (ibuffer_filterings(0))
+        n = size(ibuffer_filterings)
         allocate (grown(n + 1))
-        grown(2:n + 1) = ibuffer_filtering_table
+        grown(2:n + 1) = ibuffer_filterings
         ! (Pushed onto the table.)
         grown(1)%name = name
         grown(1)%description = description
         grown(1)%test => test
-        call move_alloc(grown, ibuffer_filtering_table)
+        call move_alloc(grown, ibuffer_filterings)
     end subroutine define_ibuffer_filter
 
     !> Limit current view to buffers with name matching QUALIFIER.  Port of
@@ -4077,14 +4079,14 @@ contains
         if (.not. status%ok()) return
 
         ! Insert the title names.
-        if (ibuffer_use_header_line == IBUFFER_HEADER_LINE_TITLE) then
-            call buffers(cur)%header_line_format%clear()
-            call buffers(cur)%header_line_format%add("")
+        if (ibuffer_use_header_line == IBUFFER_USE_HEADER_LINE_TITLE) then
+            call buffers(current)%header_line_format%clear()
+            call buffers(current)%header_line_format%append("")
 
             do k = 1, size(entries)
                 piece = format_title(entries(k), status)
                 if (.not. status%ok()) return
-                call buffers(cur)%header_line_format%add(piece)
+                call buffers(current)%header_line_format%append(piece)
             end do
         else
             if (has_prop(point_min(), "ibuffer_title")) then
@@ -4189,7 +4191,7 @@ contains
     !> Regenerate the list of all buffers.
     !>
     !> ARG true means to toggle whether buffers that match
-    !> `ibuffer_maybe_show_predicates' should be displayed.
+    !> `ibuffer_maybe_show_tests' should be displayed.
     !>
     !> If optional arg SILENT is true, do not display progress messages.
     !> Port of ibuffer.el:ibuffer-update.
@@ -4206,7 +4208,7 @@ contains
         quiet = .false.
         if (present(silent)) quiet = silent
         k = ibuffer_local_index(.true.)
-        if (arg) locals(k)%display_maybe_show_predicates = .not. locals(k)%display_maybe_show_predicates
+        if (arg) locals(k)%display_maybe_show_tests = .not. locals(k)%display_maybe_show_tests
         call ibuffer_forward_line(0_int64)
         bufs = buffer_list()
         last = null_handle()
@@ -4214,7 +4216,7 @@ contains
         if (size(bufs) >= 2) then
             last = bufs(2)
 
-            if (ibuffer_always_show_last_buffer == IBUFFER_SHOW_LAST_NOMINI .and. is_minibuffer(bufs(2))) then
+            if (ibuffer_always_show_last_buffer == IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI .and. is_minibuffer(bufs(2))) then
                 last = null_handle()
                 if (size(bufs) >= 3) last = bufs(3)
             end if
@@ -4223,7 +4225,7 @@ contains
         call current_buffers_with_marks(bufs, marks, status)
         if (.not. status%ok()) return
         k = ibuffer_local_index(.true.)
-        call filter_buffers(current_buffer(), last, marks, locals(k)%display_maybe_show_predicates, blist, status)
+        call filter_buffers(current_buffer(), last, marks, locals(k)%display_maybe_show_tests, blist, status)
         if (.not. status%ok()) return
         k = ibuffer_local_index(.true.)
 
@@ -4248,12 +4250,12 @@ contains
         ! I tried to update this automatically from the mode-line-process
         ! format, but changing nil-ness of header-line-format while computing
         ! mode-line-format is asking a bit too much it seems.  --Stef
-        if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_TITLE) then
-            call buffers(cur)%header_line_format%clear()
+        if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_TITLE) then
+            call buffers(current)%header_line_format%clear()
             k = ibuffer_local_index(.true.)
 
-            if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_NO .and. size(locals(k)%qualifiers) > 0) then
-                call buffers(cur)%header_line_format%add("")
+            if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_NO .and. size(locals(k)%qualifiers) > 0) then
+                call buffers(current)%header_line_format%append("")
             end if
         end if
 
@@ -4282,20 +4284,20 @@ contains
     recursive subroutine update_mode_line_process()
         type(mode_line_part_type), allocatable :: parts(:)
 
-        if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_TITLE .and. &
-            allocated(buffers(cur)%header_line_format%segments)) then
+        if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_TITLE .and. &
+            allocated(buffers(current)%header_line_format%segments)) then
             ! Display the part that won't be in the mode-line.
-            call buffers(cur)%header_line_format%clear()
-            call buffers(cur)%header_line_format%add("")
-            call buffers(cur)%header_line_format%add(mode_name_of(current_buffer()))
-            call buffers(cur)%header_line_format%add(state_text()//qualifiers_text())
+            call buffers(current)%header_line_format%clear()
+            call buffers(current)%header_line_format%append("")
+            call buffers(current)%header_line_format%append(mode_name_of(current_buffer()))
+            call buffers(current)%header_line_format%append(state_text()//qualifiers_text())
         end if
 
         allocate (parts(1))
         parts(1)%text = state_text()
 
         ! Only list the filters if they're not already in the header-line.
-        if (.not. allocated(buffers(cur)%header_line_format%segments)) then
+        if (.not. allocated(buffers(current)%header_line_format%segments)) then
             parts(1)%text = parts(1)%text//qualifiers_text()
         end if
 
@@ -4341,7 +4343,7 @@ contains
     recursive subroutine sort_bufferlist(bmarklist)
         type(ibuffer_state_type), intent(inout) :: bmarklist(:)
         type(ibuffer_state_type), allocatable :: tmp(:)
-        procedure(ibuffer_sorter_proc), pointer :: less
+        procedure(ibuffer_sorter_procedure), pointer :: less
         integer :: k, n
 
         k = ibuffer_local_index(.true.)
@@ -4469,7 +4471,7 @@ contains
         call ibuffer_generate_filter_groups(bmarklist, names, group_of, status)
         if (.not. status%ok()) return
         call clear_summary_columns()
-        buffers(cur)%read_only = .false.
+        buffers(current)%read_only = .false.
         call erase_buffer(st)
         call ibuffer_update_format(status)
 
@@ -4503,7 +4505,7 @@ contains
             if (status%ok()) call update_title_and_summary(entries, status)
         end if
 
-        buffers(cur)%read_only = .true.
+        buffers(current)%read_only = .true.
         k = ibuffer_local_index(.true.)
         call restore_buffer_modified(locals(k)%did_modification)
         locals(k)%did_modification = .false.
@@ -4595,7 +4597,7 @@ contains
         integer, intent(in), optional :: shrink
         type(ibuffer_filter_groups_type), intent(in), optional :: filter_groups
         type(ibuffer_formats_type), intent(in), optional :: formats
-        type(handle_type) :: buf, window, old, old_window
+        type(handle_type) :: buffer, window, old, old_window
         type(status_type) :: st
         logical :: other, nosel, done
         integer :: k
@@ -4607,9 +4609,9 @@ contains
         if (present(noselect)) nosel = noselect
 
         if (present(name)) then
-            call get_buffer_create(name, buf, status)
+            call get_or_make_buffer(name, buffer, status)
         else
-            call get_buffer_create("*Ibuffer*", buf, status)
+            call get_or_make_buffer("*Ibuffer*", buffer, status)
         end if
 
         if (.not. status%ok()) return
@@ -4618,27 +4620,27 @@ contains
             done = .false.
 
             if (nosel) then
-                call display_buffer(buf, window, status, table=display_action_table_type(inhibit_same_window=.true.))
+                call display_buffer(buffer, window, status, table=display_action_parameters_type(inhibit_same_window=.true.))
                 done = status%ok() .and. window%index /= 0
             end if
 
-            if (.not. done) call pop_to_buffer(buf, status, table=display_action_table_type(inhibit_same_window=.true.))
+            if (.not. done) call pop_to_buffer(buffer, status, table=display_action_parameters_type(inhibit_same_window=.true.))
         else if (nosel) then
-            call display_buffer(buf, window, status)
+            call display_buffer(buffer, window, status)
         else
-            call switch_to_buffer(buffers(buf%index)%name, status)
+            call switch_to_buffer(buffers(buffer%index)%name, status)
         end if
 
         if (.not. status%ok()) return
         old = current_buffer()
         old_window = selected_window()
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         ! We switch to the buffer's window in order to be able to modify
         ! the value of point.
-        window = get_buffer_window(buf)
+        window = get_buffer_window(buffer)
         if (window%index /= 0) call select_window(window, st, norecord=.true.)
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         if (.not. is_derived_mode("ibuffer_mode")) call ibuffer_mode(status)
 
         if (status%ok()) then
@@ -4669,9 +4671,9 @@ contains
         if (status%ok()) then
             ! Skip the group name by default.
             call ibuffer_forward_line(0_int64, .true.)
-            buffers(cur)%read_only = .false.
+            buffers(current)%read_only = .false.
             call ibuffer_hook%execute(status)
-            buffers(cur)%read_only = .true.
+            buffers(current)%read_only = .true.
         end if
 
         if (status%ok() .and. .not. ibuffer_expert) then
@@ -4680,7 +4682,7 @@ contains
                                                  //"\[ibuffer_toggle_marks], " &
                                                  //"\[ibuffer_visit_buffer], " &
                                                  //"\[ibuffer_update], " &
-                                                 //"\[ibuffer_do_kill_lines], " &
+                                                 //"\[ibuffer_do_remove_lines], " &
                                                  //"\[ibuffer_do_save], " &
                                                  //"\[ibuffer_do_delete], " &
                                                  //"\[ibuffer_do_query_replace]; " &
@@ -4711,7 +4713,7 @@ contains
 
         other = .false.
         if (present(other_window)) other = other_window
-        name = buffers(cur)%name
+        name = buffers(current)%name
         call ibuffer(status, other_window_p=other)
         if (.not. status%ok()) return
         call jump_to_buffer_by_name(name, st)
@@ -4757,7 +4759,7 @@ contains
     !>   \[ibuffer_do_view] - View the marked buffers in the selected frame.
     !>   \[ibuffer_do_revert] - Revert the marked buffers.
     !>   \[ibuffer_do_toggle_read_only] - Toggle read-only state of marked buffers.
-    !>   \[ibuffer_do_delete] - Kill the marked buffers.
+    !>   \[ibuffer_do_delete] - Close the marked buffers.
     !>   \[ibuffer_do_replace_regexp] - Replace by regexp in each of the marked
     !>         buffers.
     !>   \[ibuffer_do_query_replace] - Query replace in each of the marked buffers.
@@ -4770,9 +4772,9 @@ contains
     !>         buffers with the output of a shell command.
     !>   \[ibuffer_do_shell_command_file] - Run a shell command with the
     !>         buffer's file as an argument.
-    !>   \[ibuffer_do_kill_lines] - Remove the marked lines from the *Ibuffer* buffer,
-    !>         but don't kill the associated buffer.
-    !>   \[ibuffer_do_kill_on_deletion_marks] - Kill all buffers marked for deletion.
+    !>   \[ibuffer_do_remove_lines] - Remove the marked lines from the *Ibuffer* buffer,
+    !>         but don't close the associated buffer.
+    !>   \[ibuffer_do_close_on_deletion_marks] - Close all buffers marked for deletion.
     !>
     !> Marking commands:
     !>
@@ -4855,7 +4857,7 @@ contains
     !>
     !>   \[ibuffer_update] - Regenerate the list of all buffers.
     !>         Prefix arg means to toggle whether buffers that match
-    !>         `ibuffer_maybe_show_predicates' should be displayed.
+    !>         `ibuffer_maybe_show_tests' should be displayed.
     !>   \[ibuffer_auto_mode] - Toggle automatic updates.
     !>
     !>   \[ibuffer_switch_format] - Change the current display format.
@@ -4868,7 +4870,7 @@ contains
     !>   \[ibuffer_visit_buffer_other_window] - As above, but in another window.
     !>   \[ibuffer_visit_buffer_other_window_noselect] - As both above, but don't select
     !>         the new window.
-    !>   \[ibuffer_bury_buffer] - Bury (not kill!) the buffer on this line.
+    !>   \[ibuffer_bury_buffer] - Bury (not close!) the buffer on this line.
     !>
     !> ** Information on Filtering:
     !>
@@ -4927,7 +4929,7 @@ contains
     !> filter groups are displayed in this order of precedence.
     !>
     !> You may rearrange filter groups by using the usual pair
-    !> \[ibuffer_kill_line] and \[ibuffer_yank].  Yanked groups
+    !> \[ibuffer_cut_line] and \[ibuffer_paste].  Pasted groups
     !> will be inserted before the group at point.
     !>
     !> Port of ibuffer.el:ibuffer-mode.
@@ -4939,21 +4941,21 @@ contains
 
         call major_modes%ibuffer_mode%begin(saved, status)
         if (.not. status%ok()) return
-        buffers(cur)%read_only = .true.
-        buffers(cur)%undo_enabled = .false.
+        buffers(current)%read_only = .true.
+        buffers(current)%undo_enabled = .false.
         call revert_buffer_function%set_local(revert_function)
         k = ibuffer_local_index(.true.)
-        locals(k) = local_type(serial=buffers(cur)%serial)
+        locals(k) = local_type(serial=buffers(current)%serial)
         call init_local(k)
         locals(k)%sorting_mode = ibuffer_default_sorting_mode
         locals(k)%sorting_reversep = ibuffer_default_sorting_reversep
         if (ibuffer_default_shrink_to_minimum_size) locals(k)%shrink = IBUFFER_SHRINK_YES
-        locals(k)%display_maybe_show_predicates = ibuffer_default_display_maybe_show_predicates
+        locals(k)%display_maybe_show_tests = ibuffer_default_display_maybe_show_tests
         call ibuffer_update_format(st)
         call update_mode_line_process()
-        if (allocated(ibuffer_default_directory)) buffers(cur)%directory = ibuffer_default_directory
-        call change_major_mode_hook%add(defontify, local=.true.)
-        call major_modes%ibuffer_mode%finish(saved, status)
+        if (allocated(ibuffer_default_directory)) buffers(current)%directory = ibuffer_default_directory
+        call change_major_mode_hook%append(defontify, local=.true.)
+        call major_modes%ibuffer_mode%end(saved, status)
     end subroutine ibuffer_mode
 
     ! Not a port.
@@ -5035,39 +5037,39 @@ contains
     end subroutine read_char
 
     ! ------------------------------------------------------------------
-    ! Fontification forms (the defaults of `ibuffer_fontification_table')
+    ! Fontification forms (the defaults of `ibuffer_fontifications')
     ! ------------------------------------------------------------------
 
     ! Not a port.
     recursive logical function form_read_only()
-        form_read_only = buffers(cur)%read_only
+        form_read_only = buffers(current)%read_only
     end function form_read_only
 
     !> Whether the current buffer visits a compressed file
     !> (`ibuffer_compressed_file_name_regexp'), a default form of
-    !> `ibuffer_fontification_table'.  Port of ibuffer.el's fontification form.
+    !> `ibuffer_fontifications'.  Port of ibuffer.el's fontification form.
     recursive logical function form_compressed()
         integer(int64) :: m
         type(status_type) :: st
 
         form_compressed = .false.
-        if (.not. allocated(buffers(cur)%filename)) return
-        if (len(buffers(cur)%filename) == 0) return
-        m = string_match(ibuffer_compressed_file_name_regexp, buffers(cur)%filename, st)
+        if (.not. allocated(buffers(current)%filename)) return
+        if (len(buffers(current)%filename) == 0) return
+        m = string_match(ibuffer_compressed_file_name_regexp, buffers(current)%filename, st)
         form_compressed = st%ok() .and. m > 0
     end function form_compressed
 
     ! Not a port.
     recursive logical function form_starred()
         form_starred = .false.
-        if (len(buffers(cur)%name) > 0) form_starred = buffers(cur)%name(1:1) == "*"
+        if (len(buffers(current)%name) > 0) form_starred = buffers(current)%name(1:1) == "*"
     end function form_starred
 
     ! Not a port.
     recursive logical function form_help_mode()
         form_help_mode = .false.
-        if (.not. allocated(buffers(cur)%major_mode)) return
-        form_help_mode = any(ibuffer_help_buffer_modes == buffers(cur)%major_mode)
+        if (.not. allocated(buffers(current)%major_mode)) return
+        form_help_mode = any(ibuffer_help_buffer_modes == buffers(current)%major_mode)
     end function form_help_mode
 
     ! Not a port.
@@ -5087,36 +5089,36 @@ contains
         type(status_type) :: st
         type(handle_type) :: m
 
-        call add_local_variables_killer(kill_ibuffer_locals)
+        call append_locals_clearer(clear_ibuffer_locals)
 
         if (.not. allocated(ibuffer_formats%formats)) then
-            call ibuffer_formats%add([ibuffer_column("mark"), ibuffer_column("modified"), ibuffer_column("read_only"), &
-                                      ibuffer_column("locked"), ibuffer_text(" "), &
-                                      ibuffer_column("name", 18, 18, IBUFFER_ALIGN_LEFT, .true.), ibuffer_text(" "), &
-                                      ibuffer_column("size", 9, -1, IBUFFER_ALIGN_RIGHT), ibuffer_text(" "), &
-                                      ibuffer_column("mode", 16, 16, IBUFFER_ALIGN_LEFT, .true.), ibuffer_text(" "), &
-                                      ibuffer_column("filename_and_process")])
-            call ibuffer_formats%add([ibuffer_column("mark"), ibuffer_text(" "), ibuffer_column("name", 16, -1), &
-                                      ibuffer_text(" "), ibuffer_column("filename")])
+            call ibuffer_formats%append([ibuffer_column("mark"), ibuffer_column("modified"), ibuffer_column("read_only"), &
+                                         ibuffer_column("locked"), ibuffer_text(" "), &
+                                         ibuffer_column("name", 18, 18, IBUFFER_ALIGN_LEFT, .true.), ibuffer_text(" "), &
+                                         ibuffer_column("size", 9, -1, IBUFFER_ALIGN_RIGHT), ibuffer_text(" "), &
+                                         ibuffer_column("mode", 16, 16, IBUFFER_ALIGN_LEFT, .true.), ibuffer_text(" "), &
+                                         ibuffer_column("filename_and_process")])
+            call ibuffer_formats%append([ibuffer_column("mark"), ibuffer_text(" "), ibuffer_column("name", 16, -1), &
+                                         ibuffer_text(" "), ibuffer_column("filename")])
         end if
 
-        if (.not. allocated(ibuffer_fontification_table)) then
-            allocate (ibuffer_fontification_table(7))
-            ibuffer_fontification_table(1) = ibuffer_fontification_type(10, form_read_only, "font_lock_constant_face")
-            ibuffer_fontification_table(2) = ibuffer_fontification_type(15, form_compressed, "font_lock_doc_face")
-            ibuffer_fontification_table(3) = ibuffer_fontification_type(20, form_starred, "font_lock_keyword_face")
-            ibuffer_fontification_table(4) = ibuffer_fontification_type(25, hidden_current, "italic")
-            ibuffer_fontification_table(5) = ibuffer_fontification_type(30, form_help_mode, "font_lock_comment_face")
-            ibuffer_fontification_table(6) = ibuffer_fontification_type(35, form_dired, "font_lock_function_name_face")
-            ibuffer_fontification_table(7) = ibuffer_fontification_type(40, form_locked, "ibuffer_locked_buffer")
+        if (.not. allocated(ibuffer_fontifications)) then
+            allocate (ibuffer_fontifications(7))
+            ibuffer_fontifications(1) = ibuffer_fontification_type(10, form_read_only, "font_lock_constant_face")
+            ibuffer_fontifications(2) = ibuffer_fontification_type(15, form_compressed, "font_lock_doc_face")
+            ibuffer_fontifications(3) = ibuffer_fontification_type(20, form_starred, "font_lock_keyword_face")
+            ibuffer_fontifications(4) = ibuffer_fontification_type(25, hidden_current, "italic")
+            ibuffer_fontifications(5) = ibuffer_fontification_type(30, form_help_mode, "font_lock_comment_face")
+            ibuffer_fontifications(6) = ibuffer_fontification_type(35, form_dired, "font_lock_function_name_face")
+            ibuffer_fontifications(7) = ibuffer_fontification_type(40, form_locked, "ibuffer_locked_buffer")
         end if
 
         if (.not. allocated(ibuffer_default_sorting_mode)) ibuffer_default_sorting_mode = "recency"
         if (.not. allocated(ibuffer_eliding_string)) ibuffer_eliding_string = "..."
 
-        if (.not. allocated(ibuffer_maybe_show_predicates)) then
-            allocate (ibuffer_maybe_show_predicates(1))
-            ibuffer_maybe_show_predicates(1)%predicate => is_ibuffer_hidden_buffer
+        if (.not. allocated(ibuffer_maybe_show_tests)) then
+            allocate (ibuffer_maybe_show_tests(1))
+            ibuffer_maybe_show_tests(1)%test => is_ibuffer_hidden_buffer
         end if
 
         if (.not. allocated(ibuffer_help_buffer_modes)) then
@@ -5134,9 +5136,9 @@ contains
         if (.not. allocated(ibuffer_deletion_face)) ibuffer_deletion_face = "ibuffer_deletion"
         if (.not. allocated(ibuffer_title_face)) ibuffer_title_face = "ibuffer_title"
         if (.not. allocated(ibuffer_filter_group_name_face)) ibuffer_filter_group_name_face = "ibuffer_filter_group_name"
-        if (.not. allocated(ibuffer_directory_abbrev_table)) allocate (ibuffer_directory_abbrev_table(0))
-        if (.not. allocated(ibuffer_never_show_predicates)) allocate (ibuffer_never_show_predicates(0))
-        if (.not. allocated(ibuffer_always_show_predicates)) allocate (ibuffer_always_show_predicates(0))
+        if (.not. allocated(ibuffer_directory_abbrevs)) allocate (ibuffer_directory_abbrevs(0))
+        if (.not. allocated(ibuffer_never_show_tests)) allocate (ibuffer_never_show_tests(0))
+        if (.not. allocated(ibuffer_always_show_tests)) allocate (ibuffer_always_show_tests(0))
 
         if (.not. allocated(ibuffer_never_search_content_name)) then
             allocate (ibuffer_never_search_content_name(13))
@@ -5161,37 +5163,37 @@ contains
         end if
 
         if (.not. allocated(ibuffer_saved_filters%entries)) then
-            call ibuffer_saved_filters%add("programming", &
-                                           ibuffer_or(ibuffer_derived_mode("prog_mode"), &
-                                                      ibuffer_major_mode("ess_mode"), &
-                                                      ibuffer_major_mode("compilation_mode")))
-            call ibuffer_saved_filters%add("text document", &
-                                           ibuffer_and(ibuffer_derived_mode("text_mode"), &
-                                                       ibuffer_not(ibuffer_starred_name())))
-            call ibuffer_saved_filters%add("TeX", &
-                                           ibuffer_or(ibuffer_derived_mode("tex_mode"), &
-                                                      ibuffer_major_mode("latex_mode"), &
-                                                      ibuffer_major_mode("context_mode"), &
-                                                      ibuffer_major_mode("ams_tex_mode"), &
-                                                      ibuffer_major_mode("bibtex_mode")))
-            call ibuffer_saved_filters%add("web", &
-                                           ibuffer_or(ibuffer_derived_mode("sgml_mode"), &
-                                                      ibuffer_derived_mode("css_base_mode"), &
-                                                      ibuffer_derived_mode("js_base_mode"), &
-                                                      ibuffer_derived_mode("typescript_ts_base_mode"), &
-                                                      ibuffer_major_mode("js2_mode"), &
-                                                      ibuffer_derived_mode("haml_mode"), &
-                                                      ibuffer_major_mode("sass_mode")))
-            call ibuffer_saved_filters%add("gnus", &
-                                           ibuffer_or(ibuffer_major_mode("message_mode"), &
-                                                      ibuffer_major_mode("mail_mode"), &
-                                                      ibuffer_major_mode("gnus_group_mode"), &
-                                                      ibuffer_major_mode("gnus_summary_mode"), &
-                                                      ibuffer_major_mode("gnus_article_mode")))
+            call ibuffer_saved_filters%append("programming", &
+                                              ibuffer_or(ibuffer_derived_mode("prog_mode"), &
+                                                         ibuffer_major_mode("ess_mode"), &
+                                                         ibuffer_major_mode("compilation_mode")))
+            call ibuffer_saved_filters%append("text document", &
+                                              ibuffer_and(ibuffer_derived_mode("text_mode"), &
+                                                          ibuffer_not(ibuffer_starred_name())))
+            call ibuffer_saved_filters%append("TeX", &
+                                              ibuffer_or(ibuffer_derived_mode("tex_mode"), &
+                                                         ibuffer_major_mode("latex_mode"), &
+                                                         ibuffer_major_mode("context_mode"), &
+                                                         ibuffer_major_mode("ams_tex_mode"), &
+                                                         ibuffer_major_mode("bibtex_mode")))
+            call ibuffer_saved_filters%append("web", &
+                                              ibuffer_or(ibuffer_derived_mode("sgml_mode"), &
+                                                         ibuffer_derived_mode("css_base_mode"), &
+                                                         ibuffer_derived_mode("js_base_mode"), &
+                                                         ibuffer_derived_mode("typescript_ts_base_mode"), &
+                                                         ibuffer_major_mode("js2_mode"), &
+                                                         ibuffer_derived_mode("haml_mode"), &
+                                                         ibuffer_major_mode("sass_mode")))
+            call ibuffer_saved_filters%append("gnus", &
+                                              ibuffer_or(ibuffer_major_mode("message_mode"), &
+                                                         ibuffer_major_mode("mail_mode"), &
+                                                         ibuffer_major_mode("gnus_group_mode"), &
+                                                         ibuffer_major_mode("gnus_summary_mode"), &
+                                                         ibuffer_major_mode("gnus_article_mode")))
         end if
 
         if (.not. allocated(ibuffer_saved_filter_groups%entries)) allocate (ibuffer_saved_filter_groups%entries(0))
-        if (.not. allocated(ibuffer_filter_format_table%entries)) allocate (ibuffer_filter_format_table%entries(0))
+        if (.not. allocated(ibuffer_filter_formats%entries)) allocate (ibuffer_filter_formats%entries(0))
         call ibuffer_marked_face_def%define("ibuffer_marked", "Face used by default in `ibuffer_marked_face'.")
         call ibuffer_marked_face_def%spec_entry(display_when(), face_attrs(inherit="warning"))
         call ibuffer_deletion_face_def%define("ibuffer_deletion", "Face used by default in `ibuffer_deletion_face'.")
@@ -5247,7 +5249,7 @@ contains
         commands%ibuffer_do_toggle_read_only%execute => cmd_ibuffer_do_toggle_read_only
         commands%ibuffer_do_toggle_lock%execute => ibuffer_do_toggle_lock
         commands%ibuffer_do_delete%execute => ibuffer_do_delete
-        commands%ibuffer_do_kill_on_deletion_marks%execute => ibuffer_do_kill_on_deletion_marks
+        commands%ibuffer_do_close_on_deletion_marks%execute => ibuffer_do_close_on_deletion_marks
         commands%ibuffer_unmark_all%execute => cmd_ibuffer_unmark_all
         commands%ibuffer_unmark_all_marks%execute => ibuffer_unmark_all_marks
         commands%ibuffer_toggle_marks%execute => cmd_ibuffer_toggle_marks
@@ -5282,7 +5284,7 @@ contains
         call keymap_set(m, "U", "ibuffer_unmark_all_marks", st)
         call keymap_set(m, "d", "ibuffer_mark_for_delete", st)
         call keymap_set(m, "C-d", "ibuffer_mark_for_delete_backwards", st)
-        call keymap_set(m, "x", "ibuffer_do_kill_on_deletion_marks", st)
+        call keymap_set(m, "x", "ibuffer_do_close_on_deletion_marks", st)
         ! immediate operations
         call keymap_set(m, "n", "ibuffer_forward_line", st)
         call keymap_set(m, "SPC", "forward_line", st)

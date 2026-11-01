@@ -1,7 +1,7 @@
 ! test_easy_mmode_fm.f90 -- tests for minor modes (easy_mmode_fm), Auto
 ! Fill mode and the mode line's lighters.
 ! Ports GNU Emacs 31.1 test/lisp/emacs-lisp/easy-mmode-tests.el in part;
-! the others test the :predicate of globalized minor modes, which is not
+! the others test the :test of globalized minor modes, which is not
 ! ported.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
@@ -31,7 +31,7 @@ module test_easy_mmode_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, cur, auto_fill_function, &
+    use buffer_fm, only: get_or_make_buffer, close_buffer, set_buffer, current, auto_fill_function, &
                          transient_mark_mode
     use data_fm, only: symbol_value, value_eq
     use callint_fm, only: current_prefix_arg
@@ -94,7 +94,7 @@ contains
         type(status_type) :: st
 
         call test_mode%define("easy-mmode-test-mode", "", body=test_body)
-        call get_buffer_create("easy-mmode-test", a, st)
+        call get_or_make_buffer("easy-mmode-test", a, st)
         call set_buffer(a, st)
         call check(error,.not. test_mode_on(), "off at first")
         if (allocated(error)) return
@@ -119,7 +119,7 @@ contains
         if (allocated(error)) return
         call test_mode%toggle(st)
         call check(error,.not. test_mode_on(), "toggle again")
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
     end subroutine test_minor_mode
 
     subroutine test_pretty_name(error)
@@ -157,8 +157,8 @@ contains
 
         call test_lit_mode%define("easy-mmode-test-lit-mode", " Lit", keymap=.true.)
         call keymap_set(test_lit_mode%map, "C-c l", "forward_char", st)
-        call get_buffer_create("easy-mmode-test-A", a, st)
-        call get_buffer_create("easy-mmode-test-B", b, st)
+        call get_or_make_buffer("easy-mmode-test-A", a, st)
+        call get_or_make_buffer("easy-mmode-test-B", b, st)
         call set_buffer(a, st)
         current_prefix_arg = prefix_arg_type()
         call test_lit_mode%command(st)
@@ -181,8 +181,8 @@ contains
         if (allocated(error)) return
         call key_binding(key, binding, st)
         call check(error,.not. allocated(binding%a), "map inactive in B")
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
     end subroutine test_local_and_map
 
     !> auto-fill-mode sets auto-fill-function in the current buffer only.
@@ -191,8 +191,8 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
 
-        call get_buffer_create("easy-mmode-fill-A", a, st)
-        call get_buffer_create("easy-mmode-fill-B", b, st)
+        call get_or_make_buffer("easy-mmode-fill-A", a, st)
+        call get_or_make_buffer("easy-mmode-fill-B", b, st)
         call syms_of_simple()
         call set_buffer(a, st)
         call turn_on_auto_fill(st)
@@ -208,8 +208,8 @@ contains
         call set_buffer(a, st)
         call minor_modes%auto_fill_mode%toggle(st)
         call check(error,.not. associated(auto_fill_function%value), "toggled off in A")
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
     end subroutine test_auto_fill
 
     !> transient-mark-mode is global.

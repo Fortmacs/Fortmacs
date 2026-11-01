@@ -33,8 +33,8 @@ module test_help_fm
     use lisp_fm, only: value_type, make_list
     use print_fm, only: fortran_repr
     use callint_fm, only: current_prefix_arg
-    use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NEVER
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
+    use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NO
+    use buffer_fm, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
                          auto_fill_function, is_buffer_live
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
@@ -44,12 +44,12 @@ module test_help_fm
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
-    use isearch_fm, only: search_upper_case, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS
+    use isearch_fm, only: search_upper_case, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED
     use simple_fm, only: fill_prefix, do_auto_fill
     use help_fm, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                        make_separator_line, register_keymap_name
     use xdisp_fm, only: message, message_nolog
-    use keymap_fm, only: make_sparse_keymap, free_keymap
+    use keymap_fm, only: make_sparse_keymap, destroy_keymap
     use lisp_fm, only: make_keymap_ref, value_type
     use help_fns_fm, only: describe_function_1, describe_variable_text
     implicit none(type, external)
@@ -115,13 +115,13 @@ contains
 
     !> A fresh *scratch* with the default bindings.
     subroutine fresh_scratch()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
         ! One window, showing *scratch*.
         call ensure_frame_windows()
         call delete_other_windows(selected_frame%selected_window, st)
@@ -318,7 +318,7 @@ contains
         call check(error, index(text, LF//LF//"It is bound to many ordinary text characters."//LF//LF) > 0, text)
         if (allocated(error)) return
         ! The last key follows " and ".
-        call describe_function_1("kill_ring_save", text)
+        call describe_function_1("copy_region", text)
         call check(error, index(text, LF//LF//"It is bound to <copy>, C-<insertchar>, C-<insert> and M-w."//LF//LF) > 0, &
                    text)
         if (allocated(error)) return
@@ -369,7 +369,7 @@ contains
         call check(error, index(text, "Original value") == 0, text)
         if (allocated(error)) return
         call describe_variable_text("search_upper_case", text, found)
-        call check(error, index(text, "Its value is UPPER_CASE_NOT_YANKS"//LF) > 0, text)
+        call check(error, index(text, "Its value is SEARCH_UPPER_CASE_NOT_PASTED"//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("completion_ignored_extensions", text, found)
         call check(error, index(text, "Its value is"//LF//"["".o"", ""~"", ") > 0, text)
@@ -382,11 +382,11 @@ contains
         if (allocated(error)) return
         ! An original value of 20 characters or more starts on the next
         ! line.
-        search_upper_case = UPPER_CASE_YES
+        search_upper_case = SEARCH_UPPER_CASE_YES
         call describe_variable_text("search_upper_case", text, found)
-        search_upper_case = UPPER_CASE_NOT_YANKS
-        call check(error, index(text, "Its value is UPPER_CASE_YES"//LF// &
-                                "Original value was "//LF//"UPPER_CASE_NOT_YANKS"//LF) > 0, text)
+        search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
+        call check(error, index(text, "Its value is SEARCH_UPPER_CASE_YES"//LF// &
+                                "Original value was "//LF//"SEARCH_UPPER_CASE_NOT_PASTED"//LF) > 0, text)
         if (allocated(error)) return
         ! A value fits on the "Its value is" line when it is shorter than
         ! 56 characters.
@@ -414,16 +414,16 @@ contains
         call describe_variable_text("case_fold_search", text, found)
         call check(error, index(text, "Its value is .true."//LF) > 0, text)
         if (allocated(error)) return
-        call describe_variable_text("kill_read_only_ok", text, found)
+        call describe_variable_text("cut_read_only_ok", text, found)
         call check(error, index(text, "Its value is .false."//LF) > 0, text)
         if (allocated(error)) return
         ! An enumerated integer setting: its named constant, and the one
         ! it started with.
         require_final_newline = FINAL_NEWLINE_VISIT
         call describe_variable_text("require_final_newline", text, found)
-        require_final_newline = FINAL_NEWLINE_NEVER
+        require_final_newline = FINAL_NEWLINE_NO
         call check(error, index(text, "Its value is FINAL_NEWLINE_VISIT"//LF// &
-                                "Original value was FINAL_NEWLINE_NEVER"//LF) > 0, text)
+                                "Original value was FINAL_NEWLINE_NO"//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("fill_prefix", text, found)
         call check(error, index(text, "Its value is unallocated"//LF) > 0, text)
@@ -465,8 +465,8 @@ contains
         character(len=:), allocatable :: text
 
         call fresh_scratch()
-        call describe_function_1("kill_line", text, "kill_line is ")
-        call check(error, index(text, "kill_line is an interactive Fortran subroutine in "//LQ//"simple_fm.f90"//RQ// &
+        call describe_function_1("cut_line", text, "cut_line is ")
+        call check(error, index(text, "cut_line is an interactive Fortran subroutine in "//LQ//"simple_fm.f90"//RQ// &
                                 "."//LF//LF) == 1, text)
         if (allocated(error)) return
         call describe_function_1("fill_paragraph", text, "fill_paragraph is ")
@@ -505,7 +505,7 @@ contains
         if (allocated(error)) return
         call check(error, fortran_repr(value_type(text='say "hi"')) == '"say ""hi"""', fortran_repr(value_type(text='say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(name="UPPER_CASE_YES")) == "UPPER_CASE_YES")
+        call check(error, fortran_repr(value_type(name="SEARCH_UPPER_CASE_YES")) == "SEARCH_UPPER_CASE_YES")
         if (allocated(error)) return
         elems(1) = value_type(1_int64)
         elems(2) = value_type(text="a")
@@ -543,8 +543,8 @@ contains
         call with_help_window("Some help."//LF, st)
         ! The help buffer pops up in a new window below; the selected
         ! window and the current buffer stay.
-        call check(error, st%ok() .and. buffers(cur)%name == "*scratch*" .and. window_count() == 2 .and. &
-                   selected_buffer_name() == "*scratch*", buffers(cur)%name)
+        call check(error, st%ok() .and. buffers(current)%name == "*scratch*" .and. window_count() == 2 .and. &
+                   selected_buffer_name() == "*scratch*", buffers(current)%name)
         if (allocated(error)) return
         help = get_buffer("*Help*")
         call check(error, buffers(help%index)%read_only .and. help_text() == "Some help."//LF, help_text())
@@ -561,7 +561,7 @@ contains
         if (allocated(error)) return
         call type_keys("q")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*scratch*" .and. window_count() == 1, buffers(cur)%name)
+        call check(error, buffers(current)%name == "*scratch*" .and. window_count() == 1, buffers(current)%name)
     end subroutine test_help_window
 
     subroutine test_describe_key(error)
@@ -571,7 +571,7 @@ contains
         call fresh_scratch()
         call type_keys("C-h k C-f")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*scratch*" .and. window_count() == 2, buffers(cur)%name)
+        call check(error, buffers(current)%name == "*scratch*" .and. window_count() == 2, buffers(current)%name)
         if (allocated(error)) return
         ! The line is filled (describe-function-1).
         call check(error, index(help_text(), "C-f runs the command forward_char (found in global_map), which is "// &
@@ -588,7 +588,7 @@ contains
         if (allocated(error)) return
         call type_keys("C-x o q")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
+        call check(error, buffers(current)%name == "*scratch*", buffers(current)%name)
     end subroutine test_describe_key
 
     subroutine test_describe_key_undefined(error)
@@ -598,14 +598,14 @@ contains
         call fresh_scratch()
         call type_keys("C-h k C-x y")
         call command_loop(st)
-        call check(error, last_message == "C-x y is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
+        call check(error, last_message == "C-x y is undefined" .and. buffers(current)%name == "*scratch*", last_message)
         if (allocated(error)) return
         ! A key bound to `undefined' is undefined too
         ! (help--binding-undefined-p).
         call keymap_global_set("C-c z", "undefined", st)
         call type_keys("C-h k C-c z")
         call command_loop(st)
-        call check(error, last_message == "C-c z is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
+        call check(error, last_message == "C-c z is undefined" .and. buffers(current)%name == "*scratch*", last_message)
         if (allocated(error)) return
         call type_keys("C-h c C-c z")
         call command_loop(st)
@@ -735,7 +735,7 @@ contains
                       "M-p"//TAB//TAB//"previous_history_element"//LF//"M-r"//TAB//TAB//"previous_matching_history_element"// &
                       LF//"M-s"//TAB//TAB//"next_matching_history_element"//LF//"M-v"//TAB//TAB//"switch_to_completions"// &
                       LF//LF//"M-g M-c"//TAB//TAB//"switch_to_completions"//LF)
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
     end subroutine test_sck_keymaps
 
     subroutine test_sck_undefined_map(error)
@@ -790,7 +790,7 @@ contains
         text = map_tree_text(map, .true., shadow, .true.)
         call check(error, text, LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF// &
                    "  (this binding is currently shadowed)"//LF//"C-b"//TAB//TAB//"bar"//LF)
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
     end subroutine test_map_tree_shadow_t
 
     subroutine test_map_tree_shadow_nil(error)
@@ -804,7 +804,7 @@ contains
         call shadow_maps(map, shadow)
         text = map_tree_text(map, .true., shadow, .false.)
         call check(error, text, LF//"Key             Binding"//LF//sep()//"C-b"//TAB//TAB//"bar"//LF)
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
     end subroutine test_map_tree_shadow_nil
 
     subroutine test_map_tree_partial_t(error)
@@ -820,7 +820,7 @@ contains
         call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .true., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF)
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
     end subroutine test_map_tree_partial_t
 
     subroutine test_map_tree_partial_nil(error)
@@ -836,7 +836,7 @@ contains
         call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .false., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF//"C-b"//TAB//TAB//"undefined"//LF)
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
     end subroutine test_map_tree_partial_nil
 
     !> Runs of characters bound alike, prefix maps after the map itself
@@ -862,7 +862,7 @@ contains
                    LF//"Key             Binding"//LF//sep()//"a .. c"//TAB//TAB//"self_insert_command"//LF// &
                    "<f2>"//TAB//TAB//"two"//LF//"<f11>"//TAB//TAB//"eleven"//LF//LF// &
                    "C-c C-x"//repeat(TAB, 4)//"ccx"//LF//"C-c <some-long-key-name>"//TAB//"long"//LF)
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
     end subroutine test_map_tree_ranges
 
     !> C-h b: the major mode's map, then the global map, its bindings
@@ -1032,7 +1032,7 @@ contains
         call message_nolog("Not logged")
         call type_keys("C-h e")
         call command_loop(st)
-        text = buf_text("*Messages*")
+        text = buffer_text("*Messages*")
         call check(error, index(text, "First message"//LF//"Second message"//LF) > 0 .and. &
                    index(text, "Not logged") == 0, text)
         if (allocated(error)) return
@@ -1042,7 +1042,7 @@ contains
         call type_keys("C-x y")
         call command_loop(st)
         call message("After")
-        text = buf_text("*Messages*")
+        text = buffer_text("*Messages*")
         call check(error, index(text, LF//"C-x y is undefined"//LF//"After"//LF) > 0, text)
         call fresh_scratch()
     end subroutine test_view_messages
@@ -1061,7 +1061,7 @@ contains
         call message("Again")
         call message("Working...")
         call message("Working...done")
-        text = buf_text("*Messages*")
+        text = buffer_text("*Messages*")
         call check(error, index(text, "Unique start"//LF//"Again [3 times]"//LF//"Working...done"//LF) > 0, text)
     end subroutine test_messages_duplicates
 
@@ -1079,7 +1079,7 @@ contains
         call discard_input()
         call type_keys("C-h C-h k C-f")
         call command_loop(st)
-        text = buf_text(" *Metahelp*")
+        text = buffer_text(" *Metahelp*")
         call check(error, index(text, "(Type <PageDown> or <PageUp> to scroll, C-s to search, or q to exit.)"//LF//LF// &
                                 "Commands, Keys and Functions"//LF//LF//"   m "//TAB// &
                                 "Show help for current major and minor modes and their commands"//LF) == 1, text)
@@ -1109,7 +1109,7 @@ contains
         call check(error, window_count() == 1, "the window configuration is restored")
     end subroutine test_help_for_help_unbound
 
-    function buf_text(name) result(text)
+    function buffer_text(name) result(text)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: text
         type(handle_type) :: old
@@ -1121,5 +1121,5 @@ contains
         call set_buffer(get_buffer(name), st)
         text = buffer_string()
         call set_buffer(old, st)
-    end function buf_text
+    end function buffer_text
 end module test_help_fm

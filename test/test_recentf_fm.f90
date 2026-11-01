@@ -27,10 +27,10 @@ module test_recentf_fm
     use error_fm, only: status_type, format_error
     use lisp_fm, only: value_type, list_length, list_elt, xstring
     use data_fm, only: set, symbol_value
-    use files_fm, only: make_temp_file, delete_file
+    use files_fm, only: create_temp_file, delete_file
     use bindings_fm, only: init_bindings
-    use recentf_fm, only: recentf_list, recentf_add_file, recentf_exclude, recentf_check_type, recentf_keep, &
-                          recentf_keep_default_predicate, is_recentf_exclude_file_by_extension, &
+    use recentf_fm, only: recentf_files, recentf_add_file, recentf_exclude, recentf_check_type, recentf_keep, &
+                          recentf_keep_default_test, is_recentf_exclude_file_by_extension, &
                           recentf_exclude_ignored_extensions, recentf_remove_if_non_kept, recentf_cleanup, &
                           recentf_save_list, recentf_load_list, recentf_save_file, recentf_open_most_recent_file, &
                           recentf_show_messages
@@ -57,28 +57,28 @@ contains
     !> Defaults, and an empty list.
     subroutine start()
         call init_bindings()
-        if (allocated(recentf_list)) deallocate (recentf_list)
-        allocate (recentf_list(0))
+        if (allocated(recentf_files)) deallocate (recentf_files)
+        allocate (recentf_files(0))
         if (allocated(recentf_exclude)) deallocate (recentf_exclude)
         allocate (recentf_exclude(0))
         if (allocated(recentf_exclude_ignored_extensions)) deallocate (recentf_exclude_ignored_extensions)
         allocate (recentf_exclude_ignored_extensions(0))
         if (allocated(recentf_keep)) deallocate (recentf_keep)
         allocate (recentf_keep(1))
-        recentf_keep(1)%predicate => recentf_keep_default_predicate
+        recentf_keep(1)%test => recentf_keep_default_test
         recentf_show_messages = .false.
     end subroutine start
 
-    !> The names of `recentf_list' joined by "|".
+    !> The names of `recentf_files' joined by "|".
     function joined() result(s)
         character(len=:), allocatable :: s
         integer :: k
 
         s = ""
 
-        do k = 1, size(recentf_list)
+        do k = 1, size(recentf_files)
             if (k > 1) s = s//"|"
-            s = s//recentf_list(k)%name
+            s = s//recentf_files(k)%name
         end do
     end function joined
 
@@ -96,13 +96,13 @@ contains
         call check(error, joined(), "/tmp/recentf-y|/tmp/recentf-x")
     end subroutine test_add_file
 
-    !> A regexp and a predicate of `recentf_exclude'.
+    !> A regexp and a test of `recentf_exclude'.
     subroutine test_exclude(error)
         type(error_type), allocatable, intent(out) :: error
 
         call start()
         recentf_exclude = [recentf_check_type(regexp="\.tmp\'"), &
-                           recentf_check_type(predicate=is_recentf_exclude_file_by_extension)]
+                           recentf_check_type(test=is_recentf_exclude_file_by_extension)]
         recentf_exclude_ignored_extensions = [character(len=32) :: ".o"]
         call recentf_add_file("/tmp/a.tmp")
         call recentf_add_file("/tmp/a.o")
@@ -122,7 +122,7 @@ contains
         logical :: removed
 
         call start()
-        call make_temp_file("recentf-test", tmpfile, st)
+        call create_temp_file("recentf-test", tmpfile, st)
         call recentf_add_file("/this/file/does/not/exist")
         call recentf_add_file(tmpfile)
         call recentf_remove_if_non_kept("/this/file/does/not/exist", removed)
@@ -132,11 +132,11 @@ contains
         call check(error,.not. removed, "kept")
         if (allocated(error)) return
         ! A duplicate and a file that can't be read, then cleanup.
-        deallocate (recentf_list)
-        allocate (recentf_list(3))
-        recentf_list(1)%name = tmpfile
-        recentf_list(2)%name = "/this/file/does/not/exist"
-        recentf_list(3)%name = tmpfile
+        deallocate (recentf_files)
+        allocate (recentf_files(3))
+        recentf_files(1)%name = tmpfile
+        recentf_files(2)%name = "/this/file/does/not/exist"
+        recentf_files(3)%name = tmpfile
         call recentf_cleanup()
         call check(error, joined(), tmpfile)
         call delete_file(tmpfile, st)
@@ -151,15 +151,15 @@ contains
         type(value_type) :: history
 
         call start()
-        call make_temp_file("recentf-test", tmpfile, st)
+        call create_temp_file("recentf-test", tmpfile, st)
         recentf_save_file = tmpfile
-        deallocate (recentf_list)
-        allocate (recentf_list(2))
-        recentf_list(1)%name = "/tmp/one"
-        recentf_list(2)%name = '/tmp/two "quoted"'
+        deallocate (recentf_files)
+        allocate (recentf_files(2))
+        recentf_files(1)%name = "/tmp/one"
+        recentf_files(2)%name = '/tmp/two "quoted"'
         call recentf_save_list()
-        deallocate (recentf_list)
-        allocate (recentf_list(0))
+        deallocate (recentf_files)
+        allocate (recentf_files(0))
         call set(value_type(name="file_name_history"), value_type(), st)
         call recentf_load_list(st)
         call check(error, st%ok(), format_error(st))

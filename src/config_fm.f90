@@ -40,16 +40,16 @@ module config_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list, xfixnum, xstring, list_elements, vtag, V_INTEGER
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, current_buffer
     use editfns_fm, only: buffer_string
     use env_fm, only: getenv
     use fileio_fm, only: file_name_as_directory, file_name_directory, directory_file_name, &
                          file_name_nondirectory, is_file_name_absolute, get_homedir, file_exists, &
                          is_file_readable, is_file_executable, rename_file, report_file_errno, &
                          delete_file_internal, delete_directory_internal, copy_file, &
-                         make_symbolic_link, file_attributes, file_stat_type
+                         create_symbolic_link, file_attributes, file_stat_type
     use dired_fm, only: directory_files
-    use files_fm, only: make_directory
+    use files_fm, only: create_directory
     use callproc_fm, only: execute_process
     use sysdep_fm, only: emacs_readlink, emacs_localtime, ENOENT
     implicit none(type, external)
@@ -226,7 +226,7 @@ contains
         integer, allocatable :: numbers(:)
         integer :: n
         type(value_type) :: args(14), result
-        type(handle_type) :: old, buf
+        type(handle_type) :: old, buffer
         type(status_type) :: ignore
         integer :: unit, ios
 
@@ -247,14 +247,14 @@ contains
         end if
 
         cache = cache_directory()
-        call make_directory(cache, status, parents=.true.)
+        call create_directory(cache, status, parents=.true.)
         if (.not. status%ok()) return
         call generation_numbers(numbers, status)
         if (.not. status%ok()) return
         n = 1
         if (size(numbers) > 0) n = maxval(numbers) + 1
         gen = generations_directory()//itoa(n)//"/"
-        call make_directory(gen, status, parents=.true.)
+        call create_directory(gen, status, parents=.true.)
         if (.not. status%ok()) return
         driver = cache//"main.f90"
         open (newunit=unit, file=driver, status="replace", action="write", access="stream", &
@@ -287,14 +287,14 @@ contains
         ! The compiler's output goes to a buffer, made in the cache
         ! directory so the compiler runs there.
         old = current_buffer()
-        call get_buffer_create(" *fortmacs-recompile*", buf, status)
+        call get_or_make_buffer(" *fortmacs-recompile*", buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        buffers(cur)%directory = cache
+        buffers(current)%directory = cache
         call execute_process(compiler, result, status, destination=value_type(.true.), args=make_list(args))
         log = buffer_string()
-        call kill_buffer(buf, ignore)
+        call close_buffer(buffer, ignore)
         if (old%index /= 0) call set_buffer(old, ignore)
 
         if (.not. status%ok()) then
@@ -325,10 +325,10 @@ contains
     pure function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=12) :: buf
+        character(len=12) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function itoa
 
     !> The number `s' is made of, or 0 if it isn't only digits.
@@ -416,7 +416,7 @@ contains
             return
         end if
 
-        call make_symbolic_link(itoa(n), dir//"current.new", status, ok_if_already_exists=.true.)
+        call create_symbolic_link(itoa(n), dir//"current.new", status, ok_if_already_exists=.true.)
         if (.not. status%ok()) return
         call rename_file(dir//"current.new", dir//"current", status, ok_if_already_exists=.true.)
     end subroutine switch_generation

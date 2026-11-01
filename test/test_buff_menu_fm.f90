@@ -26,13 +26,13 @@ module test_buff_menu_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, current_buffer, set_buffer, kill_buffer, get_buffer_create, get_buffer, &
+    use buffer_fm, only: buffers, current_buffer, set_buffer, close_buffer, get_or_make_buffer, get_buffer, &
                          is_buffer_live, rename_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point_min, pos_bol, pos_eol, buffer_substring
     use cmds_fm, only: beginning_of_line
     use search_fm, only: search_forward
-    use files_fm, only: make_temp_file, delete_file, find_file_noselect
+    use files_fm, only: create_temp_file, delete_file, find_file_noselect
     use window_fm, only: switch_to_buffer
     use bindings_fm, only: init_bindings
     use tabulated_list_fm, only: tabulated_list_entry_type
@@ -57,7 +57,7 @@ contains
                     new_unittest("buff-menu-marks", test_marks), &
                     new_unittest("buff-menu-execute", test_execute), &
                     new_unittest("buff-menu-toggle-internal", test_toggle_internal), &
-                    new_unittest("buff-menu-size-predicate", test_size_predicate) &
+                    new_unittest("buff-menu-size-predicate", test_size_test) &
                     ]
     end subroutine collect_buff_menu_fm
 
@@ -68,7 +68,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call set_buffer(old, st)
@@ -99,19 +99,19 @@ contains
     subroutine test_24962(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: file, actual
-        type(handle_type) :: buf, old, list, b
+        type(handle_type) :: buffer, old, list, b
         type(status_type) :: st
 
         call init_bindings()
         old = current_buffer()
-        call make_temp_file("foo", file, st)
+        call create_temp_file("foo", file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call find_file_noselect(file, buf, st)
+        call find_file_noselect(file, buffer, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call switch_to_buffer(buffers(buf%index)%name, st)
-        call set_buffer(buf, st)
+        call switch_to_buffer(buffers(buffer%index)%name, st)
+        call set_buffer(buffer, st)
         call rename_buffer(" foo", .false., actual, st)
         call list_buffers(st)
         call check(error, st%ok(), format_error(st))
@@ -125,7 +125,7 @@ contains
             if (.not. allocated(error)) call check(error, buffers(b%index)%name == " foo", buffers(b%index)%name)
         end if
 
-        if (is_buffer_live(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call delete_file(file, st)
         call set_buffer(old, st)
     end subroutine test_24962
@@ -172,9 +172,9 @@ contains
 
         call set_buffer(a, st)
         call restore_buffer_modified(.false.)
-        call kill_buffer(a, st)
-        call kill_buffer(internal, st)
-        call kill_buffer(list, st)
+        call close_buffer(a, st)
+        call close_buffer(internal, st)
+        call close_buffer(list, st)
         call set_buffer(old, st)
     end subroutine test_listing
 
@@ -226,12 +226,12 @@ contains
             call check(error, line(1:3) == "   ", line)
         end if
 
-        call kill_buffer(a, st)
-        call kill_buffer(list, st)
+        call close_buffer(a, st)
+        call close_buffer(list, st)
         call set_buffer(old, st)
     end subroutine test_marks
 
-    !> d then x kills the buffer and removes its line.
+    !> d then x closes the buffer and removes its line.
     subroutine test_execute(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: line
@@ -264,9 +264,9 @@ contains
             call check(error,.not. found, "bm-gamma still listed")
         end if
 
-        if (is_buffer_live(a)) call kill_buffer(a, st)
-        call kill_buffer(b, st)
-        call kill_buffer(list, st)
+        if (is_buffer_live(a)) call close_buffer(a, st)
+        call close_buffer(b, st)
+        call close_buffer(list, st)
         call set_buffer(old, st)
     end subroutine test_execute
 
@@ -290,13 +290,13 @@ contains
             call check(error, found, "internal buffer not listed")
         end if
 
-        call kill_buffer(internal, st)
-        call kill_buffer(list, st)
+        call close_buffer(internal, st)
+        call close_buffer(list, st)
         call set_buffer(old, st)
     end subroutine test_toggle_internal
 
     !> The Size column sorts by number, human-readable sizes too.
-    subroutine test_size_predicate(error)
+    subroutine test_size_test(error)
         type(error_type), allocatable, intent(out) :: error
         type(tabulated_list_entry_type) :: a, b
         integer :: k
@@ -319,5 +319,5 @@ contains
         a%cols(5)%text = "1.5k"
         b%cols(5)%text = "900"
         call check(error,.not. tabulated_list_entry_size_greater(a, b), "1.5k > 900 (string-to-number)")
-    end subroutine test_size_predicate
+    end subroutine test_size_test
 end module test_buff_menu_fm

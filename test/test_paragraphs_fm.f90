@@ -30,17 +30,17 @@ module test_paragraphs_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
     use paragraphs_fm, only: transpose_paragraphs, transpose_sentences
-    use paragraphs_fm, only: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
-                             backward_kill_paragraph, start_of_paragraph_text, end_of_paragraph_text, &
-                             sentence_end_regexp, sentence_end, forward_sentence, backward_sentence, kill_sentence, &
-                             backward_kill_sentence, mark_end_of_sentence, paragraph_start, paragraph_separate
+    use paragraphs_fm, only: forward_paragraph, backward_paragraph, mark_paragraph, cut_paragraph, &
+                             backward_cut_paragraph, start_of_paragraph_text, end_of_paragraph_text, &
+                             sentence_end_regexp, sentence_end, forward_sentence, backward_sentence, cut_sentence, &
+                             backward_cut_sentence, mark_end_of_sentence, paragraph_start, paragraph_separate
     use keyboard_fm, only: last_command, this_command
     implicit none(type, external)
     private
@@ -71,8 +71,8 @@ contains
                     new_unittest("paragraphs-tests-sentence-end", test_sentence_end), &
                     new_unittest("paragraphs-tests-forward-sentence", test_forward_sentence), &
                     new_unittest("paragraphs-tests-backward-sentence", test_backward_sentence), &
-                    new_unittest("paragraphs-tests-kill-sentence", test_kill_sentence), &
-                    new_unittest("paragraphs-tests-backward-kill-sentence", test_backward_kill_sentence), &
+                    new_unittest("paragraphs-tests-kill-sentence", test_cut_sentence), &
+                    new_unittest("paragraphs-tests-backward-kill-sentence", test_backward_cut_sentence), &
                     new_unittest("paragraphs-tests-mark-end-of-sentence", test_mark_end_of_sentence), &
                     new_unittest("paragraph-start-variable", test_paragraph_start) &
                     ]
@@ -81,14 +81,14 @@ contains
     !> A fresh buffer holding `text`, point at its start.
     subroutine temp_buffer(text)
         character(len=*), intent(in) :: text
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create(" *paragraphs-test*", buf, st)
-        call set_buffer(buf, st)
-        buffers(cur)%mark_active = .false.
+        call get_or_make_buffer(" *paragraphs-test*", buffer, st)
+        call set_buffer(buffer, st)
+        buffers(current)%mark_active = .false.
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(point_min())
@@ -119,7 +119,7 @@ contains
 
         call temp_buffer(AB)
         call mark_paragraph(1_int64, .false., st)
-        call check(error, st%ok() .and. buffers(cur)%mark_active)
+        call check(error, st%ok() .and. buffers(current)%mark_active)
         if (allocated(error)) return
         call check(error, mark_position() == 7)
         if (allocated(error)) return
@@ -132,7 +132,7 @@ contains
         type(status_type) :: st
 
         call temp_buffer(AB)
-        call kill_paragraph(1_int64, st)
+        call cut_paragraph(1_int64, st)
         call check(error, buffer_string() == LF//"BB"//LF//"BB"//LF)
     end subroutine test_kill
 
@@ -166,7 +166,7 @@ contains
 
         call temp_buffer(AB)
         call goto_char(7_int64)
-        call backward_kill_paragraph(1_int64, st)
+        call backward_cut_paragraph(1_int64, st)
         call check(error, buffer_string() == LF//"BB"//LF//"BB"//LF)
     end subroutine test_backward_kill
 
@@ -290,35 +290,35 @@ contains
         call check(error, point() == 18)
     end subroutine test_backward_sentence
 
-    subroutine test_kill_sentence(error)
+    subroutine test_cut_sentence(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
         call temp_buffer("First sentence.  Second sentence.")
-        call kill_sentence(1_int64, st)
+        call cut_sentence(1_int64, st)
         call check(error, buffer_string() == "  Second sentence.")
-    end subroutine test_kill_sentence
+    end subroutine test_cut_sentence
 
-    subroutine test_backward_kill_sentence(error)
+    subroutine test_backward_cut_sentence(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
         call temp_buffer("Should not be killed.  Should be killed.")
         call goto_char(point_max())
-        call backward_kill_sentence(1_int64, st)
+        call backward_cut_sentence(1_int64, st)
         call check(error, buffer_string() == "Should not be killed.  ")
-    end subroutine test_backward_kill_sentence
+    end subroutine test_backward_cut_sentence
 
     subroutine test_mark_end_of_sentence(error)
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(1_int64)
-        call check(error, buffers(cur)%mark_active .and. mark_position() == 18, "one")
+        call check(error, buffers(current)%mark_active .and. mark_position() == 18, "one")
         if (allocated(error)) return
         call temp_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(2_int64)
-        call check(error, buffers(cur)%mark_active .and. mark_position() == 44, "two")
+        call check(error, buffers(current)%mark_active .and. mark_position() == 44, "two")
         if (allocated(error)) return
         ! Repeating the command marks the next sentence.
         call temp_buffer("Example sentence.  Followed by another one.")
@@ -326,7 +326,7 @@ contains
         last_command => commands%mark_end_of_sentence
         this_command => commands%mark_end_of_sentence
         call mark_end_of_sentence(1_int64)
-        call check(error, buffers(cur)%mark_active .and. mark_position() == 44, "repeated")
+        call check(error, buffers(current)%mark_active .and. mark_position() == 44, "repeated")
     end subroutine test_mark_end_of_sentence
 
     !> paragraph-start and paragraph-separate are regexps.

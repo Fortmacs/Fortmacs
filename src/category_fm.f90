@@ -52,7 +52,7 @@ module category_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use character_fm, only: MAX_CHAR
     use chartab_fm, only: make_char_table, copy_char_table, is_char_table, char_table_subtype, &
                           char_table_extra_slot, set_char_table_extra_slot, char_table_ref, char_table_ref_and_range, &
@@ -161,15 +161,15 @@ contains
     !> whose `member' is true.
     !> The return value is a string containing those same categories.
     !> Port of category.c:Fcategory_set_mnemonics.
-    function category_set_mnemonics(category_set) result(str)
+    function category_set_mnemonics(category_set) result(string)
         type(category_set_type), intent(in) :: category_set
-        character(len=:), allocatable :: str
+        character(len=:), allocatable :: string
         integer :: i
 
-        str = ""
+        string = ""
 
         do i = 32, 126
-            if (category_set%member(i)) str = str//achar(i)
+            if (category_set%member(i)) string = string//achar(i)
         end do
     end function category_set_mnemonics
 
@@ -223,8 +223,8 @@ contains
         type(handle_type) :: h
 
         h = standard_category_table()
-        if (cur == 0) return
-        if (is_category_table(buffers(cur)%category_table)) h = buffers(cur)%category_table
+        if (current == 0) return
+        if (is_category_table(buffers(current)%category_table)) h = buffers(current)%category_table
     end function category_table
 
     !> Return the standard category table.
@@ -318,7 +318,7 @@ contains
 
         call check_category_table(h, info, status, table)
         if (.not. status%ok()) return
-        if (cur /= 0) buffers(cur)%category_table = h
+        if (current /= 0) buffers(current)%category_table = h
     end subroutine set_category_table
 
     !> The category set number CATEGORY_SET stands for in info INFO,

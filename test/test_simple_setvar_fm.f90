@@ -28,7 +28,7 @@ module test_simple_setvar_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
     use data_fm, only: is_local_variable
-    use buffer_fm, only: get_buffer_create, set_buffer, fill_column
+    use buffer_fm, only: get_or_make_buffer, set_buffer, fill_column
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: delete_other_windows, switch_to_buffer, resize_window_tree
     use keymap_fm, only: key_parse
@@ -36,7 +36,7 @@ module test_simple_setvar_fm
     use bindings_fm, only: init_bindings
     use replace_fm, only: case_replace
     use compile_fm, only: compile_command
-    use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NEVER
+    use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NO
     use simple_fm, only: set_variable, copy_region_blink_delay
     implicit none(type, external)
     private
@@ -65,13 +65,13 @@ contains
     end subroutine collect_simple_setvar_fm
 
     subroutine fresh()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
         call ensure_frame_windows()
         call delete_other_windows(selected_frame%selected_window, st)
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
@@ -170,15 +170,15 @@ contains
         call check(error, require_final_newline%value == FINAL_NEWLINE_VISIT, last_message)
         if (allocated(error)) return
         call set_var("require_final_newline", "7")
-        call check(error, last_message, "Wrong type argument: expected FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, "// &
+        call check(error, last_message, "Wrong type argument: expected FINAL_NEWLINE_NO, FINAL_NEWLINE_SAVE, "// &
                    "FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE or FINAL_NEWLINE_ASK, got 7")
         if (allocated(error)) return
         call set_var("require_final_newline", "visit")
-        call check(error, index(last_message, "Wrong type argument: expected FINAL_NEWLINE_NEVER") == 1 .and. &
+        call check(error, index(last_message, "Wrong type argument: expected FINAL_NEWLINE_NO") == 1 .and. &
                    index(last_message, ", got visit") > 0, last_message)
         if (allocated(error)) return
-        call set_var("require_final_newline", "FINAL_NEWLINE_NEVER")
-        call check(error, require_final_newline%value == FINAL_NEWLINE_NEVER, last_message)
+        call set_var("require_final_newline", "FINAL_NEWLINE_NO")
+        call check(error, require_final_newline%value == FINAL_NEWLINE_NO, last_message)
     end subroutine test_choice
 
     subroutine test_real(error)

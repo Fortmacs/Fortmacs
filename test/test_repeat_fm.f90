@@ -29,7 +29,7 @@ module test_repeat_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, generate_new_buffer_name
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer, generate_new_buffer_name
     use editfns_fm, only: buffer_string
     use keymap_fm, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
     use keyboard_fm, only: execute_kbd_macro, last_kbd_macro
@@ -72,10 +72,10 @@ contains
     !> Record a call of command NAME with the numeric prefix argument.
     subroutine record(name)
         character(len=*), intent(in) :: name
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") prefix_numeric_value(current_prefix_arg)
-        calls = calls//"("//trim(buf)//" "//name//")"
+        write (buffer, "(i0)") prefix_numeric_value(current_prefix_arg)
+        calls = calls//"("//trim(buffer)//" "//name//")"
     end subroutine record
 
     recursive subroutine execute_a(status)
@@ -234,7 +234,7 @@ contains
         type(status_type) :: st
 
         call minor_modes%repeat_mode%enable(st)
-        call get_buffer_create(generate_new_buffer_name(" *repeat-test*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *repeat-test*"), h, st)
         call set_buffer(h, st)
         call show_alone()
         call use_local_map(map, st)

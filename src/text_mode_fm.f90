@@ -25,7 +25,7 @@ module text_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use data_fm, only: logical_setting
+    use data_fm, only: logical_setting_type
     use files_fm, only: require_final_newline, mode_require_final_newline
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live
     use modes_fm, only: major_modes
@@ -39,7 +39,7 @@ module text_mode_fm
     !> True if this buffer's major mode is a variant of Text mode.
     !> Obsolete since 27.1: don't set it, and instead of testing its value
     !> use `is_derived_mode'.  Port of text-mode.el text-mode-variant.
-    type(logical_setting), public :: text_mode_variant = logical_setting(name="text_mode_variant", value=.false.)
+    type(logical_setting_type), public :: text_mode_variant = logical_setting_type(name="text_mode_variant", value=.false.)
 
     !> Normal hook run when entering Text mode and many related modes.
     !> Port of text-mode.el text-mode-hook.
@@ -97,7 +97,7 @@ contains
         if (.not. status%ok()) return
         call text_mode_variant%set_local(.true.)
         call require_final_newline%set_local(mode_require_final_newline)
-        call major_modes%text_mode%finish(saved, status)
+        call major_modes%text_mode%end(saved, status)
     end subroutine text_mode
 
     !> Define Text mode.

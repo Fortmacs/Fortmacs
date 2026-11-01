@@ -35,11 +35,11 @@ module test_itree_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: list, value_type
     use data_fm, only: value_eq
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer, is_buffer_live
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, resolve_buffer, is_buffer_live
     use insdel_fm, only: insert, del_range, replace_range
     use eval_fm, only: property_function_type
     use editfns_fm, only: goto_char
-    use itree_fm, only: make_overlay, move_overlay, delete_overlay, free_overlay, overlay_start, overlay_end, &
+    use itree_fm, only: make_overlay, move_overlay, delete_overlay, destroy_overlay, overlay_start, overlay_end, &
                         overlay_buffer, overlay_get, overlay_put, overlays_at, overlays_in, next_overlay_change, &
                         previous_overlay_change, is_overlay, delete_all_overlays, overlay_lists, overlay_recenter
     use dispextern_fm, only: DEFAULT_FACE_ID
@@ -51,7 +51,7 @@ module test_itree_fm
 
     public :: collect_itree_fm
 
-    ! Recorded overlay hook calls: the hook, AFTER, BEG, END and OLD_LEN
+    ! Recorded overlay hook calls: the hook, AFTER, BEGINNING, END and OLD_LEN
     ! (-1 for none).
     character(len=24) :: rec_hook(16)
     logical :: rec_after(16)
@@ -72,7 +72,7 @@ contains
                     new_unittest("overlay-insert-advance", test_insert_advance), &
                     new_unittest("overlay-delete-text-evaporate", test_delete_text), &
                     new_unittest("overlays-at-in-and-changes", test_queries), &
-                    new_unittest("overlay-kill-buffer", test_kill_buffer), &
+                    new_unittest("overlay-kill-buffer", test_close_buffer), &
                     new_unittest("overlay-faces-in-redisplay", test_faces), &
                     new_unittest("overlay-modification-hooks", test_overlay_modification_hooks), &
                     new_unittest("overlay-modification-hooks-deleted-overlay", test_overlay_modification_hooks_deleted), &
@@ -87,7 +87,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call get_buffer_create("*itree-test*", h, st)
+        call get_or_make_buffer("*itree-test*", h, st)
         call set_buffer(h, st)
         call insert(text, st)
     end subroutine fresh
@@ -118,9 +118,9 @@ contains
         call move_overlay(ov, 2_int64, 4_int64, st)
         call check(error, overlay_start(ov) == 2 .and. overlay_end(ov) == 4 .and. is_buffer_live(overlay_buffer(ov)), &
                    "moved back into the buffer")
-        call free_overlay(ov)
+        call destroy_overlay(ov)
         call check(error,.not. is_overlay(ov), "freed")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_basics
 
     !> Insertion at an overlay's bounds follows FRONT-ADVANCE and
@@ -156,11 +156,11 @@ contains
         call check(error, overlay_start(c) == 7 .and. overlay_end(c) == 7, "empty, front-advance only: stays")
         if (allocated(error)) return
         call check(error, overlay_start(e) == 8 .and. overlay_end(e) == 8, "empty, both advance: moves")
-        call free_overlay(a)
-        call free_overlay(b)
-        call free_overlay(c)
-        call free_overlay(e)
-        call kill_buffer(h, st)
+        call destroy_overlay(a)
+        call destroy_overlay(b)
+        call destroy_overlay(c)
+        call destroy_overlay(e)
+        call close_buffer(h, st)
     end subroutine test_insert_advance
 
     !> Deletion contracts overlays; empty ones with `evaporate' go away.
@@ -180,9 +180,9 @@ contains
         if (allocated(error)) return
         call move_overlay(b, 2_int64, 2_int64, st)
         call check(error, overlay_start(b) == 0, "moved empty with evaporate: deleted")
-        call free_overlay(a)
-        call free_overlay(b)
-        call kill_buffer(h, st)
+        call destroy_overlay(a)
+        call destroy_overlay(b)
+        call close_buffer(h, st)
     end subroutine test_delete_text
 
     !> overlays-at (sorted by decreasing priority), overlays-in with empty
@@ -219,25 +219,25 @@ contains
         call check(error, previous_overlay_change(11_int64) == 9 .and. previous_overlay_change(9_int64) == 8 .and. &
                    previous_overlay_change(5_int64) == 4 .and. previous_overlay_change(2_int64) == 1, &
                    "previous-overlay-change")
-        call free_overlay(a)
-        call free_overlay(b)
-        call free_overlay(e)
-        call kill_buffer(h, st)
+        call destroy_overlay(a)
+        call destroy_overlay(b)
+        call destroy_overlay(e)
+        call close_buffer(h, st)
     end subroutine test_queries
 
-    !> Killing a buffer deletes its overlays.
-    subroutine test_kill_buffer(error)
+    !> Closing a buffer deletes its overlays.
+    subroutine test_close_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a
         type(status_type) :: st
 
         call fresh(h, "0123456789")
         call make_overlay(a, 2_int64, 6_int64, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call check(error, is_overlay(a) .and. overlay_start(a) == 0 .and. .not. is_buffer_live(overlay_buffer(a)), &
                    "no buffer after kill-buffer")
-        call free_overlay(a)
-    end subroutine test_kill_buffer
+        call destroy_overlay(a)
+    end subroutine test_close_buffer
 
     !> Redisplay merges overlays' faces in order of priority, the region
     !> (priority (nil . 100)) among them, and stops face runs at overlay
@@ -284,9 +284,9 @@ contains
         call overlay_put(a, "priority", value_type(1000_int64), st)
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
         call check(error,.not. f%faces(id)%tty_reverse_p, "priority 1000 over the region")
-        call free_overlay(a)
-        call free_overlay(b)
-        call kill_buffer(h, st)
+        call destroy_overlay(a)
+        call destroy_overlay(b)
+        call close_buffer(h, st)
     end subroutine test_faces
 
     ! ------------------------------------------------------------------
@@ -294,82 +294,82 @@ contains
     ! ------------------------------------------------------------------
 
     !> Record a call of an overlay hook named NAME.
-    subroutine record_call(name, after, beg, end, old_len)
+    subroutine record_call(name, after, beginning, end, old_len)
         character(len=*), intent(in) :: name
         logical, intent(in) :: after
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         integer(int64), intent(in), optional :: old_len
 
         nrec = nrec + 1
         if (nrec > size(rec_hook)) return
         rec_hook(nrec) = name
         rec_after(nrec) = after
-        rec_args(:, nrec) = [beg, end, -1_int64]
+        rec_args(:, nrec) = [beginning, end, -1_int64]
         if (present(old_len)) rec_args(3, nrec) = old_len
     end subroutine record_call
 
     ! The recording functions of the three properties.
-    subroutine record_in_front(overlay, after, beg, end, status, old_len)
+    subroutine record_in_front(overlay, after, beginning, end, status, old_len)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: old_len
 
         status = status_type()
         if (overlay%index == 0) return
-        call record_call("insert_in_front_hooks", after, beg, end, old_len)
+        call record_call("insert_in_front_hooks", after, beginning, end, old_len)
     end subroutine record_in_front
 
     ! See `record_in_front'.
-    subroutine record_modification(overlay, after, beg, end, status, old_len)
+    subroutine record_modification(overlay, after, beginning, end, status, old_len)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: old_len
 
         status = status_type()
         if (overlay%index == 0) return
-        call record_call("modification_hooks", after, beg, end, old_len)
+        call record_call("modification_hooks", after, beginning, end, old_len)
     end subroutine record_modification
 
     ! See `record_in_front'.
-    subroutine record_behind(overlay, after, beg, end, status, old_len)
+    subroutine record_behind(overlay, after, beginning, end, status, old_len)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: old_len
 
         status = status_type()
         if (overlay%index == 0) return
-        call record_call("insert_behind_hooks", after, beg, end, old_len)
+        call record_call("insert_behind_hooks", after, beginning, end, old_len)
     end subroutine record_behind
 
     ! Set the check point after the change (bug#30823).
-    subroutine set_check_point(overlay, after, beg, end, status, old_len)
+    subroutine set_check_point(overlay, after, beginning, end, status, old_len)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: old_len
 
         status = status_type()
-        if (present(old_len) .or. beg > end) continue
+        if (present(old_len) .or. beginning > end) continue
         if (overlay%index /= 0 .and. after) check_point = .true.
     end subroutine set_check_point
 
     ! Delete the overlay before the change (bug#30823).
-    subroutine delete_before(overlay, after, beg, end, status, old_len)
+    subroutine delete_before(overlay, after, beginning, end, status, old_len)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: old_len
 
         status = status_type()
-        if (present(old_len) .or. beg > end) continue
+        if (present(old_len) .or. beginning > end) continue
         if (.not. after) call delete_overlay(overlay)
     end subroutine delete_before
 
@@ -451,8 +451,8 @@ contains
                 end if
 
                 got = recorded()
-                call free_overlay(ov)
-                call kill_buffer(h, st)
+                call destroy_overlay(ov)
+                call close_buffer(h, st)
                 call check(error, got == trim(expected(c)), "case "//trim(texts(c))//" "//trim(replace(c))//": "//got)
                 if (allocated(error)) return
             end do
@@ -506,9 +506,9 @@ contains
         call overlay_put(ov_delete, "modification_hooks", list(value_type(name="delete_before")), st)
         call goto_char(2_int64)
         call insert("1", st)
-        call free_overlay(ov_set)
-        call free_overlay(ov_delete)
-        call kill_buffer(h, st)
+        call destroy_overlay(ov_set)
+        call destroy_overlay(ov_delete)
+        call close_buffer(h, st)
         call check(error, check_point, "the after hook ran")
     end subroutine test_overlay_modification_hooks_deleted
 
@@ -539,10 +539,10 @@ contains
         end do
 
         do i = 1, 10
-            call free_overlay(ovs(i))
+            call destroy_overlay(ovs(i))
         end do
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call check(error, all_overlays, "ten overlays")
     end subroutine test_overlay_lists_1
 
@@ -567,10 +567,10 @@ contains
         call overlay_lists(after)
 
         do i = 1, 10
-            call free_overlay(ovs(i))
+            call destroy_overlay(ovs(i))
         end do
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call check(error, size(before) == 10 .and. size(after) == 10, "no effect on overlay_lists")
     end subroutine test_overlay_recenter
 end module test_itree_fm

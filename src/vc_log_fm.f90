@@ -99,13 +99,13 @@ contains
         logical :: limit_unsupported
         integer :: k
 
-        call get_buffer_create(buffer_name, buffer, status)
+        call get_or_make_buffer(buffer_name, buffer, status)
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buffer, st)
         k = log_buffer_index(.true.)
         log_buffers(k)%view_type = type
-        ! (lambda (bk buf _type-arg files-arg) ...): the backend function.
+        ! (lambda (bk buffer _type-arg files-arg) ...): the backend function.
         log_buffers(k)%shortlog = shortlog
         call set_buffer(old, st)
         limit_unsupported = .false.
@@ -252,7 +252,7 @@ contains
     call with_backend_in_rootdir("VC revision log", fs, saved_dir, status)
 
     if (.not. status%ok()) then
-        buffers(cur)%directory = saved_dir
+        buffers(current)%directory = saved_dir
         return
     end if
 
@@ -277,7 +277,7 @@ contains
 
     if (is_buffer_live(old)) then
         call set_buffer(old, st)
-        buffers(cur)%directory = saved_dir
+        buffers(current)%directory = saved_dir
         call set_buffer(get_buffer("*vc-change-log*"), st)
     end if
 
@@ -294,12 +294,12 @@ contains
         integer(int64), intent(out) :: limit
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: answer
-        character(len=24) :: buf
+        character(len=24) :: buffer
         integer :: ios
 
         limit = 0
-        write (buf, "(i0)") vc_log_show_limit
-        call read_from_minibuffer("Limit display (0 for unlimited): ", answer, status, initial=trim(buf))
+        write (buffer, "(i0)") vc_log_show_limit
+        call read_from_minibuffer("Limit display (0 for unlimited): ", answer, status, initial=trim(buffer))
         if (.not. status%ok()) return
         ! (string-to-number ...): 0 when not a number.
         read (answer, *, iostat=ios) limit
@@ -353,15 +353,15 @@ contains
         use syntax_fm, only: skip_syntax_forward, skip_syntax_backward
         use editfns_fm, only: buffer_substring
         character(len=:), allocatable :: word
-        integer(int64) :: opoint, beg, moved
+        integer(int64) :: opoint, beginning, moved
         type(status_type) :: st
 
         opoint = point()
         moved = skip_syntax_backward("w")
-        beg = point()
+        beginning = point()
         moved = skip_syntax_forward("w")
         word = ""
-        if (point() > beg) call buffer_substring(beg, point(), word, st)
+        if (point() > beginning) call buffer_substring(beginning, point(), word, st)
         call goto_char(opoint)
     end function word_at_point
 end submodule vc_log_fm

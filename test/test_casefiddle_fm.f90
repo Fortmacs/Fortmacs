@@ -33,9 +33,9 @@ module test_casefiddle_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, buffers, current
     use lisp_fm, only: value_type
-    use simple_fm, only: region_extract_function, region_extract_proc, region_bounds
+    use simple_fm, only: region_extract_function, region_extract_procedure, region_bounds
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max, buffer_string
     use character_fm, only: string_char
@@ -86,7 +86,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(" *casefiddle-test*", h, st)
+        call get_or_make_buffer(" *casefiddle-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
     end subroutine temp_buffer
@@ -148,7 +148,7 @@ contains
             if (allocated(error)) exit
         end do
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_casing_word
 
     !> Check INPUT cased by the string and region functions against
@@ -192,7 +192,7 @@ contains
             end select
 
             got = buffer_string()
-            call kill_buffer(h, st)
+            call close_buffer(h, st)
             call check(error, got == trim(expected(k)), input//" region "//char(48 + k)//": "//got)
             if (allocated(error)) return
         end do
@@ -325,7 +325,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        procedure(region_extract_proc), pointer :: saved
+        procedure(region_extract_procedure), pointer :: saved
 
         call temp_buffer(h)
         call insert("abc def ghi", st)
@@ -335,7 +335,7 @@ contains
         call upcase_region(1_int64, 12_int64, st, region_noncontiguous=.true.)
         region_extract_function => saved
         call check(error, buffer_string() == "ABC DEF ghi")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_noncontiguous
 
     !> In a unibyte buffer, the region is cased byte by byte and the
@@ -349,12 +349,12 @@ contains
         call insert("foo bar", st)
         call check(error, upcase_char(255_int32) == 376)
         if (allocated(error)) return
-        buffers(cur)%multibyte = .false.
+        buffers(current)%multibyte = .false.
         call upcase_region(1_int64, 8_int64, st)
         call check(error, buffer_string() == "FOO BAR")
         if (allocated(error)) return
         call check(error, upcase_char(255_int32) == 255 .and. upcase_char(97_int32) == 65)
-        buffers(cur)%multibyte = .true.
-        call kill_buffer(h, st)
+        buffers(current)%multibyte = .true.
+        call close_buffer(h, st)
     end subroutine test_unibyte
 end module test_casefiddle_fm

@@ -21,7 +21,7 @@
 
 !> Filling: `fill_paragraph' (M-q), `fill_region',
 !> `fill_region_as_paragraph', `set_fill_prefix' (C-x .), adaptive fill
-!> prefixes, the no-break predicates, canonical spacing and
+!> prefixes, the no-break tests, canonical spacing and
 !> justification (left, right, full, center), `fill_paragraph_function' and
 !> comments (`fill_comment_paragraph', in the submodule fill_comment_fm).
 !>
@@ -36,13 +36,13 @@ module fill_fm
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
-    use data_fm, only: value_eq, symbol_name, logical_setting, add_local_variables_killer
-    use buffer_fm, only: buffers, cur, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
+    use data_fm, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer
+    use buffer_fm, only: buffers, current, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
                          is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
     use character_fm, only: string_char_and_length
     use category_fm, only: char_has_category
     use charscript_fm, only: char_script, script_names
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, buffer_substring, &
                           delete_region, char_after, char_before, line_beginning_position, line_end_position, &
                           subst_char_in_region, region_beginning, region_end, narrow_to_region, widen, &
@@ -74,12 +74,13 @@ module fill_fm
               fill_move_to_break_point, fill_newline, fill_indent_to_left_margin, fill_region_as_paragraph, &
               fill_paragraph, fill_region, unfill_paragraph, current_justification, justify_current_line, &
               unjustify_current_line, unjustify_region, string_width, syms_of_fill, fill_comment_paragraph
-    public :: fill_nobreak_predicate_proc, fill_paragraph_proc
+    public :: fill_nobreak_test_procedure, fill_paragraph_procedure
 
     !> Justification styles: the values of `default_justification' (and
     !> `none'), and t for "as `current_justification' says".
-    integer, parameter, public :: JUSTIFY_NONE = 0, JUSTIFY_LEFT = 1, JUSTIFY_RIGHT = 2, JUSTIFY_FULL = 3, &
-                                  JUSTIFY_CENTER = 4, JUSTIFY_CURRENT = 5
+    integer, parameter, public :: DEFAULT_JUSTIFICATION_NONE = 0, DEFAULT_JUSTIFICATION_LEFT = 1, &
+                                  DEFAULT_JUSTIFICATION_RIGHT = 2, DEFAULT_JUSTIFICATION_FULL = 3, &
+                                  DEFAULT_JUSTIFICATION_CENTER = 4, DEFAULT_JUSTIFICATION_CURRENT = 5
 
     !> True means put two spaces after a colon when filling.  Port of
     !> fill.el colon-double-space.
@@ -97,7 +98,7 @@ module fill_fm
 
     !> True means determine a paragraph's fill prefix from its text.
     !> Port of fill.el adaptive-fill-mode.
-    type(logical_setting), public :: adaptive_fill_mode = logical_setting(name="adaptive_fill_mode", value=.true.)
+    type(logical_setting_type), public :: adaptive_fill_mode = logical_setting_type(name="adaptive_fill_mode", value=.true.)
 
     !> Regexp to match text at start of line that constitutes indentation.
     !> If Adaptive Fill mode is enabled, a prefix matching this pattern
@@ -126,35 +127,35 @@ module fill_fm
     logical, public :: fill_indent_according_to_mode = .false.
 
     !> Method of justifying text not otherwise specified.
-    !> Possible values are JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL,
-    !> JUSTIFY_CENTER, or JUSTIFY_NONE.
-    !> The values JUSTIFY_LEFT and JUSTIFY_RIGHT mean lines are lined up at,
+    !> Possible values are DEFAULT_JUSTIFICATION_LEFT, DEFAULT_JUSTIFICATION_RIGHT, DEFAULT_JUSTIFICATION_FULL,
+    !> DEFAULT_JUSTIFICATION_CENTER, or DEFAULT_JUSTIFICATION_NONE.
+    !> The values DEFAULT_JUSTIFICATION_LEFT and DEFAULT_JUSTIFICATION_RIGHT mean lines are lined up at,
     !> respectively, left or right margin, and ragged at the other margin.
-    !> JUSTIFY_FULL means lines are lined up at both margins.  JUSTIFY_CENTER means each
-    !> line is centered.  JUSTIFY_NONE means no justification or centering.
+    !> DEFAULT_JUSTIFICATION_FULL means lines are lined up at both margins.  DEFAULT_JUSTIFICATION_CENTER means each
+    !> line is centered.  DEFAULT_JUSTIFICATION_NONE means no justification or centering.
     !> The requested kind of justification is done whenever lines are filled.
     !> The `justification' text-property can locally override this variable.
     !> Port of fill.el default-justification (a JUSTIFY_ constant).
-    integer, public :: default_justification = JUSTIFY_LEFT
+    integer, public :: default_justification = DEFAULT_JUSTIFICATION_LEFT
 
     abstract interface
-        !> A predicate of `fill_nobreak_predicate': true forbids breaking
+        !> A test of `fill_nobreak_functions': true forbids breaking
         !> the line at point.  Not a port.
-        logical function fill_nobreak_predicate_proc()
+        logical function fill_nobreak_test_procedure()
             implicit none(type, external)
-        end function fill_nobreak_predicate_proc
+        end function fill_nobreak_test_procedure
     end interface
 
-    !> An element of `fill_nobreak_predicate'.
-    type, public :: fill_nobreak_predicate_type
-        procedure(fill_nobreak_predicate_proc), pointer, nopass :: fn => null()
-    end type fill_nobreak_predicate_type
+    !> An element of `fill_nobreak_functions'.
+    type, public :: fill_nobreak_function_type
+        procedure(fill_nobreak_test_procedure), pointer, nopass :: fn => null()
+    end type fill_nobreak_function_type
 
-    !> Array of predicates for recognizing places not to break a line.
-    !> The predicates are called with no arguments, with point at the place to
+    !> Array of tests for recognizing places not to break a line.
+    !> The tests are called with no arguments, with point at the place to
     !> be tested.  If it returns true, fill commands do not break
     !> the line there.  Port of fill.el fill-nobreak-predicate.
-    type(fill_nobreak_predicate_type), allocatable, public :: fill_nobreak_predicate(:)
+    type(fill_nobreak_function_type), allocatable, public :: fill_nobreak_functions(:)
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
@@ -166,25 +167,25 @@ module fill_fm
         !> A `fill_paragraph_function': fill the paragraph at point (JUSTIFY
         !> as in `fill_paragraph'); DONE .false. means
         !> `fill_paragraph' should do its normal work.  Not a port.
-        subroutine fill_paragraph_proc(status, done, justify)
+        subroutine fill_paragraph_procedure(status, done, justify)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(out) :: done
             integer, intent(in), optional :: justify
-        end subroutine fill_paragraph_proc
+        end subroutine fill_paragraph_procedure
     end interface
 
     !> One buffer's `fill_paragraph_function'.
     type :: fill_paragraph_entry_type
         integer(int64) :: serial = 0
-        procedure(fill_paragraph_proc), pointer, nopass :: fn => null()
+        procedure(fill_paragraph_procedure), pointer, nopass :: fn => null()
     end type fill_paragraph_entry_type
 
     !> The type of `fill_paragraph_function': a default `value' (assign
     !> with `=>'; null when unset) and buffers' own (`set_local').
     type, public :: fill_paragraph_function_type
-        procedure(fill_paragraph_proc), pointer, nopass :: value => null()
+        procedure(fill_paragraph_procedure), pointer, nopass :: value => null()
         type(fill_paragraph_entry_type), allocatable :: entries(:)
     contains
         !> Make FN the current buffer's function (set_local).
@@ -192,7 +193,7 @@ module fill_fm
         !> The current buffer's function (null when unset).
         procedure :: current => current_fill_paragraph
         !> Make the current buffer use the default again.
-        procedure :: kill_local => fill_paragraph_kill_local
+        procedure :: clear_local => fill_paragraph_clear_local
     end type fill_paragraph_function_type
 
     !> Mode-specific function to fill a paragraph, or null if there is none.
@@ -207,23 +208,23 @@ module fill_fm
     abstract interface
         !> An `adaptive_fill_function': the fill prefix at point, with
         !> `found' false for none.
-        subroutine adaptive_fill_proc(prefix, found)
+        subroutine adaptive_fill_procedure(prefix, found)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: prefix
             logical, intent(out) :: found
-        end subroutine adaptive_fill_proc
+        end subroutine adaptive_fill_procedure
     end interface
 
     !> One buffer's `adaptive_fill_function'.
     type :: adaptive_fill_entry_type
         integer(int64) :: serial = 0
-        procedure(adaptive_fill_proc), pointer, nopass :: fn => null()
+        procedure(adaptive_fill_procedure), pointer, nopass :: fn => null()
     end type adaptive_fill_entry_type
 
     !> The type of `adaptive_fill_function': a default `value' (assign
     !> with `=>'; null is `ignore') and buffers' own (`set_local').
     type, public :: adaptive_fill_function_type
-        procedure(adaptive_fill_proc), pointer, nopass :: value => null()
+        procedure(adaptive_fill_procedure), pointer, nopass :: value => null()
         type(adaptive_fill_entry_type), allocatable :: entries(:)
     contains
         !> Make FN the current buffer's function (set_local).
@@ -231,7 +232,7 @@ module fill_fm
         !> The current buffer's function (null for `ignore').
         procedure :: current => current_adaptive_fill
         !> Make the current buffer use the default again.
-        procedure :: kill_local => adaptive_fill_kill_local
+        procedure :: clear_local => adaptive_fill_clear_local
     end type adaptive_fill_function_type
 
     !> Function to call to choose a fill prefix for a paragraph.
@@ -387,31 +388,31 @@ contains
     !> and `sentence_end_without_period').
     !> Remove indentation from each line.  Port of
     !> fill.el:canonically-space-region.
-    subroutine canonically_space_region(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine canonically_space_region(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         type(handle_type) :: end_marker
         type(status_type) :: st
-        character(len=:), allocatable :: end_spc_re
+        character(len=:), allocatable :: end_spc_regexp
         integer(int64) :: opoint, endpos, pos, from, me0, me1, mb0, keep, moved
         integer(int32) :: c
         logical :: found
 
         status = status_type()
         call copy_marker_at(end, end_marker, .true., st)
-        end_spc_re = "\("//sentence_end_regexp()//"\) *\|  +"
+        end_spc_regexp = "\("//sentence_end_regexp()//"\) *\|  +"
         opoint = point()
-        call goto_char(beg)
+        call goto_char(beginning)
         ! Nuke tabs; they get screwed up in a fill.
         ! This is quick, but loses when a tab follows the end of a sentence.
         ! Actually, it is difficult to tell that from "Mr.\tSmith".
         ! Blame the typist.
-        call subst_char_in_region(beg, end, 9, 32, status)
+        call subst_char_in_region(beginning, end, 9, 32, status)
 
         do while (status%ok())
             call marker_position(end_marker, endpos, st)
             if (point() >= endpos) exit
-            call re_search_forward(end_spc_re, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
+            call re_search_forward(end_spc_regexp, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. pos == 0) exit
             me0 = match_end(0, st)
             me1 = match_end(1, st)
@@ -464,7 +465,7 @@ contains
         end do
 
         call goto_char(opoint)
-        call free_marker(end_marker, st)
+        call destroy_marker(end_marker, st)
     end subroutine canonically_space_region
 
     !> Return the longest common prefix of strings S1 and S2, or none.
@@ -500,28 +501,28 @@ contains
 
     ! fill.el:fill-match-adaptive-prefix (adaptive-fill-function is
     ! `ignore').  Port of fill.el:fill-match-adaptive-prefix.
-    subroutine fill_match_adaptive_prefix(str, found)
-        character(len=:), allocatable, intent(out) :: str
+    subroutine fill_match_adaptive_prefix(string, found)
+        character(len=:), allocatable, intent(out) :: string
         logical, intent(out) :: found
         type(status_type) :: st
-        procedure(adaptive_fill_proc), pointer :: fn
+        procedure(adaptive_fill_procedure), pointer :: fn
 
-        str = ""
+        string = ""
         found = .false.
         fn => adaptive_fill_function%current()
-        if (associated(fn)) call fn(str, found)
+        if (associated(fn)) call fn(string, found)
 
         if (.not. found) then
             if (.not. allocated(adaptive_fill_regexp)) return
             if (.not. looking_at(adaptive_fill_regexp, st)) return
-            str = match_string(0)
+            string = match_string(0)
             found = .true.
         end if
 
         ! Death to insanely long prefixes.
-        if (current_left_margin() + nchars(str) >= current_fill_column()) then
+        if (current_left_margin() + nchars(string) >= current_fill_column()) then
             found = .false.
-            str = ""
+            string = ""
         end if
     end subroutine fill_match_adaptive_prefix
 
@@ -536,9 +537,9 @@ contains
         character(len=:), allocatable, intent(out) :: prefix
         logical, intent(out) :: found
         character(len=*), intent(in), optional :: first_line_regexp
-        character(len=:), allocatable :: first_line_prefix, second_line_prefix, re, tmp, result, flr
-        logical :: have_first, have_second, matched
-        integer(int64) :: opoint, shortage, idx
+        character(len=:), allocatable :: first_line_prefix, second_line_prefix, regexp, tmp, result, flr
+        logical :: has_first, has_second, matched
+        integer(int64) :: opoint, shortage, index
         type(status_type) :: st
 
         call init_fill_variables()
@@ -551,31 +552,31 @@ contains
         if (is_eol()) shortage = forward_line(1_int64)
         ! Move to the second line unless there is just one.
         call move_to_left_margin(st)
-        call fill_match_adaptive_prefix(first_line_prefix, have_first)
+        call fill_match_adaptive_prefix(first_line_prefix, has_first)
         shortage = forward_line(1_int64)
 
         if (point() < to) then
             call move_to_left_margin(st)
-            have_second = .false.
-            if (.not. looking_at(paragraph_start%value, st)) call fill_match_adaptive_prefix(second_line_prefix, have_second)
+            has_second = .false.
+            if (.not. looking_at(paragraph_start%value, st)) call fill_match_adaptive_prefix(second_line_prefix, has_second)
 
             ! If we get a fill prefix from the second line, make sure it or
             ! something compatible is on the first line too.
-            if (have_second) then
-                if (.not. have_first) first_line_prefix = ""
+            if (has_second) then
+                if (.not. has_first) first_line_prefix = ""
                 ! If the non-whitespace chars match the first line, just use
                 ! it (this subsumes the 2 checks used previously).
                 tmp = second_line_prefix
-                re = "\`"
+                regexp = "\`"
 
                 do
-                    idx = string_match("\`[ "//TAB//"]*\([^ "//TAB//"]+\)", tmp, st)
-                    if (idx == 0 .or. .not. st%ok()) exit
-                    re = re//".*"//regexp_quote(match_string(1, tmp))
+                    index = string_match("\`[ "//TAB//"]*\([^ "//TAB//"]+\)", tmp, st)
+                    if (index == 0 .or. .not. st%ok()) exit
+                    regexp = regexp//".*"//regexp_quote(match_string(1, tmp))
                     tmp = tmp(match_end(0, st):)
                 end do
 
-                if (string_match(re, first_line_prefix, st) > 0) then
+                if (string_match(regexp, first_line_prefix, st) > 0) then
                     prefix = second_line_prefix
                     found = .true.
                 else
@@ -584,7 +585,7 @@ contains
                     call fill_common_string_prefix(first_line_prefix, second_line_prefix, prefix, found)
                 end if
             end if
-        else if (have_first) then
+        else if (has_first) then
             ! If we get a fill prefix from a one-line paragraph, maybe change
             ! it to whitespace, and check that it isn't a paragraph starter.
             matched = string_match(flr, first_line_prefix, st) > 0
@@ -627,7 +628,7 @@ contains
     end function is_fill_single_word_nobreak
 
     !> Return false if French style allows breaking the line at point.
-    !> This is used in `fill_nobreak_predicate' to prevent breaking lines just
+    !> This is used in `fill_nobreak_functions' to prevent breaking lines just
     !> after an opening paren or just before a closing paren or a punctuation
     !> mark such as `?' or `:'.  It is common in French writing to put a space
     !> at such places, which would normally allow breaking the line at those
@@ -659,7 +660,7 @@ contains
     end function is_fill_french_nobreak
 
     !> Return false if Polish style allows breaking the line at point.
-    !> This function may be used in the `fill_nobreak_predicate' hook.
+    !> This function may be used in the `fill_nobreak_functions' hook.
     !> It is almost the same as `is_fill_single_char_nobreak', with the
     !> exception that it does not require the one-letter word to be
     !> preceded by a space.  This blocks line-breaking in cases like
@@ -669,7 +670,7 @@ contains
     end function is_fill_polish_nobreak
 
     !> Return true if a one-letter word is before point.
-    !> This function is suitable for adding to the hook `fill_nobreak_predicate',
+    !> This function is suitable for adding to the hook `fill_nobreak_functions',
     !> to prevent the breaking of a line just after a one-letter word,
     !> which is an error according to some typographical conventions.
     !> Port of fill.el:fill-single-char-nobreak-p.
@@ -698,7 +699,7 @@ contains
     end function two_back_looking_at
 
     !> Return false if breaking the line at point is allowed.
-    !> Can be customized with the variables `fill_nobreak_predicate'
+    !> Can be customized with the variables `fill_nobreak_functions'
     !> and `fill_nobreak_invisible'.  Port of fill.el:fill-nobreak-p.
     logical function is_fill_nobreak() result(nobreak)
         type(status_type) :: st
@@ -734,10 +735,10 @@ contains
         call goto_char(opoint)
         if (nobreak) return
 
-        if (allocated(fill_nobreak_predicate)) then
-            do k = 1, size(fill_nobreak_predicate)
-                if (.not. associated(fill_nobreak_predicate(k)%fn)) cycle
-                nobreak = fill_nobreak_predicate(k)%fn()
+        if (allocated(fill_nobreak_functions)) then
+            do k = 1, size(fill_nobreak_functions)
+                if (.not. associated(fill_nobreak_functions(k)%fn)) cycle
+                nobreak = fill_nobreak_functions(k)%fn()
                 call goto_char(opoint)
                 if (nobreak) return
             end do
@@ -748,10 +749,10 @@ contains
     !> The first line may not even have a fill prefix.
     !> Point is moved to just past the fill prefix on the first line.
     !> Port of fill.el:fill-delete-prefix.
-    integer(int64) function fill_delete_prefix(from, to, prefix, have_prefix) result(pos)
+    integer(int64) function fill_delete_prefix(from, to, prefix, has_prefix) result(pos)
         integer(int64), intent(in) :: from, to
         character(len=*), intent(in) :: prefix
-        logical, intent(in) :: have_prefix
+        logical, intent(in) :: has_prefix
         character(len=:), allocatable :: fpre
         type(status_type) :: st
         type(handle_type) :: to_marker
@@ -759,9 +760,9 @@ contains
         logical :: blank
 
         blank = .true.
-        if (have_prefix) blank = string_match("\`[ "//TAB//"]*\'", prefix, st) > 0
+        if (has_prefix) blank = string_match("\`[ "//TAB//"]*\'", prefix, st) > 0
 
-        if (have_prefix .and. .not. blank) then
+        if (has_prefix .and. .not. blank) then
             fpre = "[ "//TAB//"]*\("//spaces_to_lax(regexp_quote(prefix))//"\)?[ "//TAB//"]*"
         else
             fpre = "[ "//TAB//"]*"
@@ -784,7 +785,7 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call free_marker(to_marker, st)
+        call destroy_marker(to_marker, st)
         call goto_char(from)
         if (looking_at(fpre, st)) call goto_char(match_end(0, st))
         pos = point()
@@ -842,7 +843,7 @@ contains
         logical, intent(in) :: nosqueeze
         integer(int64), intent(in) :: squeeze_after
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: eol_double_space_re, se
+        character(len=:), allocatable :: eol_double_space_regexp, se
         type(value_type) :: fill_space
         type(status_type) :: st
         type(handle_type) :: to_marker
@@ -860,19 +861,19 @@ contains
         se = sentence_end_regexp()
 
         if (.not. colon_double_space) then
-            eol_double_space_re = se//"$"
+            eol_double_space_regexp = se//"$"
         else if (string_match("\[[^][]*\(\.\)[^][]*\]", se, st) > 0) then
             ! Try to add the : inside the `sentence_end' regexp.
             at = int(match_beginning(1, st))
-            eol_double_space_re = se(1:at - 1)//".:"//se(at + 1:)//"$"
+            eol_double_space_regexp = se(1:at - 1)//".:"//se(at + 1:)//"$"
         else
             ! Can't find the right spot to insert the colon.
-            eol_double_space_re = "[.?!:][])}""']*$"
+            eol_double_space_regexp = "[.?!:][])}""']*$"
         end if
 
         do
             call marker_position(to_marker, endpos, st)
-            call re_search_forward(eol_double_space_re, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
+            call re_search_forward(eol_double_space_regexp, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. pos == 0) exit
             if (point() >= endpos) cycle
             call char_before(c, found)
@@ -932,7 +933,7 @@ contains
         call subst_char_in_region(from, endpos, 10, 32, status)
         if (.not. status%ok()) return
 
-        if (.not. nosqueeze .or. justify == JUSTIFY_FULL) then
+        if (.not. nosqueeze .or. justify == DEFAULT_JUSTIFICATION_FULL) then
             if (squeeze_after > 0) then
                 call canonically_space_region(squeeze_after, endpos, status)
             else
@@ -949,7 +950,7 @@ contains
         end if
 
         call goto_char(from)
-        call free_marker(to_marker, st)
+        call destroy_marker(to_marker, st)
     end subroutine fill_delete_newlines
 
     ! The UTF-8 of character C.  Not a port.
@@ -1045,9 +1046,9 @@ contains
     !> Replace whitespace here with one newline, then indent to left
     !> margin, and insert the fill prefix.  Port of fill.el:fill-newline
     !> (no text properties other than `fill_space').
-    subroutine fill_newline(prefix, have_prefix, status)
+    subroutine fill_newline(prefix, has_prefix, status)
         character(len=*), intent(in) :: prefix
-        logical, intent(in) :: have_prefix
+        logical, intent(in) :: has_prefix
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer(int64) :: moved, me2
@@ -1070,7 +1071,7 @@ contains
                                                    value_type(text=match_string(1)), st)
         end if
 
-        if (have_prefix .or. .not. fill_indent_according_to_mode) then
+        if (has_prefix .or. .not. fill_indent_according_to_mode) then
             call fill_indent_to_left_margin(status)
         else
             call indent_according_to_mode(status)
@@ -1080,7 +1081,7 @@ contains
         ! Insert the fill prefix after indentation.  Markers that were after
         ! the whitespace are now at point: insert before them so they don't
         ! get stuck before the prefix.
-        if (have_prefix .and. len(prefix) > 0) call insert_before_markers(prefix, status)
+        if (has_prefix .and. len(prefix) > 0) call insert_before_markers(prefix, status)
     end subroutine fill_newline
 
     !> Indent current line to the column given by `current_left_margin'.
@@ -1103,7 +1104,7 @@ contains
     !> the `current_justification' function, but with a prefix arg, it
     !> does full justification instead.
     !>
-    !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_CURRENT for `current_justification')
+    !> JUSTIFY (a JUSTIFY_ constant; DEFAULT_JUSTIFICATION_CURRENT for `current_justification')
     !> can specify any type of justification; see `default_justification'
     !> for the possible values.
     !> Optional fourth arg NOSQUEEZE true means not to make spaces
@@ -1114,26 +1115,26 @@ contains
     !> of spaces.
     !>
     !> Return the `fill_prefix' used for filling (`used', with
-    !> `have_used' false for none).
+    !> `has_used' false for none).
     !>
     !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region-as-paragraph-default (with
-    !> fill-region-as-paragraph; JUSTIFY absent is JUSTIFY_CURRENT, as the
+    !> fill-region-as-paragraph; JUSTIFY absent is DEFAULT_JUSTIFICATION_CURRENT, as the
     !> `current_justification' default).
     recursive subroutine fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, &
-                                                  used, have_used)
+                                                  used, has_used)
         integer(int64), intent(in) :: from_in, to_in
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: justify
         logical, intent(in), optional :: nosqueeze
         integer(int64), intent(in), optional :: squeeze_after
         character(len=:), allocatable, intent(out), optional :: used
-        logical, intent(out), optional :: have_used
+        logical, intent(out), optional :: has_used
         type(handle_type) :: to_marker, opos_marker
         type(status_type) :: st
         character(len=:), allocatable :: prefix
-        logical :: have_prefix, oneleft, squeeze_none
+        logical :: has_prefix, oneleft, squeeze_none
         integer(int64) :: from, to, from_plus_indent, moved, linebeg, shortage, sq, col, opos
         integer(int32) :: c
         logical :: found, cut
@@ -1141,9 +1142,9 @@ contains
 
         call init_fill_variables()
         status = status_type()
-        if (present(have_used)) have_used = .false.
+        if (present(has_used)) has_used = .false.
         if (present(used)) used = ""
-        how = JUSTIFY_CURRENT
+        how = DEFAULT_JUSTIFICATION_CURRENT
         if (present(justify)) how = justify
         squeeze_none = .false.
         if (present(nosqueeze)) squeeze_none = nosqueeze
@@ -1187,32 +1188,32 @@ contains
 
         if (.not. (to > point())) then
             ! There is no paragraph, only whitespace: exit now.
-            call free_marker(to_marker, st)
+            call destroy_marker(to_marker, st)
             return
         end if
 
-        if (how == JUSTIFY_CURRENT) how = current_justification()
+        if (how == DEFAULT_JUSTIFICATION_CURRENT) how = current_justification()
         ! Don't let Adaptive Fill mode alter the fill prefix permanently.
-        have_prefix = allocated(fill_prefix%value)
+        has_prefix = allocated(fill_prefix%value)
         prefix = ""
-        if (have_prefix) prefix = fill_prefix%value
+        if (has_prefix) prefix = fill_prefix%value
 
         ! Figure out how this paragraph is indented, if desired.
-        if (adaptive_fill_mode%value .and. (.not. have_prefix .or. len(prefix) == 0)) then
-            call fill_context_prefix(from, to, prefix, have_prefix)
+        if (adaptive_fill_mode%value .and. (.not. has_prefix .or. len(prefix) == 0)) then
+            call fill_context_prefix(from, to, prefix, has_prefix)
 
             ! Ignore a white-space only fill-prefix if we
             ! indent-according-to-mode.
-            if (have_prefix .and. fill_indent_according_to_mode) then
-                if (string_match("\`[ "//TAB//"]*\'", prefix, st) > 0) have_prefix = .false.
+            if (has_prefix .and. fill_indent_according_to_mode) then
+                if (string_match("\`[ "//TAB//"]*\'", prefix, st) > 0) has_prefix = .false.
             end if
         end if
 
-        if (.not. have_prefix) prefix = ""
+        if (.not. has_prefix) prefix = ""
         call goto_char(from)
         call beginning_of_line()
 
-        if (how == JUSTIFY_NONE) then
+        if (how == DEFAULT_JUSTIFICATION_NONE) then
             ! filling disabled: just check indentation
             call goto_char(from)
 
@@ -1228,7 +1229,7 @@ contains
             end do
         else
             ! Make sure first line is indented (at least) to left margin...
-            if (how == JUSTIFY_RIGHT .or. how == JUSTIFY_CENTER) then
+            if (how == DEFAULT_JUSTIFICATION_RIGHT .or. how == DEFAULT_JUSTIFICATION_CENTER) then
                 call fill_indent_to_left_margin(status)
             else if (current_indentation() < current_left_margin()) then
                 call fill_indent_to_left_margin(status)
@@ -1237,7 +1238,7 @@ contains
             if (.not. status%ok()) return
             ! Delete the fill-prefix from every line.
             call marker_position(to_marker, to, st)
-            from = fill_delete_prefix(from, to, prefix, have_prefix)
+            from = fill_delete_prefix(from, to, prefix, has_prefix)
             ! FROM, and point, are now before the text to fill, but after
             ! any fill prefix on the first line.
             call marker_position(to_marker, to, st)
@@ -1269,10 +1270,10 @@ contains
 
                 if (cut) then
                     ! Found a place to cut.
-                    call fill_newline(prefix, have_prefix, status)
+                    call fill_newline(prefix, has_prefix, status)
                     if (.not. status%ok()) return
 
-                    if (how /= JUSTIFY_NONE) then
+                    if (how /= DEFAULT_JUSTIFICATION_NONE) then
                         ! Justify the line just ended, if desired.
                         ! (save-excursion)
                         call copy_marker_at(point(), opos_marker, .false., st)
@@ -1280,7 +1281,7 @@ contains
                         call justify_current_line(status, how, .false., .true.)
                         call marker_position(opos_marker, opos, st)
                         call goto_char(opos)
-                        call free_marker(opos_marker, st)
+                        call destroy_marker(opos_marker, st)
                         if (.not. status%ok()) return
                     end if
                 else
@@ -1298,10 +1299,10 @@ contains
         call marker_position(to_marker, to, st)
         call goto_char(to)
         if (.not. is_eob()) call goto_char(point() + 1)
-        call free_marker(to_marker, st)
+        call destroy_marker(to_marker, st)
         ! Return the fill-prefix we used
         if (present(used)) used = prefix
-        if (present(have_used)) have_used = have_prefix
+        if (present(has_used)) has_used = has_prefix
     end subroutine fill_region_as_paragraph
 
     !> Fill paragraph at or after point.
@@ -1318,7 +1319,7 @@ contains
     !> call `fill_region' to fill each of the paragraphs in the active
     !> region, instead of just filling the current paragraph.  Port of
     !> fill.el:fill-paragraph (no fill-paragraph-function or comments;
-    !> JUSTIFY is a JUSTIFY_ constant, JUSTIFY_CURRENT when absent).
+    !> JUSTIFY is a JUSTIFY_ constant, DEFAULT_JUSTIFICATION_CURRENT when absent).
     recursive subroutine fill_paragraph(status, justify, region, used)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: justify
@@ -1333,7 +1334,7 @@ contains
         if (.not. modified) before_text = whole_buffer_text()
         call fill_paragraph_1(status, justify, region, used)
 
-        if (allocated(before_text) .and. cur > 0) then
+        if (allocated(before_text) .and. current > 0) then
             call is_buffer_modified(current_buffer(), modified, st)
 
             if (modified) then
@@ -1355,12 +1356,12 @@ contains
         integer(int64) :: savedb, savedz
         type(status_type) :: st
 
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         call narrow_to_region(minibuffer_prompt_end(), point_max(), st)
         call fill_paragraph(status, justify, used=used)
         call widen()
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     end subroutine fill_minibuffer_function
 
     !> The bytes of the whole current buffer, ignoring narrowing (what
@@ -1371,11 +1372,11 @@ contains
         integer(int64) :: savedb, savedz
         type(status_type) :: st
 
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         call widen()
         call buffer_substring(point_min(), point_max(), text, st)
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     end function whole_buffer_text
 
     !> The body of fill_paragraph.  Port of fill.el:fill-paragraph, in part.
@@ -1385,24 +1386,24 @@ contains
         logical, intent(in), optional :: region
         character(len=:), allocatable, intent(out), optional :: used
         type(handle_type) :: saved
-        integer(int64) :: before, end, beg, b, e
+        integer(int64) :: before, end, beginning, b, e
         type(status_type) :: st
         character(len=:), allocatable :: pfx
         integer :: how
-        procedure(fill_paragraph_proc), pointer :: fn
+        procedure(fill_paragraph_procedure), pointer :: fn
         logical :: done, in_minibuffer, saved_handle
         character(len=:), allocatable :: paragraph_start_orig, skip
         integer(int64) :: shortage
 
         call init_fill_variables()
         status = status_type()
-        how = JUSTIFY_CURRENT
+        how = DEFAULT_JUSTIFICATION_CURRENT
         if (present(justify)) how = justify
         pfx = ""
 
         ! 1. Fill the region if it is active when called interactively.
         if (present(region)) then
-            if (region .and. transient_mark_mode%value .and. buffers(cur)%mark_active) then
+            if (region .and. transient_mark_mode%value .and. buffers(current)%mark_active) then
                 call region_beginning(b, st)
                 call region_end(e, st)
 
@@ -1488,23 +1489,23 @@ contains
         else
             end = point()
             if (forward_paragraph(-1_int64) /= 0) continue
-            beg = point()
+            beginning = point()
 
             ! If the paragraph starts with a comment line preceding point
             ! on a non-comment line, skip such comment lines, so they
             ! are not filled together (bug#80449).
-            if (len(skip) > 0 .and. beg < before) then
-                call goto_char(beg)
+            if (len(skip) > 0 .and. beginning < before) then
+                call goto_char(beginning)
                 if (looking_at(paragraph_start_orig, st)) call goto_char(match_end(0, st) + 1)
 
                 if (looking_at(skip, st)) then
                     shortage = forward_line(1_int64)
-                    beg = point()
+                    beginning = point()
                 end if
             end if
 
             call goto_char(before)
-            call fill_region_as_paragraph(beg, end, status, how, used=pfx)
+            call fill_region_as_paragraph(beginning, end, status, how, used=pfx)
         end if
 
         paragraph_start%value = paragraph_start_orig
@@ -1523,19 +1524,19 @@ contains
     !> themselves.
     !>
     !> When called from Fortran, ARG is the number of following paragraphs to join
-    !> lines within, or if ARG is 0, optional arguments BEG and END present
-    !> means to join the lines of each paragraph in the region delimited by BEG
+    !> lines within, or if ARG is 0, optional arguments BEGINNING and END present
+    !> means to join the lines of each paragraph in the region delimited by BEGINNING
     !> and END.  Port of fill.el:unfill-paragraph (ARG 0 for no prefix).
-    recursive subroutine unfill_paragraph(arg, status, beg, end)
+    recursive subroutine unfill_paragraph(arg, status, beginning, end)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
+        integer(int64), intent(in), optional :: beginning, end
         integer(int64) :: b, e, opoint, left, saved
 
         status = status_type()
 
-        if (present(beg) .and. present(end) .and. arg == 0) then
-            b = beg
+        if (present(beginning) .and. present(end) .and. arg == 0) then
+            b = beginning
             e = end
         else
             if (arg == 0) then
@@ -1563,8 +1564,9 @@ contains
     !> The `fill_column' variable controls the width.
     !>
     !> Noninteractively, the third argument JUSTIFY specifies which
-    !> kind of justification to do: JUSTIFY_FULL, JUSTIFY_LEFT, JUSTIFY_RIGHT,
-    !> JUSTIFY_CENTER, or JUSTIFY_NONE.  A value of JUSTIFY_CURRENT (or absent) means handle each
+    !> kind of justification to do: DEFAULT_JUSTIFICATION_FULL, DEFAULT_JUSTIFICATION_LEFT, DEFAULT_JUSTIFICATION_RIGHT,
+    !> DEFAULT_JUSTIFICATION_CENTER, or DEFAULT_JUSTIFICATION_NONE.  A value of DEFAULT_JUSTIFICATION_CURRENT (or absent) means
+    !> handle each
     !> paragraph as specified by its text properties.
     !>
     !> The fourth arg NOSQUEEZE true means to leave whitespace other
@@ -1576,7 +1578,7 @@ contains
     !>
     !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
-    !> fill.el:fill-region (JUSTIFY_CURRENT when absent).
+    !> fill.el:fill-region (DEFAULT_JUSTIFICATION_CURRENT when absent).
     recursive subroutine fill_region(from, to, status, justify, nosqueeze, to_eop, used)
         integer(int64), intent(in) :: from, to
         type(status_type), intent(out) :: status
@@ -1586,12 +1588,12 @@ contains
         type(handle_type) :: start_point, max_marker
         type(status_type) :: st
         character(len=:), allocatable :: pfx
-        integer(int64) :: maxpos, beg, initial, end, left, moved, pos
+        integer(int64) :: maxpos, beginning, initial, end, left, moved, pos
         integer :: how
         logical :: sq
 
         status = status_type()
-        how = JUSTIFY_CURRENT
+        how = DEFAULT_JUSTIFICATION_CURRENT
         if (present(justify)) how = justify
         sq = .false.
         if (present(nosqueeze)) sq = nosqueeze
@@ -1607,8 +1609,8 @@ contains
         end if
 
         call copy_marker_at(point(), max_marker, .true., st)
-        beg = min(from, to)
-        call goto_char(beg)
+        beginning = min(from, to)
+        call goto_char(beginning)
         call beginning_of_line()
 
         do
@@ -1618,7 +1620,7 @@ contains
             left = forward_paragraph(1_int64)
             end = min(maxpos, point())
             left = forward_paragraph(-1_int64)
-            if (point() < beg) call goto_char(beg)
+            if (point() < beginning) call goto_char(beginning)
 
             if (point() >= initial .and. point() < end) then
                 call fill_region_as_paragraph(point(), end, status, how, sq, used=pfx)
@@ -1630,16 +1632,16 @@ contains
 
         call marker_position(start_point, pos, st)
         call goto_char(pos)
-        call free_marker(start_point, st)
-        call free_marker(max_marker, st)
+        call destroy_marker(start_point, st)
+        call destroy_marker(max_marker, st)
         if (present(used)) used = pfx
     end subroutine fill_region
 
     !> How should we justify this line?
     !> This returns the value of the text-property `justification',
     !> or the variable `default_justification' if there is no text-property.
-    !> However, it returns JUSTIFY_NONE to mean "don't justify".
-    !> Port of fill.el:current-justification (JUSTIFY_NONE for none).
+    !> However, it returns DEFAULT_JUSTIFICATION_NONE to mean "don't justify".
+    !> Port of fill.el:current-justification (DEFAULT_JUSTIFICATION_NONE for none).
     integer function current_justification() result(j)
         type(value_type) :: v
         type(status_type) :: st
@@ -1660,15 +1662,15 @@ contains
 
             select case (name)
             case ("left")
-                j = JUSTIFY_LEFT
+                j = DEFAULT_JUSTIFICATION_LEFT
             case ("right")
-                j = JUSTIFY_RIGHT
+                j = DEFAULT_JUSTIFICATION_RIGHT
             case ("full")
-                j = JUSTIFY_FULL
+                j = DEFAULT_JUSTIFICATION_FULL
             case ("center")
-                j = JUSTIFY_CENTER
+                j = DEFAULT_JUSTIFICATION_CENTER
             case default
-                j = JUSTIFY_NONE
+                j = DEFAULT_JUSTIFICATION_NONE
             end select
         end if
     end function current_justification
@@ -1677,9 +1679,10 @@ contains
     !> Normally does full justification: adds spaces to the line to make it end at
     !> the column given by `current_fill_column'.
     !> Optional first argument HOW specifies alternate type of justification:
-    !> it can be JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, or JUSTIFY_NONE; for their
+    !> it can be DEFAULT_JUSTIFICATION_LEFT, DEFAULT_JUSTIFICATION_RIGHT, DEFAULT_JUSTIFICATION_FULL,
+    !> DEFAULT_JUSTIFICATION_CENTER, or DEFAULT_JUSTIFICATION_NONE; for their
     !> meaning, see `default_justification'.
-    !> If HOW is JUSTIFY_CURRENT, will justify however the `current_justification' function says to.
+    !> If HOW is DEFAULT_JUSTIFICATION_CURRENT, will justify however the `current_justification' function says to.
     !> If HOW is absent, full justification is done by default.
     !> Second arg EOP true means that this is the last line of the paragraph, so
     !> it will not be stretched by full justification.
@@ -1691,21 +1694,21 @@ contains
         logical, intent(in), optional :: eop, nosqueeze
         type(handle_type) :: pos_marker
         type(status_type) :: st
-        integer(int64) :: fc, fp_end, beg, end, indent, endcol, ncols, nspaces, curr_fracspace, count, moved, &
+        integer(int64) :: fc, fp_end, beginning, end, indent, endcol, ncols, nspaces, current_fracspace, count, moved, &
                           pos, col, savedb, savedz, n
         integer :: how
         logical :: is_eop, no_squeeze
 
         status = status_type()
-        how = JUSTIFY_FULL
+        how = DEFAULT_JUSTIFICATION_FULL
         if (present(how_in)) how = how_in
-        if (how == JUSTIFY_CURRENT) how = current_justification()
+        if (how == DEFAULT_JUSTIFICATION_CURRENT) how = current_justification()
         is_eop = .false.
         if (present(eop)) is_eop = eop
         no_squeeze = .false.
         if (present(nosqueeze)) no_squeeze = nosqueeze
         ! No action required for these.
-        if (how == JUSTIFY_NONE .or. how == JUSTIFY_LEFT) return
+        if (how == DEFAULT_JUSTIFICATION_NONE .or. how == DEFAULT_JUSTIFICATION_LEFT) return
         call init_fill_variables()
         fc = current_fill_column()
         call point_marker(pos_marker)
@@ -1714,7 +1717,8 @@ contains
 
         ! Quick exit if it appears to be properly justified already or
         ! there is no text.
-        if (is_bol() .or. ((how == JUSTIFY_FULL .or. how == JUSTIFY_RIGHT) .and. current_column() == fc)) then
+        if (is_bol() .or. ((how == DEFAULT_JUSTIFICATION_FULL &
+                            .or. how == DEFAULT_JUSTIFICATION_RIGHT) .and. current_column() == fc)) then
             call finish()
             return
         end if
@@ -1734,12 +1738,12 @@ contains
         moved = skip_chars_forward(" "//TAB, st)
         ! This is beginning of the line's text.
         indent = current_column()
-        beg = point()
+        beginning = point()
         call goto_char(end)
         endcol = current_column()
 
         select case (how)
-        case (JUSTIFY_RIGHT)
+        case (DEFAULT_JUSTIFICATION_RIGHT)
             ncols = fc - endcol
 
             if (ncols < 0) then
@@ -1751,13 +1755,13 @@ contains
                 call delete_region(pos, point(), status)
             else
                 ! Need to add some
-                call goto_char(beg)
+                call goto_char(beginning)
                 col = indent_to(indent + ncols, status)
                 ! If point was at beginning of text, keep it there.
                 call marker_position(pos_marker, pos, st)
-                if (beg == pos) call set_pos(point())
+                if (beginning == pos) call set_pos(point())
             end if
-        case (JUSTIFY_CENTER)
+        case (DEFAULT_JUSTIFICATION_CENTER)
             ! Figure out how much indentation is needed
             ncols = current_left_margin() + (fc - current_left_margin() - (endcol - indent))/2
 
@@ -1770,20 +1774,20 @@ contains
                 call delete_region(pos, point(), status)
             else
                 ! Have too little - add some
-                call goto_char(beg)
+                call goto_char(beginning)
                 col = indent_to(ncols, status)
                 ! If point was at beginning of text, keep it there.
                 call marker_position(pos_marker, pos, st)
-                if (beg == pos) call set_pos(point())
+                if (beginning == pos) call set_pos(point())
             end if
         case default
             ! Insert extra spaces between words to justify line
             ! (save-restriction: the end of the restriction keeps its
             ! distance from the end of the buffer).
-            savedb = buffers(cur)%begv
-            savedz = buffers(cur)%text%z - buffers(cur)%zv
-            call narrow_to_region(beg, end, st)
-            if (.not. no_squeeze) call canonically_space_region(beg, end, status)
+            savedb = buffers(current)%begv
+            savedz = buffers(current)%text%z - buffers(current)%zv
+            call narrow_to_region(beginning, end, st)
+            if (.not. no_squeeze) call canonically_space_region(beginning, end, status)
             call goto_char(point_max())
             ! count word spaces in line
             nspaces = 0
@@ -1799,21 +1803,21 @@ contains
 
             ! Ncols is number of additional space chars needed
             if (ncols > 0 .and. nspaces > 0 .and. .not. is_eop) then
-                curr_fracspace = ncols + nspaces/2
+                current_fracspace = ncols + nspaces/2
                 count = nspaces
 
                 do while (count > 0)
                     moved = skip_chars_forward(" ", st)
-                    n = curr_fracspace/nspaces
+                    n = current_fracspace/nspaces
                     if (n > 0) call insert(repeat(" ", int(n)), status)
                     call search_forward(" ", pos, st, noerror=SEARCH_NOERROR)
                     count = count - 1
-                    curr_fracspace = mod(curr_fracspace, nspaces) + ncols
+                    current_fracspace = mod(current_fracspace, nspaces) + ncols
                 end do
             end if
 
             call widen()
-            call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+            call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
         end select
 
         call finish()
@@ -1825,13 +1829,13 @@ contains
 
             call marker_position(pos_marker, p, st)
             call goto_char(p)
-            call free_marker(pos_marker, st)
+            call destroy_marker(pos_marker, st)
         end subroutine finish
 
         subroutine set_pos(p)
             integer(int64), intent(in) :: p
 
-            call free_marker(pos_marker, st)
+            call destroy_marker(pos_marker, st)
             call copy_marker_at(p, pos_marker, .false., st)
         end subroutine set_pos
     end subroutine justify_current_line
@@ -1874,11 +1878,11 @@ contains
         status = status_type()
 
         select case (current_justification())
-        case (JUSTIFY_FULL)
+        case (DEFAULT_JUSTIFICATION_FULL)
             ! full justify: remove extra spaces
             call beginning_of_line_text()
             call canonically_space_region(point(), line_end_position(), status)
-        case (JUSTIFY_CENTER, JUSTIFY_RIGHT)
+        case (DEFAULT_JUSTIFICATION_CENTER, DEFAULT_JUSTIFICATION_RIGHT)
             call save_point(saved)
             call move_to_left_margin(st, force=.true.)
             ! Position ourselves after any fill-prefix.
@@ -1907,8 +1911,8 @@ contains
 
         status = status_type()
         call save_point(saved)
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         if (present(end)) call narrow_to_region(point_min(), end, st)
 
         if (present(begin)) then
@@ -1924,7 +1928,7 @@ contains
         end do
 
         call widen()
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
         call restore_point(saved)
     end subroutine unjustify_region
 
@@ -1945,7 +1949,7 @@ contains
 
         call marker_position(saved, pos, st)
         call goto_char(pos)
-        call free_marker(saved, st)
+        call destroy_marker(saved, st)
     end subroutine restore_point
 
     ! ------------------------------------------------------------------
@@ -1954,8 +1958,8 @@ contains
 
     ! Not a port.
     integer function prefix_justify() result(how)
-        how = JUSTIFY_CURRENT
-        if (current_prefix_arg%kind /= PREFIX_NONE) how = JUSTIFY_FULL
+        how = DEFAULT_JUSTIFICATION_CURRENT
+        if (current_prefix_arg%kind /= PREFIX_NONE) how = DEFAULT_JUSTIFICATION_FULL
     end function prefix_justify
 
     recursive subroutine cmd_fill_paragraph(status)
@@ -1983,7 +1987,7 @@ contains
     !> The arguments FROM and TO define the boundaries of the region.
     !>
     !> The optional third argument JUSTIFY, when called interactively with a
-    !> prefix arg, is assigned the value JUSTIFY_FULL.
+    !> prefix arg, is assigned the value DEFAULT_JUSTIFICATION_FULL.
     !> When called from Fortran, JUSTIFY can specify any type of justification;
     !> see `default_justification' for the possible values.
     !> Optional fourth arg NOSQUEEZE true means not to make spaces between
@@ -2040,15 +2044,15 @@ contains
     !> Not a port.
     subroutine fill_paragraph_set_local(self, fn)
         class(fill_paragraph_function_type), intent(inout) :: self
-        procedure(fill_paragraph_proc) :: fn
+        procedure(fill_paragraph_procedure) :: fn
         type(fill_paragraph_entry_type), allocatable :: grown(:)
         integer :: i, n
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2057,7 +2061,7 @@ contains
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%serial = buffers(current)%serial
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2071,7 +2075,7 @@ contains
             grown(i)%fn => self%entries(i)%fn
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
     end subroutine fill_paragraph_set_local
@@ -2079,48 +2083,48 @@ contains
     ! Not a port.
     function current_fill_paragraph(self) result(fn)
         class(fill_paragraph_function_type), intent(in) :: self
-        procedure(fill_paragraph_proc), pointer :: fn
+        procedure(fill_paragraph_procedure), pointer :: fn
         integer :: i
 
         fn => self%value
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
     end function current_fill_paragraph
 
     ! Not a port.
-    subroutine fill_paragraph_kill_local(self)
+    subroutine fill_paragraph_clear_local(self)
         class(fill_paragraph_function_type), intent(inout) :: self
         integer :: i
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%serial = 0
                 self%entries(i)%fn => null()
             end if
         end do
-    end subroutine fill_paragraph_kill_local
+    end subroutine fill_paragraph_clear_local
 
     ! Not a port.
     subroutine adaptive_fill_set_local(self, fn)
         class(adaptive_fill_function_type), intent(inout) :: self
-        procedure(adaptive_fill_proc) :: fn
+        procedure(adaptive_fill_procedure) :: fn
         type(adaptive_fill_entry_type), allocatable :: grown(:)
         integer :: i, n
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2129,7 +2133,7 @@ contains
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%serial = buffers(current)%serial
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2143,7 +2147,7 @@ contains
             grown(i)%fn => self%entries(i)%fn
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
     end subroutine adaptive_fill_set_local
@@ -2151,48 +2155,48 @@ contains
     ! Not a port.
     function current_adaptive_fill(self) result(fn)
         class(adaptive_fill_function_type), intent(in) :: self
-        procedure(adaptive_fill_proc), pointer :: fn
+        procedure(adaptive_fill_procedure), pointer :: fn
         integer :: i
 
         fn => self%value
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
     end function current_adaptive_fill
 
     ! Not a port.
-    subroutine adaptive_fill_kill_local(self)
+    subroutine adaptive_fill_clear_local(self)
         class(adaptive_fill_function_type), intent(inout) :: self
         integer :: i
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%serial = 0
                 self%entries(i)%fn => null()
             end if
         end do
-    end subroutine adaptive_fill_kill_local
+    end subroutine adaptive_fill_clear_local
 
     !> kill-all-local-variables: forget the current buffer's
     !> `fill_paragraph_function'.  Not a port.
-    subroutine kill_fill_locals()
-        call fill_paragraph_function%kill_local()
-        call adaptive_fill_function%kill_local()
-    end subroutine kill_fill_locals
+    subroutine clear_fill_locals()
+        call fill_paragraph_function%clear_local()
+        call adaptive_fill_function%clear_local()
+    end subroutine clear_fill_locals
 
     !> Set up fill.el's variables and commands.  Not a port: upstream
     !> defines them where fill.el is loaded.
     subroutine syms_of_fill()
         call init_fill_variables()
-        call add_local_variables_killer(kill_fill_locals)
+        call append_locals_clearer(clear_fill_locals)
         commands%fill_paragraph%execute => cmd_fill_paragraph
         commands%fill_region%execute => cmd_fill_region
         commands%fill_region_as_paragraph%execute => cmd_fill_region_as_paragraph

@@ -28,13 +28,13 @@ module test_dired_aux_fm
     use bindings_fm, only: init_bindings
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer, &
                          get_file_buffer, is_buffer_live, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, buffer_string, line_beginning_position, line_end_position, buffer_substring, goto_char
     use keyboard_fm, only: discard_input, kbd_store_bytes, command_loop, last_message
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, write_region, &
-                         make_directory_internal, file_modes, set_file_modes, file_symlink_target, file_attributes, &
+                         create_directory_internal, file_modes, set_file_modes, file_symlink_target, file_attributes, &
                          file_stat_type, is_file_executable
     use files_fm, only: find_file_noselect, delete_directory
     use sysdep_fm, only: emacs_localtime
@@ -42,9 +42,9 @@ module test_dired_aux_fm
                              dired_deletion_confirmer, dired_auto_revert_buffer, dired_mark_files_regexp, &
                              dired_copy_file_recursive, dired_rename_file, dired_do_create_files, dired_copy_file, &
                              dired_create_empty_file, dired_unmark_all_files, dired_create_destination_dirs, &
-                             DIRED_CREATE_DESTINATION_DIRS_NEVER, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
+                             DIRED_CREATE_DESTINATION_DIRS_NO, DIRED_CREATE_DESTINATION_DIRS_YES, &
                              DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NONE, DIRED_LOCALP_NO_DIR, &
-                             dired_file_creator_proc
+                             dired_file_creator_procedure
     implicit none(type, external)
     private
 
@@ -91,43 +91,43 @@ contains
     !> A fresh test directory with a.txt, b.txt and sub/; *scratch*
     !> current and shown alone.
     subroutine setup()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call init_fileio()
         call discard_input()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
-        buffers(cur)%directory = file_name_as_directory(emacs_wd)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
+        buffers(current)%directory = file_name_as_directory(emacs_wd)
         call show_alone()
-        call kill_dired_buffers()
+        call close_dired_buffers()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call make_directory_internal(tdir(), st)
+        call create_directory_internal(tdir(), st)
         call make_file("a.txt", "alpha")
         call make_file("b.txt", "beta")
-        call make_directory_internal(tdir()//"sub", st)
+        call create_directory_internal(tdir()//"sub", st)
         dired_auto_revert_buffer = .false.
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
+        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
     end subroutine setup
 
     !> Remove the test directory and the buffers showing it.
     subroutine teardown()
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call discard_input()
-        call kill_dired_buffers()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
+        call close_dired_buffers()
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
         call show_alone()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         dired_deletion_confirmer => null()
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
+        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
     end subroutine teardown
 
-    !> Kill every Dired buffer of the test directory and its subdirectories.
-    subroutine kill_dired_buffers()
+    !> Close every Dired buffer of the test directory and its subdirectories.
+    subroutine close_dired_buffers()
         type(handle_type), allocatable :: bufs(:)
         type(status_type) :: st
         integer :: k
@@ -135,29 +135,29 @@ contains
         bufs = dired_buffers_for_dir(tdir())
 
         do k = 1, size(bufs)
-            call kill_buffer(bufs(k), st)
+            call close_buffer(bufs(k), st)
         end do
 
         bufs = dired_buffers_for_dir(tdir()//"sub/")
 
         do k = 1, size(bufs)
-            call kill_buffer(bufs(k), st)
+            call close_buffer(bufs(k), st)
         end do
-    end subroutine kill_dired_buffers
+    end subroutine close_dired_buffers
 
     !> Create the file NAME (relative to the test directory) holding TEXT.
     subroutine make_file(name, text)
         character(len=*), intent(in) :: name, text
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(" *dired-aux-test-file*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *dired-aux-test-file*", buffer, st)
+        call set_buffer(buffer, st)
         call erase_buffer(st)
         call insert(text, st)
         call write_region(tdir()//name, .false., st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call set_buffer(old, st)
     end subroutine make_file
 
@@ -165,18 +165,18 @@ contains
     function contents(name) result(s)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: s
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
         old = current_buffer()
-        call find_file_noselect(tdir()//name, buf, st)
+        call find_file_noselect(tdir()//name, buffer, st)
         s = "<none>"
 
         if (st%ok()) then
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             s = buffer_string()
             call set_buffer(old, st)
-            call kill_buffer(buf, st)
+            call close_buffer(buffer, st)
         end if
 
         call set_buffer(old, st)
@@ -236,7 +236,7 @@ contains
             to_cp = tdir()//"bar/foo-cp"
             to_mv = tdir()//"qux/foo-mv"
             ! `dired_create_destination_dirs' set to always.
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_ALWAYS
+            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_YES
             call dired_copy_file_recursive(from, to_cp, .false., st)
             call check(error, st%ok() .and. file_exists(to_cp), "always: copy "//format_error(st))
             if (allocated(error)) exit body
@@ -245,7 +245,7 @@ contains
             if (allocated(error)) exit body
             ! `dired_create_destination_dirs' set to nil.
             call reset()
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NEVER
+            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
             call dired_copy_file_recursive(from, to_cp, .false., st)
             call check(error,.not. st%ok(), "nil: copy fails")
             if (allocated(error)) exit body
@@ -293,14 +293,14 @@ contains
     subroutine test_bug30624(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        procedure(dired_file_creator_proc), pointer :: creator
+        procedure(dired_file_creator_procedure), pointer :: creator
 
         call setup()
 
         body: block
             call make_file("bug30624_file1", "1")
             call make_file("bug30624_file2", "2")
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_ALWAYS
+            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_YES
             call dired(tdir(), st)
             call show_alone()
             call dired_mark_files_regexp("bug30624_file", st)
@@ -402,7 +402,7 @@ contains
             call check(error, buffers(b)%filename, tdir()//"renamed.txt")
             if (allocated(error)) exit body
             call check(error, last_message, "Move: 1 file done")
-            call kill_buffer(fbuf, st)
+            call close_buffer(fbuf, st)
         end block body
 
         call teardown()
@@ -597,10 +597,10 @@ contains
             dbuf = current_buffer()
             call keys("v")
             vbuf = get_file_buffer(tdir()//"a.txt")
-            call check(error, vbuf%index /= 0 .and. buffers(cur)%read_only, "viewing a.txt")
+            call check(error, vbuf%index /= 0 .and. buffers(current)%read_only, "viewing a.txt")
             if (allocated(error)) exit body
             call keys("q")
-            call check(error, cur == dbuf%index .and. .not. is_buffer_live(vbuf), "back in Dired")
+            call check(error, current == dbuf%index .and. .not. is_buffer_live(vbuf), "back in Dired")
         end block body
 
         call teardown()

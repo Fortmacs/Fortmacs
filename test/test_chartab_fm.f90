@@ -29,7 +29,7 @@ module test_chartab_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use character_fm, only: MAX_CHAR
-    use chartab_fm, only: make_char_table, free_char_table, is_char_table, char_table_subtype, char_table_parent, &
+    use chartab_fm, only: make_char_table, destroy_char_table, is_char_table, char_table_subtype, char_table_parent, &
                           set_char_table_parent, char_table_extra_slot, set_char_table_extra_slot, char_table_range, &
                           set_char_table_range, char_table_ref, char_table_set, map_char_table, optimize_char_table, &
                           copy_char_table, NO_VALUE
@@ -88,7 +88,7 @@ contains
             if (allocated(error)) return
         end if
 
-        call free_char_table(tbl, status)
+        call destroy_char_table(tbl, status)
     end subroutine set_and_test
 
     subroutine test_range_setting(error)
@@ -114,7 +114,7 @@ contains
         call check(error, is_char_table(tbl))
         if (allocated(error)) return
         call check(error,.not. is_char_table(null_handle()))
-        call free_char_table(tbl, status)
+        call destroy_char_table(tbl, status)
     end subroutine test_is_char_table
 
     subroutine test_subtype(error)
@@ -124,7 +124,7 @@ contains
 
         call make_char_table(tbl, "foo", status)
         call check(error, char_table_subtype(tbl, status) == "foo")
-        call free_char_table(tbl, status)
+        call destroy_char_table(tbl, status)
     end subroutine test_subtype
 
     subroutine test_parent(error)
@@ -144,8 +144,8 @@ contains
         ! No cycles.
         call set_char_table_parent(parent, child, status)
         call check(error,.not. status%ok())
-        call free_char_table(child, status)
-        call free_char_table(parent, status)
+        call destroy_char_table(child, status)
+        call destroy_char_table(parent, status)
     end subroutine test_parent
 
     subroutine test_extra_slot(error)
@@ -159,7 +159,7 @@ contains
         call check(error, char_table_extra_slot(tbl, 1, status) == 42)
         if (allocated(error)) return
         call check(error, char_table_extra_slot(tbl, 3, status) == NO_VALUE .and. .not. status%ok())
-        call free_char_table(tbl, status)
+        call destroy_char_table(tbl, status)
     end subroutine test_extra_slot
 
     subroutine test_inherit(error)
@@ -185,8 +185,8 @@ contains
         call check(error, char_table_ref(child, iachar("a")) == 8)
         if (allocated(error)) return
         call check(error, char_table_range(child, status) == 8)
-        call free_char_table(child, status)
-        call free_char_table(parent, status)
+        call destroy_char_table(child, status)
+        call destroy_char_table(parent, status)
     end subroutine test_inherit
 
     subroutine test_range(error)
@@ -206,7 +206,7 @@ contains
         call check(error, char_table_range(tbl, status, 99) == 9)
         if (allocated(error)) return
         call check(error, char_table_range(tbl, status, -1) == NO_VALUE .and. .not. status%ok())
-        call free_char_table(tbl, status)
+        call destroy_char_table(tbl, status)
     end subroutine test_range
 
     !> Record a run of `map_char_table'.
@@ -250,8 +250,8 @@ contains
         call check(error, all(run_from(1:6) == [0, 97, 109, 110, 123, int(z'3000')]) .and. &
                    all(run_to(1:6) == [96, 108, 109, 122, 127, int(z'30ff')]) .and. &
                    all(run_val(1:6) == [5, 1, 2, 1, 5, 1]))
-        call free_char_table(tbl, status)
-        call free_char_table(parent, status)
+        call destroy_char_table(tbl, status)
+        call destroy_char_table(parent, status)
     end subroutine test_map
 
     subroutine test_optimize_copy(error)
@@ -273,7 +273,7 @@ contains
         call char_table_set(copy, 65, 8_int64, status)
         call check(error, char_table_ref(tbl, 65) == 7 .and. char_table_ref(copy, 65) == 8 .and. &
                    char_table_subtype(copy, status) == "foo")
-        call free_char_table(copy, status)
-        call free_char_table(tbl, status)
+        call destroy_char_table(copy, status)
+        call destroy_char_table(tbl, status)
     end subroutine test_optimize_copy
 end module test_chartab_fm

@@ -27,7 +27,7 @@ module page_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bol, is_bob, is_eob, is_eol, widen, narrow_to_region
     use cmds_fm, only: forward_char, forward_line, beginning_of_line, end_of_line
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
@@ -113,7 +113,7 @@ contains
                     ! We found one--move to the end of it.
                     call goto_char(match_end(0, status))
                 else
-                    ! We found nothing--go to beg of buffer.
+                    ! We found nothing--go to beginning of buffer.
                     call goto_char(point_min())
                 end if
             end if
@@ -274,8 +274,8 @@ contains
         type(status_type) :: st
 
         ! (save-restriction (widen) (save-excursion ...))
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
         call widen()
         opoint = point()
         page = 1
@@ -293,7 +293,7 @@ contains
 
         line = adjust + count_lines(point(), opoint)
         call goto_char(opoint)
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
     end subroutine page_what_page
 
     !> Display the page number, and the line number within that page.
@@ -312,10 +312,10 @@ contains
     function itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function itoa
 
     recursive subroutine cmd_mark_page(status)

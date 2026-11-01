@@ -32,8 +32,8 @@
 !>
 !> Upstream's gotos become a loop over labeled steps in
 !> scan_expressions_forward and exits of named loops elsewhere.  A parse state is
-!> a `parse_state_type' outside and the internal `lisp_parse_state' here,
-!> as upstream converts between the list and struct lisp_parse_state.
+!> a `parse_state_type' outside and the internal `lisp_parse_state_type' here,
+!> as upstream converts between the list and struct lisp_parse_state_type.
 !>
 !> Deferred: `syntax_table' text properties (UPDATE_SYNTAX_TABLE is a
 !> no-op), `forward_comment_function', quitting (rarely_quit), the
@@ -46,8 +46,8 @@ submodule(syntax_fm) syntax_scan_fm
     use print_fm, only: fortran_string
     implicit none(type, external)
 
-    !> struct lisp_parse_state: the internal form of the parse state.
-    type :: lisp_parse_state
+    !> struct lisp_parse_state_type: the internal form of the parse state.
+    type :: lisp_parse_state_type
         !> Depth at end of parsing.
         integer(int64) :: depth = 0
         !> -1 if not within string, else desired terminator.
@@ -75,7 +75,7 @@ submodule(syntax_fm) syntax_scan_fm
         !> (potentially) holds the first char of a 2-char construct, i.e.
         !> comment delimiter or Sescape, etc.  SMAX otherwise.
         integer :: prev_syntax = SMAX
-    end type lisp_parse_state
+    end type lisp_parse_state_type
 
     !> A cache for finding the start of a subprogram: find_start_pos is the
     !> place for which the subprogram start was found, find_start_value the
@@ -183,15 +183,15 @@ contains
     integer function fetch(pos_byte)
         integer(int64), intent(in) :: pos_byte
 
-        fetch = int(buf_fetch_char(buffers(cur), pos_byte))
+        fetch = int(buf_fetch_char(buffers(current), pos_byte))
     end function fetch
 
     !> INC_BOTH.  Port of buffer.h:inc_both.
     subroutine inc_both(pos, pos_byte)
         integer(int64), intent(inout) :: pos, pos_byte
 
-        if (buffers(cur)%multibyte) then
-            pos_byte = pos_byte + buf_next_char_len(buffers(cur), pos_byte)
+        if (buffers(current)%multibyte) then
+            pos_byte = pos_byte + buf_next_char_len(buffers(current), pos_byte)
         else
             pos_byte = pos_byte + 1
         end if
@@ -213,8 +213,8 @@ contains
     recursive integer(int64) function dec_bytepos(bytepos)
         integer(int64), intent(in) :: bytepos
 
-        if (buffers(cur)%multibyte) then
-            dec_bytepos = bytepos - buf_prev_char_len(buffers(cur), bytepos)
+        if (buffers(current)%multibyte) then
+            dec_bytepos = bytepos - buf_prev_char_len(buffers(current), bytepos)
         else
             dec_bytepos = bytepos - 1
         end if
@@ -232,7 +232,7 @@ contains
         bytepos = char_to_byte(charpos)
         char_quoted_at = .false.
 
-        do while (charpos > buffers(cur)%begv)
+        do while (charpos > buffers(current)%begv)
             call dec_both(charpos, bytepos)
             code = syn_at(fetch(bytepos), charpos)
             if (code /= SCHARQUOTE .and. code /= SESCAPE) exit
@@ -244,7 +244,7 @@ contains
     subroutine set_pt_both(pos, pos_byte)
         integer(int64), intent(in) :: pos, pos_byte
 
-        call temp_set_point_both(buffers(cur), pos, pos_byte)
+        call temp_set_point_both(buffers(current), pos, pos_byte)
     end subroutine set_pt_both
 
     !> Signal `scan_error' with MESSAGE and the positions A and B.
@@ -279,13 +279,13 @@ contains
         integer(int64) :: opoint, opoint_byte, pt, pt_byte
         integer :: c
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             opoint = b%pt
             opoint_byte = b%pt_byte
 
             ! Use previous finding, if it's valid and applies to this
             ! inquiry.
-            if (find_start_buffer == cur .and. find_start_serial == b%serial) then
+            if (find_start_buffer == current .and. find_start_serial == b%serial) then
                 ! Reuse the defun-start even if POS is a little farther on.
                 ! POS might be in the next subprogram, but that's ok.  Our value
                 ! may not be the best possible, but will still be usable.
@@ -325,7 +325,7 @@ contains
                         if (syn_at(c, b%pt) == SOPEN) exit
                     end if
 
-                    ! Move to beg of previous line.
+                    ! Move to beginning of previous line.
                     pt = b%pt
                     pt_byte = b%pt_byte
                     call scan_newline(pt, pt_byte, b%begv, b%begv_byte, -2_int64)
@@ -337,7 +337,7 @@ contains
                 call temp_set_point_both(b, opoint, opoint_byte)
             end if
 
-            find_start_buffer = cur
+            find_start_buffer = current
             find_start_serial = b%serial
             find_start_modiff = b%text%modiff
             find_start_begv = b%begv
@@ -378,7 +378,7 @@ contains
         integer, intent(in) :: comstyle
         integer(int64), intent(out) :: charpos, bytepos
         integer, parameter :: ENDED = 0, LOSSAGE = 1, DONE = 2
-        type(lisp_parse_state) :: state
+        type(lisp_parse_state_type) :: state
         integer(int64) :: from, from_byte, comment_end, comment_end_byte, comstart_pos, comstart_byte, &
                           subprogram_start, subprogram_start_byte, nesting, next, next_byte, temp_byte
         integer :: string_style, code, c, syntax, prev_syntax, next_syntax, outcome
@@ -572,7 +572,7 @@ contains
             if (subprogram_start == 0) then
                 subprogram_start = find_subprogram_start(comment_end, comment_end_byte)
                 subprogram_start_byte = find_start_value_byte
-                adjusted = subprogram_start > buffers(cur)%begv
+                adjusted = subprogram_start > buffers(current)%begv
             end if
 
             do
@@ -791,7 +791,7 @@ contains
 
     count1 = count
 
-    associate (b => buffers(cur))
+    associate (b => buffers(current))
         if (count1 > 0) then
             stop = b%zv
         else
@@ -870,7 +870,7 @@ contains
 
         do
             if (from <= stop) then
-                call set_pt_both(buffers(cur)%begv, buffers(cur)%begv_byte)
+                call set_pt_both(buffers(current)%begv, buffers(current)%begv_byte)
                 found = .false.
                 return
             end if
@@ -997,7 +997,7 @@ contains
         count = count_in
         depth = depth_in
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (count > 0) then
                 stop = b%zv
             else
@@ -1281,7 +1281,7 @@ contains
                     if (code == SMATH) then
                         if (.not. expression_flag) cycle backward
 
-                        if (from > buffers(cur)%begv) then
+                        if (from > buffers(current)%begv) then
                             temp_pos = dec_bytepos(from_byte)
 
                             if (from /= stop) then
@@ -1415,7 +1415,7 @@ contains
     !> comment opener based on PREV_FROM_SYNTAX, update STATE and return
     !> true.  Port of syntax.c:in_2char_comment_start.
     recursive logical function in_2char_comment_start(state, prev_from_syntax, prev_from, from_byte)
-        type(lisp_parse_state), intent(inout) :: state
+        type(lisp_parse_state_type), intent(inout) :: state
         integer, intent(in) :: prev_from_syntax
         integer(int64), intent(in) :: prev_from, from_byte
         integer :: syntax
@@ -1446,7 +1446,7 @@ contains
     !> at the start or end of a comment, after the beginning of a string,
     !> or after the end of a string.  Port of syntax.c:scan_sexps_forward.
     recursive subroutine scan_expressions_forward(state, from_in, from_byte_in, end, targetdepth, stopbefore, commentstop)
-        type(lisp_parse_state), intent(inout) :: state
+        type(lisp_parse_state_type), intent(inout) :: state
         integer(int64), intent(in) :: from_in, from_byte_in, end, targetdepth
         logical, intent(in) :: stopbefore
         integer, intent(in) :: commentstop
@@ -1466,7 +1466,7 @@ contains
         ! Keep one character before FROM.
         prev_from = from
         prev_from_byte = from_byte
-        if (from /= buffers(cur)%begv) call dec_both(prev_from, prev_from_byte)
+        if (from /= buffers(current)%begv) call dec_both(prev_from, prev_from_byte)
         depth = state%depth
         start_quoted = state%quoted
         prev_prev_from_syntax = SMAX
@@ -1669,7 +1669,7 @@ contains
                 ! the middle of it.  We don't want to do that if we're just
                 ! at the beginning of the comment (think of (*) ... (*)).
                 found = forw_comment(from, from_byte, end, state%incomment, state%comstyle, &
-                                     merge(0, prev_from_syntax, from == buffers(cur)%begv), out_charpos, &
+                                     merge(0, prev_from_syntax, from == buffers(current)%begv), out_charpos, &
                                      out_bytepos, incomment, last_syntax)
                 state%incomment = incomment
                 prev_from_syntax = last_syntax
@@ -1805,7 +1805,7 @@ contains
     !> scan_expressions_forward; an absent EXTERNAL is the empty state.  Port of
     !> syntax.c:internalize_parse_state.
     recursive subroutine internalize_parse_state(state, external)
-        type(lisp_parse_state), intent(out) :: state
+        type(lisp_parse_state_type), intent(out) :: state
         type(parse_state_type), intent(in), optional :: external
 
         allocate (state%levelstarts(0))
@@ -1853,7 +1853,7 @@ contains
     end subroutine internalize_parse_state
 
     module procedure parse_partial_expression
-    type(lisp_parse_state) :: st
+    type(lisp_parse_state_type) :: st
     integer(int64) :: f, t, target
     integer :: stop_at_comments
 
@@ -1907,9 +1907,9 @@ contains
     end if
 
     if (present(pos)) then
-        call parse_partial_expression(buffers(cur)%begv, pos, state, status)
+        call parse_partial_expression(buffers(current)%begv, pos, state, status)
     else
-        call parse_partial_expression(buffers(cur)%begv, buffers(cur)%pt, state, status)
+        call parse_partial_expression(buffers(current)%begv, buffers(current)%pt, state, status)
     end if
     end procedure syntax_ppss
 end submodule syntax_scan_fm

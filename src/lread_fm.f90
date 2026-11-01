@@ -196,7 +196,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: pos
         integer(int32) :: ch, n, modifiers
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         type(status_type) :: st
 
         value = ""
@@ -267,8 +267,8 @@ contains
                 end if
             end if
 
-            call char_string(ch, buf, n, st)
-            value = value//buf(1:n)
+            call char_string(ch, buffer, n, st)
+            value = value//buffer(1:n)
         end do
 
         next = pos

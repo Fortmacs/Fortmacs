@@ -40,7 +40,7 @@
 submodule(simple_fm) simple_next_error_fm
     use buffer_fm, only: is_buffer_live, current_buffer, set_buffer, buffer_list
     use handle_fm, only: null_handle
-    use data_fm, only: add_local_variables_killer
+    use data_fm, only: append_locals_clearer
     use window_fm, only: select_window
     use frame_fm, only: selected_frame
     use error_fm, only: FM_VOID_FUNCTION
@@ -49,7 +49,7 @@ submodule(simple_fm) simple_next_error_fm
     !> A buffer's own next-error-function and next-error-buffer.
     type :: next_error_entry_type
         integer(int64) :: serial = 0
-        procedure(next_error_function_proc), pointer, nopass :: fn => null()
+        procedure(next_error_function_procedure), pointer, nopass :: fn => null()
         type(handle_type) :: next_error_buffer
     end type next_error_entry_type
 
@@ -75,32 +75,32 @@ contains
         type(next_error_entry_type), allocatable :: grown(:)
         integer :: n
 
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k /= 0) return
         if (.not. allocated(entries)) allocate (entries(0))
         n = size(entries)
         allocate (grown(n + 1))
         grown(1:n) = entries
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, entries)
         k = n + 1
     end function current_entry
 
     !> Forget the current buffer's next-error-function and
     !> next-error-buffer (kill-all-local-variables).  Not a port.
-    subroutine kill_next_error_locals()
+    subroutine clear_next_error_locals()
         integer :: k
 
-        k = entry_of(cur)
+        k = entry_of(current)
         if (k == 0) return
         entries(k)%fn => null()
         entries(k)%next_error_buffer = null_handle()
-    end subroutine kill_next_error_locals
+    end subroutine clear_next_error_locals
 
     module procedure set_next_error_function
     integer :: k
 
-    if (cur == 0) return
+    if (current == 0) return
     k = current_entry()
     entries(k)%fn => fn
     end procedure set_next_error_function
@@ -117,7 +117,7 @@ contains
                                                            extra_test_exclusive)
         type(handle_type), intent(in) :: buffer
         logical, intent(in), optional :: avoid_current
-        procedure(predicate_proc), optional :: extra_test_inclusive, extra_test_exclusive
+        procedure(test_procedure), optional :: extra_test_inclusive, extra_test_exclusive
         type(handle_type) :: old
         type(status_type) :: st
         logical :: avoid
@@ -131,7 +131,7 @@ contains
         old = current_buffer()
         call set_buffer(buffer, st)
 
-        if (has_next_error_function(cur)) then
+        if (has_next_error_function(current)) then
             ! This is the normal test.  Optionally reject some buffers.
             is_next_error_buffer = .true.
             if (present(extra_test_exclusive)) is_next_error_buffer = extra_test_exclusive()
@@ -155,7 +155,7 @@ contains
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: avoid_current
-        procedure(predicate_proc), optional :: extra_test_inclusive, extra_test_exclusive
+        procedure(test_procedure), optional :: extra_test_inclusive, extra_test_exclusive
         type(handle_type), allocatable :: all(:)
         logical :: avoid
         integer :: k
@@ -221,7 +221,7 @@ contains
     ! call.
     call set_buffer(buffer, status)
     if (.not. status%ok()) return
-    k = entry_of(cur)
+    k = entry_of(current)
     call entries(k)%fn(arg, rst, status)
     if (.not. status%ok()) return
     prev = next_error_last_buffer
@@ -250,7 +250,7 @@ contains
     buffer = current_buffer()
     ! We know here that next-error-function is a valid function we can
     ! call.
-    k = entry_of(cur)
+    k = entry_of(current)
 
     if (k == 0) then
         call set_error(status, FM_VOID_FUNCTION, "null()")
@@ -373,7 +373,7 @@ contains
     end subroutine no_select
 
     module procedure syms_of_simple_next_error
-    call add_local_variables_killer(kill_next_error_locals)
+    call append_locals_clearer(clear_next_error_locals)
     commands%next_error%execute => cmd_next_error
     commands%previous_error%execute => previous_error
     commands%first_error%execute => first_error

@@ -31,7 +31,7 @@ module test_python_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                           line_end_position
@@ -221,13 +221,13 @@ contains
     !> buffer (no indentation guessing), point at its start.
     subroutine py_buffer(contents)
         character(len=*), intent(in) :: contents
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         logical :: saved
 
         call init_bindings()
-        call get_buffer_create(" *python-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *python-test*", buffer, st)
+        call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
         saved = python_indent_guess_indent_offset_variable%value
@@ -248,22 +248,22 @@ contains
         character(len=*), intent(in) :: string
         integer(int64), intent(in), optional :: num
         integer(int64) :: n, f
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         type(status_type) :: st
 
         n = 1
         if (present(num)) n = num
-        re = regexp_quote(string)
+        regexp = regexp_quote(string)
 
         do while (n /= 0)
             if (n > 0) then
-                if (looking_at(re, st)) call goto_char(match_end(0, st))
-                call re_search_forward(re, f, st, noerror=SEARCH_NOERROR)
+                if (looking_at(regexp, st)) call goto_char(match_end(0, st))
+                call re_search_forward(regexp, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) return
                 call goto_char(match_beginning(0, st))
                 n = n - 1
             else
-                call re_search_backward(re, f, st, noerror=SEARCH_NOERROR)
+                call re_search_backward(regexp, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) return
                 n = n + 1
             end if
@@ -277,23 +277,23 @@ contains
         integer(int64), intent(in) :: num
         logical, intent(in) :: restore
         integer(int64) :: n, f, starting_point
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         type(status_type) :: st
 
         n = num
         starting_point = point()
-        re = regexp_quote(string)
+        regexp = regexp_quote(string)
         found = 0
 
         do while (n /= 0)
             if (n > 0) then
-                if (looking_at(re, st)) call goto_char(match_end(0, st))
-                call re_search_forward(re, f, st, noerror=SEARCH_NOERROR)
+                if (looking_at(regexp, st)) call goto_char(match_end(0, st))
+                call re_search_forward(regexp, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) exit
                 call goto_char(match_beginning(0, st))
                 n = n - 1
             else
-                call re_search_backward(re, f, st, noerror=SEARCH_NOERROR)
+                call re_search_backward(regexp, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) exit
                 n = n + 1
             end if
@@ -1969,7 +1969,7 @@ contains
         integer(int64) :: shortage
 
         call py_buffer(LF &
-                       //"def test_re(string):"//LF &
+                       //"def test_regexp(string):"//LF &
                        //"    if re.match('^[a-c]+$', string):"//LF &
                        //"        print('yes')"//LF &
                        //"    else:"//LF &
@@ -1989,7 +1989,7 @@ contains
         call py_buffer(LF &
                        //"from re import match"//LF &
                        //LF &
-                       //"def test_re(string):"//LF &
+                       //"def test_regexp(string):"//LF &
                        //"    if match('^[a-c]+$', string):"//LF &
                        //"        print('yes')"//LF &
                        //"    else:"//LF &
@@ -4307,7 +4307,7 @@ contains
 
         call py_buffer(LF &
                        //"if request.user.is_authenticated():"//LF &
-                       //"    profile = Profile.objects.get_or_create(user=request.user)"//LF &
+                       //"    profile = Profile.objects.get_or_make(user=request.user)"//LF &
                        //"    if profile.stats:"//LF &
                        //"        profile.recalculate_stats()"//LF &
                        //LF &

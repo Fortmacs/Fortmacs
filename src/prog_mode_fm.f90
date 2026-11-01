@@ -84,7 +84,7 @@ contains
         if (.not. status%ok()) return
         call require_final_newline%set_local(mode_require_final_newline)
         call parse_expression_ignore_comments%set_local(.true.)
-        call major_modes%prog_mode%finish(saved, status)
+        call major_modes%prog_mode%end(saved, status)
     end subroutine prog_mode
 
     !> Define Prog mode.  Its parent is fundamental-mode, which

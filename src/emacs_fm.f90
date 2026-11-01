@@ -32,7 +32,7 @@ module emacs_fm
     use error_fm, only: format_message, status_type, set_error, format_error, FM_GENERIC_ERROR
     use version_fm, only: version_string
     use handle_fm, only: handle_type, null_handle
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer
     use editfns_fm, only: goto_char, point_min
     use cmds_fm, only: forward_line
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, is_file_name_absolute, &
@@ -49,7 +49,7 @@ module emacs_fm
     use xfaces_fm, only: init_frame_faces
     use faces_fm, only: init_faces
     use modes_fm, only: minor_modes
-    use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, kill_emacs_hook
+    use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_emacs_hook
     use process_fm, only: kill_buffer_processes
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
@@ -63,7 +63,7 @@ module emacs_fm
     implicit none(type, external)
     private
 
-    public :: emacs_main, command_line, command_line_1, arg_type, init_proc, execute_editor, sort_args
+    public :: emacs_main, command_line, command_line_1, arg_type, init_procedure, execute_editor, sort_args
     public :: load_init_file
 
     !> One command-line argument.
@@ -74,11 +74,11 @@ module emacs_fm
     abstract interface
         !> The user's configuration: `configure' in init.f90, run once at
         !> startup the way upstream loads the init file.  Not a port.
-        subroutine init_proc(status)
+        subroutine init_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine init_proc
+        end subroutine init_procedure
     end interface
 
     !> startup.el:init-file-had-error: whether the init file's
@@ -368,17 +368,17 @@ contains
         character(len=*), intent(in) :: name, dir
         integer(int64), intent(in) :: line, column
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer(int64) :: shortage, moved
 
         if (is_file_name_absolute(name)) then
-            call find_file_noselect(name, buf, status)
+            call find_file_noselect(name, buffer, status)
         else
-            call find_file_noselect(dir//name, buf, status)
+            call find_file_noselect(dir//name, buffer, status)
         end if
 
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
 
         if (line /= 0) then
@@ -398,7 +398,7 @@ contains
         integer(int32), intent(in) :: fd
         type(status_type), intent(out) :: status
         type(arg_type), intent(in), optional :: args(:)
-        procedure(init_proc), optional :: configure
+        procedure(init_procedure), optional :: configure
         type(handle_type) :: scratch
         type(status_type) :: st, opt_status, color_status
         type(arg_type), allocatable :: rest(:)
@@ -406,12 +406,12 @@ contains
 
         call init_fileio()
         call init_bindings()
-        call get_buffer_create("*scratch*", scratch, status)
+        call get_or_make_buffer("*scratch*", scratch, status)
         if (.not. status%ok()) return
         call set_buffer(scratch, status)
         if (.not. status%ok()) return
         ! buffer.c:init_buffer: *scratch* starts in the working directory.
-        if (len(emacs_wd) > 0) buffers(cur)%directory = file_name_as_directory(emacs_wd)
+        if (len(emacs_wd) > 0) buffers(current)%directory = file_name_as_directory(emacs_wd)
         ! A fresh frame (emacs_main may run more than once in tests).
         call delete_window_tree(selected_frame%root_window)
         call delete_window_object(selected_frame%minibuffer_window)
@@ -488,7 +488,7 @@ contains
         ring_bell_hook => frame_ring_bell
         call command_loop(st)
         ! Fkill_emacs: run the hook.
-        call kill_emacs_hook%execute(st)
+        call exit_emacs_hook%execute(st)
         ring_bell_hook => null()
         redisplay_hook => null()
         call delete_tty(selected_frame%tty, status)
@@ -503,7 +503,7 @@ contains
     !> startup.el:startup--load-user-init-file (the init file is compiled
     !> in, so loading it is calling it).
     subroutine load_init_file(configure)
-        procedure(init_proc) :: configure
+        procedure(init_procedure) :: configure
         type(status_type) :: status
 
         init_file_had_error = .false.
@@ -822,7 +822,7 @@ contains
     !> installation it was built against.  Port of the startup part of
     !> emacs.c:main.
     subroutine execute_editor(configure, exit_code, prefix)
-        procedure(init_proc) :: configure
+        procedure(init_procedure) :: configure
         integer, intent(out) :: exit_code
         character(len=*), intent(in), optional :: prefix
         character(len=*), parameter :: usage = "Usage: fortmacs [--version | --help] [-q] [+LINE] [FILE]..."

@@ -29,12 +29,12 @@
 !> (`read_minibuffer_restore_windows').
 !>
 !> Deferred: other frames, window parameters (no persistent ones are
-!> ported), `window_restore_killed_buffer_windows' other than .false., the
+!> ported), `window_restore_closed_buffer_windows' other than .false., the
 !> frame's focus and `minibuffer_scroll_window'.
 submodule(window_fm) window_config_fm
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, resolve_buffer, buffer_list, &
-                         get_buffer_create
-    use marker_fm, only: make_marker, free_marker, set_marker, set_marker_restricted, marker_position
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, is_buffer_live, resolve_buffer, buffer_list, &
+                         get_or_make_buffer
+    use marker_fm, only: make_marker, destroy_marker, set_marker, set_marker_restricted, marker_position
     use editfns_fm, only: goto_char
     use frame_fm, only: selected_frame
     use minibuf_fm, only: is_minibuffer, minibuf_level
@@ -164,8 +164,8 @@ contains
                 w%child = null_handle()
             else if (is_buffer_live(w%buffer)) then
                 call unshow_buffer(h)
-                if (w%pointm%index /= 0) call free_marker(w%pointm, status)
-                if (w%start%index /= 0) call free_marker(w%start, status)
+                if (w%pointm%index /= 0) call destroy_marker(w%pointm, status)
+                if (w%start%index /= 0) call destroy_marker(w%start, status)
                 w%pointm = null_handle()
                 w%start = null_handle()
                 ! Since combination limit makes sense for an internal
@@ -223,7 +223,7 @@ contains
             return
         end do
 
-        call get_buffer_create("*scratch*", b, status)
+        call get_or_make_buffer("*scratch*", b, status)
     end function other_buffer_safely
 
     module subroutine set_window_configuration(config)
@@ -250,11 +250,11 @@ contains
             ! buffer and is not the selected window; else the buffer's.
             old_point = buffers(bi)%pt
 
-            if (window_cur_shows(config%current_window, new_current_buffer) .and. &
+            if (window_current_shows(config%current_window, new_current_buffer) .and. &
                 .not. same_window(sw, config%current_window)) then
                 if (.not. same_handle(new_current_buffer, current_buffer())) then
                     old_point = window_point(windows(config%current_window%index))
-                else if (window_cur_shows(sw, new_current_buffer)) then
+                else if (window_current_shows(sw, new_current_buffer)) then
                     old_point = window_point(windows(config%current_window%index))
                 end if
             end if
@@ -388,7 +388,7 @@ contains
                     call restrict(windows(window%index)%pointm, 0_int64, b)
 
                     ! Try to delete a window that was dedicated to its
-                    ! killed buffer later.
+                    ! closed buffer later.
                     if (p%dedicated /= DEDICATED_NONE) then
                         ndead = ndead + 1
                         dead_windows(ndead) = window
@@ -403,7 +403,7 @@ contains
 
         ! Arrange *not* to restore point in the buffer that was current
         ! when the window configuration was saved.
-        if (window_cur_shows(config%current_window, new_current_buffer)) then
+        if (window_current_shows(config%current_window, new_current_buffer)) then
             call restrict(windows(config%current_window%index)%pointm, old_point, new_current_buffer)
         end if
 
@@ -419,7 +419,7 @@ contains
         do k = 1, n
             if (windows(old(k)%index)%dead) then
                 if (windows(old(k)%index)%config_refs == 0) then
-                    call free_dead_window(old(k))
+                    call destroy_dead_window(old(k))
                 end if
             end if
         end do
@@ -449,28 +449,28 @@ contains
 
     !> Free dead window `h' for good once no window configuration refers
     !> to it.  Not a port.
-    subroutine free_dead_window(h)
+    subroutine destroy_dead_window(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: status
 
         if (.not. wtable%is_live(h)) return
         if (.not. windows(h%index)%dead .or. windows(h%index)%config_refs > 0) return
-        call free_window(windows(h%index))
+        call destroy_window(windows(h%index))
         windows(h%index) = window_type()
         call wtable%release(h, status)
-    end subroutine free_dead_window
+    end subroutine destroy_dead_window
 
     !> Whether window `h' (valid) shows buffer `b'.  Not a port.
-    logical function window_cur_shows(h, b)
+    logical function window_current_shows(h, b)
         type(handle_type), intent(in) :: h, b
 
-        window_cur_shows = .false.
+        window_current_shows = .false.
         if (.not. wtable%is_live(h)) return
         if (b%index == 0) return
-        window_cur_shows = same_handle(windows(h%index)%buffer, b)
-    end function window_cur_shows
+        window_current_shows = same_handle(windows(h%index)%buffer, b)
+    end function window_current_shows
 
-    module subroutine free_window_configuration(config)
+    module subroutine destroy_window_configuration(config)
         type(window_configuration_type), intent(inout) :: config
         type(status_type) :: status
         integer :: k
@@ -479,12 +479,12 @@ contains
 
         do k = 1, size(config%saved)
             associate (p => config%saved(k))
-                if (p%start%index /= 0) call free_marker(p%start, status)
-                if (p%pointm%index /= 0) call free_marker(p%pointm, status)
+                if (p%start%index /= 0) call destroy_marker(p%start, status)
+                if (p%pointm%index /= 0) call destroy_marker(p%pointm, status)
 
                 if (wtable%is_live(p%window)) then
                     windows(p%window%index)%config_refs = max(0, windows(p%window%index)%config_refs - 1)
-                    call free_dead_window(p%window)
+                    call destroy_dead_window(p%window)
                 end if
             end associate
         end do
@@ -493,5 +493,5 @@ contains
         config%root_window = null_handle()
         config%current_window = null_handle()
         config%current_buffer = null_handle()
-    end subroutine free_window_configuration
+    end subroutine destroy_window_configuration
 end submodule window_config_fm

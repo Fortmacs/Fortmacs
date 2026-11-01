@@ -36,7 +36,7 @@ module test_abbrev_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur, buffer_name, &
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, buffers, current, buffer_name, &
                          current_buffer, buffer_list, resolve_buffer, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, point, point_min, point_max
@@ -52,13 +52,13 @@ module test_abbrev_fm
     use simple_fm, only: special_mode_abbrev_table
     use xdisp_fm, only: mode_line_modes
     use lread_fm, only: user_init_file
-    use fileio_fm, only: expand_file_name, make_directory_internal, delete_file_internal, emacs_wd, init_fileio, &
+    use fileio_fm, only: expand_file_name, create_directory_internal, delete_file_internal, emacs_wd, init_fileio, &
                          file_exists
     use files_fm, only: save_some_buffers
     use abbrev_fm, only: abbrev_table_type, abbrev_ref_type, global_abbrev_table, fundamental_mode_abbrev_table, &
-                         abbrev_table_name_list, abbrev_mode, abbrev_all_caps, only_global_abbrevs, abbrevs_changed, &
-                         abbrev_file_name, save_abbrevs, SAVE_ABBREVS_ASK, SAVE_ABBREVS_NEVER, last_abbrev_text, &
-                         kill_all_abbrevs, copy_abbrev_table, insert_abbrevs, abbrev_table_name, prepare_abbrev_list_buffer, &
+                         abbrev_tables, abbrev_mode, abbrev_all_caps, only_global_abbrevs, abbrevs_changed, &
+                         abbrev_file_name, save_abbrevs, SAVE_ABBREVS_ASK, SAVE_ABBREVS_NO, last_abbrev_text, &
+                         clear_all_abbrevs, copy_abbrev_table, insert_abbrevs, abbrev_table_name, prepare_abbrev_list_buffer, &
                          write_abbrev_file, inverse_add_abbrev, abbrev_expansion, abbrev_table_names, expand_abbrev, &
                          unexpand_abbrev, expand_region_abbrevs, define_global_abbrev, abbrev_possibly_save, &
                          local_abbrev_table, abbrev_name
@@ -88,7 +88,7 @@ contains
                     new_unittest("abbrev--table-symbols-test", test_table_symbols), &
                     new_unittest("copy-abbrev-table-test", test_copy_abbrev_table), &
                     new_unittest("abbrev-table-empty-p-test", test_empty), &
-                    new_unittest("kill-all-abbrevs-test", test_kill_all_abbrevs), &
+                    new_unittest("kill-all-abbrevs-test", test_clear_all_abbrevs), &
                     new_unittest("abbrev-table-name-test", test_table_name), &
                     new_unittest("clear-abbrev-table-test", test_clear), &
                     new_unittest("list-abbrevs-test", test_list_abbrevs), &
@@ -135,12 +135,12 @@ contains
         call discard_input()
         prefix_arg = prefix_arg_type()
         current_prefix_arg = prefix_arg_type()
-        call get_buffer_create("*abbrev-test*", h, st)
+        call get_or_make_buffer("*abbrev-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call fundamental_mode(st)
         call show_alone()
-        call kill_all_abbrevs()
+        call clear_all_abbrevs()
         abbrev_mode = .false.
         indent_tabs_mode = .true.
         abbrev_all_caps = .false.
@@ -228,7 +228,7 @@ contains
 
         call init_fileio()
         call expand_file_name("build/test-abbrev", path, st, emacs_wd)
-        call make_directory_internal(path, st)
+        call create_directory_internal(path, st)
         path = path//"/"//name
         call delete_file_internal(path, st)
     end function test_file
@@ -255,7 +255,7 @@ contains
         call check(error, size(names), 2)
         if (allocated(error)) return
         call check(error, trim(names(1)) == "a-e-t" .and. trim(names(2)) == "sys", "with system abbrevs")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_table_symbols
 
     subroutine test_copy_abbrev_table(error)
@@ -271,7 +271,7 @@ contains
         call check(error, expansion_of("a-e-t", new_table), "abbrev-ert-test")
         if (allocated(error)) return
         call check(error, len_trim(new_table%name), 0)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_copy_abbrev_table
 
     subroutine test_empty(error)
@@ -287,11 +287,11 @@ contains
         call check(error,.not. table%empty())
         if (allocated(error)) return
         call check(error, table%empty(ignore_system=.true.))
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_empty
 
     !> Test undefining all defined abbrevs.
-    subroutine test_kill_all_abbrevs(error)
+    subroutine test_clear_all_abbrevs(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -300,21 +300,21 @@ contains
         call fresh(h)
         ! ensure at least one abbrev exists
         call setup_test_abbrev_table()
-        num_tables = size(abbrev_table_name_list)
-        call kill_all_abbrevs()
+        num_tables = size(abbrev_tables)
+        call clear_all_abbrevs()
         ! no tables should have been removed/added
-        call check(error, size(abbrev_table_name_list), num_tables)
+        call check(error, size(abbrev_tables), num_tables)
         if (allocated(error)) return
         ! number of empty tables should be the same as number of tables
         empty = 0
 
-        do k = 1, size(abbrev_table_name_list)
-            if (abbrev_table_name_list(k)%p%empty()) empty = empty + 1
+        do k = 1, size(abbrev_tables)
+            if (abbrev_tables(k)%p%empty()) empty = empty + 1
         end do
 
         call check(error, empty, num_tables)
-        call kill_buffer(h, st)
-    end subroutine test_kill_all_abbrevs
+        call close_buffer(h, st)
+    end subroutine test_clear_all_abbrevs
 
     !> Test returning name of abbrev-table.
     subroutine test_table_name(error)
@@ -327,7 +327,7 @@ contains
         call check(error, abbrev_table_name(ert_test_abbrevs), "ert_test_abbrevs")
         if (allocated(error)) return
         call check(error, abbrev_table_name(unlisted_table), "")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_table_name
 
     !> Test clearing single abbrev table.
@@ -344,7 +344,7 @@ contains
         call check(error, expansion_of("a-e-t", ert_test_abbrevs), "<none>")
         if (allocated(error)) return
         call check(error, ert_test_abbrevs%empty())
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_clear
 
     !> Test generation of abbrev list buffer.
@@ -360,13 +360,13 @@ contains
         call buffer_name(abbrev_buffer, name, st)
         call check(error, name, "*Abbrevs*")
         if (allocated(error)) return
-        call kill_buffer(abbrev_buffer, st)
+        call close_buffer(abbrev_buffer, st)
         ! mode-specific abbrevs
         call prepare_abbrev_list_buffer(abbrev_buffer, st, local=.true.)
         call buffer_name(abbrev_buffer, name, st)
         call check(error, name, "*Abbrevs*")
-        call kill_buffer(abbrev_buffer, st)
-        call kill_buffer(h, st)
+        call close_buffer(abbrev_buffer, st)
+        call close_buffer(h, st)
     end subroutine test_list_abbrevs
 
     !> Test generation of abbrev list buffer.
@@ -390,13 +390,13 @@ contains
         call search_forward("global_abbrev_table", found, st, noerror=SEARCH_NOERROR)
         call check(error, found > 0, "global_abbrev_table")
         if (allocated(error)) return
-        call check(error, buffers(cur)%major_mode, "edit_abbrevs_mode")
+        call check(error, buffers(current)%major_mode, "edit_abbrevs_mode")
         if (allocated(error)) return
         ! The format of the listing.
         call check(error, index(buffer_string(), "(ert_test_abbrevs)"//LF//LF//"""a-e-t""" &
                                 //achar(9)//"       0    ""abbrev-ert-test"""//LF//LF//LF) > 0, buffer_string())
         if (allocated(error)) return
-        call kill_buffer(abbrev_buffer, st)
+        call close_buffer(abbrev_buffer, st)
         ! mode-specific abbrevs (temp buffer uses fundamental-mode)
         call set_buffer(h, st)
         call prepare_abbrev_list_buffer(abbrev_buffer, st, local=.true.)
@@ -409,9 +409,9 @@ contains
         call search_forward("global_abbrev_table", found, st, noerror=SEARCH_NOERROR)
         call check(error, found == 0, "no global_abbrev_table")
         if (allocated(error)) return
-        call check(error, buffers(cur)%major_mode /= "edit_abbrevs_mode", "not Edit-Abbrevs")
-        call kill_buffer(abbrev_buffer, st)
-        call kill_buffer(h, st)
+        call check(error, buffers(current)%major_mode /= "edit_abbrevs_mode", "not Edit-Abbrevs")
+        call close_buffer(abbrev_buffer, st)
+        call close_buffer(h, st)
     end subroutine test_prepare_list_buffer
 
     !> Test inserting abbrev definitions into buffer.
@@ -426,7 +426,7 @@ contains
         if (allocated(error)) return
         ! Point stays, the mark is after the text.
         call check(error, point(), 1_int64)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_insert_abbrevs
 
     !> Test writing abbrevs to a file (reading it is compiling the init
@@ -464,7 +464,7 @@ contains
         call check(error, index(text, "a-e-t") == 0 .and. index(text, "count=3_int64") > 0 .and. &
                    index(text, "! End of abbrevs.") > 0, text)
         call delete_file_internal(file, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_write_abbrev_file
 
     !> Test writing abbrevs with properties to a file; long and
@@ -497,7 +497,7 @@ contains
                    "        ! End of abbrevs."//LF// &
                    "    end subroutine configure"//LF//"end module user_config"//LF, text)
         call delete_file_internal(file, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_write_abbrev_file_props
 
     !> Test that adding an inverse abbrev skips trailing nonword characters.
@@ -512,7 +512,7 @@ contains
         call type_text("bar"//achar(13))
         call inverse_add_abbrev(table, "Global", 1_int64, st)
         call check(error, expansion_of("foo", table), "bar")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_inverse_add_1
 
     !> Test that adding an inverse abbrev skips trailing nonword characters.
@@ -527,7 +527,7 @@ contains
         call type_text("bar"//achar(13))
         call inverse_add_abbrev(table, "Global", 2_int64, st)
         call check(error, expansion_of("text", table), "bar")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_inverse_add_2
 
     !> Test that adding an inverse abbrev skips trailing nonword characters.
@@ -543,7 +543,7 @@ contains
         call type_text("bar"//achar(13))
         call inverse_add_abbrev(table, "Global", -1_int64, st)
         call check(error, expansion_of("text", table), "bar")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_inverse_add_3
 
     !> Test that `abbrev_possibly_save' properly resets
@@ -576,7 +576,7 @@ contains
         deallocate (abbrev_file_name)
         abbrevs_changed = .false.
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_possibly_save
 
     ! ------------------------------------------------------------------
@@ -604,7 +604,7 @@ contains
         call check(error, buffer_string(), "the tehx . the"//LF)
         if (allocated(error)) return
         call check(error, last_abbrev_text, "teh")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_self_insert_expands
 
     !> A capitalized abbrev capitalizes the expansion, an all-caps one
@@ -620,7 +620,7 @@ contains
         abbrev_mode = .true.
         call execute_keys("Teh SPC TEH SPC tEh SPC FOO SPC Foo SPC")
         call check(error, buffer_string(), "The THE The Find Outer Otter Find outer otter ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_case_handling
 
     subroutine test_all_caps(error)
@@ -635,7 +635,7 @@ contains
         call execute_keys("FOO SPC")
         call check(error, buffer_string(), "FIND OUTER OTTER ")
         abbrev_all_caps = .false.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_all_caps
 
     !> C-x ' and C-x a e expand without Abbrev mode, point after the
@@ -653,7 +653,7 @@ contains
         ! An abbrev that is not defined does nothing.
         call execute_keys("SPC xyz C-x '")
         call check(error, buffer_string(), "the the xyz")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_expand_keys
 
     subroutine test_unexpand(error)
@@ -673,7 +673,7 @@ contains
         call check(error, point(), 7_int64)
         if (allocated(error)) return
         call check(error,.not. allocated(last_abbrev_text), "last_abbrev_text cleared")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_unexpand
 
     !> M-' marks the start of the abbrev and expands an abbrev before it;
@@ -694,7 +694,7 @@ contains
         ! The prefix is itself an abbrev: it expands first.
         call execute_keys("ab M-' teh SPC")
         call check(error, buffer_string(), "aboutthe ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_prefix_mark
 
     !> C-x a g defines a global abbrev for the word before point; a
@@ -726,7 +726,7 @@ contains
         call execute_keys("C-u - C-x a g qf RET")
         call check(error, expansion_of("qf", global_abbrev_table), "<none>")
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_add_global_abbrev
 
     !> C-x a l defines a mode abbrev, a global one with
@@ -748,7 +748,7 @@ contains
         call execute_keys("C-x a l hello RET")
         call check(error, expansion_of("hello", global_abbrev_table), "hello world")
         only_global_abbrevs = .false.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_add_mode_abbrev
 
     !> C-x a i g reads the expansion of the word before point, defines
@@ -764,7 +764,7 @@ contains
         call check(error, expansion_of("foo", global_abbrev_table), "bar")
         if (allocated(error)) return
         call check(error, buffer_string(), "say bar.")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_inverse_add_keys
 
     subroutine test_expand_region(error)
@@ -784,7 +784,7 @@ contains
         call type_text("yn")
         call expand_region_abbrevs(point_min(), point_max(), st)
         call check(error, buffer_string(), "the cat and teh dog")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_expand_region
 
     subroutine test_check_chars(error)
@@ -799,7 +799,7 @@ contains
         if (allocated(error)) return
         call define_global_abbrev("ABC", "x", st)
         call check(error, st%ok() .and. expansion_of("abc", global_abbrev_table) == "x", "lower-cased")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_check_chars
 
     logical function never()
@@ -844,10 +844,10 @@ contains
         call check(error, buffer_string(), "x#include ")
         if (allocated(error)) return
         ! Parents: unlisted_table inherits global_abbrev_table.
-        call unlisted_table%add_parent(global_abbrev_table)
+        call unlisted_table%append_parent(global_abbrev_table)
         call abbrev_name("teh", sym, unlisted_table)
         call check(error, associated(sym%table, global_abbrev_table), "found in the parent")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_table_properties
 
     subroutine count_hook(value, status)
@@ -894,7 +894,7 @@ contains
         call insert("rf", st)
         call expand_abbrev(st, sym)
         call check(error, buffer_string() == "refused" .and. .not. associated(sym%table), "refused")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_hooks
 
     !> Each derived mode has its abbrev table, whose parent is the parent
@@ -935,7 +935,7 @@ contains
         if (allocated(error)) return
         call check(error, associated(help_mode_abbrev_table%parents(1)%p, special_mode_abbrev_table), "parent")
         call fundamental_mode(st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_mode_tables
 
     !> Defining an abbrev changes `abbrevs_changed', unless it is a
@@ -962,7 +962,7 @@ contains
         if (allocated(error)) return
         call global_abbrev_table%define("us", "other", system=.true., force=.true.)
         call check(error, expansion_of("us", global_abbrev_table), "other")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_abbrevs_changed
 
     subroutine test_lighter(error)
@@ -982,7 +982,7 @@ contains
         call execute_keys("M-x abbrev_mode RET")
         call check(error, last_message, "Abbrev mode disabled in current buffer")
         call execute_keys("M-x auto_fill_mode RET")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_lighter
 
     !> C-o inserts a newline without expanding the abbrev before point;
@@ -999,7 +999,7 @@ contains
         call check(error, buffer_string(), "teh"//LF)
         if (allocated(error)) return
         call check(error, abbrev_mode%value, "abbrev_mode restored")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_open_line
 
     !> save_some_buffers offers to save the abbrevs (here with ARG: without
@@ -1037,13 +1037,13 @@ contains
         if (allocated(error)) return
         ! save_abbrevs off: nothing happens.
         call delete_file_internal(abbrev_file_name, st)
-        save_abbrevs = SAVE_ABBREVS_NEVER
+        save_abbrevs = SAVE_ABBREVS_NO
         abbrevs_changed = .true.
         call save_some_buffers(.true., .false., st)
         call check(error, abbrevs_changed .and. .not. file_exists(abbrev_file_name), "not saved")
         save_abbrevs = SAVE_ABBREVS_ASK
         abbrevs_changed = .false.
         deallocate (abbrev_file_name)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_save_some_buffers
 end module test_abbrev_fm

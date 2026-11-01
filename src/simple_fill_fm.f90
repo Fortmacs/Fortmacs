@@ -34,8 +34,8 @@ submodule(simple_fm) simple_fill_fm
     use subr_fm, only: read_number
     use fill_fm, only: current_justification, current_fill_column, fill_context_prefix, &
                        fill_move_to_break_point, justify_current_line, unjustify_current_line, string_width, &
-                       adaptive_fill_mode, fill_indent_according_to_mode, JUSTIFY_NONE, JUSTIFY_LEFT, &
-                       JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_RIGHT
+                       adaptive_fill_mode, fill_indent_according_to_mode, DEFAULT_JUSTIFICATION_NONE, DEFAULT_JUSTIFICATION_LEFT, &
+                       DEFAULT_JUSTIFICATION_FULL, DEFAULT_JUSTIFICATION_CENTER, DEFAULT_JUSTIFICATION_RIGHT
     use paragraphs_fm, only: forward_paragraph, page_delimiter, init_paragraph_variables
     use indent_fm, only: current_left_margin, move_to_left_margin, indent_to
     use search_fm, only: string_match
@@ -56,7 +56,7 @@ contains
     integer(int64) :: fc, opoint, after_prefix, fill_point, prev_column, col, moved, from, to, left
     integer :: justify
     character(len=:), allocatable :: prefix, saved_prefix
-    logical :: give_up, have_prefix, have_saved, matched, no_good, at_fill_point
+    logical :: give_up, has_prefix, has_saved, matched, no_good, at_fill_point
     type(status_type) :: st
     type(handle_type) :: m
 
@@ -64,9 +64,9 @@ contains
     ! Returns t if it really did any work.
     auto_fill_result = .false.
     justify = current_justification()
-    if (justify == JUSTIFY_NONE) return
+    if (justify == DEFAULT_JUSTIFICATION_NONE) return
     fc = current_fill_column()
-    if (justify == JUSTIFY_LEFT .and. current_column() <= fc) return
+    if (justify == DEFAULT_JUSTIFICATION_LEFT .and. current_column() <= fc) return
 
     if (allocated(auto_fill_inhibit_regexp%value)) then
         opoint = point()
@@ -77,20 +77,21 @@ contains
     end if
 
     ! (let ((fill-prefix fill-prefix)) ...)
-    have_saved = allocated(fill_prefix%value)
-    if (have_saved) saved_prefix = fill_prefix%value
+    has_saved = allocated(fill_prefix%value)
+    if (has_saved) saved_prefix = fill_prefix%value
 
-    if (justify == JUSTIFY_FULL .or. justify == JUSTIFY_CENTER .or. justify == JUSTIFY_RIGHT) then
+    if (justify == DEFAULT_JUSTIFICATION_FULL &
+        .or. justify == DEFAULT_JUSTIFICATION_CENTER .or. justify == DEFAULT_JUSTIFICATION_RIGHT) then
         opoint = point()
         call unjustify_current_line(st)
         call goto_char(min(opoint, point_max()))
     end if
 
     ! Choose a fill-prefix automatically.
-    have_prefix = allocated(fill_prefix%value)
-    if (have_prefix) have_prefix = len(fill_prefix%value) > 0
+    has_prefix = allocated(fill_prefix%value)
+    if (has_prefix) has_prefix = len(fill_prefix%value) > 0
 
-    if (adaptive_fill_mode%value .and. .not. have_prefix) then
+    if (adaptive_fill_mode%value .and. .not. has_prefix) then
         opoint = point()
         left = forward_paragraph(-1_int64)
         from = point()
@@ -98,9 +99,9 @@ contains
         left = forward_paragraph(1_int64)
         to = point()
         call goto_char(opoint)
-        call fill_context_prefix(from, to, prefix, have_prefix)
+        call fill_context_prefix(from, to, prefix, has_prefix)
 
-        if (have_prefix .and. len(prefix) > 0) then
+        if (has_prefix .and. len(prefix) > 0) then
             ! Use auto-indentation rather than a guessed empty prefix.
             if (.not. (fill_indent_according_to_mode .and. &
                        string_match("\`[ "//TAB//"]*\'", prefix, st) > 0)) fill_prefix%value = prefix
@@ -155,14 +156,14 @@ contains
             if (.not. status%ok()) exit
 
             ! Now do justification, if required
-            if (justify /= JUSTIFY_LEFT) then
+            if (justify /= DEFAULT_JUSTIFICATION_LEFT) then
                 ! (save-excursion)
                 call copy_marker_at(point(), m, .false., st)
                 call end_of_line(0_int64)
                 call justify_current_line(st, justify, .false., .true.)
                 call marker_position(m, opoint, st)
                 call goto_char(opoint)
-                call free_marker(m, st)
+                call destroy_marker(m, st)
             end if
 
             ! If making the new line didn't reduce the hpos of the end of
@@ -175,7 +176,7 @@ contains
     if (status%ok()) call justify_current_line(status, justify, .true., .true.)
     if (status%ok()) auto_fill_result = .true.
     if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
-    if (have_saved) fill_prefix = saved_prefix
+    if (has_saved) fill_prefix = saved_prefix
     end procedure do_auto_fill
 
     ! (save-excursion (goto-char FILL-POINT) (default-indent-new-line t)),
@@ -192,7 +193,7 @@ contains
         call default_indent_new_line(status, .true.)
         call marker_position(m, pos, st)
         call goto_char(pos)
-        call free_marker(m, st)
+        call destroy_marker(m, st)
     end subroutine save_excursion_newline_at
 
     module procedure default_indent_new_line
@@ -294,7 +295,7 @@ contains
     else
         ! Do the rest in post-self-insert-hook, because we want to do it
         ! *before* other functions on that hook.
-        call post_self_insert_hook%add(newline_postproc, local=.true.)
+        call post_self_insert_hook%append(newline_postproc, local=.true.)
         call self_insert_command(n, 10_int64, status)
         call post_self_insert_hook%remove(newline_postproc, local=.true.)
     end if
@@ -327,7 +328,7 @@ contains
         if (blank) call delete_region(point(), line_end_position(), status)
         call marker_position(m, pos, st)
         call goto_char(pos)
-        call free_marker(m, st)
+        call destroy_marker(m, st)
         if (.not. status%ok()) return
         ! Indent the line after the newline, except in one case: when we
         ! added the newline at the beginning of a line that starts a page.
@@ -377,7 +378,7 @@ contains
         if (status%ok()) call end_of_line()
     end if
 
-    call free_marker(loc, st)
+    call destroy_marker(loc, st)
     end procedure open_line
 
     module procedure internal_auto_fill

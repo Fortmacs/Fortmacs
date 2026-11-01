@@ -25,7 +25,7 @@ module test_log_edit_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, fill_column
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, fill_column
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point_min
     use bindings_fm, only: init_bindings
@@ -72,7 +72,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *log-edit-test*", h, st)
+        call get_or_make_buffer(" *log-edit-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -83,7 +83,7 @@ contains
         type(status_type) :: st
 
         fill_column = 70
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     !> (let ((fill-column COLUMN)) (log-edit-fill-entry)), then check the
@@ -481,7 +481,7 @@ contains
         b = 0
         if (len(vc_backend) > 0) call register_vc_backend(vc_backend, b)
         call log_edit_done_hook%clear()
-        call log_edit_done_hook%add(log_edit_done_strip_cvs_lines)
+        call log_edit_done_hook%append(log_edit_done_strip_cvs_lines)
         call set_log_edit_vc_backend(b)
         call set_log_edit_callback(no_callback)
         call insert(initial_text, st)

@@ -50,9 +50,9 @@ module font_lock_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, list, symbols, xsymbol, list_elements, make_list, vtag, V_NULL, V_NAME, V_ARRAY
-    use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
-    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified
-    use marker_fm, only: make_marker, free_marker, set_marker, marker_position
+    use data_fm, only: symbol_value, set, append_locals_clearer, value_eq
+    use buffer_fm, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified
+    use marker_fm, only: make_marker, destroy_marker, set_marker, marker_position
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region, line_beginning_position, &
                           line_end_position
     use cmds_fm, only: forward_line, forward_char
@@ -67,14 +67,15 @@ module font_lock_fm
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use font_core_fm, only: font_lock_defaults, font_lock_defaults_type, font_lock_keyword_type, &
                             font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
-                            font_lock_mode_internal_proc, is_font_lock_specified_proc, font_lock_initial_fontify_proc, &
+                            font_lock_mode_internal_hook, font_lock_specified_test, font_lock_initial_fontify_hook, &
                             font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NO, FONT_LOCK_OVERRIDE_YES, &
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
-                            font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current, &
-                            font_lock_properties_proc
+                            font_lock_face_procedure, font_lock_matcher_procedure, font_lock_form_procedure, &
+                            major_mode_of_current, &
+                            font_lock_properties_procedure
     use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
-    use data_fm, only: string_setting, forward_setting
+    use data_fm, only: string_setting_type, forward_setting
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
     use insdel_fm, only: after_change_functions
     use jit_lock_fm, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
@@ -88,7 +89,7 @@ module font_lock_fm
     use syntax_propertize_fm, only: syntax_propertize, syntax_ppss_table, syntax_propertize_wholelines, syntax_ppss_flush_cache
     implicit none(type, external)
     private
-    public :: font_lock_forget_defaults, font_lock_fontify_region_proc, font_lock_fontify_region_function_set_local
+    public :: font_lock_forget_defaults, font_lock_fontify_region_procedure, font_lock_fontify_region_function_set_local
     public :: cpp_font_lock_keywords, font_lock_apply_highlight
 
     !> Regular expression used in `cpp_font_lock_keywords'.  Port of
@@ -112,17 +113,17 @@ module font_lock_fm
               font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer, set_font_lock_keywords
 
     !> `font_lock_maximum_decoration' for the maximum decoration available.
-    integer, parameter, public :: FONT_LOCK_DECORATION_MAX = huge(0)
+    integer, parameter, public :: FONT_LOCK_MAXIMUM_DECORATION_MAX = huge(0)
 
     !> Maximum decoration level for fontification.
     !> If 0, use the default decoration (typically the minimum available).
-    !> If FONT_LOCK_DECORATION_MAX (the default), use the maximum decoration
+    !> If FONT_LOCK_MAXIMUM_DECORATION_MAX (the default), use the maximum decoration
     !> available.
     !> If a number, use that level of decoration (or if not available the
     !> maximum).  The higher the number, the more decoration is done.
     !> Port of font-lock.el:font-lock-maximum-decoration (the table form,
     !> by major mode, is deferred).
-    integer, public :: font_lock_maximum_decoration = FONT_LOCK_DECORATION_MAX
+    integer, public :: font_lock_maximum_decoration = FONT_LOCK_MAXIMUM_DECORATION_MAX
 
     !> If true, means show status messages for buffer fontification.  Port of
     !> font-lock.el:font-lock-verbose (the size threshold form is
@@ -143,15 +144,15 @@ module font_lock_fm
 
     !> Support modes for Font Lock mode (`font_lock_support_mode'): none, or
     !> Just-in-time Lock mode.
-    integer, parameter, public :: FONT_LOCK_SUPPORT_NONE = 0, FONT_LOCK_SUPPORT_JIT_LOCK = 1
+    integer, parameter, public :: FONT_LOCK_SUPPORT_MODE_NONE = 0, FONT_LOCK_SUPPORT_MODE_JIT_LOCK = 1
 
     !> Support mode for Font Lock mode.
-    !> If FONT_LOCK_SUPPORT_NONE, means support for Font Lock mode is never
+    !> If FONT_LOCK_SUPPORT_MODE_NONE, means support for Font Lock mode is never
     !> performed.  This can be useful for debugging.
     !>
     !> The value of this variable is used when Font Lock mode is turned on.
     !> Port of font-lock.el:font-lock-support-mode.
-    integer, public :: font_lock_support_mode = FONT_LOCK_SUPPORT_JIT_LOCK
+    integer, public :: font_lock_support_mode = FONT_LOCK_SUPPORT_MODE_JIT_LOCK
 
     !> Keywords a major mode gets in addition to (or instead of) its own
     !> (`font_lock_add_keywords').
@@ -175,30 +176,30 @@ module font_lock_fm
     !>
     !> This is normally set via `font_lock_add_keywords'.  Port of
     !> font-lock.el:font-lock-keywords-alist.
-    type(added_keywords_type), allocatable :: font_lock_keywords_table(:)
+    type(added_keywords_type), allocatable :: font_lock_added_keywords(:)
 
     abstract interface
         !> `font_lock_syntactic_face_function': FACE gets the name of the
         !> face to give the string or comment whose parse state (at its
         !> start) is STATE ("" for none).  Not a port.
-        subroutine syntactic_face_proc(state, face)
+        subroutine syntactic_face_procedure(state, face)
             import :: parse_state_type
             implicit none(type, external)
             type(parse_state_type), intent(in) :: state
             character(len=:), allocatable, intent(out) :: face
-        end subroutine syntactic_face_proc
+        end subroutine syntactic_face_procedure
 
         !> A `font_lock_fontify_region_function': fontify the text between
-        !> BEG and END (messages if LOUDLY); DONE_BEG and DONE_END give the
+        !> BEGINNING and END (messages if LOUDLY); DONE_BEGINNING and DONE_END give the
         !> region actually fontified (jit-lock-bounds).
-        subroutine font_lock_fontify_region_proc(beg, end, loudly, status, done_beg, done_end)
+        subroutine font_lock_fontify_region_procedure(beginning, end, loudly, status, done_beginning, done_end)
             import :: int64, status_type
             implicit none(type, external)
-            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(in) :: beginning, end
             logical, intent(in) :: loudly
             type(status_type), intent(out) :: status
-            integer(int64), intent(out) :: done_beg, done_end
-        end subroutine font_lock_fontify_region_proc
+            integer(int64), intent(out) :: done_beginning, done_end
+        end subroutine font_lock_fontify_region_procedure
     end interface
 
     !> The buffer-local variables of font-lock.el, by buffer.
@@ -228,10 +229,10 @@ module font_lock_fm
         !> The buffer's own `font_lock_syntactic_face_function' (from the
         !> OTHER-VARS of `font_lock_defaults').
         logical :: has_syntactic_face = .false.
-        procedure(syntactic_face_proc), pointer, nopass :: syntactic_face => null()
+        procedure(syntactic_face_procedure), pointer, nopass :: syntactic_face => null()
         !> The buffer's own `font_lock_fontify_region_function' (null for
         !> `font_lock_default_fontify_region').
-        procedure(font_lock_fontify_region_proc), pointer, nopass :: fontify_region => null()
+        procedure(font_lock_fontify_region_procedure), pointer, nopass :: fontify_region => null()
     end type locals_type
 
     type(locals_type), allocatable :: locals(:)
@@ -242,15 +243,16 @@ module font_lock_fm
     !> region to highlight) and should give the name of a face.  This is
     !> normally set via `font_lock_defaults'.  Port of
     !> font-lock.el:font-lock-syntactic-face-function.
-    procedure(syntactic_face_proc), pointer, public :: font_lock_syntactic_face_function => null()
+    procedure(syntactic_face_procedure), pointer, public :: font_lock_syntactic_face_function => null()
 
     !> If set, Font Lock mode uses this instead of `comment_start_skip'.
     !> Port of font-lock.el font-lock-comment-start-skip.
-    type(string_setting), target, public :: font_lock_comment_start_skip = string_setting(name="font_lock_comment_start_skip")
+    type(string_setting_type), target, public :: font_lock_comment_start_skip = &
+                                                 string_setting_type(name="font_lock_comment_start_skip")
 
     !> If set, Font Lock mode uses this instead of `comment_end_skip'.
     !> Port of font-lock.el font-lock-comment-end-skip.
-    type(string_setting), target, public :: font_lock_comment_end_skip = string_setting(name="font_lock_comment_end_skip")
+    type(string_setting_type), target, public :: font_lock_comment_end_skip = string_setting_type(name="font_lock_comment_end_skip")
 
     !> Font Lock mode face used to highlight comments.  Port of
     !> font-lock.el:font-lock-comment-face.
@@ -360,7 +362,7 @@ contains
         character(len=*), intent(in), optional :: face
         integer, intent(in), optional :: override
         logical, intent(in), optional :: laxmatch
-        procedure(font_lock_face_proc), optional :: face_function
+        procedure(font_lock_face_procedure), optional :: face_function
         !> Text properties to set to true along with the face.
         character(len=*), intent(in), optional :: true_properties(:)
         !> Text properties to set to .false. along with the face.
@@ -368,7 +370,7 @@ contains
         !> The `display' property to give along with the face.
         character(len=*), intent(in), optional :: display
         !> Gives the text properties that depend on the match.
-        procedure(font_lock_properties_proc), optional :: properties_function
+        procedure(font_lock_properties_procedure), optional :: properties_function
         type(font_lock_highlight_type) :: h
         integer :: k
 
@@ -404,8 +406,8 @@ contains
     function font_lock_anchored(highlights, regexp, matcher, pre_match_form, post_match_form) result(h)
         type(font_lock_highlight_type), intent(in) :: highlights(:)
         character(len=*), intent(in), optional :: regexp
-        procedure(font_lock_matcher_proc), optional :: matcher
-        procedure(font_lock_form_proc), optional :: pre_match_form, post_match_form
+        procedure(font_lock_matcher_procedure), optional :: matcher
+        procedure(font_lock_form_procedure), optional :: pre_match_form, post_match_form
         type(font_lock_highlight_type) :: h
         integer :: k
 
@@ -431,7 +433,7 @@ contains
         type(font_lock_highlight_type), intent(in), optional :: highlights(:)
         character(len=*), intent(in), optional :: face
         integer, intent(in), optional :: subexp
-        procedure(font_lock_matcher_proc), optional :: matcher
+        procedure(font_lock_matcher_procedure), optional :: matcher
         type(font_lock_keyword_type) :: k
         integer :: n
 
@@ -469,11 +471,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do i = 1, size(locals)
-            if (locals(i)%serial == buffers(cur)%serial) then
+            if (locals(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if
@@ -483,7 +485,7 @@ contains
 
         do i = 1, size(locals)
             if (locals(i)%serial == 0) then
-                locals(i)%serial = buffers(cur)%serial
+                locals(i)%serial = buffers(current)%serial
                 k = i
                 return
             end if
@@ -492,7 +494,7 @@ contains
         n = size(locals)
         allocate (grown(n + 1))
         grown(1:n) = locals
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, locals)
         k = n + 1
     end function local_index
@@ -502,7 +504,7 @@ contains
     !> font-lock-fontify-region-function (buffer-local; its default is
     !> `font_lock_default_fontify_region').
     subroutine font_lock_fontify_region_function_set_local(fn)
-        procedure(font_lock_fontify_region_proc) :: fn
+        procedure(font_lock_fontify_region_procedure) :: fn
         integer :: k
 
         k = local_index(.true.)
@@ -511,13 +513,13 @@ contains
 
     !> kill-all-local-variables: forget the current buffer's font-lock.el
     !> variables.  Not a port.
-    subroutine kill_font_lock_locals()
+    subroutine clear_font_lock_locals()
         integer :: k
 
         k = local_index(.false.)
         if (k == 0) return
         locals(k) = locals_type()
-    end subroutine kill_font_lock_locals
+    end subroutine clear_font_lock_locals
 
     !> Whether the current buffer's `font_lock_fontified' is true.
     !> Not a port.
@@ -623,7 +625,7 @@ contains
     !> Arrange for the current buffer to be refontified after changes
     !> (font-lock-mode-internal's after-change-functions part).  Not a port.
     subroutine add_after_change_function()
-        call after_change_functions%add(font_lock_after_change_function, depth=90, local=.true.)
+        call after_change_functions%append(font_lock_after_change_function, depth=90, local=.true.)
     end subroutine add_after_change_function
 
     !> Stop refontifying the current buffer after changes.  Not a port.
@@ -640,7 +642,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (font_lock_support_mode /= FONT_LOCK_SUPPORT_JIT_LOCK) return
+        if (font_lock_support_mode /= FONT_LOCK_SUPPORT_MODE_JIT_LOCK) return
         ! Prepare for jit-lock.
         call remove_after_change_function()
         k = local_index(.true.)
@@ -651,8 +653,8 @@ contains
         call jit_lock_register(jit_fontify_region, status)
         if (.not. status%ok()) return
         ! Tell jit-lock how we extend the region to refontify.
-        call jit_lock_after_change_extend_region_functions%add(font_lock_extend_jit_lock_region_after_change, &
-                                                               local=.true.)
+        call jit_lock_after_change_extend_region_functions%append(font_lock_extend_jit_lock_region_after_change, &
+                                                                  local=.true.)
     end subroutine font_lock_turn_on_thing_lock
 
     !> Turn off the support mode.  Port of
@@ -670,14 +672,14 @@ contains
     end subroutine font_lock_turn_off_thing_lock
 
     !> `font_lock_fontify_region' as a function of `jit_lock_functions':
-    !> DONE_BEG and DONE_END give the region actually fontified
+    !> DONE_BEGINNING and DONE_END give the region actually fontified
     !> (jit-lock-bounds).  Not a port.
-    subroutine jit_fontify_region(beg, end, done_beg, done_end, status)
-        integer(int64), intent(in) :: beg, end
-        integer(int64), intent(out) :: done_beg, done_end
+    subroutine jit_fontify_region(beginning, end, done_beginning, done_end, status)
+        integer(int64), intent(in) :: beginning, end
+        integer(int64), intent(out) :: done_beginning, done_end
         type(status_type), intent(out) :: status
 
-        call font_lock_fontify_region(beg, end, status, done_beg=done_beg, done_end=done_end)
+        call font_lock_fontify_region(beginning, end, status, done_beginning=done_beginning, done_end=done_end)
     end subroutine jit_fontify_region
 
     !> Font lock keywords for C preprocessor directives.
@@ -750,28 +752,28 @@ contains
     !>   for double-redisplay in `jit_lock_fontify_now'.
     !> Port of font-lock.el:font-lock-extend-jit-lock-region-after-change
     !> (in part: without font-lock-extend-after-change-region-function).
-    subroutine font_lock_extend_jit_lock_region_after_change(beg_in, end_in, old_len, status)
-        integer(int64), intent(in) :: beg_in, end_in, old_len
+    subroutine font_lock_extend_jit_lock_region_after_change(beginning_in, end_in, old_len, status)
+        integer(int64), intent(in) :: beginning_in, end_in, old_len
         type(status_type), intent(out) :: status
         type(value_type) :: v
-        integer(int64) :: beg, end, pt, pos
+        integer(int64) :: beginning, end, pt, pos
         logical :: found
 
         status = status_type()
         if (old_len < 0) return
-        beg = beg_in
+        beginning = beginning_in
         end = end_in
         pt = point()
 
         ! Extend the region obeying font-lock-multiline properties,
         ! indicating which part of the buffer needs to be refontified.
-        if (beg > point_min()) then
-            call get_text_property(beg - 1, value_type(name="font_lock_multiline"), v, status)
+        if (beginning > point_min()) then
+            call get_text_property(beginning - 1, value_type(name="font_lock_multiline"), v, status)
 
             if (allocated(v%a)) then
-                call previous_single_property_change(beg, value_type(name="font_lock_multiline"), pos, found, status)
-                beg = point_min()
-                if (found) beg = pos
+                call previous_single_property_change(beginning, value_type(name="font_lock_multiline"), pos, found, status)
+                beginning = point_min()
+                if (found) beginning = pos
             end if
         end if
 
@@ -790,8 +792,8 @@ contains
         end if
 
         ! Finally, pre-enlarge the region to a whole number of lines.
-        call goto_char(beg)
-        beg = min(jit_lock_start, line_beginning_position())
+        call goto_char(beginning)
+        beginning = min(jit_lock_start, line_beginning_position())
         call goto_char(end)
 
         if (point() == line_beginning_position()) then
@@ -800,7 +802,7 @@ contains
             end = max(jit_lock_end, line_beginning_position(2_int64))
         end if
 
-        jit_lock_start = beg
+        jit_lock_start = beginning
         jit_lock_end = end
         call goto_char(pt)
     end subroutine font_lock_extend_jit_lock_region_after_change
@@ -916,10 +918,10 @@ contains
         locals(k)%keywords_set = .true.
 
         ! Local fontification?
-        if (allocated(font_lock_keywords_table)) then
-            do i = 1, size(font_lock_keywords_table)
-                if (trim(font_lock_keywords_table(i)%mode) /= major_mode_of_current()) cycle
-                call add_keywords_here(font_lock_keywords_table(i)%keywords, font_lock_keywords_table(i)%how)
+        if (allocated(font_lock_added_keywords)) then
+            do i = 1, size(font_lock_added_keywords)
+                if (trim(font_lock_added_keywords(i)%mode) /= major_mode_of_current()) cycle
+                call add_keywords_here(font_lock_added_keywords(i)%keywords, font_lock_added_keywords(i)%how)
             end do
         end if
 
@@ -1003,30 +1005,30 @@ contains
         if (present(how)) h = how
 
         if (len(mode) > 0) then
-            ! Add the KEYWORDS and HOW spec to `font_lock_keywords_table'
+            ! Add the KEYWORDS and HOW spec to `font_lock_added_keywords'
             ! so `font_lock_set_defaults' uses them.
-            if (.not. allocated(font_lock_keywords_table)) allocate (font_lock_keywords_table(0))
+            if (.not. allocated(font_lock_added_keywords)) allocate (font_lock_added_keywords(0))
 
             if (h == FONT_LOCK_ADD_SET) then
                 ! Replace the mode's earlier specs.
                 n = 0
                 allocate (grown(0))
 
-                do i = 1, size(font_lock_keywords_table)
-                    if (trim(font_lock_keywords_table(i)%mode) == mode) cycle
-                    grown = [grown, font_lock_keywords_table(i)]
+                do i = 1, size(font_lock_added_keywords)
+                    if (trim(font_lock_added_keywords(i)%mode) == mode) cycle
+                    grown = [grown, font_lock_added_keywords(i)]
                 end do
 
-                call move_alloc(grown, font_lock_keywords_table)
+                call move_alloc(grown, font_lock_added_keywords)
             end if
 
-            n = size(font_lock_keywords_table)
+            n = size(font_lock_added_keywords)
             allocate (grown(n + 1))
-            grown(1:n) = font_lock_keywords_table
+            grown(1:n) = font_lock_added_keywords
             grown(n + 1)%mode = mode
             grown(n + 1)%keywords = keywords
             grown(n + 1)%how = h
-            call move_alloc(grown, font_lock_keywords_table)
+            call move_alloc(grown, font_lock_added_keywords)
             return
         end if
 
@@ -1091,63 +1093,63 @@ contains
         call font_lock_default_unfontify_buffer(status)
     end subroutine font_lock_unfontify_buffer
 
-    !> Fontify the text between BEG and END.
+    !> Fontify the text between BEGINNING and END.
     !> If LOUDLY is true, print status messages while fontifying.
     !> This works by calling `font_lock_fontify_region_function'.  Port of
     !> font-lock.el:font-lock-fontify-region.
-    subroutine font_lock_fontify_region(beg, end, status, loudly, done_beg, done_end)
-        integer(int64), intent(in) :: beg, end
+    subroutine font_lock_fontify_region(beginning, end, status, loudly, done_beginning, done_end)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: loudly
         !> The region actually fontified (jit-lock-bounds).
-        integer(int64), intent(out), optional :: done_beg, done_end
+        integer(int64), intent(out), optional :: done_beginning, done_end
         integer(int64) :: begv, zv, b, e
         logical :: loud
-        procedure(font_lock_fontify_region_proc), pointer :: fn
+        procedure(font_lock_fontify_region_procedure), pointer :: fn
         integer :: k
 
         loud = .false.
         if (present(loudly)) loud = loudly
         call font_lock_set_defaults(status)
         if (.not. status%ok()) return
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         if (.not. font_lock_dont_widen) call widen()
         k = local_index(.false.)
         fn => null()
         if (k > 0) fn => locals(k)%fontify_region
 
         if (associated(fn)) then
-            call fn(beg, end, loud, status, b, e)
+            call fn(beginning, end, loud, status, b, e)
         else
-            call font_lock_default_fontify_region(beg, end, loud, status, b, e)
+            call font_lock_default_fontify_region(beginning, end, loud, status, b, e)
         end if
 
         call restore_restriction(begv, zv)
-        if (present(done_beg)) done_beg = b
+        if (present(done_beginning)) done_beginning = b
         if (present(done_end)) done_end = e
     end subroutine font_lock_fontify_region
 
-    !> Unfontify the text between BEG and END.
+    !> Unfontify the text between BEGINNING and END.
     !> This works by calling `font_lock_unfontify_region_function'.  Port of
     !> font-lock.el:font-lock-unfontify-region.
-    subroutine font_lock_unfontify_region(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine font_lock_unfontify_region(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         type(silent_modifications_type) :: silent
 
         call silent_modifications_begin(silent)
-        call font_lock_default_unfontify_region(beg, end, status)
+        call font_lock_default_unfontify_region(beginning, end, status)
         call silent_modifications_end(silent)
     end subroutine font_lock_unfontify_region
 
-    !> Declare the region BEG...END's fontification as out-of-date.
+    !> Declare the region BEGINNING...END's fontification as out-of-date.
     !> If the region is not specified, it defaults to the entire
     !> accessible portion of the current buffer.  Port of
     !> font-lock.el:font-lock-flush.
-    subroutine font_lock_flush(status, beg, end)
+    subroutine font_lock_flush(status, beginning, end)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
+        integer(int64), intent(in), optional :: beginning, end
         integer(int64) :: b, e
         integer :: k
 
@@ -1155,7 +1157,7 @@ contains
         if (.not. font_lock_mode_enabled()) return
         if (.not. font_lock_fontified()) return
         b = point_min()
-        if (present(beg)) b = beg
+        if (present(beginning)) b = beginning
         e = point_max()
         if (present(end)) e = end
         k = local_index(.false.)
@@ -1167,12 +1169,12 @@ contains
         end if
     end subroutine font_lock_flush
 
-    !> Make sure the region BEG...END has been fontified.
+    !> Make sure the region BEGINNING...END has been fontified.
     !> If the region is not specified, it defaults to the entire accessible
     !> portion of the buffer.  Port of font-lock.el:font-lock-ensure.
-    subroutine font_lock_ensure(status, beg, end)
+    subroutine font_lock_ensure(status, beginning, end)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
+        integer(int64), intent(in), optional :: beginning, end
         integer(int64) :: b, e, pt
         integer :: k
 
@@ -1181,7 +1183,7 @@ contains
         call font_lock_set_defaults(status)
         if (.not. status%ok()) return
         b = point_min()
-        if (present(beg)) b = beg
+        if (present(beginning)) b = beginning
         e = point_max()
         if (present(end)) e = end
         k = local_index(.false.)
@@ -1230,10 +1232,10 @@ contains
         integer(int64), allocatable :: saved_match(:)
         integer :: k
 
-        if (font_lock_verbose) call message("Fontifying "//buffers(cur)%name//"...")
+        if (font_lock_verbose) call message("Fontifying "//buffers(current)%name//"...")
         ! Make sure we fontify etc. in the whole buffer.
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         if (.not. font_lock_dont_widen) call widen()
         pt = point()
         saved_match = match_data()
@@ -1259,8 +1261,8 @@ contains
         integer :: k
 
         ! Make sure we unfontify etc. in the whole buffer.
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call widen()
         call font_lock_unfontify_region(point_min(), point_max(), status)
         k = local_index(.false.)
@@ -1278,33 +1280,33 @@ contains
         call narrow_to_region(begv, zv, st)
     end subroutine restore_restriction
 
-    !> Move fontification boundaries BEG and END to beginning of lines;
+    !> Move fontification boundaries BEGINNING and END to beginning of lines;
     !> CHANGED tells whether they moved.  Port of
     !> font-lock.el:font-lock-extend-region-wholelines (with
     !> syntax.el:syntax-propertize-wholelines).
-    subroutine font_lock_extend_region_wholelines(beg, end, changed)
-        integer(int64), intent(inout) :: beg, end
+    subroutine font_lock_extend_region_wholelines(beginning, end, changed)
+        integer(int64), intent(inout) :: beginning, end
         logical, intent(out) :: changed
-        integer(int64) :: pt, new_beg, new_end
+        integer(int64) :: pt, new_beginning, new_end
         type(status_type) :: st
 
         pt = point()
-        call syntax_propertize_wholelines(beg, end, new_beg, new_end, st)
+        call syntax_propertize_wholelines(beginning, end, new_beginning, new_end, st)
         call goto_char(pt)
         changed = .false.
 
-        if (new_beg /= beg .or. new_end /= end) then
-            beg = new_beg
+        if (new_beginning /= beginning .or. new_end /= end) then
+            beginning = new_beginning
             end = new_end
             changed = .true.
         end if
     end subroutine font_lock_extend_region_wholelines
 
-    !> Move fontification boundaries BEG and END away from any
+    !> Move fontification boundaries BEGINNING and END away from any
     !> `font_lock_multiline' property; CHANGED tells whether they moved.
     !> Port of font-lock.el:font-lock-extend-region-multiline.
-    subroutine font_lock_extend_region_multiline(beg, end, changed)
-        integer(int64), intent(inout) :: beg, end
+    subroutine font_lock_extend_region_multiline(beginning, end, changed)
+        integer(int64), intent(inout) :: beginning, end
         logical, intent(out) :: changed
         type(value_type) :: v
         type(status_type) :: st
@@ -1313,14 +1315,14 @@ contains
 
         changed = .false.
 
-        if (beg > point_min()) then
-            call get_text_property(beg - 1, value_type(name="font_lock_multiline"), v, st)
+        if (beginning > point_min()) then
+            call get_text_property(beginning - 1, value_type(name="font_lock_multiline"), v, st)
 
             if (allocated(v%a)) then
                 changed = .true.
-                call previous_change(beg, value_type(name="font_lock_multiline"), pos, found)
-                beg = point_min()
-                if (found) beg = pos
+                call previous_change(beginning, value_type(name="font_lock_multiline"), pos, found)
+                beginning = point_min()
+                if (found) beginning = pos
             end if
         end if
 
@@ -1352,32 +1354,32 @@ contains
         end subroutine previous_change
     end subroutine font_lock_extend_region_multiline
 
-    !> Fontify the text between BEG and END.
+    !> Fontify the text between BEGINNING and END.
     !> If LOUDLY is true, print status messages while fontifying.
     !> This function is the default `font_lock_fontify_region_function'.
     !> Port of font-lock.el:font-lock-default-fontify-region (the
     !> extend-region functions are font-lock-extend-region-wholelines and
     !> font-lock-extend-region-multiline; font-lock-syntactic-keywords are
     !> deferred).
-    subroutine font_lock_default_fontify_region(beg_in, end_in, loudly, status, done_beg, done_end)
-        integer(int64), intent(in) :: beg_in, end_in
+    subroutine font_lock_default_fontify_region(beginning_in, end_in, loudly, status, done_beginning, done_end)
+        integer(int64), intent(in) :: beginning_in, end_in
         logical, intent(in) :: loudly
         type(status_type), intent(out) :: status
-        !> The region fontified, BEG...END extended (jit-lock-bounds).
-        integer(int64), intent(out) :: done_beg, done_end
+        !> The region fontified, BEGINNING...END extended (jit-lock-bounds).
+        integer(int64), intent(out) :: done_beginning, done_end
         type(silent_modifications_type) :: silent
         type(handle_type) :: saved_table
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         logical :: changed, any_changed
         integer :: k
 
         status = status_type()
-        beg = beg_in
+        beginning = beginning_in
         end = min(end_in, point_max())
         call silent_modifications_begin(silent)
         ! Use the fontification syntax table, if any.
         k = local_index(.true.)
-        saved_table = buffers(cur)%syntax_table
+        saved_table = buffers(current)%syntax_table
         if (locals(k)%syntax_table%index /= 0) call set_syntax_table(locals(k)%syntax_table, status)
 
         ! Extend the region to fontify so that it starts and ends at safe
@@ -1385,32 +1387,32 @@ contains
         ! return false.
         do
             any_changed = .false.
-            call font_lock_extend_region_wholelines(beg, end, changed)
+            call font_lock_extend_region_wholelines(beginning, end, changed)
             ! (A change by the first function doesn't restart the list.)
-            call font_lock_extend_region_multiline(beg, end, changed)
+            call font_lock_extend_region_multiline(beginning, end, changed)
             if (changed) any_changed = .true.
             if (.not. any_changed) exit
         end do
 
         ! Now do the fontification.
-        call font_lock_unfontify_region(beg, end, status)
+        call font_lock_unfontify_region(beginning, end, status)
 
         if (status%ok() .and. .not. locals(k)%keywords_only) then
-            call font_lock_fontify_syntactically_region(beg, end, loudly, status)
+            call font_lock_fontify_syntactically_region(beginning, end, loudly, status)
         end if
 
-        if (status%ok()) call font_lock_fontify_keywords_region(beg, end, loudly, status)
-        buffers(cur)%syntax_table = saved_table
+        if (status%ok()) call font_lock_fontify_keywords_region(beginning, end, loudly, status)
+        buffers(current)%syntax_table = saved_table
         call silent_modifications_end(silent)
-        done_beg = beg
+        done_beginning = beginning
         done_end = end
     end subroutine font_lock_default_fontify_region
 
-    !> Unfontify the text between BEG and END.
+    !> Unfontify the text between BEGINNING and END.
     !> This function is the default `font_lock_unfontify_region_function'.
     !> Port of font-lock.el:font-lock-default-unfontify-region.
-    subroutine font_lock_default_unfontify_region(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine font_lock_default_unfontify_region(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         type(value_type) :: props
         type(value_type), allocatable :: names(:)
@@ -1430,15 +1432,15 @@ contains
         names(n - 1) = value_type(name="face")
         names(n) = value_type(name="font_lock_multiline")
         props = make_list(names)
-        call remove_list_of_text_properties(beg, end, props, changed, status)
+        call remove_list_of_text_properties(beginning, end, props, changed, status)
     end subroutine font_lock_default_unfontify_region
 
     !> Called when any modification is made to buffer text: refontify the
-    !> whole lines BEG...END (and the line after END unless at the end).
+    !> whole lines BEGINNING...END (and the line after END unless at the end).
     !> Port of font-lock.el:font-lock-after-change-function
     !> (font-lock-extend-after-change-region-function is deferred).
-    subroutine font_lock_after_change_function(beg, end, old_len, status)
-        integer(int64), intent(in) :: beg, end, old_len
+    subroutine font_lock_after_change_function(beginning, end, old_len, status)
+        integer(int64), intent(in) :: beginning, end, old_len
         type(status_type), intent(out) :: status
         integer(int64) :: pt, e
         integer(int64), allocatable :: saved_match(:)
@@ -1449,7 +1451,7 @@ contains
         ! Rounding up to a whole number of lines should include the line
         ! right after `end'.
         if (e /= point_max()) e = e + 1
-        call font_lock_fontify_region(beg, e, status)
+        call font_lock_fontify_region(beginning, e, status)
         call set_match_data(saved_match)
         call goto_char(pt)
         if (.false.) print *, old_len
@@ -1685,7 +1687,7 @@ contains
         type(status_type) :: st
         type(value_type) :: val
         character(len=:), allocatable :: face
-        character(len=12) :: buf
+        character(len=12) :: buffer
         integer(int64) :: start, end, pos
         integer :: k
         logical :: found
@@ -1697,8 +1699,8 @@ contains
         if (start <= 0 .or. .not. st%ok()) then
             ! No match but we might not signal an error.
             if (.not. highlight%laxmatch) then
-                write (buf, "(i0)") highlight%subexp
-                call set_error(status, FM_GENERIC_ERROR, "No match "//trim(buf)//" in highlight")
+                write (buffer, "(i0)") highlight%subexp
+                call set_error(status, FM_GENERIC_ERROR, "No match "//trim(buffer)//" in highlight")
             end if
 
             return
@@ -1765,7 +1767,7 @@ contains
     !> Not a port.
     subroutine search_matcher(regexp, matcher, limit, found, status)
         character(len=:), allocatable, intent(in) :: regexp
-        procedure(font_lock_matcher_proc), pointer, intent(in) :: matcher
+        procedure(font_lock_matcher_procedure), pointer, intent(in) :: matcher
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -1870,7 +1872,7 @@ contains
 
         ! Fontify each item in `font_lock_keywords' from START to END.
         do i = 1, size(keywords)
-            if (loudly) call message("Fontifying "//buffers(cur)%name//"... (regexps.."//repeat(".", i)//")")
+            if (loudly) call message("Fontifying "//buffers(current)%name//"... (regexps.."//repeat(".", i)//")")
             ! Find an occurrence of `matcher' from START to END.
             call goto_char(start)
 
@@ -1921,16 +1923,16 @@ contains
         end if
     end subroutine default_syntactic_face
 
-    !> Syntactically fontify the text between BEG and END.
+    !> Syntactically fontify the text between BEGINNING and END.
     !> If LOUDLY is true, print status messages while fontifying.
     !> This works by calling `font_lock_fontify_syntactically_function'.
     !> Port of font-lock.el:font-lock-fontify-syntactically-region.
-    subroutine font_lock_fontify_syntactically_region(beg, end, loudly, status)
-        integer(int64), intent(in) :: beg, end
+    subroutine font_lock_fontify_syntactically_region(beginning, end, loudly, status)
+        integer(int64), intent(in) :: beginning, end
         logical, intent(in) :: loudly
         type(status_type), intent(out) :: status
 
-        call font_lock_default_fontify_syntactically(beg, end, loudly, status)
+        call font_lock_default_fontify_syntactically(beginning, end, loudly, status)
     end subroutine font_lock_fontify_syntactically_region
 
     !> Put proper face on each string and comment between START and END.
@@ -1968,7 +1970,7 @@ contains
         type(status_type), intent(out) :: status
         type(parse_state_type) :: state, next
         character(len=:), allocatable :: face
-        integer(int64) :: beg
+        integer(int64) :: beginning
         integer :: k
 
         status = status_type()
@@ -1993,7 +1995,7 @@ contains
             call syntax_ppss(state, start)
         end if
 
-        if (loudly) call message("Fontifying "//buffers(cur)%name//"... (syntactically...)")
+        if (loudly) call message("Fontifying "//buffers(current)%name//"... (syntactically...)")
 
         ! Find each interesting place between here and `end'.
         do
@@ -2004,14 +2006,15 @@ contains
                     call font_lock_syntactic_face_function(state, face)
                 end if
 
-                beg = max(state%comstr_start, start)
+                beginning = max(state%comstr_start, start)
                 call parse_partial_expression(point(), end, next, status, oldstate=state, &
                                               commentstop=COMMENTSTOP_SYNTAX_TABLE)
                 if (.not. status%ok()) return
                 state = next
-                if (len(face) > 0) call put_text_property(beg, point(), value_type(name="face"), value_type(name=face), status)
+                if (len(face) > 0) call put_text_property(beginning, point(), value_type(name="face"), value_type(name=face), &
+                                                          status)
                 if (.not. status%ok()) return
-                if (face == "font_lock_comment_face") call comment_delimiters(beg, status)
+                if (face == "font_lock_comment_face") call comment_delimiters(beginning, status)
                 if (.not. status%ok()) return
             end if
 
@@ -2022,12 +2025,12 @@ contains
         end do
     end subroutine fontify_syntactically
 
-    !> Find the delimiters of the comment from BEG to point and give them
+    !> Find the delimiters of the comment from BEGINNING to point and give them
     !> `font_lock_comment_delimiter_face' (in
     !> font-lock-default-fontify-syntactically).  Port of part of
     !> font-lock.el:font-lock-default-fontify-syntactically.
-    subroutine comment_delimiters(beg, status)
-        integer(int64), intent(in) :: beg
+    subroutine comment_delimiters(beginning, status)
+        integer(int64), intent(in) :: beginning
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: skip
         integer(int64) :: pt, mb, me
@@ -2045,11 +2048,12 @@ contains
         end if
 
         pt = point()
-        call goto_char(beg)
+        call goto_char(beginning)
 
         if (looking_at(skip, st)) then
             me = match_end(0, st)
-            call put_text_property(beg, me, value_type(name="face"), value_type(name="font_lock_comment_delimiter_face"), status)
+            call put_text_property(beginning, me, value_type(name="face"), &
+                                   value_type(name="font_lock_comment_delimiter_face"), status)
         end if
 
         call goto_char(pt)
@@ -2082,15 +2086,15 @@ contains
         call init_font_lock_faces()
         call forward_setting(font_lock_comment_start_skip)
         call forward_setting(font_lock_comment_end_skip)
-        font_lock_mode_internal_proc => font_lock_mode_internal
-        is_font_lock_specified_proc => is_font_lock_specified
-        font_lock_initial_fontify_proc => font_lock_initial_fontify
+        font_lock_mode_internal_hook => font_lock_mode_internal
+        font_lock_specified_test => is_font_lock_specified
+        font_lock_initial_fontify_hook => font_lock_initial_fontify
 
         if (.not. associated(font_lock_syntactic_face_function)) then
             font_lock_syntactic_face_function => default_syntactic_face
         end if
 
-        call add_local_variables_killer(kill_font_lock_locals)
+        call append_locals_clearer(clear_font_lock_locals)
         commands%font_lock_update%execute => font_lock_update
         commands%font_lock_fontify_buffer%execute => cmd_font_lock_fontify_buffer
         commands%font_lock_fontify_block%execute => font_lock_fontify_block

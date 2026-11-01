@@ -60,7 +60,7 @@ contains
     ! Listing directories
     ! ------------------------------------------------------------------
 
-    module subroutine make_temp_file(prefix, file, status)
+    module subroutine create_temp_file(prefix, file, status)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
@@ -78,7 +78,7 @@ contains
         end if
 
         call close_fd(fd)
-    end subroutine make_temp_file
+    end subroutine create_temp_file
 
     !> The shell `insert_directory' runs a wildcard listing with:
     !> `shell_file_name' (callproc.c).  Not a port.
@@ -99,7 +99,7 @@ contains
         type(handle_type) :: errbuf, old
         type(file_stat_type) :: st
         type(status_type) :: dst
-        integer(int64) :: beg, inserted
+        integer(int64) :: beginning, inserted
         integer :: k
         logical :: wild, full, found, had_dir
 
@@ -107,8 +107,8 @@ contains
         if (present(wildcard)) wild = wildcard
         full = .false.
         if (present(full_directory)) full = full_directory
-        beg = point()
-        call make_temp_file("lserr", errfile, status)
+        beginning = point()
+        call create_temp_file("lserr", errfile, status)
         if (.not. status%ok()) return
 
         if (wild) then
@@ -144,9 +144,9 @@ contains
             end do
 
             command = command//" -- "//shell_quote_wildcard_pattern(pattern)
-            had_dir = allocated(buffers(cur)%directory)
-            if (had_dir) saved_dir = buffers(cur)%directory
-            buffers(cur)%directory = dir
+            had_dir = allocated(buffers(current)%directory)
+            if (had_dir) saved_dir = buffers(current)%directory
+            buffers(current)%directory = dir
             allocate (argv(2))
             argv(1) = value_type(text="-c")
             argv(2) = value_type(text=command)
@@ -154,9 +154,9 @@ contains
             call execute_process(shell_name(), result, status, destination=value_type(.true.), args=args, error_file=errfile)
 
             if (had_dir) then
-                buffers(cur)%directory = saved_dir
+                buffers(current)%directory = saved_dir
             else
-                deallocate (buffers(cur)%directory)
+                deallocate (buffers(current)%directory)
             end if
         else
             ! SunOS 4.1.3, SVr4 and others need the "." to list the
@@ -200,7 +200,7 @@ contains
         call file_attributes(errfile, st, found)
 
         if (found .and. st%size > 0) then
-            call get_buffer_create("*ls error*", errbuf, status)
+            call get_or_make_buffer("*ls error*", errbuf, status)
             if (.not. status%ok()) return
             old = current_buffer()
             call set_buffer(errbuf, status)
@@ -214,12 +214,12 @@ contains
         dired_ls_error_file = errfile
         call delete_file(errfile, status)
         if (.not. status%ok()) return
-        call insert_directory_clean(beg, switches, status)
+        call insert_directory_clean(beginning, switches, status)
         ! The output was decoded as UTF-8 by execute_process.
     end subroutine insert_directory
 
-    recursive module subroutine insert_directory_clean(beg, switches, status)
-        integer(int64), intent(in) :: beg
+    recursive module subroutine insert_directory_clean(beginning, switches, status)
+        integer(int64), intent(in) :: beginning
         character(len=*), intent(in) :: switches
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: line
@@ -249,10 +249,10 @@ contains
             linebeg = point()
             call buffer_substring(linebeg, end, line, status)
             ! Read the numeric positions of file names (after "//DIRED// "),
-            ! as byte offsets from BEG in the program's output: walk the text
+            ! as byte offsets from BEGINNING in the program's output: walk the text
             ! once, counting each character's bytes as the program wrote them
             ! (a raw byte as one).
-            pos = beg
+            pos = beginning
             byte = 0
             k = len("//DIRED//") + 1
             got = 0
@@ -312,9 +312,9 @@ contains
 
             offset = offset_in
 
-            do while (byte < offset .and. pos < buffers(cur)%zv)
-                c = buf_fetch_char(buffers(cur), char_to_byte(pos))
-                n = buf_next_char_len(buffers(cur), char_to_byte(pos))
+            do while (byte < offset .and. pos < buffers(current)%zv)
+                c = buf_fetch_char(buffers(current), char_to_byte(pos))
+                n = buf_next_char_len(buffers(current), char_to_byte(pos))
                 ext = n
                 if (is_char_byte8(c)) ext = 1
                 byte = byte + ext
@@ -389,7 +389,7 @@ contains
             if (i > 1) call split_whitespace(rest(1:i - 1))
             call read_string_literal(rest, int(i + 1, int64), value, next, status)
             if (.not. status%ok()) return
-            call add(value)
+            call append(value)
             rest = rest(next:)
         end do
 
@@ -397,54 +397,54 @@ contains
 
     contains
 
-        !> (split-string STR "\\s-+" t)
-        subroutine split_whitespace(str)
-            character(len=*), intent(in) :: str
+        !> (split-string STRING "\\s-+" t)
+        subroutine split_whitespace(piece)
+            character(len=*), intent(in) :: piece
             integer(int64) :: start, b, e
             type(status_type) :: st
 
             start = 1
 
             do
-                b = string_match("\s-+", str, st, start)
+                b = string_match("\s-+", piece, st, start)
 
                 if (b == 0) then
-                    if (start <= len_chars(str)) call add(substr(str, start, len_chars(str) + 1))
+                    if (start <= len_chars(piece)) call append(substr(piece, start, len_chars(piece) + 1))
                     exit
                 end if
 
                 e = match_end(0, st)
-                if (b > start) call add(substr(str, start, b))
+                if (b > start) call append(substr(piece, start, b))
                 start = e
             end do
         end subroutine split_whitespace
 
-        !> Characters START up to END (exclusive) of STR.
-        function substr(str, start, end) result(sub)
-            character(len=*), intent(in) :: str
+        !> Characters START up to END (exclusive) of STRING.
+        function substr(piece, start, end) result(sub)
+            character(len=*), intent(in) :: piece
             integer(int64), intent(in) :: start, end
             character(len=:), allocatable :: sub
 
-            sub = str(string_index_to_offset(str, start) + 1:string_index_to_offset(str, end))
+            sub = piece(string_index_to_offset(piece, start) + 1:string_index_to_offset(piece, end))
         end function substr
 
-        !> The number of characters of STR.
-        integer(int64) function len_chars(str) result(m)
-            character(len=*), intent(in) :: str
+        !> The number of characters of STRING.
+        integer(int64) function len_chars(piece) result(m)
+            character(len=*), intent(in) :: piece
             integer(int64) :: p
             integer(int32) :: ch, l
 
             m = 0
             p = 1
 
-            do while (p <= len(str))
-                call string_char_and_length(str, p, ch, l)
+            do while (p <= len(piece))
+                call string_char_and_length(piece, p, ch, l)
                 p = p + l
                 m = m + 1
             end do
         end function len_chars
 
-        subroutine add(text)
+        subroutine append(text)
             character(len=*), intent(in) :: text
 
             n = size(acc)
@@ -452,7 +452,7 @@ contains
             grown(1:n) = acc
             grown(n + 1) = value_type(text=text)
             call move_alloc(grown, acc)
-        end subroutine add
+        end subroutine append
     end subroutine split_string_and_unquote
 
     module function shell_quote_wildcard_pattern(pattern) result(quoted)
@@ -551,8 +551,8 @@ contains
             if (len(dir) == 0) then
                 dir = "./"
 
-                if (cur /= 0) then
-                    if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+                if (current /= 0) then
+                    if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
                 end if
             end if
 
@@ -788,7 +788,7 @@ contains
         character(len=1), parameter :: prefixes(11) = [character(len=1) :: "", "k", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q"]
         character(len=:), allocatable :: fl, prefix, prefixed_unit, num
         real(real64) :: amount, power, frac
-        character(len=40) :: buf
+        character(len=40) :: buffer
         integer :: k
 
         fl = ""
@@ -830,12 +830,12 @@ contains
         frac = modulo(amount, 1.0_real64)
 
         if (amount < 10 .and. frac >= 0.05_real64 .and. frac < 0.95_real64) then
-            write (buf, "(f0.1)") amount
+            write (buffer, "(f0.1)") amount
         else
-            write (buf, "(f0.0)") amount
+            write (buffer, "(f0.0)") amount
         end if
 
-        num = trim(adjustl(buf))
+        num = trim(adjustl(buffer))
 
         if (len(num) > 0) then
             if (num(len(num):len(num)) == ".") num = num(1:len(num) - 1)
@@ -960,7 +960,7 @@ contains
     recursive module subroutine revert_buffer(status, ignore_auto, noconfirm, preserve_modes)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: ignore_auto, noconfirm, preserve_modes
-        procedure(revert_function_proc), pointer :: fn
+        procedure(revert_function_procedure), pointer :: fn
         logical :: ia, nc, saved_in_progress, saved_preserve, restore_read_only, read_only_state
 
         ia = .false.
@@ -973,8 +973,8 @@ contains
         revert_buffer_preserve_modes = .false.
         if (present(preserve_modes)) revert_buffer_preserve_modes = preserve_modes
         ! revert-buffer-restore-functions: revert-buffer-restore-read-only.
-        restore_read_only = buffers(cur)%read_only_mode_state_set
-        read_only_state = buffers(cur)%read_only_mode_state
+        restore_read_only = buffers(current)%read_only_mode_state_set
+        read_only_state = buffers(current)%read_only_mode_state
         fn => revert_buffer_function%current()
 
         if (associated(fn)) then
@@ -984,9 +984,9 @@ contains
         end if
 
         if (restore_read_only) then
-            buffers(cur)%read_only = read_only_state
-            buffers(cur)%read_only_mode_state = read_only_state
-            buffers(cur)%read_only_mode_state_set = .true.
+            buffers(current)%read_only = read_only_state
+            buffers(current)%read_only_mode_state = read_only_state
+            buffers(current)%read_only_mode_state_set = .true.
         end if
 
         revert_buffer_in_progress = saved_in_progress
@@ -1028,12 +1028,12 @@ contains
         ! set), so the auto-save file is never offered, IGNORE_AUTO or not.
         auto_save_p = .false. .and. .not. ignore_auto
 
-        if (.not. allocated(buffers(cur)%filename)) then
+        if (.not. allocated(buffers(current)%filename)) then
             call set_error(status, FM_GENERIC_ERROR, "Buffer does not seem to be associated with any file")
             return
         end if
 
-        file_name = buffers(cur)%filename
+        file_name = buffers(current)%filename
         call is_buffer_modified(current_buffer(), modified, st)
         proceed = noconfirm
 
@@ -1059,7 +1059,7 @@ contains
         call before_revert_hook%execute(st)
         ! If file was backed up but has changed since,
         ! we should make another backup.
-        if (.not. auto_save_p .and. .not. is_visited_file_modtime_current()) buffers(cur)%backed_up = .false.
+        if (.not. auto_save_p .and. .not. is_visited_file_modtime_current()) buffers(current)%backed_up = .false.
         ! Effectively copy the after_revert_hook status,
         ! since after_find_file will clobber it.
         run_hook = after_revert_hook
@@ -1096,7 +1096,7 @@ contains
 
         status = status_type()
         ! buffer_file_number: the file existed when last visited or saved.
-        file_number = buffers(cur)%modtime_known .and. buffers(cur)%modtime_nsec /= NONEXISTENT_MODTIME_NSECS
+        file_number = buffers(current)%modtime_known .and. buffers(current)%modtime_nsec /= NONEXISTENT_MODTIME_NSECS
 
         if (.not. file_exists(file_name)) then
             if (file_number) then
@@ -1130,7 +1130,7 @@ contains
         ! This force after_insert_file_set_coding (called from
         ! insert_file_contents) to set buffer_file_coding_system to a
         ! proper value.
-        call buffer_file_coding_system%kill_local()
+        call buffer_file_coding_system%clear_local()
         ! Note that this preserves point in an intelligent way.
         call insert_file_contents(file_name,.not. auto_save_p, inserted, status, replace=.true.)
 
@@ -1149,10 +1149,10 @@ contains
     type(value_type) :: all
     type(value_type), allocatable :: elts(:)
     character(len=:), allocatable :: s1
-    type :: name_box
+    type :: name_box_type
         character(len=:), allocatable :: s
-    end type name_box
-    type(name_box), allocatable :: kept(:)
+    end type name_box_type
+    type(name_box_type), allocatable :: kept(:)
     type(status_type) :: st
     integer :: k, n, i, j
 

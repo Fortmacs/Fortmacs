@@ -26,7 +26,7 @@ module test_sgml_mode_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insdel_fm, only: insert
     use lisp_fm, only: value_type, vtag, V_NAME, xsymbol, symbols
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_eob, buffer_substring
@@ -76,7 +76,7 @@ contains
     subroutine with_content(content, html, plain)
         character(len=*), intent(in) :: content
         logical, intent(in), optional :: html, plain
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         logical :: is_html, is_plain
 
@@ -85,10 +85,10 @@ contains
         is_plain = .false.
         if (present(plain)) is_plain = plain
         call init_bindings()
-        call get_buffer_create(" *sgml-test*", buf, st)
-        call kill_buffer(buf, st)
-        call get_buffer_create(" *sgml-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *sgml-test*", buffer, st)
+        call close_buffer(buffer, st)
+        call get_or_make_buffer(" *sgml-test*", buffer, st)
+        call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
 

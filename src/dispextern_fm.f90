@@ -149,73 +149,73 @@ module dispextern_fm
     type, abstract, public :: redisplay_interface_type
     contains
         !> Clear the whole frame (clear_frame_hook).
-        procedure(rif_clear_frame), deferred :: clear_frame
+        procedure(rif_clear_frame_procedure), deferred :: clear_frame
         !> Draw `len' glyphs of `row' from glyph `start', the first with its
         !> left edge at `x', the row's top at `y', clipped at `clip_x'
         !> (the right edge of the window) (write_glyphs).
-        procedure(rif_write_glyphs), deferred :: write_glyphs
+        procedure(rif_write_glyphs_procedure), deferred :: write_glyphs
         !> Clear from `x' to `to_x' (exclusive) the `height' pixels of a
         !> row starting at `y' (clear_end_of_line).
-        procedure(rif_clear_end_of_line), deferred :: clear_end_of_line
+        procedure(rif_clear_end_of_line_procedure), deferred :: clear_end_of_line
         !> Draw the border between side-by-side windows from (x, y0) to
         !> (x, y1) in face `face_id' (draw_vertical_window_border).
-        procedure(rif_draw_vertical_window_border), deferred :: draw_vertical_window_border
+        procedure(rif_draw_vertical_window_border_procedure), deferred :: draw_vertical_window_border
         !> Draw a cursor of kind `cursor_type' (FILLED_BOX_CURSOR, ...)
         !> `width' by `height' at (x, y) if `on_p' (draw_window_cursor).
-        procedure(rif_draw_window_cursor), deferred :: draw_window_cursor
+        procedure(rif_draw_window_cursor_procedure), deferred :: draw_window_cursor
         !> Make what was drawn visible (flush_display).
-        procedure(rif_flush_display), deferred :: flush_display
+        procedure(rif_flush_display_procedure), deferred :: flush_display
     end type redisplay_interface_type
 
     abstract interface
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_clear_frame(self)
+        subroutine rif_clear_frame_procedure(self)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
-        end subroutine rif_clear_frame
+        end subroutine rif_clear_frame_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_write_glyphs(self, row, start, len, x, y, clip_x)
+        subroutine rif_write_glyphs_procedure(self, row, start, len, x, y, clip_x)
             import :: redisplay_interface_type, glyph_row_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             type(glyph_row_type), intent(in) :: row
             integer, intent(in) :: start, len, x, y, clip_x
-        end subroutine rif_write_glyphs
+        end subroutine rif_write_glyphs_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_clear_end_of_line(self, x, y, height, to_x)
+        subroutine rif_clear_end_of_line_procedure(self, x, y, height, to_x)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             integer, intent(in) :: x, y, height, to_x
-        end subroutine rif_clear_end_of_line
+        end subroutine rif_clear_end_of_line_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_draw_vertical_window_border(self, x, y0, y1, face_id)
+        subroutine rif_draw_vertical_window_border_procedure(self, x, y0, y1, face_id)
             import :: redisplay_interface_type, int32
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             integer, intent(in) :: x, y0, y1
             integer(int32), intent(in) :: face_id
-        end subroutine rif_draw_vertical_window_border
+        end subroutine rif_draw_vertical_window_border_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_draw_window_cursor(self, x, y, width, height, cursor_type, on_p, active_p)
+        subroutine rif_draw_window_cursor_procedure(self, x, y, width, height, cursor_type, on_p, active_p)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             integer, intent(in) :: x, y, width, height, cursor_type
             logical, intent(in) :: on_p, active_p
-        end subroutine rif_draw_window_cursor
+        end subroutine rif_draw_window_cursor_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_flush_display(self)
+        subroutine rif_flush_display_procedure(self)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
-        end subroutine rif_flush_display
+        end subroutine rif_flush_display_procedure
     end interface
 
     public :: face_tty_specified_color, is_glyph_equal, is_char_glyph_space

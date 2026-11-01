@@ -248,10 +248,10 @@ contains
         logical, intent(in) :: disable
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: init_file, value, var, header, component, setting
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
         type(command_type), pointer :: p
-        integer(int64) :: found, beg
+        integer(int64) :: found, beginning
         integer :: i, j
         logical :: saved_fold, builtin
 
@@ -288,9 +288,9 @@ contains
         end if
 
         old = current_buffer()
-        call find_file_noselect(init_file, buf, status)
+        call find_file_noselect(init_file, buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         saved_fold = case_fold_search%value
         case_fold_search = .true.
@@ -331,10 +331,10 @@ contains
         call search_forward(setting, found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
-            beg = line_beginning_position()
-            call goto_char(beg)
+            beginning = line_beginning_position()
+            call goto_char(beginning)
             call search_forward(LF, found, st, noerror=SEARCH_MOVE)
-            call delete_region(beg, point(), st)
+            call delete_region(beginning, point(), st)
         end if
 
         ! Explicitly enable, in case this command is disabled by default

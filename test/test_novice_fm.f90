@@ -31,7 +31,7 @@ module test_novice_fm
     use lisp_fm, only: value_type
     use callint_fm, only: find_command, command_type
     use commands_fm, only: commands
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, point_max
     use simple_fm, only: push_mark
@@ -41,7 +41,7 @@ module test_novice_fm
     use bindings_fm, only: init_bindings
     use novice_fm, only: enable_command, disable_command, disabled_command_function_variable
     use lread_fm, only: user_init_file
-    use fileio_fm, only: expand_file_name, make_directory_internal, delete_file_internal, emacs_wd, init_fileio
+    use fileio_fm, only: expand_file_name, create_directory_internal, delete_file_internal, emacs_wd, init_fileio
     use files_fm, only: find_file_noselect
     implicit none(type, external)
     private
@@ -70,7 +70,7 @@ contains
         prefix_arg = prefix_arg_type()
         disabled_command_function_variable = .true.
         commands%upcase_region%disabled = .true.
-        call get_buffer_create("novice-test", h, st)
+        call get_or_make_buffer("novice-test", h, st)
         call set_buffer(h, st)
         call insert("abc", st)
         call show_alone()
@@ -131,19 +131,19 @@ contains
         disabled_command_function_variable = .true.
         call disable_command("downcase_region", st)
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_answers
 
     subroutine test_enable_disable(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, init_buf
+        type(handle_type) :: h, init_buffer
         type(status_type) :: st
         character(len=:), allocatable :: text, path
         character(len=*), parameter :: LF = achar(10)
 
         call init_fileio()
         call expand_file_name("build/test-novice", path, st, emacs_wd)
-        call make_directory_internal(path, st)
+        call create_directory_internal(path, st)
         path = path//"/init.f90"
         user_init_file = path
         call write_text(user_init_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
@@ -174,9 +174,9 @@ contains
         call enable_command("no-such-command", st)
         call check(error,.not. st%ok())
         call discard_input()
-        call kill_buffer(h, st)
-        call find_file_noselect(user_init_file, init_buf, st)
-        call kill_buffer(init_buf, st)
+        call close_buffer(h, st)
+        call find_file_noselect(user_init_file, init_buffer, st)
+        call close_buffer(init_buffer, st)
         call delete_file_internal(user_init_file, st)
         call delete_file_internal(user_init_file//"~", st)
         deallocate (user_init_file)
@@ -231,6 +231,6 @@ contains
                    buffer_string())
         commands%upcase_region%disabled = .true.
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_disabled_message
 end module test_novice_fm

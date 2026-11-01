@@ -38,8 +38,8 @@ module jit_lock_fm
     use lisp_fm, only: value_type
     use error_fm, only: status_type
     use lisp_fm, only: value_type
-    use data_fm, only: add_local_variables_killer
-    use buffer_fm, only: buffers, cur
+    use data_fm, only: append_locals_clearer
+    use buffer_fm, only: buffers, current
     use eval_fm, only: region_hook_type, region_entry_type, after_change_hook_type
     use insdel_fm, only: after_change_functions
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region
@@ -101,22 +101,22 @@ contains
 
     !> Set up Just-in-time Lock (as loading jit-lock.el does).  Not a port.
     subroutine syms_of_jit_lock()
-        call add_local_variables_killer(kill_jit_lock_locals)
+        call append_locals_clearer(clear_jit_lock_locals)
     end subroutine syms_of_jit_lock
 
     !> kill-all-local-variables: `jit_lock_mode' is buffer-local.
     !> Not a port.
-    subroutine kill_jit_lock_locals()
+    subroutine clear_jit_lock_locals()
         call set_jit_lock_mode(.false.)
-    end subroutine kill_jit_lock_locals
+    end subroutine clear_jit_lock_locals
 
     !> Whether Just-in-time Lock mode is on in the current buffer (the
     !> variable `jit_lock_mode').  Not a port.
     logical function is_jit_lock_mode()
         is_jit_lock_mode = .false.
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(on)) return
-        is_jit_lock_mode = any(on == buffers(cur)%serial)
+        is_jit_lock_mode = any(on == buffers(current)%serial)
     end function is_jit_lock_mode
 
     !> Record whether Just-in-time Lock mode is on in the current buffer.
@@ -125,13 +125,13 @@ contains
         logical, intent(in) :: arg
         integer(int64), allocatable :: kept(:)
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(on)) allocate (on(0))
 
         if (arg) then
-            if (.not. any(on == buffers(cur)%serial)) on = [on, buffers(cur)%serial]
+            if (.not. any(on == buffers(current)%serial)) on = [on, buffers(current)%serial]
         else
-            kept = pack(on, on /= buffers(cur)%serial)
+            kept = pack(on, on /= buffers(current)%serial)
             call move_alloc(kept, on)
         end if
     end subroutine set_jit_lock_mode
@@ -168,8 +168,8 @@ contains
             call jit_lock_refontify(status)
             if (.not. status%ok()) return
             ! Setup our hooks.
-            call after_change_functions%add(jit_lock_after_change, local=.true.)
-            call fontification_functions%add(jit_lock_function, local=.true.)
+            call after_change_functions%append(jit_lock_after_change, local=.true.)
+            call fontification_functions%append(jit_lock_function, local=.true.)
         else
             ! Turn Just-in-time Lock mode off: remove hooks.
             call after_change_functions%remove(jit_lock_after_change, local=.true.)
@@ -184,17 +184,17 @@ contains
     !> contextual refontification needs timers).
     subroutine jit_lock_register(fun, status)
         interface
-            subroutine fun(beg, end, done_beg, done_end, status)
+            subroutine fun(beginning, end, done_beginning, done_end, status)
                 import :: int64, status_type
                 implicit none(type, external)
-                integer(int64), intent(in) :: beg, end
-                integer(int64), intent(out) :: done_beg, done_end
+                integer(int64), intent(in) :: beginning, end
+                integer(int64), intent(out) :: done_beginning, done_end
                 type(status_type), intent(out) :: status
             end subroutine fun
         end interface
         type(status_type), intent(out) :: status
 
-        call jit_lock_functions%add(fun, local=.true.)
+        call jit_lock_functions%append(fun, local=.true.)
         call jit_lock_mode(.true., status)
     end subroutine jit_lock_register
 
@@ -203,11 +203,11 @@ contains
     !> jit-lock.el:jit-lock-unregister.
     subroutine jit_lock_unregister(fun, status)
         interface
-            subroutine fun(beg, end, done_beg, done_end, status)
+            subroutine fun(beginning, end, done_beginning, done_end, status)
                 import :: int64, status_type
                 implicit none(type, external)
-                integer(int64), intent(in) :: beg, end
-                integer(int64), intent(out) :: done_beg, done_end
+                integer(int64), intent(in) :: beginning, end
+                integer(int64), intent(out) :: done_beginning, done_end
                 type(status_type), intent(out) :: status
             end subroutine fun
         end interface
@@ -220,20 +220,20 @@ contains
         if (size(fns) == 0) call jit_lock_mode(.false., status)
     end subroutine jit_lock_unregister
 
-    !> Force refontification of the region BEG..END (default whole buffer).
+    !> Force refontification of the region BEGINNING..END (default whole buffer).
     !> Port of jit-lock.el:jit-lock-refontify.
-    subroutine jit_lock_refontify(status, beg, end)
+    subroutine jit_lock_refontify(status, beginning, end)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
+        integer(int64), intent(in), optional :: beginning, end
         type(silent_modifications_type) :: silent
         integer(int64) :: begv, zv, b, e
 
         call silent_modifications_begin(silent)
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call widen()
         b = point_min()
-        if (present(beg)) b = beg
+        if (present(beginning)) b = beginning
         e = point_max()
         if (present(end)) e = end
         call put_text_property(b, e, value_type(name="fontified"), value_type(), status)
@@ -262,52 +262,52 @@ contains
         call jit_lock_fontify_now(status, start, vend)
     end subroutine jit_lock_function
 
-    !> Execute `jit_lock_functions' on BEG..END: TIGHT_BEG and TIGHT_END give
-    !> the part all of them fontified, LOOSE_BEG and LOOSE_END the part some
+    !> Execute `jit_lock_functions' on BEGINNING..END: TIGHT_BEGINNING and TIGHT_END give
+    !> the part all of them fontified, LOOSE_BEGINNING and LOOSE_END the part some
     !> of them did.  Port of jit-lock.el:jit-lock--run-functions.
-    subroutine jit_lock_execute_functions(beg, end, tight_beg, tight_end, loose_beg, loose_end, status)
-        integer(int64), intent(in) :: beg, end
-        integer(int64), intent(out) :: tight_beg, tight_end, loose_beg, loose_end
+    subroutine jit_lock_execute_functions(beginning, end, tight_beginning, tight_end, loose_beginning, loose_end, status)
+        integer(int64), intent(in) :: beginning, end
+        integer(int64), intent(out) :: tight_beginning, tight_end, loose_beginning, loose_end
         type(status_type), intent(out) :: status
         type(region_entry_type), allocatable :: fns(:)
-        integer(int64) :: this_beg, this_end
-        logical :: have_tight
+        integer(int64) :: this_beginning, this_end
+        logical :: has_tight
         integer :: i
 
         status = status_type()
-        have_tight = .false.
-        tight_beg = beg
+        has_tight = .false.
+        tight_beginning = beginning
         tight_end = end
-        loose_beg = beg
+        loose_beginning = beginning
         loose_end = end
         fns = jit_lock_functions%functions()
 
         do i = 1, size(fns)
-            this_beg = beg
+            this_beginning = beginning
             this_end = end
-            call fns(i)%fn(beg, end, this_beg, this_end, status)
+            call fns(i)%fn(beginning, end, this_beginning, this_end, status)
             if (.not. status%ok()) return
 
             ! If all functions don't fontify the same region, we currently
             ! just try to "still be correct".
-            if (.not. have_tight) then
-                tight_beg = max(point_min(), this_beg)
+            if (.not. has_tight) then
+                tight_beginning = max(point_min(), this_beginning)
                 tight_end = min(point_max(), this_end)
-                have_tight = .true.
+                has_tight = .true.
             else
-                tight_beg = max(tight_beg, this_beg)
+                tight_beginning = max(tight_beginning, this_beginning)
                 tight_end = min(tight_end, this_end)
             end if
 
-            loose_beg = min(loose_beg, this_beg)
+            loose_beginning = min(loose_beginning, this_beginning)
             loose_end = max(loose_end, this_end)
         end do
 
-        if (.not. have_tight) then
-            tight_beg = beg
+        if (.not. has_tight) then
+            tight_beginning = beginning
             tight_end = end
         else
-            tight_beg = min(tight_beg, beg)
+            tight_beginning = min(tight_beginning, beginning)
             tight_end = max(tight_end, end)
         end if
     end subroutine jit_lock_execute_functions
@@ -320,7 +320,7 @@ contains
         integer(int64), intent(in), optional :: start_in, end_in
         type(silent_modifications_type) :: silent
         integer(int64), allocatable :: saved_match(:)
-        integer(int64) :: start, end, next, pt, tight_beg, tight_end, loose_beg, loose_end, pos
+        integer(int64) :: start, end, next, pt, tight_beginning, tight_end, loose_beginning, loose_end, pos
         logical :: found
         type(status_type) :: st
 
@@ -348,13 +348,13 @@ contains
                 ! first, to make sure that we don't indefinitely re-execute
                 ! this fontification if an error occurs.
                 call put_text_property(start, next, value_type(name="fontified"), value_type(.true.), status)
-                call jit_lock_execute_functions(start, next, tight_beg, tight_end, loose_beg, loose_end, status)
+                call jit_lock_execute_functions(start, next, tight_beginning, tight_end, loose_beginning, loose_end, status)
                 if (.not. status%ok()) exit
 
                 ! In case we fontified more than requested, take advantage
                 ! of the good news.
-                if (tight_beg < start .or. tight_end > next) then
-                    call put_text_property(tight_beg, tight_end, value_type(name="fontified"), value_type(.true.), st)
+                if (tight_beginning < start .or. tight_end > next) then
+                    call put_text_property(tight_beginning, tight_end, value_type(name="fontified"), value_type(.true.), st)
                 end if
 
                 ! Skip to the end of the fully refontified part.
@@ -398,8 +398,8 @@ contains
             ! Make sure we change at least one char (in case of deletions).
             jit_lock_end = min(max(jit_lock_end, start + 1), point_max())
             ! Request refontification.
-            begv = buffers(cur)%begv
-            zv = buffers(cur)%zv
+            begv = buffers(current)%begv
+            zv = buffers(current)%zv
             call widen()
             call put_text_property(jit_lock_start, jit_lock_end, value_type(name="fontified"), value_type(), status)
             call narrow_to_region(begv, zv, status)

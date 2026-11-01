@@ -62,17 +62,17 @@
 !> translation tables; compositions and charset annotations; the
 !> `:post-read-conversion' and `:pre-write-conversion' functions;
 !> `define_coding_system' for user-defined coding systems;
-!> `coding_system_put'; `network_coding_system_table' and
-!> `process_coding_system_table'; and the functions in
-!> `file_coding_system_table' (xml, po and latexenc detection).
+!> `coding_system_put'; `network_coding_systems' and
+!> `process_coding_systems'; and the functions in
+!> `file_coding_systems' (xml, po and latexenc detection).
 module coding_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_CODING_SYSTEM_ERROR, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use character_fm, only: char_string, string_char_and_length, is_char_byte8, byte8_to_char, char_to_byte8, &
                             multibyte_length, MAX_MULTIBYTE_LENGTH, MAX_CHAR, MAX_UNICODE_CHAR, MAX_5_BYTE_CHAR
     use character_fm, only: str_to_multibyte
-    use data_fm, only: logical_setting, string_setting
-    use buffer_fm, only: buffers, cur, buf_bytes, temp_set_point_both
+    use data_fm, only: logical_setting_type, string_setting_type
+    use buffer_fm, only: buffers, current, buf_bytes, temp_set_point_both
     use marker_fm, only: char_to_byte
     use insdel_fm, only: insert, del_range
     implicit none(type, external)
@@ -173,7 +173,7 @@ module coding_fm
         integer :: id = 0
     end type alias_type
 
-    !> An entry of `file_coding_system_table': a regexp matching file
+    !> An entry of `file_coding_systems': a regexp matching file
     !> names, and the coding systems for decoding and for encoding ("" for
     !> none).
     type, public :: file_coding_type
@@ -195,10 +195,10 @@ module coding_fm
     !> It is useful to bind this variable temporarily, but do not set it globally.
     !> If the value is a coding system, it is used for decoding on read operation.
     !> If not, an appropriate element is used from one of the coding system tables.
-    !> There are three such tables: `file_coding_system_table',
-    !> `process_coding_system_table', and `network_coding_system_table'.
+    !> There are three such tables: `file_coding_systems',
+    !> `process_coding_systems', and `network_coding_systems'.
     !> Port of coding.c coding-system-for-read (unallocated when unset).
-    type(string_setting), public :: coding_system_for_read = string_setting(name="coding_system_for_read")
+    type(string_setting_type), public :: coding_system_for_read = string_setting_type(name="coding_system_for_read")
 
     !> Specify the coding system for write operations.
     !> Programs bind this variable temporarily, but you should not set it globally.
@@ -207,21 +207,21 @@ module coding_fm
     !>
     !> If this does not specify a coding system, an appropriate element
     !> is used from one of the coding system tables.
-    !> There are three such tables: `file_coding_system_table',
-    !> `process_coding_system_table', and `network_coding_system_table'.
+    !> There are three such tables: `file_coding_systems',
+    !> `process_coding_systems', and `network_coding_systems'.
     !> For output to files, if the above procedure does not specify a coding system,
     !> the value of `buffer_file_coding_system' is used.  Port of coding.c
     !> coding-system-for-write (unallocated when unset).
-    type(string_setting), public :: coding_system_for_write = string_setting(name="coding_system_for_write")
+    type(string_setting_type), public :: coding_system_for_write = string_setting_type(name="coding_system_for_write")
 
     !> Coding system used in the latest file or process I/O.  Port of
     !> coding.c last-coding-system-used.
-    type(string_setting), public :: last_coding_system_used = string_setting(name="last_coding_system_used")
+    type(string_setting_type), public :: last_coding_system_used = string_setting_type(name="last_coding_system_used")
 
     !> True means always inhibit code conversion of end-of-line format.
     !> See info node `Coding Systems' and info node `Text and Binary' concerning
     !> such conversion.  Port of coding.c inhibit-eol-conversion.
-    type(logical_setting), public :: inhibit_eol_conversion = logical_setting(name="inhibit_eol_conversion")
+    type(logical_setting_type), public :: inhibit_eol_conversion = logical_setting_type(name="inhibit_eol_conversion")
 
     !> If true, Emacs ignores null bytes on code detection.
     !> By default, Emacs treats it as binary data, and does not attempt to
@@ -232,7 +232,7 @@ module coding_fm
     !> Examples are Index nodes of Info files and null-byte delimited output
     !> from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and
     !> decode text as usual.  Port of coding.c inhibit-null-byte-detection.
-    type(logical_setting), public :: inhibit_null_byte_detection = logical_setting(name="inhibit_null_byte_detection")
+    type(logical_setting_type), public :: inhibit_null_byte_detection = logical_setting_type(name="inhibit_null_byte_detection")
 
     !> If true, Emacs ignores ISO-2022 escape sequences during code detection.
     !>
@@ -259,24 +259,24 @@ module coding_fm
     !> escape sequence (e.g., `latin-1') on reading by \[universal_coding_system_argument].
     !> Port of coding.c inhibit-iso-escape-detection (the ISO-2022 coding
     !> systems are Deferred, so it has no effect yet).
-    type(logical_setting), public :: inhibit_iso_escape_detection = &
-                                     logical_setting(name="inhibit_iso_escape_detection")
+    type(logical_setting_type), public :: inhibit_iso_escape_detection = &
+                                          logical_setting_type(name="inhibit_iso_escape_detection")
 
     !> String displayed in mode line for UNIX-like (LF) end-of-line format.
     !> Port of coding.c eol-mnemonic-unix.
-    type(string_setting), public :: eol_mnemonic_unix = string_setting(name="eol_mnemonic_unix")
+    type(string_setting_type), public :: eol_mnemonic_unix = string_setting_type(name="eol_mnemonic_unix")
 
     !> String displayed in mode line for DOS-like (CRLF) end-of-line format.
     !> Port of coding.c eol-mnemonic-dos.
-    type(string_setting), public :: eol_mnemonic_dos = string_setting(name="eol_mnemonic_dos")
+    type(string_setting_type), public :: eol_mnemonic_dos = string_setting_type(name="eol_mnemonic_dos")
 
     !> String displayed in mode line for MAC-like (CR) end-of-line format.
     !> Port of coding.c eol-mnemonic-mac.
-    type(string_setting), public :: eol_mnemonic_mac = string_setting(name="eol_mnemonic_mac")
+    type(string_setting_type), public :: eol_mnemonic_mac = string_setting_type(name="eol_mnemonic_mac")
 
     !> String displayed in mode line when end-of-line format is not yet determined.
     !> Port of coding.c eol-mnemonic-undecided.
-    type(string_setting), public :: eol_mnemonic_undecided = string_setting(name="eol_mnemonic_undecided")
+    type(string_setting_type), public :: eol_mnemonic_undecided = string_setting_type(name="eol_mnemonic_undecided")
 
     !> Coding systems used for process I/O by default.
     !> The first (`decoding') is used for decoding a process output,
@@ -289,25 +289,25 @@ module coding_fm
     !> Each element has a PATTERN, a regular expression matching a file
     !> name, and the coding systems for decoding and for encoding the
     !> file contents ("" for none).  See also the function
-    !> `find_operation_coding_system' and the variable `auto_coding_table'.
+    !> `find_operation_coding_system' and the variable `auto_codings'.
     !> Port of coding.c file-coding-system-alist, with mule-conf.el's value
     !> (without its functions: the xml, po and latexenc detection is
     !> Deferred).
-    type(file_coding_type), allocatable, public :: file_coding_system_table(:)
+    type(file_coding_type), allocatable, public :: file_coding_systems(:)
 
     !> Coding system to use with system messages.
     !> Potentially also used for decoding keyboard input on X Windows, and is
     !> used for encoding standard output and error streams.  Port of
     !> coding.c locale-coding-system (a UTF-8 locale).
-    type(string_setting), public :: locale_coding_system = string_setting(name="locale_coding_system")
+    type(string_setting_type), public :: locale_coding_system = string_setting_type(name="locale_coding_system")
 
     !> Internal use only.
     !> If true, on writing a file, `select_safe_coding_system_function' is
     !> called even if `coding_system_for_write' is set.  The command
     !> `universal_coding_system_argument' sets this variable temporarily.
     !> Port of coding.c coding-system-require-warning.
-    type(logical_setting), public :: coding_system_require_warning = &
-                                     logical_setting(name="coding_system_require_warning")
+    type(logical_setting_type), public :: coding_system_require_warning = &
+                                          logical_setting_type(name="coding_system_require_warning")
 
     !> Coding system to be used for encoding the buffer contents on saving.
     !> This variable applies to saving the buffer, and also to `write_region'
@@ -315,7 +315,7 @@ module coding_fm
     !> It does not apply to sending output to subprocesses, however.
     !>
     !> If this is unallocated, the buffer is saved without any code conversion
-    !> unless some coding system is specified in `file_coding_system_table'
+    !> unless some coding system is specified in `file_coding_systems'
     !> for the buffer file.
     !>
     !> If the text to be saved cannot be encoded as specified by this variable,
@@ -327,8 +327,8 @@ module coding_fm
     !> Port of buffer.c buffer-file-coding-system (local when set and
     !> permanently local, as buffer.c makes it; its default is what
     !> prefer-coding-system gives it in a UTF-8 locale).
-    type(string_setting), target, public :: buffer_file_coding_system = &
-                                            string_setting(name="buffer_file_coding_system")
+    type(string_setting_type), target, public :: buffer_file_coding_system = &
+                                                 string_setting_type(name="buffer_file_coding_system")
 
     ! Bytes 0x80..0x9F that may appear in Latin-1 text
     ! (mule-conf.el's latin-extra-code-table).
@@ -434,14 +434,14 @@ contains
         call define_coding_system_alias("ascii", "us-ascii")
 
         ! mule-conf.el's file-coding-system-alist, without its functions.
-        if (.not. allocated(file_coding_system_table)) then
-            allocate (file_coding_system_table(6))
-            file_coding_system_table(1) = file_coding_type("\.elc\'", "utf-8-emacs", "utf-8-emacs")
-            file_coding_system_table(2) = file_coding_type("\.el\'", "prefer-utf-8", "prefer-utf-8")
-            file_coding_system_table(3) = file_coding_type("\.utf\(-8\)?\'", "utf-8", "utf-8")
-            file_coding_system_table(4) = file_coding_type("\(\`\|/\)loaddefs.el\'", "raw-text", "raw-text-unix")
-            file_coding_system_table(5) = file_coding_type("\.tar\'", "no-conversion", "no-conversion")
-            file_coding_system_table(6) = file_coding_type("", "undecided", "")
+        if (.not. allocated(file_coding_systems)) then
+            allocate (file_coding_systems(6))
+            file_coding_systems(1) = file_coding_type("\.elc\'", "utf-8-emacs", "utf-8-emacs")
+            file_coding_systems(2) = file_coding_type("\.el\'", "prefer-utf-8", "prefer-utf-8")
+            file_coding_systems(3) = file_coding_type("\.utf\(-8\)?\'", "utf-8", "utf-8")
+            file_coding_systems(4) = file_coding_type("\(\`\|/\)loaddefs.el\'", "raw-text", "raw-text-unix")
+            file_coding_systems(5) = file_coding_type("\.tar\'", "no-conversion", "no-conversion")
+            file_coding_systems(6) = file_coding_type("", "undecided", "")
         end if
 
         ! reset-language-environment: utf-8, iso-2022-7bit, iso-latin-1,
@@ -1129,7 +1129,7 @@ contains
     !> is selected as the TARGET.  For file I/O, the file name is the target.
     !>
     !> This function looks up what is specified for TARGET in
-    !> `file_coding_system_table'.  If no match is found, both are "".
+    !> `file_coding_systems'.  If no match is found, both are "".
     !> Port of coding.c:Ffind_operation_coding_system (file operations
     !> only: process and network operations are Deferred; MATCHER, a
     !> regexp matcher returning whether a pattern matches, keeps this
@@ -1149,10 +1149,10 @@ contains
         encoding = ""
         if (ncodings == 0) call syms_of_coding()
 
-        do k = 1, size(file_coding_system_table)
-            if (matcher(file_coding_system_table(k)%pattern, filename)) then
-                decoding = file_coding_system_table(k)%decoding
-                encoding = file_coding_system_table(k)%encoding
+        do k = 1, size(file_coding_systems)
+            if (matcher(file_coding_systems(k)%pattern, filename)) then
+                decoding = file_coding_systems(k)%decoding
+                encoding = file_coding_systems(k)%encoding
                 return
             end if
         end do
@@ -1958,7 +1958,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Append character C to CHARS(1:N).  Not a port.
-    subroutine add(chars, n, c)
+    subroutine append(chars, n, c)
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
         integer, intent(in) :: c
@@ -1972,7 +1972,7 @@ contains
 
         n = n + 1
         chars(n) = c
-    end subroutine add
+    end subroutine append
 
     !> A byte that could not be decoded, as a character: ASCII as is,
     !> others as raw bytes; a character of multibyte source stays.
@@ -2012,12 +2012,12 @@ contains
             src = src + 1
 
             if (c1 < 0) then
-                call add(chars, n, -c1)
+                call append(chars, n, -c1)
                 cycle
             end if
 
             if (c1 < 128) then
-                call add(chars, n, c1)
+                call append(chars, n, c1)
                 cycle
             end if
 
@@ -2071,9 +2071,9 @@ contains
             if (bad) then
                 ! invalid_code: the first byte alone, as a raw byte.
                 src = base + 1
-                call add(chars, n, invalid_char(c1))
+                call append(chars, n, invalid_char(c1))
             else
-                call add(chars, n, c)
+                call append(chars, n, c)
             end if
         end do
     end subroutine decode_utf_8
@@ -2105,12 +2105,12 @@ contains
             src = src + 1
 
             if (c1 < 0) then
-                call add(chars, n, -c1)
+                call append(chars, n, -c1)
                 cycle
             end if
 
             if (src > nu) then
-                call add(chars, n, invalid_char(c1))
+                call append(chars, n, invalid_char(c1))
                 exit
             end if
 
@@ -2118,8 +2118,8 @@ contains
             src = src + 1
 
             if (c2 < 0) then
-                call add(chars, n, invalid_char(c1))
-                call add(chars, n, -c2)
+                call append(chars, n, invalid_char(c1))
+                call append(chars, n, -c2)
                 cycle
             end if
 
@@ -2132,28 +2132,28 @@ contains
             if (surrogate /= 0) then
                 if (.not. (c >= int(z'DC00') .and. c <= int(z'DFFF'))) then
                     if (big) then
-                        call add(chars, n, ishft(surrogate, -8))
-                        call add(chars, n, iand(surrogate, 255))
+                        call append(chars, n, ishft(surrogate, -8))
+                        call append(chars, n, iand(surrogate, 255))
                     else
-                        call add(chars, n, iand(surrogate, 255))
-                        call add(chars, n, ishft(surrogate, -8))
+                        call append(chars, n, iand(surrogate, 255))
+                        call append(chars, n, ishft(surrogate, -8))
                     end if
 
                     if (c >= int(z'D800') .and. c <= int(z'DBFF')) then
                         surrogate = c
                     else
                         surrogate = 0
-                        call add(chars, n, c)
+                        call append(chars, n, c)
                     end if
                 else
                     c = ior(ishft(surrogate - int(z'D800'), 10), c - int(z'DC00'))
                     surrogate = 0
-                    call add(chars, n, int(z'10000') + c)
+                    call append(chars, n, int(z'10000') + c)
                 end if
             else if (c >= int(z'D800') .and. c <= int(z'DBFF')) then
                 surrogate = c
             else
-                call add(chars, n, c)
+                call append(chars, n, c)
             end if
         end do
 
@@ -2161,11 +2161,11 @@ contains
         ! unprocessed data.
         if (surrogate /= 0) then
             if (big) then
-                call add(chars, n, invalid_char(ishft(surrogate, -8)))
-                call add(chars, n, invalid_char(iand(surrogate, 255)))
+                call append(chars, n, invalid_char(ishft(surrogate, -8)))
+                call append(chars, n, invalid_char(iand(surrogate, 255)))
             else
-                call add(chars, n, invalid_char(iand(surrogate, 255)))
-                call add(chars, n, invalid_char(ishft(surrogate, -8)))
+                call append(chars, n, invalid_char(iand(surrogate, 255)))
+                call append(chars, n, invalid_char(ishft(surrogate, -8)))
             end if
         end if
     end subroutine decode_utf_16
@@ -2186,9 +2186,9 @@ contains
             c = units(src)
 
             if (c >= 0 .and. c <= limit) then
-                call add(chars, n, c)
+                call append(chars, n, c)
             else
-                call add(chars, n, invalid_char(c))
+                call append(chars, n, invalid_char(c))
             end if
         end do
     end subroutine decode_charset
@@ -2202,7 +2202,7 @@ contains
         integer(int64) :: src
 
         do src = 1, size(units, kind=int64)
-            call add(chars, n, invalid_char(units(src)))
+            call append(chars, n, invalid_char(units(src)))
         end do
     end subroutine decode_raw_text
 
@@ -2287,7 +2287,7 @@ contains
         integer(int64), intent(in) :: n
         logical, intent(in) :: multibyte
         character(len=:), allocatable, intent(out) :: text
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: nb
         integer(int64) :: k, q
         type(status_type) :: st
@@ -2314,8 +2314,8 @@ contains
                 q = q + 1
                 text(q:q) = char(chars(k))
             else
-                call char_string(chars(k), buf, nb, st)
-                text(q + 1:q + nb) = buf(1:nb)
+                call char_string(chars(k), buffer, nb, st)
+                text(q + 1:q + nb) = buffer(1:nb)
                 q = q + nb
             end if
         end do
@@ -2435,12 +2435,12 @@ contains
             p = p + length
 
             if (c == LF .and. eol == EOL_DOS) then
-                call add(chars, n, CR)
-                call add(chars, n, LF)
+                call append(chars, n, CR)
+                call append(chars, n, LF)
             else if (c == LF .and. eol == EOL_MAC) then
-                call add(chars, n, CR)
+                call append(chars, n, CR)
             else
-                call add(chars, n, c)
+                call append(chars, n, c)
             end if
         end do
     end subroutine consume_chars
@@ -2449,12 +2449,12 @@ contains
     function internal_bytes(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: nb
         type(status_type) :: st
 
-        call char_string(c, buf, nb, st)
-        s = buf(1:nb)
+        call char_string(c, buffer, nb, st)
+        s = buffer(1:nb)
     end function internal_bytes
 
     !> Encode TEXT (Emacs's internal encoding unless MULTIBYTE is false)
@@ -2831,13 +2831,13 @@ contains
         from = min(start, end)
         to = max(start, end)
 
-        if (from < buffers(cur)%begv .or. to > buffers(cur)%zv) then
+        if (from < buffers(current)%begv .or. to > buffers(current)%zv) then
             call set_error(status, FM_ARGS_OUT_OF_RANGE)
             bytes = ""
             return
         end if
 
-        bytes = buf_bytes(buffers(cur), char_to_byte(from), char_to_byte(to))
+        bytes = buf_bytes(buffers(current), char_to_byte(from), char_to_byte(to))
     end subroutine region_bytes
 
     !> Detect coding system of the text in the region between START and END.
@@ -2858,7 +2858,7 @@ contains
             return
         end if
 
-        call detect_coding_bytes(bytes, buffers(cur)%multibyte, names, highest)
+        call detect_coding_bytes(bytes, buffers(current)%multibyte, names, highest)
     end subroutine detect_coding_region
 
     !> Decode the current region from the specified coding system.
@@ -2923,22 +2923,22 @@ contains
         if (.not. status%ok()) return
 
         if (encode) then
-            call encode_coding_text(bytes, coding_system, text, used, status, multibyte=buffers(cur)%multibyte)
+            call encode_coding_text(bytes, coding_system, text, used, status, multibyte=buffers(current)%multibyte)
             ! The bytes, as raw-byte characters in a multibyte buffer.
-            if (status%ok() .and. buffers(cur)%multibyte) text = str_to_multibyte(text)
+            if (status%ok() .and. buffers(current)%multibyte) text = str_to_multibyte(text)
         else
-            call decode_coding_bytes(bytes, coding_system, text, used, status, src_multibyte=buffers(cur)%multibyte, &
-                                     dst_multibyte=buffers(cur)%multibyte)
+            call decode_coding_bytes(bytes, coding_system, text, used, status, src_multibyte=buffers(current)%multibyte, &
+                                     dst_multibyte=buffers(current)%multibyte)
         end if
 
         if (.not. status%ok()) return
-        call temp_set_point_both(buffers(cur), from, char_to_byte(from))
+        call temp_set_point_both(buffers(current), from, char_to_byte(from))
         call del_range(from, to, status)
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
 
-        if (buffers(cur)%multibyte) then
+        if (buffers(current)%multibyte) then
             inserted = 0
 
             do k = 1, len(text, kind=int64)

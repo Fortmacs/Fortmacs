@@ -27,12 +27,12 @@
 !> mode with `compilation_shell_minor_mode'), with the "Compilation
 !> started at ..." header and the "Compilation finished at ..., duration
 !> ..." line when it ends; `recompile' (g) runs it again and
-!> `kill_compilation' (C-c C-k) interrupts it.  While it runs the mode
+!> `stop_compilation' (C-c C-k) interrupts it.  While it runs the mode
 !> line shows ":run" and "[Compiling] ", and the counts of errors,
 !> warnings and informational messages found so far.
 !>
 !> The output is parsed with the rules of `compilation_error_regexp_names'
-!> (all of `compilation_error_regexp_table' but `omake'), following
+!> (all of `compilation_error_regexps' but `omake'), following
 !> the "Entering directory" messages of `compilation_directory_matcher';
 !> each message gets a `compilation_message' text property and faces.
 !> `next_error' (M-g n, C-x `) and `compile_goto_error' (RET) visit the
@@ -55,7 +55,7 @@
 !> text property (`compilation_button_map'), the mouse, menus and tool
 !> bar, `compilation_goto_in_progress_buffer'; a global
 !> `compilation_error_regexp_names' with rule specifications rather than
-!> names (add the rule to `compilation_error_regexp_table'; a mode's
+!> names (add the rule to `compilation_error_regexps'; a mode's
 !> own value is rules), FILE given as (FILE FORMAT...), HIGHLIGHT faces
 !> given as text properties other than `face' and `display',
 !> `compilation_parse_errors_filename_function',
@@ -74,10 +74,10 @@
 !> `compilation_window_height', `compilation_page_delimiter'
 !> (`page_delimiter' is not buffer-local), `compilation_environment',
 !> `compilation_buffer_name_function', the global values of
-!> `compilation_process_setup_function' and
-!> `compilation_exit_message_function' (modes set their own),
+!> `compilation_process_setup_procedure' and
+!> `compilation_exit_message_procedure' (modes set their own),
 !> `compilation_start_hook', `compilation_finish_functions',
-!> `compilation_save_buffers_predicate' (all modified file buffers are
+!> `compilation_save_buffers_test_function' (all modified file buffers are
 !> offered), the NAME-FUNCTION, HIGHLIGHT-REGEXP and CONTINUE arguments
 !> of `compilation_start', `revert_buffer_function' (g is `recompile'
 !> itself), wildcards in a leading "cd" of the command
@@ -92,11 +92,11 @@ module compile_fm
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
-    use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
-                       add_local_variables_killer, forward_setting
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, &
+    use data_fm, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+                       append_locals_clearer, forward_setting
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                          buffer_list, erase_buffer, restore_buffer_modified
-    use marker_fm, only: copy_marker_at, free_marker, marker_position, set_marker, marker_buffer, make_marker
+    use marker_fm, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
     use insdel_fm, only: insert, before_change_functions
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, narrow_to_region, &
                           line_beginning_position, line_end_position, is_eob, is_bob, is_bol, buffer_size, &
@@ -119,9 +119,9 @@ module compile_fm
     use eval_fm, only: hook_type, change_major_mode_hook
     use keyboard_fm, only: sit_for
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use xdisp_fm, only: message, mode_line_part_type, set_mode_line_process, add_mode_line_modes_entry, tab_width
+    use xdisp_fm, only: message, mode_line_part_type, set_mode_line_process, append_mode_line_modes_entry, tab_width
     use window_fm, only: windows, display_buffer, set_window_start, set_window_point, pop_to_buffer, switch_to_buffer, &
-                         get_buffer_window, select_window, display_action_table_type, pop_up_windows
+                         get_buffer_window, select_window, display_action_parameters_type, pop_up_windows
     use frame_fm, only: selected_frame
     use keymap_fm, only: set_keymap_parent, keymap_set
     use modes_fm, only: major_modes, minor_modes
@@ -143,7 +143,7 @@ module compile_fm
     implicit none(type, external)
     private
 
-    public :: compile, recompile, compilation_start, compilation_mode, kill_compilation, compilation_filter, &
+    public :: compile, recompile, compilation_start, compilation_mode, stop_compilation, compilation_filter, &
               compilation_sentinel, compilation_handle_exit, comint_carriage_motion, syms_of_compile, cd
     public :: compilation_parse_errors, compilation_ensure_parse, compilation_next_error, compilation_previous_error, &
               compilation_next_file, compilation_previous_file, compilation_display_error, compile_goto_error, &
@@ -158,67 +158,67 @@ module compile_fm
         !> of no arguments: the number, or FOUND false for none.  It can
         !> assume the rule's regexp has just been matched (point is at the
         !> end of the match), and should preserve the match data.  Not a port.
-        subroutine compilation_number_function(number, found)
+        subroutine compilation_number_procedure(number, found)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(out) :: number
             logical, intent(out) :: found
-        end subroutine compilation_number_function
+        end subroutine compilation_number_procedure
 
         !> A rule's FILE given as a function: FILENAME (relative to
         !> DIRECTORY if that is allocated), or FOUND false for none.
         !> Not a port.
-        subroutine compilation_file_function(filename, directory, found)
+        subroutine compilation_file_procedure(filename, directory, found)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: filename, directory
             logical, intent(out) :: found
-        end subroutine compilation_file_function
+        end subroutine compilation_file_procedure
 
         !> A HIGHLIGHT's FACE given as a function called after each
         !> match: the face's name (FACE unallocated for none).  Not a port.
-        recursive subroutine compilation_face_function(face, status)
+        recursive subroutine compilation_face_procedure(face, status)
             import :: status_type
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: face
             type(status_type), intent(out) :: status
-        end subroutine compilation_face_function
+        end subroutine compilation_face_procedure
 
-        !> `compilation_process_setup_function': called by
+        !> `compilation_process_setup_procedure': called by
         !> `compilation_start' just before the process starts, with the
         !> compilation buffer current.  ENVIRONMENT holds the "NAME=VALUE"
         !> strings the process gets in front of `process_environment'; the
         !> function may add to it (as `setenv' does inside the binding of
         !> `process_environment' in compilation-start).  Not a port.
-        recursive subroutine compilation_process_setup_function(environment, status)
+        recursive subroutine compilation_process_setup_procedure(environment, status)
             import :: process_arg_type, status_type
             implicit none(type, external)
             type(process_arg_type), allocatable, intent(inout) :: environment(:)
             type(status_type), intent(out) :: status
-        end subroutine compilation_process_setup_function
+        end subroutine compilation_process_setup_procedure
 
-        !> `compilation_exit_message_function': the message MESSAGE and
+        !> `compilation_exit_message_procedure': the message MESSAGE and
         !> the mode line string CODE for a compilation that ended with
         !> PROCESS_STATUS ("exit" or "signal") and EXIT_STATUS, MSG being
         !> the default message.  Not a port.
-        subroutine compilation_exit_message_function(process_status, exit_status, msg, message, code)
+        subroutine compilation_exit_message_procedure(process_status, exit_status, msg, message, code)
             implicit none(type, external)
             character(len=*), intent(in) :: process_status, msg
             integer, intent(in) :: exit_status
             character(len=:), allocatable, intent(out) :: message, code
-        end subroutine compilation_exit_message_function
+        end subroutine compilation_exit_message_procedure
 
         !> `compilation_mode_line_errors': the parts of the mode line that
         !> follow the process state.  Not a port.
-        subroutine compilation_mode_line_errors_function(parts)
+        subroutine compilation_mode_line_errors_procedure(parts)
             import :: mode_line_part_type
             implicit none(type, external)
             type(mode_line_part_type), allocatable, intent(out) :: parts(:)
-        end subroutine compilation_mode_line_errors_function
+        end subroutine compilation_mode_line_errors_procedure
     end interface
 
-    public :: compilation_number_function, compilation_file_function, compilation_face_function, &
-              compilation_process_setup_function, compilation_exit_message_function, &
-              compilation_mode_line_errors_function
+    public :: compilation_number_procedure, compilation_file_procedure, compilation_face_procedure, &
+              compilation_process_setup_procedure, compilation_exit_message_procedure, &
+              compilation_mode_line_errors_procedure
 
     !> A HIGHLIGHT of a rule: the text of SUBMATCH gets the face FACE (a
     !> face name), or the one FACE_FUNCTION gives.  DISPLAY, if allocated,
@@ -227,12 +227,12 @@ module compile_fm
     type, public :: compilation_highlight_type
         integer :: submatch = 0
         character(len=:), allocatable :: face
-        procedure(compilation_face_function), pointer, nopass :: face_function => null()
+        procedure(compilation_face_procedure), pointer, nopass :: face_function => null()
         character(len=:), allocatable :: display
     end type compilation_highlight_type
 
     !> A rule for matching messages: an element of
-    !> `compilation_error_regexp_table' (see
+    !> `compilation_error_regexps' (see
     !> `compilation_error_regexp_names').  Subexpression numbers are 0 for
     !> none; WARNING and INFO, if either is not 0, make the type
     !> depend on which of them matched ((WARNING . INFO)), otherwise TYPE
@@ -242,12 +242,12 @@ module compile_fm
         character(len=:), allocatable :: name
         character(len=:), allocatable :: regexp
         integer :: file = 0
-        procedure(compilation_file_function), pointer, nopass :: file_function => null()
+        procedure(compilation_file_procedure), pointer, nopass :: file_function => null()
         integer :: line = 0, end_line = 0, column = 0, end_column = 0
-        procedure(compilation_number_function), pointer, nopass :: line_function => null()
-        procedure(compilation_number_function), pointer, nopass :: end_line_function => null()
-        procedure(compilation_number_function), pointer, nopass :: column_function => null()
-        procedure(compilation_number_function), pointer, nopass :: end_column_function => null()
+        procedure(compilation_number_procedure), pointer, nopass :: line_function => null()
+        procedure(compilation_number_procedure), pointer, nopass :: end_line_function => null()
+        procedure(compilation_number_procedure), pointer, nopass :: column_function => null()
+        procedure(compilation_number_procedure), pointer, nopass :: end_column_function => null()
         integer :: type = 2
         integer :: warning = 0, info = 0
         integer :: hyperlink = 0
@@ -261,7 +261,7 @@ module compile_fm
         integer, allocatable :: dir(:), leave(:)
     end type compilation_directory_matcher_type
 
-    !> An element of `compilation_transform_file_match_table': REGEXP and
+    !> An element of `compilation_transform_file_matches': REGEXP and
     !> REPLACEMENT (unallocated for none).
     type, public :: compilation_transform_type
         character(len=:), allocatable :: regexp, replacement
@@ -291,7 +291,7 @@ module compile_fm
     !> It's often useful to leave a space at the end of the value.  Port of
     !> compile.el compile-command ("make -k -jN " with N the number of
     !> processors divided by 1.5, rounded up).
-    type(string_setting), public :: compile_command = string_setting(name="compile_command")
+    type(string_setting_type), public :: compile_command = string_setting_type(name="compile_command")
 
     !> True means \[compile] reads the compilation command to use.
     !> Otherwise, \[compile] just uses the value of `compile_command'.
@@ -301,31 +301,31 @@ module compile_fm
     !> variable, and you might not notice.  Therefore, `compile_command'
     !> is considered unsafe if this variable is false.  Port of compile.el
     !> compilation-read-command.
-    type(logical_setting), public :: compilation_read_command = &
-                                     logical_setting(name="compilation_read_command", value=.true.)
+    type(logical_setting_type), public :: compilation_read_command = &
+                                          logical_setting_type(name="compilation_read_command", value=.true.)
 
     !> True means \[compile] asks which buffers to save before compiling.
     !> Otherwise, it saves all modified buffers without asking.  Port of
     !> compile.el compilation-ask-about-save.
-    type(logical_setting), public :: compilation_ask_about_save = &
-                                     logical_setting(name="compilation_ask_about_save", value=.true.)
+    type(logical_setting_type), public :: compilation_ask_about_save = &
+                                          logical_setting_type(name="compilation_ask_about_save", value=.true.)
 
-    !> If true, always kill a running compilation process before starting
-    !> a new one.  If false, ask to kill it.  Port of compile.el
+    !> If true, always stop a running compilation process before starting
+    !> a new one.  If false, ask to stop it.  Port of compile.el
     !> compilation-always-kill.
-    type(logical_setting), public :: compilation_always_kill = &
-                                     logical_setting(name="compilation_always_kill", value=.false.)
+    type(logical_setting_type), public :: compilation_always_stop = &
+                                          logical_setting_type(name="compilation_always_stop", value=.false.)
 
     !> If true, send end-of-file as compilation process input.
     !> This only affects platforms that support asynchronous processes (see
     !> `start_process'); synchronous compilation processes never accept
     !> input.  Port of compile.el compilation-disable-input.
-    type(logical_setting), public :: compilation_disable_input = &
-                                     logical_setting(name="compilation_disable_input", value=.false.)
+    type(logical_setting_type), public :: compilation_disable_input = &
+                                          logical_setting_type(name="compilation_disable_input", value=.false.)
 
     !> Values of `compilation_scroll_output'.
-    integer, parameter, public :: COMPILATION_SCROLL_NO = 0, COMPILATION_SCROLL_YES = 1, &
-                                  COMPILATION_SCROLL_FIRST_ERROR = 2
+    integer, parameter, public :: COMPILATION_SCROLL_OUTPUT_NO = 0, COMPILATION_SCROLL_OUTPUT_YES = 1, &
+                                  COMPILATION_SCROLL_OUTPUT_FIRST_ERROR = 2
 
     !> True to scroll the *compilation* buffer window as output appears.
     !>
@@ -333,12 +333,12 @@ module compile_fm
     !> end of their output window so that the end of the output is always
     !> visible rather than the beginning.
     !>
-    !> COMPILATION_SCROLL_FIRST_ERROR stops scrolling at the first error,
+    !> COMPILATION_SCROLL_OUTPUT_FIRST_ERROR stops scrolling at the first error,
     !> and leaves point on its location in the *compilation* buffer.  Port of
-    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NO,
-    !> COMPILATION_SCROLL_YES and COMPILATION_SCROLL_FIRST_ERROR).
-    type(integer_setting), public :: compilation_scroll_output = &
-                                     integer_setting(name="compilation_scroll_output", value=COMPILATION_SCROLL_NO)
+    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_OUTPUT_NO,
+    !> COMPILATION_SCROLL_OUTPUT_YES and COMPILATION_SCROLL_OUTPUT_FIRST_ERROR).
+    type(integer_setting_type), public :: compilation_scroll_output = &
+                                          integer_setting_type(name="compilation_scroll_output", value=COMPILATION_SCROLL_OUTPUT_NO)
 
     !> Hook run after `compilation_filter' has inserted a string into the
     !> buffer.  It is called with the variable `compilation_filter_start'
@@ -383,12 +383,12 @@ module compile_fm
     !> Directory to restore to when doing `recompile'.  Port of compile.el
     !> compilation-directory (this is its default value; a compilation
     !> buffer has a value of its own, the directory it was started in).
-    type(string_setting), public :: compilation_directory = string_setting(name="compilation_directory")
+    type(string_setting_type), public :: compilation_directory = string_setting_type(name="compilation_directory")
 
     !> Table of values for `compilation_error_regexp_names'.  Port of
     !> compile.el compilation-error-regexp-alist-alist (the rules are named
     !> with underscores for hyphens: `gcc_include', `edg_1').
-    type(compilation_rule_type), allocatable, public :: compilation_error_regexp_table(:)
+    type(compilation_rule_type), allocatable, public :: compilation_error_regexps(:)
 
     !> Table that specifies how to match errors in compiler output.
     !> On GNU and Unix, any string is a valid filename, so these
@@ -396,7 +396,7 @@ module compile_fm
     !> normal cases.  A shorter list will be lighter on resource usage.
     !>
     !> Each element is the name of a rule of
-    !> `compilation_error_regexp_table'.
+    !> `compilation_error_regexps'.
     !>
     !> A rule has the form (REGEXP FILE [LINE COLUMN TYPE HYPERLINK
     !> HIGHLIGHT...]).  If REGEXP matches, the FILE'th subexpression
@@ -439,7 +439,7 @@ module compile_fm
     !> function giving one.
     !>
     !> After identifying compilation errors and warnings determined by this
-    !> variable, the `compilation_transform_file_match_table' variable
+    !> variable, the `compilation_transform_file_matches' variable
     !> is then consulted.  It allows further transformations of the
     !> matched file names, and ignoring false positives.  Port of
     !> compile.el compilation-error-regexp-alist.
@@ -450,14 +450,14 @@ module compile_fm
     !>
     !> Compilation errors are given by the regexps in
     !> `compilation_error_regexp_names' and
-    !> `compilation_error_regexp_table'.
+    !> `compilation_error_regexps'.
     !>
     !> This variable should only be set for backward compatibility as a
     !> temporary measure.  The proper solution is to use a regexp that
     !> matches the messages without case-folding.  Port of compile.el
     !> compilation-error-case-fold-search.
-    type(logical_setting), public :: compilation_error_case_fold_search = &
-                                     logical_setting(name="compilation_error_case_fold_search", value=.false.)
+    type(logical_setting_type), public :: compilation_error_case_fold_search = &
+                                          logical_setting_type(name="compilation_error_case_fold_search", value=.false.)
 
     !> A value for tracking when directories are entered or left.
     !> If its regexp is unallocated, do not track directories, e.g. if all
@@ -480,7 +480,7 @@ module compile_fm
     !> used to locate the warning or error is modified using the
     !> replacement, but the compilation buffer still displays the original
     !> value.  Port of compile.el compilation-transform-file-match-alist.
-    type(compilation_transform_type), allocatable, public :: compilation_transform_file_match_table(:)
+    type(compilation_transform_type), allocatable, public :: compilation_transform_file_matches(:)
 
     !> If true, column numbers in error messages are screen columns.
     !> Otherwise they are interpreted as character positions, with
@@ -492,16 +492,16 @@ module compile_fm
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-error-screen-columns.
-    type(logical_setting), public :: compilation_error_screen_columns = &
-                                     logical_setting(name="compilation_error_screen_columns", value=.true.)
+    type(logical_setting_type), public :: compilation_error_screen_columns = &
+                                          logical_setting_type(name="compilation_error_screen_columns", value=.true.)
 
     !> This is how compilers number the first column, usually 1 or 0.
     !> If this is buffer-local in the destination buffer, Emacs obeys
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-first-column.
-    type(integer_setting), public :: compilation_first_column = &
-                                     integer_setting(name="compilation_first_column", value=1)
+    type(integer_setting_type), public :: compilation_first_column = &
+                                          integer_setting_type(name="compilation_first_column", value=1)
 
     !> Compilation motion commands skip less important messages.
     !> The value can be either 2 -- skip anything less than error, 1 --
@@ -509,92 +509,92 @@ module compile_fm
     !> Note that all messages not positively identified as warning or
     !> info, are considered errors.  Port of compile.el
     !> compilation-skip-threshold.
-    type(integer_setting), public :: compilation_skip_threshold = &
-                                     integer_setting(name="compilation_skip_threshold", value=1)
+    type(integer_setting_type), public :: compilation_skip_threshold = &
+                                          integer_setting_type(name="compilation_skip_threshold", value=1)
 
     !> Compilation motion commands skip visited messages if this is true.
     !> Visited messages are ones for which the file, line and column have
     !> been jumped to from the current content in the current compilation
     !> buffer, even if it was from a different message.  Port of
     !> compile.el compilation-skip-visited.
-    type(logical_setting), public :: compilation_skip_visited = &
-                                     logical_setting(name="compilation_skip_visited", value=.false.)
+    type(logical_setting_type), public :: compilation_skip_visited = &
+                                          logical_setting_type(name="compilation_skip_visited", value=.false.)
 
     !> If true, skip multiple error messages for the same source location.
     !> Port of compile.el compilation-skip-to-next-location.
-    type(logical_setting), public :: compilation_skip_to_next_location = &
-                                     logical_setting(name="compilation_skip_to_next_location", value=.true.)
+    type(logical_setting_type), public :: compilation_skip_to_next_location = &
+                                          logical_setting_type(name="compilation_skip_to_next_location", value=.true.)
 
     !> True means that `compilation_find_file' searches all the
     !> directories that were entered before the message, not only its
     !> own.  Port of compile.el compilation-search-all-directories.
-    type(logical_setting), public :: compilation_search_all_directories = &
-                                     logical_setting(name="compilation_search_all_directories", value=.true.)
+    type(logical_setting_type), public :: compilation_search_all_directories = &
+                                          logical_setting_type(name="compilation_search_all_directories", value=.true.)
 
     !> Values of `compilation_context_lines' other than a number of lines.
-    integer, parameter, public :: COMPILATION_CONTEXT_TOP = -1, COMPILATION_CONTEXT_NO_SCROLL = -2
+    integer, parameter, public :: COMPILATION_CONTEXT_TOP = -1, COMPILATION_CONTEXT_LINES_NO_SCROLL = -2
 
     !> Display this many lines of leading context before the current
-    !> message.  If COMPILATION_CONTEXT_TOP or COMPILATION_CONTEXT_NO_SCROLL, and
+    !> message.  If COMPILATION_CONTEXT_TOP or COMPILATION_CONTEXT_LINES_NO_SCROLL, and
     !> the left fringe is displayed, don't scroll the compilation output
     !> window; an arrow in the left fringe points to the current message.
     !> With no left fringe, if COMPILATION_CONTEXT_TOP, the message scrolls
     !> to the top of the window; there is no arrow.  If
-    !> COMPILATION_CONTEXT_NO_SCROLL, don't scroll the compilation output window at
+    !> COMPILATION_CONTEXT_LINES_NO_SCROLL, don't scroll the compilation output window at
     !> all; an arrow before column zero points to the current message.
     !> Port of compile.el compilation-context-lines.
-    type(integer_setting), public :: compilation_context_lines = &
-                                     integer_setting(name="compilation_context_lines", value=COMPILATION_CONTEXT_TOP)
+    type(integer_setting_type), public :: compilation_context_lines = &
+                                          integer_setting_type(name="compilation_context_lines", value=COMPILATION_CONTEXT_TOP)
 
     !> Face name to use for whole messages.
     !> Faces `compilation_error_face', `compilation_warning_face',
     !> `compilation_info_face', `compilation_line_face' and
     !> `compilation_column_face' get prepended to this, when applicable.
     !> Port of compile.el compilation-message-face.
-    type(string_setting), public :: compilation_message_face = string_setting(name="compilation_message_face")
+    type(string_setting_type), public :: compilation_message_face = string_setting_type(name="compilation_message_face")
 
     !> Face name to use for file name in error messages.  Port of
     !> compile.el compilation-error-face.
-    type(string_setting), public :: compilation_error_face = string_setting(name="compilation_error_face")
+    type(string_setting_type), public :: compilation_error_face = string_setting_type(name="compilation_error_face")
 
     !> Face name to use for file name in warning messages.  Port of
     !> compile.el compilation-warning-face.
-    type(string_setting), public :: compilation_warning_face = string_setting(name="compilation_warning_face")
+    type(string_setting_type), public :: compilation_warning_face = string_setting_type(name="compilation_warning_face")
 
     !> Face name to use for file name in informational messages.  Port of
     !> compile.el compilation-info-face.
-    type(string_setting), public :: compilation_info_face = string_setting(name="compilation_info_face")
+    type(string_setting_type), public :: compilation_info_face = string_setting_type(name="compilation_info_face")
 
     !> Face name to use for line numbers in compiler messages.  Port of
     !> compile.el compilation-line-face.
-    type(string_setting), public :: compilation_line_face = string_setting(name="compilation_line_face")
+    type(string_setting_type), public :: compilation_line_face = string_setting_type(name="compilation_line_face")
 
     !> Face name to use for column numbers in compiler messages.  Port of
     !> compile.el compilation-column-face.
-    type(string_setting), public :: compilation_column_face = string_setting(name="compilation_column_face")
+    type(string_setting_type), public :: compilation_column_face = string_setting_type(name="compilation_column_face")
 
     !> Face name to use for entering directory messages.  Port of
     !> compile.el compilation-enter-directory-face.
-    type(string_setting), public :: compilation_enter_directory_face = &
-                                    string_setting(name="compilation_enter_directory_face")
+    type(string_setting_type), public :: compilation_enter_directory_face = &
+                                         string_setting_type(name="compilation_enter_directory_face")
 
     !> Face name to use for leaving directory messages.  Port of
     !> compile.el compilation-leave-directory-face.
-    type(string_setting), public :: compilation_leave_directory_face = &
-                                    string_setting(name="compilation_leave_directory_face")
+    type(string_setting_type), public :: compilation_leave_directory_face = &
+                                         string_setting_type(name="compilation_leave_directory_face")
 
     !> The number of errors found so far (the value of buffers without a
     !> count of their own; compilation buffers have one).  Port of
     !> compile.el compilation-num-errors-found.
-    integer(int64), public :: compilation_num_errors_found = 0
+    integer(int64), public :: compilation_error_count_found = 0
 
     !> The number of warnings found so far.  Port of compile.el
     !> compilation-num-warnings-found.
-    integer(int64), public :: compilation_num_warnings_found = 0
+    integer(int64), public :: compilation_warning_count_found = 0
 
     !> The number of informational messages found so far.  Port of
     !> compile.el compilation-num-infos-found.
-    integer(int64), public :: compilation_num_infos_found = 0
+    integer(int64), public :: compilation_info_count_found = 0
 
     !> Face used to highlight compiler errors.  Port of
     !> compile.el:compilation-error.
@@ -707,7 +707,7 @@ module compile_fm
         logical :: setup = .false.
         ! Its own compilation-num-*-found.
         logical :: has_counts = .false.
-        integer(int64) :: num_errors = 0, num_warnings = 0, num_infos = 0
+        integer(int64) :: error_count = 0, warning_count = 0, info_count = 0
         ! compilation--parsed: a marker, or none (-1).
         type(handle_type) :: parsed
         ! compilation-current-error: a marker, a position, or none.
@@ -749,9 +749,9 @@ module compile_fm
         logical :: has_transforms = .false.
         type(compilation_transform_type), allocatable :: transforms(:)
         character(len=:), allocatable :: error
-        procedure(compilation_mode_line_errors_function), pointer, nopass :: mode_line_errors => null()
-        procedure(compilation_process_setup_function), pointer, nopass :: process_setup => null()
-        procedure(compilation_exit_message_function), pointer, nopass :: exit_message => null()
+        procedure(compilation_mode_line_errors_procedure), pointer, nopass :: mode_line_errors => null()
+        procedure(compilation_process_setup_procedure), pointer, nopass :: process_setup => null()
+        procedure(compilation_exit_message_procedure), pointer, nopass :: exit_message => null()
     end type compilation_buffer_type
 
     type(compilation_buffer_type), allocatable :: compilation_buffers(:)
@@ -780,19 +780,19 @@ contains
     ! The rules
     ! ------------------------------------------------------------------
 
-    !> Add a rule NAME to `compilation_error_regexp_table'.  Not a port.
-    subroutine add_rule(name, regexp, file, line, end_line, column, end_column, type, warning, info, hyperlink)
+    !> Add a rule NAME to `compilation_error_regexps'.  Not a port.
+    subroutine append_rule(name, regexp, file, line, end_line, column, end_column, type, warning, info, hyperlink)
         character(len=*), intent(in) :: name, regexp
         integer, intent(in), optional :: file, line, end_line, column, end_column, type, warning, info, hyperlink
         type(compilation_rule_type), allocatable :: grown(:)
         integer :: k, n
 
-        if (.not. allocated(compilation_error_regexp_table)) allocate (compilation_error_regexp_table(0))
-        n = size(compilation_error_regexp_table)
+        if (.not. allocated(compilation_error_regexps)) allocate (compilation_error_regexps(0))
+        n = size(compilation_error_regexps)
         allocate (grown(n + 1))
 
         do k = 1, n
-            grown(k) = compilation_error_regexp_table(k)
+            grown(k) = compilation_error_regexps(k)
         end do
 
         grown(n + 1)%name = name
@@ -807,16 +807,16 @@ contains
         if (present(info)) grown(n + 1)%info = info
         if (present(hyperlink)) grown(n + 1)%hyperlink = hyperlink
         allocate (grown(n + 1)%highlights(0))
-        call move_alloc(grown, compilation_error_regexp_table)
-    end subroutine add_rule
+        call move_alloc(grown, compilation_error_regexps)
+    end subroutine append_rule
 
     !> Add a HIGHLIGHT to RULE: SUBMATCH in FACE (a name) or the face
     !> FACE_FUNCTION gives.  Not a port.
-    subroutine add_highlight(rule, submatch, face, face_function)
+    subroutine append_highlight(rule, submatch, face, face_function)
         type(compilation_rule_type), intent(inout) :: rule
         integer, intent(in) :: submatch
         character(len=*), intent(in), optional :: face
-        procedure(compilation_face_function), optional :: face_function
+        procedure(compilation_face_procedure), optional :: face_function
         type(compilation_highlight_type), allocatable :: grown(:)
         integer :: k, n
 
@@ -832,150 +832,150 @@ contains
         if (present(face)) grown(n + 1)%face = face
         if (present(face_function)) grown(n + 1)%face_function => face_function
         call move_alloc(grown, rule%highlights)
-    end subroutine add_highlight
+    end subroutine append_highlight
 
     !> The last rule added.  Not a port.
     integer function last_rule()
-        last_rule = size(compilation_error_regexp_table)
+        last_rule = size(compilation_error_regexps)
     end function last_rule
 
-    !> Set `compilation_error_regexp_table' to the built-in rules, in
+    !> Set `compilation_error_regexps' to the built-in rules, in
     !> the default matching order.  Port of the value of compile.el
     !> compilation-error-regexp-alist-alist (the `rx' forms written as
     !> regexps).
-    subroutine init_compilation_error_regexp_table()
-        if (allocated(compilation_error_regexp_table)) deallocate (compilation_error_regexp_table)
-        call add_rule("absoft", "^\(?:[Ee]rror on \|[Ww]arning on\( \)\)?[Ll]ine["//TB//" ]+\([0-9]+\)["//TB// &
-                      " ]+of["//TB//' ]+"?\([a-zA-Z]?:?[^":'//NL//']+\)"?:', 3, 2, warning=1)
-        call add_rule("ada", "\(warning: .*\)? at \([^ "//NL//"]+\):\([0-9]+\)$", 2, 3, warning=1)
-        call add_rule("aix", " in line \([0-9]+\) of file \([^ "//NL//"]+[^. "//NL//"]\)\.? ", 2, 1)
-        call add_rule("ant", "^[ "//TB//"]*\(?:\[[^] "//NL//"]+\][ "//TB//"]*\)\{1,2\}\(\(?:[A-Za-z]:\)?[^: "//NL// &
-                      "]+\):\([0-9]+\):\(?:\([0-9]+\):\([0-9]+\):\([0-9]+\):\)?\( warning\)?", 1, 2, 4, 3, 5, warning=6)
-        call add_rule("bash", "^\([^: "//NL//TB//"]+\): line \([0-9]+\):", 1, 2)
-        call add_rule("borland", "^\(?:Error\|Warnin\(g\)\) \(?:[FEW][0-9]+ \)?\([a-zA-Z]?:?[^:( "//TB//NL// &
-                      "]+\) \([0-9]+\)\(?:[) "//TB//"]\|:[^0-9"//NL//"]\)", 2, 3, warning=1)
-        call add_rule("python_tracebacks_and_caml", "^[ "//TB//']*File \("?\)\([^," '//NL//TB// &
-                      "<>]+\)\1, lines? \([0-9]+\)-?\([0-9]+\)?\(?:$\|,\(?: characters? \([0-9]+\)-?\([0-9]+\)?:\)?\([ " &
-                      //NL//"]Warning\(?: [0-9]+\)?:\)?\)", 2, 3, 4, 5, 6, warning=7)
-        call add_rule("cmake", "^CMake \(?:Error\|\(Warning\)\) at \(.*\):\([1-9][0-9]*\) ([^)]+):$", 2, 3, warning=1)
-        call add_rule("cmake_info", "^  \(?: \*\)?\(.*\):\([1-9][0-9]*\) ([^)]+)$", 1, 2, type=0)
-        call add_rule("comma", '^"\([^," '//NL//TB//']+\)", line \([0-9]+\)\(?:[(. pos]+\([0-9]+\))?\)?[:.,; (-]\( ' &
-                      //"warning:\|[-0-9 ]*(W)\)?", 1, 2, column=3, warning=4)
-        call add_rule("msft", "^ *\([0-9]+>\)?\(\(?:[a-zA-Z]:\)?[^ :("//TB//NL//"][^:("//TB//NL// &
-                      "]*\)(\([0-9]+\)\(?:,\([0-9]+\)\)?) ?: \(?:see declaration\|\(?:warnin\(g\)\|[a-z ]+\) C[0-9]+:\)", &
-                      2, 3, column=4, warning=5)
-        call add_rule("edg_1", "^\([^ "//NL//"]+\)(\([0-9]+\)): \(?:error\|warnin\(g\)\|remar\(k\)\)", 1, 2, &
-                      warning=3, info=4)
-        call add_rule("edg_2", 'at line \([0-9]+\) of "\([^ '//NL//']+\)"$', 2, 1, type=0)
-        call add_rule("epc", "^Error [0-9]+ at (\([0-9]+\):\([^)"//NL//"]+\))", 2, 1)
-        call add_rule("ftnchek", "\(^Warning .*\)? line[ "//NL//"]\([0-9]+\)[ "//NL//"]\(?:col \([0-9]+\)[ "//NL// &
-                      "]\)?file \([^ :;"//NL//"]+\)", 4, 2, column=3, warning=1)
-        call add_rule("gradle_kotlin", "^\(?:\(w\)\|\([iv]\)\|e\): file://\(\(?:[A-Za-z]:\)?[^"//NL// &
-                      ":]+\):\([[:digit:]]+\):\([[:digit:]]+\) ", 3, 4, column=5, warning=1, info=2)
-        call add_rule("gradle_kotlin_legacy", "^\(?:\(w\)\|\([iv]\)\|e\): \(\(?:[A-Za-z]:\)?[^"//NL// &
-                      ":]+\): (\([[:digit:]]+\), \([[:digit:]]+\)): ", 3, 4, column=5, warning=1, info=2)
-        call add_rule("gradle_android", "^ *ERROR:\(?1:[^:"//NL//"]+\):\(?2:[[:digit:]]+\): ", 1, 2)
-        call add_rule("iar", '^"\(.*\)",\([0-9]+\)\s-+\(?:Error\|Warnin\(g\)\)\[[0-9]+\]:', 1, 2, warning=3)
-        call add_rule("ibm", "^\([^( "//NL//TB//"]+\)(\([0-9]+\):\([0-9]+\)) : \(?:warnin\(g\)\|informationa\(l\)\)?", &
-                      1, 2, column=3, warning=4, info=5)
-        call add_rule("irix", "^[-[:alnum:]_/ ]+: \(?:\(?:[sS]evere\|[eE]rror\|[wW]arnin\(g\)\|[iI]nf\(o\)\)[0-9 ]*: " &
-                      //'\)?\([^," '//NL//TB//"]+\)\(?:, line\|:\) \([0-9]+\):", 3, 4, warning=1, info=2)
-        call add_rule("java", "^\(?:[ "//TB//"]+at \|==[0-9]+== +\(?:at\|b\(y\)\)\).+(\([^()"//NL// &
-                      "]+\):\([0-9]+\))$", 2, 3, warning=1)
-        call add_rule("javac", "^\(\(?:[A-Za-z]:\)?[^"//NL//":]+\):\([0-9]+\): \(warning: \)?.*"//NL//".*"//NL// &
-                      " *\^$", 1, 2, warning=3)
-        compilation_error_regexp_table(last_rule())%column_function => current_column_function
-        call add_rule("jikes_file", '^\(?:Found\|Issued\) .* compiling "\(.+\)":$', 1, type=0)
-        call add_rule("maven", "^\(?:\[\(?:ERROR\|\(?1:WARNING\)\|\(?2:INFO\)\)] \)?\(?3:[^"//NL//" []\(?:[^"//NL// &
-                      " :]\| [^"//NL//"/-]\|:[^"//NL//" []\)*\):\[\(?4:[[:digit:]]+\),\(?5:[[:digit:]]+\)] ", 3, 4, &
-                      column=5, warning=1, info=2)
-        call add_rule("jikes_line", "^ *\([0-9]+\)\.[ "//TB//"]+.*"//NL//" +\(<-*>"//NL// &
-                      "\*\*\* \(?:Error\|Warnin\(g\)\)\)", 0, 1, type=2, hyperlink=0)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 2, face_function=face_of_type_3)
-        call add_rule("clang_include", "^In file included from \([^"//NL//":]+\):\([0-9]+\):$", 1, 2, type=0)
-        call add_rule("gcc_include", "^\(?:In file included \|                 \|"//TB//"\)from \([0-9]*[^0-9"//NL// &
-                      "]\(?:[^"//NL//" :]\| [^-/"//NL//"]\|:[^ "//NL//"]\)*?\):\([0-9]+\)\(?::\([0-9]+\)\)?\(?:\([:,]\|$\)\)?", &
-                      1, 2, column=3, info=4)
-        call add_rule("ruby_Test::Unit", "^    [[ ]?\([^ (].*\):\([1-9][0-9]*\)\(\]\)?:in ", 1, 2)
-        call add_rule("rust_panic", "^\(?:    \)?thread '.+' \(?:([[:digit:]]+) \)?\(?1:panicked\) at \(?2:.+\):" &
-                      //"\(?3:[[:digit:]]+\):\(?4:[[:digit:]]+\):$", 2, 3, column=4)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 1, face_function=error_face_value)
-        call add_rule("rust", "^\(?:\(?1:error\)\|\(?2:warning\)\|\(?3:note\)\)\(?:\[[0-9A-Z]+]\)?:.*"//NL// &
-                      " +--> \(?4:.+\):\(?5:[0-9]+\):\(?6:[0-9]+\)", 4, 5, column=6, warning=2, info=3)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 1, face_function=error_face_value)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 2, face_function=warning_face_value)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 3, face_function=info_face_value)
-        call add_rule("lua", "^[^"//TB//NL//"]+?: \([^"//TB//NL//"]+?\):\([0-9]+\): .+"//NL//"stack traceback:"//NL//TB, &
-                      1, 2, type=2, hyperlink=1)
-        call add_rule("lua_stack", "^"//TB//"\(?:\[C]:\|\([^"//TB//NL//"]+?\):\(?:\([0-9]+\):\)?\) in ", 1, 2, type=0, &
-                      hyperlink=1)
-        call add_rule("gmake", ": \*\*\* \[\(\(.+?\):\([0-9]+\): .+\)\]", 2, 3, type=0, hyperlink=1)
-        call add_rule("gnu", "^\(?:[[:alpha:]][.[:alnum:]-]+: ?\| +|?\)?\(?1:\(?:[^0-9"//NL//TB//" ]\|[0-9]+[^0-9"// &
-                      NL//"]\)\(?:[^"//NL//" :]\| [^/"//NL//"-]\|:[^ "//NL//"]\)*?\): ?\(?2:[0-9]+\)\(?:-\(?4:[0-9]+\)" &
-                      //"\(?:\.\(?5:[0-9]+\)\)?\|[.:]\(?3:[0-9]+\)\(?:-\(?:\(?4:[0-9]+\)\.\)?\(?5:[0-9]+\)\)?\)?:\(?: *" &
-                      //"\(?6:FutureWarning\|RuntimeWarning\|Warning\|warning\|W:\)\| *\(?7:Informational\|" &
-                      //"informational\|Information\|information\|Info\|info\|I:\|instantiated from\|required from\|" &
-                      //"Note\|note\|\[ skipping .+ ]\)\| *\(?:Error\|error\)\|[0-9]?\(?:[^0-9"//NL//"]\|$\)\|" &
-                      //"[0-9][0-9][0-9]\)", 1, 2, 4, 3, 5, warning=6, info=7)
-        call add_rule("cucumber", "\(?:^\(?:cucumber\(?: -p [^[:space:]]+\)?\|     \)\|#\) \([^(].*\):" &
-                      //"\([1-9][0-9]*\)", 1, 2)
-        call add_rule("lcc", "^\(?:E\|\(W\)\), \([^("//NL//"]+\)(\([0-9]+\),["//TB//" ]*\([0-9]+\)", 2, 3, column=4, &
-                      warning=1)
-        call add_rule("makepp", "^makepp\(?:\(?:: warning\(:\).*?\|\(: Scanning\|: [LR]e?l?oading makefile\|: " &
-                      //"Imported\|log:.*?\) \|: .*?\)`\(\(\S +?\)\(?::\([0-9]+\)\)?\)['(]\)", 4, 5, warning=1, &
-                      info=2, hyperlink=3)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 0, face_function=makepp_highlight)
-        call add_rule("mips_1", " (\([0-9]+\)) in \([^ "//NL//"]+\)", 2, 1)
-        call add_rule("mips_2", " in \([^()"//NL//" ]+\)(\([0-9]+\))$", 1, 2)
-        call add_rule("omake", "^\*\*\* omake: file \(.*\) changed", 1)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 0, face_function=omake_highlight)
-        call add_rule("oracle", "^\(?:Semantic error\|Error\|PCC-[0-9]+:\).* line \([0-9]+\)\(?:\(?:,\| at\)? column " &
-                      //"\([0-9]+\)\)?\(?:,\| in\| of\)? file \(.*?\):?$", 3, 1, column=2)
-        call add_rule("perl", " at \([^ "//NL//"]+\) line \([0-9]+\)\(?:[,.]\|$\| during global destruction\.$\)", 1, 2)
-        call add_rule("php", "\(?:Parse\|Fatal\) error: \(.*\) in \(.*\) on line \([0-9]+\)", 2, 3)
-        call add_rule("rxp", "^\(?:Error\|Warnin\(g\)\):.*"//NL//".* line \([0-9]+\) char \([0-9]+\) of " &
-                      //"file://\(.+\)", 4, 2, column=3, warning=1)
-        call add_rule("shellcheck", "^In \(.+\) line \([0-9]+\):", 1, 2)
-        call add_rule("sparc_pascal_file", "^\w\w\w \w\w\w +[0-3]?[0-9] +[0-2][0-9]:[0-5][0-9]:[0-5][0-9] " &
-                      //"[12][09][0-9][0-9] +\(.*\):$", 1, type=0)
-        call add_rule("sparc_pascal_line", "^\(\(?:E\|\(w\)\) +[0-9]+\) line \([0-9]+\) -  ", 0, 3, warning=2)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 1, face_function=face_of_type_2)
-        call add_rule("sparc_pascal_example", "^ +\([0-9]+\) +.*"//NL//"\(\(?:e\|\(w\)\) [0-9]+\)-+", 0, 1, warning=3)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 2, face_function=face_of_type_3)
-        call add_rule("sun", ": \(?:ERROR\|WARNIN\(G\)\|REMAR\(K\)\) \(?:[[:alnum:] ]+, \)?File = \(.+\), Line = " &
-                      //"\([0-9]+\)\(?:, Column = \([0-9]+\)\)?", 3, 4, column=5, warning=1, info=2)
-        call add_rule("sun_ada", "^\([^, "//NL//TB//"]+\), line \([0-9]+\), char \([0-9]+\)[:., (-]", 1, 2, column=3)
-        call add_rule("watcom", "^[ "//TB//"]*\(\(?:[a-zA-Z]:\)?[^ :("//TB//NL//"][^:("//TB//NL// &
-                      "]*\)(\([0-9]+\)): ?\(?:\(Error! E[0-9]+\)\|\(Warning! W[0-9]+\)\):", 1, 2, warning=4)
-        call add_rule("4bsd", "\(?:^\|::  \|\S ( \)\(/[^ "//NL//TB//"()]+\)(\([0-9]+\))\(?:: \(warning:\)?\|$\| ),\)", &
-                      1, 2, warning=3)
-        call add_rule("gcov_file", "^ *-: *\(0\):Source:\(.+\)$", 2, 1, type=0)
-        call add_rule("gcov_header", "^ *-: *\(0\):\(?:Object\|Graph\|Data\|Runs\|Programs\):.+$", 0, 1, type=0)
-        call add_rule("gcov_nomark", "^ *-: *\([1-9]\|[0-9]\{2,\}\):.*$", 0, 1, type=0)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 0, face="default")
-        call add_highlight(compilation_error_regexp_table(last_rule()), 1, face_function=line_face_value)
-        call add_rule("gcov_called_line", "^ *\([0-9]+\): *\([0-9]+\):.*$", 0, 2, type=0)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 0, face="default")
-        call add_highlight(compilation_error_regexp_table(last_rule()), 1, face_function=info_face_value)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 2, face_function=line_face_value)
-        call add_rule("gcov_never_called", "^ *\(#####\): *\([0-9]+\):.*$", 0, 2, type=2)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 0, face="default")
-        call add_highlight(compilation_error_regexp_table(last_rule()), 1, face_function=error_face_value)
-        call add_highlight(compilation_error_regexp_table(last_rule()), 2, face_function=line_face_value)
-        call add_rule("perl__Pod::Checker", "^\*\*\* \(?:ERROR\|\(WARNING\)\).* \(?:at\|on\) line \([0-9]+\) " &
-                      //"\(?:.* \)?in file \([^ "//TB//NL//"]+\)", 3, 2, warning=1)
-        call add_rule("perl__Test", "^# Failed test [0-9]+ in \([^ "//TB//CR//NL//"]+\) at line \([0-9]+\)", 1, 2)
-        call add_rule("perl__Test2", "^\(.*NOK.*\)?# Test [0-9]+ got:.* (\([^ "//TB//CR//NL// &
-                      "]+\) at line \([0-9]+\)\( fail #[0-9]+\)?)", 2, 3)
-        call add_rule("perl__Test::Harness", "^.*NOK.* \([^ "//TB//CR//NL//"]+\) at line \([0-9]+\)", 1, 2)
-        call add_rule("weblint", "^\([^ "//TB//CR//NL//"(]+\) (\([0-9]+\):\([0-9]+\)) ", 1, 2, column=3)
-        call add_rule("guile_file", "^In \(.+\..+\):"//NL, 1, type=0)
-        call add_rule("guile_line", "^ *\([0-9]+\): *\([0-9]+\)", 0, 1, column=2)
-        call add_rule("typescript_tsc_plain", "^\([^ "//TB//NL//"()][^"//NL//"()]*\)(\([0-9]+\),\([0-9]+\)): error " &
-                      //"[0-9A-Z]+: ", 1, 2, column=3, type=2)
-        call add_rule("typescript_tsc_pretty", "^\([^ "//TB//NL//"()][^"//NL//"()]*\):\([0-9]+\):\([0-9]+\) - error " &
-                      //"[0-9A-Z]+: ", 1, 2, column=3, type=2)
-    end subroutine init_compilation_error_regexp_table
+    subroutine init_compilation_error_regexps()
+        if (allocated(compilation_error_regexps)) deallocate (compilation_error_regexps)
+        call append_rule("absoft", "^\(?:[Ee]rror on \|[Ww]arning on\( \)\)?[Ll]ine["//TB//" ]+\([0-9]+\)["//TB// &
+                         " ]+of["//TB//' ]+"?\([a-zA-Z]?:?[^":'//NL//']+\)"?:', 3, 2, warning=1)
+        call append_rule("ada", "\(warning: .*\)? at \([^ "//NL//"]+\):\([0-9]+\)$", 2, 3, warning=1)
+        call append_rule("aix", " in line \([0-9]+\) of file \([^ "//NL//"]+[^. "//NL//"]\)\.? ", 2, 1)
+        call append_rule("ant", "^[ "//TB//"]*\(?:\[[^] "//NL//"]+\][ "//TB//"]*\)\{1,2\}\(\(?:[A-Za-z]:\)?[^: "//NL// &
+                         "]+\):\([0-9]+\):\(?:\([0-9]+\):\([0-9]+\):\([0-9]+\):\)?\( warning\)?", 1, 2, 4, 3, 5, warning=6)
+        call append_rule("bash", "^\([^: "//NL//TB//"]+\): line \([0-9]+\):", 1, 2)
+        call append_rule("borland", "^\(?:Error\|Warnin\(g\)\) \(?:[FEW][0-9]+ \)?\([a-zA-Z]?:?[^:( "//TB//NL// &
+                         "]+\) \([0-9]+\)\(?:[) "//TB//"]\|:[^0-9"//NL//"]\)", 2, 3, warning=1)
+        call append_rule("python_tracebacks_and_caml", "^[ "//TB//']*File \("?\)\([^," '//NL//TB// &
+                         "<>]+\)\1, lines? \([0-9]+\)-?\([0-9]+\)?\(?:$\|,\(?: characters? \([0-9]+\)-?\([0-9]+\)?:\)?\([ " &
+                         //NL//"]Warning\(?: [0-9]+\)?:\)?\)", 2, 3, 4, 5, 6, warning=7)
+        call append_rule("cmake", "^CMake \(?:Error\|\(Warning\)\) at \(.*\):\([1-9][0-9]*\) ([^)]+):$", 2, 3, warning=1)
+        call append_rule("cmake_info", "^  \(?: \*\)?\(.*\):\([1-9][0-9]*\) ([^)]+)$", 1, 2, type=0)
+        call append_rule("comma", '^"\([^," '//NL//TB//']+\)", line \([0-9]+\)\(?:[(. pos]+\([0-9]+\))?\)?[:.,; (-]\( ' &
+                         //"warning:\|[-0-9 ]*(W)\)?", 1, 2, column=3, warning=4)
+        call append_rule("msft", "^ *\([0-9]+>\)?\(\(?:[a-zA-Z]:\)?[^ :("//TB//NL//"][^:("//TB//NL// &
+                         "]*\)(\([0-9]+\)\(?:,\([0-9]+\)\)?) ?: \(?:see declaration\|\(?:warnin\(g\)\|[a-z ]+\) C[0-9]+:\)", &
+                         2, 3, column=4, warning=5)
+        call append_rule("edg_1", "^\([^ "//NL//"]+\)(\([0-9]+\)): \(?:error\|warnin\(g\)\|remar\(k\)\)", 1, 2, &
+                         warning=3, info=4)
+        call append_rule("edg_2", 'at line \([0-9]+\) of "\([^ '//NL//']+\)"$', 2, 1, type=0)
+        call append_rule("epc", "^Error [0-9]+ at (\([0-9]+\):\([^)"//NL//"]+\))", 2, 1)
+        call append_rule("ftnchek", "\(^Warning .*\)? line[ "//NL//"]\([0-9]+\)[ "//NL//"]\(?:col \([0-9]+\)[ "//NL// &
+                         "]\)?file \([^ :;"//NL//"]+\)", 4, 2, column=3, warning=1)
+        call append_rule("gradle_kotlin", "^\(?:\(w\)\|\([iv]\)\|e\): file://\(\(?:[A-Za-z]:\)?[^"//NL// &
+                         ":]+\):\([[:digit:]]+\):\([[:digit:]]+\) ", 3, 4, column=5, warning=1, info=2)
+        call append_rule("gradle_kotlin_legacy", "^\(?:\(w\)\|\([iv]\)\|e\): \(\(?:[A-Za-z]:\)?[^"//NL// &
+                         ":]+\): (\([[:digit:]]+\), \([[:digit:]]+\)): ", 3, 4, column=5, warning=1, info=2)
+        call append_rule("gradle_android", "^ *ERROR:\(?1:[^:"//NL//"]+\):\(?2:[[:digit:]]+\): ", 1, 2)
+        call append_rule("iar", '^"\(.*\)",\([0-9]+\)\s-+\(?:Error\|Warnin\(g\)\)\[[0-9]+\]:', 1, 2, warning=3)
+        call append_rule("ibm", "^\([^( "//NL//TB//"]+\)(\([0-9]+\):\([0-9]+\)) : \(?:warnin\(g\)\|informationa\(l\)\)?", &
+                         1, 2, column=3, warning=4, info=5)
+        call append_rule("irix", "^[-[:alnum:]_/ ]+: \(?:\(?:[sS]evere\|[eE]rror\|[wW]arnin\(g\)\|[iI]nf\(o\)\)[0-9 ]*: " &
+                         //'\)?\([^," '//NL//TB//"]+\)\(?:, line\|:\) \([0-9]+\):", 3, 4, warning=1, info=2)
+        call append_rule("java", "^\(?:[ "//TB//"]+at \|==[0-9]+== +\(?:at\|b\(y\)\)\).+(\([^()"//NL// &
+                         "]+\):\([0-9]+\))$", 2, 3, warning=1)
+        call append_rule("javac", "^\(\(?:[A-Za-z]:\)?[^"//NL//":]+\):\([0-9]+\): \(warning: \)?.*"//NL//".*"//NL// &
+                         " *\^$", 1, 2, warning=3)
+        compilation_error_regexps(last_rule())%column_function => current_column_function
+        call append_rule("jikes_file", '^\(?:Found\|Issued\) .* compiling "\(.+\)":$', 1, type=0)
+        call append_rule("maven", "^\(?:\[\(?:ERROR\|\(?1:WARNING\)\|\(?2:INFO\)\)] \)?\(?3:[^"//NL//" []\(?:[^"//NL// &
+                         " :]\| [^"//NL//"/-]\|:[^"//NL//" []\)*\):\[\(?4:[[:digit:]]+\),\(?5:[[:digit:]]+\)] ", 3, 4, &
+                         column=5, warning=1, info=2)
+        call append_rule("jikes_line", "^ *\([0-9]+\)\.[ "//TB//"]+.*"//NL//" +\(<-*>"//NL// &
+                         "\*\*\* \(?:Error\|Warnin\(g\)\)\)", 0, 1, type=2, hyperlink=0)
+        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=face_of_type_3)
+        call append_rule("clang_include", "^In file included from \([^"//NL//":]+\):\([0-9]+\):$", 1, 2, type=0)
+        call append_rule("gcc_include", "^\(?:In file included \|                 \|"//TB//"\)from \([0-9]*[^0-9"//NL// &
+                         "]\(?:[^"//NL//" :]\| [^-/"//NL//"]\|:[^ "//NL//"]\)*?\):\([0-9]+\)\(?::\([0-9]+\)\)?\(?:\([:,]\|$\)\)?", &
+                         1, 2, column=3, info=4)
+        call append_rule("ruby_Test::Unit", "^    [[ ]?\([^ (].*\):\([1-9][0-9]*\)\(\]\)?:in ", 1, 2)
+        call append_rule("rust_panic", "^\(?:    \)?thread '.+' \(?:([[:digit:]]+) \)?\(?1:panicked\) at \(?2:.+\):" &
+                         //"\(?3:[[:digit:]]+\):\(?4:[[:digit:]]+\):$", 2, 3, column=4)
+        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=error_face_value)
+        call append_rule("rust", "^\(?:\(?1:error\)\|\(?2:warning\)\|\(?3:note\)\)\(?:\[[0-9A-Z]+]\)?:.*"//NL// &
+                         " +--> \(?4:.+\):\(?5:[0-9]+\):\(?6:[0-9]+\)", 4, 5, column=6, warning=2, info=3)
+        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=error_face_value)
+        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=warning_face_value)
+        call append_highlight(compilation_error_regexps(last_rule()), 3, face_function=info_face_value)
+        call append_rule("lua", "^[^"//TB//NL//"]+?: \([^"//TB//NL//"]+?\):\([0-9]+\): .+"//NL//"stack traceback:"//NL//TB, &
+                         1, 2, type=2, hyperlink=1)
+        call append_rule("lua_stack", "^"//TB//"\(?:\[C]:\|\([^"//TB//NL//"]+?\):\(?:\([0-9]+\):\)?\) in ", 1, 2, type=0, &
+                         hyperlink=1)
+        call append_rule("gmake", ": \*\*\* \[\(\(.+?\):\([0-9]+\): .+\)\]", 2, 3, type=0, hyperlink=1)
+        call append_rule("gnu", "^\(?:[[:alpha:]][.[:alnum:]-]+: ?\| +|?\)?\(?1:\(?:[^0-9"//NL//TB//" ]\|[0-9]+[^0-9"// &
+                         NL//"]\)\(?:[^"//NL//" :]\| [^/"//NL//"-]\|:[^ "//NL//"]\)*?\): ?\(?2:[0-9]+\)\(?:-\(?4:[0-9]+\)" &
+                         //"\(?:\.\(?5:[0-9]+\)\)?\|[.:]\(?3:[0-9]+\)\(?:-\(?:\(?4:[0-9]+\)\.\)?\(?5:[0-9]+\)\)?\)?:\(?: *" &
+                         //"\(?6:FutureWarning\|RuntimeWarning\|Warning\|warning\|W:\)\| *\(?7:Informational\|" &
+                         //"informational\|Information\|information\|Info\|info\|I:\|instantiated from\|required from\|" &
+                         //"Note\|note\|\[ skipping .+ ]\)\| *\(?:Error\|error\)\|[0-9]?\(?:[^0-9"//NL//"]\|$\)\|" &
+                         //"[0-9][0-9][0-9]\)", 1, 2, 4, 3, 5, warning=6, info=7)
+        call append_rule("cucumber", "\(?:^\(?:cucumber\(?: -p [^[:space:]]+\)?\|     \)\|#\) \([^(].*\):" &
+                         //"\([1-9][0-9]*\)", 1, 2)
+        call append_rule("lcc", "^\(?:E\|\(W\)\), \([^("//NL//"]+\)(\([0-9]+\),["//TB//" ]*\([0-9]+\)", 2, 3, column=4, &
+                         warning=1)
+        call append_rule("makepp", "^makepp\(?:\(?:: warning\(:\).*?\|\(: Scanning\|: [LR]e?l?oading makefile\|: " &
+                         //"Imported\|log:.*?\) \|: .*?\)`\(\(\S +?\)\(?::\([0-9]+\)\)?\)['(]\)", 4, 5, warning=1, &
+                         info=2, hyperlink=3)
+        call append_highlight(compilation_error_regexps(last_rule()), 0, face_function=makepp_highlight)
+        call append_rule("mips_1", " (\([0-9]+\)) in \([^ "//NL//"]+\)", 2, 1)
+        call append_rule("mips_2", " in \([^()"//NL//" ]+\)(\([0-9]+\))$", 1, 2)
+        call append_rule("omake", "^\*\*\* omake: file \(.*\) changed", 1)
+        call append_highlight(compilation_error_regexps(last_rule()), 0, face_function=omake_highlight)
+        call append_rule("oracle", "^\(?:Semantic error\|Error\|PCC-[0-9]+:\).* line \([0-9]+\)\(?:\(?:,\| at\)? column " &
+                         //"\([0-9]+\)\)?\(?:,\| in\| of\)? file \(.*?\):?$", 3, 1, column=2)
+        call append_rule("perl", " at \([^ "//NL//"]+\) line \([0-9]+\)\(?:[,.]\|$\| during global destruction\.$\)", 1, 2)
+        call append_rule("php", "\(?:Parse\|Fatal\) error: \(.*\) in \(.*\) on line \([0-9]+\)", 2, 3)
+        call append_rule("rxp", "^\(?:Error\|Warnin\(g\)\):.*"//NL//".* line \([0-9]+\) char \([0-9]+\) of " &
+                         //"file://\(.+\)", 4, 2, column=3, warning=1)
+        call append_rule("shellcheck", "^In \(.+\) line \([0-9]+\):", 1, 2)
+        call append_rule("sparc_pascal_file", "^\w\w\w \w\w\w +[0-3]?[0-9] +[0-2][0-9]:[0-5][0-9]:[0-5][0-9] " &
+                         //"[12][09][0-9][0-9] +\(.*\):$", 1, type=0)
+        call append_rule("sparc_pascal_line", "^\(\(?:E\|\(w\)\) +[0-9]+\) line \([0-9]+\) -  ", 0, 3, warning=2)
+        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=face_of_type_2)
+        call append_rule("sparc_pascal_example", "^ +\([0-9]+\) +.*"//NL//"\(\(?:e\|\(w\)\) [0-9]+\)-+", 0, 1, warning=3)
+        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=face_of_type_3)
+        call append_rule("sun", ": \(?:ERROR\|WARNIN\(G\)\|REMAR\(K\)\) \(?:[[:alnum:] ]+, \)?File = \(.+\), Line = " &
+                         //"\([0-9]+\)\(?:, Column = \([0-9]+\)\)?", 3, 4, column=5, warning=1, info=2)
+        call append_rule("sun_ada", "^\([^, "//NL//TB//"]+\), line \([0-9]+\), char \([0-9]+\)[:., (-]", 1, 2, column=3)
+        call append_rule("watcom", "^[ "//TB//"]*\(\(?:[a-zA-Z]:\)?[^ :("//TB//NL//"][^:("//TB//NL// &
+                         "]*\)(\([0-9]+\)): ?\(?:\(Error! E[0-9]+\)\|\(Warning! W[0-9]+\)\):", 1, 2, warning=4)
+        call append_rule("4bsd", "\(?:^\|::  \|\S ( \)\(/[^ "//NL//TB//"()]+\)(\([0-9]+\))\(?:: \(warning:\)?\|$\| ),\)", &
+                         1, 2, warning=3)
+        call append_rule("gcov_file", "^ *-: *\(0\):Source:\(.+\)$", 2, 1, type=0)
+        call append_rule("gcov_header", "^ *-: *\(0\):\(?:Object\|Graph\|Data\|Runs\|Programs\):.+$", 0, 1, type=0)
+        call append_rule("gcov_nomark", "^ *-: *\([1-9]\|[0-9]\{2,\}\):.*$", 0, 1, type=0)
+        call append_highlight(compilation_error_regexps(last_rule()), 0, face="default")
+        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=line_face_value)
+        call append_rule("gcov_called_line", "^ *\([0-9]+\): *\([0-9]+\):.*$", 0, 2, type=0)
+        call append_highlight(compilation_error_regexps(last_rule()), 0, face="default")
+        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=info_face_value)
+        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=line_face_value)
+        call append_rule("gcov_never_called", "^ *\(#####\): *\([0-9]+\):.*$", 0, 2, type=2)
+        call append_highlight(compilation_error_regexps(last_rule()), 0, face="default")
+        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=error_face_value)
+        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=line_face_value)
+        call append_rule("perl__Pod::Checker", "^\*\*\* \(?:ERROR\|\(WARNING\)\).* \(?:at\|on\) line \([0-9]+\) " &
+                         //"\(?:.* \)?in file \([^ "//TB//NL//"]+\)", 3, 2, warning=1)
+        call append_rule("perl__Test", "^# Failed test [0-9]+ in \([^ "//TB//CR//NL//"]+\) at line \([0-9]+\)", 1, 2)
+        call append_rule("perl__Test2", "^\(.*NOK.*\)?# Test [0-9]+ got:.* (\([^ "//TB//CR//NL// &
+                         "]+\) at line \([0-9]+\)\( fail #[0-9]+\)?)", 2, 3)
+        call append_rule("perl__Test::Harness", "^.*NOK.* \([^ "//TB//CR//NL//"]+\) at line \([0-9]+\)", 1, 2)
+        call append_rule("weblint", "^\([^ "//TB//CR//NL//"(]+\) (\([0-9]+\):\([0-9]+\)) ", 1, 2, column=3)
+        call append_rule("guile_file", "^In \(.+\..+\):"//NL, 1, type=0)
+        call append_rule("guile_line", "^ *\([0-9]+\): *\([0-9]+\)", 0, 1, column=2)
+        call append_rule("typescript_tsc_plain", "^\([^ "//TB//NL//"()][^"//NL//"()]*\)(\([0-9]+\),\([0-9]+\)): error " &
+                         //"[0-9A-Z]+: ", 1, 2, column=3, type=2)
+        call append_rule("typescript_tsc_pretty", "^\([^ "//TB//NL//"()][^"//NL//"()]*\):\([0-9]+\):\([0-9]+\) - error " &
+                         //"[0-9A-Z]+: ", 1, 2, column=3, type=2)
+    end subroutine init_compilation_error_regexps
 
     !> The default `compilation_error_regexp_names': every rule but
     !> `omake' (its mere presence triggers special processing and modifies
@@ -986,18 +986,18 @@ contains
 
         n = 0
 
-        do k = 1, size(compilation_error_regexp_table)
-            if (compilation_error_regexp_table(k)%name /= "omake") n = n + 1
+        do k = 1, size(compilation_error_regexps)
+            if (compilation_error_regexps(k)%name /= "omake") n = n + 1
         end do
 
         if (allocated(compilation_error_regexp_names)) deallocate (compilation_error_regexp_names)
         allocate (compilation_error_regexp_names(n))
         n = 0
 
-        do k = 1, size(compilation_error_regexp_table)
-            if (compilation_error_regexp_table(k)%name == "omake") cycle
+        do k = 1, size(compilation_error_regexps)
+            if (compilation_error_regexps(k)%name == "omake") cycle
             n = n + 1
-            compilation_error_regexp_names(n) = compilation_error_regexp_table(k)%name
+            compilation_error_regexp_names(n) = compilation_error_regexps(k)%name
         end do
     end subroutine init_compilation_error_regexp_names
 
@@ -1170,41 +1170,41 @@ contains
         integer :: i
 
         do i = 1, compilation_buffers(k)%nlocs
-            if (compilation_buffers(k)%locs(i)%marker%index /= 0) call free_marker(compilation_buffers(k)%locs(i)%marker, st)
+            if (compilation_buffers(k)%locs(i)%marker%index /= 0) call destroy_marker(compilation_buffers(k)%locs(i)%marker, st)
         end do
 
-        if (compilation_buffers(k)%parsed%index /= 0) call free_marker(compilation_buffers(k)%parsed, st)
+        if (compilation_buffers(k)%parsed%index /= 0) call destroy_marker(compilation_buffers(k)%parsed, st)
 
         if (compilation_buffers(k)%current_error_marker%index /= 0) then
-            call free_marker(compilation_buffers(k)%current_error_marker, st)
+            call destroy_marker(compilation_buffers(k)%current_error_marker, st)
         end if
 
         if (compilation_buffers(k)%messages_start_marker%index /= 0) then
-            call free_marker(compilation_buffers(k)%messages_start_marker, st)
+            call destroy_marker(compilation_buffers(k)%messages_start_marker, st)
         end if
 
         compilation_buffers(k) = empty
     end subroutine reset_entry
 
     !> Forget what the current buffer had as a compilation buffer, when
-    !> `kill_all_local_variables' runs.  Not a port.
-    subroutine kill_compilation_locals()
+    !> `clear_all_local_variables' runs.  Not a port.
+    subroutine clear_compilation_locals()
         integer :: k
 
         k = entry_of(current_buffer())
         if (k /= 0) call reset_entry(k)
-    end subroutine kill_compilation_locals
+    end subroutine clear_compilation_locals
 
     !> Give the current buffer its own values of the compilation variables,
     !> as the body of a mode made by define-compilation-mode does with
     !> `set_local' (after `compilation_mode' has run as its parent):
     !> `compilation_error_regexp_names' as the rules ERROR_REGEXP_TABLE,
-    !> `compilation_directory_matcher', `compilation_transform_file_match_table',
+    !> `compilation_directory_matcher', `compilation_transform_file_matches',
     !> `compilation_error' (the word for a message, "error" by default),
     !> `compilation_mode_font_lock_keywords' (MODE_FONT_LOCK_KEYWORDS: what
     !> Font Lock highlights after the parse),
-    !> `compilation_mode_line_errors', `compilation_process_setup_function'
-    !> and `compilation_exit_message_function'.  The settings
+    !> `compilation_mode_line_errors', `compilation_process_setup_procedure'
+    !> and `compilation_exit_message_procedure'.  The settings
     !> (`compilation_error_face', `compilation_scroll_output',
     !> `compilation_first_column' and so on) take `set_local' directly.
     !> Cf. compile.el:define-compilation-mode.  Not a port.
@@ -1216,9 +1216,9 @@ contains
         type(compilation_transform_type), intent(in), optional :: transform_file_match_table(:)
         character(len=*), intent(in), optional :: error
         type(font_lock_keyword_type), intent(in), optional :: mode_font_lock_keywords(:)
-        procedure(compilation_mode_line_errors_function), optional :: mode_line_errors
-        procedure(compilation_process_setup_function), optional :: process_setup_function
-        procedure(compilation_exit_message_function), optional :: exit_message_function
+        procedure(compilation_mode_line_errors_procedure), optional :: mode_line_errors
+        procedure(compilation_process_setup_procedure), optional :: process_setup_function
+        procedure(compilation_exit_message_procedure), optional :: exit_message_function
         type(font_lock_keyword_type), allocatable :: keywords(:)
         integer :: k, i
 
@@ -1328,21 +1328,21 @@ contains
     end subroutine compilation_find_buffer
 
     !> The counts of errors, warnings and informational messages found so
-    !> far in the current buffer (`compilation_num_errors_found' and
+    !> far in the current buffer (`compilation_error_count_found' and
     !> friends).  Not a port.
     subroutine compilation_message_counts(errors, warnings, infos)
         integer(int64), intent(out) :: errors, warnings, infos
         integer :: k
 
-        errors = compilation_num_errors_found
-        warnings = compilation_num_warnings_found
-        infos = compilation_num_infos_found
+        errors = compilation_error_count_found
+        warnings = compilation_warning_count_found
+        infos = compilation_info_count_found
         k = entry_of(current_buffer())
         if (k == 0) return
         if (.not. compilation_buffers(k)%has_counts) return
-        errors = compilation_buffers(k)%num_errors
-        warnings = compilation_buffers(k)%num_warnings
-        infos = compilation_buffers(k)%num_infos
+        errors = compilation_buffers(k)%error_count
+        warnings = compilation_buffers(k)%warning_count
+        infos = compilation_buffers(k)%info_count
     end subroutine compilation_message_counts
 
     ! ------------------------------------------------------------------
@@ -1540,17 +1540,17 @@ contains
             fs = make_file(k, name, has_spec, spec)
 
             if (has_spec) then
-                call add_key(k, name, fs, spec)
+                call append_key(k, name, fs, spec)
             else
-                call add_key(k, name, fs)
+                call append_key(k, name, fs)
             end if
         end if
 
         ! Store it for the possibly unnormalized name.
         if (present(directory)) then
-            call add_key(k, filename, fs, directory)
+            call append_key(k, filename, fs, directory)
         else
-            call add_key(k, filename, fs)
+            call append_key(k, filename, fs)
         end if
     end function compilation_get_file_structure
 
@@ -1588,7 +1588,7 @@ contains
     end function same_string
 
     ! Not a port.
-    subroutine add_key(k, filename, fs, directory)
+    subroutine append_key(k, filename, fs, directory)
         integer, intent(in) :: k, fs
         character(len=*), intent(in) :: filename
         character(len=*), intent(in), optional :: directory
@@ -1626,7 +1626,7 @@ contains
         if (allocated(compilation_buffers(k)%keys(n)%directory)) deallocate (compilation_buffers(k)%keys(n)%directory)
         if (present(directory)) compilation_buffers(k)%keys(n)%directory = directory
         compilation_buffers(k)%keys(n)%file = fs
-    end subroutine add_key
+    end subroutine append_key
 
     ! Not a port.
     integer function make_file(k, filename, has_dir, directory) result(fs)
@@ -1898,7 +1898,7 @@ contains
 
     ! Not a port.
     function setting_string(s) result(v)
-        type(string_setting), intent(in) :: s
+        type(string_setting_type), intent(in) :: s
         character(len=:), allocatable :: v
 
         v = ""
@@ -2087,7 +2087,7 @@ contains
             else
                 j = rule_index(trim(compilation_error_regexp_names(r)))
                 if (j == 0) cycle
-                rule = compilation_error_regexp_table(j)
+                rule = compilation_error_regexps(j)
             end if
 
             call parse_rule(rule, start, end, omake_included, status)
@@ -2097,15 +2097,15 @@ contains
         case_fold_search = saved_fold
     end subroutine compilation_parse_errors
 
-    !> The index of the rule NAME in `compilation_error_regexp_table'
+    !> The index of the rule NAME in `compilation_error_regexps'
     !> (0 for none).  Not a port.
     integer function rule_index(name) result(j)
         character(len=*), intent(in) :: name
 
-        if (allocated(compilation_error_regexp_table)) then
-            do j = 1, size(compilation_error_regexp_table)
-                if (allocated(compilation_error_regexp_table(j)%name)) then
-                    if (same_string(compilation_error_regexp_table(j)%name, name)) return
+        if (allocated(compilation_error_regexps)) then
+            do j = 1, size(compilation_error_regexps)
+                if (allocated(compilation_error_regexps(j)%name)) then
+                    if (same_string(compilation_error_regexps(j)%name, name)) return
                 end if
             end do
         end if
@@ -2220,7 +2220,7 @@ contains
         end do
     end subroutine parse_rule
 
-    !> The current buffer's `compilation_transform_file_match_table'.
+    !> The current buffer's `compilation_transform_file_matches'.
     !> Not a port.
     function transform_file_match_table() result(transforms)
         type(compilation_transform_type), allocatable :: transforms(:)
@@ -2240,15 +2240,15 @@ contains
             end if
         end if
 
-        if (.not. allocated(compilation_transform_file_match_table)) then
+        if (.not. allocated(compilation_transform_file_matches)) then
             allocate (transforms(0))
             return
         end if
 
-        allocate (transforms(size(compilation_transform_file_match_table)))
+        allocate (transforms(size(compilation_transform_file_matches)))
 
         do i = 1, size(transforms)
-            transforms(i) = compilation_transform_file_match_table(i)
+            transforms(i) = compilation_transform_file_matches(i)
         end do
     end function transform_file_match_table
 
@@ -2265,11 +2265,11 @@ contains
             if (compilation_buffers(k)%has_counts) then
                 select case (type)
                 case (0)
-                    compilation_buffers(k)%num_infos = compilation_buffers(k)%num_infos + 1
+                    compilation_buffers(k)%info_count = compilation_buffers(k)%info_count + 1
                 case (1)
-                    compilation_buffers(k)%num_warnings = compilation_buffers(k)%num_warnings + 1
+                    compilation_buffers(k)%warning_count = compilation_buffers(k)%warning_count + 1
                 case (2)
-                    compilation_buffers(k)%num_errors = compilation_buffers(k)%num_errors + 1
+                    compilation_buffers(k)%error_count = compilation_buffers(k)%error_count + 1
                 case default
                     ! (Other types are not counted.)
                 end select
@@ -2281,11 +2281,11 @@ contains
 
         select case (type)
         case (0)
-            compilation_num_infos_found = compilation_num_infos_found + 1
+            compilation_info_count_found = compilation_info_count_found + 1
         case (1)
-            compilation_num_warnings_found = compilation_num_warnings_found + 1
+            compilation_warning_count_found = compilation_warning_count_found + 1
         case (2)
-            compilation_num_errors_found = compilation_num_errors_found + 1
+            compilation_error_count_found = compilation_error_count_found + 1
         case default
             ! (Other types are not counted.)
         end select
@@ -2441,7 +2441,7 @@ contains
     contains
 
         subroutine get_number(fn, group, has, value)
-            procedure(compilation_number_function), pointer, intent(in) :: fn
+            procedure(compilation_number_procedure), pointer, intent(in) :: fn
             integer, intent(in) :: group
             logical, intent(out) :: has
             integer(int64), intent(out) :: value
@@ -2623,8 +2623,8 @@ contains
         end if
 
         ! The markers not kept are garbage.
-        if (marker%index /= 0) call free_marker(marker, st)
-        if (end_marker%index /= 0) call free_marker(end_marker, st)
+        if (marker%index /= 0) call destroy_marker(marker, st)
+        if (end_marker%index /= 0) call destroy_marker(end_marker, st)
 
         if (allocated(spec%rule)) then
             msg = make_message(k, loc, spec%type, end_loc, spec%rule)
@@ -2703,7 +2703,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), allocatable :: md(:)
         integer(int64) :: end, found
-        type(handle_type) :: proc
+        type(handle_type) :: process
         character(len=:), allocatable :: state
         type(status_type) :: st
         type(value_type) :: props, more
@@ -2724,10 +2724,10 @@ contains
 
         if (.not. is_bol()) then
             ! We generally don't like to parse partial lines.
-            proc = get_buffer_process(current_buffer())
+            process = get_buffer_process(current_buffer())
 
-            if (proc%index /= 0) then
-                state = process_status(proc)
+            if (process%index /= 0) then
+                state = process_status(process)
                 if (state == "run" .or. state == "open") end = line_beginning_position()
             end if
         end if
@@ -2769,9 +2769,9 @@ contains
     !> stack of nested enter-messages.  Relative filenames on the following
     !> lines are relative to the top of the stack.  Port of
     !> compile.el:compilation-directory-properties.
-    subroutine compilation_directory_properties(md, idx, leave, props, more)
+    subroutine compilation_directory_properties(md, index, leave, props, more)
         integer(int64), intent(in) :: md(:)
-        integer, intent(in) :: idx, leave
+        integer, intent(in) :: index, leave
         type(value_type), intent(out) :: props, more
         integer :: k, dir, value, msg
         logical :: leaving
@@ -2795,7 +2795,7 @@ contains
             end if
         else
             face = setting_string(compilation_enter_directory_face)
-            value = make_dir(k, dir, md_string(md, idx))
+            value = make_dir(k, dir, md_string(md, index))
         end if
 
         ! Place a `compilation_message' everywhere we change
@@ -2924,7 +2924,7 @@ contains
     !> new locations, and the next error is searched after what the buffer
     !> has now.  Port of compile.el:compilation-forget-errors.
     subroutine compilation_forget_errors()
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(status_type) :: st
         integer(int64) :: pos
         integer :: k
@@ -2935,21 +2935,21 @@ contains
         compilation_buffers(k)%nkeys = 0
 
         if (compilation_buffers(k)%current_error_marker%index /= 0) then
-            call free_marker(compilation_buffers(k)%current_error_marker, st)
+            call destroy_marker(compilation_buffers(k)%current_error_marker, st)
         end if
 
         compilation_buffers(k)%current_error_marker = null_handle()
         compilation_buffers(k)%has_current_error = .false.
-        proc = get_buffer_process(current_buffer())
+        process = get_buffer_process(current_buffer())
 
-        if (proc%index /= 0) then
-            call marker_position(process_mark(proc), pos, st)
+        if (process%index /= 0) then
+            call marker_position(process_mark(process), pos, st)
         else
             pos = point_max()
         end if
 
         if (compilation_buffers(k)%messages_start_marker%index /= 0) then
-            call free_marker(compilation_buffers(k)%messages_start_marker, st)
+            call destroy_marker(compilation_buffers(k)%messages_start_marker, st)
         end if
 
         compilation_buffers(k)%messages_start_marker = null_handle()
@@ -2962,7 +2962,7 @@ contains
             compilation_buffers(k)%messages_start_pos = pos
         end if
 
-        compilation_buffers(k)%auto_jump_to_next = compilation_scroll_output%value == COMPILATION_SCROLL_FIRST_ERROR
+        compilation_buffers(k)%auto_jump_to_next = compilation_scroll_output%value == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
     end subroutine compilation_forget_errors
 
     !> What the `compilation_message' property at POS of the current
@@ -3230,12 +3230,12 @@ contains
         end subroutine property_change
 
         subroutine loop_error()
-            type(handle_type) :: proc
+            type(handle_type) :: process
 
-            proc = get_buffer_process(current_buffer())
+            process = get_buffer_process(current_buffer())
 
             if (forward) then
-                if (proc%index /= 0) then
+                if (process%index /= 0) then
                     call set_error(status, FM_USER_ERROR, "No more "//error_stem()//"s yet")
                 else
                     call set_error(status, FM_USER_ERROR, "Past last "//error_stem())
@@ -3352,7 +3352,7 @@ contains
         k = current_entry()
 
         if (compilation_buffers(k)%current_error_marker%index /= 0) then
-            call free_marker(compilation_buffers(k)%current_error_marker, st)
+            call destroy_marker(compilation_buffers(k)%current_error_marker, st)
         end if
 
         compilation_buffers(k)%current_error_marker = null_handle()
@@ -3551,7 +3551,7 @@ contains
             call make_marker(dummy)
             call compilation_update_markers(loc, dummy, compilation_error_screen_columns%value, &
                                             compilation_first_column%value, status)
-            call free_marker(dummy, st)
+            call destroy_marker(dummy, st)
             if (.not. status%ok()) return
             k = entry_of(current_buffer())
         end if
@@ -3581,7 +3581,7 @@ contains
 
         if (reset) then
             if (compilation_buffers(k)%current_error_marker%index /= 0) then
-                call free_marker(compilation_buffers(k)%current_error_marker, st)
+                call destroy_marker(compilation_buffers(k)%current_error_marker, st)
             end if
 
             compilation_buffers(k)%current_error_marker = null_handle()
@@ -3621,14 +3621,14 @@ contains
         call point_marker(marker)
 
         if (compilation_buffers(k)%current_error_marker%index /= 0) then
-            call free_marker(compilation_buffers(k)%current_error_marker, st)
+            call destroy_marker(compilation_buffers(k)%current_error_marker, st)
         end if
 
         call point_marker(compilation_buffers(k)%current_error_marker)
         compilation_buffers(k)%has_current_error = .true.
         ! (overlay-arrow-position is Deferred.)
         ! If loc contains no marker, no error in that file has been
-        ! visited.  If the marker is invalid the buffer has been killed.
+        ! visited.  If the marker is invalid the buffer has been closed.
         ! So, recalculate all markers for that file.
         valid = .false.
 
@@ -3641,7 +3641,7 @@ contains
             call compilation_update_markers(loc, marker, screen, first, status)
 
             if (.not. status%ok()) then
-                call free_marker(marker, st)
+                call destroy_marker(marker, st)
                 return
             end if
         end if
@@ -3651,7 +3651,7 @@ contains
         end_marker = null_handle()
         if (end_loc /= 0) end_marker = compilation_buffers(k)%locs(end_loc)%marker
         call compilation_goto_locus(marker, loc_marker, end_marker, status)
-        call free_marker(marker, st)
+        call destroy_marker(marker, st)
         if (.not. status%ok()) return
         k = entry_of(comp)
         if (k /= 0) compilation_buffers(k)%locs(loc)%visited = .true.
@@ -3701,7 +3701,7 @@ contains
     recursive subroutine compilation_goto_locus(msg, mk, end_mk, status)
         type(handle_type), intent(in) :: msg, mk, end_mk
         type(handle_type) :: msg_buffer, mk_buffer, pre_existing, w, selected
-        type(display_action_table_type) :: table
+        type(display_action_parameters_type) :: table
         type(status_type) :: st
         type(status_type), intent(out) :: status
         logical :: from_compilation_buffer, saved_pop_up
@@ -3761,7 +3761,7 @@ contains
             call marker_position(end_mk, pos, st)
             if (st%ok()) call push_mark(pos, nomsg=.true.)
         else
-            if (buffers(cur)%mark_active) buffers(cur)%mark_active = .false.
+            if (buffers(current)%mark_active) buffers(current)%mark_active = .false.
         end if
     end subroutine compilation_goto_locus
 
@@ -3878,8 +3878,8 @@ contains
         character(len=:), allocatable :: dir
 
         dir = ""
-        if (cur == 0) return
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (current == 0) return
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
     end function default_dir
 
     !> Find a buffer for file FILENAME.
@@ -3961,7 +3961,7 @@ contains
     !> \<compilation_mode_map>To visit the source for a line-numbered
     !> error, move point to the error message line and type
     !> \[compile_goto_error].  To kill the compilation, type
-    !> \[kill_compilation].
+    !> \[stop_compilation].
     !>
     !> Runs `compilation_mode_hook' with `execute_mode_hooks' (which see).
     !> Port of compile.el:compilation-mode (NAME-OF-MODE "Compilation").
@@ -3975,8 +3975,8 @@ contains
         if (.not. status%ok()) return
         call compilation_setup(status)
         if (.not. status%ok()) return
-        buffers(cur)%read_only = .true.
-        call major_modes%compilation_mode%finish(saved, status)
+        buffers(current)%read_only = .true.
+        call major_modes%compilation_mode%end(saved, status)
     end subroutine compilation_mode
 
     !> Prepare the buffer for the compilation parsing commands to work.
@@ -3994,9 +3994,9 @@ contains
         if (present(minor)) is_minor = minor
         k = current_entry()
         compilation_buffers(k)%has_counts = .true.
-        compilation_buffers(k)%num_errors = 0
-        compilation_buffers(k)%num_warnings = 0
-        compilation_buffers(k)%num_infos = 0
+        compilation_buffers(k)%error_count = 0
+        compilation_buffers(k)%warning_count = 0
+        compilation_buffers(k)%info_count = 0
         ! Note that compilation-next-error-function is for interfacing
         ! with the next-error function in simple.el, and it's only
         ! coincidentally named similarly to compilation-next-error.
@@ -4004,9 +4004,9 @@ contains
         ! compilation-locs.
         compilation_buffers(k)%setup = .true.
         compilation_buffers(k)%nkeys = 0
-        call before_change_functions%add(compilation_flush_parse, local=.true.)
+        call before_change_functions%append(compilation_flush_parse, local=.true.)
         ! Also for minor mode, since it's not permanent-local.
-        call change_major_mode_hook%add(remove_properties_hook, local=.true.)
+        call change_major_mode_hook%append(remove_properties_hook, local=.true.)
         call compilation_mode_font_lock_keywords(keywords)
 
         if (is_minor) then
@@ -4031,7 +4031,7 @@ contains
         k = entry_of(current_buffer())
 
         if (k /= 0) then
-            if (compilation_buffers(k)%parsed%index /= 0) call free_marker(compilation_buffers(k)%parsed, st)
+            if (compilation_buffers(k)%parsed%index /= 0) call destroy_marker(compilation_buffers(k)%parsed, st)
             compilation_buffers(k)%parsed = null_handle()
         end if
 
@@ -4214,7 +4214,7 @@ contains
         call save_some_buffers(.not. compilation_ask_about_save%value, .false., status)
         if (.not. status%ok()) return
         dir = ""
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         ! setq-default: the value of buffers without their own.
         compilation_directory = dir
         call compilation_start(command, status, comint)
@@ -4270,10 +4270,10 @@ contains
         if (.not. status%ok()) return
         old = current_buffer()
         ! (let ((default-directory (or compilation-directory default-directory)))
-        had_dir = allocated(buffers(cur)%directory)
-        if (had_dir) saved_dir = buffers(cur)%directory
+        had_dir = allocated(buffers(current)%directory)
+        if (had_dir) saved_dir = buffers(current)%directory
         dir = compilation_directory_value()
-        if (len(dir) > 0) buffers(cur)%directory = dir
+        if (len(dir) > 0) buffers(current)%directory = dir
         command = compile_command_value()
         k = entry_of(current_buffer())
 
@@ -4328,9 +4328,9 @@ contains
             call set_buffer(old, st)
 
             if (had_dir) then
-                buffers(cur)%directory = saved_dir
-            else if (allocated(buffers(cur)%directory)) then
-                deallocate (buffers(cur)%directory)
+                buffers(current)%directory = saved_dir
+            else if (allocated(buffers(current)%directory)) then
+                deallocate (buffers(current)%directory)
             end if
         end subroutine restore_dir
     end subroutine recompile
@@ -4381,12 +4381,12 @@ contains
     function current_time_19() result(s)
         character(len=:), allocatable :: s
         integer :: t(7)
-        character(len=19) :: buf
+        character(len=19) :: buffer
 
         t = emacs_localtime_wday(emacs_time())
-        write (buf, "(a3, 1x, a3, 1x, i2, 1x, i2.2, ':', i2.2, ':', i2.2)") DAY_NAMES(t(7)), MONTH_NAMES(t(2)), t(3), &
+        write (buffer, "(a3, 1x, a3, 1x, i2, 1x, i2.2, ':', i2.2, ':', i2.2)") DAY_NAMES(t(7)), MONTH_NAMES(t(2)), t(3), &
             t(4), t(5), t(6)
-        s = buf
+        s = buffer
     end function current_time_19
 
     !> The name of MODE (its mode-name) in lower case.  Port of
@@ -4421,7 +4421,7 @@ contains
         logical, intent(in), optional :: comint
         type(major_mode_type), intent(in), target, optional :: mode
         character(len=:), allocatable :: thisdir, cd_dir, origdir, name_of_mode
-        type(handle_type) :: outbuf, comp_proc, outwin, old, proc
+        type(handle_type) :: outbuf, comp_process, outwin, old, process
         type(process_arg_type) :: args(3), switches(2)
         type(process_arg_type), allocatable :: env(:)
         type(value_type) :: inhibit
@@ -4445,22 +4445,22 @@ contains
 
         old = current_buffer()
         thisdir = ""
-        if (allocated(buffers(cur)%directory)) thisdir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) thisdir = buffers(current)%directory
 
         ! compilation--default-buffer-name.
-        if (buffers(cur)%major_mode == name_of_mode .or. buffers(cur)%major_mode == name_of_mode//"_mode") then
+        if (buffers(current)%major_mode == name_of_mode .or. buffers(current)%major_mode == name_of_mode//"_mode") then
             outbuf = current_buffer()
         else
-            call get_buffer_create("*"//downcase_name(name_of_mode)//"*", outbuf, status)
+            call get_or_make_buffer("*"//downcase_name(name_of_mode)//"*", outbuf, status)
             if (.not. status%ok()) return
         end if
 
         call set_buffer(outbuf, status)
         if (.not. status%ok()) return
-        comp_proc = get_buffer_process(outbuf)
+        comp_process = get_buffer_process(outbuf)
 
-        if (comp_proc%index /= 0) then
-            answer = process_status(comp_proc) /= "run" .or. .not. process_query_on_exit_flag(comp_proc)
+        if (comp_process%index /= 0) then
+            answer = process_status(comp_process) /= "run" .or. .not. process_query_on_exit_flag(comp_process)
 
             if (.not. answer) then
                 call read_yes_or_no("A "//name_of_mode//" process is running; kill it? ", answer, status)
@@ -4468,22 +4468,22 @@ contains
             end if
 
             if (answer) then
-                call interrupt_process(st, comp_proc)
+                call interrupt_process(st, comp_process)
 
                 if (st%ok()) then
                     call sit_for(1000_int32)
-                    call delete_process(comp_proc, st)
+                    call delete_process(comp_process, st)
                 end if
             else
                 call set_error(status, FM_GENERIC_ERROR, format_message("Cannot have two processes in `")// &
-                               buffers(cur)%name//format_message("' at once"))
+                               buffers(current)%name//format_message("' at once"))
                 call set_buffer(old, st)
                 return
             end if
         end if
 
         ! First transfer directory from where M-x compile was called.
-        buffers(cur)%directory = thisdir
+        buffers(current)%directory = thisdir
         ! Make compilation buffer read-only.  The filter can still write it.
         ! Clear out the compilation buffer.
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
@@ -4496,17 +4496,17 @@ contains
 
         if (.not. status%ok()) then
             call set(value_type(name="inhibit_read_only"), inhibit, st)
-            buffers(cur)%directory = thisdir
+            buffers(current)%directory = thisdir
             return
         end if
 
         call erase_buffer(st)
         ! Select the desired mode.
-        origdir = buffers(cur)%directory
+        origdir = buffers(current)%directory
 
         if (.not. use_comint) then
-            buffers(cur)%undo_enabled = .false.
-            if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
+            buffers(current)%undo_enabled = .false.
+            if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
 
             if (present(mode)) then
                 call mode%execute(status)
@@ -4514,7 +4514,7 @@ contains
                 call compilation_mode(status)
             end if
         else
-            buffers(cur)%read_only = .false.
+            buffers(current)%read_only = .false.
             call comint_mode(status)
             if (status%ok()) call minor_modes%compilation_shell_minor_mode%enable(status)
         end if
@@ -4536,17 +4536,17 @@ contains
                                                " -*-"//NL)
         end if
 
-        call compilation_insert_annotation(buffers(cur)%mode_name//" started at "//current_time_19()//NL//NL// &
+        call compilation_insert_annotation(buffers(current)%mode_name//" started at "//current_time_19()//NL//NL// &
                                            command//NL)
         k = current_entry()
         call system_clock(compilation_buffers(k)%start_count)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
         ! The let binding of default-directory ends here.
-        buffers(cur)%directory = thisdir
+        buffers(current)%directory = thisdir
         call restore_buffer_modified(.false.)
         ! Pop up the compilation buffer.
         call display_buffer(outbuf, outwin, st)
-        scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_NO
+        scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_OUTPUT_NO
         k = current_entry()
         compilation_buffers(k)%has_arguments = .true.
         compilation_buffers(k)%command = command
@@ -4591,14 +4591,14 @@ contains
         if (use_comint) then
             switches(1)%s = shell_command_switch%value
             switches(2)%s = command
-            call comint_exec(outbuf, downcase_name(buffers(cur)%mode_name), shell_file_name%value, switches, status, &
+            call comint_exec(outbuf, downcase_name(buffers(current)%mode_name), shell_file_name%value, switches, status, &
                              environment=env)
-            if (status%ok()) proc = get_buffer_process(outbuf)
+            if (status%ok()) process = get_buffer_process(outbuf)
         else
             args(1)%s = shell_file_name%value
             args(2)%s = shell_command_switch%value
             args(3)%s = command
-            call make_process(downcase_name(buffers(cur)%mode_name), args, proc, status, buffer=outbuf, &
+            call make_process(downcase_name(buffers(current)%mode_name), args, process, status, buffer=outbuf, &
                               environment=env)
         end if
 
@@ -4612,15 +4612,15 @@ contains
         compilation_buffers(k)%mode_line = 1
         call update_mode_line_process(k)
         ! Set the process as killable without query by default.
-        if (compilation_always_kill%value) call set_process_query_on_exit_flag(proc, .false., st)
-        call set_process_sentinel_and_filter(proc,.not. use_comint)
+        if (compilation_always_stop%value) call set_process_query_on_exit_flag(process, .false., st)
+        call set_process_sentinel_and_filter(process,.not. use_comint)
         ! Use (point-max) here so that output comes in after the initial
         ! text, regardless of where the user sees point.
-        call set_marker(process_mark(proc), point_max(), st, outbuf)
-        if (compilation_disable_input%value) call process_send_eof(st, proc)
-        call add_in_progress(proc)
+        call set_marker(process_mark(process), point_max(), st, outbuf)
+        if (compilation_disable_input%value) call process_send_eof(st, process)
+        call prepend_in_progress(process)
         ! Now finally cd to where the shell started make/grep/...
-        buffers(cur)%directory = origdir
+        buffers(current)%directory = origdir
         if (scroll) call goto_char(point_max())
         ! Make it so the next C-x ` will use this buffer.
         next_error_last_buffer = outbuf
@@ -4628,31 +4628,31 @@ contains
     end subroutine compilation_start
 
     ! Not a port.
-    subroutine set_process_sentinel_and_filter(proc, filter)
+    subroutine set_process_sentinel_and_filter(process, filter)
         use process_fm, only: set_process_sentinel, set_process_filter
-        type(handle_type), intent(in) :: proc
+        type(handle_type), intent(in) :: process
         logical, intent(in) :: filter
         type(status_type) :: st
 
-        call set_process_sentinel(proc, st, compilation_sentinel)
+        call set_process_sentinel(process, st, compilation_sentinel)
         ! Keep the comint filter, since it's needed for proper handling of
         ! the prompts.
-        if (filter) call set_process_filter(proc, st, compilation_filter)
+        if (filter) call set_process_filter(process, st, compilation_filter)
     end subroutine set_process_sentinel_and_filter
 
     ! Not a port.
-    subroutine add_in_progress(proc)
-        type(handle_type), intent(in) :: proc
+    subroutine prepend_in_progress(process)
+        type(handle_type), intent(in) :: process
         type(handle_type), allocatable :: grown(:)
         integer :: n
 
         if (.not. allocated(compilation_in_progress)) allocate (compilation_in_progress(0))
         n = size(compilation_in_progress)
         allocate (grown(n + 1))
-        grown(1) = proc
+        grown(1) = process
         grown(2:) = compilation_in_progress
         call move_alloc(grown, compilation_in_progress)
-    end subroutine add_in_progress
+    end subroutine prepend_in_progress
 
     !> Whether compilations are in progress (`compilation_in_progress' is
     !> true), for the "[Compiling] " of the mode line.  Not a port.
@@ -4703,15 +4703,15 @@ contains
         allocate (parts(7))
         parts(1)%text = " ["
         parts(1)%face = ""
-        parts(2)%text = count_string(compilation_buffers(k)%num_errors)
+        parts(2)%text = count_string(compilation_buffers(k)%error_count)
         parts(2)%face = "compilation_error"
         parts(3)%text = " "
         parts(3)%face = ""
-        parts(4)%text = count_string(compilation_buffers(k)%num_warnings)
+        parts(4)%text = count_string(compilation_buffers(k)%warning_count)
         parts(4)%face = "compilation_warning"
         parts(5)%text = " "
         parts(5)%face = ""
-        parts(6)%text = count_string(compilation_buffers(k)%num_infos)
+        parts(6)%text = count_string(compilation_buffers(k)%info_count)
         parts(6)%face = "compilation_info"
         parts(7)%text = "]"
         parts(7)%face = ""
@@ -4732,10 +4732,10 @@ contains
     function count_string(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function count_string
 
     !> The directory a leading "cd DIR;" of COMMAND changes to (DEFAULT if
@@ -4747,12 +4747,12 @@ contains
         type(status_type) :: st
         logical :: matched
         integer :: k
-        integer(int64) :: idx
+        integer(int64) :: index
 
-        idx = string_match("\`\s *cd\(?:\s +\(\S +?\|'[^']*'\|""\(?:[^""`$\\]\|\\.\)*""\)\)?\s *[;&"//NL// &
-                           "]", command, st)
+        index = string_match("\`\s *cd\(?:\s +\(\S +?\|'[^']*'\|""\(?:[^""`$\\]\|\\.\)*""\)\)?\s *[;&"//NL// &
+                             "]", command, st)
 
-        if (idx == 0) then
+        if (index == 0) then
             dir = default
             return
         end if
@@ -4797,7 +4797,7 @@ contains
         integer :: b, e
 
         base = ""
-        if (allocated(buffers(cur)%directory)) base = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) base = buffers(current)%directory
 
         if (is_file_name_absolute(dir)) then
             call expand_file_name(dir, absolute, status, base)
@@ -4858,7 +4858,7 @@ contains
             return
         end if
 
-        buffers(cur)%directory = absolute
+        buffers(current)%directory = absolute
     end subroutine cd
 
     ! ------------------------------------------------------------------
@@ -4871,19 +4871,19 @@ contains
     !> `compilation_filter_hook'.  Port of compile.el:compilation-filter
     !> (`compilation_max_output_line_length' and
     !> `compilation_hidden_output' are Deferred).
-    recursive subroutine compilation_filter(proc, string, status)
-        type(handle_type), intent(in) :: proc
+    recursive subroutine compilation_filter(process, string, status)
+        type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, pos, min, max, mark
+        type(handle_type) :: buffer, pos, min, max, mark
         type(value_type) :: inhibit
         type(status_type) :: st
         integer(int64) :: p, min_pos, max_pos
 
         status = status_type()
-        buf = process_buffer(proc)
-        if (.not. is_buffer_live(buf)) return
-        call set_buffer(buf, status)
+        buffer = process_buffer(process)
+        if (.not. is_buffer_live(buffer)) return
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
@@ -4893,7 +4893,7 @@ contains
         ! If we are inserting at the end of the accessible part of the
         ! buffer, keep the inserted text visible.
         call copy_marker_at(point_max(), max, .true., st)
-        mark = process_mark(proc)
+        mark = process_mark(process)
         call marker_position(mark, compilation_filter_start, st)
         call widen()
         call goto_char(compilation_filter_start)
@@ -4916,16 +4916,16 @@ contains
         call marker_position(min, min_pos, st)
         call marker_position(max, max_pos, st)
         call narrow_to_region(min_pos, max_pos, st)
-        call free_marker(pos, st)
-        call free_marker(min, st)
-        call free_marker(max, st)
+        call destroy_marker(pos, st)
+        call destroy_marker(min, st)
+        call destroy_marker(max, st)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
     end subroutine compilation_filter
 
     !> Sentinel for compilation buffers.  Port of
     !> compile.el:compilation-sentinel.
-    recursive subroutine compilation_sentinel(proc, msg, status)
-        type(handle_type), intent(in) :: proc
+    recursive subroutine compilation_sentinel(process, msg, status)
+        type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: msg
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
@@ -4934,31 +4934,31 @@ contains
         integer :: k
 
         status = status_type()
-        state = process_status(proc)
+        state = process_status(process)
         if (state /= "exit" .and. state /= "signal") return
-        buffer = process_buffer(proc)
+        buffer = process_buffer(process)
 
         if (.not. is_buffer_live(buffer)) then
             ! Buffer killed.
-            call set_process_buffer(proc, null_handle(), st)
+            call set_process_buffer(process, null_handle(), st)
         else
             old = current_buffer()
             call set_buffer(buffer, st)
             ! Write something in the compilation buffer and hack its mode
             ! line.
-            call compilation_handle_exit(state, process_exit_status(proc), msg)
+            call compilation_handle_exit(state, process_exit_status(process), msg)
             if (is_buffer_live(old)) call set_buffer(old, st)
         end if
 
         if (allocated(compilation_in_progress)) then
             compilation_in_progress = pack(compilation_in_progress, &
-                                           [(.not. same(compilation_in_progress(k), proc), &
+                                           [(.not. same(compilation_in_progress(k), process), &
                                              k=1, size(compilation_in_progress))])
         end if
 
         ! Since the buffer and mode line will show that the process is dead,
         ! we can delete it now.
-        call delete_process(proc, st)
+        call delete_process(process, st)
     end subroutine compilation_sentinel
 
     !> Write MSG in the current buffer and hack its `mode_line_process'.
@@ -4994,7 +4994,7 @@ contains
         opoint = point()
         ! Record where we put the message, so we can ignore it later on.
         call goto_char(omax)
-        call compilation_insert_annotation(NL//buffers(cur)%mode_name//" "//text)
+        call compilation_insert_annotation(NL//buffers(current)%mode_name//" "//text)
         if (is_bol() .and. point() > point_min()) call goto_char(point() - 1)
         k = entry_of(current_buffer())
         call system_clock(now, rate)
@@ -5035,7 +5035,7 @@ contains
             call update_mode_line_process(k)
         end if
 
-        call message(buffers(cur)%mode_name//" "//line)
+        call message(buffers(current)%mode_name//" "//line)
         if (opoint < omax) call goto_char(opoint)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
 
@@ -5048,27 +5048,27 @@ contains
         end function code_string
     end subroutine compilation_handle_exit
 
-    !> Kill the process made by the \[compile] or \[grep] commands.  Port of
+    !> Stop the process made by the \[compile] or \[grep] commands.  Port of
     !> compile.el:kill-compilation.
-    recursive subroutine kill_compilation(status)
+    recursive subroutine stop_compilation(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buffer, proc, old
+        type(handle_type) :: buffer, process, old
         type(status_type) :: st
 
         call compilation_find_buffer(buffer, status)
         if (.not. status%ok()) return
-        proc = get_buffer_process(buffer)
+        process = get_buffer_process(buffer)
 
-        if (proc%index /= 0) then
-            call interrupt_process(status, proc)
+        if (process%index /= 0) then
+            call interrupt_process(status, process)
         else
             old = current_buffer()
             call set_buffer(buffer, st)
-            call set_error(status, FM_GENERIC_ERROR, "The "//downcase_name(buffers(cur)%mode_name)// &
+            call set_error(status, FM_GENERIC_ERROR, "The "//downcase_name(buffers(current)%mode_name)// &
                            " process is not running")
             call set_buffer(old, st)
         end if
-    end subroutine kill_compilation
+    end subroutine stop_compilation
 
     ! ------------------------------------------------------------------
     ! Definitions
@@ -5125,7 +5125,7 @@ contains
         call keymap_set(compilation_mode_map, "C-c C-c", "compile_goto_error", st)
         call keymap_set(compilation_mode_map, "RET", "compile_goto_error", st)
         call keymap_set(compilation_mode_map, "C-o", "compilation_display_error", st)
-        call keymap_set(compilation_mode_map, "C-c C-k", "kill_compilation", st)
+        call keymap_set(compilation_mode_map, "C-c C-k", "stop_compilation", st)
         call keymap_set(compilation_mode_map, "M-n", "compilation_next_error", st)
         call keymap_set(compilation_mode_map, "M-p", "compilation_previous_error", st)
         call keymap_set(compilation_mode_map, "M-{", "compilation_previous_file", st)
@@ -5143,7 +5143,7 @@ contains
         call keymap_set(compilation_minor_mode_map, "C-c C-c", "compile_goto_error", st)
         call keymap_set(compilation_minor_mode_map, "RET", "compile_goto_error", st)
         call keymap_set(compilation_minor_mode_map, "C-o", "compilation_display_error", st)
-        call keymap_set(compilation_minor_mode_map, "C-c C-k", "kill_compilation", st)
+        call keymap_set(compilation_minor_mode_map, "C-c C-k", "stop_compilation", st)
         call keymap_set(compilation_minor_mode_map, "M-n", "compilation_next_error", st)
         call keymap_set(compilation_minor_mode_map, "M-p", "compilation_previous_error", st)
         call keymap_set(compilation_minor_mode_map, "M-{", "compilation_previous_file", st)
@@ -5163,7 +5163,7 @@ contains
         commands%compilation_mode%execute => compilation_mode
         commands%compile%execute => cmd_compile
         commands%recompile%execute => cmd_recompile
-        commands%kill_compilation%execute => kill_compilation
+        commands%stop_compilation%execute => stop_compilation
         commands%compile_goto_error%execute => compile_goto_error
         commands%compilation_next_error%execute => cmd_compilation_next_error
         commands%compilation_previous_error%execute => cmd_compilation_previous_error
@@ -5174,12 +5174,12 @@ contains
         commands%compilation_next_error_function%execute => cmd_compilation_next_error_function
         commands%compilation_minor_mode%execute => compilation_minor_mode
         commands%compilation_shell_minor_mode%execute => compilation_shell_minor_mode
-        call add_local_variables_killer(kill_compilation_locals)
-        call add_mode_line_modes_entry("compilation_in_progress", "[Compiling] ", is_compilation_in_progress)
+        call append_locals_clearer(clear_compilation_locals)
+        call append_mode_line_modes_entry("compilation_in_progress", "[Compiling] ", is_compilation_in_progress)
         call forward_setting(compilation_error_screen_columns)
         call forward_setting(compilation_first_column)
         if (.not. allocated(compile_command%value)) compile_command = default_compile_command()
-        if (.not. allocated(compilation_error_regexp_table)) call init_compilation_error_regexp_table()
+        if (.not. allocated(compilation_error_regexps)) call init_compilation_error_regexps()
         if (.not. allocated(compilation_error_regexp_names)) call init_compilation_error_regexp_names()
 
         if (.not. allocated(compilation_directory_matcher%regexp)) then
@@ -5188,9 +5188,9 @@ contains
             compilation_directory_matcher%leave = [1]
         end if
 
-        if (.not. allocated(compilation_transform_file_match_table)) then
-            allocate (compilation_transform_file_match_table(1))
-            compilation_transform_file_match_table(1)%regexp = "/bin/[a-z]*sh\'"
+        if (.not. allocated(compilation_transform_file_matches)) then
+            allocate (compilation_transform_file_matches(1))
+            compilation_transform_file_matches(1)%regexp = "/bin/[a-z]*sh\'"
         end if
 
         if (.not. allocated(compilation_message_face%value)) compilation_message_face = "underline"

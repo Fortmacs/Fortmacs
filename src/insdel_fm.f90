@@ -50,12 +50,12 @@ module insdel_fm
     use character_fm, only: char_string, multibyte_chars_in_text, string_char_and_length, str_to_multibyte, &
                             MAX_MULTIBYTE_LENGTH
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, BEG, BUF_BYTES_MAX, GAP_BYTES_DFL, &
+    use buffer_fm, only: buffers, current, BEGINNING, BUF_BYTES_MAX, GAP_BYTES_DFL, &
                          GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
                          buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, buf_next_char_len, &
                          current_buffer, set_buffer, set_buffer_if_live, is_buffer_live, set_buffer_internal
     use marker_fm, only: char_to_byte, byte_to_char, markers, clear_charpos_cache, copy_marker_at, &
-                         marker_position, free_marker, buf_charpos_to_bytepos
+                         marker_position, destroy_marker, buf_charpos_to_bytepos
     use undo_fm, only: record_insert, record_delete, record_first_change, undo_auto_undoable_change
     use intervals_fm, only: offset_intervals, graft_intervals_into_buffer, copy_intervals
     use textprop_fm, only: verify_interval_modification, report_interval_modification, inhibit_modification_hooks, &
@@ -126,7 +126,7 @@ module insdel_fm
     !> and at its end, and the change in length (insdel.c
     !> combine_after_change_list), and the buffer they were made in
     !> (combine_after_change_buffer).
-    integer(int64), allocatable :: combine_list(:, :)
+    integer(int64), allocatable :: combine_changes(:, :)
     integer :: combine_count = 0
     type(handle_type) :: combine_after_change_buffer
 
@@ -141,9 +141,9 @@ contains
     subroutine move_gap_both(charpos, bytepos)
         integer(int64), intent(in) :: charpos, bytepos
 
-        if (bytepos < buffers(cur)%text%gpt_byte) then
+        if (bytepos < buffers(current)%text%gpt_byte) then
             call gap_left(charpos, bytepos, .false.)
-        else if (bytepos > buffers(cur)%text%gpt_byte) then
+        else if (bytepos > buffers(current)%text%gpt_byte) then
             call gap_right(charpos, bytepos)
         end if
     end subroutine move_gap_both
@@ -155,14 +155,14 @@ contains
         logical, intent(in) :: newgap
         integer(int64) :: n
 
-        if (.not. newgap) call buf_compute_unchanged(buffers(cur), charpos, buffers(cur)%text%gpt)
+        if (.not. newgap) call buf_compute_unchanged(buffers(current), charpos, buffers(current)%text%gpt)
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             ! Bytes [bytepos, gpt_byte) move up to the end of the gap.
             n = t%gpt_byte - bytepos
 
             if (n > 0) then
-                t%beg(bytepos + t%gap_size:t%gpt_byte - 1 + t%gap_size) = t%beg(bytepos:t%gpt_byte - 1)
+                t%beginning(bytepos + t%gap_size:t%gpt_byte - 1 + t%gap_size) = t%beginning(bytepos:t%gpt_byte - 1)
             end if
 
             t%gpt_byte = bytepos
@@ -175,14 +175,14 @@ contains
         integer(int64), intent(in) :: charpos, bytepos
         integer(int64) :: n
 
-        call buf_compute_unchanged(buffers(cur), charpos, buffers(cur)%text%gpt)
+        call buf_compute_unchanged(buffers(current), charpos, buffers(current)%text%gpt)
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             ! Bytes [gpt_byte, bytepos) move down from after the gap.
             n = bytepos - t%gpt_byte
 
             if (n > 0) then
-                t%beg(t%gpt_byte:bytepos - 1) = t%beg(t%gpt_byte + t%gap_size:bytepos - 1 + t%gap_size)
+                t%beginning(t%gpt_byte:bytepos - 1) = t%beginning(t%gpt_byte + t%gap_size:bytepos - 1 + t%gap_size)
             end if
 
             t%gpt = charpos
@@ -199,7 +199,7 @@ contains
 
         if (nbytes_added >= 0) then
             ! Grow by at least 1/64 of the buffer to avoid O(N^2) growth.
-            call make_gap_larger(max(nbytes_added, (buffers(cur)%text%z - BEG)/64), status)
+            call make_gap_larger(max(nbytes_added, (buffers(current)%text%z - BEGINNING)/64), status)
         else
             call make_gap_smaller(-nbytes_added, status)
         end if
@@ -216,8 +216,8 @@ contains
         character(len=:), allocatable :: grown
         integer :: astat
 
-        associate (t => buffers(cur)%text)
-            current_size = t%z_byte - BEG + t%gap_size
+        associate (t => buffers(current)%text)
+            current_size = t%z_byte - BEGINNING + t%gap_size
 
             if (BUF_BYTES_MAX - current_size < nbytes_requested) then
                 call set_error(status, FM_GENERIC_ERROR, "Maximum buffer size exceeded")
@@ -235,14 +235,14 @@ contains
 
             new_gap = t%gap_size + nbytes_added
             after = t%z_byte - t%gpt_byte
-            if (t%gpt_byte > 1) grown(1:t%gpt_byte - 1) = t%beg(1:t%gpt_byte - 1)
+            if (t%gpt_byte > 1) grown(1:t%gpt_byte - 1) = t%beginning(1:t%gpt_byte - 1)
 
             if (after > 0) then
                 grown(t%gpt_byte + new_gap:t%gpt_byte + new_gap + after - 1) = &
-                    t%beg(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
+                    t%beginning(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
             end if
 
-            call move_alloc(grown, t%beg)
+            call move_alloc(grown, t%beginning)
             t%gap_size = new_gap
         end associate
     end subroutine make_gap_larger
@@ -255,12 +255,12 @@ contains
         character(len=:), allocatable :: shrunk
         integer :: astat
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             nbytes_removed = nbytes_requested
             if (t%gap_size - nbytes_removed < GAP_BYTES_MIN) nbytes_removed = t%gap_size - GAP_BYTES_MIN
             if (nbytes_removed <= 0) return
             new_gap = t%gap_size - nbytes_removed
-            allocate (character(len=len(t%beg, kind=int64) - nbytes_removed) :: shrunk, stat=astat)
+            allocate (character(len=len(t%beginning, kind=int64) - nbytes_removed) :: shrunk, stat=astat)
 
             if (astat /= 0) then
                 call set_error(status, FM_MEMORY_FULL)
@@ -268,14 +268,14 @@ contains
             end if
 
             after = t%z_byte - t%gpt_byte
-            if (t%gpt_byte > 1) shrunk(1:t%gpt_byte - 1) = t%beg(1:t%gpt_byte - 1)
+            if (t%gpt_byte > 1) shrunk(1:t%gpt_byte - 1) = t%beginning(1:t%gpt_byte - 1)
 
             if (after > 0) then
                 shrunk(t%gpt_byte + new_gap:t%gpt_byte + new_gap + after - 1) = &
-                    t%beg(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
+                    t%beginning(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
             end if
 
-            call move_alloc(shrunk, t%beg)
+            call move_alloc(shrunk, t%beginning)
             t%gap_size = new_gap
         end associate
     end subroutine make_gap_smaller
@@ -316,7 +316,7 @@ contains
         call insert_1_both(string, nchars, len(string, kind=int64), .false., .true., &
                            before_markers, status)
         if (.not. status%ok()) return
-        opoint = buffers(cur)%pt - nchars
+        opoint = buffers(current)%pt - nchars
         call signal_after_change(opoint, 0_int64, nchars, status)
     end subroutine insert_text
 
@@ -324,18 +324,18 @@ contains
     recursive subroutine insert_char(c, status)
         integer(int32), intent(in) :: c
         type(status_type), intent(out) :: status
-        character(len=MAX_MULTIBYTE_LENGTH) :: str
+        character(len=MAX_MULTIBYTE_LENGTH) :: string
         integer(int32) :: n
 
-        if (buffers(cur)%multibyte) then
-            call char_string(c, str, n, status)
+        if (buffers(current)%multibyte) then
+            call char_string(c, string, n, status)
             if (.not. status%ok()) return
         else
             n = 1
-            str(1:1) = char(iand(c, 255_int32))
+            string(1:1) = char(iand(c, 255_int32))
         end if
 
-        call insert(str(1:n), status)
+        call insert(string(1:n), status)
     end subroutine insert_char
 
     !> Characters in `string' as the current buffer would count them.
@@ -345,7 +345,7 @@ contains
         integer(int64), intent(out) :: nchars
         type(status_type), intent(out) :: status
 
-        if (.not. buffers(cur)%multibyte) then
+        if (.not. buffers(current)%multibyte) then
             nchars = len(string, kind=int64)
         else
             call multibyte_chars_in_text(string, nchars, status)
@@ -367,31 +367,31 @@ contains
 
         if (nchars_in == 0) return
         nchars = nchars_in
-        if (.not. buffers(cur)%multibyte) nchars = nbytes
+        if (.not. buffers(current)%multibyte) nchars = nbytes
 
         if (prepare) then
             ! Do this before moving and increasing the gap, because the
             ! before-change hooks might move the gap or make it smaller.
-            pt = buffers(cur)%pt
+            pt = buffers(current)%pt
             call prepare_to_modify_buffer(pt, pt, status)
             if (.not. status%ok()) return
         end if
 
-        if (buffers(cur)%pt /= buffers(cur)%text%gpt) then
-            call move_gap_both(buffers(cur)%pt, buffers(cur)%pt_byte)
+        if (buffers(current)%pt /= buffers(current)%text%gpt) then
+            call move_gap_both(buffers(current)%pt, buffers(current)%pt_byte)
         end if
 
-        if (buffers(cur)%text%gap_size < nbytes) then
-            call make_gap(nbytes - buffers(cur)%text%gap_size, status)
+        if (buffers(current)%text%gap_size < nbytes) then
+            call make_gap(nbytes - buffers(current)%text%gap_size, status)
             if (.not. status%ok()) return
         end if
 
-        call record_insert(buffers(cur)%pt, nchars)
+        call record_insert(buffers(current)%pt, nchars)
 
-        associate (b => buffers(cur), t => buffers(cur)%text)
+        associate (b => buffers(current), t => buffers(current)%text)
             call modiff_incr(t%modiff, nchars)
             t%chars_modiff = t%modiff
-            t%beg(t%gpt_byte:t%gpt_byte + nbytes - 1) = string(1:nbytes)
+            t%beginning(t%gpt_byte:t%gpt_byte + nbytes - 1) = string(1:nbytes)
             t%gap_size = t%gap_size - nbytes
             t%gpt = t%gpt + nchars
             b%zv = b%zv + nchars
@@ -403,13 +403,13 @@ contains
             if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
         end associate
 
-        call adjust_markers_for_insert(buffers(cur)%pt, buffers(cur)%pt_byte, &
-                                       buffers(cur)%pt + nchars, buffers(cur)%pt_byte + nbytes, &
+        call adjust_markers_for_insert(buffers(current)%pt, buffers(current)%pt_byte, &
+                                       buffers(current)%pt + nchars, buffers(current)%pt_byte + nbytes, &
                                        before_markers)
         ! The inserted text gets an interval of its own: with no properties
         ! (upstream: offset_intervals, then set_text_properties to nil when
         ! not inheriting), or with those it inherits by stickiness.
-        call offset_intervals(buffers(cur)%text%intervals, buffers(cur)%pt, nchars, inherit)
+        call offset_intervals(buffers(current)%text%intervals, buffers(current)%pt, nchars, inherit)
         call adjust_point(nchars, nbytes)
     end subroutine insert_1_both
 
@@ -424,7 +424,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: oldb
 
-        oldb = cur
+        oldb = current
         call set_buffer_internal(b)
         call make_gap(nbytes, status)
         call set_buffer_internal(oldb)
@@ -495,7 +495,7 @@ contains
         if (.not. status%ok()) return
         call insert_1_both(string, nchars, len(string, kind=int64), .true., .true., before_markers, status)
         if (.not. status%ok()) return
-        opoint = buffers(cur)%pt - nchars
+        opoint = buffers(current)%pt - nchars
         call signal_after_change(opoint, 0_int64, nchars, status)
     end subroutine insert_inheriting
 
@@ -513,10 +513,10 @@ contains
 
         status = status_type()
         if (len(xstring(string)) == 0) return
-        opoint = buffers(cur)%pt
+        opoint = buffers(current)%pt
         call insert_from_string_1(string, pos, length, inherit, .false., status)
         if (.not. status%ok()) return
-        call signal_after_change(opoint, 0_int64, buffers(cur)%pt - opoint, status)
+        call signal_after_change(opoint, 0_int64, buffers(current)%pt - opoint, status)
     end subroutine insert_from_string
 
     !> Like `insert_from_string' except that all markers pointing at the
@@ -531,10 +531,10 @@ contains
 
         status = status_type()
         if (len(xstring(string)) == 0) return
-        opoint = buffers(cur)%pt
+        opoint = buffers(current)%pt
         call insert_from_string_1(string, pos, length, inherit, .true., status)
         if (.not. status%ok()) return
-        call signal_after_change(opoint, 0_int64, buffers(cur)%pt - opoint, status)
+        call signal_after_change(opoint, 0_int64, buffers(current)%pt - opoint, status)
     end subroutine insert_from_string_before_markers
 
     !> Subroutine of the insertion functions above: insert the characters
@@ -557,8 +557,8 @@ contains
         to_byte = string_char_to_byte(s, pos + nchars)
         ! Copy the string text, perhaps converting between single-byte and
         ! multibyte.
-        text = copy_text(s(from_byte:to_byte - 1), .true., buffers(cur)%multibyte)
-        at = buffers(cur)%pt
+        text = copy_text(s(from_byte:to_byte - 1), .true., buffers(current)%multibyte)
+        at = buffers(current)%pt
         call insert_1_both(text, nchars, len(text, kind=int64), inherit, .true., before_markers, status)
         if (.not. status%ok()) return
         ! Get the intervals for the part of the string we are inserting.
@@ -570,7 +570,7 @@ contains
         end do
 
         ! Insert those intervals.
-        call graft_intervals_into_buffer(buffers(cur)%text%intervals, buffers(cur)%text%z, starts, ends, plists, &
+        call graft_intervals_into_buffer(buffers(current)%text%intervals, buffers(current)%text%z, starts, ends, plists, &
                                          at, nchars, inherit)
     end subroutine insert_from_string_1
 
@@ -592,26 +592,26 @@ contains
         end do
     end function string_char_to_byte
 
-    !> Insert before point NCHARS characters of buffer slot BUF, starting
+    !> Insert before point NCHARS characters of buffer slot BUFFER, starting
     !> at character position CHARPOS, with their text properties (with
     !> INHERIT, added to those the text inherits).  Port of
     !> insdel.c:insert_from_buffer.
-    recursive subroutine insert_from_buffer(buf, charpos, nchars, inherit, status)
-        integer(int64), intent(in) :: buf, charpos, nchars
+    recursive subroutine insert_from_buffer(buffer, charpos, nchars, inherit, status)
+        integer(int64), intent(in) :: buffer, charpos, nchars
         logical, intent(in) :: inherit
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
 
-        opoint = buffers(cur)%pt
-        call insert_from_buffer_1(buf, charpos, nchars, inherit, status)
+        opoint = buffers(current)%pt
+        call insert_from_buffer_1(buffer, charpos, nchars, inherit, status)
         if (.not. status%ok()) return
-        call signal_after_change(opoint, 0_int64, buffers(cur)%pt - opoint, status)
+        call signal_after_change(opoint, 0_int64, buffers(current)%pt - opoint, status)
     end subroutine insert_from_buffer
 
     !> Subroutine of `insert_from_buffer'.  Port of
     !> insdel.c:insert_from_buffer_1.
-    recursive subroutine insert_from_buffer_1(buf, from, nchars, inherit, status)
-        integer(int64), intent(in) :: buf, from, nchars
+    recursive subroutine insert_from_buffer_1(buffer, from, nchars, inherit, status)
+        integer(int64), intent(in) :: buffer, from, nchars
         logical, intent(in) :: inherit
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
@@ -623,19 +623,19 @@ contains
         if (nchars == 0) return
         ! Do this before moving and increasing the gap, because the
         ! before-change hooks might move the gap or make it smaller.
-        at = buffers(cur)%pt
+        at = buffers(current)%pt
         call prepare_to_modify_buffer(at, at, status)
         if (.not. status%ok()) return
-        from_byte = buf_charpos_to_bytepos(buf, from)
-        to_byte = buf_charpos_to_bytepos(buf, from + nchars)
-        text = copy_text(buf_bytes(buffers(buf), from_byte, to_byte), buffers(buf)%multibyte, buffers(cur)%multibyte)
+        from_byte = buf_charpos_to_bytepos(buffer, from)
+        to_byte = buf_charpos_to_bytepos(buffer, from + nchars)
+        text = copy_text(buf_bytes(buffers(buffer), from_byte, to_byte), buffers(buffer)%multibyte, buffers(current)%multibyte)
         ! Get the intervals for the part of the text we are inserting.
-        call copy_intervals(buffers(buf)%text%intervals, from, nchars, starts, ends, plists)
-        at = buffers(cur)%pt
+        call copy_intervals(buffers(buffer)%text%intervals, from, nchars, starts, ends, plists)
+        at = buffers(current)%pt
         call insert_1_both(text, nchars, len(text, kind=int64), inherit, .false., .false., status)
         if (.not. status%ok()) return
         ! Insert those intervals.
-        call graft_intervals_into_buffer(buffers(cur)%text%intervals, buffers(cur)%text%z, starts, ends, plists, &
+        call graft_intervals_into_buffer(buffers(current)%text%intervals, buffers(current)%text%z, starts, ends, plists, &
                                          at, nchars, inherit)
     end subroutine insert_from_buffer_1
 
@@ -662,7 +662,7 @@ contains
 
         nchars = to - from
         nbytes = to_byte - from_byte
-        m = buffers(cur)%text%markers
+        m = buffers(current)%text%markers
 
         do while (m /= 0)
             associate (mk => markers(m))
@@ -690,7 +690,7 @@ contains
         integer(int64), intent(in) :: from, from_byte, to, to_byte
         integer(int64) :: m
 
-        m = buffers(cur)%text%markers
+        m = buffers(current)%text%markers
 
         do while (m /= 0)
             associate (mk => markers(m))
@@ -713,8 +713,8 @@ contains
     subroutine adjust_point(nchars, nbytes)
         integer(int64), intent(in) :: nchars, nbytes
 
-        buffers(cur)%pt = buffers(cur)%pt + nchars
-        buffers(cur)%pt_byte = buffers(cur)%pt_byte + nbytes
+        buffers(current)%pt = buffers(current)%pt + nchars
+        buffers(current)%pt_byte = buffers(current)%pt_byte + nbytes
     end subroutine adjust_point
 
     ! ------------------------------------------------------------------
@@ -740,8 +740,8 @@ contains
         character(len=:), allocatable, intent(out), optional :: deleted
         integer(int64) :: from, to, from_byte, to_byte, range_length
 
-        from = max(from_in, buffers(cur)%begv)
-        to = min(to_in, buffers(cur)%zv)
+        from = max(from_in, buffers(current)%begv)
+        to = min(to_in, buffers(current)%zv)
 
         if (to <= from) then
             if (present(deleted)) deleted = ""
@@ -752,7 +752,7 @@ contains
             range_length = to - from
             call prepare_preserving(from, to, status)
             if (.not. status%ok()) return
-            to = min(buffers(cur)%zv, from + range_length)
+            to = min(buffers(current)%zv, from + range_length)
         end if
 
         from_byte = char_to_byte(from)
@@ -767,8 +767,8 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: from, to, from_byte, to_byte
 
-        from_byte = max(from_byte_in, buffers(cur)%begv_byte)
-        to_byte = min(to_byte_in, buffers(cur)%zv_byte)
+        from_byte = max(from_byte_in, buffers(current)%begv_byte)
+        to_byte = min(to_byte_in, buffers(current)%zv_byte)
         if (to_byte <= from_byte) return
         from = byte_to_char(from_byte)
         to = byte_to_char(to_byte)
@@ -787,11 +787,11 @@ contains
         integer(int64) :: from, to, from_byte, to_byte
 
         status = status_type()
-        from_byte = max(from_byte_in, buffers(cur)%begv_byte)
-        to_byte = min(to_byte_in, buffers(cur)%zv_byte)
+        from_byte = max(from_byte_in, buffers(current)%begv_byte)
+        to_byte = min(to_byte_in, buffers(current)%zv_byte)
         if (to_byte <= from_byte) return
-        from = max(from_in, buffers(cur)%begv)
-        to = min(to_in, buffers(cur)%zv)
+        from = max(from_in, buffers(current)%begv)
+        to = min(to_in, buffers(current)%zv)
 
         if (prepare) then
             call prepare_for_deletion(from, from_byte, to, to_byte, status)
@@ -813,17 +813,17 @@ contains
         integer(int64) :: old_from, old_to, range_length
 
         old_from = from
-        old_to = buffers(cur)%text%z - to
+        old_to = buffers(current)%text%z - to
         range_length = to - from
         call prepare_preserving(from, to, status)
         if (.not. status%ok()) return
         to = from + range_length
         if (old_from /= from) from_byte = char_to_byte(from)
 
-        if (to > buffers(cur)%zv) then
-            to = buffers(cur)%zv
-            to_byte = buffers(cur)%zv_byte
-        else if (old_to == buffers(cur)%text%z - to) then
+        if (to > buffers(current)%zv) then
+            to = buffers(current)%zv
+            to_byte = buffers(current)%zv_byte
+        else if (old_to == buffers(current)%text%z - to) then
             to_byte = char_to_byte(to)
         end if
     end subroutine prepare_for_deletion
@@ -839,14 +839,14 @@ contains
         nchars_del = to - from
         nbytes_del = to_byte - from_byte
         ! Make sure the gap is somewhere in or next to what we are deleting.
-        if (from > buffers(cur)%text%gpt) call gap_right(from, from_byte)
-        if (to < buffers(cur)%text%gpt) call gap_left(to, to_byte, .false.)
-        if (present(deleted)) deleted = buf_bytes(buffers(cur), from_byte, to_byte)
-        if (buffers(cur)%undo_enabled) call record_delete(from, buf_bytes(buffers(cur), from_byte, to_byte), nchars_del)
+        if (from > buffers(current)%text%gpt) call gap_right(from, from_byte)
+        if (to < buffers(current)%text%gpt) call gap_left(to, to_byte, .false.)
+        if (present(deleted)) deleted = buf_bytes(buffers(current), from_byte, to_byte)
+        if (buffers(current)%undo_enabled) call record_delete(from, buf_bytes(buffers(current), from_byte, to_byte), nchars_del)
         ! Relocate all markers pointing into the new, larger gap.
         call adjust_markers_for_delete(from, from_byte, to, to_byte)
 
-        associate (b => buffers(cur), t => buffers(cur)%text)
+        associate (b => buffers(current), t => buffers(current)%text)
             call modiff_incr(t%modiff, nchars_del)
             t%chars_modiff = t%modiff
 
@@ -864,7 +864,7 @@ contains
             t%z_byte = t%z_byte - nbytes_del
             t%gpt = from
             t%gpt_byte = from_byte
-            if (t%gpt - BEG < t%beg_unchanged) t%beg_unchanged = t%gpt - BEG
+            if (t%gpt - BEGINNING < t%beginning_unchanged) t%beginning_unchanged = t%gpt - BEGINNING
             if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
         end associate
     end subroutine del_range_2
@@ -889,7 +889,7 @@ contains
         logical, intent(in), optional :: adjust_match_data
         integer(int64) :: from, to, from_byte, to_byte, nchars_del, nbytes_del, inschars, insbytes, range_length
         character(len=:), allocatable :: deletion
-        logical :: have_deletion
+        logical :: has_deletion
 
         status = status_type()
         from = from_in
@@ -906,20 +906,20 @@ contains
         end if
 
         ! Make args be valid.
-        from = max(from, buffers(cur)%begv)
-        to = min(to, buffers(cur)%zv)
+        from = max(from, buffers(current)%begv)
+        to = min(to, buffers(current)%zv)
         from_byte = char_to_byte(from)
         to_byte = char_to_byte(to)
         nchars_del = to - from
         nbytes_del = to_byte - from_byte
         if (nbytes_del <= 0 .and. inschars == 0) return
         ! Make sure the gap is somewhere in or next to what we are deleting.
-        if (from > buffers(cur)%text%gpt) call gap_right(from, from_byte)
-        if (to < buffers(cur)%text%gpt) call gap_left(to, to_byte, .false.)
-        have_deletion = buffers(cur)%undo_enabled
-        if (have_deletion) deletion = buf_bytes(buffers(cur), from_byte, to_byte)
+        if (from > buffers(current)%text%gpt) call gap_right(from, from_byte)
+        if (to < buffers(current)%text%gpt) call gap_left(to, to_byte, .false.)
+        has_deletion = buffers(current)%undo_enabled
+        if (has_deletion) deletion = buf_bytes(buffers(current), from_byte, to_byte)
 
-        associate (b => buffers(cur), t => buffers(cur)%text)
+        associate (b => buffers(current), t => buffers(current)%text)
             t%gap_size = t%gap_size + nbytes_del
             b%zv = b%zv - nchars_del
             t%z = t%z - nchars_del
@@ -927,30 +927,30 @@ contains
             t%z_byte = t%z_byte - nbytes_del
             t%gpt = from
             t%gpt_byte = from_byte
-            if (t%gpt - BEG < t%beg_unchanged) t%beg_unchanged = t%gpt - BEG
+            if (t%gpt - BEGINNING < t%beginning_unchanged) t%beginning_unchanged = t%gpt - BEGINNING
             if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
         end associate
 
-        if (buffers(cur)%text%gap_size < insbytes) then
-            call make_gap(insbytes - buffers(cur)%text%gap_size, status)
+        if (buffers(current)%text%gap_size < insbytes) then
+            call make_gap(insbytes - buffers(current)%text%gap_size, status)
             if (.not. status%ok()) return
         end if
 
         ! Copy the string text into the buffer.
-        associate (t => buffers(cur)%text)
-            if (insbytes > 0) t%beg(t%gpt_byte:t%gpt_byte + insbytes - 1) = new
+        associate (t => buffers(current)%text)
+            if (insbytes > 0) t%beginning(t%gpt_byte:t%gpt_byte + insbytes - 1) = new
         end associate
 
         ! Record the insertion first, so that when we undo, the deletion
         ! will be undone first.  Thus, undo will insert before deleting,
         ! and thus will keep the markers before and after this text
         ! separate.
-        if (have_deletion) then
+        if (has_deletion) then
             call record_insert(from + nchars_del, inschars)
             call record_delete(from, deletion, nchars_del)
         end if
 
-        associate (b => buffers(cur), t => buffers(cur)%text)
+        associate (b => buffers(current), t => buffers(current)%text)
             t%gap_size = t%gap_size - insbytes
             t%gpt = t%gpt + inschars
             b%zv = b%zv + inschars
@@ -962,17 +962,17 @@ contains
 
         ! Adjust markers for the deletion and the insertion.
         call adjust_markers_for_replace(from, from_byte, nchars_del, nbytes_del, inschars, insbytes)
-        call offset_intervals(buffers(cur)%text%intervals, from, inschars - nchars_del)
+        call offset_intervals(buffers(current)%text%intervals, from, inschars - nchars_del)
 
         ! Relocate point as if it were a marker (mimic insert when
         ! FROM == TO == PT).
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (from < b%pt .or. b%pt == to) then
                 call adjust_point(from + inschars - min(b%pt, to), from_byte + insbytes - min(b%pt_byte, to_byte))
             end if
         end associate
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             call modiff_incr(t%modiff, nchars_del + inschars)
             t%chars_modiff = t%modiff
         end associate
@@ -981,7 +981,7 @@ contains
             if (adjust_match_data) call update_search_regs(from, to, from + inschars)
         end if
 
-        if (run_mod_hooks) call signal_after_change(from, nchars_del, buffers(cur)%text%gpt - from, status)
+        if (run_mod_hooks) call signal_after_change(from, nchars_del, buffers(current)%text%gpt - from, status)
     end subroutine replace_range
 
     !> Replace the text from character positions FROM to TO with the
@@ -1005,10 +1005,10 @@ contains
         insbytes = len(ins, kind=int64)
         if (nbytes_del <= 0 .and. insbytes == 0) return
         ! Make sure the gap is somewhere in or next to what we are deleting.
-        if (from > buffers(cur)%text%gpt) call gap_right(from, from_byte)
-        if (to < buffers(cur)%text%gpt) call gap_left(to, to_byte, .false.)
+        if (from > buffers(current)%text%gpt) call gap_right(from, from_byte)
+        if (to < buffers(current)%text%gpt) call gap_left(to, to_byte, .false.)
 
-        associate (b => buffers(cur), t => buffers(cur)%text)
+        associate (b => buffers(current), t => buffers(current)%text)
             t%gap_size = t%gap_size + nbytes_del
             b%zv = b%zv - nchars_del
             t%z = t%z - nchars_del
@@ -1016,18 +1016,18 @@ contains
             t%z_byte = t%z_byte - nbytes_del
             t%gpt = from
             t%gpt_byte = from_byte
-            if (t%gpt - BEG < t%beg_unchanged) t%beg_unchanged = t%gpt - BEG
+            if (t%gpt - BEGINNING < t%beginning_unchanged) t%beginning_unchanged = t%gpt - BEGINNING
             if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
         end associate
 
-        if (buffers(cur)%text%gap_size < insbytes) then
-            call make_gap(insbytes - buffers(cur)%text%gap_size, status)
+        if (buffers(current)%text%gap_size < insbytes) then
+            call make_gap(insbytes - buffers(current)%text%gap_size, status)
             if (.not. status%ok()) return
         end if
 
         ! Copy the replacement text into the buffer.
-        associate (b => buffers(cur), t => buffers(cur)%text)
-            if (insbytes > 0) t%beg(t%gpt_byte:t%gpt_byte + insbytes - 1) = ins
+        associate (b => buffers(current), t => buffers(current)%text)
+            if (insbytes > 0) t%beginning(t%gpt_byte:t%gpt_byte + insbytes - 1) = ins
             t%gap_size = t%gap_size - insbytes
             t%gpt = t%gpt + inschars
             b%zv = b%zv + inschars
@@ -1048,10 +1048,10 @@ contains
             end if
         end if
 
-        call offset_intervals(buffers(cur)%text%intervals, from, inschars - nchars_del)
+        call offset_intervals(buffers(current)%text%intervals, from, inschars - nchars_del)
 
         ! Relocate point as if it were a marker.
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (from < b%pt .and. (nchars_del /= inschars .or. nbytes_del /= insbytes)) then
                 if (b%pt < to) then
                     ! PT was within the deleted text.  Move it to FROM.
@@ -1062,7 +1062,7 @@ contains
             end if
         end associate
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             call modiff_incr(t%modiff, nchars_del + inschars)
             t%chars_modiff = t%modiff
         end associate
@@ -1076,7 +1076,7 @@ contains
         integer(int64), intent(in) :: from, from_byte
         integer(int64) :: m, pos, pos_byte
 
-        m = buffers(cur)%text%markers
+        m = buffers(current)%text%markers
 
         do while (m /= 0)
             associate (mk => markers(m))
@@ -1084,8 +1084,8 @@ contains
                     pos = from
                     pos_byte = from_byte
 
-                    do while (pos < mk%charpos .and. pos_byte < buffers(cur)%text%z_byte)
-                        pos_byte = pos_byte + buf_next_char_len(buffers(cur), pos_byte)
+                    do while (pos < mk%charpos .and. pos_byte < buffers(current)%text%z_byte)
+                        pos_byte = pos_byte + buf_next_char_len(buffers(current), pos_byte)
                         pos = pos + 1
                     end do
 
@@ -1097,7 +1097,7 @@ contains
         end do
 
         ! Make sure cached charpos/bytepos is invalid.
-        call clear_charpos_cache(cur)
+        call clear_charpos_cache(current)
     end subroutine adjust_markers_bytepos
 
     !> Relocate markers for replacing OLD_CHARS characters at FROM with
@@ -1117,7 +1117,7 @@ contains
         prev_to_byte = from_byte + old_bytes
         diff_chars = new_chars - old_chars
         diff_bytes = new_bytes - old_bytes
-        m = buffers(cur)%text%markers
+        m = buffers(current)%text%markers
 
         do while (m /= 0)
             associate (mk => markers(m))
@@ -1151,10 +1151,10 @@ contains
 
         call prepare_to_modify_buffer(start, end, status)
         if (.not. status%ok()) return
-        call buf_compute_unchanged(buffers(cur), start - 1, end)
-        if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
+        call buf_compute_unchanged(buffers(current), start - 1, end)
+        if (buffers(current)%text%modiff <= buffers(current)%text%save_modiff) call record_first_change()
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             call modiff_incr(t%modiff, end - start)
             t%chars_modiff = t%modiff
         end associate
@@ -1163,7 +1163,7 @@ contains
     !> Execute `undo_auto__undoable_change' unless the current buffer keeps no
     !> undo information.  Port of insdel.c:run_undoable_change.
     subroutine execute_undoable_change()
-        if (.not. buffers(cur)%undo_enabled) return
+        if (.not. buffers(current)%undo_enabled) return
         call undo_auto_undoable_change()
     end subroutine execute_undoable_change
 
@@ -1186,14 +1186,14 @@ contains
         call barf_if_buffer_read_only(status, start)
         if (.not. status%ok()) return
         call execute_undoable_change()
-        buffers(cur)%text%redisplay = .true.
+        buffers(current)%text%redisplay = .true.
 
-        if (buffers(cur)%text%intervals%n > 0) then
+        if (buffers(current)%text%intervals%n > 0) then
             if (present(preserve)) then
                 call copy_marker_at(preserve, preserve_marker, .false., st)
                 call verify_interval_modification(start, end, status)
                 call marker_position(preserve_marker, preserve, st)
-                call free_marker(preserve_marker, st)
+                call destroy_marker(preserve_marker, st)
             else
                 call verify_interval_modification(start, end, status)
             end if
@@ -1249,17 +1249,17 @@ contains
         type(handle_type) :: start_marker, end_marker, preserve_marker
         type(status_type) :: st
         integer(int64) :: s, e
-        logical :: have_start_end, have_preserve, saved_inhibit
+        logical :: has_start_end, has_preserve, saved_inhibit
 
         status = status_type()
-        have_start_end = .false.
-        have_preserve = .false.
+        has_start_end = .false.
+        has_preserve = .false.
         saved_inhibit = inhibit_modification_hooks%value
         inhibit_modification_hooks%value = .true.
 
         ! If buffer is unmodified, run a special hook for that case.  The
         ! check for an empty hook is just a minor optimization.
-        if (buffers(cur)%text%save_modiff >= buffers(cur)%text%modiff) then
+        if (buffers(current)%text%save_modiff >= buffers(current)%text%modiff) then
             if (.not. first_change_hook%empty()) then
                 call preserve_value()
                 call preserve_start_end()
@@ -1275,7 +1275,7 @@ contains
                 s = start_int
                 e = end_int
 
-                if (have_start_end) then
+                if (has_start_end) then
                     call marker_position(start_marker, s, st)
                     call marker_position(end_marker, e, st)
                 end if
@@ -1291,7 +1291,7 @@ contains
             s = start_int
             e = end_int
 
-            if (have_start_end) then
+            if (has_start_end) then
                 call marker_position(start_marker, s, st)
                 call marker_position(end_marker, e, st)
             end if
@@ -1299,14 +1299,14 @@ contains
             call report_overlay_modification(s, e, .false., s, e, status)
         end if
 
-        if (have_start_end) then
-            call free_marker(start_marker, st)
-            call free_marker(end_marker, st)
+        if (has_start_end) then
+            call destroy_marker(start_marker, st)
+            call destroy_marker(end_marker, st)
         end if
 
-        if (have_preserve) then
+        if (has_preserve) then
             if (status%ok()) call marker_position(preserve_marker, preserve, st)
-            call free_marker(preserve_marker, st)
+            call destroy_marker(preserve_marker, st)
         end if
 
         inhibit_modification_hooks%value = saved_inhibit
@@ -1315,17 +1315,17 @@ contains
 
         !> PRESERVE_VALUE.
         subroutine preserve_value()
-            if (.not. present(preserve) .or. have_preserve) return
+            if (.not. present(preserve) .or. has_preserve) return
             call copy_marker_at(preserve, preserve_marker, .false., st)
-            have_preserve = .true.
+            has_preserve = .true.
         end subroutine preserve_value
 
         !> PRESERVE_START_END.
         subroutine preserve_start_end()
-            if (have_start_end) return
+            if (has_start_end) return
             call copy_marker_at(start_int, start_marker, .false., st)
             call copy_marker_at(end_int, end_marker, .false., st)
-            have_start_end = .true.
+            has_start_end = .true.
         end subroutine preserve_start_end
     end subroutine signal_before_change
 
@@ -1361,7 +1361,7 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call combine_record(charpos - BEG, buffers(cur)%text%z - (charpos - lendel + lenins), lenins - lendel)
+            call combine_record(charpos - BEGINNING, buffers(current)%text%z - (charpos - lendel + lenins), lenins - lendel)
             combine_after_change_buffer = current_buffer()
             return
         end if
@@ -1413,22 +1413,22 @@ contains
         same_buffer = c%index == h%index .and. c%generation == h%generation
     end function same_buffer
 
-    !> Push the change (BEG, END, CHANGE) on combine_after_change_list.
+    !> Push the change (BEGINNING, END, CHANGE) on combine_after_change_list.
     !> Not a port.
-    subroutine combine_record(beg, end, change)
-        integer(int64), intent(in) :: beg, end, change
+    subroutine combine_record(beginning, end, change)
+        integer(int64), intent(in) :: beginning, end, change
         integer(int64), allocatable :: grown(:, :)
 
-        if (.not. allocated(combine_list)) allocate (combine_list(3, 16))
+        if (.not. allocated(combine_changes)) allocate (combine_changes(3, 16))
 
-        if (combine_count == size(combine_list, 2)) then
+        if (combine_count == size(combine_changes, 2)) then
             allocate (grown(3, 2*combine_count))
-            grown(:, 1:combine_count) = combine_list(:, 1:combine_count)
-            call move_alloc(grown, combine_list)
+            grown(:, 1:combine_count) = combine_changes(:, 1:combine_count)
+            call move_alloc(grown, combine_changes)
         end if
 
         combine_count = combine_count + 1
-        combine_list(:, combine_count) = [beg, end, change]
+        combine_changes(:, combine_count) = [beginning, end, change]
     end subroutine combine_record
 
     !> Set `combine_after_change_calls' back to VAL.  Port of
@@ -1465,24 +1465,24 @@ contains
         old = current_buffer()
         call set_buffer(combine_after_change_buffer, st)
         ! # chars unchanged at beginning of buffer.
-        nbeg = buffers(cur)%text%z - BEG
+        nbeg = buffers(current)%text%z - BEGINNING
         ! # chars unchanged at end of buffer.
         nend = nbeg
         ! Total amount of insertion (negative for deletion).
         change = 0
 
         ! Scan the various individual changes, accumulating the range info
-        ! in BEG, END and CHANGE.
+        ! in BEGINNING, END and CHANGE.
         do k = 1, combine_count
-            change = change + combine_list(3, k)
-            if (combine_list(1, k) < nbeg) nbeg = combine_list(1, k)
-            if (combine_list(2, k) < nend) nend = combine_list(2, k)
+            change = change + combine_changes(3, k)
+            if (combine_changes(1, k) < nbeg) nbeg = combine_changes(1, k)
+            if (combine_changes(2, k) < nend) nend = combine_changes(2, k)
         end do
 
         ! Get the current start and end positions of the range that was
         ! changed.
-        begpos = BEG + nbeg
-        endpos = buffers(cur)%text%z - nend
+        begpos = BEGINNING + nbeg
+        endpos = buffers(current)%text%z - nend
         ! We are about to handle these, so discard them.
         combine_count = 0
         ! Now run the after-change functions for real.

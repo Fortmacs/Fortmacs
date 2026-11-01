@@ -26,12 +26,12 @@ module test_view_fm
     use bindings_fm, only: init_bindings
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer, &
                          get_file_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, goto_char
     use keyboard_fm, only: discard_input, kbd_store_bytes, command_loop, last_message
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, write_region, make_directory_internal, &
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, write_region, create_directory_internal, &
                          is_file_directory
     use files_fm, only: delete_directory, view_read_only
     use simple_fm, only: line_number_at_pos
@@ -71,8 +71,8 @@ contains
 
     !> A buffer "lines" of 100 numbered lines, current and shown alone,
     !> with *scratch* shown before it.
-    subroutine setup(buf)
-        type(handle_type), intent(out) :: buf
+    subroutine setup(buffer)
+        type(handle_type), intent(out) :: buffer
         type(handle_type) :: scratch
         type(status_type) :: st
         character(len=12) :: line
@@ -82,11 +82,11 @@ contains
         call init_fileio()
         call discard_input()
         view_read_only = .false.
-        call get_buffer_create("*scratch*", scratch, st)
+        call get_or_make_buffer("*scratch*", scratch, st)
         call set_buffer(scratch, st)
         call show_alone()
-        call get_buffer_create("lines", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("lines", buffer, st)
+        call set_buffer(buffer, st)
         call erase_buffer(st)
 
         do k = 1, 100
@@ -96,17 +96,17 @@ contains
 
         call goto_char(point_min())
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call make_directory_internal(tdir(), st)
+        call create_directory_internal(tdir(), st)
     end subroutine setup
 
-    subroutine teardown(buf)
-        type(handle_type), intent(in) :: buf
+    subroutine teardown(buffer)
+        type(handle_type), intent(in) :: buffer
         type(handle_type) :: scratch
         type(status_type) :: st
 
         call discard_input()
-        if (is_buffer_live(buf)) call kill_buffer(buf, st)
-        call get_buffer_create("*scratch*", scratch, st)
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
+        call get_or_make_buffer("*scratch*", scratch, st)
         call set_buffer(scratch, st)
         call show_alone()
         view_read_only = .false.
@@ -124,38 +124,38 @@ contains
     !> `view_buffer' makes the buffer read-only; e exits, restoring it.
     subroutine test_enter_exit(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
-        call setup(buf)
+        call setup(buffer)
 
         body: block
-            call view_buffer(buf, st)
-            call check(error, st%ok() .and. view_mode_enabled() .and. buffers(cur)%read_only, format_error(st))
+            call view_buffer(buffer, st)
+            call check(error, st%ok() .and. view_mode_enabled() .and. buffers(current)%read_only, format_error(st))
             if (allocated(error)) exit body
             call keys("e")
-            call check(error,.not. view_mode_enabled() .and. .not. buffers(cur)%read_only, "e exits")
+            call check(error,.not. view_mode_enabled() .and. .not. buffers(current)%read_only, "e exits")
             if (allocated(error)) exit body
-            call view_buffer(buf, st)
+            call view_buffer(buffer, st)
             ! q leaves the window to its previous buffer.
             call keys("q")
-            call check(error, buffers(cur)%name, "*scratch*")
+            call check(error, buffers(current)%name, "*scratch*")
         end block body
 
-        call teardown(buf)
+        call teardown(buffer)
     end subroutine test_enter_exit
 
     !> SPC scrolls a page, 5g goes to line 5, = tells the line, > the end.
     subroutine test_scroll_goto(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: w
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
-        call setup(buf)
+        call setup(buffer)
 
         body: block
-            call view_buffer(buf, st)
+            call view_buffer(buffer, st)
             call keys(" ")
             w = selected_window()
             call check(error, window_start(windows(w%index)) > 1, "scrolled")
@@ -170,19 +170,19 @@ contains
             call check(error, point() == 1_int64, "beginning")
         end block body
 
-        call teardown(buf)
+        call teardown(buffer)
     end subroutine test_scroll_goto
 
     !> / searches a regexp; n repeats it; a failure says so.
     subroutine test_search(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
-        call setup(buf)
+        call setup(buffer)
 
         body: block
-            call view_buffer(buf, st)
+            call view_buffer(buffer, st)
             call keys("/line 4."//CR)
             call check(error, line_number_at_pos() == 40_int64, "line 40")
             if (allocated(error)) exit body
@@ -193,21 +193,21 @@ contains
             call check(error, last_message, "Can't find occurrence 1 of nothing")
         end block body
 
-        call teardown(buf)
+        call teardown(buffer)
     end subroutine test_search
 
     !> A file viewed with `view_file' is killed by q.
     subroutine test_view_file_quit(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, fbuf
+        type(handle_type) :: buffer, fbuf
         type(status_type) :: st
 
-        call setup(buf)
+        call setup(buffer)
 
         body: block
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call write_region(tdir()//"f.txt", .false., st)
-            call get_buffer_create("*scratch*", fbuf, st)
+            call get_or_make_buffer("*scratch*", fbuf, st)
             call set_buffer(fbuf, st)
             call show_alone()
             call view_file(tdir()//"f.txt", st)
@@ -215,64 +215,64 @@ contains
             call check(error, st%ok() .and. fbuf%index /= 0 .and. view_mode_enabled(), format_error(st))
             if (allocated(error)) exit body
             call keys("q")
-            call check(error,.not. is_buffer_live(fbuf) .and. buffers(cur)%name == "*scratch*", "killed")
+            call check(error,.not. is_buffer_live(fbuf) .and. buffers(current)%name == "*scratch*", "killed")
         end block body
 
-        call teardown(buf)
+        call teardown(buffer)
     end subroutine test_view_file_quit
 
     !> C-x C-r visits read-only, in View mode with `view_read_only'.
     subroutine test_find_file_read_only(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, fbuf
+        type(handle_type) :: buffer, fbuf
         type(status_type) :: st
 
-        call setup(buf)
+        call setup(buffer)
 
         body: block
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call write_region(tdir()//"g.txt", .false., st)
-            call get_buffer_create("*scratch*", fbuf, st)
+            call get_or_make_buffer("*scratch*", fbuf, st)
             call set_buffer(fbuf, st)
             call show_alone()
             call keys(achar(24)//achar(18)//tdir()//"g.txt"//CR)
-            call check(error, buffers(cur)%read_only .and. .not. view_mode_enabled(), "read-only")
+            call check(error, buffers(current)%read_only .and. .not. view_mode_enabled(), "read-only")
             if (allocated(error)) exit body
             fbuf = current_buffer()
-            call kill_buffer(fbuf, st)
+            call close_buffer(fbuf, st)
             view_read_only = .true.
             call keys(achar(24)//achar(18)//tdir()//"g.txt"//CR)
-            call check(error, buffers(cur)%read_only .and. view_mode_enabled(), "in View mode")
+            call check(error, buffers(current)%read_only .and. view_mode_enabled(), "in View mode")
             if (allocated(error)) exit body
             fbuf = current_buffer()
-            call kill_buffer(fbuf, st)
+            call close_buffer(fbuf, st)
         end block body
 
-        call teardown(buf)
+        call teardown(buffer)
     end subroutine test_find_file_read_only
 
     !> C-x C-q toggles read-only; leaving it leaves View mode.
     subroutine test_read_only_mode(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        call setup(buf)
+        call setup(buffer)
 
         body: block
             call show_alone()
             call keys(achar(24)//achar(17))
-            call check(error, buffers(cur)%read_only, "read-only")
+            call check(error, buffers(current)%read_only, "read-only")
             if (allocated(error)) exit body
             call check(error, last_message, "Read-Only mode enabled in current buffer")
             if (allocated(error)) exit body
             view_read_only = .true.
             call keys(achar(24)//achar(17)//achar(24)//achar(17))
-            call check(error, buffers(cur)%read_only .and. view_mode_enabled(), "View mode")
+            call check(error, buffers(current)%read_only .and. view_mode_enabled(), "View mode")
             if (allocated(error)) exit body
             call keys(achar(24)//achar(17))
-            call check(error,.not. buffers(cur)%read_only .and. .not. view_mode_enabled(), "editable")
+            call check(error,.not. buffers(current)%read_only .and. .not. view_mode_enabled(), "editable")
         end block body
 
-        call teardown(buf)
+        call teardown(buffer)
     end subroutine test_read_only_mode
 end module test_view_fm

@@ -30,7 +30,7 @@ module test_undo_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, &
                          is_buffer_modified, restore_buffer_modified, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, delete_region
@@ -68,9 +68,9 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create("*undo-test*", h, st)
-        call kill_buffer(h, st)
-        call get_buffer_create("*undo-test*", h, st)
+        call get_or_make_buffer("*undo-test*", h, st)
+        call close_buffer(h, st)
+        call get_or_make_buffer("*undo-test*", h, st)
         call set_buffer(h, st)
         last_command => null()
         this_command => null()
@@ -126,7 +126,7 @@ contains
         if (allocated(error)) return
         call undo_more(4_int64, st)
         call check(error, st%ok() .and. buffer_string() == "", buffer_string())
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_undo0
 
     !> Test basic redoing with `undo`.
@@ -160,7 +160,7 @@ contains
         last_command => null()
         call undo(prefix_arg_type(), st)
         call check(error, buffer_string(), before)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_undo2
 
     !> Test undoing marks buffer unmodified.
@@ -179,33 +179,33 @@ contains
         call undo(prefix_arg_type(), st)
         call is_buffer_modified(h, modified, st)
         call check(error,.not. modified, "unmodified")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_buffer_modified
 
     !> Test undoing marks buffer visiting file unmodified.
     subroutine test_file_modified(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
         character(len=:), allocatable :: file
         logical :: modified
 
         file = temporary_file_directory()//"fortmacs-undo-test"
-        call get_buffer_create(" *undo-file*", h, st)
+        call get_or_make_buffer(" *undo-file*", h, st)
         call set_buffer(h, st)
         call write_region(file, .false., st)
-        call find_file_noselect(file, buf, st)
-        call set_buffer(buf, st)
+        call find_file_noselect(file, buffer, st)
+        call set_buffer(buffer, st)
         call insert("1", st)
         call undo_boundary()
         call restore_buffer_modified(.false.)
         call insert("2", st)
         last_command => null()
         call undo(prefix_arg_type(), st)
-        call is_buffer_modified(buf, modified, st)
+        call is_buffer_modified(buffer, modified, st)
         call check(error,.not. modified, "unmodified")
-        call kill_buffer(buf, st)
-        call kill_buffer(h, st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
         call delete_file_internal(file, st)
     end subroutine test_file_modified
 
@@ -258,7 +258,7 @@ contains
         if (allocated(error)) return
         call exec([character(len=16) :: "backward_char", "undo_redo", "undo_redo"])
         call check(error, buffer_string(), "abcde")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_simple_undo
 
     !> Typing through the command loop, then undo: point comes back to where
@@ -280,7 +280,7 @@ contains
         call command_loop(st)
         call check(error, point(), 2_int64)
         if (.not. allocated(error)) call check(error, buffer_string(), "a"//achar(10)//"b"//achar(10)//achar(10))
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_point_in_wrong_place
 
     !> Consecutive self-inserts are undone together, at most
@@ -315,6 +315,6 @@ contains
         call kbd_store_bytes("abcdefghijklmnopqrstuvwxy"//achar(31))
         call command_loop(st)
         call check(error, buffer_string(), "abcdefghijklmnopqrstu")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_amalgamate
 end module test_undo_fm

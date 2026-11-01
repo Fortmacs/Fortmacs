@@ -25,7 +25,7 @@ module test_page_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, buffer_substring, widen, is_bob, &
                           region_beginning, region_end
@@ -60,12 +60,12 @@ contains
     !> A fresh buffer holding TEXT, point at its end (with-temp-buffer,
     !> insert).
     subroutine temp_buffer()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *page-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *page-test*", buffer, st)
+        call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
         call insert(TEXT, st)

@@ -27,11 +27,11 @@
 !> The buffer-local internal variables (the watch descriptor, the
 !> notification state, the lockout timer, `auto_revert_tail_pos') are
 !> kept per buffer in this module; the watch descriptor survives
-!> `kill_all_local_variables', as its permanent-local property makes it
+!> `clear_all_local_variables', as its permanent-local property makes it
 !> upstream.
 !>
 !> Deferred: remote files (`auto_revert_remote_files' has no effect),
-!> a predicate as `global_auto_revert_ignore_buffer', the :set functions
+!> a test as `global_auto_revert_ignore_buffer', the :set functions
 !> of `auto_revert_interval', `auto_revert_use_notify' and
 !> `auto_revert_avoid_polling' (Customize), `auto_revert_debug'
 !> messages, indirect buffers (there are none), `auto_revert_load_hook'
@@ -41,12 +41,12 @@ module autorevert_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle, has_handle
     use lisp_fm, only: value_type
-    use data_fm, only: logical_setting, forward_setting, add_local_variables_killer, set, symbol_value
+    use data_fm, only: logical_setting_type, forward_setting, append_locals_clearer, set, symbol_value
     use fns_fm, only: put
     use eval_fm, only: hook_type
     use commands_fm, only: commands
     use modes_fm, only: minor_modes
-    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, buffer_list, buffer_handle, set_buffer_internal, &
+    use buffer_fm, only: buffers, current, current_buffer, is_buffer_live, buffer_list, buffer_handle, set_buffer_internal, &
                          restore_buffer_modified
     use window_fm, only: windows, window_leaves, window_point, set_window_point, same_handle
     use frame_fm, only: selected_frame
@@ -54,13 +54,13 @@ module autorevert_fm
     use undo_fm, only: undo_boundary
     use search_fm, only: string_match
     use keyboard_fm, only: is_input_pending
-    use timer_fm, only: execute_with_timer, free_timer, is_timer, is_timer_active
+    use timer_fm, only: execute_with_timer, destroy_timer, is_timer, is_timer_active
     use xdisp_fm, only: message
     use fileio_fm, only: expand_file_name, is_file_readable, is_file_symlink, file_attributes, file_stat_type, &
                          file_name_nondirectory, insert_file_contents, set_visited_file_modtime, is_visited_file_modtime_current
-    use files_fm, only: revert_buffer, find_file_hook, kill_buffer_hook, after_set_visited_file_name_hook, &
+    use files_fm, only: revert_buffer, find_file_hook, close_buffer_hook, after_set_visited_file_name_hook, &
                         before_revert_hook, after_revert_hook, revert_buffer_in_progress, buffer_stale_function, &
-                        buffer_stale_proc, buffer_stale_default_function, buffer_auto_revert_by_notification, &
+                        buffer_stale_procedure, buffer_stale_default_function, buffer_auto_revert_by_notification, &
                         mounted_file_systems, BUFFER_STALE_NO, BUFFER_STALE_YES, BUFFER_STALE_FAST
     use subr_fm, only: after_change_major_mode_hook, read_y_or_n
     use filenotify_fm, only: file_notify_event_type, file_notify_add_watch, file_notify_rm_watch, &
@@ -76,7 +76,7 @@ module autorevert_fm
               auto_revert_buffer, auto_revert_handler, is_auto_revert_active, inhibit_auto_revert, &
               auto_revert_notify_rm_watch, auto_revert_notify_add_watch, auto_revert_notify_watch_descriptor, &
               is_auto_revert_notify_modified, auto_revert_tail_pos, is_auto_revert_timer_active, &
-              is_auto_revert_buffer_list
+              is_auto_revert_mode_buffers
 
     !> Time, in seconds, between Auto-Revert Mode file checks.
     !> The value may be an integer or floating point number.
@@ -180,9 +180,9 @@ module autorevert_fm
 
     !> When true, Global Auto-Revert Mode will not revert this buffer.
     !> Port of autorevert.el global-auto-revert-ignore-buffer (no
-    !> predicate function; buffer-local when set).
-    type(logical_setting), public :: global_auto_revert_ignore_buffer = &
-                                     logical_setting(name="global_auto_revert_ignore_buffer")
+    !> test function; buffer-local when set).
+    type(logical_setting_type), public :: global_auto_revert_ignore_buffer = &
+                                          logical_setting_type(name="global_auto_revert_ignore_buffer")
 
     !> If false remote files are not reverted in Auto Revert modes.
     !> Port of autorevert.el auto-revert-remote-files.
@@ -191,8 +191,8 @@ module autorevert_fm
     !> If true Auto-Revert Mode uses file notification functions.
     !> You should set this variable through Custom.  Port of
     !> autorevert.el auto-revert-use-notify.
-    type(logical_setting), public :: auto_revert_use_notify = &
-                                     logical_setting(name="auto_revert_use_notify", value=.true.)
+    type(logical_setting_type), public :: auto_revert_use_notify = &
+                                          logical_setting_type(name="auto_revert_use_notify", value=.true.)
 
     !> Regular expression of directories to be excluded from file notifications.
     !> Port of autorevert.el auto-revert-notify-exclude-dir-regexp.
@@ -236,7 +236,7 @@ module autorevert_fm
     !> The timer function `auto_revert_buffers' is responsible for purging
     !> the list of old buffers.  Port of autorevert.el
     !> auto-revert-buffer-list (newest first).
-    type(handle_type), allocatable :: auto_revert_buffer_list(:)
+    type(handle_type), allocatable :: auto_revert_mode_buffers(:)
 
     !> Buffers not checked when user input stopped execution.  Port of
     !> autorevert.el auto-revert-remaining-buffers.
@@ -290,11 +290,11 @@ module autorevert_fm
 
     abstract interface
         !> The BODY of `inhibit_auto_revert'.  Not a port.
-        recursive subroutine inhibit_body_proc(status)
+        recursive subroutine inhibit_body_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine inhibit_body_proc
+        end subroutine inhibit_body_procedure
     end interface
 
 contains
@@ -311,11 +311,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(cur)%serial) then
+            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if
@@ -331,7 +331,7 @@ contains
 
             locals(i) = local_type()
             locals(i)%set = .true.
-            locals(i)%serial = buffers(cur)%serial
+            locals(i)%serial = buffers(current)%serial
             k = i
             return
         end do
@@ -341,7 +341,7 @@ contains
         grown(1:n) = locals
         call move_alloc(grown, locals)
         locals(n + 1)%set = .true.
-        locals(n + 1)%serial = buffers(cur)%serial
+        locals(n + 1)%serial = buffers(current)%serial
         k = n + 1
     end function local_index
 
@@ -362,19 +362,19 @@ contains
 
     !> kill-all-local-variables: the variables that are not permanent.
     !> Not a port.
-    subroutine kill_autorevert_locals()
+    subroutine clear_autorevert_locals()
         integer :: k
 
         k = local_index(.false.)
         if (k == 0) return
         locals(k)%modified_p = .false.
         locals(k)%last_time = -huge(1.0_real64)
-        call free_timer(locals(k)%lockout_timer)
+        call destroy_timer(locals(k)%lockout_timer)
         locals(k)%lockout_timer = null_handle()
         locals(k)%global_mode = .false.
         locals(k)%tail_pos_local = .false.
         locals(k)%tail_pos = TAIL_POS_DEFAULT
-    end subroutine kill_autorevert_locals
+    end subroutine clear_autorevert_locals
 
     !> The file watch descriptor active for the current buffer, in DESC;
     !> false for none.  Port of autorevert.el
@@ -417,12 +417,12 @@ contains
         is_auto_revert_timer_active = is_timer(auto_revert_timer)
     end function is_auto_revert_timer_active
 
-    !> Whether BUFFER is in `auto_revert_buffer_list'.  Not a port.
-    logical function is_auto_revert_buffer_list(buffer)
+    !> Whether BUFFER is in `auto_revert_mode_buffers'.  Not a port.
+    logical function is_auto_revert_mode_buffers(buffer)
         type(handle_type), intent(in) :: buffer
 
-        is_auto_revert_buffer_list = has_handle(auto_revert_buffer_list, buffer)
-    end function is_auto_revert_buffer_list
+        is_auto_revert_mode_buffers = has_handle(auto_revert_mode_buffers, buffer)
+    end function is_auto_revert_mode_buffers
 
     !> The size of FILE (file-attribute-size of file-attributes); 0 if
     !> it can't be read.  Not a port.
@@ -469,7 +469,7 @@ contains
     end subroutine delq
 
     !> (push BUFFER LIST)  Not a port.
-    subroutine add_front(buffer, list)
+    subroutine prepend(buffer, list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), allocatable :: grown(:)
@@ -479,7 +479,7 @@ contains
         grown(1) = buffer
         grown(2:) = list
         call move_alloc(grown, list)
-    end subroutine add_front
+    end subroutine prepend
 
     !> (with-current-buffer BUFFER ...): make BUFFER current, keeping the
     !> current buffer in SAVED.  Not a port.
@@ -487,7 +487,7 @@ contains
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(out) :: saved
 
-        saved = cur
+        saved = current
         call set_buffer_internal(buffer%index)
     end subroutine enter_buffer
 
@@ -500,16 +500,16 @@ contains
         end if
     end subroutine leave_buffer
 
-    !> Remove BUFFER from `auto_revert_buffer_list'.
+    !> Remove BUFFER from `auto_revert_mode_buffers'.
     !> BUFFER defaults to `current_buffer'.  Port of
     !> autorevert.el:auto-revert-remove-current-buffer.
     subroutine auto_revert_remove_current_buffer(buffer)
         type(handle_type), intent(in), optional :: buffer
 
         if (present(buffer)) then
-            call delq(buffer, auto_revert_buffer_list)
+            call delq(buffer, auto_revert_mode_buffers)
         else
-            call delq(current_buffer(), auto_revert_buffer_list)
+            call delq(current_buffer(), auto_revert_mode_buffers)
         end if
     end subroutine auto_revert_remove_current_buffer
 
@@ -533,10 +533,10 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. allocated(buffers(cur)%filename)) return
+        if (.not. allocated(buffers(current)%filename)) return
         k = local_index(.true.)
         locals(k)%tail_pos_local = .true.
-        locals(k)%tail_pos = file_size(buffers(cur)%filename)
+        locals(k)%tail_pos = file_size(buffers(current)%filename)
     end subroutine auto_revert_find_file_function
 
     !> Toggle reverting buffer when the file changes (Auto-Revert Mode).
@@ -571,9 +571,9 @@ contains
         status = status_type()
 
         if (enable) then
-            if (.not. has_handle(auto_revert_buffer_list, current_buffer())) then
-                call add_front(current_buffer(), auto_revert_buffer_list)
-                call kill_buffer_hook%add(remove_current_buffer_hook, local=.true.)
+            if (.not. has_handle(auto_revert_mode_buffers, current_buffer())) then
+                call prepend(current_buffer(), auto_revert_mode_buffers)
+                call close_buffer_hook%append(remove_current_buffer_hook, local=.true.)
             end if
         else
             if (auto_revert_notify_watch_descriptor()) call auto_revert_notify_rm_watch()
@@ -592,7 +592,7 @@ contains
     !> Turn on Auto-Revert Mode.
     !>
     !> This function is designed to be added to hooks, for example:
-    !>   call c_mode_hook%add(turn_on_auto_revert_mode)
+    !>   call c_mode_hook%append(turn_on_auto_revert_mode)
     !> Port of autorevert.el:turn-on-auto-revert-mode.
     recursive subroutine turn_on_auto_revert_mode(status)
         type(status_type), intent(out) :: status
@@ -635,13 +635,13 @@ contains
         status = status_type()
         if (.not. enable) return
 
-        if (.not. allocated(buffers(cur)%filename)) then
+        if (.not. allocated(buffers(current)%filename)) then
             call minor_modes%auto_revert_tail_mode%disable(st)
             call set_error(status, FM_GENERIC_ERROR, "This buffer is not visiting a file")
             return
         end if
 
-        modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
+        modified = buffers(current)%text%save_modiff < buffers(current)%text%modiff
         proceed = .true.
 
         ! The library was loaded only after finding the file.
@@ -661,13 +661,13 @@ contains
             if (full) call auto_revert_buffer(current_buffer())
         end if
 
-        call before_save_tail_off_hook_add()
+        call before_save_tail_off_hook_append()
         ! Don't lose prior position.
         k = local_index(.true.)
 
         if (.not. locals(k)%tail_pos_local) then
             locals(k)%tail_pos_local = .true.
-            locals(k)%tail_pos = file_size(buffers(cur)%filename)
+            locals(k)%tail_pos = file_size(buffers(current)%filename)
         end if
 
         if (.not. minor_modes%auto_revert_mode%enabled()) then
@@ -682,13 +682,13 @@ contains
 
     !> Add to the current buffer's `before_save_hook' a procedure that turns `auto_revert_tail_mode' off.
     !> Not a port.
-    subroutine before_save_tail_off_hook_add()
+    subroutine before_save_tail_off_hook_append()
         use files_fm, only: before_save_hook
 
-        call before_save_hook%add(tail_mode_off, local=.true.)
-    end subroutine before_save_tail_off_hook_add
+        call before_save_hook%append(tail_mode_off, local=.true.)
+    end subroutine before_save_tail_off_hook_append
 
-    !> Turn `auto_revert_tail_mode' off (the procedure `before_save_tail_off_hook_add' adds).  Not a port.
+    !> Turn `auto_revert_tail_mode' off (the procedure `before_save_tail_off_hook_append' adds).  Not a port.
     recursive subroutine tail_mode_off(status)
         type(status_type), intent(out) :: status
 
@@ -698,7 +698,7 @@ contains
     !> Turn on Auto-Revert Tail Mode.
     !>
     !> This function is designed to be added to hooks, for example:
-    !>   call my_logfile_mode_hook%add(turn_on_auto_revert_tail_mode)
+    !>   call my_logfile_mode_hook%append(turn_on_auto_revert_tail_mode)
     !> Port of autorevert.el:turn-on-auto-revert-tail-mode.
     recursive subroutine turn_on_auto_revert_tail_mode(status)
         type(status_type), intent(out) :: status
@@ -752,8 +752,8 @@ contains
                 call leave_buffer(saved)
             end do
 
-            call find_file_hook%add(auto_revert_global_adopt_current_buffer)
-            call after_change_major_mode_hook%add(auto_revert_global_possibly_adopt_current_buffer)
+            call find_file_hook%append(auto_revert_global_adopt_current_buffer)
+            call after_change_major_mode_hook%append(auto_revert_global_possibly_adopt_current_buffer)
             call auto_revert_buffers(status)
         else
             call after_change_major_mode_hook%remove(auto_revert_global_possibly_adopt_current_buffer)
@@ -783,7 +783,7 @@ contains
     !> Set current buffer to be tracked by Global Auto-Revert if appropriate.
     !> Port of autorevert.el:auto-revert--global-add-current-buffer.
     subroutine auto_revert_global_add_current_buffer()
-        procedure(buffer_stale_proc), pointer :: fn
+        procedure(buffer_stale_procedure), pointer :: fn
         integer :: k
         logical :: eligible
 
@@ -793,18 +793,18 @@ contains
             if (locals(k)%global_mode) return
         end if
 
-        eligible = allocated(buffers(cur)%filename)
+        eligible = allocated(buffers(current)%filename)
 
         if (.not. eligible .and. global_auto_revert_non_file_buffers) then
             fn => buffer_stale_function%current()
-            eligible = buffers(cur)%name(1:min(1, len(buffers(cur)%name))) /= " " .and. associated(fn)
+            eligible = buffers(current)%name(1:min(1, len(buffers(current)%name))) /= " " .and. associated(fn)
             if (eligible) eligible = .not. associated(fn, buffer_stale_default_function)
         end if
 
         if (.not. eligible) return
 
-        if (allocated(global_auto_revert_ignore_modes) .and. allocated(buffers(cur)%major_mode)) then
-            if (any(global_auto_revert_ignore_modes == buffers(cur)%major_mode)) return
+        if (allocated(global_auto_revert_ignore_modes) .and. allocated(buffers(current)%major_mode)) then
+            if (any(global_auto_revert_ignore_modes == buffers(current)%major_mode)) return
         end if
 
         if (global_auto_revert_ignore_buffer%value) return
@@ -860,7 +860,7 @@ contains
         integer(int64) :: saved
         integer :: k
 
-        saved = cur
+        saved = current
         call set_buffer_internal(b)
         k = local_index(.false.)
         tracked = minor_modes%auto_revert_mode%enabled() .or. minor_modes%auto_revert_tail_mode%enabled()
@@ -885,8 +885,8 @@ contains
         if (minor_modes%global_auto_revert_mode%enabled()) then
             all = buffer_list()
         else
-            if (.not. allocated(auto_revert_buffer_list)) allocate (auto_revert_buffer_list(0))
-            all = auto_revert_buffer_list
+            if (.not. allocated(auto_revert_mode_buffers)) allocate (auto_revert_mode_buffers(0))
+            all = auto_revert_mode_buffers
 
             if (.not. auto_revert_avoid_polling) then
                 list = all
@@ -949,19 +949,19 @@ contains
             end do
         else
             need = .false.
-            if (.not. allocated(auto_revert_buffer_list)) return
-            if (size(auto_revert_buffer_list) == 0) return
+            if (.not. allocated(auto_revert_mode_buffers)) return
+            if (size(auto_revert_mode_buffers) == 0) return
             need = .true.
             if (.not. auto_revert_avoid_polling) return
             need = .false.
 
-            do i = 1, size(auto_revert_buffer_list)
-                if (.not. is_buffer_live(auto_revert_buffer_list(i))) then
+            do i = 1, size(auto_revert_mode_buffers)
+                if (.not. is_buffer_live(auto_revert_mode_buffers(i))) then
                     need = .true.
                     return
                 end if
 
-                call buffer_state(auto_revert_buffer_list(i)%index, tracked, has_desc)
+                call buffer_state(auto_revert_mode_buffers(i)%index, tracked, has_desc)
 
                 if (.not. has_desc) then
                     need = .true.
@@ -981,7 +981,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (is_timer(auto_revert_timer)) call free_timer(auto_revert_timer)
+        if (is_timer(auto_revert_timer)) call destroy_timer(auto_revert_timer)
         auto_revert_timer = null_handle()
 
         if (is_auto_revert_need_polling()) then
@@ -1021,7 +1021,7 @@ contains
             end if
 
             call file_notify_rm_watch(desc)
-            call kill_buffer_hook%remove(notify_rm_watch_hook, local=.true.)
+            call close_buffer_hook%remove(notify_rm_watch_hook, local=.true.)
         end if
 
         k = local_index(.false.)
@@ -1049,16 +1049,16 @@ contains
         integer :: k, n, flags
 
         if (auto_revert_notify_watch_descriptor()) return
-        call expand_file_name(buffers(cur)%directory, dir, st)
+        call expand_file_name(buffers(current)%directory, dir, st)
         if (.not. st%ok()) return
         if (string_match(auto_revert_notify_exclude_dir_regexp, dir, st, inhibit_modify=.true.) > 0) return
 
-        if (allocated(buffers(cur)%filename)) then
-            if (is_file_symlink(buffers(cur)%filename)) return
-            call expand_file_name(buffers(cur)%filename, file, st, buffers(cur)%directory)
+        if (allocated(buffers(current)%filename)) then
+            if (is_file_symlink(buffers(current)%filename)) return
+            call expand_file_name(buffers(current)%filename, file, st, buffers(current)%directory)
             flags = ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE)
         else
-            if (is_file_symlink(buffers(cur)%directory)) return
+            if (is_file_symlink(buffers(current)%directory)) return
             file = dir
             flags = FILE_NOTIFY_CHANGE
         end if
@@ -1083,7 +1083,7 @@ contains
         grown(1)%buffer = current_buffer()
         grown(2:) = buffer_by_watch_descriptor
         call move_alloc(grown, buffer_by_watch_descriptor)
-        call kill_buffer_hook%add(notify_rm_watch_hook, local=.true.)
+        call close_buffer_hook%append(notify_rm_watch_hook, local=.true.)
     end subroutine auto_revert_notify_add_watch
 
     !> Handle an EVENT returned from file notification.  Port of
@@ -1113,22 +1113,22 @@ contains
         call enter_buffer(buffer, saved)
 
         if (event%action == FILE_NOTIFY_STOPPED) then
-            relevant = .not. allocated(buffers(cur)%filename)
-            if (.not. relevant) relevant = file_name_nondirectory(event%file) == file_name_nondirectory(buffers(cur)%filename)
+            relevant = .not. allocated(buffers(current)%filename)
+            if (.not. relevant) relevant = file_name_nondirectory(event%file) == file_name_nondirectory(buffers(current)%filename)
 
             if (relevant) then
                 call auto_revert_notify_rm_watch()
                 if (.not. is_timer(auto_revert_timer)) call auto_revert_set_timer(st)
             end if
         else
-            if (allocated(buffers(cur)%filename)) then
+            if (allocated(buffers(current)%filename)) then
                 relevant = .false.
 
                 if (event%action == FILE_NOTIFY_ATTRIBUTE_CHANGED .or. event%action == FILE_NOTIFY_CHANGED .or. &
                     event%action == FILE_NOTIFY_CREATED) then
-                    relevant = file_name_nondirectory(event%file) == file_name_nondirectory(buffers(cur)%filename)
+                    relevant = file_name_nondirectory(event%file) == file_name_nondirectory(buffers(current)%filename)
                 else if (event%action == FILE_NOTIFY_RENAMED .and. allocated(event%file1)) then
-                    relevant = file_name_nondirectory(event%file1) == file_name_nondirectory(buffers(cur)%filename)
+                    relevant = file_name_nondirectory(event%file1) == file_name_nondirectory(buffers(current)%filename)
                 end if
             else
                 relevant = event%action == FILE_NOTIFY_CREATED .or. event%action == FILE_NOTIFY_RENAMED .or. &
@@ -1169,7 +1169,7 @@ contains
             if (.not. locals(k)%set) cycle
             if (.not. is_timer(locals(k)%lockout_timer)) cycle
             if (is_timer_active(locals(k)%lockout_timer)) cycle
-            call free_timer(locals(k)%lockout_timer)
+            call destroy_timer(locals(k)%lockout_timer)
             locals(k)%lockout_timer = null_handle()
             b = buffer_of_serial(locals(k)%serial)
             if (b == 0) cycle
@@ -1201,10 +1201,10 @@ contains
     !> Deactivate auto-reverting of current buffer temporarily.
     !> Run BODY.  Port of autorevert.el:inhibit-auto-revert.
     recursive subroutine inhibit_auto_revert(body, status)
-        procedure(inhibit_body_proc) :: body
+        procedure(inhibit_body_procedure) :: body
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: list(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         logical :: added
         integer :: k
 
@@ -1216,11 +1216,11 @@ contains
             end do
         end if
 
-        buf = current_buffer()
-        added = .not. has_handle(inhibit_auto_revert_buffers, buf)
-        if (added) call add_front(buf, inhibit_auto_revert_buffers)
+        buffer = current_buffer()
+        added = .not. has_handle(inhibit_auto_revert_buffers, buffer)
+        if (added) call prepend(buffer, inhibit_auto_revert_buffers)
         call body(status)
-        if (added) call delq(buf, inhibit_auto_revert_buffers)
+        if (added) call delq(buffer, inhibit_auto_revert_buffers)
     end subroutine inhibit_auto_revert
 
     !> Check if auto-revert is active in current buffer.  Port of
@@ -1242,7 +1242,7 @@ contains
     !> This is an internal function used by Auto-Revert Mode.  Port of
     !> autorevert.el:auto-revert-handler.
     recursive subroutine auto_revert_handler()
-        procedure(buffer_stale_proc), pointer :: fn
+        procedure(buffer_stale_procedure), pointer :: fn
         type(handle_type) :: buffer
         type(handle_type), allocatable :: wins(:), eoblist(:)
         type(status_type) :: st
@@ -1258,9 +1258,9 @@ contains
 
         if (.not. locals(k)%has_desc .or. locals(k)%modified_p) then
             if (.not. has_handle(inhibit_auto_revert_buffers, buffer)) then
-                if (allocated(buffers(cur)%filename) .and. tail) then
-                    if (is_file_readable(buffers(cur)%filename)) then
-                        fsize = file_size(buffers(cur)%filename)
+                if (allocated(buffers(current)%filename) .and. tail) then
+                    if (is_file_readable(buffers(current)%filename)) then
+                        fsize = file_size(buffers(current)%filename)
                         if (locals(k)%tail_pos /= fsize) revert = BUFFER_STALE_YES
                     end if
                 else if (minor_modes%auto_revert_mode%enabled() .or. locals(k)%global_mode) then
@@ -1272,12 +1272,12 @@ contains
             end if
         end if
 
-        if (is_timer(locals(k)%lockout_timer)) call free_timer(locals(k)%lockout_timer)
+        if (is_timer(locals(k)%lockout_timer)) call destroy_timer(locals(k)%lockout_timer)
         locals(k)%lockout_timer = null_handle()
 
         if (revert /= BUFFER_STALE_NO) then
             if (auto_revert_verbose .and. revert /= BUFFER_STALE_FAST) then
-                call message("Reverting buffer `"//buffers(cur)%name//"'")
+                call message("Reverting buffer `"//buffers(current)%name//"'")
             end if
 
             locals(k)%modified_p = .false.
@@ -1285,7 +1285,7 @@ contains
             eob = .false.
             n = 0
 
-            if (allocated(buffers(cur)%filename)) then
+            if (allocated(buffers(current)%filename)) then
                 eob = point() == point_max()
                 allocate (wins(0))
                 call window_leaves(selected_frame%root_window, wins)
@@ -1302,13 +1302,13 @@ contains
             if (tail) then
                 call auto_revert_tail_handler(fsize)
             else
-                saved_read_only = buffers(cur)%read_only
+                saved_read_only = buffers(current)%read_only
                 ! ignore-errors
                 call revert_buffer(st, ignore_auto=.true., noconfirm=.true., preserve_modes=.true.)
-                buffers(cur)%read_only = saved_read_only
+                buffers(current)%read_only = saved_read_only
             end if
 
-            if (allocated(buffers(cur)%filename)) then
+            if (allocated(buffers(current)%filename)) then
                 if (eob) call goto_char(point_max())
 
                 do i = 1, n
@@ -1362,11 +1362,11 @@ contains
         integer :: k
 
         k = local_index(.true.)
-        modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
+        modified = buffers(current)%text%save_modiff < buffers(current)%text%modiff
         call symbol_value(value_type(name="inhibit_read_only"), saved_inhibit, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! Ignore that file has changed.
-        call move_alloc(buffers(cur)%filename, file)
+        call move_alloc(buffers(current)%filename, file)
 
         if (locals(k)%tail_pos /= fsize) then
             call before_revert_hook%execute(st)
@@ -1375,12 +1375,12 @@ contains
             opoint = point()
             obegv = point_min()
             ozv = point_max()
-            narrowed = obegv /= 1 .or. ozv /= buffers(cur)%text%z
+            narrowed = obegv /= 1 .or. ozv /= buffers(current)%text%z
             call widen()
             call goto_char(point_max())
 
             if (locals(k)%tail_pos < fsize) then
-                call insert_file_contents(file, .false., inserted, st, beg_byte=locals(k)%tail_pos, end_byte=fsize)
+                call insert_file_contents(file, .false., inserted, st, beginning_byte=locals(k)%tail_pos, end_byte=fsize)
             else
                 call insert_file_contents(file, .false., inserted, st, end_byte=fsize)
             end if
@@ -1395,14 +1395,14 @@ contains
             call restore_buffer_modified(modified)
         end if
 
-        call move_alloc(file, buffers(cur)%filename)
+        call move_alloc(file, buffers(current)%filename)
         call set(value_type(name="inhibit_read_only"), saved_inhibit, st)
         call set_visited_file_modtime()
     end subroutine auto_revert_tail_handler
 
     !> Return a prioritized list of buffers to maybe auto-revert.
     !> The differences between this return value and the reference
-    !> variable `auto_revert_buffer_list' include: 1) this has more
+    !> variable `auto_revert_mode_buffers' include: 1) this has more
     !> entries when in `global_auto_revert_mode'; 2) this prioritizes
     !> buffers not reverted last time due to user interruption.  Port of
     !> autorevert.el:auto-revert--buffer-candidates.
@@ -1426,12 +1426,12 @@ contains
 
         if (allocated(auto_revert_remaining_buffers)) then
             do i = 1, size(auto_revert_remaining_buffers)
-                if (has_handle(bufs, auto_revert_remaining_buffers(i))) call add_front(auto_revert_remaining_buffers(i), remaining)
+                if (has_handle(bufs, auto_revert_remaining_buffers(i))) call prepend(auto_revert_remaining_buffers(i), remaining)
             end do
         end if
 
         do i = 1, size(bufs)
-            if (.not. has_handle(remaining, bufs(i))) call add_front(bufs(i), new)
+            if (.not. has_handle(remaining, bufs(i))) call prepend(bufs(i), new)
         end do
 
         ! (nreverse (nconc new remaining))
@@ -1445,22 +1445,22 @@ contains
         end if
     end subroutine auto_revert_buffer_candidates
 
-    !> Revert a single buffer BUF.
+    !> Revert a single buffer BUFFER.
     !>
     !> This is performed as specified by Auto-Revert and Global
     !> Auto-Revert Modes.  Port of autorevert.el:auto-revert-buffer.
-    recursive subroutine auto_revert_buffer(buf)
-        type(handle_type), intent(in) :: buf
+    recursive subroutine auto_revert_buffer(buffer)
+        type(handle_type), intent(in) :: buffer
         logical :: saved_in_progress, use_notify
         integer(int64) :: saved
 
         saved_in_progress = auto_revert_buffer_in_progress
         auto_revert_buffer_in_progress = .true.
 
-        if (.not. is_buffer_live(buf)) then
-            call auto_revert_remove_current_buffer(buf)
+        if (.not. is_buffer_live(buffer)) then
+            call auto_revert_remove_current_buffer(buffer)
         else
-            call enter_buffer(buf, saved)
+            call enter_buffer(buffer, saved)
 
             if (.not. minor_modes%auto_revert_mode%enabled() .and. .not. minor_modes%auto_revert_tail_mode%enabled()) then
                 call auto_revert_remove_current_buffer()
@@ -1468,7 +1468,7 @@ contains
 
             if (is_auto_revert_active()) then
                 use_notify = auto_revert_use_notify%value .and. .not. auto_revert_notify_watch_descriptor()
-                if (use_notify) use_notify = allocated(buffers(cur)%filename) .or. &
+                if (use_notify) use_notify = allocated(buffers(current)%filename) .or. &
                                              buffer_auto_revert_by_notification%value
                 if (use_notify) call auto_revert_notify_add_watch()
                 call auto_revert_handler()
@@ -1500,7 +1500,7 @@ contains
     !> are checked first the next time this function is called.
     !>
     !> This function is also responsible for removing buffers no longer in
-    !> Auto-Revert Mode from `auto_revert_buffer_list', and for canceling
+    !> Auto-Revert Mode from `auto_revert_mode_buffers', and for canceling
     !> the timer when no buffers need to be checked.  Port of
     !> autorevert.el:auto-revert-buffers.
     recursive subroutine auto_revert_buffers(status)
@@ -1524,7 +1524,7 @@ contains
         auto_revert_remaining_buffers = bufs(i:)
 
         if (.not. is_auto_revert_need_polling()) then
-            if (is_timer(auto_revert_timer)) call free_timer(auto_revert_timer)
+            if (is_timer(auto_revert_timer)) call destroy_timer(auto_revert_timer)
             auto_revert_timer = null_handle()
         end if
     end subroutine auto_revert_buffers
@@ -1567,9 +1567,9 @@ contains
         ! auto-revert-tail-mode.
         call put(value_type(name="auto_revert_mode"), value_type(name="permanent_local"), value_type(.true.), st)
         call put(value_type(name="auto_revert_tail_mode"), value_type(name="permanent_local"), value_type(.true.), st)
-        call add_local_variables_killer(kill_autorevert_locals)
-        call find_file_hook%add(auto_revert_find_file_function)
-        call after_set_visited_file_name_hook%add(auto_revert_set_visited_file_name)
+        call append_locals_clearer(clear_autorevert_locals)
+        call find_file_hook%append(auto_revert_find_file_function)
+        call after_set_visited_file_name_hook%append(auto_revert_set_visited_file_name)
         commands%auto_revert_mode%execute => auto_revert_mode
         commands%auto_revert_tail_mode%execute => auto_revert_tail_mode
         commands%global_auto_revert_mode%execute => global_auto_revert_mode

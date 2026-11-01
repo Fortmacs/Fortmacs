@@ -32,20 +32,20 @@ module crm_fm
     use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use editfns_fm, only: point, goto_char, point_max, is_eob, buffer_string
     use search_fm, only: re_search_forward, re_search_backward, looking_at, match_beginning, match_end, string_match, &
                          string_index_to_offset, string_chars
-    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, use_local_map, is_keymap_live, free_keymap
+    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, use_local_map, is_keymap_live, destroy_keymap
     use lisp_fm, only: list_elements, value_type, make_list, list, xstring
     use commands_fm, only: commands
-    use minibuf_fm, only: minibuffer_prompt_end, minibuffer_setup_function, minibuffer_setup_proc, minibuf_level
-    use minibuf_table_fm, only: completion_table_type, completion_predicate, TABLE_FUNCTION
+    use minibuf_fm, only: minibuffer_prompt_end, minibuffer_setup_function, minibuffer_setup_procedure, minibuf_level
+    use minibuf_table_fm, only: completion_table_type, completion_test_procedure, TABLE_FUNCTION
     use minibuffer_fm, only: completing_read, completion_table_with_context, completion_in_region, &
                              minibuffer_completion_help, completion_complete_and_exit, completion_do_completion, &
-                             minibuffer_completion_table, minibuffer_completion_predicate, exit_minibuffer, &
+                             minibuffer_completion_table, minibuffer_completion_test_function, exit_minibuffer, &
                              minibuffer_local_completion_map, minibuffer_local_must_match_map, REQUIRE_MATCH_NO
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     implicit none(type, external)
     private
 
@@ -90,7 +90,7 @@ module crm_fm
     ! The keymap `completing_read_multiple' uses, and the setup function
     ! it runs inside.
     type(handle_type) :: crm_map
-    procedure(minibuffer_setup_proc), pointer :: crm_outer_setup => null()
+    procedure(minibuffer_setup_procedure), pointer :: crm_outer_setup => null()
 
     ! Whether `crm_complete_and_exit' should exit.
     logical :: doexit = .false.
@@ -100,28 +100,28 @@ contains
     ! Function used by `completing_read_multiple' to compute completion
     ! values: the element after the last separator of STRING, completed
     ! with `crm_completion_table'.  Port of crm.el:crm--collection-fn.
-    recursive subroutine crm_collection_fn(string, action, result, status, pred, suffix)
+    recursive subroutine crm_collection_fn(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
-        integer(int64) :: beg, m, off
+        integer(int64) :: beginning, m, off
         type(status_type) :: st
 
-        ! (BEG is the character index of the element.)
-        beg = 1
+        ! (BEGINNING is the character index of the element.)
+        beginning = 1
 
         do
-            m = string_match(crm_separator, string, st, beg)
+            m = string_match(crm_separator, string, st, beginning)
             if (.not. st%ok() .or. m <= 0) exit
-            beg = match_end(0, st)
+            beginning = match_end(0, st)
         end do
 
-        off = string_index_to_offset(string, beg)
+        off = string_index_to_offset(string, beginning)
         call completion_table_with_context(string(1:off), crm_completion_table, string(off + 1:), action, result, &
-                                           status, pred, suffix)
+                                           status, test, suffix)
     end subroutine crm_collection_fn
 
     ! Parse the minibuffer to find the current element: its boundaries
@@ -157,11 +157,11 @@ contains
     !> element.  Port of crm.el:crm-completion-help.
     recursive subroutine crm_completion_help(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
 
         status = status_type()
-        call current_element(beg, end)
-        call minibuffer_completion_help(beg, end)
+        call current_element(beginning, end)
+        call minibuffer_completion_help(beginning, end)
     end subroutine crm_completion_help
 
     !> Complete the current element.
@@ -172,16 +172,16 @@ contains
     !> return false.  Port of crm.el:crm-complete.
     recursive subroutine crm_complete(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         logical :: valid
 
         status = status_type()
-        call current_element(beg, end)
+        call current_element(beginning, end)
 
-        if (associated(minibuffer_completion_predicate)) then
-            valid = completion_in_region(beg, end, minibuffer_completion_table, minibuffer_completion_predicate)
+        if (associated(minibuffer_completion_test_function)) then
+            valid = completion_in_region(beginning, end, minibuffer_completion_table, minibuffer_completion_test_function)
         else
-            valid = completion_in_region(beg, end, minibuffer_completion_table)
+            valid = completion_in_region(beginning, end, minibuffer_completion_table)
         end if
     end subroutine crm_complete
 
@@ -190,13 +190,13 @@ contains
     !> Port of crm.el:crm-complete-word.
     recursive subroutine crm_complete_word(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         integer :: bits
 
         status = status_type()
-        call current_element(beg, end)
+        call current_element(beginning, end)
         ! (completion-in-region--single-word)
-        bits = completion_do_completion(beg, end, .true., .false.)
+        bits = completion_do_completion(beginning, end, .true., .false.)
     end subroutine crm_complete_word
 
     !> Exit if all of the minibuffer elements are valid completions.
@@ -207,7 +207,7 @@ contains
     recursive subroutine crm_complete_and_exit(status)
         use callint_fm, only: current_prefix_arg
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end, m, endpos
+        integer(int64) :: beginning, end, m, endpos
         type(handle_type) :: endm
         type(status_type) :: st
         logical :: more
@@ -218,13 +218,13 @@ contains
 
         do
             if (.not. doexit) exit
-            call current_element(beg, end)
+            call current_element(beginning, end)
             call copy_marker_at(end, endm, .true., st)
             call goto_char(end)
             doexit = .false.
-            call completion_complete_and_exit(beg, end, set_doexit, status)
+            call completion_complete_and_exit(beginning, end, set_doexit, status)
             call marker_position(endm, endpos, st)
-            call free_marker(endm, st)
+            call destroy_marker(endm, st)
             call goto_char(endpos)
             if (.not. status%ok()) return
             more = .not. is_eob()
@@ -248,7 +248,7 @@ contains
 
     ! The minibuffer setup of `completing_read_multiple'.  Not a port.
     subroutine crm_setup()
-        procedure(minibuffer_setup_proc), pointer :: outer
+        procedure(minibuffer_setup_procedure), pointer :: outer
         type(status_type) :: st
 
         call use_local_map(crm_map, st)
@@ -275,14 +275,14 @@ contains
     !> This function returns in RESULTS the strings that were read,
     !> with empty strings removed.  Port of
     !> crm.el:completing-read-multiple.
-    recursive subroutine completing_read_multiple(prompt, table, results, status, predicate, require_match, &
+    recursive subroutine completing_read_multiple(prompt, table, results, status, test, require_match, &
                                                   initial, history, default)
         use minibuf_fm, only: minibuffer_string_type
         character(len=*), intent(in) :: prompt
         type(completion_table_type), intent(in) :: table
         type(minibuffer_string_type), allocatable, intent(out) :: results(:)
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: predicate
+        procedure(completion_test_procedure), optional :: test
         integer, intent(in), optional :: require_match
         character(len=*), intent(in), optional :: initial, history, default
         type(completion_table_type) :: saved_table, fn_table
@@ -306,7 +306,7 @@ contains
         fn_table%fn => crm_collection_fn
         crm_outer_setup => minibuffer_setup_function
         minibuffer_setup_function => crm_setup
-        call completing_read(format_prompt(prompt), fn_table, input, status, predicate, require_match, initial, &
+        call completing_read(format_prompt(prompt), fn_table, input, status, test, require_match, initial, &
                              history, default)
         minibuffer_setup_function => null()
         crm_completion_table = saved_table
@@ -373,7 +373,7 @@ contains
             m = string_match(crm_separator, string, st, start)
 
             if (.not. st%ok() .or. m <= 0) then
-                call add(string(string_index_to_offset(string, start) + 1:))
+                call append(string(string_index_to_offset(string, start) + 1:))
                 exit
             end if
 
@@ -383,14 +383,14 @@ contains
             ! (An empty match at START does not split.)
             if (me == mb .and. mb == start) then
                 if (start > string_chars(string)) then
-                    call add(string(string_index_to_offset(string, start) + 1:))
+                    call append(string(string_index_to_offset(string, start) + 1:))
                     exit
                 end if
 
                 m = string_match(crm_separator, string, st, start + 1)
 
                 if (.not. st%ok() .or. m <= 0) then
-                    call add(string(string_index_to_offset(string, start) + 1:))
+                    call append(string(string_index_to_offset(string, start) + 1:))
                     exit
                 end if
 
@@ -398,7 +398,7 @@ contains
                 me = match_end(0, st)
             end if
 
-            call add(string(string_index_to_offset(string, start) + 1:string_index_to_offset(string, mb)))
+            call append(string(string_index_to_offset(string, start) + 1:string_index_to_offset(string, mb)))
             start = me
         end do
 
@@ -406,7 +406,7 @@ contains
 
     contains
 
-        subroutine add(part)
+        subroutine append(part)
             character(len=*), intent(in) :: part
 
             if (len(part) == 0) return
@@ -419,7 +419,7 @@ contains
 
             n = n + 1
             parts(n)%s = part
-        end subroutine add
+        end subroutine append
     end subroutine split_string
 
     ! [remap COMMAND] in MAP to NEW.  Not a port.
@@ -445,14 +445,14 @@ contains
         commands%crm_complete_word%execute => crm_complete_word
         commands%crm_completion_help%execute => crm_completion_help
         commands%crm_complete_and_exit%execute => crm_complete_and_exit
-        if (is_keymap_live(crm_local_completion_map)) call free_keymap(crm_local_completion_map, st)
+        if (is_keymap_live(crm_local_completion_map)) call destroy_keymap(crm_local_completion_map, st)
         call make_sparse_keymap(crm_local_completion_map)
         call set_keymap_parent(crm_local_completion_map, minibuffer_local_completion_map, st)
         call remap(crm_local_completion_map, "minibuffer_complete", "crm_complete")
         call remap(crm_local_completion_map, "minibuffer_complete_word", "crm_complete_word")
         call remap(crm_local_completion_map, "minibuffer_completion_help", "crm_completion_help")
         ! We'd want to have multiple inheritance here.
-        if (is_keymap_live(crm_local_must_match_map)) call free_keymap(crm_local_must_match_map, st)
+        if (is_keymap_live(crm_local_must_match_map)) call destroy_keymap(crm_local_must_match_map, st)
         call make_sparse_keymap(crm_local_must_match_map)
         call set_keymap_parent(crm_local_must_match_map, minibuffer_local_must_match_map, st)
         call remap(crm_local_must_match_map, "minibuffer_complete", "crm_complete")

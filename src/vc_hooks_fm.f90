@@ -42,12 +42,12 @@ module vc_hooks_fm
     use handle_fm, only: handle_type
     use ewoc_fm, only: ewoc_part_type
     use lisp_fm, only: make_keymap_ref, value_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_file_buffer, is_buffer_live
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, close_buffer, get_file_buffer, is_buffer_live
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
                          file_exists, is_file_directory, file_modes, copy_file, file_attributes, file_stat_type, &
                          user_real_uid
-    use files_fm, only: locate_dominating_file, locate_dominating_stop_dir_regexp, find_file_hook, kill_buffer_hook, &
-                        vc_before_save_proc, vc_after_save_proc, file_truename, find_file_noselect, &
+    use files_fm, only: locate_dominating_file, locate_dominating_stop_dir_regexp, find_file_hook, close_buffer_hook, &
+                        vc_before_save_hook, vc_after_save_hook, file_truename, find_file_noselect, &
                         abbreviate_file_name, delete_file, after_revert_hook
     use search_fm, only: string_match
     use keymap_fm, only: make_sparse_keymap, keymap_set, define_key
@@ -68,7 +68,7 @@ module vc_hooks_fm
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
               vc_refresh_state, vc_state_name, vc_execute_root, vc_execute_responsible, is_vc_make_version_backups, &
               vc_not_supported
-    public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_proc
+    public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_procedure
 
     !> A string in an array.
     type :: vc_string_type
@@ -108,12 +108,12 @@ module vc_hooks_fm
 
     !> List of directory names to be ignored when walking directory trees.
     !> Port of vc-hooks.el vc-directory-exclusion-list.
-    character(len=8), allocatable, public :: vc_directory_exclusion_list(:)
+    character(len=8), allocatable, public :: vc_directory_exclusions(:)
 
     !> If true, backups of registered files are made as with other files.
     !> If false (the default), files covered by version control don't get backups.
     !> Port of vc-hooks.el vc-make-backup-files.
-    logical, public :: vc_make_backup_files = .false.
+    logical, public :: vc_create_backup_files = .false.
 
     !> Values of `vc_follow_symlinks' (VC_FOLLOW_SYMLINKS_NO, VC_FOLLOW_SYMLINKS_YES, VC_FOLLOW_SYMLINKS_ASK).
     integer, parameter, public :: VC_FOLLOW_SYMLINKS_NO = 0, VC_FOLLOW_SYMLINKS_YES = 1, VC_FOLLOW_SYMLINKS_ASK = 2
@@ -227,81 +227,81 @@ module vc_hooks_fm
     abstract interface
         !> A backend's `registered': whether FILE is registered.
         !> Not a port.
-        logical function vc_file_predicate(file)
+        logical function vc_file_test_procedure(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
-        end function vc_file_predicate
+        end function vc_file_test_procedure
         !> A backend's `state'.  Not a port.
-        integer function vc_file_state_function(file)
+        integer function vc_file_state_procedure(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
-        end function vc_file_state_function
+        end function vc_file_state_procedure
         !> A backend function of FILE giving a string, or none (FOUND .false.):
         !> `working_revision', `root', `responsible_p', `mode_line_string',
         !> `find_ignore_file'.  Not a port.
-        subroutine vc_file_string_function(file, s, found)
+        subroutine vc_file_string_procedure(file, s, found)
             implicit none(type, external)
             character(len=*), intent(in) :: file
             character(len=:), allocatable, intent(out) :: s
             logical, intent(out) :: found
-        end subroutine vc_file_string_function
+        end subroutine vc_file_string_procedure
         !> A backend's `checkout_model' of FILES.  Not a port.
-        integer function vc_files_model_function(files)
+        integer function vc_files_model_procedure(files)
             import :: vc_string_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
-        end function vc_files_model_function
+        end function vc_files_model_procedure
         !> A backend's `find_file_hook', run in the visiting buffer.
         !> Not a port.
-        subroutine vc_buffer_proc()
+        subroutine vc_buffer_procedure()
             implicit none(type, external)
-        end subroutine vc_buffer_proc
+        end subroutine vc_buffer_procedure
         !> A backend's `working_revision_symbol', as S (a subroutine:
         !> gfortran frees a pointer component to a function with a
         !> deferred-length result).  Not a port.
-        subroutine vc_symbol_function(s)
+        subroutine vc_symbol_procedure(s)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: s
-        end subroutine vc_symbol_function
+        end subroutine vc_symbol_procedure
         !> A backend operation on FILES: `revert_files', `delete_files',
         !> `mark_resolved'.  Not a port.
-        recursive subroutine vc_files_proc(files, status)
+        recursive subroutine vc_files_procedure(files, status)
             import :: vc_string_type, status_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
             type(status_type), intent(out) :: status
-        end subroutine vc_files_proc
+        end subroutine vc_files_procedure
         !> A backend's `register' of FILES (COMMENT ignored by most).
         !> Not a port.
-        recursive subroutine vc_register_proc(files, status, comment)
+        recursive subroutine vc_register_procedure(files, status, comment)
             import :: vc_string_type, status_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: comment
-        end subroutine vc_register_proc
+        end subroutine vc_register_procedure
         !> A backend operation on FILE: `delete_file', `unregister'.
         !> Not a port.
-        recursive subroutine vc_file_proc(file, status)
+        recursive subroutine vc_file_procedure(file, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: file
             type(status_type), intent(out) :: status
-        end subroutine vc_file_proc
+        end subroutine vc_file_procedure
         !> A backend's `revert' of FILE (CONTENTS_DONE, the backup file
         !> already copied back, or absent).  Not a port.
-        recursive subroutine vc_revert_proc(file, status, contents_done)
+        recursive subroutine vc_revert_procedure(file, status, contents_done)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: file
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: contents_done
-        end subroutine vc_revert_proc
+        end subroutine vc_revert_procedure
         !> A backend's `diff' of FILES between REV1 and REV2 (absent: the
         !> working revision and the work file) into BUFFER, asynchronously
         !> with ASYNC.  CHANGES is false when there are none (exit status 0
         !> of a synchronous diff).  Not a port.
-        recursive subroutine vc_diff_proc(files, buffer, async, status, rev1, rev2)
+        recursive subroutine vc_diff_procedure(files, buffer, async, status, rev1, rev2)
             import :: vc_string_type, status_type, handle_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
@@ -309,58 +309,58 @@ module vc_hooks_fm
             logical, intent(in) :: async
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: rev1, rev2
-        end subroutine vc_diff_proc
+        end subroutine vc_diff_procedure
         !> A backend's `find_revision': insert revision REV of FILE into
         !> BUFFER.  Not a port.
-        recursive subroutine vc_find_revision_proc(file, rev, buffer, status)
+        recursive subroutine vc_find_revision_procedure(file, rev, buffer, status)
             import :: status_type, handle_type
             implicit none(type, external)
             character(len=*), intent(in) :: file, rev
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
-        end subroutine vc_find_revision_proc
+        end subroutine vc_find_revision_procedure
         !> A backend's `checkout' of FILE at REV (absent: the head).
         !> Not a port.
-        recursive subroutine vc_checkout_proc(file, status, rev)
+        recursive subroutine vc_checkout_procedure(file, status, rev)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: file
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: rev
-        end subroutine vc_checkout_proc
+        end subroutine vc_checkout_procedure
         !> A backend's `rename_file' from OLD to NEW.  Not a port.
-        recursive subroutine vc_rename_proc(old, new, status)
+        recursive subroutine vc_rename_procedure(old, new, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: old, new
             type(status_type), intent(out) :: status
-        end subroutine vc_rename_proc
+        end subroutine vc_rename_procedure
         !> A backend's `previous_revision' of REV for FILE.  Not a port.
-        subroutine vc_previous_revision_proc(file, rev, prev, found)
+        subroutine vc_previous_revision_procedure(file, rev, prev, found)
             implicit none(type, external)
             character(len=*), intent(in) :: file, rev
             character(len=:), allocatable, intent(out) :: prev
             logical, intent(out) :: found
-        end subroutine vc_previous_revision_proc
+        end subroutine vc_previous_revision_procedure
         !> A backend's `revision_completion_table' for FILES.  Not a port.
-        subroutine vc_revision_table_proc(files, table)
+        subroutine vc_revision_table_procedure(files, table)
             import :: vc_string_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
             type(vc_string_type), allocatable, intent(out) :: table(:)
-        end subroutine vc_revision_table_proc
+        end subroutine vc_revision_table_procedure
         !> A backend's `create_repo' in `default_directory'.  Not a port.
-        recursive subroutine vc_status_proc(status)
+        recursive subroutine vc_status_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine vc_status_proc
+        end subroutine vc_status_procedure
         !> A backend's `print_log': insert the log of FILES into BUFFER (a
         !> short log with SHORTLOG), starting at START_REVISION ("" for the
         !> current one), with LIMIT.  LIMIT_UNSUPPORTED is the return value
         !> `limit-unsupported'.  Not a port.
-        recursive subroutine vc_print_log_proc(files, buffer, shortlog, start_revision, limit, status, &
-                                               limit_unsupported)
+        recursive subroutine vc_print_log_procedure(files, buffer, shortlog, start_revision, limit, status, &
+                                                    limit_unsupported)
             import :: vc_string_type, handle_type, vc_log_limit_type, status_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
@@ -370,68 +370,68 @@ module vc_hooks_fm
             type(vc_log_limit_type), intent(in) :: limit
             type(status_type), intent(out) :: status
             logical, intent(out) :: limit_unsupported
-        end subroutine vc_print_log_proc
+        end subroutine vc_print_log_procedure
         !> The UPDATE function given to a backend's `dir_status_files': add
         !> ENTRIES to the VC-Dir buffer BUFFER; MORE_TO_COME is true when
         !> more updates will come from the asynchronous process.
         !> Not a port.
-        recursive subroutine vc_dir_update_proc(entries, buffer, more_to_come)
+        recursive subroutine vc_dir_update_procedure(entries, buffer, more_to_come)
             import :: vc_dir_entry_type, handle_type
             implicit none(type, external)
             type(vc_dir_entry_type), intent(in) :: entries(:)
             type(handle_type), intent(in) :: buffer
             logical, intent(in) :: more_to_come
-        end subroutine vc_dir_update_proc
+        end subroutine vc_dir_update_procedure
         !> A backend's `dir_status_files': compute the states of FILES (all
         !> files when empty) in DIR asynchronously and pass them to UPDATE
         !> for BUFFER.  Not a port.
-        recursive subroutine vc_dir_status_files_proc(dir, files, update, buffer, status)
-            import :: vc_string_type, handle_type, status_type, vc_dir_update_proc
+        recursive subroutine vc_dir_status_files_procedure(dir, files, update, buffer, status)
+            import :: vc_string_type, handle_type, status_type, vc_dir_update_procedure
             implicit none(type, external)
             character(len=*), intent(in) :: dir
             type(vc_string_type), intent(in) :: files(:)
-            procedure(vc_dir_update_proc) :: update
+            procedure(vc_dir_update_procedure) :: update
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
-        end subroutine vc_dir_status_files_proc
+        end subroutine vc_dir_status_files_procedure
         !> A backend's `dir_extra_headers' of DIR, as the parts of the text.
         !> Not a port.
-        recursive subroutine vc_dir_extra_headers_proc(dir, parts)
+        recursive subroutine vc_dir_extra_headers_procedure(dir, parts)
             import :: ewoc_part_type
             implicit none(type, external)
             character(len=*), intent(in) :: dir
             type(ewoc_part_type), allocatable, intent(out) :: parts(:)
-        end subroutine vc_dir_extra_headers_proc
+        end subroutine vc_dir_extra_headers_procedure
         !> A backend's `dir_printer': insert INFO at point.  Not a port.
-        recursive subroutine vc_dir_printer_proc(info)
+        recursive subroutine vc_dir_printer_procedure(info)
             import :: vc_dir_fileinfo_type
             implicit none(type, external)
             type(vc_dir_fileinfo_type), intent(in) :: info
-        end subroutine vc_dir_printer_proc
+        end subroutine vc_dir_printer_procedure
         !> A backend's `status_fileinfo_extra' of FILE, set in ENTRY.
         !> Not a port.
-        recursive subroutine vc_status_fileinfo_extra_proc(file, entry)
+        recursive subroutine vc_status_fileinfo_extra_procedure(file, entry)
             import :: vc_dir_entry_type
             implicit none(type, external)
             character(len=*), intent(in) :: file
             type(vc_dir_entry_type), intent(inout) :: entry
-        end subroutine vc_status_fileinfo_extra_proc
+        end subroutine vc_status_fileinfo_extra_procedure
         !> A backend's `show_log_entry': move to the log entry for REVISION.
         !> Not a port.
-        recursive subroutine vc_show_log_entry_proc(revision)
+        recursive subroutine vc_show_log_entry_procedure(revision)
             implicit none(type, external)
             character(len=*), intent(in) :: revision
-        end subroutine vc_show_log_entry_proc
+        end subroutine vc_show_log_entry_procedure
         !> A backend's `checkin' of FILES with COMMENT (REV, the new
         !> revision, for the backends that take one).  Not a port.
-        recursive subroutine vc_checkin_proc(files, comment, status, rev)
+        recursive subroutine vc_checkin_procedure(files, comment, status, rev)
             import :: vc_string_type, status_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: comment
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: rev
-        end subroutine vc_checkin_proc
+        end subroutine vc_checkin_procedure
     end interface
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
@@ -439,44 +439,44 @@ module vc_hooks_fm
     !> unassociated ones use vc-default-FUN or a `vc_not_supported' error condition occurs).
     type :: vc_backend_type
         character(len=:), allocatable :: name
-        procedure(vc_file_predicate), pointer, nopass :: registered => null()
-        procedure(vc_file_state_function), pointer, nopass :: state => null()
-        procedure(vc_file_string_function), pointer, nopass :: working_revision => null()
-        procedure(vc_symbol_function), pointer, nopass :: working_revision_symbol => null()
-        procedure(vc_file_string_function), pointer, nopass :: mode_line_string => null()
-        procedure(vc_file_string_function), pointer, nopass :: root => null()
-        procedure(vc_file_string_function), pointer, nopass :: responsible_p => null()
-        procedure(vc_file_string_function), pointer, nopass :: find_ignore_file => null()
-        procedure(vc_files_model_function), pointer, nopass :: checkout_model => null()
-        procedure(vc_buffer_proc), pointer, nopass :: find_file_hook => null()
-        procedure(vc_file_predicate), pointer, nopass :: make_version_backups_p => null()
-        procedure(vc_register_proc), pointer, nopass :: register => null()
-        procedure(vc_file_proc), pointer, nopass :: unregister => null()
-        procedure(vc_revert_proc), pointer, nopass :: revert => null()
-        procedure(vc_files_proc), pointer, nopass :: revert_files => null()
-        procedure(vc_diff_proc), pointer, nopass :: diff => null()
-        procedure(vc_find_revision_proc), pointer, nopass :: find_revision => null()
-        procedure(vc_checkout_proc), pointer, nopass :: checkout => null()
-        procedure(vc_file_proc), pointer, nopass :: delete_file => null()
-        procedure(vc_files_proc), pointer, nopass :: delete_files => null()
-        procedure(vc_rename_proc), pointer, nopass :: rename_file => null()
-        procedure(vc_previous_revision_proc), pointer, nopass :: previous_revision => null()
-        procedure(vc_revision_table_proc), pointer, nopass :: revision_completion_table => null()
-        procedure(vc_files_proc), pointer, nopass :: mark_resolved => null()
-        procedure(vc_status_proc), pointer, nopass :: create_repo => null()
-        procedure(vc_checkin_proc), pointer, nopass :: checkin => null()
+        procedure(vc_file_test_procedure), pointer, nopass :: registered => null()
+        procedure(vc_file_state_procedure), pointer, nopass :: state => null()
+        procedure(vc_file_string_procedure), pointer, nopass :: working_revision => null()
+        procedure(vc_symbol_procedure), pointer, nopass :: working_revision_symbol => null()
+        procedure(vc_file_string_procedure), pointer, nopass :: mode_line_string => null()
+        procedure(vc_file_string_procedure), pointer, nopass :: root => null()
+        procedure(vc_file_string_procedure), pointer, nopass :: responsible_p => null()
+        procedure(vc_file_string_procedure), pointer, nopass :: find_ignore_file => null()
+        procedure(vc_files_model_procedure), pointer, nopass :: checkout_model => null()
+        procedure(vc_buffer_procedure), pointer, nopass :: find_file_hook => null()
+        procedure(vc_file_test_procedure), pointer, nopass :: make_version_backups_p => null()
+        procedure(vc_register_procedure), pointer, nopass :: register => null()
+        procedure(vc_file_procedure), pointer, nopass :: unregister => null()
+        procedure(vc_revert_procedure), pointer, nopass :: revert => null()
+        procedure(vc_files_procedure), pointer, nopass :: revert_files => null()
+        procedure(vc_diff_procedure), pointer, nopass :: diff => null()
+        procedure(vc_find_revision_procedure), pointer, nopass :: find_revision => null()
+        procedure(vc_checkout_procedure), pointer, nopass :: checkout => null()
+        procedure(vc_file_procedure), pointer, nopass :: delete_file => null()
+        procedure(vc_files_procedure), pointer, nopass :: delete_files => null()
+        procedure(vc_rename_procedure), pointer, nopass :: rename_file => null()
+        procedure(vc_previous_revision_procedure), pointer, nopass :: previous_revision => null()
+        procedure(vc_revision_table_procedure), pointer, nopass :: revision_completion_table => null()
+        procedure(vc_files_procedure), pointer, nopass :: mark_resolved => null()
+        procedure(vc_status_procedure), pointer, nopass :: create_repo => null()
+        procedure(vc_checkin_procedure), pointer, nopass :: checkin => null()
         !> The backend's Log Edit mode (vc-default-log-edit-mode is
         !> `log_edit_mode').
-        procedure(vc_status_proc), pointer, nopass :: log_edit_mode => null()
-        procedure(vc_print_log_proc), pointer, nopass :: print_log => null()
+        procedure(vc_status_procedure), pointer, nopass :: log_edit_mode => null()
+        procedure(vc_print_log_procedure), pointer, nopass :: print_log => null()
         !> The backend's Log View mode (vc-default-log-view-mode is
         !> `log_view_mode').
-        procedure(vc_status_proc), pointer, nopass :: log_view_mode => null()
-        procedure(vc_show_log_entry_proc), pointer, nopass :: show_log_entry => null()
-        procedure(vc_dir_status_files_proc), pointer, nopass :: dir_status_files => null()
-        procedure(vc_dir_extra_headers_proc), pointer, nopass :: dir_extra_headers => null()
-        procedure(vc_dir_printer_proc), pointer, nopass :: dir_printer => null()
-        procedure(vc_status_fileinfo_extra_proc), pointer, nopass :: status_fileinfo_extra => null()
+        procedure(vc_status_procedure), pointer, nopass :: log_view_mode => null()
+        procedure(vc_show_log_entry_procedure), pointer, nopass :: show_log_entry => null()
+        procedure(vc_dir_status_files_procedure), pointer, nopass :: dir_status_files => null()
+        procedure(vc_dir_extra_headers_procedure), pointer, nopass :: dir_extra_headers => null()
+        procedure(vc_dir_printer_procedure), pointer, nopass :: dir_printer => null()
+        procedure(vc_status_fileinfo_extra_procedure), pointer, nopass :: status_fileinfo_extra => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
     end type vc_backend_type
@@ -491,23 +491,23 @@ module vc_hooks_fm
     type(vc_backend_type), target :: vc_backends(MAX_VC_BACKENDS)
 
     ! The number of entries of `vc_backends' in use.
-    integer :: n_vc_backends = 0
+    integer :: vc_backend_count = 0
 
     !> List of `vc_dir' buffers.  Port of vc-hooks.el vc-dir-buffers.
     type(handle_type), allocatable, public :: vc_dir_buffers(:)
 
     abstract interface
-        !> `vc_dir_resynch_file': update the entries for FNAME in any
+        !> `vc_dir_resynch_file': update the entries for FILE_NAME in any
         !> directory buffers that list it.  Not a port.
-        recursive subroutine vc_dir_resynch_file_proc(fname)
+        recursive subroutine vc_dir_resynch_file_procedure(file_name)
             implicit none(type, external)
-            character(len=*), intent(in) :: fname
-        end subroutine vc_dir_resynch_file_proc
+            character(len=*), intent(in) :: file_name
+        end subroutine vc_dir_resynch_file_procedure
     end interface
 
     !> vc-dir.el's `vc_dir_resynch_file', associated once VC-Dir is loaded
     !> (vc_dir_fm), for vc-hooks.el, vc-dispatcher.el and vc.el.
-    procedure(vc_dir_resynch_file_proc), pointer, public :: vc_dir_resynch_file => null()
+    procedure(vc_dir_resynch_file_procedure), pointer, public :: vc_dir_resynch_file => null()
 
     ! ------------------------------------------------------------------
     ! Per-file properties
@@ -585,7 +585,7 @@ contains
         integer, intent(out) :: b
         integer :: k
 
-        do k = 1, n_vc_backends
+        do k = 1, vc_backend_count
             if (vc_backends(k)%name == name) then
                 b = k
                 return
@@ -593,10 +593,10 @@ contains
         end do
 
         b = 0
-        if (n_vc_backends == MAX_VC_BACKENDS) return
-        n_vc_backends = n_vc_backends + 1
-        vc_backends(n_vc_backends)%name = name
-        b = n_vc_backends
+        if (vc_backend_count == MAX_VC_BACKENDS) return
+        vc_backend_count = vc_backend_count + 1
+        vc_backends(vc_backend_count)%name = name
+        b = vc_backend_count
     end subroutine register_vc_backend
 
     !> The index in `vc_backends' of the backend named NAME (0 if none
@@ -607,7 +607,7 @@ contains
 
         b = 0
 
-        do k = 1, n_vc_backends
+        do k = 1, vc_backend_count
             if (vc_backends(k)%name == trim(name)) then
                 b = k
                 return
@@ -1273,8 +1273,8 @@ contains
         character(len=:), allocatable :: dir
 
         dir = "./"
-        if (cur == 0) return
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (current == 0) return
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
     end function buffer_directory
 
     !> Set the current buffer's `default_directory' to DIR (a let-binding
@@ -1282,8 +1282,8 @@ contains
     subroutine set_buffer_directory(dir)
         character(len=*), intent(in) :: dir
 
-        if (cur == 0) return
-        if (len(dir) > 0) buffers(cur)%directory = dir
+        if (current == 0) return
+        if (len(dir) > 0) buffers(current)%directory = dir
     end subroutine set_buffer_directory
 
     ! ------------------------------------------------------------------
@@ -1353,18 +1353,18 @@ contains
         type(value_type) :: names
         type(value_type), allocatable :: elts(:)
         type(status_type) :: st, mst
-        character(len=:), allocatable :: re, dir
+        character(len=:), allocatable :: pattern, dir
         integer :: k
 
         dir = file_name_directory_or_default(file)
-        re = vc_version_backup_file_name(file, regexp=.true.)
+        pattern = vc_version_backup_file_name(file, regexp=.true.)
         ! Don't fail when the directory doesn't exist.
         call directory_files(dir, names, st, full=.true.)
         if (.not. st%ok()) return
         call list_elements(names, elts)
 
         do k = 1, size(elts)
-            if (string_match(re, file_name_nondirectory(xstring(elts(k))), mst) > 0) then
+            if (string_match(pattern, file_name_nondirectory(xstring(elts(k))), mst) > 0) then
                 call delete_file(xstring(elts(k)), st)
             end if
         end do
@@ -1394,9 +1394,9 @@ contains
         ! If the file on disk is still in sync with the repository,
         ! and version backups should be made, copy the file to
         ! another name.  This enables local diffs and local reverting.
-        if (cur == 0) return
-        if (.not. allocated(buffers(cur)%filename)) return
-        file = buffers(cur)%filename
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        file = buffers(current)%filename
         if (.not. file_exists(file)) call vc_file_clearprops(file)
         b = vc_backend(file)
         if (b == 0) return
@@ -1415,15 +1415,15 @@ contains
         type(file_stat_type) :: attr
         integer(int64) :: sec
         integer(int32) :: nsec
-        logical :: found, have_attr
+        logical :: found, has_attr
         integer :: b, state
 
         ! If the file in the current buffer is under version control,
         ! up-to-date, and locking is not used for the file, set
         ! the state to 'edited and redisplay the mode line.
-        if (cur == 0) return
-        if (.not. allocated(buffers(cur)%filename)) return
-        file = buffers(cur)%filename
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        file = buffers(current)%filename
         b = vc_backend(file)
         files(1)%s = file
 
@@ -1433,9 +1433,9 @@ contains
             ! If the file was saved at the same time that it was
             ! checked out, clear the checkout-time to avoid confusion.
             call vc_file_get_checkout_time(file, sec, nsec, found)
-            call file_attributes(file, attr, have_attr)
+            call file_attributes(file, attr, has_attr)
 
-            if (found .and. have_attr) then
+            if (found .and. has_attr) then
                 if (sec == attr%mtime_sec .and. nsec == attr%mtime_nsec) call vc_file_set_checkout_time(file)
             end if
 
@@ -1458,10 +1458,10 @@ contains
 
         status = status_type()
         if (.not. has_vc_dir_buffers()) return
-        if (cur == 0) return
-        if (.not. allocated(buffers(cur)%filename)) return
-        if (vc_backend(buffers(cur)%filename) == 0) return
-        if (associated(vc_dir_resynch_file)) call vc_dir_resynch_file(buffers(cur)%filename)
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        if (vc_backend(buffers(current)%filename) == 0) return
+        if (associated(vc_dir_resynch_file)) call vc_dir_resynch_file(buffers(current)%filename)
     end subroutine vc_after_revert
 
     !> Whether `vc_dir_buffers' is not empty.  Not a port.
@@ -1494,9 +1494,9 @@ contains
         if (b == 0) b = vc_backend(file)
 
         if (b == 0) then
-            if (allocated(buffers(cur)%vc_mode)) deallocate (buffers(cur)%vc_mode)
+            if (allocated(buffers(current)%vc_mode)) deallocate (buffers(current)%vc_mode)
         else if (vc_display_status == VC_DISPLAY_STATUS_NO) then
-            buffers(cur)%vc_mode = " "//vc_backend_name(b)
+            buffers(current)%vc_mode = " "//vc_backend_name(b)
         else
             if (associated(vc_backends(b)%mode_line_string)) then
                 call vc_backends(b)%mode_line_string(file, ml_string, found)
@@ -1504,16 +1504,16 @@ contains
                 ml_string = vc_default_mode_line_string(b, file)
             end if
 
-            buffers(cur)%vc_mode = " "//ml_string
+            buffers(current)%vc_mode = " "//ml_string
 
             ! If the user is root, and the file is not owner-writable,
             ! then pretend that we can't write it
             ! even though we can (because root can write anything).
             ! This way, even root cannot modify a file that isn't locked.
-            if (allocated(buffers(cur)%filename)) then
-                if (file == buffers(cur)%filename .and. .not. buffers(cur)%read_only .and. user_real_uid() == 0) then
-                    modes = file_modes(buffers(cur)%filename)
-                    if (modes >= 0 .and. iand(modes, 128_int32) == 0) buffers(cur)%read_only = .true.
+            if (allocated(buffers(current)%filename)) then
+                if (file == buffers(current)%filename .and. .not. buffers(current)%read_only .and. user_real_uid() == 0) then
+                    modes = file_modes(buffers(current)%filename)
+                    if (modes >= 0 .and. iand(modes, 128_int32) == 0) buffers(current)%read_only = .true.
                 end if
             end if
         end if
@@ -1605,28 +1605,28 @@ contains
 
     !> If current buffer visits a symbolic link, visit the real file.
     !> If the real file is already visited in another buffer, make that buffer
-    !> current, and kill the buffer that visits the link.  Port of
+    !> current, and close the buffer that visits the link.  Port of
     !> vc-hooks.el:vc-follow-link.
     subroutine vc_follow_link()
         character(len=:), allocatable :: truename
-        type(handle_type) :: true_buffer, this_buffer, buf
+        type(handle_type) :: true_buffer, this_buffer, buffer
         type(status_type) :: st
 
-        call file_truename(buffers(cur)%filename, truename, st)
+        call file_truename(buffers(current)%filename, truename, st)
         if (.not. st%ok()) return
         true_buffer = get_file_buffer(truename)
         this_buffer = current_buffer()
 
         if (true_buffer%index == 0 .or. true_buffer%index == this_buffer%index) then
-            call kill_buffer(this_buffer, st)
+            call close_buffer(this_buffer, st)
             ! In principle, we could do something like set-visited-file-name.
             ! However, it can't be exactly the same as set-visited-file-name.
             ! I'm not going to work out the details right now. -- rms.
-            call find_file_noselect(truename, buf, st)
-            if (st%ok()) call set_buffer(buf, st)
+            call find_file_noselect(truename, buffer, st)
+            if (st%ok()) call set_buffer(buffer, st)
         else
             call set_buffer(true_buffer, st)
-            call kill_buffer(this_buffer, st)
+            call close_buffer(this_buffer, st)
         end if
     end subroutine vc_follow_link
 
@@ -1647,11 +1647,11 @@ contains
         status = status_type()
         ! Recompute whether file is version controlled,
         ! if user has killed the buffer and revisited.
-        if (cur == 0) return
-        if (allocated(buffers(cur)%vc_mode)) deallocate (buffers(cur)%vc_mode)
-        if (.not. allocated(buffers(cur)%filename)) return
-        call vc_file_clearprops(buffers(cur)%filename)
-        b = vc_backend(buffers(cur)%filename)
+        if (current == 0) return
+        if (allocated(buffers(current)%vc_mode)) deallocate (buffers(current)%vc_mode)
+        if (.not. allocated(buffers(current)%filename)) return
+        call vc_file_clearprops(buffers(current)%filename)
+        b = vc_backend(buffers(current)%filename)
 
         if (b /= 0) then
             saved_dir = buffer_directory()
@@ -1659,28 +1659,28 @@ contains
             if (associated(vc_backends(b)%find_file_hook)) call vc_backends(b)%find_file_hook()
 
             ! Compute the state and put it in the mode line.
-            if (cur /= 0) then
-                if (allocated(buffers(cur)%filename)) call vc_mode_line(buffers(cur)%filename, b)
+            if (current /= 0) then
+                if (allocated(buffers(current)%filename)) call vc_mode_line(buffers(current)%filename, b)
             end if
 
             call set_buffer_directory(saved_dir)
             ! Use this variable, not make-backup-files, because this is
             ! for things that depend on the file name.
-            if (.not. vc_make_backup_files) buffers(cur)%backup_inhibited = .true.
+            if (.not. vc_create_backup_files) buffers(current)%backup_inhibited = .true.
             return
         end if
 
-        call file_truename(buffers(cur)%filename, truename, st)
+        call file_truename(buffers(current)%filename, truename, st)
         if (.not. st%ok()) return
         link_type = 0
-        if (truename /= buffers(cur)%filename) link_type = vc_backend(truename)
+        if (truename /= buffers(current)%filename) link_type = vc_backend(truename)
         if (link_type == 0) return
 
         if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NO) then
             call message("Warning: symbolic link to "//vc_backend_name(link_type)//"-controlled source file")
         else if (vc_follow_symlinks /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
             call vc_follow_link()
-            call message("Followed link to "//buffers(cur)%filename)
+            call message("Followed link to "//buffers(current)%filename)
             call vc_refresh_state(status)
         else
             call read_yes_or_no("Symbolic link to "//vc_backend_name(link_type)// &
@@ -1689,7 +1689,7 @@ contains
 
             if (yes) then
                 call vc_follow_link()
-                call message("Followed link to "//buffers(cur)%filename)
+                call message("Followed link to "//buffers(current)%filename)
                 call vc_refresh_state(status)
             else
                 call message("Warning: editing through the link bypasses version control")
@@ -1721,15 +1721,15 @@ contains
         end if
     end subroutine refresh_state_hook
 
-    !> Discard VC info about a file when we kill its buffer.  Port of
+    !> Discard VC info about a file when we close its buffer.  Port of
     !> vc-hooks.el:vc-kill-buffer-hook.
-    recursive subroutine vc_kill_buffer_hook(status)
+    recursive subroutine vc_close_buffer_hook(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (cur == 0) return
-        if (allocated(buffers(cur)%filename)) call vc_file_clearprops(buffers(cur)%filename)
-    end subroutine vc_kill_buffer_hook
+        if (current == 0) return
+        if (allocated(buffers(current)%filename)) call vc_file_clearprops(buffers(current)%filename)
+    end subroutine vc_close_buffer_hook
 
     recursive subroutine cmd_vc_refresh_state(status)
         type(status_type), intent(out) :: status
@@ -1792,19 +1792,19 @@ contains
             vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
         end if
 
-        if (.not. allocated(vc_directory_exclusion_list)) then
-            vc_directory_exclusion_list = [character(len=8) :: "SCCS", "RCS", "CVS", "MCVS", ".src", ".svn", ".git", &
-                                           ".hg", ".bzr", "_MTN", "_darcs", "{arch}", ".repo", ".jj"]
+        if (.not. allocated(vc_directory_exclusions)) then
+            vc_directory_exclusions = [character(len=8) :: "SCCS", "RCS", "CVS", "MCVS", ".src", ".svn", ".git", &
+                                       ".hg", ".bzr", "_MTN", "_darcs", "{arch}", ".repo", ".jj"]
         end if
 
         if (.not. allocated(props)) allocate (props(0))
         call define_faces()
         commands%vc_refresh_state%execute => cmd_vc_refresh_state
-        call find_file_hook%add(refresh_state_hook)
-        call kill_buffer_hook%add(vc_kill_buffer_hook)
-        vc_before_save_proc => vc_before_save
-        vc_after_save_proc => vc_after_save
-        if (.not. after_revert_hook%member(vc_after_revert)) call after_revert_hook%add(vc_after_revert)
+        call find_file_hook%append(refresh_state_hook)
+        call close_buffer_hook%append(vc_close_buffer_hook)
+        vc_before_save_hook => vc_before_save
+        vc_after_save_hook => vc_after_save
+        if (.not. after_revert_hook%member(vc_after_revert)) call after_revert_hook%append(vc_after_revert)
         call make_sparse_keymap(vc_prefix_map)
         call keymap_set(vc_prefix_map, "G", "vc_ignore", st)
         call keymap_set(vc_prefix_map, "i", "vc_register", st)

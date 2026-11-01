@@ -40,9 +40,9 @@ contains
 
         call prepare_to_modify_buffer_1(start, end, status)
         if (.not. status%ok()) return
-        call buf_compute_unchanged(buffers(cur), start - 1, end)
-        if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
-        call modiff_incr(buffers(cur)%text%modiff, 1_int64)
+        call buf_compute_unchanged(buffers(current), start - 1, end)
+        if (buffers(current)%text%modiff <= buffers(current)%text%save_modiff) call record_first_change()
+        call modiff_incr(buffers(current)%text%modiff, 1_int64)
     end subroutine modify_text_properties
 
     !> signal_after_change (START, END - START, END - START), as textprop.c

@@ -31,7 +31,7 @@ module test_electric_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, buffer_string
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input
@@ -81,9 +81,9 @@ contains
         prefix_arg = prefix_arg_type()
 
         if (present(name)) then
-            call get_buffer_create(name, h, st)
+            call get_or_make_buffer(name, h, st)
         else
-            call get_buffer_create("*electric-test*", h, st)
+            call get_or_make_buffer("*electric-test*", h, st)
         end if
 
         call set_buffer(h, st)
@@ -117,13 +117,13 @@ contains
 
         call fresh(h, "")
         hook_calls = 0
-        call post_self_insert_hook%add(count_hook)
+        call post_self_insert_hook%append(count_hook)
         call keys("ab"//achar(21)//"3c")
         call post_self_insert_hook%remove(count_hook)
         call check(error, buffer_string(), "abccc")
         if (allocated(error)) return
         call check(error, hook_calls == 3, "three commands")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_post_self_insert_hook
 
     subroutine test_default_on(error)
@@ -146,7 +146,7 @@ contains
         call check(error, buffer_string(), "  foo"//achar(10)//"  ")
         if (allocated(error)) return
         call check(error, point() == point_max(), "at the end")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_newline
 
     !> Without Electric Indent mode RET just opens a line.
@@ -160,7 +160,7 @@ contains
         call keys(achar(13))
         call check(error, buffer_string(), "  foo   "//achar(10))
         call minor_modes%electric_indent_mode%enable(st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_off
 
     !> C-j inserts just a newline when Electric Indent mode is on, and
@@ -173,14 +173,14 @@ contains
         call fresh(h, "  foo")
         call keys(achar(10))
         call check(error, buffer_string(), "  foo"//achar(10))
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         call fresh(h, "  foo  ")
         call minor_modes%electric_indent_mode%disable(st)
         call keys(achar(10))
         call check(error, buffer_string(), "  foo"//achar(10)//"  ")
         call minor_modes%electric_indent_mode%enable(st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_c_j
 
     !> Electric Indent Local mode turns the mode off in one buffer only.
@@ -206,8 +206,8 @@ contains
         call set_buffer(a, st)
         call minor_modes%electric_indent_local_mode%enable(st)
         call check(error, minor_modes%electric_indent_local_mode%enabled(), "back on")
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
     end subroutine test_local_mode
 
     !> Only `electric_indent_chars' reindent.
@@ -224,7 +224,7 @@ contains
         call keys("}")
         call check(error, buffer_string(), "  foo"//achar(10)//"  x}}")
         electric_indent_chars = [10]
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_chars
 
     !> `electric_indent_inhibit' is buffer-local.
@@ -240,7 +240,7 @@ contains
         if (allocated(error)) return
         call set_buffer(a, st)
         call check(error, electric_indent_inhibit%value, "in its buffer")
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
     end subroutine test_inhibit_local
 end module test_electric_fm

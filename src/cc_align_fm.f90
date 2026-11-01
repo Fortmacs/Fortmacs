@@ -23,7 +23,7 @@
 !> JavaScript mode uses for its comments.
 !>
 !> Deferred: CC Mode itself (the syntactic analysis that gives a line its
-!> syntactic elements, `c_offsets_table') and the other line-up
+!> syntactic elements, `c_offsets') and the other line-up
 !> functions of cc-align.el.
 module cc_align_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -39,19 +39,19 @@ module cc_align_fm
     implicit none(type, external)
     private
 
-    public :: c_lineup_c_comments, c_lineup_proc
+    public :: c_lineup_c_comments, c_lineup_procedure
 
     abstract interface
         !> A line-up function of the syntactic symbol `c' (a C comment
         !> continuation line): the column of the current line, whose comment
         !> starts at LANGELEM_POS (its anchor), when its comment line prefix
         !> is matched by COMMENT_PREFIX (c-current-comment-prefix).
-        integer function c_lineup_proc(langelem_pos, comment_prefix)
+        integer function c_lineup_procedure(langelem_pos, comment_prefix)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: langelem_pos
             character(len=*), intent(in) :: comment_prefix
-        end function c_lineup_proc
+        end function c_lineup_procedure
     end interface
 
 contains

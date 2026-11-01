@@ -107,10 +107,10 @@ contains
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=12) :: buf
+        character(len=12) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function itoa
 
     !> In `map', translate byte sequence `seq' to the single event `ev'.
@@ -196,7 +196,7 @@ contains
                                                                "kp-5", "kp-6", "kp-7", "kp-8", "kp-9", "kp-equal"]
         integer, parameter :: fkey_mods(5) = [2, 5, 6, 3, 4]
         integer :: k, j, m
-        character(len=3) :: fname
+        character(len=3) :: file_name
 
         if (is_keymap_live(xterm_map)) then
             map = xterm_map
@@ -208,13 +208,13 @@ contains
 
         ! F1-F4 (SS3 P..S), F11, F12, and modified F1-F12.
         do k = 1, 4
-            write (fname, '("f",i0)') k
-            call defkey(map, ESC//"O"//pf_finals(k:k), 0_int64, trim(fname))
-            call defkey(map, ESC//"[1;2"//pf_finals(k:k), M_SHIFT, trim(fname))
+            write (file_name, '("f",i0)') k
+            call defkey(map, ESC//"O"//pf_finals(k:k), 0_int64, trim(file_name))
+            call defkey(map, ESC//"[1;2"//pf_finals(k:k), M_SHIFT, trim(file_name))
 
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
-                call defkey(map, ESC//"O"//itoa(m)//pf_finals(k:k), xterm_modifiers(m), trim(fname))
+                call defkey(map, ESC//"O"//itoa(m)//pf_finals(k:k), xterm_modifiers(m), trim(file_name))
             end do
         end do
 
@@ -222,12 +222,12 @@ contains
         call defkey(map, ESC//"[24~", 0_int64, "f12")
 
         do k = 1, size(fkey_codes)
-            write (fname, '("f",i0)') k + 4
+            write (file_name, '("f",i0)') k + 4
 
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
                 call defkey(map, ESC//"["//itoa(fkey_codes(k))//";"//itoa(m)//"~", &
-                            xterm_modifiers(m), trim(fname))
+                            xterm_modifiers(m), trim(file_name))
             end do
         end do
 
@@ -373,7 +373,7 @@ contains
         type(xterm_color_type), intent(in) :: colors(:)
         type(status_type), intent(out) :: status
         integer, parameter :: levels(0:3) = [0, 139, 205, 255]
-        integer :: ncolors, i, idx, r, g, b, color
+        integer :: ncolors, i, index, r, g, b, color
 
         ncolors = tty_display_color_cells
         ! Clear the 8 default tty colors registered by startup.el
@@ -395,13 +395,13 @@ contains
             select case (ncolors)
             case (16777200) ! 24-bit xterm
                 ! all named tty colors
-                idx = size(xterm_standard_colors)
+                index = size(xterm_standard_colors)
 
                 do i = 1, color_name_count
                     if (.not. any(xterm_standard_colors%name == color_names(i))) then
-                        call tty_color_define(trim(color_names(i)), idx, status, color_rgbs(:, i))
+                        call tty_color_define(trim(color_names(i)), index, status, color_rgbs(:, i))
                         if (.not. status%ok()) return
-                        idx = idx + 1
+                        index = index + 1
                     end if
                 end do
             case (240) ! 256-color xterm

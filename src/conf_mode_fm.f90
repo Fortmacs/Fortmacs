@@ -30,7 +30,7 @@
 !>
 !> The keyword lists (`conf_font_lock_keywords' and the others) are
 !> arrays of `font_lock_keyword_type'.  `conf_assignment_sign' is a string
-!> (unallocated for none).  `conf_space_keywords_table' holds
+!> (unallocated for none).  `conf_space_keywords_by_file' holds
 !> `conf_space_keywords_entry_type' entries.
 !>
 !> Deferred: Outline mode's variables (`outline_regexp',
@@ -45,10 +45,10 @@ module conf_mode_fm
     use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting
+    use data_fm, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set
@@ -80,28 +80,28 @@ module conf_mode_fm
     !> If this number is negative, the `=' comes before the whitespace.  Use 0 to
     !> not align (only setting space according to `conf_assignment_space').
     !> Port of conf-mode.el conf-assignment-column.
-    type(integer_setting), target, public :: conf_assignment_column = &
-                                             integer_setting(name="conf_assignment_column", value=24)
+    type(integer_setting_type), target, public :: conf_assignment_column = &
+                                                  integer_setting_type(name="conf_assignment_column", value=24)
 
     !> Value for `conf_assignment_column' in Java properties buffers.
     !> Port of conf-mode.el conf-javaprop-assignment-column.
-    type(integer_setting), target, public :: conf_javaprop_assignment_column = &
-                                             integer_setting(name="conf_javaprop_assignment_column", value=32)
+    type(integer_setting_type), target, public :: conf_javaprop_assignment_column = &
+                                                  integer_setting_type(name="conf_javaprop_assignment_column", value=32)
 
     !> Value for `conf_assignment_column' in Java properties buffers.
     !> Port of conf-mode.el conf-colon-assignment-column.
-    type(integer_setting), target, public :: conf_colon_assignment_column = &
-                                             integer_setting(name="conf_colon_assignment_column", value=-24)
+    type(integer_setting_type), target, public :: conf_colon_assignment_column = &
+                                                  integer_setting_type(name="conf_colon_assignment_column", value=-24)
 
     !> Put at least one space around assignments when aligning.
     !> Port of conf-mode.el conf-assignment-space.
-    type(logical_setting), target, public :: conf_assignment_space = &
-                                             logical_setting(name="conf_assignment_space", value=.true.)
+    type(logical_setting_type), target, public :: conf_assignment_space = &
+                                                  logical_setting_type(name="conf_assignment_space", value=.true.)
 
     !> Value for `conf_assignment_space' in colon style Conf mode buffers.
     !> Port of conf-mode.el conf-colon-assignment-space.
-    type(logical_setting), target, public :: conf_colon_assignment_space = &
-                                             logical_setting(name="conf_colon_assignment_space", value=.false.)
+    type(logical_setting_type), target, public :: conf_colon_assignment_space = &
+                                                  logical_setting_type(name="conf_colon_assignment_space", value=.false.)
 
     !> Local keymap for `conf_mode' buffers.  Port of conf-mode.el
     !> conf-mode-map.
@@ -149,7 +149,7 @@ module conf_mode_fm
     !> conf-desktop-font-lock-keywords.
     type(font_lock_keyword_type), allocatable, public :: conf_desktop_font_lock_keywords(:)
 
-    !> An entry of `conf_space_keywords_table': files whose name matches
+    !> An entry of `conf_space_keywords_by_file': files whose name matches
     !> REGEXP get KEYWORDS as `conf_space_keywords'.
     type :: conf_space_keywords_entry_type
         character(len=:), allocatable :: regexp, keywords
@@ -157,25 +157,25 @@ module conf_mode_fm
 
     !> File-name-based settings for the variable `conf_space_keywords'.
     !> Port of conf-mode.el conf-space-keywords-alist.
-    type(conf_space_keywords_entry_type), allocatable, public :: conf_space_keywords_table(:)
+    type(conf_space_keywords_entry_type), allocatable, public :: conf_space_keywords_by_file(:)
 
     !> Regexps for functions that may come before a space assignment.
     !> This allows constructs such as
     !> keyword var value
     !> This variable is best set in the file local variables, or through
-    !> `conf_space_keywords_table'.  Port of conf-mode.el
+    !> `conf_space_keywords_by_file'.  Port of conf-mode.el
     !> conf-space-keywords.
-    type(string_setting), target, public :: conf_space_keywords = string_setting(name="conf_space_keywords")
+    type(string_setting_type), target, public :: conf_space_keywords = string_setting_type(name="conf_space_keywords")
 
     !> Sign used for assignments (char or string).  Port of conf-mode.el
     !> conf-assignment-sign (unallocated for none).
-    type(string_setting), target, public :: conf_assignment_sign = string_setting(name="conf_assignment_sign")
+    type(string_setting_type), target, public :: conf_assignment_sign = string_setting_type(name="conf_assignment_sign")
 
     !> Regexp to recognize assignments.
     !> It is anchored after the first expression on a line.  There must be a
     !> grouping for the assignment sign, including leading and trailing
     !> whitespace.  Port of conf-mode.el conf-assignment-regexp.
-    type(string_setting), target, public :: conf_assignment_regexp = string_setting(name="conf_assignment_regexp")
+    type(string_setting_type), target, public :: conf_assignment_regexp = string_setting_type(name="conf_assignment_regexp")
 
     !> Hook run at the end of `conf_mode'.
     type(hook_type), target, public :: conf_mode_hook = hook_type(name="conf_mode_hook")
@@ -421,11 +421,11 @@ contains
         conf_desktop_font_lock_keywords(5) = font_lock_keyword("\_<%[uUfFick%]\_>", highlights=h1)
     end subroutine init_keywords
 
-    ! Set `conf_space_keywords_table'.  Port of the value of conf-mode.el's
+    ! Set `conf_space_keywords_by_file'.  Port of the value of conf-mode.el's
     ! conf-space-keywords-alist.
     subroutine init_space_keywords_table()
-        if (allocated(conf_space_keywords_table)) return
-        allocate (conf_space_keywords_table(9))
+        if (allocated(conf_space_keywords_by_file)) return
+        allocate (conf_space_keywords_by_file(9))
         call set_entry(1, "\`/etc/gpm/", "key\|name\|foreground\|background\|border\|head")
         call set_entry(2, "\`/etc/magic\'", "[^ "//TAB//"]+[ "//TAB//"]+\(?:[bl]?e?\(?:short\|long\)\|byte\|string\)[^ " &
                        //TAB//"]*")
@@ -443,8 +443,8 @@ contains
             integer, intent(in) :: k
             character(len=*), intent(in) :: regexp, keywords
 
-            conf_space_keywords_table(k)%regexp = regexp
-            conf_space_keywords_table(k)%keywords = keywords
+            conf_space_keywords_by_file(k)%regexp = regexp
+            conf_space_keywords_by_file(k)%keywords = keywords
         end subroutine set_entry
     end subroutine init_space_keywords_table
 
@@ -474,8 +474,8 @@ contains
 
         opoint = point()
         ! (save-restriction)
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
         narrowed = .false.
 
         if (is_use_region()) then
@@ -553,7 +553,7 @@ contains
         ! (end of save-restriction and save-excursion)
         if (narrowed) then
             call widen()
-            call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+            call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         end if
 
         call goto_char(min(max(opoint, point_min()), point_max()))
@@ -774,7 +774,7 @@ contains
         call font_lock_defaults%set_local(keywords=conf_font_lock_keywords, case_fold=.true.)
         ! Let newcomment.el decide this for itself.
         call parse_expression_ignore_comments%set_local(.true.)
-        call major_modes%conf_mode%finish(saved, status)
+        call major_modes%conf_mode%end(saved, status)
     end subroutine conf_mode
 
     !> Initializations for sub-modes of `conf_mode'.
@@ -801,7 +801,7 @@ contains
         call major_modes%conf_unix_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")
-        call major_modes%conf_unix_mode%finish(saved, status)
+        call major_modes%conf_unix_mode%end(saved, status)
     end subroutine conf_unix_mode
 
     !> Conf Mode starter for Windows style Conf files.
@@ -826,7 +826,7 @@ contains
         call major_modes%conf_windows_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize(";")
-        call major_modes%conf_windows_mode%finish(saved, status)
+        call major_modes%conf_windows_mode%end(saved, status)
     end subroutine conf_windows_mode
 
     !> Conf Mode starter for Java properties files.
@@ -852,12 +852,12 @@ contains
         call conf_mode_initialize("#", conf_javaprop_font_lock_keywords)
         call conf_assignment_column%set_local(conf_javaprop_assignment_column%value)
         call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]*[=: "//TAB//"][ "//TAB//"]*\|$\)")
-        call major_modes%conf_javaprop_mode%finish(saved, status)
+        call major_modes%conf_javaprop_mode%end(saved, status)
     end subroutine conf_javaprop_mode
 
     !> Conf Mode starter for space separated conf files.
     !> "Assignments" are with ` '.  Keywords before the parameters are
-    !> recognized according to the variable `conf_space_keywords_table'.
+    !> recognized according to the variable `conf_space_keywords_by_file'.
     !> Alternatively, you can specify a value for the file local variable
     !> `conf_space_keywords'.
     !> Use the function `conf_space_keywords' if you want to specify keywords
@@ -891,16 +891,16 @@ contains
         call conf_assignment_sign%make_local()
         call conf_assignment_sign%clear()
 
-        if (allocated(buffers(cur)%filename)) then
+        if (allocated(buffers(current)%filename)) then
             ! We set conf-space-keywords directly, but a value which is
             ! in the local variables list or interactively specified
             ! (see the function conf-space-keywords) takes precedence.
             call conf_space_keywords%make_local()
             call conf_space_keywords%clear()
 
-            do k = 1, size(conf_space_keywords_table)
-                if (string_match(conf_space_keywords_table(k)%regexp, buffers(cur)%filename, st) > 0) then
-                    call conf_space_keywords%set_local(conf_space_keywords_table(k)%keywords)
+            do k = 1, size(conf_space_keywords_by_file)
+                if (string_match(conf_space_keywords_by_file(k)%regexp, buffers(current)%filename, st) > 0) then
+                    call conf_space_keywords%set_local(conf_space_keywords_by_file(k)%keywords)
                     exit
                 end if
             end do
@@ -908,7 +908,7 @@ contains
 
         call conf_space_mode_internal(status)
         if (.not. status%ok()) return
-        call major_modes%conf_space_mode%finish(saved, status)
+        call major_modes%conf_space_mode%end(saved, status)
     end subroutine conf_space_mode
 
     !> Enter Conf Space mode using regexp KEYWORDS to match the keywords.
@@ -1008,7 +1008,7 @@ contains
         call conf_assignment_column%set_local(conf_colon_assignment_column%value)
         call conf_assignment_sign%set_local(":")
         call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]*:[ "//TAB//"]*\)")
-        call major_modes%conf_colon_mode%finish(saved, status)
+        call major_modes%conf_colon_mode%end(saved, status)
     end subroutine conf_colon_mode
 
     !> Conf Mode starter for Adobe/CUPS PPD files.
@@ -1029,7 +1029,7 @@ contains
         call major_modes%conf_ppd_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("*%")
-        call major_modes%conf_ppd_mode%finish(saved, status)
+        call major_modes%conf_ppd_mode%end(saved, status)
     end subroutine conf_ppd_mode
 
     !> Conf Mode starter for Xdefaults files.
@@ -1050,7 +1050,7 @@ contains
         call major_modes%conf_xdefaults_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("!")
-        call major_modes%conf_xdefaults_mode%finish(saved, status)
+        call major_modes%conf_xdefaults_mode%end(saved, status)
     end subroutine conf_xdefaults_mode
 
     !> Font-lock helper function for `conf_toml_mode'.
@@ -1118,7 +1118,7 @@ contains
         call font_lock_defaults%set_local(keywords=conf_toml_font_lock_keywords, case_fold=.false.)
         call conf_assignment_column%set_local(0)
         call conf_assignment_sign%set_local("=")
-        call major_modes%conf_toml_mode%finish(saved, status)
+        call major_modes%conf_toml_mode%end(saved, status)
     end subroutine conf_toml_mode
 
     !> Conf Mode started for freedesktop.org Desktop files.
@@ -1143,7 +1143,7 @@ contains
         call conf_mode_initialize("#", conf_desktop_font_lock_keywords)
         call conf_quote_normal(status)
         if (.not. status%ok()) return
-        call major_modes%conf_desktop_mode%finish(saved, status)
+        call major_modes%conf_desktop_mode%end(saved, status)
     end subroutine conf_desktop_mode
 
     !> Conf Mode starter for .npmrc files.
@@ -1157,7 +1157,7 @@ contains
         call major_modes%conf_npmrc_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#")
-        call major_modes%conf_npmrc_mode%finish(saved, status)
+        call major_modes%conf_npmrc_mode%end(saved, status)
     end subroutine conf_npmrc_mode
 
     !> Select Conf mode or XML mode according to start of file.  Port of
@@ -1171,12 +1171,12 @@ contains
 
         status = status_type()
         opoint = point()
-        begv = buffers(cur)%begv
-        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv_from_end = buffers(current)%text%z - buffers(current)%zv
         call widen()
         call goto_char(point_min())
         xml = looking_at("<\?xml \|<!-- \|<!DOCTYPE ", st)
-        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         call goto_char(opoint)
         if (xml) return
         call conf_mode(status)

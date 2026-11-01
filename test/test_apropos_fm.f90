@@ -29,7 +29,7 @@ module test_apropos_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, is_buffer_live
+    use buffer_fm, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_live
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string, goto_char, point_max
@@ -86,21 +86,21 @@ contains
         if (present(c)) w(3)%s = c
     end function words
 
-    logical function matches(re, s)
-        character(len=*), intent(in) :: re, s
+    logical function matches(regexp, s)
+        character(len=*), intent(in) :: regexp, s
         type(status_type) :: st
 
-        matches = string_match(re, s, st) > 0
+        matches = string_match(regexp, s, st) > 0
     end function matches
 
     subroutine fresh()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
         call ensure_frame_windows()
         call delete_other_windows(selected_frame%selected_window, st)
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
@@ -151,20 +151,20 @@ contains
 
     subroutine test_words_to_regexp_1(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
 
-        re = apropos_words_to_regexp(words("foo", "bar"), "baz")
-        call check(error, matches(re, "foobazbar") .and. matches(re, "barbazfoo") .and. &
-                   .not. matches(re, "foo-bar") .and. .not. matches(re, "foobazbazbar"), re)
+        regexp = apropos_words_to_regexp(words("foo", "bar"), "baz")
+        call check(error, matches(regexp, "foobazbar") .and. matches(regexp, "barbazfoo") .and. &
+                   .not. matches(regexp, "foo-bar") .and. .not. matches(regexp, "foobazbazbar"), regexp)
     end subroutine test_words_to_regexp_1
 
     subroutine test_words_to_regexp_2(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
 
-        re = apropos_words_to_regexp(words("foo", "bar", "baz"), "-")
-        call check(error,.not. matches(re, "foo") .and. .not. matches(re, "foobar") .and. &
-                   matches(re, "foo-bar") .and. matches(re, "foo-baz"), re)
+        regexp = apropos_words_to_regexp(words("foo", "bar", "baz"), "-")
+        call check(error,.not. matches(regexp, "foo") .and. .not. matches(regexp, "foobar") .and. &
+                   matches(regexp, "foo-bar") .and. matches(regexp, "foo-baz"), regexp)
     end subroutine test_words_to_regexp_2
 
     subroutine test_parse_pattern_1(error)
@@ -227,25 +227,25 @@ contains
 
     subroutine test_calc_scores(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: str = "Return apropos score for string STR."
+        character(len=*), parameter :: string = "Return apropos score for string STRING."
         integer(int64), allocatable :: scores(:)
 
-        call apropos_calc_scores(str, words("apr"), .true., scores)
+        call apropos_calc_scores(string, words("apr"), .true., scores)
         call check(error, size(scores) == 1, "one score")
         if (allocated(error)) return
         call check(error, scores(1) == 7_int64, "apr at 7")
         if (allocated(error)) return
-        call apropos_calc_scores(str, words("apr", "str"), .true., scores)
+        call apropos_calc_scores(string, words("apr", "string"), .true., scores)
         call check(error, size(scores) == 2, "two scores")
         if (allocated(error)) return
         call check(error, scores(1) == 25_int64 .and. scores(2) == 7_int64, "(25 7)")
         if (allocated(error)) return
-        call apropos_calc_scores(str, words("appr", "str"), .true., scores)
+        call apropos_calc_scores(string, words("appr", "string"), .true., scores)
         call check(error, size(scores) == 1, "(25)")
         if (allocated(error)) return
         call check(error, scores(1) == 25_int64, "(25)")
         if (allocated(error)) return
-        call apropos_calc_scores(str, words("appr", "strr"), .true., scores)
+        call apropos_calc_scores(string, words("appr", "strr"), .true., scores)
         call check(error, size(scores) == 0, "none")
     end subroutine test_calc_scores
 
@@ -270,16 +270,15 @@ contains
         call command_loop(st)
         text = apropos_text()
         call check(error, index(text, "Type RET on an entry to view its full documentation."//LF//LF// &
-                                "comint_kill_whole_line"//TAB//"      M-x ... RET"//LF// &
-                                "  Kill current line, ignoring read-only and field properties."//LF// &
-                                "dired_do_kill_lines"//TAB//"      M-x ... RET"//LF// &
-                                "  Remove all marked lines, or the next ARG lines.") == 1, text)
+                                "comint_cut_whole_line"//TAB//"      M-x ... RET"//LF// &
+                                "  Cut current line, ignoring read-only and field properties."//LF// &
+                                "cut_line"//TAB//TAB//"      C-k, <deleteline>") == 1, text)
         if (allocated(error)) return
-        call check(error, index(text, LF//"kill_line"//TAB//TAB//"      C-k, <deleteline>"//LF// &
-                                "  Kill the rest of the current line;") > 0, text)
+        call check(error, index(text, LF//"cut_line"//TAB//TAB//"      C-k, <deleteline>"//LF// &
+                                "  Cut the rest of the current line;") > 0, text)
         if (allocated(error)) return
-        call check(error, index(text, LF//"kill_whole_line"//TAB//TAB//"      C-S-<backspace>"//LF// &
-                                "  Kill current line."//LF) > 0 .and. index(text, "forward_line") == 0, text)
+        call check(error, index(text, LF//"cut_whole_line"//TAB//TAB//"      C-S-<backspace>"//LF// &
+                                "  Cut current line."//LF) > 0 .and. index(text, "forward_line") == 0, text)
         if (allocated(error)) return
         call check(error, last_message, "Type C-x 1 to remove help window.  ")
     end subroutine test_apropos_command
@@ -351,9 +350,9 @@ contains
         type(handle_type) :: old
 
         call fresh()
-        call type_keys("C-h a "//spelled("kill_whole_line")//" RET C-x o")
+        call type_keys("C-h a "//spelled("cut_whole_line")//" RET C-x o")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*Apropos*", buffers(cur)%name)
+        call check(error, buffers(current)%name == "*Apropos*", buffers(current)%name)
         if (allocated(error)) return
         call type_keys("n n RET")
         call command_loop(st)
@@ -361,7 +360,7 @@ contains
         call set_buffer(get_buffer("*Help*"), st)
         text = buffer_string()
         call set_buffer(old, st)
-        call check(error, index(text, "kill_whole_line is an interactive Fortran subroutine") == 1, text)
+        call check(error, index(text, "cut_whole_line is an interactive Fortran subroutine") == 1, text)
         if (allocated(error)) return
         call goto_char(point_max())
         call type_keys("RET")

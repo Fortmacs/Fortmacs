@@ -51,7 +51,7 @@ contains
         ! FIXME: maybe we should use completion-file-name-table instead,
         ! tho at least for `load', the arg is passed through
         ! substitute-in-file-name for historical reasons.
-        call read_file_name_internal(string, action, result, status, pred, suffix)
+        call read_file_name_internal(string, action, result, status, test, suffix)
         return
     end if
 
@@ -89,8 +89,8 @@ contains
         if (len(dir) == 0) then
             dir = "./"
 
-            if (cur > 0) then
-                if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+            if (current > 0) then
+                if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
             end if
         end if
 
@@ -106,11 +106,11 @@ contains
             file = xstring(list_elt(files, k))
 
             if (string_match(sufre, file, st) <= 0) then
-                call add_front(names, file)
+                call prepend(names, file)
             else
-                call add_front(fullnames, file)
+                call prepend(fullnames, file)
                 mb = match_beginning(0, st)
-                call add_front(names, file(1:mb - 1))
+                call prepend(names, file(1:mb - 1))
             end if
         end do
     end do
@@ -140,7 +140,7 @@ contains
 
         do i = 2, nn
             if (xstring(names(i)) == first .and. len(xstring(names(i))) == len(first)) cycle
-            call add(items, names(i))
+            call append(items, names(i))
         end do
 
         call move_alloc(items, names)
@@ -152,17 +152,17 @@ contains
         nf = size(fullnames)
 
         do i = 1, nf
-            call add(names, fullnames(i))
+            call append(names, fullnames(i))
         end do
     end if
 
     table%list = make_list(names)
-    call completion_table_with_context(string_dir, table, string_file, action, result, status, pred, suffix)
+    call completion_table_with_context(string_dir, table, string_file, action, result, status, test, suffix)
 
 contains
 
     ! (push NAME LIST)
-    subroutine add_front(values, name)
+    subroutine prepend(values, name)
         type(value_type), allocatable, intent(inout) :: values(:)
         character(len=*), intent(in) :: name
         type(value_type), allocatable :: grown(:)
@@ -176,10 +176,10 @@ contains
         end do
 
         call move_alloc(grown, values)
-    end subroutine add_front
+    end subroutine prepend
 
     ! VALUES with V added at the end.
-    subroutine add(values, v)
+    subroutine append(values, v)
         type(value_type), allocatable, intent(inout) :: values(:)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: grown(:)
@@ -193,7 +193,7 @@ contains
 
         grown(size(values) + 1) = v
         call move_alloc(grown, values)
-    end subroutine add
+    end subroutine append
     end procedure locate_file_completion_table
 
     !> Convert FILENAME to be relative to DIRECTORY (default:
@@ -214,8 +214,8 @@ contains
     else
         base = ""
 
-        if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) base = buffers(cur)%directory
+        if (current /= 0) then
+            if (allocated(buffers(current)%directory)) base = buffers(current)%directory
         end if
     end if
 
@@ -337,7 +337,7 @@ contains
         character(len=:), allocatable :: filename, dir
 
         dir = "~/"
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file read-only: ", filename, status, default_filename=dir, &
                                           confirm_nonexistent=.true.)
         if (.not. status%ok()) return
@@ -357,7 +357,7 @@ contains
         character(len=:), allocatable :: filename, dir
 
         dir = "~/"
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file read-only other window: ", filename, status, &
                                           default_filename=dir, confirm_nonexistent=.true.)
         if (.not. status%ok()) return

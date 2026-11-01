@@ -29,7 +29,7 @@ module test_f90_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, buffer_substring, line_end_position
     use cmds_fm, only: forward_line, beginning_of_line
@@ -41,7 +41,7 @@ module test_f90_fm
     use regexp_opt_fm, only: regexp_opt, regexp_opt_charset, regexp_unmatchable
     use f90_fm, only: f90_mode, f90_indent_region, f90_do_auto_fill, f90_indent_subprogram, f90_indent_line, &
                       f90_end_of_subprogram, f90_block_type, f90_smart_end, F90_SMART_END_NO_BLINK, &
-                      f90_keywords_re, f90_program_block_re
+                      f90_keywords_regexp, f90_program_block_regexp
     implicit none(type, external)
     private
 
@@ -85,7 +85,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *f90-test*", h, st)
+        call get_or_make_buffer(" *f90-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call f90_mode(st)
@@ -95,7 +95,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     !> (insert S)
@@ -398,7 +398,7 @@ contains
         character(len=3), parameter :: words(4) = [character(len=3) :: "a", "ab", "ac", "abc"]
         character(len=3) :: perm(4)
         integer :: i, j, k, l
-        integer(int64) :: idx
+        integer(int64) :: index
         type(status_type) :: st
 
         do i = 1, 4
@@ -407,8 +407,8 @@ contains
                     do l = 1, 4
                         if (i == j .or. i == k .or. i == l .or. j == k .or. j == l .or. k == l) cycle
                         perm = [words(i), words(j), words(k), words(l)]
-                        idx = string_match(regexp_opt(perm), "abcd", st)
-                        call check(error, idx == 1 .and. match_end(0, st) == 4, "not the longest match")
+                        index = string_match(regexp_opt(perm), "abcd", st)
+                        call check(error, index == 1 .and. match_end(0, st) == 4, "not the longest match")
                         if (allocated(error)) return
                     end do
                 end do
@@ -462,14 +462,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: idx
+        integer(int64) :: index
 
         call f90_buffer(h)
-        call check(error, f90_program_block_re, "\(function\|module\|program\|sub\(?:\(?:modul\|routin\)e\)\)")
+        call check(error, f90_program_block_regexp, "\(function\|module\|program\|sub\(?:\(?:modul\|routin\)e\)\)")
 
         if (.not. allocated(error)) then
-            idx = string_match(f90_keywords_re, "x = error stop", st)
-            call check(error, idx == 5, "keywords: error stop")
+            index = string_match(f90_keywords_regexp, "x = error stop", st)
+            call check(error, index == 5, "keywords: error stop")
         end if
 
         call leave(h)

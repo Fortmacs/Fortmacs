@@ -27,7 +27,7 @@ module test_smie_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
     use bindings_fm, only: init_bindings
@@ -46,7 +46,7 @@ module test_smie_fm
     character(len=*), parameter :: LF = achar(10)
 
     type(smie_grammar_type), target, save :: pascal_grammar
-    logical, save :: have_grammar = .false.
+    logical, save :: has_grammar = .false.
 
 contains
 
@@ -82,22 +82,22 @@ contains
         type(smie_prec2_type) :: prec2
 
         status = status_type()
-        if (have_grammar) return
-        call bnf%add("inst", [character(len=6) :: "begin", "insts", "end"])
-        call bnf%add("inst", [character(len=6) :: "if", "exp", "then", "inst", "else", "inst"])
-        call bnf%add("inst", [character(len=6) :: "exp", ":=", "exp"])
-        call bnf%add("inst", [character(len=6) :: "exp"])
-        call bnf%add("insts", [character(len=6) :: "insts", ";", "insts"])
-        call bnf%add("insts", [character(len=6) :: "inst"])
-        call bnf%add("exp", [character(len=6) :: "exp", "+", "exp"])
-        call bnf%add("exp", [character(len=6) :: "exp", "*", "exp"])
-        call precs(1)%add(SMIE_ASSOC, [character(len=1) :: ";"])
-        call precs(1)%add(SMIE_ASSOC, [character(len=1) :: "+"])
-        call precs(1)%add(SMIE_ASSOC, [character(len=1) :: "*"])
+        if (has_grammar) return
+        call bnf%append("inst", [character(len=6) :: "begin", "insts", "end"])
+        call bnf%append("inst", [character(len=6) :: "if", "exp", "then", "inst", "else", "inst"])
+        call bnf%append("inst", [character(len=6) :: "exp", ":=", "exp"])
+        call bnf%append("inst", [character(len=6) :: "exp"])
+        call bnf%append("insts", [character(len=6) :: "insts", ";", "insts"])
+        call bnf%append("insts", [character(len=6) :: "inst"])
+        call bnf%append("exp", [character(len=6) :: "exp", "+", "exp"])
+        call bnf%append("exp", [character(len=6) :: "exp", "*", "exp"])
+        call precs(1)%append(SMIE_ASSOC, [character(len=1) :: ";"])
+        call precs(1)%append(SMIE_ASSOC, [character(len=1) :: "+"])
+        call precs(1)%append(SMIE_ASSOC, [character(len=1) :: "*"])
         call smie_bnf_to_prec2(bnf, prec2, status, precs=precs)
         if (.not. status%ok()) return
         call smie_prec2_to_grammar(prec2, pascal_grammar, status)
-        have_grammar = status%ok()
+        has_grammar = status%ok()
     end subroutine make_grammar
 
     subroutine temp_buffer(text, h)
@@ -106,7 +106,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *smie-test*", h, st)
+        call get_or_make_buffer(" *smie-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -121,7 +121,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     subroutine test_precs(error)
@@ -132,8 +132,8 @@ contains
         type(status_type) :: st
         integer :: lp, rp, lt, rt
 
-        call precs%add(SMIE_LEFT, [character(len=1) :: "+"])
-        call precs%add(SMIE_LEFT, [character(len=1) :: "*"])
+        call precs%append(SMIE_LEFT, [character(len=1) :: "+"])
+        call precs%append(SMIE_LEFT, [character(len=1) :: "*"])
         call smie_precs_to_prec2(precs, prec2)
         call smie_prec2_to_grammar(prec2, g, st)
         call check(error, st%ok(), "the levels")

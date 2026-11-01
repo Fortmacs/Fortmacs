@@ -49,8 +49,8 @@ module buff_menu_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, buffer_handle, &
-                         buffer_list, frame_buffer_list, buffer_serial_live, kill_buffer, is_buffer_modified, &
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, buffer_handle, &
+                         buffer_list, frame_buffer_list, buffer_serial_live, close_buffer, is_buffer_modified, &
                          restore_buffer_modified
     use editfns_fm, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_size, following_char
     use cmds_fm, only: forward_line, beginning_of_line
@@ -65,7 +65,7 @@ module buff_menu_fm
     use shell_fm, only: list_buffers_directory
     use frame_fm, only: selected_frame, selected_window, frame_lines
     use window_fm, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
-                         display_action_table_type, delete_other_windows, split_window, other_window, bury_buffer, other_buffer
+                         display_action_parameters_type, delete_other_windows, split_window, other_window, bury_buffer, other_buffer
     use view_fm, only: view_buffer, view_buffer_other_window
     use replace_fm, only: multi_occur, occur_read_primary_args
     use keymap_fm, only: keymap_set
@@ -91,30 +91,30 @@ module buff_menu_fm
     abstract interface
         !> A `buffer_menu_name_width_function': the width of the name column
         !> for the BUFFERS listed.  Not a port.
-        integer function buffer_menu_name_width_proc(bufs)
+        integer function buffer_menu_name_width_procedure(bufs)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: bufs(:)
-        end function buffer_menu_name_width_proc
+        end function buffer_menu_name_width_procedure
 
         !> A `Buffer-menu-filter-predicate': whether to list BUFFER.
         !> Not a port.
-        logical function buffer_menu_filter_proc(buffer)
+        logical function buffer_menu_filter_procedure(buffer)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
-        end function buffer_menu_filter_proc
+        end function buffer_menu_filter_procedure
 
         !> A `Buffer-menu-buffer-list' function: the buffers to list.
         !> Not a port.
-        subroutine buffer_menu_buffer_list_proc(bufs)
+        subroutine buffer_menu_buffer_list_procedure(bufs)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), allocatable, intent(out) :: bufs(:)
-        end subroutine buffer_menu_buffer_list_proc
+        end subroutine buffer_menu_buffer_list_procedure
     end interface
 
-    public :: buffer_menu_name_width_proc, buffer_menu_filter_proc, buffer_menu_buffer_list_proc
+    public :: buffer_menu_name_width_procedure, buffer_menu_filter_procedure, buffer_menu_buffer_list_procedure
 
     !> The mark character for marked buffers.  Port of buff-menu.el
     !> Buffer-menu-marker-char.
@@ -142,7 +142,7 @@ module buff_menu_fm
     !> return a number.  When it is null, `buffer_menu_name_width' is used
     !> directly.  Port of buff-menu.el Buffer-menu-name-width (a function;
     !> the default `buffer_menu_dynamic_name_width').
-    procedure(buffer_menu_name_width_proc), pointer, public :: buffer_menu_name_width_function => null()
+    procedure(buffer_menu_name_width_procedure), pointer, public :: buffer_menu_name_width_function => null()
 
     !> Width of buffer size column in the Buffer Menu.  Port of
     !> buff-menu.el Buffer-menu-size-width.
@@ -185,10 +185,10 @@ module buff_menu_fm
         integer(int64) :: serial = 0
         logical :: files_only = .false.
         logical :: show_internal = .false.
-        procedure(buffer_menu_filter_proc), pointer, nopass :: filter_predicate => null()
+        procedure(buffer_menu_filter_procedure), pointer, nopass :: filter_test => null()
         logical :: has_list = .false.
         type(handle_type), allocatable :: list(:)
-        procedure(buffer_menu_buffer_list_proc), pointer, nopass :: list_function => null()
+        procedure(buffer_menu_buffer_list_procedure), pointer, nopass :: list_function => null()
     end type local_type
 
     type(local_type), allocatable :: locals(:)
@@ -203,11 +203,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -215,7 +215,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(cur)%serial)
+                locals(k) = local_type(serial=buffers(current)%serial)
                 return
             end if
         end do
@@ -227,7 +227,7 @@ contains
             grown(i) = locals(i)
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, locals)
         k = n + 1
     end function local_index
@@ -339,8 +339,8 @@ contains
         call major_modes%buffer_menu_mode%begin(saved, status)
         if (.not. status%ok()) return
         call buffer_stale_function%set_local(stale_fast)
-        call tabulated_list_revert_hook%add(refresh_hook, local=.true.)
-        call major_modes%buffer_menu_mode%finish(saved, status)
+        call tabulated_list_revert_hook%append(refresh_hook, local=.true.)
+        call major_modes%buffer_menu_mode%end(saved, status)
     end subroutine buffer_menu_mode
 
     ! Not a port.
@@ -408,11 +408,11 @@ contains
     !> buff-menu.el:buffer-menu.
     recursive subroutine buffer_menu(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        call list_buffers_noselect(buf, status, files_only=prefix_files_only())
+        call list_buffers_noselect(buffer, status, files_only=prefix_files_only())
         if (.not. status%ok()) return
-        call switch_to_buffer(buffers(buf%index)%name, status)
+        call switch_to_buffer(buffers(buffer%index)%name, status)
         if (.not. status%ok()) return
         call display_help()
     end subroutine buffer_menu
@@ -426,11 +426,11 @@ contains
     !> buff-menu.el:buffer-menu-other-window.
     recursive subroutine buffer_menu_other_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        call list_buffers_noselect(buf, status, files_only=prefix_files_only())
+        call list_buffers_noselect(buffer, status, files_only=prefix_files_only())
         if (.not. status%ok()) return
-        call switch_to_buffer_other_window(buf, status)
+        call switch_to_buffer_other_window(buffer, status)
         if (.not. status%ok()) return
         call display_help()
     end subroutine buffer_menu_other_window
@@ -445,11 +445,11 @@ contains
     !> buff-menu.el:list-buffers.
     recursive subroutine list_buffers(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, window
+        type(handle_type) :: buffer, window
 
-        call list_buffers_noselect(buf, status, files_only=prefix_files_only())
+        call list_buffers_noselect(buffer, status, files_only=prefix_files_only())
         if (.not. status%ok()) return
-        call display_buffer(buf, window, status)
+        call display_buffer(buffer, window, status)
     end subroutine list_buffers
 
     ! Port of buff-menu.el:Buffer-menu--selection-message.
@@ -527,7 +527,7 @@ contains
         if (.not. has_id(id)) then
             if (signal) call set_error(status, FM_GENERIC_ERROR, "No buffer on this line")
         else if (buffer%index == 0) then
-            if (signal) call set_error(status, FM_GENERIC_ERROR, "This buffer has been killed")
+            if (signal) call set_error(status, FM_GENERIC_ERROR, "This buffer has been closed")
         end if
     end function buffer_menu_buffer
 
@@ -665,7 +665,7 @@ contains
         character, intent(in) :: mark
         type(status_type), intent(out) :: status
         type(tabulated_list_entry_type) :: entry
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         logical :: found, modified
         integer :: col
@@ -687,10 +687,10 @@ contains
         end do
 
         ! Reset modified mark in column 2.
-        buf = buffer_menu_buffer(st)
+        buffer = buffer_menu_buffer(st)
 
-        if (buf%index /= 0) then
-            call is_buffer_modified(buf, modified, st)
+        if (buffer%index /= 0) then
+            call is_buffer_modified(buffer, modified, st)
             if (modified .and. entry%cols(3)%text == " ") call set_col(3, "*", status)
         end if
     end subroutine unmark
@@ -719,7 +719,7 @@ contains
     recursive subroutine buffer_menu_delete(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: n, shortage
 
@@ -729,9 +729,9 @@ contains
         if (n == 0) n = 1
 
         do while (n > 0)
-            buf = buffer_menu_buffer(st)
+            buffer = buffer_menu_buffer(st)
 
-            if (buf%index /= 0) then
+            if (buffer%index /= 0) then
                 call set_col(1, buffer_menu_del_char, status)
                 if (.not. status%ok()) return
             end if
@@ -741,9 +741,9 @@ contains
         end do
 
         do while (n < 0)
-            buf = buffer_menu_buffer(st)
+            buffer = buffer_menu_buffer(st)
 
-            if (buf%index /= 0) then
+            if (buffer%index /= 0) then
                 call set_col(1, buffer_menu_del_char, status)
                 if (.not. status%ok()) return
             end if
@@ -785,16 +785,16 @@ contains
     !> command will save it.  Port of buff-menu.el:Buffer-menu-save.
     recursive subroutine buffer_menu_save(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: shortage
 
         status = status_type()
 
         if (has_id(tabulated_list_get_id())) then
-            buf = buffer_menu_buffer(st)
+            buffer = buffer_menu_buffer(st)
 
-            if (buf%index /= 0) then
+            if (buffer%index /= 0) then
                 call set_col(3, "S", status)
                 if (.not. status%ok()) return
             end if
@@ -809,16 +809,16 @@ contains
     recursive subroutine buffer_menu_not_modified(status, arg)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: arg
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
         logical :: modified
 
         modified = .false.
         if (present(arg)) modified = arg
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         old = current_buffer()
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         call restore_buffer_modified(modified)
         call set_buffer(old, st)
@@ -880,7 +880,7 @@ contains
                 killed = .false.
 
                 if (delete .and. buffer%index /= menu%index) then
-                    call kill_buffer(buffer, st)
+                    call close_buffer(buffer, st)
                     killed = st%ok() .and. .not. is_buffer_live(buffer)
                     call set_buffer(menu, status)
                     if (.not. status%ok()) exit
@@ -1022,11 +1022,11 @@ contains
     !> buff-menu.el:Buffer-menu-1-window.
     recursive subroutine buffer_menu_1_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call switch_to_buffer(buffers(buf%index)%name, status)
+        call switch_to_buffer(buffers(buffer%index)%name, status)
         if (.not. status%ok()) return
         call bury_buffer(status, other_buffer(current_buffer()))
         if (.not. status%ok()) return
@@ -1037,11 +1037,11 @@ contains
     !> buff-menu.el:Buffer-menu-this-window.
     recursive subroutine buffer_menu_this_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call switch_to_buffer(buffers(buf%index)%name, status)
+        call switch_to_buffer(buffers(buffer%index)%name, status)
     end subroutine buffer_menu_this_window
 
     !> Select this line's buffer in other window, leaving buffer menu
@@ -1049,13 +1049,13 @@ contains
     !> name differs only in case from `buffer_menu_other_window').
     recursive subroutine buffer_menu_other_window_command(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         ! (display-buffer-overriding-action inhibit-same-window: as
         ! switch-to-buffer-other-window's.)
-        call switch_to_buffer_other_window(buf, status)
+        call switch_to_buffer_other_window(buffer, status)
     end subroutine buffer_menu_other_window_command
 
     !> Make the other window select this line's buffer.
@@ -1063,11 +1063,11 @@ contains
     !> buff-menu.el:Buffer-menu-switch-other-window.
     recursive subroutine buffer_menu_switch_other_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, window
+        type(handle_type) :: buffer, window
 
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call display_buffer(buf, window, status, table=display_action_table_type(inhibit_same_window=.true.))
+        call display_buffer(buffer, window, status, table=display_action_parameters_type(inhibit_same_window=.true.))
     end subroutine buffer_menu_switch_other_window
 
     !> Select this line's buffer, with previous buffer in second window.
@@ -1094,17 +1094,17 @@ contains
     !> Port of buff-menu.el:Buffer-menu-toggle-read-only.
     recursive subroutine buffer_menu_toggle_read_only(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
         logical :: read_only
 
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         old = current_buffer()
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         call minor_modes%read_only_mode%toggle(status)
-        read_only = buffers(cur)%read_only
+        read_only = buffers(current)%read_only
         call set_buffer(old, st)
         if (.not. status%ok()) return
 
@@ -1156,22 +1156,22 @@ contains
     !> buff-menu.el:Buffer-menu-view.
     recursive subroutine buffer_menu_view(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call view_buffer(buf, status)
+        call view_buffer(buffer, status)
     end subroutine buffer_menu_view
 
     !> View this line's buffer in View mode in another window.  Port of
     !> buff-menu.el:Buffer-menu-view-other-window.
     recursive subroutine buffer_menu_view_other_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        buf = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
-        call view_buffer_other_window(buf, status)
+        call view_buffer_other_window(buffer, status)
     end subroutine buffer_menu_view_other_window
 
     ! ------------------------------------------------------------------
@@ -1184,23 +1184,23 @@ contains
     !> If FILES_ONLY is true, show only file-visiting buffers.
     !> If BUFFER_LIST is present, it is the list of buffers to list and no
     !> others; or BUFFER_LIST_FUNCTION returns them.
-    !> If FILTER_PREDICATE is present, it should be a function
+    !> If FILTER_TEST is present, it should be a function
     !> that filters out buffers from the list of buffers.  Port of
     !> buff-menu.el:list-buffers-noselect.
     recursive subroutine list_buffers_noselect(buffer, status, files_only, buffer_list, buffer_list_function, &
-                                               filter_predicate)
+                                               filter_test)
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: files_only
         type(handle_type), intent(in), optional :: buffer_list(:)
-        procedure(buffer_menu_buffer_list_proc), optional :: buffer_list_function
-        procedure(buffer_menu_filter_proc), optional :: filter_predicate
+        procedure(buffer_menu_buffer_list_procedure), optional :: buffer_list_function
+        procedure(buffer_menu_filter_procedure), optional :: filter_test
         type(handle_type) :: old_buffer
         type(status_type) :: st
         integer :: k
 
         old_buffer = current_buffer()
-        call get_buffer_create("*Buffer List*", buffer, status)
+        call get_or_make_buffer("*Buffer List*", buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
@@ -1215,8 +1215,8 @@ contains
             if (present(buffer_list)) locals(k)%list = buffer_list
             locals(k)%list_function => null()
             if (present(buffer_list_function)) locals(k)%list_function => buffer_list_function
-            locals(k)%filter_predicate => null()
-            if (present(filter_predicate)) locals(k)%filter_predicate => filter_predicate
+            locals(k)%filter_test => null()
+            if (present(filter_test)) locals(k)%filter_test => filter_test
             call list_buffers_refresh(status, old_buffer)
             if (status%ok()) call tabulated_list_print(status)
         end if
@@ -1234,7 +1234,7 @@ contains
         type(tabulated_list_entry_type), allocatable :: entries(:)
         type(tabulated_list_column_type) :: format(7)
         type(handle_type) :: menu, old
-        procedure(buffer_menu_filter_proc), pointer :: filter
+        procedure(buffer_menu_filter_procedure), pointer :: filter
         character(len=:), allocatable :: name, file, size_text
         character(len=24) :: s
         logical :: show_non_file, show_internal, explicit, modified, live
@@ -1250,7 +1250,7 @@ contains
         k = local_index(.true.)
         show_non_file = .not. locals(k)%files_only
         show_internal = locals(k)%show_internal
-        filter => locals(k)%filter_predicate
+        filter => locals(k)%filter_test
         ! Collect info for each buffer we're interested in.
         explicit = .true.
 
@@ -1356,7 +1356,7 @@ contains
         format(3) = column("M", 1, 1)
         format(4) = column("Buffer", name_width, 1)
         format(5) = column("Size", buffer_menu_size_width, 1)
-        format(5)%predicate => tabulated_list_entry_size_greater
+        format(5)%test => tabulated_list_entry_size_greater
         format(5)%right_align = .true.
         format(6) = column("Mode", buffer_menu_mode_width, 1)
         format(7) = column("File", 1, 1)
@@ -1393,7 +1393,7 @@ contains
     end function any_index
 
     !> Whether entry A's size is greater than entry B's: the sort
-    !> predicate of the Size column.  Port of
+    !> test of the Size column.  Port of
     !> buff-menu.el:tabulated-list-entry-size->.
     logical function tabulated_list_entry_size_greater(a, b) result(greater)
         type(tabulated_list_entry_type), intent(in) :: a, b

@@ -31,16 +31,16 @@ module test_shell_fm
     use minibuffer_fm, only: completion_at_point
     use env_fm, only: getenv
     use sysdep_fm, only: sys_setenv, sys_unsetenv
-    use files_fm, only: make_temp_file
-    use fileio_fm, only: init_fileio, write_region, make_directory_internal, delete_file_internal, &
+    use files_fm, only: create_temp_file
+    use fileio_fm, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
                          delete_directory_internal, set_file_modes
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, generate_new_buffer_name
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, generate_new_buffer_name
     use bindings_fm, only: init_bindings
     use modes_fm, only: minor_modes
     use process_fm, only: process_arg_type
-    use shell_fm, only: shell_mode, split_string_shell_command, shell__unquote_argument, shell_cd, &
+    use shell_fm, only: shell_mode, split_string_shell_command, shell_unquote_argument_internal, shell_cd, &
                         shell_parse_pcomplete_arguments, &
                         shell_directory_tracker, list_buffers_directory
     implicit none(type, external)
@@ -74,9 +74,9 @@ contains
         character(len=*), intent(in) :: dir
         type(status_type) :: st
 
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
     end subroutine temp_buffer
 
     subroutine test_unquote_1(error)
@@ -84,7 +84,7 @@ contains
         character(len=:), allocatable :: unquoted
 
         call init_bindings()
-        call shell__unquote_argument("te'st", unquoted)
+        call shell_unquote_argument_internal("te'st", unquoted)
         call check(error, unquoted, "test")
     end subroutine test_unquote_1
 
@@ -131,7 +131,7 @@ contains
         call shell_mode(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, minor_modes%shell_dirtrack_mode%enabled(), "dirtrack")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_dirtrack_on
 
     subroutine test_dirtrack_unrelated(error)
@@ -142,7 +142,7 @@ contains
         call init_bindings()
         call temp_buffer(h, "/tmp/")
         call check(error,.not. minor_modes%shell_dirtrack_mode%enabled(), "dirtrack")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_dirtrack_unrelated
 
     subroutine test_sets_list_buffers_directory(error)
@@ -165,7 +165,7 @@ contains
             call check(error, index(START_DIR, list_buffers_directory%value) == 1, list_buffers_directory%value)
         end if
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_sets_list_buffers_directory
 
     subroutine test_tracker_cd(error)
@@ -188,7 +188,7 @@ contains
             call check(error, index(START_DIR, list_buffers_directory%value) == 1, list_buffers_directory%value)
         end if
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_tracker_cd
 
     ! The arguments ARGS and BEGINS as "cd|ba 1 4".
@@ -226,7 +226,7 @@ contains
         call goto_char(point() - 1)
         call shell_parse_pcomplete_arguments(args, begins)
         call check(error, show_parse(args, begins), "cd|ba 1 4")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_completion_before_semi
 
     subroutine test_completion_after_semi(error)
@@ -242,7 +242,7 @@ contains
         call insert("cd ba;", st)
         call shell_parse_pcomplete_arguments(args, begins)
         call check(error, show_parse(args, begins), "cd|ba| 1 4 7")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_completion_after_semi
 
     !> An environment variable naming a directory completes with a slash
@@ -262,7 +262,7 @@ contains
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "echo $FORTMACS_TEST_DIRECTORY/")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         err = sys_unsetenv("FORTMACS_TEST_DIRECTORY")
     end subroutine test_variable_completion
 
@@ -278,14 +278,14 @@ contains
 
         call init_bindings()
         call init_fileio()
-        call make_temp_file("shell-command", dir, st)
+        call create_temp_file("shell-command", dir, st)
         call delete_file_internal(dir, st)
-        call make_directory_internal(dir, st)
-        call get_buffer_create(" shell-command-tmp", tmp, st)
+        call create_directory_internal(dir, st)
+        call get_or_make_buffer(" shell-command-tmp", tmp, st)
         call set_buffer(tmp, st)
         call write_region(dir//"/fortmacs-test-command", .false., st)
         call set_file_modes(dir//"/fortmacs-test-command", int(o"755", int32), st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
         call getenv("PATH", path, found)
         err = sys_setenv("PATH", dir)
         call temp_buffer(h, "/tmp/")
@@ -295,7 +295,7 @@ contains
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "fortmacs-test-command ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         err = sys_setenv("PATH", path)
         call delete_file_internal(dir//"/fortmacs-test-command", st)
         call delete_directory_internal(dir, st)

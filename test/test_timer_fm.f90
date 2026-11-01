@@ -30,7 +30,7 @@ module test_timer_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
-    use timer_fm, only: execute_with_idle_timer, execute_with_timer, execute_at_time, cancel_timer, free_timer, is_timer, &
+    use timer_fm, only: execute_with_idle_timer, execute_with_timer, execute_at_time, cancel_timer, destroy_timer, is_timer, &
                         timer_check, timer_start_idle, timer_stop_idle, is_timer_active, is_timer_triggered, &
                         cancel_function_timers, current_idle_time
     use keyboard_fm, only: read_event, set_input_fd, sit_for, discard_input, last_message
@@ -187,8 +187,8 @@ contains
         if (allocated(error)) return
         call current_idle_time(idle_p, secs)
         call check(error,.not. idle_p, "not idle after input")
-        call free_timer(fallback)
-        call free_timer(idle)
+        call destroy_timer(fallback)
+        call destroy_timer(idle)
         call pty_close(old)
     end subroutine test_idle_fires
 
@@ -211,14 +211,14 @@ contains
         if (allocated(error)) return
         call check(error, calls == 1 .and. is_timer_active(idle), "once in the first idle period")
         if (allocated(error)) return
-        call free_timer(ordinary)
+        call destroy_timer(ordinary)
         call execute_with_timer(ordinary, 0.1_real64, write_y, st)
         call check(error, next_char() == iachar("y"), "second wait")
         if (allocated(error)) return
         call check(error, calls == 2, "once more in the second idle period")
-        call free_timer(idle)
-        call free_timer(ordinary)
-        call free_timer(fallback)
+        call destroy_timer(idle)
+        call destroy_timer(ordinary)
+        call destroy_timer(fallback)
         call pty_close(old)
     end subroutine test_idle_repeat
 
@@ -240,12 +240,12 @@ contains
         call sit_for(150_int32)
         call check(error, calls == 1 .and. is_timer_triggered(ordinary) .and. is_timer_active(idle), &
                    "the ordinary timer ran, the idle one waits")
-        call free_timer(ordinary)
-        call free_timer(idle)
+        call destroy_timer(ordinary)
+        call destroy_timer(idle)
         call pty_close(old)
     end subroutine test_sit_for
 
-    !> cancel_timer takes a timer off its list; free_timer releases it;
+    !> cancel_timer takes a timer off its list; destroy_timer releases it;
     !> cancel_function_timers cancels by function.
     subroutine test_cancel(error)
         type(error_type), allocatable, intent(out) :: error
@@ -258,7 +258,7 @@ contains
         call cancel_timer(a)
         call check(error,.not. is_timer_active(a) .and. is_timer(a), "canceled")
         if (allocated(error)) return
-        call free_timer(a)
+        call destroy_timer(a)
         call check(error,.not. is_timer(a), "freed")
         if (allocated(error)) return
         call execute_with_timer(a, 100.0_real64, count_call, st)
@@ -267,8 +267,8 @@ contains
         call check(error,.not. is_timer_active(a) .and. .not. is_timer_active(b), "cancel_function_timers")
         if (allocated(error)) return
         call check(error, timer_check() == -1, "no timer left")
-        call free_timer(a)
-        call free_timer(b)
+        call destroy_timer(a)
+        call destroy_timer(b)
     end subroutine test_cancel
 
     !> An error in a timer function is reported in the echo area
@@ -289,13 +289,13 @@ contains
         if (allocated(error)) return
         ! Reading the key wiped the echo area; a failing timer that types
         ! nothing leaves its message.
-        call free_timer(a)
+        call destroy_timer(a)
         call execute_with_timer(a, 0.01_real64, fail_quiet, st)
         call check(error, read_nothing(0.2), "no input")
         if (allocated(error)) return
         call check(error, last_message, "Error running timer: boom")
-        call free_timer(a)
-        call free_timer(fallback)
+        call destroy_timer(a)
+        call destroy_timer(fallback)
         call pty_close(old)
     end subroutine test_error
 

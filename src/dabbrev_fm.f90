@@ -25,7 +25,7 @@
 !> backward, then forward in the current buffer, then in other buffers.
 !>
 !> Settings whose upstream values are .false., .true. or a name are integers
-!> with the named constants DABBREV_OFF, DABBREV_ON,
+!> with the named constants DABBREV_NO, DABBREV_YES,
 !> DABBREV_LIKE_CASE_FOLD_SEARCH (like `case_fold_search'),
 !> DABBREV_LIKE_CASE_REPLACE (like `case_replace') and DABBREV_ASK (another
 !> value of `dabbrev_check_other_buffers').
@@ -40,11 +40,11 @@ module dabbrev_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use data_fm, only: string_setting, forward_setting
-    use buffer_fm, only: buffers, cur, BEG, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
-                         get_buffer, get_buffer_create, generate_new_buffer_name, kill_buffer, &
+    use data_fm, only: string_setting_type, forward_setting
+    use buffer_fm, only: buffers, current, BEGINNING, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
+                         get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, &
                          barf_if_buffer_read_only, UE_POINT, undo_entry_type
-    use marker_fm, only: copy_marker_at, marker_position, marker_buffer, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, marker_buffer, destroy_marker
     use editfns_fm, only: point, point_min, point_max, goto_char, is_bob, preceding_char, buffer_substring, &
                           delete_region, widen, narrow_to_region, field_beginning, point_marker
     use insdel_fm, only: insert
@@ -53,7 +53,7 @@ module dabbrev_fm
                          SEARCH_NOERROR
     use casefiddle_fm, only: upcase_string, downcase_string, capitalize_string
     use replace_fm, only: case_replace
-    use undo_fm, only: add_undo_entry
+    use undo_fm, only: append_undo_entry
     use subr_fm, only: read_y_or_n, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
                        progress_reporter_done
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
@@ -64,7 +64,7 @@ module dabbrev_fm
     use derived_fm, only: provided_mode_derived_p
     use xdisp_fm, only: message
     use lisp_fm, only: value_type, make_list, xstring
-    use minibuf_table_fm, only: capf_data_type, completion_predicate, completion_table_type, completion_list_table, &
+    use minibuf_table_fm, only: capf_data_type, completion_test_procedure, completion_table_type, completion_list_table, &
                                 completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_fm, only: try_completion, all_completions, is_exact_completion
     use eval_fm, only: capf_entry_type
@@ -74,30 +74,30 @@ module dabbrev_fm
 
     public :: dabbrev_completion, dabbrev_capf
     public :: dabbrev_expand, dabbrev_reset_global_variables, is_dabbrev_same_major_mode, dabbrev_select_buffers, &
-              dabbrev_friend_buffer_proc, dabbrev_select_buffers_proc, syms_of_dabbrev
+              dabbrev_friend_buffer_procedure, dabbrev_select_buffers_procedure, syms_of_dabbrev
 
     !> Values of the dabbrev settings that upstream are .false., .true. or a
     !> name: off, on, like `case_fold_search', like
     !> `case_replace', and ask (another value).
-    integer, parameter, public :: DABBREV_OFF = 0, DABBREV_ON = 1, DABBREV_LIKE_CASE_FOLD_SEARCH = 2, &
+    integer, parameter, public :: DABBREV_NO = 0, DABBREV_YES = 1, DABBREV_LIKE_CASE_FOLD_SEARCH = 2, &
                                   DABBREV_LIKE_CASE_REPLACE = 3, DABBREV_ASK = 4
 
     abstract interface
         !> A function deciding whether dabbrev should search OTHER_BUFFER.
         !> Not a port.
-        logical function dabbrev_friend_buffer_proc(other_buffer)
+        logical function dabbrev_friend_buffer_procedure(other_buffer)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: other_buffer
-        end function dabbrev_friend_buffer_proc
+        end function dabbrev_friend_buffer_procedure
 
         !> A function giving in LIST the buffers that should be
         !> searched by dabbrev.  Not a port.
-        subroutine dabbrev_select_buffers_proc(list)
+        subroutine dabbrev_select_buffers_procedure(list)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), allocatable, intent(out) :: list(:)
-        end subroutine dabbrev_select_buffers_proc
+        end subroutine dabbrev_select_buffers_procedure
     end interface
 
     !> If true, `dabbrev_expand' only looks backwards.  Port of dabbrev.el
@@ -116,8 +116,8 @@ module dabbrev_fm
     !>
     !> Leave this unset if no characters should be skipped.  Port of
     !> dabbrev.el dabbrev-abbrev-skip-leading-regexp.
-    type(string_setting), target, public :: dabbrev_abbrev_skip_leading_regexp = &
-                                            string_setting(name="dabbrev_abbrev_skip_leading_regexp")
+    type(string_setting_type), target, public :: dabbrev_abbrev_skip_leading_regexp = &
+                                                 string_setting_type(name="dabbrev_abbrev_skip_leading_regexp")
 
     !> True means dabbrev should not insert newlines.
     !> Instead it converts them to spaces.  Port of dabbrev.el
@@ -125,7 +125,7 @@ module dabbrev_fm
     logical, public :: dabbrev_eliminate_newlines = .true.
 
     !> Control whether dabbrev searches should ignore case.
-    !> A value of DABBREV_OFF means case is significant.
+    !> A value of DABBREV_NO means case is significant.
     !> A value of DABBREV_LIKE_CASE_FOLD_SEARCH means case is significant
     !>  if `case_fold_search' is false.
     !> Any other value means case is not significant.  Port of dabbrev.el
@@ -143,7 +143,7 @@ module dabbrev_fm
 
     !> Whether dabbrev treats expansions as the same if they differ in case.
     !>
-    !> A value of DABBREV_OFF means treat them as different.
+    !> A value of DABBREV_NO means treat them as different.
     !> A value of DABBREV_LIKE_CASE_REPLACE means distinguish them if
     !> `case_replace' is false.
     !> Any other value means to treat them as the same.
@@ -155,7 +155,7 @@ module dabbrev_fm
 
     !> Whether dabbrev applies the abbreviations's case pattern to the expansion.
     !>
-    !> A value of DABBREV_OFF means preserve the expansion's case pattern.
+    !> A value of DABBREV_NO means preserve the expansion's case pattern.
     !> A value of DABBREV_LIKE_CASE_REPLACE means preserve it if `case_replace'
     !> is false.
     !> Any other value means modify the expansion
@@ -218,23 +218,23 @@ module dabbrev_fm
     character(len=:), allocatable, public :: dabbrev_ignored_buffer_modes(:)
 
     !> Should \[dabbrev_expand] look in other buffers?
-    !> DABBREV_OFF: Don't look in other buffers.
-    !> DABBREV_ON: Also look for expansions in the buffers pointed out by
+    !> DABBREV_NO: Don't look in other buffers.
+    !> DABBREV_YES: Also look for expansions in the buffers pointed out by
     !>    `dabbrev_select_buffers_function'.
     !> DABBREV_ASK: When we can't find any more expansions in
     !> the current buffer, then ask the user whether to look in other
     !> buffers too.
     !>
-    !> The default value is DABBREV_ON.  Port of dabbrev.el
+    !> The default value is DABBREV_YES.  Port of dabbrev.el
     !> dabbrev-check-other-buffers.
-    integer, public :: dabbrev_check_other_buffers = DABBREV_ON
+    integer, public :: dabbrev_check_other_buffers = DABBREV_YES
 
     !> A function that selects buffers that should be searched by dabbrev.
     !> The function should take no arguments and return a list of buffers to
     !> search for expansions.  See the source of `dabbrev_select_buffers'
     !> for an example.  Port of dabbrev.el dabbrev-select-buffers-function
     !> (null is `dabbrev_select_buffers', its default).
-    procedure(dabbrev_select_buffers_proc), pointer, public :: dabbrev_select_buffers_function => null()
+    procedure(dabbrev_select_buffers_procedure), pointer, public :: dabbrev_select_buffers_function => null()
 
     !> A function to decide whether dabbrev should search OTHER_BUFFER.
     !> The function should take one argument, OTHER_BUFFER, and return
@@ -242,7 +242,7 @@ module dabbrev_fm
     !> `is_dabbrev_same_major_mode' for an example.  Port of dabbrev.el
     !> dabbrev-friend-buffer-function (null is
     !> `is_dabbrev_same_major_mode', its default).
-    procedure(dabbrev_friend_buffer_proc), pointer, public :: dabbrev_friend_buffer_function => null()
+    procedure(dabbrev_friend_buffer_procedure), pointer, public :: dabbrev_friend_buffer_function => null()
 
     !> If allocated, a list of buffers which dabbrev should search (their
     !> names).
@@ -259,7 +259,7 @@ module dabbrev_fm
 
     ! Table of expansions seen so far.
     type(string_type), allocatable :: last_table(:)
-    integer :: n_last_table = 0
+    integer :: last_table_count = 0
 
     ! Last string we tried to expand (unallocated for nil).
     character(len=:), allocatable :: last_abbreviation
@@ -289,7 +289,7 @@ module dabbrev_fm
     type(handle_type) :: location_marker
 
     ! The list of remaining buffers with the same mode as current buffer.
-    type(handle_type), allocatable :: friend_buffer_list(:)
+    type(handle_type), allocatable :: friend_buffers(:)
 
     ! The buffer we looked in last, not counting the current buffer.
     type(handle_type) :: last_buffer
@@ -303,7 +303,7 @@ module dabbrev_fm
     integer :: last_case_pattern = CASE_PATTERN_NONE
 
     ! Same as dabbrev_check_other_buffers, but is set for every expand.
-    integer :: check_other_buffers = DABBREV_ON
+    integer :: check_other_buffers = DABBREV_YES
 
     ! Same as dabbrev_check_all_buffers, but is set for every expand.
     logical :: check_all_buffers = .true.
@@ -353,7 +353,7 @@ contains
             end if
         end if
 
-        call free_marker(e%point, st)
+        call destroy_marker(e%point, st)
     end subroutine restore_excursion
 
     !> The number of characters of the UTF-8 text S.  Not a port.
@@ -424,7 +424,7 @@ contains
     subroutine clear_location()
         type(status_type) :: st
 
-        if (location_marker%index /= 0) call free_marker(location_marker, st)
+        if (location_marker%index /= 0) call destroy_marker(location_marker, st)
         location_marker = null_handle()
         location_set = .false.
         location_pos = 0
@@ -450,16 +450,16 @@ contains
     end function abbrev_location
 
     !> Record point POS in the current buffer's undo list
-    !> (POS added to the front of `buffer_undo_list').  Not a port.
-    subroutine add_undo_point(pos)
+    !> (POS added to the front of `buffer_undo_entries').  Not a port.
+    subroutine append_undo_point(pos)
         integer(int64), intent(in) :: pos
         type(undo_entry_type) :: entry
 
-        if (.not. buffers(cur)%undo_enabled) return
+        if (.not. buffers(current)%undo_enabled) return
         entry%kind = UE_POINT
-        entry%beg = pos
-        call add_undo_entry(entry)
-    end subroutine add_undo_point
+        entry%beginning = pos
+        call append_undo_entry(entry)
+    end subroutine append_undo_point
 
     !> The user error "No possible abbreviation preceding point".
     !> Not a port.
@@ -502,7 +502,7 @@ contains
         if (dabbrev_case_fold_search == DABBREV_LIKE_CASE_FOLD_SEARCH) then
             is_ignore_case = case_fold_search%value
         else
-            is_ignore_case = dabbrev_case_fold_search /= DABBREV_OFF
+            is_ignore_case = dabbrev_case_fold_search /= DABBREV_NO
         end if
 
         if (is_ignore_case .and. dabbrev_upcase_means_case_search) then
@@ -537,11 +537,11 @@ contains
     recursive subroutine dabbrev_expand(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
-        type(handle_type) :: buf, mru
+        type(handle_type) :: buffer, mru
         type(excursion_type) :: ex, ex2, ex3
         character(len=:), allocatable :: abbrev, old, expansion, name
         integer(int64) :: orig_point, direction, found, savedb, savedz, pos
-        logical :: record_case_pattern, repeat, space, have_old, lb_same
+        logical :: record_case_pattern, repeat, space, has_old, lb_same
         type(status_type) :: st
         type(handle_type) :: m
 
@@ -554,22 +554,22 @@ contains
             ! this is the buffer from which we entered the
             ! minibuffer.
             mru = get_mru_window(.false., .false.)
-            buf = current_buffer()
-            if (mru%index /= 0) buf = windows(mru%index)%buffer
+            buffer = current_buffer()
+            if (mru%index /= 0) buffer = windows(mru%index)%buffer
         else if (is_buffer_live(last_buffer_found)) then
             ! Otherwise, if we found the expansion in another
             ! buffer and that buffer is still live, use that
             ! buffer for further expansions.
-            buf = last_buffer_found
+            buffer = last_buffer_found
         else
             ! Otherwise, use the buffer where we invoked
             ! dabbrev-expand.
-            buf = current_buffer()
+            buffer = current_buffer()
         end if
 
         orig_point = point()
         record_case_pattern = .false.
-        have_old = .false.
+        has_old = .false.
         direction = 0
         ! abbrev -- the abbrev to expand
         ! expansion -- the expansion found (eventually) or nil until then
@@ -594,7 +594,7 @@ contains
 
             if (allocated(last_expansion)) then
                 old = last_expansion
-                have_old = .true.
+                has_old = .true.
             end if
 
             direction = last_direction
@@ -608,15 +608,15 @@ contains
             ! from the buffer containing the expansion, we want to
             ! get the next word in the latter buffer, so we skip
             ! the comparison.
-            if (space .and. same_handle(buf, current_buffer())) space = point() == 1 + abbrev_location()
+            if (space .and. same_handle(buffer, current_buffer())) space = point() == 1 + abbrev_location()
 
             if (space) then
                 ! The "abbrev" to expand is just the space.
                 abbrev = " "
                 call save_excursion(ex2)
                 if (is_buffer_live(last_buffer)) call set_buffer(last_buffer, st)
-                savedb = buffers(cur)%begv
-                savedz = buffers(cur)%text%z - buffers(cur)%zv
+                savedb = buffers(current)%begv
+                savedz = buffers(current)%text%z - buffers(current)%zv
                 call widen()
 
                 ! Find the end of the last "expansion" word.
@@ -637,7 +637,7 @@ contains
                     call set_location(point())
                 end if
 
-                call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+                call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
                 call restore_excursion(ex2)
 
                 if (.not. status%ok()) then
@@ -678,9 +678,9 @@ contains
         if (.not. allocated(expansion)) then
             call dabbrev_reset_global_variables()
 
-            if (have_old) then
+            if (has_old) then
                 call save_excursion(ex3)
-                call add_undo_point(orig_point)
+                call append_undo_point(orig_point)
                 ! Put back the original abbrev with its original case pattern.
                 call search_backward(old, found, status)
                 if (status%ok()) call insert(abbrev, status)
@@ -689,7 +689,7 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            if (have_old) then
+            if (has_old) then
                 call set_error(status, FM_USER_ERROR, format_message("No further dynamic expansion for `")//abbrev// &
                                format_message("' found"))
             else
@@ -708,7 +708,7 @@ contains
 
         if (.not. lb_same) then
             if (last_buffer%index == 0) then
-                name = buffers(cur)%name
+                name = buffers(current)%name
             else if (is_buffer_live(last_buffer)) then
                 call resolve_buffer(last_buffer, pos, st)
                 name = buffers(pos)%name
@@ -722,12 +722,12 @@ contains
 
         ! To get correct further expansions we have to be sure to use the
         ! buffer containing the already found expansions.
-        if (is_buffer_live(last_buffer_found)) buf = last_buffer_found
+        if (is_buffer_live(last_buffer_found)) buffer = last_buffer_found
         ! If the buffer where we called dabbrev-expand differs from the
         ! buffer containing the expansion, make sure copy-marker is
         ! called in the latter buffer.
         call save_excursion(ex3)
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
 
         if (location_set .and. location_marker%index == 0) then
             if (same_handle(current_buffer(), last_buffer) .or. last_buffer%index == 0 .or. &
@@ -741,17 +741,17 @@ contains
 
         call restore_excursion(ex3)
         ! Success: stick it in and return.
-        call add_undo_point(orig_point)
-        if (.not. have_old) old = ""
-        call substitute_expansion(old, have_old, abbrev, expansion, record_case_pattern, status)
+        call append_undo_point(orig_point)
+        if (.not. has_old) old = ""
+        call substitute_expansion(old, has_old, abbrev, expansion, record_case_pattern, status)
         if (.not. status%ok()) return
         ! Save state for re-expand (making sure it's the state of the
         ! buffer containing the already found expansions).
         call save_excursion(ex3)
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         last_expansion = expansion
         last_abbreviation = abbrev
-        if (last_abbrev_location%index /= 0) call free_marker(last_abbrev_location, st)
+        if (last_abbrev_location%index /= 0) call destroy_marker(last_abbrev_location, st)
         call point_marker(last_abbrev_location)
         call restore_excursion(ex3)
     end subroutine dabbrev_expand
@@ -767,10 +767,10 @@ contains
         call resolve_buffer(other_buffer, i, st)
         if (.not. st%ok()) return
 
-        if (allocated(buffers(cur)%major_mode) .and. allocated(buffers(i)%major_mode)) then
-            same = same_string(buffers(cur)%major_mode, buffers(i)%major_mode)
+        if (allocated(buffers(current)%major_mode) .and. allocated(buffers(i)%major_mode)) then
+            same = same_string(buffers(current)%major_mode, buffers(i)%major_mode)
         else
-            same = allocated(buffers(cur)%major_mode) .eqv. allocated(buffers(i)%major_mode)
+            same = allocated(buffers(current)%major_mode) .eqv. allocated(buffers(i)%major_mode)
         end if
     end function is_dabbrev_same_major_mode
 
@@ -778,23 +778,23 @@ contains
     !> Port of dabbrev.el:dabbrev--goto-start-of-abbrev.
     recursive subroutine goto_start_of_abbrev()
         type(status_type) :: st
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
 
-        re = DEFAULT_CHAR_REGEXP
-        if (allocated(abbrev_char_regexp)) re = abbrev_char_regexp
+        regexp = DEFAULT_CHAR_REGEXP
+        if (allocated(abbrev_char_regexp)) regexp = abbrev_char_regexp
 
         ! Move backwards over abbrev chars
         if (point() > minibuffer_prompt_end()) then
             call goto_char(point() - 1)
 
             do
-                if (.not. looking_at(re, st)) exit
+                if (.not. looking_at(regexp, st)) exit
                 if (.not. point() > minibuffer_prompt_end()) exit
                 if (point() == field_beginning(point(), .false., point() - 1)) exit
                 call goto_char(point() - 1)
             end do
 
-            if (.not. looking_at(re, st)) call goto_char(point() + 1)
+            if (.not. looking_at(regexp, st)) call goto_char(point() + 1)
         end if
 
         if (allocated(dabbrev_abbrev_skip_leading_regexp%value)) then
@@ -810,7 +810,7 @@ contains
     recursive subroutine abbrev_at_point(abbrev, status)
         character(len=:), allocatable, intent(out) :: abbrev
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         integer(int64) :: end, found
         logical :: after
         type(status_type) :: st
@@ -822,8 +822,8 @@ contains
         end if
 
         status = status_type()
-        re = DEFAULT_CHAR_REGEXP
-        if (allocated(dabbrev_abbrev_char_regexp)) re = dabbrev_abbrev_char_regexp
+        regexp = DEFAULT_CHAR_REGEXP
+        if (allocated(dabbrev_abbrev_char_regexp)) regexp = dabbrev_abbrev_char_regexp
         ! Record the end of the abbreviation.
         end = point()
         ! If we aren't right after an abbreviation,
@@ -831,11 +831,11 @@ contains
         ! This is so the user can get successive words
         ! by typing the punctuation followed by M-/.
         call goto_char(end - 1)
-        after = looking_at(re, st)
+        after = looking_at(regexp, st)
         call goto_char(end)
 
         if (.not. after) then
-            call re_search_backward(re, found, st, noerror=SEARCH_NOERROR)
+            call re_search_backward(regexp, found, st, noerror=SEARCH_NOERROR)
 
             if (found > 0) then
                 call goto_char(point() + 1)
@@ -857,16 +857,16 @@ contains
     subroutine dabbrev_reset_global_variables()
         type(status_type) :: st
 
-        n_last_table = 0
+        last_table_count = 0
         if (allocated(last_table)) deallocate (last_table)
         if (allocated(last_abbreviation)) deallocate (last_abbreviation)
-        if (last_abbrev_location%index /= 0) call free_marker(last_abbrev_location, st)
+        if (last_abbrev_location%index /= 0) call destroy_marker(last_abbrev_location, st)
         last_abbrev_location = null_handle()
         last_direction = 0
         last_direction_set = .false.
         if (allocated(last_expansion)) deallocate (last_expansion)
         call clear_location()
-        if (allocated(friend_buffer_list)) deallocate (friend_buffer_list)
+        if (allocated(friend_buffers)) deallocate (friend_buffers)
         last_buffer = null_handle()
         last_buffer_found = null_handle()
 
@@ -972,8 +972,8 @@ contains
 
         status = status_type()
         call save_excursion(ex)
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         call widen()
         if (location_set) call goto_char(location())
         saved_fold = case_fold_search%value
@@ -984,7 +984,7 @@ contains
             if (dabbrev_case_distinction == DABBREV_LIKE_CASE_REPLACE) then
                 distinction = case_replace
             else
-                distinction = dabbrev_case_distinction /= DABBREV_OFF
+                distinction = dabbrev_case_distinction /= DABBREV_NO
             end if
         end if
 
@@ -999,7 +999,7 @@ contains
 
         case_fold_search = saved_fold
         if (allocated(expansion)) call set_location(point())
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
         call restore_excursion(ex)
     end subroutine try_find
 
@@ -1094,19 +1094,19 @@ contains
                 ! determine which other buffers we should check.
                 ! Put that list in dabbrev--friend-buffer-list.
                 n = 0
-                if (allocated(friend_buffer_list)) n = size(friend_buffer_list)
+                if (allocated(friend_buffers)) n = size(friend_buffers)
 
                 if (n == 0) then
-                    call make_friend_buffer_list(friend_buffer_list, status)
+                    call make_friend_buffers(friend_buffers, status)
 
                     if (status%ok()) then
                         call make_progress_reporter(progress_reporter, "Scanning for dabbrevs...", &
-                                                    -size(friend_buffer_list, kind=int64), 0_int64)
+                                                    -size(friend_buffers, kind=int64), 0_int64)
                         ! Upstream's CURRENT-VALUE 0, MIN-CHANGE 1 and MIN-TIME 1.5:
                         ! start again from the time the reporter was made.
                         progress_reporter%update_time = progress_reporter%update_time - progress_reporter%min_time
                         progress_reporter%min_time = 1.5d0
-                        progress_reporter%next_value = real(-size(friend_buffer_list), kind(progress_reporter%next_value))
+                        progress_reporter%next_value = real(-size(friend_buffers), kind(progress_reporter%next_value))
                         call progress_reporter_update(progress_reporter, 0_int64)
                     end if
                 end if
@@ -1114,7 +1114,7 @@ contains
 
             if (status%ok()) then
                 file_name_buffer = null_handle()
-                if (allocated(buffers(cur)%filename)) file_name = buffers(cur)%filename
+                if (allocated(buffers(current)%filename)) file_name = buffers(current)%filename
 
                 ! Include the file name components into the abbrev
                 ! list (because if you have a file name "foobar", it's
@@ -1122,7 +1122,7 @@ contains
                 ! stuff in the file itself).
                 if (allocated(file_name)) then
                     old = current_buffer()
-                    call get_buffer_create(generate_new_buffer_name(" *abbrev-file*"), file_name_buffer, status)
+                    call get_or_make_buffer(generate_new_buffer_name(" *abbrev-file*"), file_name_buffer, status)
                     if (status%ok()) call set_buffer(file_name_buffer, status)
                     ! (file-name-split FILE-NAME), one part per line.
                     start = 1
@@ -1139,21 +1139,21 @@ contains
                     end do
 
                     call set_buffer(old, st)
-                    if (status%ok()) call add_buffer(friend_buffer_list, file_name_buffer)
+                    if (status%ok()) call append_buffer(friend_buffers, file_name_buffer)
                 end if
 
                 ! Walk through the buffers till we find a match.
                 do while (status%ok() .and. .not. allocated(expansion))
-                    if (.not. allocated(friend_buffer_list)) exit
-                    if (size(friend_buffer_list) == 0) exit
-                    last_buffer = friend_buffer_list(1)
-                    rest = friend_buffer_list(2:)
-                    call move_alloc(rest, friend_buffer_list)
+                    if (.not. allocated(friend_buffers)) exit
+                    if (size(friend_buffers) == 0) exit
+                    last_buffer = friend_buffers(1)
+                    rest = friend_buffers(2:)
+                    call move_alloc(rest, friend_buffers)
                     call set_buffer(last_buffer, status)
                     if (.not. status%ok()) exit
 
                     if (allocated(progress_reporter%text)) then
-                        call progress_reporter_update(progress_reporter, -size(friend_buffer_list, kind=int64))
+                        call progress_reporter_update(progress_reporter, -size(friend_buffers, kind=int64))
                     end if
 
                     call set_location(point_min())
@@ -1161,18 +1161,18 @@ contains
                 end do
 
                 if (status%ok() .and. allocated(progress_reporter%text)) call progress_reporter_done(progress_reporter)
-                if (is_buffer_live(file_name_buffer)) call kill_buffer(file_name_buffer, st)
+                if (is_buffer_live(file_name_buffer)) call close_buffer(file_name_buffer, st)
 
-                if (allocated(friend_buffer_list)) then
+                if (allocated(friend_buffers)) then
                     n = 0
 
-                    do k = 1, size(friend_buffer_list)
-                        if (.not. is_buffer_live(friend_buffer_list(k))) cycle
+                    do k = 1, size(friend_buffers)
+                        if (.not. is_buffer_live(friend_buffers(k))) cycle
                         n = n + 1
-                        friend_buffer_list(n) = friend_buffer_list(k)
+                        friend_buffers(n) = friend_buffers(k)
                     end do
 
-                    friend_buffer_list = friend_buffer_list(1:n)
+                    friend_buffers = friend_buffers(1:n)
                 end if
             end if
         end if
@@ -1181,7 +1181,7 @@ contains
     end subroutine find_expansion
 
     !> Append B to LIST.  Not a port.
-    subroutine add_buffer(list, b)
+    subroutine append_buffer(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
         type(handle_type), allocatable :: grown(:)
@@ -1193,7 +1193,7 @@ contains
         if (n > 0) grown(1:n) = list
         grown(n + 1) = b
         call move_alloc(grown, list)
-    end subroutine add_buffer
+    end subroutine append_buffer
 
     !> LIST with B moved to the front (or put there).  Not a port.
     subroutine move_to_front(list, b)
@@ -1221,7 +1221,7 @@ contains
     !> Otherwise, the current buffer is searched first specially.,
     !> and it is not included in this list.  Port of
     !> dabbrev.el:dabbrev--make-friend-buffer-list.
-    recursive subroutine make_friend_buffer_list(list, status)
+    recursive subroutine make_friend_buffers(list, status)
         type(handle_type), allocatable, intent(out) :: list(:)
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: all(:), leaves(:)
@@ -1236,17 +1236,17 @@ contains
 
         if (these_only) then
             do k = 1, size(dabbrev_search_these_buffers_only)
-                call add_buffer(list, get_buffer(trim(dabbrev_search_these_buffers_only(k))))
+                call append_buffer(list, get_buffer(trim(dabbrev_search_these_buffers_only(k))))
             end do
         end if
 
-        if (.not. these_only .and. check_other_buffers /= DABBREV_OFF) then
-            scan = check_other_buffers == DABBREV_ON
+        if (.not. these_only .and. check_other_buffers /= DABBREV_NO) then
+            scan = check_other_buffers == DABBREV_YES
 
             if (.not. scan) then
                 call read_y_or_n("Scan other buffers also? ", scan, status)
                 if (.not. status%ok()) return
-                check_other_buffers = merge(DABBREV_ON, DABBREV_OFF, scan)
+                check_other_buffers = merge(DABBREV_YES, DABBREV_NO, scan)
             end if
 
             if (scan) then
@@ -1265,7 +1265,7 @@ contains
                     do k = 1, size(all)
                         if (any(list%index == all(k)%index .and. list%generation == all(k)%generation)) cycle
                         if (is_ignore_buffer(all(k))) cycle
-                        call add_buffer(list, all(k))
+                        call append_buffer(list, all(k))
                     end do
                 end if
 
@@ -1308,7 +1308,7 @@ contains
             origin = minibuffer_origin()
             call move_to_front(list, origin)
         end if
-    end subroutine make_friend_buffer_list
+    end subroutine make_friend_buffers
 
     !> EXPANSION from its first character on, after the first FROM
     !> characters (substring).  Not a port.
@@ -1328,7 +1328,7 @@ contains
     !> Replace OLD with EXPANSION in the buffer.
     !> OLD is text currently in the buffer, perhaps the abbreviation
     !> or perhaps another expansion that was tried previously
-    !> (HAVE_OLD false for none).
+    !> (HAS_OLD false for none).
     !> ABBREV is the abbreviation we are expanding.
     !> It is " " if we are copying subsequent words.
     !> EXPANSION is the expansion substring to be used this time; it
@@ -1336,9 +1336,9 @@ contains
     !> RECORD_CASE_PATTERN, if true, means set `dabbrev__last_case_pattern'
     !> to record whether we upcased the expansion, downcased it, or did
     !> neither.  Port of dabbrev.el:dabbrev--substitute-expansion.
-    recursive subroutine substitute_expansion(old, have_old, abbrev, expansion, record_case_pattern, status)
+    recursive subroutine substitute_expansion(old, has_old, abbrev, expansion, record_case_pattern, status)
         character(len=*), intent(in) :: old, abbrev
-        logical, intent(in) :: have_old, record_case_pattern
+        logical, intent(in) :: has_old, record_case_pattern
         character(len=:), allocatable, intent(inout) :: expansion
         type(status_type), intent(out) :: status
         logical :: use_case_replace, plain
@@ -1355,7 +1355,7 @@ contains
             if (dabbrev_case_replace == DABBREV_LIKE_CASE_REPLACE) then
                 use_case_replace = case_replace
             else
-                use_case_replace = dabbrev_case_replace /= DABBREV_OFF
+                use_case_replace = dabbrev_case_replace /= DABBREV_NO
             end if
         end if
 
@@ -1458,7 +1458,7 @@ contains
             expansion = collapsed
         end if
 
-        if (have_old) then
+        if (has_old) then
             opoint = point()
             call search_backward(old, found, status)
             call goto_char(opoint)
@@ -1507,8 +1507,8 @@ contains
         pattern1 = regexp_quote(abbrev)//"\("//abbrev_char_regexp//"\)"
         pattern2 = regexp_quote(abbrev)//"\(\("//abbrev_char_regexp//"\)+\)"
         ! Limited search.
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
 
         if (allocated(dabbrev_limit)) then
             if (.not. location_set) then
@@ -1556,7 +1556,7 @@ contains
                 ! Ignore this match if it's already in the table.
                 seen = .false.
 
-                do k = 1, n_last_table
+                do k = 1, last_table_count
                     if (same_string(found_string, last_table(k)%s)) seen = .true.
                 end do
 
@@ -1573,7 +1573,7 @@ contains
         end do
 
         pos = point()
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
         call goto_char(pos)
 
         if (.not. status%ok()) then
@@ -1587,14 +1587,14 @@ contains
             ! and return it (either downcased, or as is).
             if (.not. allocated(last_table)) allocate (last_table(8))
 
-            if (n_last_table == size(last_table)) then
-                allocate (grown(2*n_last_table))
-                grown(1:n_last_table) = last_table(1:n_last_table)
+            if (last_table_count == size(last_table)) then
+                allocate (grown(2*last_table_count))
+                grown(1:last_table_count) = last_table(1:last_table_count)
                 call move_alloc(grown, last_table)
             end if
 
-            n_last_table = n_last_table + 1
-            last_table(n_last_table)%s = found_string
+            last_table_count = last_table_count + 1
+            last_table(last_table_count)%s = found_string
         else if (allocated(result)) then
             deallocate (result)
         end if
@@ -1619,8 +1619,8 @@ contains
         logical :: res
 
         call dabbrev_reset_global_variables()
-        check_other_buffers = DABBREV_OFF
-        if (present(arg)) check_other_buffers = DABBREV_ON
+        check_other_buffers = DABBREV_NO
+        if (present(arg)) check_other_buffers = DABBREV_YES
         check_all_buffers = .false.
         if (present(arg)) check_all_buffers = arg == 16
         ! Set it so `dabbrev_capf' won't reset the vars.
@@ -1633,7 +1633,7 @@ contains
             call abbrev_at_point(abbrev, status)
             if (.not. status%ok()) return
             where = " in this-buffer"
-            if (check_other_buffers /= DABBREV_OFF) where = ""
+            if (check_other_buffers /= DABBREV_NO) where = ""
             call set_error(status, FM_USER_ERROR, "No dynamic expansion for """//abbrev//""" found"//where)
         end if
     end subroutine dabbrev_completion
@@ -1666,7 +1666,7 @@ contains
             ! Contrary to `dabbrev_completion', the CAPF protocol doesn't
             ! have a way to control the scope of the search.  We just
             ! default to confine it to the current buffer.
-            check_other_buffers = DABBREV_OFF
+            check_other_buffers = DABBREV_NO
             check_all_buffers = .false.
             call copy_marker_at(point(), last_abbrev_location, .false., status)
         end if
@@ -1688,12 +1688,12 @@ contains
     !> The completion table of `dabbrev_capf': the expansions of the
     !> abbreviation, found the first time it is used.
     !> Port of dabbrev.el:dabbrev-capf in part.
-    recursive subroutine dabbrev_capf_table(string, action, result, status, pred, suffix)
+    recursive subroutine dabbrev_capf_table(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(excursion_type) :: ex
         type(completion_table_type) :: table
@@ -1716,11 +1716,11 @@ contains
 
         select case (action)
         case (COMPLETE_TRY)
-            call try_completion(string, table, result, status, pred)
+            call try_completion(string, table, result, status, test)
         case (COMPLETE_ALL)
-            call all_completions(string, table, result, status, pred)
+            call all_completions(string, table, result, status, test)
         case (COMPLETE_TEST)
-            if (is_exact_completion(string, table, pred)) result = value_type(.true.)
+            if (is_exact_completion(string, table, test)) result = value_type(.true.)
         case default
             if (present(suffix)) continue
         end select
@@ -1754,7 +1754,7 @@ contains
 
         first = char_substring(abbrev, 0_int64, 1_int64)
 
-        if (ignore_case .and. dabbrev_case_replace /= DABBREV_OFF) then
+        if (ignore_case .and. dabbrev_case_replace /= DABBREV_NO) then
             do n = 1, size(all)
                 if (same_string(abbrev, upcase_string(abbrev))) then
                     all(n) = value_type(text=upcase_string(xstring(all(n))))

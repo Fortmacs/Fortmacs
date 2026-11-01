@@ -55,21 +55,21 @@ module syntax_fm
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use character_fm, only: MAX_CHAR, string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, unibyte_to_char
     use error_fm, only: format_message
-    use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_prev_char_len
+    use buffer_fm, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_prev_char_len
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, constrain_to_field
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use characters_fm, only: characters_syntax
     use category_fm, only: char_has_category
     use charscript_fm, only: char_script
-    use data_fm, only: logical_setting, integer_setting, forward_setting
+    use data_fm, only: logical_setting_type, integer_setting_type, forward_setting
     use lisp_fm, only: value_type, xfixnum, xhandle, list_elt, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
     use textprop_fm, only: get_text_property
     implicit none(type, external)
     private
 
     public :: syntax_descriptor_type, standard_syntax_table, make_syntax_table, copy_syntax_table, &
-              free_syntax_table, is_syntax_table_live, syntax_table, set_syntax_table, string_to_syntax, &
+              destroy_syntax_table, is_syntax_table_live, syntax_table, set_syntax_table, string_to_syntax, &
               modify_syntax_entry, syntax_entry, char_syntax_class, char_syntax, syntax_class_to_char, &
               matching_paren, scan_words, forward_word, is_word_boundary, syms_of_syntax, &
               skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
@@ -94,14 +94,14 @@ module syntax_fm
 
     !> True means `forward_expression', etc., should treat comments as whitespace.
     !> Port of syntax.c parse-sexp-ignore-comments.
-    type(logical_setting), public :: parse_expression_ignore_comments = &
-                                     logical_setting(name="parse_expression_ignore_comments", value=.false.)
+    type(logical_setting_type), public :: parse_expression_ignore_comments = &
+                                          logical_setting_type(name="parse_expression_ignore_comments", value=.false.)
 
     !> True means an escaped ender inside a comment doesn't end the comment.
     !> Port of syntax.c comment-end-can-be-escaped (buffer-local when set,
     !> as upstream makes it).
-    type(logical_setting), public :: comment_end_can_be_escaped = &
-                                     logical_setting(name="comment_end_can_be_escaped", value=.false.)
+    type(logical_setting_type), public :: comment_end_can_be_escaped = &
+                                          logical_setting_type(name="comment_end_can_be_escaped", value=.false.)
 
     !> True means `scan_expressions' treats all multibyte characters as identifier.
     !> Port of syntax.c multibyte-syntax-as-symbol.
@@ -115,26 +115,26 @@ module syntax_fm
     !> Ignoring the `syntax_table' property may result in faster syntax
     !> scanning when this variable is false.  Port of syntax.c
     !> parse-sexp-lookup-properties (buffer-local when set).
-    type(logical_setting), target, public :: parse_expression_lookup_properties = &
-                                             logical_setting(name="parse_expression_lookup_properties", value=.false.)
+    type(logical_setting_type), target, public :: parse_expression_lookup_properties = &
+                                                  logical_setting_type(name="parse_expression_lookup_properties", value=.false.)
 
     !> Position up to which syntax-table properties have been set.
     !> Port of syntax.c syntax-propertize--done (buffer-local when set).
-    type(integer_setting), target, public :: syntax_propertize__done = &
-                                             integer_setting(name="syntax_propertize__done", value=-1)
+    type(integer_setting_type), target, public :: syntax_propertize_done = &
+                                                  integer_setting_type(name="syntax_propertize_done", value=-1)
 
     abstract interface
         !> syntax.el's internal--syntax-propertize, which syntax.c calls
         !> to set `syntax_table' properties up to CHARPOS.  Not a port.
-        subroutine internal_syntax_propertize_proc(charpos)
+        subroutine internal_syntax_propertize_procedure(charpos)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: charpos
-        end subroutine internal_syntax_propertize_proc
+        end subroutine internal_syntax_propertize_procedure
     end interface
 
     !> internal--syntax-propertize (set by syntax_propertize_fm).
-    procedure(internal_syntax_propertize_proc), pointer, public :: internal_syntax_propertize => null()
+    procedure(internal_syntax_propertize_procedure), pointer, public :: internal_syntax_propertize => null()
 
     !> True means `forward_comment' can use `syntax_ppss' internally.
     !> Port of syntax.c comment-use-syntax-ppss.
@@ -204,17 +204,17 @@ module syntax_fm
 
     abstract interface
         !> syntax.el's `syntax_ppss', when it is defined.  Not a port.
-        subroutine syntax_ppss_proc(state, pos)
+        subroutine syntax_ppss_procedure(state, pos)
             import :: parse_state_type, int64
             implicit none(type, external)
             type(parse_state_type), intent(out) :: state
             integer(int64), intent(in), optional :: pos
-        end subroutine syntax_ppss_proc
+        end subroutine syntax_ppss_procedure
     end interface
 
     !> syntax.el's syntax-ppss with its cache (set by
     !> syntax_propertize_fm); null for the plain parse.
-    procedure(syntax_ppss_proc), pointer, public :: syntax_ppss_function => null()
+    procedure(syntax_ppss_procedure), pointer, public :: syntax_ppss_function => null()
 
     !> Counts `modify_syntax_entry' calls, so compiled regexps that depend
     !> on syntax can tell they are stale (search.c:clear_regexp_cache).
@@ -406,7 +406,7 @@ contains
 
     !> Free syntax table `h' (not the standard one).  Not a port: upstream
     !> relies on GC.
-    subroutine free_syntax_table(h, status)
+    subroutine destroy_syntax_table(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         integer(int64) :: i
@@ -421,7 +421,7 @@ contains
 
         tables(i) = syntax_table_type()
         call table%release(h, status)
-    end subroutine free_syntax_table
+    end subroutine destroy_syntax_table
 
     !> Return the standard syntax table.
     !> This is the one used for new buffers.  Port of
@@ -565,8 +565,8 @@ contains
         type(handle_type) :: h
 
         h = standard_syntax_table()
-        if (cur == 0) return
-        if (table%is_live(buffers(cur)%syntax_table)) h = buffers(cur)%syntax_table
+        if (current == 0) return
+        if (table%is_live(buffers(current)%syntax_table)) h = buffers(current)%syntax_table
     end function syntax_table
 
     !> Select a new syntax table for the current buffer.
@@ -579,7 +579,7 @@ contains
 
         call resolve_table(h, i, status)
         if (.not. status%ok()) return
-        buffers(cur)%syntax_table = h
+        buffers(current)%syntax_table = h
     end subroutine set_syntax_table
 
     ! ------------------------------------------------------------------
@@ -619,19 +619,19 @@ contains
             ! runs (or their parts) after `to`.
             do k = 1, tb%n
                 if (tb%ends(k) < from) then
-                    call add(tb%starts(k), tb%ends(k), tb%entries(k))
+                    call append(tb%starts(k), tb%ends(k), tb%entries(k))
                 else if (tb%starts(k) < from) then
-                    call add(tb%starts(k), from - 1, tb%entries(k))
+                    call append(tb%starts(k), from - 1, tb%entries(k))
                 end if
             end do
 
-            call add(from, to, d)
+            call append(from, to, d)
 
             do k = 1, tb%n
                 if (tb%starts(k) > to) then
-                    call add(tb%starts(k), tb%ends(k), tb%entries(k))
+                    call append(tb%starts(k), tb%ends(k), tb%entries(k))
                 else if (tb%ends(k) > to) then
-                    call add(to + 1, tb%ends(k), tb%entries(k))
+                    call append(to + 1, tb%ends(k), tb%entries(k))
                 end if
             end do
 
@@ -643,7 +643,7 @@ contains
 
     contains
 
-        subroutine add(a, b, x)
+        subroutine append(a, b, x)
             integer, intent(in) :: a, b
             type(syntax_descriptor_type), intent(in) :: x
 
@@ -660,7 +660,7 @@ contains
             s(m) = a
             e(m) = b
             v(m) = x
-        end subroutine add
+        end subroutine append
 
         subroutine grow()
             integer(int32), allocatable :: s2(:), e2(:)
@@ -782,14 +782,14 @@ contains
     !> Set `syntax_table' properties up to CHARPOS when they are not set
     !> that far yet.  Port of syntax.c:parse_sexp_propertize (its checks
     !> that internal--syntax-propertize neither modified the buffer nor
-    !> failed to move `syntax_propertize__done' are deferred).
+    !> failed to move `syntax_propertize_done' are deferred).
     recursive subroutine parse_expression_propertize(charpos)
         integer(int64), intent(in) :: charpos
         integer(int64) :: zv
 
-        zv = buffers(cur)%zv
+        zv = buffers(current)%zv
 
-        if (syntax_propertize__done%value <= charpos .and. syntax_propertize__done%value < zv) then
+        if (syntax_propertize_done%value <= charpos .and. syntax_propertize_done%value < zv) then
             if (associated(internal_syntax_propertize)) call internal_syntax_propertize(min(zv, 1 + charpos))
         end if
     end subroutine parse_expression_propertize
@@ -823,7 +823,7 @@ contains
 
         call parse_expression_propertize(pos)
 
-        if (pos < 1 .or. pos >= buffers(cur)%text%z) then
+        if (pos < 1 .or. pos >= buffers(current)%text%z) then
             d = syntax_entry(c)
             return
         end if
@@ -881,8 +881,8 @@ contains
 
         char_int = c
 
-        if (cur /= 0 .and. c < 256) then
-            if (.not. buffers(cur)%multibyte) char_int = unibyte_to_char(int(c, int32))
+        if (current /= 0 .and. c < 256) then
+            if (.not. buffers(current)%multibyte) char_int = unibyte_to_char(int(c, int32))
         end if
 
         class = char_syntax_class(char_int)
@@ -1211,13 +1211,13 @@ contains
     !> beginning.  Port of syntax.c:scan_words.
     recursive integer(int64) function scan_words(from_pos, count_in) result(from)
         integer(int64), intent(in) :: from_pos, count_in
-        integer(int64) :: count, from_byte, beg, end
+        integer(int64) :: count, from_byte, beginning, end
         integer :: ch0, ch1, code
 
         from = from_pos
         count = count_in
-        beg = buffers(cur)%begv
-        end = buffers(cur)%zv
+        beginning = buffers(current)%begv
+        end = buffers(current)%zv
         from_byte = char_to_byte(from)
 
         do while (count > 0)
@@ -1227,9 +1227,9 @@ contains
                     return
                 end if
 
-                ch0 = buf_fetch_char(buffers(cur), from_byte)
+                ch0 = buf_fetch_char(buffers(current), from_byte)
                 code = syntax_class_at(ch0, from)
-                from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
+                from_byte = from_byte + buf_next_char_len(buffers(current), from_byte)
                 from = from + 1
                 if (is_word_code(code)) exit
             end do
@@ -1238,11 +1238,11 @@ contains
             ! position of the next character.
             do
                 if (from == end) exit
-                ch1 = buf_fetch_char(buffers(cur), from_byte)
+                ch1 = buf_fetch_char(buffers(current), from_byte)
                 code = syntax_class_at(ch1, from)
                 if (.not. is_word_code(code)) exit
                 if (is_word_boundary(ch0, ch1)) exit
-                from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
+                from_byte = from_byte + buf_next_char_len(buffers(current), from_byte)
                 from = from + 1
                 ch0 = ch1
             end do
@@ -1252,14 +1252,14 @@ contains
 
         do while (count < 0)
             do
-                if (from == beg) then
+                if (from == beginning) then
                     from = 0
                     return
                 end if
 
-                from_byte = from_byte - buf_prev_char_len(buffers(cur), from_byte)
+                from_byte = from_byte - buf_prev_char_len(buffers(current), from_byte)
                 from = from - 1
-                ch1 = buf_fetch_char(buffers(cur), from_byte)
+                ch1 = buf_fetch_char(buffers(current), from_byte)
                 code = syntax_class_at(ch1, from)
                 if (is_word_code(code)) exit
             end do
@@ -1267,14 +1267,14 @@ contains
             ! Now CH1 is a character which ends a word and FROM is the
             ! position of it.
             do
-                if (from == beg) exit
-                from_byte = from_byte - buf_prev_char_len(buffers(cur), from_byte)
+                if (from == beginning) exit
+                from_byte = from_byte - buf_prev_char_len(buffers(current), from_byte)
                 from = from - 1
-                ch0 = buf_fetch_char(buffers(cur), from_byte)
+                ch0 = buf_fetch_char(buffers(current), from_byte)
                 code = syntax_class_at(ch0, from)
 
                 if (.not. is_word_code(code) .or. is_word_boundary(ch0, ch1)) then
-                    from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
+                    from_byte = from_byte + buf_next_char_len(buffers(current), from_byte)
                     from = from + 1
                     exit
                 end if
@@ -1307,9 +1307,9 @@ contains
 
         if (orig_val == 0) then
             if (arg > 0) then
-                val = buffers(cur)%zv
+                val = buffers(current)%zv
             else
-                val = buffers(cur)%begv
+                val = buffers(current)%begv
             end if
         end if
 
@@ -1337,7 +1337,7 @@ contains
     !> Register the commands.  Port of syntax.c:syms_of_syntax in part.
     subroutine syms_of_syntax()
         call forward_setting(parse_expression_lookup_properties, local_if_set=.true.)
-        call forward_setting(syntax_propertize__done, local_if_set=.true.)
+        call forward_setting(syntax_propertize_done, local_if_set=.true.)
         commands%forward_word%execute => cmd_forward_word
     end subroutine syms_of_syntax
 
@@ -1409,7 +1409,7 @@ contains
         logical, intent(in) :: forwardp
         integer(int64), intent(in), optional :: lim
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             limit = merge(b%zv, b%begv, forwardp)
             if (present(lim)) limit = lim
             limit = max(b%begv, min(b%zv, limit))
@@ -1447,7 +1447,7 @@ contains
         start = point()
         pos = start
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (forwardp) then
                 do while (pos < limit)
                     pos_byte = char_to_byte(pos)
@@ -1487,7 +1487,7 @@ contains
         opoint = point()
         pos = opoint
 
-        do while (pos > buffers(cur)%begv)
+        do while (pos > buffers(current)%begv)
             c = get_char_before(pos)
             if (char_quoted(pos - 1)) exit
             d = syntax_entry_at(c, pos - 1)
@@ -1502,17 +1502,17 @@ contains
     !> The data of the `scan_error' in STATUS: its message and the start
     !> and end of the obstacle (an empty message and 0 when STATUS holds no
     !> scan error).  Not a port: upstream takes them from the error's data.
-    subroutine scan_error_data(status, message, beg, end)
+    subroutine scan_error_data(status, message, beginning, end)
         type(status_type), intent(in) :: status
         character(len=:), allocatable, intent(out) :: message
-        integer(int64), intent(out) :: beg, end
+        integer(int64), intent(out) :: beginning, end
         integer :: q, c, ios
 
         message = ""
-        beg = 0
+        beginning = 0
         end = 0
         if (status%code /= FM_SCAN_ERROR .or. .not. allocated(status%detail)) return
-        ! "MESSAGE", BEG, END
+        ! "MESSAGE", BEGINNING, END
         if (index(status%detail, """") /= 1) return
         q = index(status%detail(2:), """") + 1
         if (q < 2) return
@@ -1521,8 +1521,8 @@ contains
         if (c == q) return
         q = index(status%detail(c + 1:), ",") + c
         if (q == c) return
-        read (status%detail(c + 1:q - 1), *, iostat=ios) beg
-        if (ios /= 0) beg = 0
+        read (status%detail(c + 1:q - 1), *, iostat=ios) beginning
+        if (ios /= 0) beginning = 0
         read (status%detail(q + 1:), *, iostat=ios) end
         if (ios /= 0) end = 0
     end subroutine scan_error_data
@@ -1532,7 +1532,7 @@ contains
         integer(int64), intent(in) :: pos
         integer(int64) :: pos_byte
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             pos_byte = char_to_byte(pos)
 
             if (b%multibyte) then
@@ -1556,7 +1556,7 @@ contains
         char_quoted = .false.
         p = pos
 
-        do while (p > buffers(cur)%begv)
+        do while (p > buffers(current)%begv)
             k = syntax_class_at(get_char_before(p), p - 1)
             if (k /= SESCAPE .and. k /= SCHARQUOTE) exit
             char_quoted = .not. char_quoted

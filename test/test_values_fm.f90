@@ -77,7 +77,7 @@ contains
         if (allocated(error)) return
         call check(error, &
                    vtag(a) == V_ARRAY .and. (vtag(a) == V_ARRAY .or. vtag(a) == V_NULL) .and. (vtag(value_type()) &
-                               == V_ARRAY .or. vtag(value_type()) == V_NULL) .and. vtag(value_type()) /= V_ARRAY, "list predicates")
+                                    == V_ARRAY .or. vtag(value_type()) == V_NULL) .and. vtag(value_type()) /= V_ARRAY, "list tests")
     end subroutine test_value_semantics
 
     subroutine test_intern(error)
@@ -236,7 +236,7 @@ contains
         call check(error, st%detail, "expected array")
     end subroutine test_plist_put_odd
 
-    !> fns-tests.el: test-plist (all four blocks, predicates included).
+    !> fns-tests.el: test-plist (all four blocks, tests included).
     subroutine test_plist(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: plist

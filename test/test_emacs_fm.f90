@@ -24,7 +24,7 @@
 module test_emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use buffer_fm, only: erase_buffer, buffers, cur
+    use buffer_fm, only: erase_buffer, buffers, current
     use editfns_fm, only: buffer_string
     use sysdep_fm, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
@@ -38,10 +38,10 @@ module test_emacs_fm
     use frame_fm, only: selected_frame
     use test_support, only: show_alone
     use window_fm, only: windows, window_leaves
-    use fileio_fm, only: emacs_wd, file_name_as_directory, write_region, make_directory_internal, init_fileio
-    use buffer_fm, only: kill_buffer, get_file_buffer
+    use fileio_fm, only: emacs_wd, file_name_as_directory, write_region, create_directory_internal, init_fileio
+    use buffer_fm, only: close_buffer, get_file_buffer
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
-                        keymap_global_set, insert, get_buffer_create, set_buffer, &
+                        keymap_global_set, insert, get_or_make_buffer, set_buffer, &
                         handle_type, tab_width
     implicit none(type, external)
     private
@@ -105,10 +105,10 @@ contains
         type(handle_type) :: scratch
         type(status_type) :: ignore
         integer(int32) :: master, slave
-        character(len=4096) :: buf
+        character(len=4096) :: buffer
         integer(int64) :: n
 
-        call get_buffer_create("*scratch*", scratch, st)
+        call get_or_make_buffer("*scratch*", scratch, st)
         call set_buffer(scratch, st)
         call erase_buffer(st)
         call open_pty(master, slave, st)
@@ -126,7 +126,7 @@ contains
         call emacs_main("xterm-256color", slave, st, args, configure)
 
         do while (input_available(master, 100_int32))
-            call emacs_read(master, buf, n, ignore)
+            call emacs_read(master, buffer, n, ignore)
             if (n <= 0) exit
         end do
 
@@ -283,7 +283,7 @@ contains
         call execute_on_pty(achar(24)//achar(3), st)
         call check(error, st%ok(), "emacs_main")
         if (allocated(error)) return
-        call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
+        call check(error, buffers(current)%name == "*scratch*", buffers(current)%name)
         if (allocated(error)) return
         call check(error, buffer_string() == "", "no initial message: "//buffer_string())
         if (allocated(error)) return
@@ -305,9 +305,9 @@ contains
         call execute_on_pty("abc"//achar(24)//achar(3), st)
         call check(error, st%ok(), "emacs_main")
         if (allocated(error)) return
-        call check(error, windows(selected_frame%root_window%index)%buffer%index == cur, "root window shows *scratch*")
+        call check(error, windows(selected_frame%root_window%index)%buffer%index == current, "root window shows *scratch*")
         if (allocated(error)) return
-        call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
+        call check(error, buffers(current)%name == "*scratch*", buffers(current)%name)
         if (allocated(error)) return
         call check(error, buffer_string(), "abc")
     end subroutine test_initial_window
@@ -324,13 +324,13 @@ contains
 
         call init_fileio()
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-emacs-files")
-        call make_directory_internal(dir, st)
-        call get_buffer_create(" *emacs-test-file*", tmp, st)
+        call create_directory_internal(dir, st)
+        call get_or_make_buffer(" *emacs-test-file*", tmp, st)
         call set_buffer(tmp, st)
         call insert("A", st)
         call write_region(dir//"a.txt", .false., st)
         call write_region(dir//"b.txt", .false., st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
         names(1) = dir//"a.txt"
         names(2) = dir//"b.txt"
         call execute_on_pty(achar(24)//achar(3), st, argv(names), lines=20_int32)
@@ -346,8 +346,8 @@ contains
         if (allocated(error)) return
         call check(error, windows(leaves(1)%index)%buffer%index == b%index .and. &
                    windows(leaves(2)%index)%buffer%index == a%index, "b.txt above a.txt")
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
         call show_alone()
     end subroutine test_display_files
 end module test_emacs_fm

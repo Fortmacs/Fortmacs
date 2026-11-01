@@ -70,9 +70,9 @@ contains
     end function default_string
 
     module procedure fill_comment_paragraph
-    integer(int64) :: opoint, comstart, comin, moved, nstart, nend, after_line, beg, end, cs, shortage, squeeze, found, col
-    logical :: has_code_and_comment, have_prefix, saved_have_prefix, ok
-    character(len=:), allocatable :: commark, comment_re, comment_fill_prefix, skip, separate_orig, start_orig, &
+    integer(int64) :: opoint, comstart, comin, moved, nstart, nend, after_line, beginning, end, cs, shortage, squeeze, found, col
+    logical :: has_code_and_comment, has_prefix, saved_has_prefix, ok
+    character(len=:), allocatable :: commark, comment_regexp, comment_fill_prefix, skip, separate_orig, start_orig, &
                                      saved_prefix, prefix, last
     integer(int64) :: savedb, savedz
     type(status_type) :: st
@@ -115,9 +115,9 @@ contains
     ! and "a" is mostly arbitrary.
     if (string_match(skip, achar(0)//commark//"a", st) > 0) then
         last = last_char(commark)
-        comment_re = "[ "//TAB//"]*"//regexp_quote(commark)//"[^"//last//"]"
+        comment_regexp = "[ "//TAB//"]*"//regexp_quote(commark)//"[^"//last//"]"
     else
-        comment_re = "[ "//TAB//"]*\(?:"//skip//"\)"
+        comment_regexp = "[ "//TAB//"]*\(?:"//skip//"\)"
     end if
 
     ! Compute a fill prefix.
@@ -139,8 +139,8 @@ contains
 
     call goto_char(opoint)
     ! (save-excursion (save-restriction ...))
-    savedb = buffers(cur)%begv
-    savedz = buffers(cur)%text%z - buffers(cur)%zv
+    savedb = buffers(current)%begv
+    savedz = buffers(current)%text%z - buffers(current)%zv
     call beginning_of_line(1_int64)
 
     ! Find the first line we should include in the region to fill.
@@ -149,14 +149,14 @@ contains
     else
         do
             if (forward_line(-1_int64) /= 0) exit
-            if (.not. looking_at(comment_re, st)) exit
+            if (.not. looking_at(comment_regexp, st)) exit
         end do
 
         ! We may have gone too far.  Go forward again.
         cs = comment_search_forward(line_end_position(), .true., st)
         if (cs > 0) call goto_char(cs)
 
-        if (looking_at(comment_re, st)) then
+        if (looking_at(comment_regexp, st)) then
             comstart = point()
             nstart = line_beginning_position()
         else
@@ -173,7 +173,7 @@ contains
         found = point()
         shortage = forward_line(1_int64)
         if (point() == found) exit
-        if (.not. looking_at(comment_re, st)) exit
+        if (.not. looking_at(comment_regexp, st)) exit
     end do
 
     nend = point()
@@ -201,24 +201,24 @@ contains
     ! the filling.
     shortage = forward_paragraph(-1_int64)
     if (point() == after_line) shortage = forward_line(-1_int64)
-    beg = point()
+    beginning = point()
     paragraph_separate%value = separate_orig
     paragraph_start%value = start_orig
     call widen()
-    call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     call goto_char(opoint)
     ! Find the fill-prefix to use.
-    saved_have_prefix = allocated(fill_prefix%value)
-    if (saved_have_prefix) saved_prefix = fill_prefix%value
+    saved_has_prefix = allocated(fill_prefix%value)
+    if (saved_has_prefix) saved_prefix = fill_prefix%value
 
-    if (.not. saved_have_prefix) then
+    if (.not. saved_has_prefix) then
         ! Try adaptive fill mode.
         ok = .false.
 
         if (adaptive_fill_mode%value) then
-            call fill_context_prefix(beg, end, prefix, have_prefix)
+            call fill_context_prefix(beginning, end, prefix, has_prefix)
 
-            if (have_prefix) then
+            if (has_prefix) then
                 fill_prefix%value = prefix
                 ok = string_match(skip, prefix, st) > 0
             end if
@@ -229,7 +229,7 @@ contains
 
     ! Don't canonicalize spaces within the code just before the comment.
     opoint = point()
-    call goto_char(beg)
+    call goto_char(beginning)
     squeeze = 0
 
     if (.not. looking_at(fill_prefix%value, st)) then
@@ -242,14 +242,14 @@ contains
     if (status%ok()) then
         ! Don't fill with narrowing.
         if (squeeze > 0) then
-            call fill_region_as_paragraph(max(comstart, beg), end, status, justify, nosqueeze=.false., &
+            call fill_region_as_paragraph(max(comstart, beginning), end, status, justify, nosqueeze=.false., &
                                           squeeze_after=squeeze)
         else
-            call fill_region_as_paragraph(max(comstart, beg), end, status, justify)
+            call fill_region_as_paragraph(max(comstart, beginning), end, status, justify)
         end if
     end if
 
-    if (saved_have_prefix) then
+    if (saved_has_prefix) then
         fill_prefix%value = saved_prefix
     else if (allocated(fill_prefix%value)) then
         deallocate (fill_prefix%value)

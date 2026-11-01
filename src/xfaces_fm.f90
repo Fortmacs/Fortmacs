@@ -37,7 +37,7 @@
 !> Overlays' `face' properties are merged (the active region stands in for
 !> redisplay's region overlay).
 !>
-!> Deferred: `face_remapping_table', mouse faces, face filters
+!> Deferred: `face_remappings', mouse faces, face filters
 !> (`:filter'), the two-value forms FOREGROUND-COLOR and COLOR of face
 !> references (no entry of two names), the `reset' attribute value, relative
 !> (float) and functional heights in face references, fonts, fontsets,
@@ -58,7 +58,7 @@ module xfaces_fm
     use faces_fm, only: face_attributes_type, named_face_type, face_named, faces_equal, face_weight_numeric, &
                         face_slant_numeric, set_frame_display, face_spec_recalc_all, &
                         display_supports_face_attributes_p, default, &
-                        FACE_UNSPECIFIED, FACE_OFF, FACE_ON, FACE_COLOR, FACE_PLIST, FACE_LIST, FACE_VALUE, &
+                        FACE_UNSPECIFIED, FACE_NO, FACE_YES, FACE_COLOR, FACE_PLIST, FACE_LIST, FACE_VALUE, &
                         FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, FACE_STYLE_DOTS, &
                         FACE_STYLE_DASHES, FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
@@ -66,7 +66,7 @@ module xfaces_fm
     use term_fm, only: is_tty_capable
     use tty_colors_fm, only: tty_color_desc, tty_color_assoc, tty_color_standard_values, &
                              tty_defined_color_count, clear_face_cache_hook
-    use buffer_fm, only: buffers, cur, set_buffer_internal
+    use buffer_fm, only: buffers, current, set_buffer_internal
     use textprop_fm, only: get_text_property, next_single_property_change
     use handle_fm, only: handle_type
     use itree_fm, only: overlays_at, sort_overlays, overlay_get, overlay_end, overlay_start, overlay_priority, &
@@ -307,15 +307,15 @@ contains
         ! Map face attributes to TTY appearances.
         if (face_weight_numeric(attrs%weight) > 100) face%tty_bold_p = .true.
         if (face_slant_numeric(attrs%slant) /= 100) face%tty_italic_p = .true.
-        if (attrs%inverse_video%state /= FACE_OFF) face%tty_reverse_p = .true.
-        if (attrs%strike_through%state /= FACE_OFF) face%tty_strike_through_p = .true.
+        if (attrs%inverse_video%state /= FACE_NO) face%tty_reverse_p = .true.
+        if (attrs%strike_through%state /= FACE_NO) face%tty_strike_through_p = .true.
 
         ! Text underline.
         select case (attrs%underline%state)
-        case (FACE_OFF)
+        case (FACE_NO)
             face%underline = FACE_NO_UNDERLINE
             face%underline_color = 0
-        case (FACE_ON)
+        case (FACE_YES)
             face%underline = FACE_UNDERLINE_SINGLE
             face%underline_color = 0
         case (FACE_COLOR)
@@ -367,7 +367,7 @@ contains
 
     !> The terminal color index of COLOR, a foreground (or underline)
     !> color if FOREGROUND, else a background color: the index of COLOR in
-    !> `tty_defined_color_table', else of the color approximating it
+    !> `tty_defined_colors', else of the color approximating it
     !> (load_color with tty_defined_color), else the default foreground or
     !> background.  Port of xfaces.c:map_tty_color.
     integer(int64) function map_tty_color(color, foreground) result(pixel)
@@ -564,9 +564,9 @@ contains
 
         if (extend_only) then
             ! Filter, but specified; or unspecified, but inherited.
-            if (face%lface%extend%state /= FACE_ON) then
+            if (face%lface%extend%state /= FACE_YES) then
                 if (face%lface%inherit%state /= FACE_LIST) return
-                if (face_inherited_extend(face%lface, depth + 1) /= FACE_ON) return
+                if (face_inherited_extend(face%lface, depth + 1) /= FACE_YES) return
             end if
         end if
 
@@ -742,7 +742,7 @@ contains
                     return
                 end if
 
-                if (scratch%extend%state /= FACE_ON) return
+                if (scratch%extend%state /= FACE_YES) return
             end if
         end if
 
@@ -1117,7 +1117,7 @@ contains
         endpos = buffers(bi)%zv
         ! Get the `face' text property at POS, and determine the next
         ! position at which the property changes.
-        saved = cur
+        saved = current
         call set_buffer_internal(bi)
         call get_text_property(pos, value_type(name="face"), prop, status)
         call next_single_property_change(pos, value_type(name="face"), end, found, status, min(limit, endpos))

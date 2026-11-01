@@ -30,13 +30,13 @@ module test_syntax_propertize_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, vtag, V_ARRAY
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char
     use search_fm, only: re_search_forward, SEARCH_NOERROR
     use textprop_fm, only: get_text_property
     use bindings_fm, only: init_bindings
-    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, syntax_propertize__done, &
+    use syntax_fm, only: parse_state_type, parse_partial_expression, syntax_ppss, syntax_propertize_done, &
                          parse_expression_lookup_properties, forward_comment
     use subr_fm, only: is_subregexp_context
     use regexp_opt_fm, only: regexp_opt_depth
@@ -75,7 +75,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *syntax-test*", h, st)
+        call get_or_make_buffer(" *syntax-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -85,7 +85,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     !> Test shifting of numbered groups and back-references in regexps.
@@ -196,7 +196,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, parse_expression_lookup_properties%value, "lookup turned on")
             if (allocated(error)) exit checks
-            call check(error, syntax_propertize__done%value >= 6, "propertized that far")
+            call check(error, syntax_propertize_done%value >= 6, "propertized that far")
             if (allocated(error)) exit checks
             call get_text_property(3_int64, value_type(name="syntax_table"), prop, st)
             call check(error, vtag(prop) == V_ARRAY, "a raw descriptor on #")

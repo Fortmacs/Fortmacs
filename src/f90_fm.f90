@@ -26,15 +26,15 @@
 !> letter or two) and four levels of highlighting.
 !>
 !> Values: `f90_smart_end' is F90_SMART_END_BLINK, _NO_BLINK or _NIL;
-!> `f90_auto_keyword_case' F90_KEYWORD_CASE_NONE, _DOWNCASE_WORD,
-!> _UPCASE_WORD or _CAPITALIZE_WORD; `f90_directive_comment_re' a string
+!> `f90_auto_keyword_case' F90_AUTO_KEYWORD_CASE_NONE, _DOWNCASE_WORD,
+!> _UPCASE_WORD or _CAPITALIZE_WORD; `f90_directive_comment_regexp' a string
 !> (unallocated when unset).  Functions upstream returns as (KIND NAME)
 !> give an `f90_block_type'.
 !>
 !> Deferred: the F90 menu, Imenu (`f90_imenu_generic_expression',
 !> `f90_add_imenu_menu', `f90_imenu_type_matcher'), Hideshow
-!> (`hs_block_start_regexp' with `f90_start_block_re' and
-!> `f90_end_block_re'), Add Log (`f90_current_subprogram'), `f90_backslash_not_special'
+!> (`hs_block_start_regexp' with `f90_start_block_regexp' and
+!> `f90_end_block_regexp'), Add Log (`f90_current_subprogram'), `f90_backslash_not_special'
 !> (obsolete), the `delete_selection' property of
 !> `f90_electric_insert', and `f90_cache_position' as a buffer-local
 !> variable (it is set only while a region command runs).
@@ -43,12 +43,12 @@ module f90_fm
     use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, command_proc, vtag, V_INTEGER
-    use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting
+    use lisp_fm, only: value_type, command_procedure, vtag, V_INTEGER
+    use data_fm, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: set_transient_map, sit_for
-    use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, barf_if_buffer_read_only, &
+    use buffer_fm, only: buffers, current, current_buffer, get_or_make_buffer, set_buffer, barf_if_buffer_read_only, &
                          fill_column, auto_fill_function, is_buffer_modified, restore_buffer_modified, erase_buffer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
@@ -60,9 +60,9 @@ module f90_fm
                           line_end_position
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char, self_insert_command
     use insdel_fm, only: insert
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     use indent_fm, only: current_column, current_indentation, move_to_column, indent_to, indent_according_to_mode, &
-                         indent_line_function, indent_line_proc, indent_region_function, indent_region, indent_tabs_mode
+                         indent_line_function, indent_line_procedure, indent_region_function, indent_region, indent_tabs_mode
     use search_fm, only: looking_at, re_search_forward, re_search_backward, search_forward, match_beginning, &
                          match_end, replace_match, regexp_quote, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use simple_fm, only: newline, delete_horizontal_space, fixup_whitespace, push_mark, normal_auto_fill_function, &
@@ -102,8 +102,8 @@ module f90_fm
 
     !> `f90_auto_keyword_case' values (and the CHANGE_WORD argument of
     !> `f90_change_keywords').
-    integer, parameter, public :: F90_KEYWORD_CASE_NONE = 0, F90_KEYWORD_CASE_DOWNCASE_WORD = 1, &
-                                  F90_KEYWORD_CASE_UPCASE_WORD = 2, F90_KEYWORD_CASE_CAPITALIZE_WORD = 3
+    integer, parameter, public :: F90_AUTO_KEYWORD_CASE_NONE = 0, F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD = 1, &
+                                  F90_AUTO_KEYWORD_CASE_UPCASE_WORD = 2, F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD = 3
 
     !> What `f90_present_statement_cont' returns: single, begin, end, middle.
     integer, parameter, public :: CONT_SINGLE = 0, CONT_BEGIN = 1, CONT_END = 2, CONT_MIDDLE = 3
@@ -116,39 +116,41 @@ module f90_fm
     end type f90_block_type
 
     !> Extra indentation applied to DO blocks.  Port of f90.el f90-do-indent.
-    type(integer_setting), target, public :: f90_do_indent = integer_setting(name="f90_do_indent", value=3)
+    type(integer_setting_type), target, public :: f90_do_indent = integer_setting_type(name="f90_do_indent", value=3)
     !> Extra indentation applied to IF, SELECT CASE, WHERE and FORALL blocks.
     !> Port of f90.el f90-if-indent.
-    type(integer_setting), target, public :: f90_if_indent = integer_setting(name="f90_if_indent", value=3)
+    type(integer_setting_type), target, public :: f90_if_indent = integer_setting_type(name="f90_if_indent", value=3)
     !> Extra indentation applied to TYPE, ENUM, INTERFACE and BLOCK DATA blocks.
     !> Port of f90.el f90-type-indent.
-    type(integer_setting), target, public :: f90_type_indent = integer_setting(name="f90_type_indent", value=3)
+    type(integer_setting_type), target, public :: f90_type_indent = integer_setting_type(name="f90_type_indent", value=3)
     !> Extra indentation applied to PROGRAM, MODULE, SUBROUTINE, FUNCTION blocks.
     !> Port of f90.el f90-program-indent.
-    type(integer_setting), target, public :: f90_program_indent = integer_setting(name="f90_program_indent", value=2)
+    type(integer_setting_type), target, public :: f90_program_indent = integer_setting_type(name="f90_program_indent", value=2)
     !> Extra indentation applied to ASSOCIATE blocks.  Port of f90.el
     !> f90-associate-indent.
-    type(integer_setting), target, public :: f90_associate_indent = integer_setting(name="f90_associate_indent", value=2)
+    type(integer_setting_type), target, public :: f90_associate_indent = integer_setting_type(name="f90_associate_indent", value=2)
     !> Extra indentation applied to BLOCK, CRITICAL blocks.  Port of f90.el
     !> f90-critical-indent.
-    type(integer_setting), target, public :: f90_critical_indent = integer_setting(name="f90_critical_indent", value=2)
+    type(integer_setting_type), target, public :: f90_critical_indent = integer_setting_type(name="f90_critical_indent", value=2)
     !> Extra indentation applied to continuation lines.  Port of f90.el
     !> f90-continuation-indent.
-    type(integer_setting), target, public :: f90_continuation_indent = &
-                                             integer_setting(name="f90_continuation_indent", value=5)
+    type(integer_setting_type), target, public :: f90_continuation_indent = &
+                                                  integer_setting_type(name="f90_continuation_indent", value=5)
     !> String inserted by \[f90_comment_region] at start of each line in region.
     !> Port of f90.el f90-comment-region.
-    type(string_setting), target, public :: f90_comment_region = string_setting(name="f90_comment_region")
+    type(string_setting_type), target, public :: f90_comment_region = string_setting_type(name="f90_comment_region")
     !> Regexp matching comments to indent as code.  Port of f90.el
     !> f90-indented-comment-re.
-    type(string_setting), target, public :: f90_indented_comment_re = string_setting(name="f90_indented_comment_re")
+    type(string_setting_type), target, public :: f90_indented_comment_regexp = &
+                                                 string_setting_type(name="f90_indented_comment_regexp")
     !> Regexp of comment-like directive like "!HPF\\$", not to be indented.
     !> Port of f90.el f90-directive-comment-re.
-    type(string_setting), target, public :: f90_directive_comment_re = string_setting(name="f90_directive_comment_re")
+    type(string_setting_type), target, public :: f90_directive_comment_regexp = &
+                                                 string_setting_type(name="f90_directive_comment_regexp")
     !> True gives automatic insertion of `&' at start of continuation line.
     !> Port of f90.el f90-beginning-ampersand.
-    type(logical_setting), target, public :: f90_beginning_ampersand = &
-                                             logical_setting(name="f90_beginning_ampersand", value=.true.)
+    type(logical_setting_type), target, public :: f90_beginning_ampersand = &
+                                                  logical_setting_type(name="f90_beginning_ampersand", value=.true.)
     !> Qualification of END statements according to the matching block start.
     !> For example, change the END that closes an IF block to END IF.
     !> If the block has a label, add it as well (unless `f90_smart_end_names'
@@ -157,8 +159,8 @@ module f90_fm
     !> nothing is done.  The other two settings have the same effect, but F90_SMART_END_BLINK
     !> additionally blinks the cursor to the start of the block.  Port of
     !> f90.el f90-smart-end.
-    type(integer_setting), target, public :: f90_smart_end = integer_setting(name="f90_smart_end", &
-                                                                             value=F90_SMART_END_BLINK)
+    type(integer_setting_type), target, public :: f90_smart_end = integer_setting_type(name="f90_smart_end", &
+                                                                                       value=F90_SMART_END_BLINK)
     !> Whether completion of END statements should insert optional block names.
     !> For example, when closing a "PROGRAM PROGNAME" block, "PROGNAME" is
     !> optional in the "END PROGRAM" statement.  The same is true for modules,
@@ -171,78 +173,78 @@ module f90_fm
     !> If an end statement has a name that does not match the start, it is always
     !> corrected, regardless of the value of this variable.  Port of f90.el
     !> f90-smart-end-names.
-    type(logical_setting), target, public :: f90_smart_end_names = &
-                                             logical_setting(name="f90_smart_end_names", value=.true.)
+    type(logical_setting_type), target, public :: f90_smart_end_names = &
+                                                  logical_setting_type(name="f90_smart_end_names", value=.true.)
     !> Regexp matching delimiter characters at which lines may be broken.
     !> There are some common two-character tokens where one or more of
     !> the members matches this regexp.  Although Fortran allows breaks
     !> within lexical tokens (provided the next line has a beginning ampersand),
-    !> the constant `f90_no_break_re' ensures that such tokens are not split.
+    !> the constant `f90_no_break_regexp' ensures that such tokens are not split.
     !> Port of f90.el f90-break-delimiters.
-    type(string_setting), target, public :: f90_break_delimiters = string_setting(name="f90_break_delimiters")
+    type(string_setting_type), target, public :: f90_break_delimiters = string_setting_type(name="f90_break_delimiters")
     !> True causes `f90_do_auto_fill' to break lines before delimiters.
     !> Port of f90.el f90-break-before-delimiters.
-    type(logical_setting), target, public :: f90_break_before_delimiters = &
-                                             logical_setting(name="f90_break_before_delimiters", value=.true.)
+    type(logical_setting_type), target, public :: f90_break_before_delimiters = &
+                                                  logical_setting_type(name="f90_break_before_delimiters", value=.true.)
     !> Automatic case conversion of keywords.
-    !> The options are F90_KEYWORD_CASE_DOWNCASE_WORD, _UPCASE_WORD,
+    !> The options are F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD, _UPCASE_WORD,
     !> _CAPITALIZE_WORD and _NIL.  Port of f90.el f90-auto-keyword-case.
-    type(integer_setting), target, public :: f90_auto_keyword_case = &
-                                             integer_setting(name="f90_auto_keyword_case", value=F90_KEYWORD_CASE_NONE)
+    type(integer_setting_type), target, public :: f90_auto_keyword_case = &
+                                                integer_setting_type(name="f90_auto_keyword_case", value=F90_AUTO_KEYWORD_CASE_NONE)
     !> If true, line numbers are not left justified.  Port of f90.el
     !> f90-leave-line-no.
-    type(logical_setting), target, public :: f90_leave_line_no = logical_setting(name="f90_leave_line_no", value=.false.)
+    type(logical_setting_type), target, public :: f90_leave_line_no = logical_setting_type(name="f90_leave_line_no", value=.false.)
     !> Hook run when entering F90 mode.  Port of f90.el f90-mode-hook.
     type(hook_type), target, public :: f90_mode_hook = hook_type(name="f90_mode_hook")
 
     !> Regexp used by the function `f90_change_keywords'.  Port of f90.el
     !> f90-keywords-re.
-    character(len=:), allocatable, public :: f90_keywords_re
+    character(len=:), allocatable, public :: f90_keywords_regexp
     !> Keyword-regexp for font-lock level >= 3.  Port of f90.el
     !> f90-keywords-level-3-re.
-    character(len=:), allocatable, public :: f90_keywords_level_3_re
+    character(len=:), allocatable, public :: f90_keywords_level_3_regexp
     !> Regexp whose first part matches F90 intrinsic procedures.  Port of
     !> f90.el f90-procedures-re.
-    character(len=:), allocatable, public :: f90_procedures_re
+    character(len=:), allocatable, public :: f90_procedures_regexp
     !> Regexp matching intrinsic operators.  Port of f90.el f90-operators-re.
-    character(len=:), allocatable, public :: f90_operators_re
+    character(len=:), allocatable, public :: f90_operators_regexp
     !> Regexp for all HPF keywords, procedures and directives.  Port of
     !> f90.el f90-hpf-keywords-re.
-    character(len=:), allocatable, public :: f90_hpf_keywords_re
+    character(len=:), allocatable, public :: f90_hpf_keywords_regexp
     !> Regexp for Fortran intrinsic constants.  Port of f90.el
     !> f90-constants-re.
-    character(len=:), allocatable, public :: f90_constants_re
+    character(len=:), allocatable, public :: f90_constants_regexp
     !> Regexp potentially indicating a "block" of F90 code.  Port of f90.el
     !> f90-blocks-re.
-    character(len=:), allocatable, public :: f90_blocks_re
+    character(len=:), allocatable, public :: f90_blocks_regexp
     !> Regexp used to locate the start/end of a "subprogram".  Port of
     !> f90.el f90-program-block-re.
-    character(len=:), allocatable, public :: f90_program_block_re
+    character(len=:), allocatable, public :: f90_program_block_regexp
     !> Regexp matching an ELSE IF, ELSEWHERE, CASE, CLASS/TYPE IS statement.
     !> Port of f90.el f90-else-like-re.
-    character(len=*), parameter, public :: f90_else_like_re = "\(else\([ "//achar(9)//"]*if\|where\)?\|case[ " &
+    character(len=*), parameter, public :: f90_else_like_regexp = "\(else\([ "//achar(9)//"]*if\|where\)?\|case[ " &
                                            //achar(9)//"]*\(default\|(\)\|\(class\|type\)[ " &
                                            //achar(9)//"]*is[ "//achar(9)//"]*(\|class[ " &
                                            //achar(9)//"]*default\)"
     !> Regexp matching the end of an IF, SELECT, WHERE, FORALL block.  Port of
     !> f90.el f90-end-if-re.
-    character(len=:), allocatable, public :: f90_end_if_re
+    character(len=:), allocatable, public :: f90_end_if_regexp
     !> Regexp matching the end of a TYPE, ENUM, INTERFACE, BLOCK DATA section.
     !> Port of f90.el f90-end-type-re.
-    character(len=*), parameter, public :: f90_end_type_re = "end[ "//achar(9)//"]*\(type\|enum\|interface\|block[ " &
+    character(len=*), parameter, public :: f90_end_type_regexp = "end[ "//achar(9)//"]*\(type\|enum\|interface\|block[ " &
                                            //achar(9)//"]*data\)\_>"
     !> Regexp matching the end of an ASSOCIATE block.  Port of f90.el
     !> f90-end-associate-re.
-    character(len=*), parameter, public :: f90_end_associate_re = "end[ "//achar(9)//"]*associate\_>"
+    character(len=*), parameter, public :: f90_end_associate_regexp = "end[ "//achar(9)//"]*associate\_>"
     !> Regexp matching the definition of a derived type.  Port of f90.el
     !> f90-type-def-re.
-    character(len=*), parameter, public :: f90_type_def_re = "\_<\(type\)\_>\(?:\(?:[^()"//achar(10)//"]*\|" &
+    character(len=*), parameter, public :: f90_type_def_regexp = "\_<\(type\)\_>\(?:\(?:[^()"//achar(10)//"]*\|" &
                                            //".*,[ "//achar(9)//"]*\(?:bind\|extends\)[ " &
                                            //achar(9)//"]*(.*).*\)::\)?[ "//achar(9) &
                                            //"]*\(\(?:\sw\|\s_\)+\)"
     !> Regexp matching a CLASS/TYPE IS statement.  Port of f90.el
     !> f90-typeis-re.
-    character(len=*), parameter, public :: f90_typeis_re = "\_<\(class\|type\)[ "//achar(9)//"]*is[ "//achar(9)//"]*("
+    character(len=*), parameter, public :: f90_typeis_regexp = "\_<\(class\|type\)[ "//achar(9)//"]*is[ "//achar(9)//"]*("
     !> Regexp specifying two-character tokens not to split when breaking lines.
     !> Each token has one or more of the characters from `f90_break_delimiters'.
     !> Note that if only one of the characters is from that variable,
@@ -250,17 +252,17 @@ module f90_fm
     !> after the other character, where a break would not normally be
     !> allowed.  This minor issue currently only affects "(/" and "/)".
     !> Port of f90.el f90-no-break-re.
-    character(len=:), allocatable, public :: f90_no_break_re
+    character(len=:), allocatable, public :: f90_no_break_regexp
     !> Regexp matching the end of an F90 "block", from the line start.
     !> Used in the F90 entry in `hs_block_end_regexp'.  Port of f90.el
     !> f90-end-block-re.
-    character(len=:), allocatable, public :: f90_end_block_re
+    character(len=:), allocatable, public :: f90_end_block_regexp
     !> Regexp matching the start of an F90 "block", from the line start.
     !> A simple regexp cannot do this in fully correct fashion, so this
     !> tries to strike a compromise between complexity and flexibility.
     !> Used in the F90 entry in `hs_block_start_regexp'.  Port of f90.el
     !> f90-start-block-re.
-    character(len=:), allocatable, public :: f90_start_block_re
+    character(len=:), allocatable, public :: f90_start_block_regexp
     !> Block types where including the name in the end statement is optional.
     !> Port of f90.el f90-end-block-optional-name.
     character(len=*), parameter, public :: f90_end_block_optional_name(5) = &
@@ -323,8 +325,8 @@ contains
         call forward_setting(f90_critical_indent)
         call forward_setting(f90_continuation_indent)
         call forward_setting(f90_comment_region)
-        call forward_setting(f90_indented_comment_re)
-        call forward_setting(f90_directive_comment_re)
+        call forward_setting(f90_indented_comment_regexp)
+        call forward_setting(f90_directive_comment_regexp)
         call forward_setting(f90_beginning_ampersand)
         call forward_setting(f90_smart_end)
         call forward_setting(f90_smart_end_names)
@@ -333,8 +335,8 @@ contains
         call forward_setting(f90_auto_keyword_case)
         call forward_setting(f90_leave_line_no)
         if (.not. allocated(f90_comment_region%value)) f90_comment_region = "!!$"
-        if (.not. allocated(f90_indented_comment_re%value)) f90_indented_comment_re = "!"
-        if (.not. allocated(f90_directive_comment_re%value)) f90_directive_comment_re = "!hpf\$"
+        if (.not. allocated(f90_indented_comment_regexp%value)) f90_indented_comment_regexp = "!"
+        if (.not. allocated(f90_directive_comment_regexp%value)) f90_directive_comment_regexp = "!hpf\$"
         if (.not. allocated(f90_break_delimiters%value)) f90_break_delimiters = "[-+\*/><=,% "//TAB//"]"
         call init_regexps()
         call init_syntax_table()
@@ -476,7 +478,7 @@ contains
                                                            "erf", "erfc", "erfc_scaled", "gamma", "hypot", "log_gamma", &
                                                            "norm2", "parity", "findloc", "is_contiguous", &
                                                            "sync images", "lock", "unlock", "image_index", &
-                                                           "lcobound", "ucobound", "num_images", "this_image", &
+                                                           "lcobound", "ucobound", "image_count", "this_image", &
                                                            "acosh", "asinh", "atanh", &
                                                            "atomic_define", "atomic_ref", "execute_command_line", &
                                                            "compiler_options", "compiler_version", &
@@ -542,47 +544,47 @@ contains
                                                                        "type", "where", "enum", "associate", "submodule", "block", &
                                                                                                                          "critical"]
 
-        f90_keywords_re = "\_<"//regexp_opt(keywords)//"\_>"
-        f90_keywords_level_3_re = "\_<"//regexp_opt(level3)//"\_>"
+        f90_keywords_regexp = "\_<"//regexp_opt(keywords)//"\_>"
+        f90_keywords_level_3_regexp = "\_<"//regexp_opt(level3)//"\_>"
         ! A left parenthesis to avoid highlighting non-procedures.
-        f90_procedures_re = "\_<"//regexp_opt(procedures, REGEXP_OPT_GROUP)//"[ "//TAB//"]*("
-        f90_operators_re = "\."//regexp_opt(operators, REGEXP_OPT_GROUP)//"\."
-        f90_hpf_keywords_re = "\_<"//regexp_opt(hpf)//"\_>"
-        f90_constants_re = "\_<"//regexp_opt(constants)//"\_>"
-        f90_blocks_re = "\(\(?:block[ "//TAB//"]*data\|"//regexp_opt(blocks)//"\)\_>\)"
-        f90_program_block_re = regexp_opt(program_blocks, REGEXP_OPT_GROUP)
-        f90_end_if_re = "end[ "//TAB//"]*"//regexp_opt(end_ifs, REGEXP_OPT_GROUP)//"\_>"
-        f90_no_break_re = regexp_opt(no_breaks, REGEXP_OPT_GROUP)
-        f90_end_block_re = "^[ "//TAB//"0-9]*\_<end[ "//TAB//"]*"//regexp_opt(end_blocks, REGEXP_OPT_GROUP)//"\_>"
+        f90_procedures_regexp = "\_<"//regexp_opt(procedures, REGEXP_OPT_GROUP)//"[ "//TAB//"]*("
+        f90_operators_regexp = "\."//regexp_opt(operators, REGEXP_OPT_GROUP)//"\."
+        f90_hpf_keywords_regexp = "\_<"//regexp_opt(hpf)//"\_>"
+        f90_constants_regexp = "\_<"//regexp_opt(constants)//"\_>"
+        f90_blocks_regexp = "\(\(?:block[ "//TAB//"]*data\|"//regexp_opt(blocks)//"\)\_>\)"
+        f90_program_block_regexp = regexp_opt(program_blocks, REGEXP_OPT_GROUP)
+        f90_end_if_regexp = "end[ "//TAB//"]*"//regexp_opt(end_ifs, REGEXP_OPT_GROUP)//"\_>"
+        f90_no_break_regexp = regexp_opt(no_breaks, REGEXP_OPT_GROUP)
+        f90_end_block_regexp = "^[ "//TAB//"0-9]*\_<end[ "//TAB//"]*"//regexp_opt(end_blocks, REGEXP_OPT_GROUP)//"\_>"
         ! Ignore the fact that FUNCTION, SUBROUTINE, WHERE, FORALL have a
         ! following "(".  DO, CASE, IF can have labels.
-        f90_start_block_re = "^[ "//TAB//"0-9]*" & ! statement number
-                             //"\(\(" &
-                             //"\("//SYMRE//"+[ "//TAB//"]*:[ "//TAB//"]*\)?" & ! structure label
-                             //"\(do\|select[ "//TAB//"]*\(case\|type\)\|" &
-                             ! See comments in fortran-start-block-re for the problems of IF.
-                             //"if[ "//TAB//"]*(\(.*\|" &
-                             //".*"//LF//"\([^if]*\([^i].\|.[^f]\|.\_>\)\)\)\_<then\|" &
-                             ! Distinguish WHERE block from isolated WHERE.
-                             //"\(where\|forall\)[ "//TAB//"]*(.*)[ "//TAB//"]*\(!\|$\)\)\)" &
-                             //"\|" &
-                             ! Avoid F2003 "type is" in "select type",
-                             ! and also variables of derived type "type (foo)".
-                             ! "type, foo" must be a block (?).
-                             ! And a partial effort to avoid "class default".
-                             //"\(?:type\|class\)[ "//TAB//",]\(" &
-                             //"[^id(!"//LF//"""& "//TAB//"]\|" & ! not-id(
-                             //"i[^s!"//LF//"""& "//TAB//"]\|" & ! i not-s
-                             //"d[^e!"//LF//"""& "//TAB//"]\|" & ! d not-e
-                             //"de[^f!"//LF//"""& "//TAB//"]\|" & ! de not-f
-                             //"def[^a!"//LF//"""& "//TAB//"]\|" & ! def not-a
-                             //"\(?:is\|default\)"//SYMRE//"\)\|" &
-                             ! "abstract interface" is F2003; "submodule" is F2008.
-                             //"program\|\(?:abstract[ "//TAB//"]*\)?interface\|\(?:sub\)?module\|" &
-                             ! "enum", but not "enumerator".
-                             //"function\|subroutine\|enum[^e]\|associate\|block\|critical" &
-                             //"\)" &
-                             //"[ "//TAB//"]*"
+        f90_start_block_regexp = "^[ "//TAB//"0-9]*" & ! statement number
+                                 //"\(\(" &
+                                 //"\("//SYMRE//"+[ "//TAB//"]*:[ "//TAB//"]*\)?" & ! structure label
+                                 //"\(do\|select[ "//TAB//"]*\(case\|type\)\|" &
+                                 ! See comments in fortran-start-block-re for the problems of IF.
+                                 //"if[ "//TAB//"]*(\(.*\|" &
+                                 //".*"//LF//"\([^if]*\([^i].\|.[^f]\|.\_>\)\)\)\_<then\|" &
+                                 ! Distinguish WHERE block from isolated WHERE.
+                                 //"\(where\|forall\)[ "//TAB//"]*(.*)[ "//TAB//"]*\(!\|$\)\)\)" &
+                                 //"\|" &
+                                 ! Avoid F2003 "type is" in "select type",
+                                 ! and also variables of derived type "type (foo)".
+                                 ! "type, foo" must be a block (?).
+                                 ! And a partial effort to avoid "class default".
+                                 //"\(?:type\|class\)[ "//TAB//",]\(" &
+                                 //"[^id(!"//LF//"""& "//TAB//"]\|" & ! not-id(
+                                 //"i[^s!"//LF//"""& "//TAB//"]\|" & ! i not-s
+                                 //"d[^e!"//LF//"""& "//TAB//"]\|" & ! d not-e
+                                 //"de[^f!"//LF//"""& "//TAB//"]\|" & ! de not-f
+                                 //"def[^a!"//LF//"""& "//TAB//"]\|" & ! def not-a
+                                 //"\(?:is\|default\)"//SYMRE//"\)\|" &
+                                 ! "abstract interface" is F2003; "submodule" is F2008.
+                                 //"program\|\(?:abstract[ "//TAB//"]*\)?interface\|\(?:sub\)?module\|" &
+                                 ! "enum", but not "enumerator".
+                                 //"function\|subroutine\|enum[^e]\|associate\|block\|critical" &
+                                 //"\)" &
+                                 //"[ "//TAB//"]*"
     end subroutine init_regexps
 
     ! Make `f90_mode_syntax_table'.  Port of the value of f90.el's
@@ -765,20 +767,20 @@ contains
         n = size(f90_font_lock_keywords_2)
         allocate (f90_font_lock_keywords_3(n + 5))
         f90_font_lock_keywords_3(1:n) = f90_font_lock_keywords_2
-        f90_font_lock_keywords_3(n + 1) = font_lock_keyword(f90_keywords_level_3_re)
-        f90_font_lock_keywords_3(n + 2) = font_lock_keyword(f90_operators_re)
+        f90_font_lock_keywords_3(n + 1) = font_lock_keyword(f90_keywords_level_3_regexp)
+        f90_font_lock_keywords_3(n + 2) = font_lock_keyword(f90_operators_regexp)
         ! FIXME why isn't this font-lock-builtin-face, which
         ! otherwise we hardly use, as in fortran.el?
         h1(1) = h(1, KW, FONT_LOCK_OVERRIDE_KEEP)
-        f90_font_lock_keywords_3(n + 3) = font_lock_keyword(f90_procedures_re, highlights=h1)
+        f90_font_lock_keywords_3(n + 3) = font_lock_keyword(f90_procedures_regexp, highlights=h1)
         f90_font_lock_keywords_3(n + 4) = font_lock_keyword("\_<real\_>") ! avoid overwriting real defs
         ! As an attribute, but not as an optional argument.
         f90_font_lock_keywords_3(n + 5) = font_lock_keyword("\_<\(asynchronous\)"//B//"*[^=]", subexp=1)
         n = size(f90_font_lock_keywords_3)
         allocate (f90_font_lock_keywords_4(n + 2))
         f90_font_lock_keywords_4(1:n) = f90_font_lock_keywords_3
-        f90_font_lock_keywords_4(n + 1) = font_lock_keyword(f90_constants_re, face=CO)
-        f90_font_lock_keywords_4(n + 2) = font_lock_keyword(f90_hpf_keywords_re)
+        f90_font_lock_keywords_4(n + 1) = font_lock_keyword(f90_constants_regexp, face=CO)
+        f90_font_lock_keywords_4(n + 2) = font_lock_keyword(f90_hpf_keywords_regexp)
         f90_font_lock_keywords = f90_font_lock_keywords_2
     end subroutine init_keywords
 
@@ -865,11 +867,11 @@ contains
     ! ------------------------------------------------------------------
 
     !> (looking-at RE) Not a port.
-    logical function looking(re)
-        character(len=*), intent(in) :: re
+    logical function looking(regexp)
+        character(len=*), intent(in) :: regexp
         type(status_type) :: st
 
-        looking = looking_at(re, st)
+        looking = looking_at(regexp, st)
         if (.not. st%ok()) looking = .false.
     end function looking
 
@@ -1012,30 +1014,30 @@ contains
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
 
-        call free_marker(m, st)
+        call destroy_marker(m, st)
     end subroutine unmark
 
     !> (re-search-forward RE BOUND t): true when found.  Not a port.
-    logical function search_re(re, bound, noerror)
-        character(len=*), intent(in) :: re
+    logical function search_regexp(regexp, bound, noerror)
+        character(len=*), intent(in) :: regexp
         integer(int64), intent(in), optional :: bound
         integer, intent(in) :: noerror
         integer(int64) :: found
         type(status_type) :: st
 
-        call re_search_forward(re, found, st, bound=bound, noerror=noerror)
-        search_re = st%ok() .and. found > 0
-    end function search_re
+        call re_search_forward(regexp, found, st, bound=bound, noerror=noerror)
+        search_regexp = st%ok() .and. found > 0
+    end function search_regexp
 
     !> `re_search_backward' of RE, moving to the limit on failure: .true. when found.  Not a port.
-    logical function search_re_backward_move(re)
-        character(len=*), intent(in) :: re
+    logical function search_regexp_backward_move(regexp)
+        character(len=*), intent(in) :: regexp
         integer(int64) :: found
         type(status_type) :: st
 
-        call re_search_backward(re, found, st, noerror=SEARCH_MOVE)
-        search_re_backward_move = st%ok() .and. found > 0
-    end function search_re_backward_move
+        call re_search_backward(regexp, found, st, noerror=SEARCH_MOVE)
+        search_regexp_backward_move = st%ok() .and. found > 0
+    end function search_regexp_backward_move
 
     !> Bind `case_fold_search' to true; SAVED is for `restore_case'.
     !> Not a port.
@@ -1374,8 +1376,8 @@ contains
 
             if (.not. looking("\(is\_>\|(\)")) then
                 ok = looking("\("//SYMRE//"+\)")
-                if (.not. ok) ok = search_re("[ "//TAB//"]*::[ "//TAB//"]*\("//SYMRE//"+\)", line_end_position(), &
-                                             SEARCH_NOERROR)
+                if (.not. ok) ok = search_regexp("[ "//TAB//"]*::[ "//TAB//"]*\("//SYMRE//"+\)", line_end_position(), &
+                                                 SEARCH_NOERROR)
             end if
         end if
 
@@ -1432,7 +1434,7 @@ contains
         if (looking("end[ "//TAB//"]*\(interface\)[ "//TAB//"]*\(\(?:assignment\|operator\|read\|write\)[ "//TAB// &
                     "]*([^)"//LF//"]*)\)")) then
             b = blk(1, 2)
-        else if (looking("end[ "//TAB//"]*"//f90_blocks_re//"?\([ "//TAB//"]+\("//SYMRE//"+\)\)?\_>")) then
+        else if (looking("end[ "//TAB//"]*"//f90_blocks_regexp//"?\([ "//TAB//"]+\("//SYMRE//"+\)\)?\_>")) then
             b = blk(1, 3)
         end if
     end function f90_looking_at_program_block_end
@@ -1481,8 +1483,8 @@ contains
 
     !> Return the indentation to be used for a comment starting at point.
     !> Used for `comment_indent_function' by F90 mode.
-    !> "!!!", `f90_directive_comment_re', variable `f90_comment_region' return 0.
-    !> `f90_indented_comment_re' (if not trailing code) calls `f90_calculate_indent'.
+    !> "!!!", `f90_directive_comment_regexp', variable `f90_comment_region' return 0.
+    !> `f90_indented_comment_regexp' (if not trailing code) calls `f90_calculate_indent'.
     !> All others return `comment_column', leaving at least one space after code.
     !> Port of f90.el:f90-comment-indent.
     recursive subroutine f90_comment_indent(col, status)
@@ -1495,7 +1497,7 @@ contains
         col = 0
         if (looking("!!!")) return
         directive = .false.
-        if (allocated(f90_directive_comment_re%value)) directive = looking(f90_directive_comment_re%value)
+        if (allocated(f90_directive_comment_regexp%value)) directive = looking(f90_directive_comment_regexp%value)
         if (directive) return
         if (looking(regexp_quote(f90_comment_region%value))) return
         opoint = point()
@@ -1503,7 +1505,7 @@ contains
         at_bol = is_bol()
         call goto_char(opoint)
 
-        if (looking(f90_indented_comment_re%value) .and. at_bol) then
+        if (looking(f90_indented_comment_regexp%value) .and. at_bol) then
             ! Don't attempt to indent trailing comment as code.
             call f90_calculate_indent(col, status)
             return
@@ -1588,8 +1590,8 @@ contains
         if (.not. limit) limit = looking("\(program\|\(?:sub\)?module\|\(?:abstract[ "//TAB//"]*\)?interface\|" &
                                          //"block[ "//TAB//"]*data\)\_>")
         if (.not. limit) limit = looking("\(contains\|"//SYMRE//"+[ "//TAB//"]*:\)")
-        if (.not. limit) limit = looking(f90_type_def_re)
-        if (.not. limit) limit = search_re("\(function\|subroutine\)", line_end_position(), SEARCH_NOERROR)
+        if (.not. limit) limit = looking(f90_type_def_regexp)
+        if (.not. limit) limit = search_regexp("\(function\|subroutine\)", line_end_position(), SEARCH_NOERROR)
         no_limit = .not. limit
         call goto_char(opoint)
     end function f90_no_block_limit
@@ -1601,7 +1603,7 @@ contains
 
         status = status_type()
 
-        if (f90_auto_keyword_case%value /= F90_KEYWORD_CASE_NONE) then
+        if (f90_auto_keyword_case%value /= F90_AUTO_KEYWORD_CASE_NONE) then
             call f90_change_keywords(int(f90_auto_keyword_case%value), status, line_beginning_position(), &
                                      line_end_position())
         end if
@@ -1683,7 +1685,7 @@ contains
         icol = current_indentation()
         call beginning_of_line(1_int64)
 
-        if (search_re("\(if\|do\|select\|where\|forall\)", line_end_position(), SEARCH_NOERROR)) then
+        if (search_regexp("\(if\|do\|select\|where\|forall\)", line_end_position(), SEARCH_NOERROR)) then
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB)
             b = f90_looking_at_do()
@@ -1706,7 +1708,7 @@ contains
             call end_of_line(1_int64)
         end if
 
-        do while (search_re("\(if\|do\|select\|where\|forall\)", epnt, SEARCH_NOERROR))
+        do while (search_regexp("\(if\|do\|select\|where\|forall\)", epnt, SEARCH_NOERROR))
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
             b = f90_looking_at_do()
@@ -1719,9 +1721,9 @@ contains
                 ! FIXME this makes no sense, because this section/function is
                 ! only for if/do/select/where/forall ?
                 icol = icol + f90_associate_indent%value
-            else if (looking(f90_end_if_re)) then
+            else if (looking(f90_end_if_regexp)) then
                 icol = icol - f90_if_indent%value
-            else if (looking(f90_end_associate_re)) then
+            else if (looking(f90_end_associate_regexp)) then
                 icol = icol - f90_associate_indent%value
             else if (f90_looking_at_end_critical()) then
                 icol = icol - f90_critical_indent%value
@@ -1798,7 +1800,7 @@ contains
                 if (looking("[0-9]")) then
                     call f90_get_correct_indent(icol, status)
                 else
-                    if (if_like(status) .or. looking(f90_else_like_re)) then
+                    if (if_like(status) .or. looking(f90_else_like_regexp)) then
                         icol = icol + f90_if_indent%value
                     else if (.not. status%ok()) then
                         continue
@@ -1832,13 +1834,13 @@ contains
                     else
                         call skip_forward(" "//TAB//"0-9")
 
-                        if (looking(f90_else_like_re) .or. looking(f90_end_if_re)) then
+                        if (looking(f90_else_like_regexp) .or. looking(f90_end_if_regexp)) then
                             icol = icol - f90_if_indent%value
                         else if (looking("end[ "//TAB//"]*do\_>")) then
                             icol = icol - f90_do_indent%value
-                        else if (looking(f90_end_type_re)) then
+                        else if (looking(f90_end_type_regexp)) then
                             icol = icol - f90_type_indent%value
-                        else if (looking(f90_end_associate_re)) then
+                        else if (looking(f90_end_associate_regexp)) then
                             icol = icol - f90_associate_indent%value
                         else if (f90_looking_at_end_critical()) then
                             icol = icol - f90_critical_indent%value
@@ -1916,9 +1918,9 @@ contains
     !> Move point to the beginning of the current subprogram.
     !> Return TYPE and NAME, or nothing (FOUND .false.) if not found.  INTERACTIVE says it was
     !> called interactively.  Port of f90.el:f90-beginning-of-subprogram.
-    function f90_beginning_of_subprogram(interactive) result(matching_beg)
+    function f90_beginning_of_subprogram(interactive) result(matching_beginning)
         logical, intent(in), optional :: interactive
-        type(f90_block_type) :: matching_beg
+        type(f90_block_type) :: matching_beginning
         type(f90_block_type) :: b
         integer :: count
         logical :: saved
@@ -1927,16 +1929,16 @@ contains
         count = 1
         call beginning_of_line(1_int64)
         ! Check whether we're already at the start of a subprogram.
-        matching_beg = f90_looking_at_program_block_start()
+        matching_beginning = f90_looking_at_program_block_start()
 
-        if (matching_beg%found) then
+        if (matching_beginning%found) then
             call restore_case(saved)
             return
         end if
 
         ! We're not; search backwards.
         do while (count > 0)
-            if (.not. search_re_backward_move(f90_program_block_re)) exit
+            if (.not. search_regexp_backward_move(f90_program_block_regexp)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
 
@@ -1948,7 +1950,7 @@ contains
                 b = f90_looking_at_program_block_start()
 
                 if (b%found) then
-                    matching_beg = b
+                    matching_beginning = b
                     count = count - 1
                 else if (found_program_block_end()) then
                     count = count + 1
@@ -1965,7 +1967,7 @@ contains
                 if (interactive) call message("No beginning found")
             end if
 
-            matching_beg = f90_block_type()
+            matching_beginning = f90_block_type()
         end if
 
         call restore_case(saved)
@@ -2021,7 +2023,7 @@ contains
         call end_of_line(1_int64)
 
         do while (count > 0)
-            if (.not. search_re(f90_program_block_re, noerror=SEARCH_MOVE)) exit
+            if (.not. search_regexp(f90_program_block_regexp, noerror=SEARCH_MOVE)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
 
@@ -2111,7 +2113,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: num
         logical, intent(in), optional :: interactive
-        type(f90_block_type), allocatable :: start_list(:)
+        type(f90_block_type), allocatable :: start_blocks(:)
         type(f90_block_type) :: start_this
         character(len=:), allocatable :: end_type, end_label
         integer(int64) :: count, saved_smart, opoint
@@ -2137,11 +2139,11 @@ contains
         call fold_case(saved)
         count = 1
         if (present(num)) count = num
-        allocate (start_list(0))
+        allocate (start_blocks(0))
         call end_of_line(1_int64) ! probably want this
 
         do while (count > 0)
-            if (.not. search_re(f90_blocks_re, noerror=SEARCH_MOVE)) exit
+            if (.not. search_regexp(f90_blocks_regexp, noerror=SEARCH_MOVE)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
 
@@ -2153,17 +2155,17 @@ contains
 
                 if (start_this%found) then
                     ! not add-to-list!
-                    start_list = [start_this, start_list]
+                    start_blocks = [start_this, start_blocks]
                     count = count + 1
-                else if (looking("end[ "//TAB//"]*"//f90_blocks_re//"[ "//TAB//"]*\("//SYMRE//"+\)?")) then
+                else if (looking("end[ "//TAB//"]*"//f90_blocks_regexp//"[ "//TAB//"]*\("//SYMRE//"+\)?")) then
                     if (matched(1)) end_type = ms(1)
                     if (matched(2)) end_label = ms(2)
                     count = count - 1
 
                     ! Check any internal blocks.
-                    if (size(start_list) > 0) then
-                        start_this = start_list(1)
-                        start_list = start_list(2:)
+                    if (size(start_blocks) > 0) then
+                        start_this = start_blocks(1)
+                        start_blocks = start_blocks(2:)
 
                         if (.not. f90_equal_names(start_this%kind, end_type)) then
                             call set_error(status, FM_GENERIC_ERROR, format_message("End type `"//or_nil(end_type)// &
@@ -2222,7 +2224,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: num
         logical, intent(in), optional :: interactive
-        type(f90_block_type), allocatable :: end_list(:)
+        type(f90_block_type), allocatable :: end_blocks(:)
         type(f90_block_type) :: end_this, start_this
         integer(int64) :: count
         logical :: saved
@@ -2243,19 +2245,19 @@ contains
         call fold_case(saved)
         count = 1
         if (present(num)) count = num
-        allocate (end_list(0))
+        allocate (end_blocks(0))
         call beginning_of_line(1_int64) ! probably want this
 
         do while (count > 0)
-            if (.not. search_re_backward_move(f90_blocks_re)) exit
+            if (.not. search_regexp_backward_move(f90_blocks_regexp)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
 
             if (f90_in_string() .or. f90_in_comment()) then
                 continue
-            else if (looking("end[ "//TAB//"]*"//f90_blocks_re//"[ "//TAB//"]*\("//SYMRE//"+\)?")) then
+            else if (looking("end[ "//TAB//"]*"//f90_blocks_regexp//"[ "//TAB//"]*\("//SYMRE//"+\)?")) then
                 end_this = blk(1, 2)
-                end_list = [end_this, end_list]
+                end_blocks = [end_this, end_blocks]
                 count = count + 1
             else
                 call block_start(start_this, status)
@@ -2265,9 +2267,9 @@ contains
                     count = count - 1
 
                     ! Check any internal blocks.
-                    if (size(end_list) > 0) then
-                        end_this = end_list(1)
-                        end_list = end_list(2:)
+                    if (size(end_blocks) > 0) then
+                        end_this = end_blocks(1)
+                        end_blocks = end_blocks(2:)
 
                         if (.not. f90_equal_names(start_this%kind, end_this%kind)) then
                             call set_error(status, FM_GENERIC_ERROR, format_message("Start type `"// &
@@ -2320,9 +2322,9 @@ contains
 
         do while (count > 0)
             if (num > 0) then
-                found = search_re(f90_blocks_re, noerror=SEARCH_MOVE)
+                found = search_regexp(f90_blocks_regexp, noerror=SEARCH_MOVE)
             else
-                found = search_re_backward_move(f90_blocks_re)
+                found = search_regexp_backward_move(f90_blocks_regexp)
             end if
 
             if (.not. found) exit
@@ -2393,7 +2395,7 @@ contains
         call push_mark()
         call goto_char(pos)
         program = f90_beginning_of_subprogram()
-        buffers(cur)%mark_active = .true.
+        buffers(current)%mark_active = .true.
         deactivate_mark_variable = .false.
     end function f90_mark_subprogram
 
@@ -2411,16 +2413,16 @@ contains
     !> Insert the variable `f90_comment_region' at the start of every line
     !> in the region, or, if already present, remove it.  Port of
     !> f90.el:f90-comment-region (the command `f90_comment_region').
-    subroutine f90_comment_region_command(beg_region, end_region, status)
-        integer(int64), intent(in) :: beg_region, end_region
+    subroutine f90_comment_region_command(beginning_region, end_region, status)
+        integer(int64), intent(in) :: beginning_region, end_region
         type(status_type), intent(out) :: status
         type(handle_type) :: end
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
 
         status = status_type()
         end = marker_at(end_region)
-        re = regexp_quote(f90_comment_region%value)
-        call goto_char(beg_region)
+        regexp = regexp_quote(f90_comment_region%value)
+        call goto_char(beginning_region)
         call beginning_of_line(1_int64)
         call toggle()
 
@@ -2435,7 +2437,7 @@ contains
     contains
 
         subroutine toggle()
-            if (looking(re)) then
+            if (looking(regexp)) then
                 call delete_region(point(), me(0), status)
             else
                 call insert(f90_comment_region%value, status)
@@ -2606,7 +2608,7 @@ contains
         end if
 
         if (else_like) then
-            if (looking(f90_else_like_re)) then
+            if (looking(f90_else_like_regexp)) then
                 ind_b = f90_if_indent%value
                 return
             end if
@@ -2653,13 +2655,13 @@ contains
 
     !> Indent every line in region by forward parsing.  Port of
     !> f90.el:f90-indent-region.
-    recursive subroutine f90_indent_region(beg_region, end_region, status)
-        integer(int64), intent(in) :: beg_region, end_region
+    recursive subroutine f90_indent_region(beginning_region, end_region, status)
+        integer(int64), intent(in) :: beginning_region, end_region
         type(status_type), intent(out) :: status
         type(handle_type) :: end_region_mark, save_point
-        type(f90_block_type), allocatable :: block_list(:)
-        type(f90_block_type) :: struct, beg_struct, end_struct
-        integer(int64) :: ind_lev, ind_curr, ind_b, col
+        type(f90_block_type), allocatable :: blocks(:)
+        type(f90_block_type) :: struct, beginning_struct, end_struct
+        integer(int64) :: ind_lev, ind_current, ind_b, col
         integer :: cont
         logical :: saved, has_ind
 
@@ -2667,10 +2669,10 @@ contains
         end_region_mark = marker_at(end_region)
         save_point = marker_at(point())
         call fold_case(saved)
-        allocate (block_list(0))
+        allocate (blocks(0))
 
         body: block
-            call goto_char(beg_region)
+            call goto_char(beginning_region)
             ! First find a line which is not a continuation line or comment.
             call beginning_of_line(1_int64)
 
@@ -2693,13 +2695,13 @@ contains
             call f90_indent_line(status, .true.)
             if (.not. status%ok()) exit body
             ind_lev = f90_current_indentation()
-            ind_curr = ind_lev
+            ind_current = ind_lev
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
             call region_block(struct, ind_b, has_ind, status, .true., .true.)
             if (.not. status%ok()) exit body
             if (has_ind) ind_lev = ind_lev + ind_b
-            if (struct%found) block_list = [struct, block_list]
+            if (struct%found) blocks = [struct, blocks]
 
             do
                 if (.not. f90_line_continued()) exit
@@ -2709,8 +2711,8 @@ contains
                 if (looking("[ "//TAB//"]*!")) then
                     call f90_comment_indent(col, status)
                     if (status%ok()) call f90_indent_to(col, status)
-                else if (current_indentation() /= ind_curr + f90_continuation_indent%value) then
-                    call f90_indent_to(ind_curr + f90_continuation_indent%value, status, .true.)
+                else if (current_indentation() /= ind_current + f90_continuation_indent%value) then
+                    call f90_indent_to(ind_current + f90_continuation_indent%value, status, .true.)
                 end if
 
                 if (.not. status%ok()) exit body
@@ -2725,39 +2727,40 @@ contains
                 f90_cache_position = point()
 
                 if (looking("[ "//TAB//"]*$")) then
-                    ind_curr = 0
+                    ind_current = 0
                 else if (looking("[ "//TAB//"]*#")) then
-                    ind_curr = 0
+                    ind_current = 0
                 else if (looking("!")) then
-                    call f90_comment_indent(ind_curr, status)
+                    call f90_comment_indent(ind_current, status)
                 else if (f90_no_block_limit()) then
-                    ind_curr = ind_lev
-                else if (looking(f90_else_like_re)) then
-                    ind_curr = ind_lev - f90_if_indent%value
+                    ind_current = ind_lev
+                else if (looking(f90_else_like_regexp)) then
+                    ind_current = ind_lev - f90_if_indent%value
                 else if (looking("contains[ "//TAB//"]*\($\|!\)")) then
-                    ind_curr = ind_lev - f90_program_indent%value
+                    ind_current = ind_lev - f90_program_indent%value
                 else
                     call region_block(struct, ind_b, has_ind, status, .false., .false.)
                     if (.not. status%ok()) exit body
 
                     if (has_ind) then
-                        ind_curr = ind_lev
+                        ind_current = ind_lev
                         ind_lev = ind_lev + ind_b
-                        block_list = [struct, block_list]
+                        blocks = [struct, blocks]
                     else
                         end_struct = f90_looking_at_program_block_end()
 
                         if (end_struct%found) then
-                            beg_struct = f90_block_type()
+                            beginning_struct = f90_block_type()
 
-                            if (size(block_list) > 0) then
-                                beg_struct = block_list(1)
-                                block_list = block_list(2:)
+                            if (size(blocks) > 0) then
+                                beginning_struct = blocks(1)
+                                blocks = blocks(2:)
                             end if
 
                             if (f90_smart_end%value /= F90_SMART_END_NO) then
                                 col = point()
-                                call f90_block_match(beg_struct%kind, beg_struct%name, end_struct%kind, end_struct%name, &
+                                call f90_block_match(beginning_struct%kind, beginning_struct%name, end_struct%kind, &
+                                                     end_struct%name, &
                                                      status)
                                 call goto_char(col)
                                 if (.not. status%ok()) exit body
@@ -2765,13 +2768,13 @@ contains
 
                             has_ind = .true.
 
-                            if (looking(f90_end_if_re)) then
+                            if (looking(f90_end_if_regexp)) then
                                 ind_b = f90_if_indent%value
                             else if (looking("end[ "//TAB//"]*do\_>")) then
                                 ind_b = f90_do_indent%value
-                            else if (looking(f90_end_type_re)) then
+                            else if (looking(f90_end_type_regexp)) then
                                 ind_b = f90_type_indent%value
-                            else if (looking(f90_end_associate_re)) then
+                            else if (looking(f90_end_associate_regexp)) then
                                 ind_b = f90_associate_indent%value
                             else if (f90_looking_at_end_critical()) then
                                 ind_b = f90_critical_indent%value
@@ -2782,16 +2785,16 @@ contains
                             end if
 
                             if (has_ind) ind_lev = ind_lev - ind_b
-                            ind_curr = ind_lev
+                            ind_current = ind_lev
                         else
-                            ind_curr = ind_lev
+                            ind_current = ind_lev
                         end if
                     end if
                 end if
 
                 if (.not. status%ok()) exit body
                 ! Do the indentation if necessary.
-                if (ind_curr /= current_column()) call f90_indent_to(ind_curr, status)
+                if (ind_current /= current_column()) call f90_indent_to(ind_current, status)
                 if (.not. status%ok()) exit body
 
                 do
@@ -2804,8 +2807,8 @@ contains
                     else if (looking("[ "//TAB//"]*!")) then
                         call f90_comment_indent(col, status)
                         if (status%ok()) call f90_indent_to(col, status)
-                    else if (current_indentation() /= ind_curr + f90_continuation_indent%value) then
-                        call f90_indent_to(ind_curr + f90_continuation_indent%value, status, .true.)
+                    else if (current_indentation() /= ind_current + f90_continuation_indent%value) then
+                        call f90_indent_to(ind_current + f90_continuation_indent%value, status, .true.)
                     end if
 
                     if (.not. status%ok()) exit body
@@ -2933,14 +2936,14 @@ contains
             if (.not. status%ok()) return
 
             if (.not. f90_break_before_delimiters%value) then
-                if (looking(f90_no_break_re)) then
+                if (looking(f90_no_break_regexp)) then
                     call forward_char(status, 2_int64)
                 else
                     call forward_char(status, 1_int64)
                 end if
             else
                 call forward_char(status, -1_int64)
-                if (status%ok() .and. .not. looking(f90_no_break_re)) call forward_char(status, 1_int64)
+                if (status%ok() .and. .not. looking(f90_no_break_regexp)) call forward_char(status, 1_int64)
             end if
         end if
     end subroutine f90_find_breakpoint
@@ -3027,12 +3030,12 @@ contains
 
     !> Fill every line in region by forward parsing.  Join lines if possible.
     !> Port of f90.el:f90-fill-region.
-    recursive subroutine f90_fill_region(beg_region, end_region, status)
+    recursive subroutine f90_fill_region(beginning_region, end_region, status)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in) :: beg_region, end_region
+        integer(int64), intent(in) :: beginning_region, end_region
         type(handle_type) :: end_region_mark
         integer(int64) :: saved_smart, saved_case, col, eol_col, opoint
-        procedure(command_proc), pointer :: saved_fill
+        procedure(command_procedure), pointer :: saved_fill
         logical :: go_on
 
         status = status_type()
@@ -3042,9 +3045,9 @@ contains
         saved_case = f90_auto_keyword_case%value
         saved_fill => auto_fill_function%value
         f90_smart_end%value = F90_SMART_END_NO
-        f90_auto_keyword_case%value = F90_KEYWORD_CASE_NONE
+        f90_auto_keyword_case%value = F90_AUTO_KEYWORD_CASE_NONE
         auto_fill_function%value => null()
-        call goto_char(beg_region)
+        call goto_char(beginning_region)
 
         do while (go_on)
             ! Join as much as possible.
@@ -3133,7 +3136,7 @@ contains
     !> In a comment, fill it as a paragraph, else fill the current statement
     !> (the command).  Port of f90.el:f90-fill-paragraph.
     recursive subroutine cmd_f90_fill_paragraph(status)
-        use fill_fm, only: JUSTIFY_FULL
+        use fill_fm, only: DEFAULT_JUSTIFICATION_FULL
         type(status_type), intent(out) :: status
         logical :: done
 
@@ -3143,7 +3146,7 @@ contains
         if (current_prefix_arg%kind == PREFIX_NONE) then
             call f90_fill_paragraph(status, done)
         else
-            call f90_fill_paragraph(status, done, JUSTIFY_FULL)
+            call f90_fill_paragraph(status, done, DEFAULT_JUSTIFICATION_FULL)
         end if
     end subroutine cmd_f90_fill_paragraph
 
@@ -3180,28 +3183,28 @@ contains
     end subroutine search_fwd
 
     !> Match end-struct with beg-struct and complete end-block if possible.
-    !> BEG_BLOCK is the type of block as indicated at the start (e.g., do).
-    !> BEG_NAME is the block start name (may be unallocated).
+    !> BEGINNING_BLOCK is the type of block as indicated at the start (e.g., do).
+    !> BEGINNING_NAME is the block start name (may be unallocated).
     !> END_BLOCK is the type of block as indicated at the end (may be unallocated).
     !> END_NAME is the block end name (may be unallocated).
     !> If the block type matches `f90_end_block_optional_name', do not add
     !> an end name if `f90_smart_end_names' is false, but always update an
     !> incorrect end name if there already was one.
     !> Leave point at the end of line.  Port of f90.el:f90-block-match.
-    recursive subroutine f90_block_match(beg_block_in, beg_name, end_block, end_name, status)
-        character(len=:), allocatable, intent(in) :: beg_block_in, beg_name, end_block, end_name
+    recursive subroutine f90_block_match(beginning_block_in, beginning_name, end_block, end_name, status)
+        character(len=:), allocatable, intent(in) :: beginning_block_in, beginning_name, end_block, end_name
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: beg_block
+        character(len=:), allocatable :: beginning_block
 
         status = status_type()
 
         ! Hack to deal with the case when this is called from
         ! f90-indent-region on a program block without an explicit PROGRAM
         ! statement at the start. Should really be an error (?).
-        if (allocated(beg_block_in)) then
-            beg_block = beg_block_in
+        if (allocated(beginning_block_in)) then
+            beginning_block = beginning_block_in
         else
-            beg_block = "program"
+            beginning_block = "program"
         end if
 
         call search_eol("end", status)
@@ -3209,33 +3212,33 @@ contains
 
         no_match: block
             if (allocated(end_block)) then
-                if (f90_equal_names(beg_block, end_block)) then
+                if (f90_equal_names(beginning_block, end_block)) then
                     call search_fwd(end_block, status)
                     if (.not. status%ok()) return
                 else
-                    call message("END "//end_block//" does not match "//beg_block//".")
+                    call message("END "//end_block//" does not match "//beginning_block//".")
                     call end_of_line(1_int64)
                     exit no_match
                 end if
             else
-                call message("Inserting "//beg_block//".")
-                call insert(" "//beg_block, status)
+                call message("Inserting "//beginning_block//".")
+                call insert(" "//beginning_block, status)
                 if (.not. status%ok()) return
             end if
 
-            if (f90_equal_names(beg_name, end_name)) then
+            if (f90_equal_names(beginning_name, end_name)) then
                 if (allocated(end_name)) call search_fwd(end_name, status)
                 if (.not. status%ok()) return
-            else if (allocated(beg_name) .and. .not. allocated(end_name)) then
-                if (f90_smart_end_names%value .or. .not. optional_name_block(beg_block)) then
-                    call message("Inserting "//beg_name//".")
-                    call insert(" "//beg_name, status)
+            else if (allocated(beginning_name) .and. .not. allocated(end_name)) then
+                if (f90_smart_end_names%value .or. .not. optional_name_block(beginning_block)) then
+                    call message("Inserting "//beginning_name//".")
+                    call insert(" "//beginning_name, status)
                     if (.not. status%ok()) return
                 end if
-            else if (allocated(beg_name) .and. allocated(end_name)) then
-                call message("Replacing "//end_name//" with "//beg_name//".")
+            else if (allocated(beginning_name) .and. allocated(end_name)) then
+                call message("Replacing "//end_name//" with "//beginning_name//".")
                 call search_fwd(end_name, status)
-                if (status%ok()) call replace_match(beg_name, status)
+                if (status%ok()) call replace_match(beginning_name, status)
                 if (.not. status%ok()) return
             else if (allocated(end_name)) then
                 call message("Deleting "//end_name//".")
@@ -3252,7 +3255,7 @@ contains
     !> Port of f90.el:f90-match-end.
     recursive subroutine f90_match_end(status)
         type(status_type), intent(out) :: status
-        type(f90_block_type) :: end_struct, matching_beg
+        type(f90_block_type) :: end_struct, matching_beginning
         integer(int64) :: count, top_of_window, end_point
         type(handle_type) :: opoint
         character(len=:), allocatable :: text, line
@@ -3283,7 +3286,7 @@ contains
 
             do while (count > 0)
                 if (line_beginning_position() == point_min()) exit
-                found = search_re_backward_move(f90_blocks_re)
+                found = search_regexp_backward_move(f90_blocks_regexp)
                 call beginning_of_line(1_int64)
                 ! GM not a line number if continued line.
                 call skip_forward(" "//TAB//"0-9")
@@ -3291,12 +3294,12 @@ contains
                 if (f90_in_string() .or. f90_in_comment()) then
                     continue
                 else
-                    call match_beg(matching_beg, status)
+                    call match_block_beginning(matching_beginning, status)
                     if (.not. status%ok()) exit
 
-                    if (matching_beg%found) then
+                    if (matching_beginning%found) then
                         count = count - 1
-                    else if (looking("end[ "//TAB//"]*"//f90_blocks_re)) then
+                    else if (looking("end[ "//TAB//"]*"//f90_blocks_regexp)) then
                         count = count + 1
                     end if
                 end if
@@ -3321,7 +3324,7 @@ contains
                     if (status%ok()) then
                         call goto_char(end_point)
                         call beginning_of_line(1_int64)
-                        call f90_block_match(matching_beg%kind, matching_beg%name, end_struct%kind, end_struct%name, &
+                        call f90_block_match(matching_beginning%kind, matching_beginning%name, end_struct%kind, end_struct%name, &
                                              status)
                     end if
                 end if
@@ -3334,7 +3337,7 @@ contains
 
     contains
 
-        recursive subroutine match_beg(b, st)
+        recursive subroutine match_block_beginning(b, st)
             type(f90_block_type), intent(out) :: b
             type(status_type), intent(out) :: st
 
@@ -3359,7 +3362,7 @@ contains
             ! start to be the END of a program block
             ! without an initial PROGRAM line.
             if (line_beginning_position() == point_min()) b = blk_of("program")
-        end subroutine match_beg
+        end subroutine match_block_beginning
     end subroutine f90_match_end
 
     !> From an end block statement, find the corresponding block and name
@@ -3444,7 +3447,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create("*Abbrevs*", buffer, status)
+        call get_or_make_buffer("*Abbrevs*", buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (status%ok()) call erase_buffer(status)
@@ -3465,7 +3468,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_change_keywords(F90_KEYWORD_CASE_UPCASE_WORD, status)
+        if (status%ok()) call f90_change_keywords(F90_AUTO_KEYWORD_CASE_UPCASE_WORD, status)
     end subroutine cmd_f90_upcase_keywords
 
     !> Capitalize all F90 keywords in the buffer.  Port of
@@ -3474,7 +3477,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_change_keywords(F90_KEYWORD_CASE_CAPITALIZE_WORD, status)
+        if (status%ok()) call f90_change_keywords(F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD, status)
     end subroutine cmd_f90_capitalize_keywords
 
     !> Downcase all F90 keywords in the buffer.  Port of
@@ -3483,7 +3486,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_change_keywords(F90_KEYWORD_CASE_DOWNCASE_WORD, status)
+        if (status%ok()) call f90_change_keywords(F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD, status)
     end subroutine cmd_f90_downcase_keywords
 
     !> Change the case of the keywords in the region to CHANGE_WORD.
@@ -3503,7 +3506,7 @@ contains
     subroutine cmd_f90_upcase_region_keywords(status)
         type(status_type), intent(out) :: status
 
-        call region_keywords(F90_KEYWORD_CASE_UPCASE_WORD, status)
+        call region_keywords(F90_AUTO_KEYWORD_CASE_UPCASE_WORD, status)
     end subroutine cmd_f90_upcase_region_keywords
 
     !> Capitalize all F90 keywords in the region.  Port of
@@ -3511,7 +3514,7 @@ contains
     subroutine cmd_f90_capitalize_region_keywords(status)
         type(status_type), intent(out) :: status
 
-        call region_keywords(F90_KEYWORD_CASE_CAPITALIZE_WORD, status)
+        call region_keywords(F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD, status)
     end subroutine cmd_f90_capitalize_region_keywords
 
     !> Downcase all F90 keywords in the region.  Port of
@@ -3519,18 +3522,18 @@ contains
     subroutine cmd_f90_downcase_region_keywords(status)
         type(status_type), intent(out) :: status
 
-        call region_keywords(F90_KEYWORD_CASE_DOWNCASE_WORD, status)
+        call region_keywords(F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD, status)
     end subroutine cmd_f90_downcase_region_keywords
 
     !> Change the case of F90 keywords in the region (if specified) or buffer.
-    !> CHANGE_WORD should be one of F90_KEYWORD_CASE_UPCASE_WORD,
+    !> CHANGE_WORD should be one of F90_AUTO_KEYWORD_CASE_UPCASE_WORD,
     !> _DOWNCASE_WORD, _CAPITALIZE_WORD.  Port of
     !> f90.el:f90-change-keywords.
-    subroutine f90_change_keywords(change_word, status, beg, end)
+    subroutine f90_change_keywords(change_word, status, beginning, end)
         integer, intent(in) :: change_word
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: beg, end
-        character(len=:), allocatable :: keyword_re, saveword, now
+        integer(int64), intent(in), optional :: beginning, end
+        character(len=:), allocatable :: keyword_regexp, saveword, now
         type(handle_type) :: opoint, endm
         type(parse_state_type) :: state
         integer(int64) :: b, ref_point, back_point, pt, found
@@ -3540,7 +3543,7 @@ contains
         status = status_type()
         opoint = marker_at(point())
         b = point_min()
-        if (present(beg)) b = beg
+        if (present(beginning)) b = beginning
 
         if (present(end)) then
             endm = marker_at(end)
@@ -3548,14 +3551,14 @@ contains
             endm = marker_at(point_max())
         end if
 
-        keyword_re = "\("//f90_keywords_re//"\|"//f90_procedures_re//"\|"//f90_hpf_keywords_re//"\|"// &
-                     f90_operators_re//"\)"
+        keyword_regexp = "\("//f90_keywords_regexp//"\|"//f90_procedures_regexp//"\|"//f90_hpf_keywords_regexp//"\|"// &
+                         f90_operators_regexp//"\)"
         ref_point = point_min()
         call is_buffer_modified(current_buffer(), modified, st)
         call goto_char(b)
 
         do
-            call re_search_forward(keyword_re, found, st, bound=mpos(endm), noerror=SEARCH_NOERROR)
+            call re_search_forward(keyword_regexp, found, st, bound=mpos(endm), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
             pt = point()
             call parse_partial_expression(ref_point, pt, state, st)
@@ -3581,11 +3584,11 @@ contains
             call buffer_substring(back_point, ref_point, saveword, st)
 
             select case (change_word)
-            case (F90_KEYWORD_CASE_UPCASE_WORD)
+            case (F90_AUTO_KEYWORD_CASE_UPCASE_WORD)
                 call upcase_word(-1_int64, status)
-            case (F90_KEYWORD_CASE_DOWNCASE_WORD)
+            case (F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD)
                 call downcase_word(-1_int64, status)
-            case (F90_KEYWORD_CASE_CAPITALIZE_WORD)
+            case (F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD)
                 call capitalize_word(-1_int64, status)
             case default
                 continue
@@ -3621,7 +3624,7 @@ contains
         found = .false.
 
         do
-            if (.not. search_re("\_<\(\(?:end[ "//TAB//"]*\)?type\)\_>[ "//TAB//"]*", limit, SEARCH_NOERROR)) exit
+            if (.not. search_regexp("\_<\(\(?:end[ "//TAB//"]*\)?type\)\_>[ "//TAB//"]*", limit, SEARCH_NOERROR)) exit
             l = match_data()
 
             if (.not. looking("\(is\_>\|(\)")) then
@@ -3629,7 +3632,7 @@ contains
                     call goto_char(me(0))
                     ok = .true.
                 else
-                    ok = search_re("[ "//TAB//"]*::[ "//TAB//"]*\("//SYMRE//"+\)", line_end_position(), SEARCH_NOERROR)
+                    ok = search_regexp("[ "//TAB//"]*::[ "//TAB//"]*\("//SYMRE//"+\)", line_end_position(), SEARCH_NOERROR)
                 end if
 
                 if (ok) then
@@ -3661,7 +3664,7 @@ contains
         found = .false.
 
         do
-            if (.not. search_re("\_<\(type\|class\)[ "//TAB//"]*(", limit, SEARCH_NOERROR)) exit
+            if (.not. search_regexp("\_<\(type\|class\)[ "//TAB//"]*(", limit, SEARCH_NOERROR)) exit
             m0 = mb(0)
             ! Set l after this to just highlight the "type" part.
             call forward_char(st, -1_int64)
@@ -3673,10 +3676,10 @@ contains
 
             if (looking(SYMRE//"+")) then
                 ! type (foo) bar, qux
-                ok = search_re("\("//NOT_CONT//"+\)", line_end_position(), SEARCH_NOERROR)
+                ok = search_regexp("\("//NOT_CONT//"+\)", line_end_position(), SEARCH_NOERROR)
             else
                 ! type (foo), stuff :: bar, qux
-                ok = search_re("::[ "//TAB//"]*\("//NOT_CONT//"+\)", line_end_position(), SEARCH_NOERROR)
+                ok = search_regexp("::[ "//TAB//"]*\("//NOT_CONT//"+\)", line_end_position(), SEARCH_NOERROR)
             end if
 
             if (ok) then
@@ -3782,10 +3785,10 @@ contains
     !> `f90_comment_region'
     !>   String inserted by function \[f90_comment_region] at start of each
     !>   line in region (default "!!!$").
-    !> `f90_indented_comment_re'
+    !> `f90_indented_comment_regexp'
     !>   Regexp determining the type of comment to be intended like code
     !>   (default "!").
-    !> `f90_directive_comment_re'
+    !> `f90_directive_comment_regexp'
     !>   Regexp of comment-like directive like "!HPF\\$", not to be indented
     !>   (default "!hpf\\$").
     !> `f90_break_delimiters'
@@ -3802,8 +3805,8 @@ contains
     !>   F90_SMART_END_NO, which determine whether to blink the matching
     !>   beginning (default F90_SMART_END_BLINK).
     !> `f90_auto_keyword_case'
-    !>   Automatic change of case of keywords (default F90_KEYWORD_CASE_NONE).
-    !>   The possibilities are F90_KEYWORD_CASE_DOWNCASE_WORD, _UPCASE_WORD,
+    !>   Automatic change of case of keywords (default F90_AUTO_KEYWORD_CASE_NONE).
+    !>   The possibilities are F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD, _UPCASE_WORD,
     !>   _CAPITALIZE_WORD.
     !> `f90_leave_line_no'
     !>   Do not left-justify line numbers (default .false.).
@@ -3835,6 +3838,6 @@ contains
         levels(4) = font_lock_keywords_level(f90_font_lock_keywords_3)
         levels(5) = font_lock_keywords_level(f90_font_lock_keywords_4)
         call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.true.)
-        call major_modes%f90_mode%finish(saved, status)
+        call major_modes%f90_mode%end(saved, status)
     end subroutine f90_mode
 end module f90_fm

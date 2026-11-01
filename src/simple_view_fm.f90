@@ -43,23 +43,23 @@ contains
         logical :: special
 
         status = status_type()
-        buffers(cur)%read_only = enable
+        buffers(current)%read_only = enable
         ! We're saving this value here so that we can restore the
         ! readedness state after reverting the buffer to the value that's
         ! been explicitly set by the user.
-        buffers(cur)%read_only_mode_state = buffers(cur)%read_only
-        buffers(cur)%read_only_mode_state_set = .true.
+        buffers(current)%read_only_mode_state = buffers(current)%read_only
+        buffers(current)%read_only_mode_state_set = .true.
 
-        if (.not. buffers(cur)%read_only .and. view_mode_enabled()) then
+        if (.not. buffers(current)%read_only .and. view_mode_enabled()) then
             call view_exit_and_edit(status)
             ! Must leave view mode.
             call set_view_read_only_local(.true.)
-        else if (buffers(cur)%read_only .and. view_read_only_value() .and. .not. view_mode_enabled()) then
+        else if (buffers(current)%read_only .and. view_read_only_value() .and. .not. view_mode_enabled()) then
             ! If view-mode is already active, `view_mode_enter' is a nop.
             special = .false.
 
-            if (allocated(buffers(cur)%major_mode)) then
-                p => major_mode_named(buffers(cur)%major_mode)
+            if (allocated(buffers(current)%major_mode)) then
+                p => major_mode_named(buffers(current)%major_mode)
                 if (associated(p)) special = p%special
             end if
 
@@ -91,8 +91,8 @@ contains
         text = "Line "//trim(a)
         call message(text)
     else
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call widen()
         write (b, "(i0)") n + line_number_at_pos(start) - 1
         text = "line "//trim(b)//" (narrowed line "//trim(a)//")"

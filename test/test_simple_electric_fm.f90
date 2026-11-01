@@ -29,7 +29,7 @@ module test_simple_electric_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, goto_char, buffer_string
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message
@@ -39,7 +39,7 @@ module test_simple_electric_fm
     use simple_fm, only: fundamental_mode, blink_matching_check_mismatch, blink_matching_paren, &
                          BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, newline_and_indent, &
                          backward_delete_char_untabify, backward_delete_char_untabify_method, &
-                         UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_UNTABIFY
+                         BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
     use modes_fm, only: minor_modes
     use bindings_fm, only: init_bindings
     use test_support, only: show_alone
@@ -71,7 +71,7 @@ contains
         call init_bindings()
         call discard_input()
         prefix_arg = prefix_arg_type()
-        call get_buffer_create("*blink-test*", h, st)
+        call get_or_make_buffer("*blink-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)
         call insert(text, st)
@@ -99,7 +99,7 @@ contains
         call check(error, blink_matching_check_mismatch(0_int64, 11_int64), "no opener")
         if (allocated(error)) return
         call check(error,.not. blink_matching_check_mismatch(12_int64, 15_int64), "quotes can't mismatch")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_check_mismatch
 
     !> Typing a close paren blinks: mismatches and missing openers are
@@ -112,24 +112,24 @@ contains
         call fresh(h, "(foo")
         call keys("]")
         call check(error, last_message, "Mismatched parentheses")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         call fresh(h, "foo")
         call keys(")")
         call check(error, last_message, "No matching parenthesis found")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         call fresh(h, "(foo")
         call keys(")")
         call check(error, last_message, "")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         blink_matching_paren = BLINK_MATCHING_PAREN_NO
         call fresh(h, "(foo")
         call keys("]")
         blink_matching_paren = BLINK_MATCHING_PAREN_YES
         call check(error, last_message, "")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_messages
 
     !> A match off the screen is shown in the echo area: "Matches " and
@@ -143,13 +143,13 @@ contains
         call set_window_start(selected_window_ref(), 20_int64, st)
         call keys(")")
         call check(error, last_message, "Matches (defun foo ()")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         call fresh(h, "int foo()"//achar(10)//"{"//repeat(achar(10)//"x", 60))
         call set_window_start(selected_window_ref(), 20_int64, st)
         call keys("}")
         call check(error, last_message, "Matches int foo()...{")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_offscreen
 
     subroutine test_newline_and_indent(error)
@@ -162,7 +162,7 @@ contains
         call check(error, buffer_string(), "  foo"//achar(10)//"  "//achar(10))
         if (allocated(error)) return
         call check(error, minor_modes%electric_indent_mode%enabled(), "Electric Indent mode restored")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_newline_and_indent
 
     !> The `untabify' method turns a tab into spaces before deleting one;
@@ -178,14 +178,14 @@ contains
         call check(error, buffer_string(), "a      b")
         if (allocated(error)) return
         call check(error, point() == point_min() + 7, "point after the spaces")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
-        backward_delete_char_untabify_method = UNTABIFY_METHOD_HUNGRY
+        backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY
         call fresh(h, "a "//achar(9)//" b")
         call goto_char(5_int64)
         call backward_delete_char_untabify(1_int64, st)
-        backward_delete_char_untabify_method = UNTABIFY_METHOD_UNTABIFY
+        backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
         call check(error, buffer_string(), "ab")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_untabify
 end module test_simple_electric_fm

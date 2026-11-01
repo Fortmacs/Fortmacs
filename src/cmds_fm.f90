@@ -31,7 +31,7 @@ module cmds_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, &
                         FM_BEGINNING_OF_BUFFER, &
                         FM_END_OF_BUFFER
-    use buffer_fm, only: buffers, cur, BUF_BYTES_MAX, buf_fetch_byte, &
+    use buffer_fm, only: buffers, current, BUF_BYTES_MAX, buf_fetch_byte, &
                          temp_set_point_both, auto_fill_function
     use search_fm, only: scan_newline_from_point
     use insdel_fm, only: del_range
@@ -70,30 +70,30 @@ module cmds_fm
     abstract interface
         !> simple.el:internal-auto-fill: `filled' is its value (true
         !> when the auto-fill function did any work).  Not a port.
-        subroutine internal_auto_fill_proc(status, filled)
+        subroutine internal_auto_fill_procedure(status, filled)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(out) :: filled
-        end subroutine internal_auto_fill_proc
+        end subroutine internal_auto_fill_procedure
 
-        !> simple.el:kill-forward-chars: kill `n' characters after point
+        !> simple.el:kill-forward-chars: cut `n' characters after point
         !> (before, if negative).  Not a port.
-        subroutine kill_chars_proc(n, status)
+        subroutine cut_chars_procedure(n, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: n
             type(status_type), intent(out) :: status
-        end subroutine kill_chars_proc
+        end subroutine cut_chars_procedure
     end interface
 
     !> simple.el:internal-auto-fill, which `self_insert_command' calls to
     !> perform auto-filling; set by simple_fm (null: no auto-filling).
-    procedure(internal_auto_fill_proc), pointer, public :: internal_auto_fill_hook => null()
+    procedure(internal_auto_fill_procedure), pointer, public :: internal_auto_fill_hook => null()
 
     !> simple.el:kill-forward-chars, which `delete_char' calls with
-    !> KILLFLAG; set by simple_fm (null: KILLFLAG deletes).
-    procedure(kill_chars_proc), pointer, public :: kill_forward_chars_hook => null()
+    !> CUT; set by simple_fm (null: CUT deletes).
+    procedure(cut_chars_procedure), pointer, public :: cut_forward_chars_hook => null()
 
     !> Hook run at the end of `self_insert_command'.
     !> This is run after inserting a character.
@@ -113,16 +113,16 @@ contains
         integer(int64) :: new_point
 
         if (forward) then
-            new_point = buffers(cur)%pt + n
+            new_point = buffers(current)%pt + n
         else
-            new_point = buffers(cur)%pt - n
+            new_point = buffers(current)%pt - n
         end if
 
-        if (new_point < buffers(cur)%begv) then
-            call goto_char(buffers(cur)%begv)
+        if (new_point < buffers(current)%begv) then
+            call goto_char(buffers(current)%begv)
             call set_error(status, FM_BEGINNING_OF_BUFFER)
-        else if (new_point > buffers(cur)%zv) then
-            call goto_char(buffers(cur)%zv)
+        else if (new_point > buffers(current)%zv) then
+            call goto_char(buffers(current)%zv)
             call set_error(status, FM_END_OF_BUFFER)
         else
             call goto_char(new_point)
@@ -169,9 +169,9 @@ contains
             excessive = count /= n
         end if
 
-        opoint = buffers(cur)%pt
+        opoint = buffers(current)%pt
         counted = scan_newline_from_point(count, pos, pos_byte)
-        call temp_set_point_both(buffers(cur), pos, pos_byte)
+        call temp_set_point_both(buffers(current), pos, pos_byte)
         shortage = count - counted
         if (count <= 0) shortage = shortage - 1
 
@@ -179,7 +179,7 @@ contains
             if (count <= 0) then
                 shortage = shortage + 1
             else
-                associate (b => buffers(cur))
+                associate (b => buffers(current))
                     if (b%begv < b%zv .and. b%pt /= opoint) then
                         if (buf_fetch_byte(b, b%pt_byte - 1) /= 10) shortage = shortage - 1
                     end if
@@ -210,33 +210,33 @@ contains
 
     !> Delete `n' characters after point (before, if negative); a
     !> `beginning_of_buffer' or `end_of_buffer' error condition occurs instead of deleting fewer.  Optional
-    !> KILLFLAG true means kill instead (save in kill ring).
+    !> CUT true means cut instead (save in clipboard history).
     !> Port of cmds.c:Fdelete_char.
-    subroutine delete_char(n, status, killflag)
+    subroutine delete_char(n, status, cut)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: killflag
+        logical, intent(in), optional :: cut
         integer(int64) :: pos
         logical :: kill
 
         if (abs(n) < 2) call undo_auto_amalgamate(associated(this_command, last_command))
-        pos = buffers(cur)%pt + n
+        pos = buffers(current)%pt + n
         kill = .false.
-        if (present(killflag)) kill = killflag
+        if (present(cut)) kill = cut
 
-        if (kill .and. associated(kill_forward_chars_hook)) then
-            call kill_forward_chars_hook(n, status)
+        if (kill .and. associated(cut_forward_chars_hook)) then
+            call cut_forward_chars_hook(n, status)
         else if (n < 0) then
-            if (pos < buffers(cur)%begv) then
+            if (pos < buffers(current)%begv) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
             else
-                call del_range(pos, buffers(cur)%pt, status)
+                call del_range(pos, buffers(current)%pt, status)
             end if
         else
-            if (pos > buffers(cur)%zv) then
+            if (pos > buffers(current)%zv) then
                 call set_error(status, FM_END_OF_BUFFER)
             else
-                call del_range(buffers(cur)%pt, pos, status)
+                call del_range(buffers(current)%pt, pos, status)
             end if
         end if
     end subroutine delete_char
@@ -250,7 +250,7 @@ contains
     recursive subroutine self_insert_command(n, c, status)
         integer(int64), intent(in) :: n, c
         type(status_type), intent(out) :: status
-        character(len=24) :: buf
+        character(len=24) :: buffer
         integer :: hairy
 
         status = status_type()
@@ -258,9 +258,9 @@ contains
         if (c >= 0) last_command_event = value_type(c)
 
         if (n < 0) then
-            write (buf, "(i0)") n
+            write (buffer, "(i0)") n
             call set_error(status, FM_GENERIC_ERROR, &
-                           "Negative repetition argument "//trim(buf))
+                           "Negative repetition argument "//trim(buffer))
             return
         end if
 
@@ -295,10 +295,10 @@ contains
         status = status_type()
 
         if (is_abbrev_mode()) then
-            if (char_syntax_class(int(c)) /= SWORD .and. .not. buffers(cur)%read_only .and. &
-                buffers(cur)%pt > buffers(cur)%begv) then
+            if (char_syntax_class(int(c)) /= SWORD .and. .not. buffers(current)%read_only .and. &
+                buffers(current)%pt > buffers(current)%begv) then
                 if (char_syntax_class(int(preceding_char())) == SWORD) then
-                    modiff = buffers(cur)%text%modiff
+                    modiff = buffers(current)%text%modiff
                     call expand_abbrev(status, sym)
                     if (.not. status%ok()) return
 
@@ -310,7 +310,7 @@ contains
                         return
                     end if
 
-                    if (buffers(cur)%text%modiff /= modiff) hairy = 2
+                    if (buffers(current)%text%modiff /= modiff) hairy = 2
                 end if
             end if
         end if
@@ -322,10 +322,10 @@ contains
             ! After inserting a newline, move to previous line and fill
             ! that.  Must have the newline in place already so filling and
             ! justification, if any, know where the end is going to be.
-            if (c == 10) call goto_char(buffers(cur)%pt - 1)
+            if (c == 10) call goto_char(buffers(current)%pt - 1)
             call internal_auto_fill_hook(status, filled)
             ! Test PT < ZV in case the auto-fill-function is strange.
-            if (c == 10 .and. buffers(cur)%pt < buffers(cur)%zv) call goto_char(buffers(cur)%pt + 1)
+            if (c == 10 .and. buffers(current)%pt < buffers(current)%zv) call goto_char(buffers(current)%pt + 1)
             if (filled) hairy = 2
         end if
 
@@ -452,8 +452,8 @@ contains
     !> Delete the following N characters (previous if N is negative).
     !> Interactively, N is the prefix arg.
     !>
-    !> Optional second arg KILLFLAG true means kill instead (save in kill ring).
-    !> Interactively, N is the prefix arg, and KILLFLAG is set if
+    !> Optional second arg CUT true means kill instead (save in clipboard history).
+    !> Interactively, N is the prefix arg, and CUT is set if
     !> N was explicitly specified.
     !>
     !> The command `delete_forward_char' is preferable for interactive use, e.g.

@@ -43,8 +43,8 @@ module callproc_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, xstring, xhandle, vtag, V_NAME, SYM_T, xsymbol, list_elements, V_INTEGER, &
                        V_STRING, V_BUFFER
-    use data_fm, only: check_string, string_setting
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, BEG, &
+    use data_fm, only: check_string, string_setting_type
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, BEGINNING, &
                          is_buffer_live
     use character_fm, only: str_as_multibyte
     use insdel_fm, only: insert, del_range
@@ -66,7 +66,7 @@ module callproc_fm
     !> Initialized from the SHELL environment variable, or to a system-dependent
     !> default if SHELL is unset.  See Info node `(elisp)Security Considerations'.
     !> Port of callproc.c shell-file-name.
-    type(string_setting), public :: shell_file_name = string_setting(name="shell_file_name")
+    type(string_setting_type), public :: shell_file_name = string_setting_type(name="shell_file_name")
 
 contains
 
@@ -184,7 +184,7 @@ contains
                 end if
             else if (vtag(destination) == V_STRING) then
                 discard = .false.
-                call get_buffer_create(xstring(destination), buffer, status)
+                call get_or_make_buffer(xstring(destination), buffer, status)
                 if (.not. status%ok()) return
             else
                 call set_error(status, FM_GENERIC_ERROR, "Invalid destination for execute_process")
@@ -308,8 +308,8 @@ contains
 
         curdir = ""
 
-        if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) curdir = buffers(cur)%directory
+        if (current /= 0) then
+            if (allocated(buffers(current)%directory)) curdir = buffers(current)%directory
         end if
 
         if (len(curdir) == 0 .and. allocated(emacs_wd)) curdir = file_name_as_directory(emacs_wd)
@@ -385,7 +385,7 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: nchars
 
-        if (buffers(cur)%multibyte) then
+        if (buffers(current)%multibyte) then
             call str_as_multibyte(bytes, text, nchars)
             call insert(text, status)
         else
@@ -433,7 +433,7 @@ contains
         whole = .not. (present(start) .and. present(end))
 
         if (whole) then
-            empty_input = buffers(cur)%text%z == BEG
+            empty_input = buffers(current)%text%z == BEGINNING
         else
             s = start
             e = end
@@ -461,7 +461,7 @@ contains
                 ! No need to save restrictions since we delete everything
                 ! anyway.
                 call widen()
-                call del_range(BEG, buffers(cur)%text%z, status)
+                call del_range(BEGINNING, buffers(current)%text%z, status)
             else
                 call delete_region(s, e, status)
             end if

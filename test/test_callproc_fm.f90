@@ -27,7 +27,7 @@ module test_callproc_fm
     use error_fm, only: status_type, format_error, FM_FILE_MISSING
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list, xfixnum, xstring, vtag, V_INTEGER, V_STRING
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, &
                          current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, buffer_size, point
@@ -65,7 +65,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         if (len(text) > 0) call insert(text, st)
@@ -75,7 +75,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine done
 
     !> Check that Bug#40576 is fixed.  (Upstream runs `emacs --version`;
@@ -208,7 +208,7 @@ contains
         now = current_buffer()
         call check(error, now%index == h%index, "current buffer kept")
         if (allocated(error)) return
-        call get_buffer_create("*callproc-out*", out, st)
+        call get_or_make_buffer("*callproc-out*", out, st)
         call set_buffer(out, st)
         call check(error, buffer_string(), "elsewhere"//new_line("a"))
         call done(out)
@@ -226,12 +226,12 @@ contains
         integer :: length, stat
 
         call fresh_buffer("*callproc-test*", "", h)
-        buffers(cur)%directory = "/"
+        buffers(current)%directory = "/"
         call execute_process("pwd", r, st, destination=value_type(.true.))
         call check(error, buffer_string(), "/"//new_line("a"))
 
         if (.not. allocated(error)) then
-            buffers(cur)%directory = "/fortmacs-no-such-directory/"
+            buffers(current)%directory = "/fortmacs-no-such-directory/"
             call execute_process("pwd", r, st)
             call check(error, format_error(st), &
                        "Setting current directory: No such file or directory, /fortmacs-no-such-directory/")
@@ -244,7 +244,7 @@ contains
             if (stat == 0 .and. length > 0) call get_environment_variable("HOME", home)
             e = sys_setenv("HOME", "/")
             call erase_buffer(st)
-            buffers(cur)%directory = "~/"
+            buffers(current)%directory = "~/"
             call execute_process("pwd", r, st, destination=value_type(.true.))
 
             if (stat == 0) then

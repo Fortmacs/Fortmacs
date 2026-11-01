@@ -32,14 +32,14 @@
 !> sensibly, use a window that showed the buffer before, or else use
 !> some other window.
 !>
-!> Deferred: `display_buffer_table', `display_buffer_base_action' and the
+!> Deferred: `display_buffer_rules', `display_buffer_base_action' and the
 !> action table entries other than `inhibit_same_window', other frames
 !> and tabs (`pop_up_frames', `display_buffer_pop_up_frame'), side and
-!> atomic windows, `window_size_fixed', frame buffer predicates,
+!> atomic windows, `window_size_fixed', frame buffer tests,
 !> `switch_to_prev_buffer_skip' and `switch_to_prev_buffer_skip_regexp'
 !> other than unset, `quit_restore_window_no_switch',
-!> `kill_buffer_quit_windows', `quit_window_hook' and
-!> `quit_window_kill_buffer', `temp_buffer_resize_mode', the
+!> `close_buffer_quit_windows', `quit_window_hook' and
+!> `quit_window_close_buffer', `temp_buffer_resize_mode', the
 !> `window_height' and `window_width' entries, no value for the split
 !> thresholds, and windows resized by more than their next or previous
 !> sibling can give.
@@ -48,8 +48,8 @@ submodule(window_fm) window_display_fm
     use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
-    use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
-                         frame_buffer_list, get_buffer, get_buffer_create, kill_buffer, &
+    use buffer_fm, only: current, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
+                         frame_buffer_list, get_buffer, get_or_make_buffer, close_buffer, &
                          set_buffer_read_only, restore_buffer_modified, replace_buffer_in_windows_hook, &
                          buffer_handle
     use marker_fm, only: set_marker_restricted, copy_marker
@@ -329,7 +329,7 @@ contains
 
                 do k = 1, size(w%prev_buffers)
                     if (same_handle(w%prev_buffers(k)%buffer, buffer)) then
-                        call free_prev_buffer(w%prev_buffers(k))
+                        call destroy_previous_buffer(w%prev_buffers(k))
                     else
                         n = n + 1
                         kept(n) = w%prev_buffers(k)
@@ -357,10 +357,10 @@ contains
             end if
 
             if (.not. all) return
-            if (mentions(w%quit_restore_prev, buffer)) call free_quit_restore(w%quit_restore_prev)
+            if (mentions(w%quit_restore_prev, buffer)) call destroy_quit_restore(w%quit_restore_prev)
 
             if (mentions(w%quit_restore, buffer)) then
-                call free_quit_restore(w%quit_restore)
+                call destroy_quit_restore(w%quit_restore)
                 ! quit-restore becomes quit-restore-prev (which keeps its
                 ! marker).
                 w%quit_restore = w%quit_restore_prev
@@ -429,7 +429,7 @@ contains
                 ! The list keeps its first entry: `assq_delete_all' only
                 ! splices out later ones.
                 if (found > 1) then
-                    call free_prev_buffer(w%prev_buffers(found))
+                    call destroy_previous_buffer(w%prev_buffers(found))
                     call remove_entry(found)
                 end if
 
@@ -565,7 +565,7 @@ contains
     !> found.
     !>
     !> Optional argument BURY-OR-KILL not BK_NONE means the buffer currently
-    !> shown in WINDOW is about to be buried or killed and consequently
+    !> shown in WINDOW is about to be buried or closed and consequently
     !> shall not be switched to in future invocations of this command.
     !>
     !> As a special case, if BURY-OR-KILL equals `append', this means to
@@ -573,9 +573,9 @@ contains
     !> future invocation of `switch_to_prev_buffer' less likely switches
     !> to it.  Port of window.el:switch-to-prev-buffer
     !> (`switch_to_prev_buffer_skip' unset).
-    module function switch_to_prev_buffer(window, bury_or_kill, status) result(new_buffer)
+    module function switch_to_prev_buffer(window, bury_or_close, status) result(new_buffer)
         type(handle_type), intent(in) :: window
-        integer, intent(in) :: bury_or_kill
+        integer, intent(in) :: bury_or_close
         type(status_type), intent(out) :: status
         type(handle_type) :: new_buffer
         type(handle_type) :: h, old_buffer, b
@@ -623,7 +623,7 @@ contains
                 b = entry%buffer
                 if (same_handle(b, old_buffer)) cycle
                 if (.not. is_buffer_live(b)) cycle
-                if (bury_or_kill == BK_NONE .and. has_handle(next_buffers, b)) cycle
+                if (bury_or_close == BK_NONE .and. has_handle(next_buffers, b)) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status, marker_pos(entry%start), marker_pos(entry%point))
                 found = .true.
@@ -635,14 +635,14 @@ contains
         ! entries of next buffers.
         if (.not. found) then
             list = frame_buffer_list()
-            if (bury_or_kill == BK_NONE) list = list(size(list):1:-1)
+            if (bury_or_close == BK_NONE) list = list(size(list):1:-1)
 
             do k = 1, size(list)
                 b = list(k)
                 if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
                 ! Skip buffers whose names start with a space.
                 if (index(buffer_name_of(b), " ") == 1) cycle
-                if (bury_or_kill == BK_NONE .and. has_handle(next_buffers, b)) cycle
+                if (bury_or_close == BK_NONE .and. has_handle(next_buffers, b)) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status)
                 found = .true.
@@ -650,7 +650,7 @@ contains
             end do
         end if
 
-        if (.not. found .and. bury_or_kill == BK_NONE) then
+        if (.not. found .and. bury_or_close == BK_NONE) then
             ! Scan reverted next buffers last.
             do k = size(next_buffers), 1, -1
                 b = next_buffers(k)
@@ -666,9 +666,9 @@ contains
 
         if (.not. status%ok()) return
 
-        if (bury_or_kill /= BK_NONE) then
+        if (bury_or_close /= BK_NONE) then
             e = 0
-            if (bury_or_kill == BK_APPEND) e = previous_entry(h, old_buffer)
+            if (bury_or_close == BK_APPEND) e = previous_entry(h, old_buffer)
 
             if (e > 0) then
                 ! Keep old-buffer's entry to append it below.
@@ -685,7 +685,7 @@ contains
             if (e > 0) then
                 ! Append old-buffer's entry to list of WINDOW's previous
                 ! buffers.
-                call add_prev(h, entry)
+                call append_prev(h, entry)
             end if
         else
             ! Move `old_buffer' to head of WINDOW's restored list of next
@@ -696,7 +696,7 @@ contains
     end function switch_to_prev_buffer
 
     !> Append ENTRY to the previous buffers of window `h'.  Not a port.
-    subroutine add_prev(h, entry)
+    subroutine append_prev(h, entry)
         type(handle_type), intent(in) :: h
         type(prev_buffer_type), intent(in) :: entry
         type(prev_buffer_type), allocatable :: grown(:)
@@ -708,7 +708,7 @@ contains
         grown(1:n) = windows(h%index)%prev_buffers
         grown(n + 1) = entry
         call move_alloc(grown, windows(h%index)%prev_buffers)
-    end subroutine add_prev
+    end subroutine append_prev
 
     !> Move B to the front of LIST (removing it elsewhere).  Not a port.
     subroutine move_to_front(list, b)
@@ -888,13 +888,13 @@ contains
     !> BURY-OR-KILL tells how to proceed with the buffer of WINDOW: BK_NONE
     !> means to not handle the buffer in a particular way; `append' moves it
     !> to the end of WINDOW's previous buffers; `bury' removes it from them
-    !> and moves it to the end of the buffer list; `kill' kills it;
-    !> `killing' and `burying' are like `kill' and `bury' but mean the
-    !> buffer will be killed or buried elsewhere.  Port of
+    !> and moves it to the end of the buffer list; `close' closes it;
+    !> `closing' and `burying' are like `close' and `bury' but mean the
+    !> buffer will be closed or buried elsewhere.  Port of
     !> window.el:quit-restore-window (no frames, tabs or side windows).
-    module subroutine quit_restore_window(window, bury_or_kill, status)
+    module subroutine quit_restore_window(window, bury_or_close, status)
         type(handle_type), intent(in) :: window
-        integer, intent(in) :: bury_or_kill
+        integer, intent(in) :: bury_or_close
         type(status_type), intent(out) :: status
         type(handle_type) :: h, buffer, prev_buffer, select_after, b
         type(quit_restore_type) :: qr, qrp, quad_owner
@@ -988,9 +988,9 @@ contains
                 if (.not. status%ok()) return
                 ! Deal with the buffer we just removed from WINDOW.
                 e = 0
-                if (bury_or_kill == BK_APPEND) e = previous_entry(h, buffer)
+                if (bury_or_close == BK_APPEND) e = previous_entry(h, buffer)
 
-                if (any(bury_or_kill == [BK_BURY, BK_BURYING, BK_KILL, BK_KILLING])) then
+                if (any(bury_or_close == [BK_BURY, BK_BURYING, BK_CLOSE, BK_CLOSING])) then
                     ! Remove buffer from WINDOW's previous and next buffers.
                     call unrecord_window_buffer(h, buffer, .false.)
                 end if
@@ -1005,16 +1005,16 @@ contains
                     call copy_marker(windows(h%index)%prev_buffers(e)%start, entry%start, .false., status)
                     call copy_marker(windows(h%index)%prev_buffers(e)%point, entry%point, .false., status)
                     status = status_type()
-                    call add_prev(h, entry)
+                    call append_prev(h, entry)
                 end if
 
                 ! Reset the quit-restore(-prev) parameter.
-                call free_quit_restore(windows(h%index)%quit_restore_prev)
-                if (.not. reset_prev) call free_quit_restore(windows(h%index)%quit_restore)
+                call destroy_quit_restore(windows(h%index)%quit_restore_prev)
+                if (.not. reset_prev) call destroy_quit_restore(windows(h%index)%quit_restore)
 
                 ! If WINDOW is the selected window and the previously
                 ! selected window is still alive, try to select that window.
-                if (is_selected(h) .or. .not. any(bury_or_kill == [BK_KILLING, BK_BURYING])) then
+                if (is_selected(h) .or. .not. any(bury_or_close == [BK_CLOSING, BK_BURYING])) then
                     call quit_restore_select_window(select_after)
                 end if
             else
@@ -1024,7 +1024,7 @@ contains
                 windows(h%index)%dedicated = DEDICATED_NONE
                 ! Try to switch to a previous buffer.  Delete the window
                 ! only if that is not possible.
-                b = switch_to_prev_buffer(h, bury_or_kill, status)
+                b = switch_to_prev_buffer(h, bury_or_close, status)
                 if (.not. status%ok()) return
 
                 if (b%index == 0) then
@@ -1036,16 +1036,16 @@ contains
         ! Deal with the buffer.
         if (.not. is_buffer_live(buffer)) return
 
-        if (bury_or_kill == BK_KILL) then
-            call kill_buffer(buffer, status)
-        else if (bury_or_kill == BK_BURY) then
+        if (bury_or_close == BK_CLOSE) then
+            call close_buffer(buffer, status)
+        else if (bury_or_close == BK_BURY) then
             call bury_buffer_internal(buffer)
         end if
     end subroutine quit_restore_window
 
     !> Quit WINDOW and bury its buffer.
     !> WINDOW must be a live window and defaults to the selected one.
-    !> With prefix argument KILL true, kill the buffer instead of
+    !> With prefix argument KILL true, close the buffer instead of
     !> burying it.
     !>
     !> This calls the function `quit_restore_window' to delete WINDOW or
@@ -1060,7 +1060,7 @@ contains
         if (present(window)) h = window
 
         if (kill) then
-            call quit_restore_window(h, BK_KILL, status)
+            call quit_restore_window(h, BK_CLOSE, status)
         else
             call quit_restore_window(h, BK_BURY, status)
         end if
@@ -1068,9 +1068,9 @@ contains
 
     !> Quit WINDOW and bury its buffer.
     !> WINDOW must be a live window and defaults to the selected one.
-    !> With prefix argument KILL true, kill the buffer instead of
-    !> burying it.  If `quit_window_kill_buffer' is true, perhaps
-    !> kill the buffer even if KILL is false; see the doc string of
+    !> With prefix argument KILL true, close the buffer instead of
+    !> burying it.  If `quit_window_close_buffer' is true, perhaps
+    !> close the buffer even if KILL is false; see the doc string of
     !> that variable for the details.
     !>
     !> This calls the function `quit_restore_window' to delete WINDOW or
@@ -1092,7 +1092,7 @@ contains
     !> previous and next buffers of all windows and remove any
     !> `quit_restore' or `quit_restore_prev' parameters mentioning it.
     !> Port of window.el:replace-buffer-in-windows
-    !> (`kill_buffer_quit_windows' .false.).
+    !> (`close_buffer_quit_windows' .false.).
     module subroutine replace_buffer_in_windows(buffer)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable :: list(:)
@@ -1110,7 +1110,7 @@ contains
                 if (.not. window_delete(list(k), .true.)) then
                     ! Switch to another buffer in that window.
                     windows(list(k)%index)%dedicated = DEDICATED_NONE
-                    b = switch_to_prev_buffer(list(k), BK_KILL, status)
+                    b = switch_to_prev_buffer(list(k), BK_CLOSE, status)
 
                     if (b%index == 0) then
                         if (window_delete(list(k), .false.)) continue
@@ -1144,7 +1144,7 @@ contains
 
             if (same_handle(windows(list(k)%index)%buffer, buffer)) then
                 if (kill) then
-                    call quit_restore_window(list(k), BK_KILLING, st)
+                    call quit_restore_window(list(k), BK_CLOSING, st)
                 else
                     call quit_restore_window(list(k), BK_BURYING, st)
                 end if
@@ -1158,7 +1158,7 @@ contains
         if (.not. is_buffer_live(buffer)) return
 
         if (kill) then
-            call kill_buffer(buffer, status)
+            call close_buffer(buffer, status)
         else
             call bury_buffer_internal(buffer)
         end if
@@ -1334,7 +1334,7 @@ contains
                     q%buffer = buffer
 
                     if (w%quit_restore%kind /= QR_NONE) then
-                        call free_quit_restore(w%quit_restore_prev)
+                        call destroy_quit_restore(w%quit_restore_prev)
                         w%quit_restore_prev = q
                     else
                         w%quit_restore = q
@@ -1342,7 +1342,7 @@ contains
                 end if
             else
                 ! WINDOW has been created on an existing frame.
-                call free_quit_restore(w%quit_restore)
+                call destroy_quit_restore(w%quit_restore)
                 w%quit_restore%kind = QR_WINDOW
                 w%quit_restore%what = QR_WINDOW
                 w%quit_restore%selected = sw
@@ -1361,7 +1361,7 @@ contains
         type(handle_type), intent(in) :: buffer, h
         integer, intent(in) :: type
         type(status_type), intent(out) :: status
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(handle_type) :: window
 
         status = status_type()
@@ -1403,7 +1403,7 @@ contains
     !> `inhibit_read_only' and `inhibit_modification_hooks' true.
     !> Not a port.
     subroutine execute_body_function(table, h)
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(handle_type), intent(in) :: h
         type(value_type) :: saved
         type(status_type) :: st
@@ -1424,7 +1424,7 @@ contains
         integer :: k
 
         do k = 1, size(windows(h%index)%prev_buffers)
-            call free_prev_buffer(windows(h%index)%prev_buffers(k))
+            call destroy_previous_buffer(windows(h%index)%prev_buffers(k))
         end do
 
         deallocate (windows(h%index)%prev_buffers)
@@ -1436,7 +1436,7 @@ contains
     !> Port of window.el:display-buffer-same-window.
     function display_buffer_same_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
@@ -1456,7 +1456,7 @@ contains
     !> window.el:display-buffer-reuse-window.
     function display_buffer_reuse_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         type(handle_type), allocatable :: list(:)
@@ -1491,7 +1491,7 @@ contains
     !> window.el:display-buffer-pop-up-window.
     function display_buffer_pop_up_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
@@ -1514,7 +1514,7 @@ contains
     !> entry).
     function display_buffer_in_previous_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, best, second_best, sw
         type(handle_type), allocatable :: list(:)
@@ -1604,7 +1604,7 @@ contains
     !> window.el:display-buffer-use-some-window (`some_window' unset).
     function display_buffer_use_some_window(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
         integer :: delta
@@ -1647,7 +1647,7 @@ contains
     !> frame.  Port of window.el:display-buffer-at-bottom.
     function display_buffer_at_bottom(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, bottom_window
         type(handle_type), allocatable :: list(:)
@@ -1712,7 +1712,7 @@ contains
     !> entry).
     function display_buffer_below_selected(buffer, table, status) result(window)
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window, sw
 
@@ -1829,7 +1829,7 @@ contains
             type(handle_type), intent(in) :: h
             integer(int64) :: opoint
 
-            opoint = buffers(cur)%pt
+            opoint = buffers(current)%pt
             call goto_char(point_of(h))
             x = screen_column()
             call goto_char(opoint)
@@ -1840,7 +1840,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: norecord
-        type(display_action_table_type) :: table
+        type(display_action_parameters_type) :: table
         logical :: saved
 
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer-or-name t norecord))
@@ -1855,7 +1855,7 @@ contains
     function display_buffer_action(action, buffer, table, status) result(window)
         integer, intent(in) :: action
         type(handle_type), intent(in) :: buffer
-        type(display_action_table_type), intent(in) :: table
+        type(display_action_parameters_type), intent(in) :: table
         type(status_type), intent(out) :: status
         type(handle_type) :: window
 
@@ -1897,18 +1897,18 @@ contains
     !> `display_buffer_in_previous_window' and
     !> `display_buffer_use_some_window', after those of
     !> `display_buffer_overriding_action'.  Port of window.el:display-buffer
-    !> (one frame; `display_buffer_table' and `display_buffer_base_action'
+    !> (one frame; `display_buffer_rules' and `display_buffer_base_action'
     !> are deferred: they are empty).
     module subroutine display_buffer(buffer, window, status, actions, table)
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_action_table_type), intent(in), optional :: table
+        type(display_action_parameters_type), intent(in), optional :: table
         integer, parameter :: fallback(5) = [DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, &
                                              DISPLAY_ACTION_MAYBE_POP_UP_WINDOW, DISPLAY_ACTION_IN_PREVIOUS_WINDOW, &
                                              DISPLAY_ACTION_USE_SOME_WINDOW]
-        type(display_action_table_type) :: al
+        type(display_action_parameters_type) :: al
         integer :: k
 
         status = status_type()
@@ -1956,7 +1956,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_action_table_type), intent(in), optional :: table
+        type(display_action_parameters_type), intent(in), optional :: table
         logical, intent(in), optional :: norecord
         type(handle_type) :: window
 
@@ -2017,8 +2017,8 @@ contains
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
-        opoint = buffers(cur)%pt
-        call goto_char(buffers(cur)%begv)
+        opoint = buffers(current)%pt
+        call goto_char(buffers(current)%begv)
         height = 1
 
         do
@@ -2065,7 +2065,7 @@ contains
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
-        type(display_action_table_type), intent(in), optional :: table
+        type(display_action_parameters_type), intent(in), optional :: table
         type(handle_type) :: saved
 
         window = null_handle()
@@ -2074,7 +2074,7 @@ contains
         if (.not. status%ok()) return
         call restore_buffer_modified(.false.)
         call set_buffer_read_only(buffer, .true., status)
-        call goto_char(buffers(cur)%begv)
+        call goto_char(buffers(current)%begv)
         call display_buffer(buffer, window, status, actions, table)
         if (is_buffer_live(saved)) call set_buffer(saved, status)
         if (.not. is_window_live(window)) return
@@ -2253,7 +2253,7 @@ contains
         integer(int64) :: pos
 
         if (from%kind == QR_NONE) return
-        call free_quit_restore(to)
+        call destroy_quit_restore(to)
         to = from
         to%quad_point = null_handle()
 
@@ -2285,8 +2285,8 @@ contains
         logical :: horizontal_first, others
         integer :: k
 
-        horizontal_first = split_window_preferred_direction == SPLIT_HORIZONTAL .or. &
-                           (split_window_preferred_direction == SPLIT_LONGEST .and. is_frame_landscape())
+        horizontal_first = split_window_preferred_direction == SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL .or. &
+                           (split_window_preferred_direction == SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST .and. is_frame_landscape())
 
         if (horizontal_first) then
             new = try_split(h, .true.)

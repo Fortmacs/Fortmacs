@@ -71,6 +71,6 @@ contains
         if (.not. is_keymap_live(help_mode_map)) call init_help_mode()
         call major_modes%help_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call major_modes%help_mode%finish(saved, status)
+        call major_modes%help_mode%end(saved, status)
     end subroutine help_mode
 end module help_mode_fm

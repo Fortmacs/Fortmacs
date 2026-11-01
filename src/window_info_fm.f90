@@ -472,7 +472,7 @@ contains
         select case (m)
         case (MINIBUF_ACTIVE)
             mini = minibuffer_depth_of(windows(selected_frame%minibuffer_window%index)%buffer) > 0
-        case (MINIBUF_ALWAYS)
+        case (MINIBUF_YES)
             mini = .true.
         case default
             mini = .false.

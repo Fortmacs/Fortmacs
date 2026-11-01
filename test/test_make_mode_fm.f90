@@ -29,7 +29,7 @@ module test_make_mode_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_elt, vtag, V_NULL, &
                        V_NAME, V_ARRAY
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
@@ -57,11 +57,11 @@ module test_make_mode_fm
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
 
     abstract interface
-        subroutine mode_proc(status)
+        subroutine mode_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine mode_proc
+        end subroutine mode_procedure
     end interface
 
 contains
@@ -94,7 +94,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *make-test*", h, st)
+        call get_or_make_buffer(" *make-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -103,7 +103,7 @@ contains
     !> TEXT in a fresh buffer in MODE, fontified.
     subroutine fontified(text, mode, h)
         character(len=*), intent(in) :: text
-        procedure(mode_proc) :: mode
+        procedure(mode_procedure) :: mode
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
@@ -147,7 +147,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     !> Whether NAME is in NAMES.
@@ -494,28 +494,28 @@ contains
         call temp_buffer("", h)
 
         checks: block
-            buffers(cur)%filename = "/tmp/x/Makefile"
+            buffers(current)%filename = "/tmp/x/Makefile"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "makefile_gmake_mode")
+            call check(error, buffers(current)%major_mode, "makefile_gmake_mode")
             if (allocated(error)) exit checks
-            buffers(cur)%filename = "/tmp/x/Makefile.am"
+            buffers(current)%filename = "/tmp/x/Makefile.am"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "makefile_automake_mode")
+            call check(error, buffers(current)%major_mode, "makefile_automake_mode")
             if (allocated(error)) exit checks
-            buffers(cur)%filename = "/tmp/x/Imakefile"
+            buffers(current)%filename = "/tmp/x/Imakefile"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "makefile_imake_mode")
+            call check(error, buffers(current)%major_mode, "makefile_imake_mode")
             if (allocated(error)) exit checks
-            buffers(cur)%filename = "/tmp/x/Makeppfile.mk"
+            buffers(current)%filename = "/tmp/x/Makeppfile.mk"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "makefile_makepp_mode")
+            call check(error, buffers(current)%major_mode, "makefile_makepp_mode")
             if (allocated(error)) exit checks
-            buffers(cur)%filename = "/tmp/x/rules.mk"
+            buffers(current)%filename = "/tmp/x/rules.mk"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "makefile_gmake_mode")
+            call check(error, buffers(current)%major_mode, "makefile_gmake_mode")
         end block checks
 
-        deallocate (buffers(cur)%filename)
+        deallocate (buffers(current)%filename)
         call leave(h)
     end subroutine test_auto_mode
 

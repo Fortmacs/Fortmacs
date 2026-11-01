@@ -44,12 +44,12 @@ contains
         testsuite = [new_unittest("mule-util-test-truncate", test_truncate)]
     end subroutine collect_mule_util_fm
 
-    !> One element of the test data: STR truncated to END_COLUMN (with
+    !> One element of the test data: STRING truncated to END_COLUMN (with
     !> START_COLUMN, PADDING, ELLIPSIS or the default ellipsis) is
     !> EXPECTED.
-    subroutine truncate(error, str, end_column, expected, start_column, padding, ellipsis, default_ellipsis)
+    subroutine truncate(error, string, end_column, expected, start_column, padding, ellipsis, default_ellipsis)
         type(error_type), allocatable, intent(inout) :: error
-        character(len=*), intent(in) :: str, expected
+        character(len=*), intent(in) :: string, expected
         integer, intent(in) :: end_column
         integer, intent(in), optional :: start_column
         character(len=*), intent(in), optional :: padding, ellipsis
@@ -59,7 +59,7 @@ contains
 
         n = n + 1
         if (allocated(error)) return
-        got = truncate_string_to_width(str, end_column, start_column, padding, ellipsis, default_ellipsis)
+        got = truncate_string_to_width(string, end_column, start_column, padding, ellipsis, default_ellipsis)
         write (num, "(i2.2)") n - 1
         call check(error, got == expected .and. len(got) == len(expected), &
                    "mule-util-test-truncate-"//trim(num)//": expected '"//expected//"' but got '"//got//"'")

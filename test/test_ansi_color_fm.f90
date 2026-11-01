@@ -27,7 +27,7 @@ module test_ansi_color_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list, xstring
     use fns_fm, only: value_equal
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, buffer_string
     use textprop_fm, only: get_char_property
@@ -136,7 +136,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(" ansi-color test", b, st)
+        call get_or_make_buffer(" ansi-color test", b, st)
         call set_buffer(b, st)
     end subroutine temp_buffer
 
@@ -145,7 +145,7 @@ contains
         type(status_type) :: st
 
         call set_buffer(old, st)
-        call kill_buffer(b, st)
+        call close_buffer(b, st)
     end subroutine end_temp_buffer
 
     ! Whether there are overlays at the start of the buffer.
@@ -247,7 +247,7 @@ contains
         character(len=*), parameter :: strs(9) = [character(len=19) :: ESC//"[", "2;31m Hello World ", ESC, &
                                                              "[108;5;12", "3m", "Greetings", ESC//"[0m"//ESC//"[35;6m", "Hello", ""]
         integer, parameter :: lens(9) = [2, 18, 1, 9, 2, 9, 11, 5, 0]
-        character(len=:), allocatable :: complete_str, filtered_str, joined
+        character(len=:), allocatable :: complete_string, filtered_string, joined
         type(value_type) :: propertized
         type(handle_type) :: old, b
         type(status_type) :: st
@@ -255,16 +255,16 @@ contains
         integer :: k
 
         call init_bindings()
-        complete_str = ""
+        complete_string = ""
 
         do k = 1, 8
-            complete_str = complete_str//strs(k) (1:lens(k))
+            complete_string = complete_string//strs(k) (1:lens(k))
         end do
 
-        filtered_str = " Hello World Greetings"//"Hello"
+        filtered_string = " Hello World Greetings"//"Hello"
         ! Tests for `ansi_color_filter_apply'
         call temp_buffer(old, b)
-        call check(error, ansi_color_filter_apply(complete_str), filtered_str)
+        call check(error, ansi_color_filter_apply(complete_string), filtered_string)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
         call temp_buffer(old, b)
@@ -274,14 +274,14 @@ contains
             joined = joined//ansi_color_filter_apply(strs(k) (1:lens(k)))
         end do
 
-        call check(error, joined, filtered_str)
+        call check(error, joined, filtered_string)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
         ! Tests for `ansi_color_filter_region'
         call temp_buffer(old, b)
-        call insert(complete_str, st)
+        call insert(complete_string, st)
         call ansi_color_filter_region(point_min(), point_max())
-        call check(error, buffer_string(), filtered_str)
+        call check(error, buffer_string(), filtered_string)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
         call temp_buffer(old, b)
@@ -292,13 +292,13 @@ contains
             call ansi_color_filter_region(opoint, point())
         end do
 
-        call check(error, buffer_string(), filtered_str)
+        call check(error, buffer_string(), filtered_string)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
         ! Test for `ansi_color_apply'
         call temp_buffer(old, b)
-        propertized = ansi_color_apply(value_type(text=complete_str))
-        call check(error, xstring(propertized), filtered_str)
+        propertized = ansi_color_apply(value_type(text=complete_string))
+        call check(error, xstring(propertized), filtered_string)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
         ! Tests for `ansi_color_apply_on_region' (with text properties)
@@ -311,7 +311,7 @@ contains
             call ansi_color_apply_on_region(opoint, point())
         end do
 
-        call check(error, buffer_string(), filtered_str)
+        call check(error, buffer_string(), filtered_string)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
         ! \e not followed by '[' and invalid ANSI escape sequences
@@ -352,13 +352,13 @@ contains
         call check(error, seen(size(seen))%is_empty(), "no face after the reset")
     end subroutine test_face_record
 
-    recursive subroutine record_face(beg, end, face)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine record_face(beginning, end, face)
+        integer(int64), intent(in) :: beginning, end
         type(ansi_color_face_type), intent(in) :: face
         type(ansi_color_face_type), allocatable :: grown(:)
         integer :: n
 
-        if (end <= beg) return
+        if (end <= beginning) return
         n = size(seen)
         allocate (grown(n + 1))
         grown(1:n) = seen
