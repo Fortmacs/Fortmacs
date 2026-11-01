@@ -45,6 +45,7 @@ program tester
     use test_css_mode_mod, only: collect_css_mode_mod
     use test_js_mod, only: collect_js_mod
     use test_sgml_mode_mod, only: collect_sgml_mode_mod
+    use test_charset_mod, only: collect_charset_mod
     use test_expression_motion_mod, only: collect_expression_motion_mod
     use test_page_mod, only: collect_page_mod
     use test_simple_goto_mod, only: collect_simple_goto_mod
@@ -225,6 +226,7 @@ program tester
                  new_testsuite("css_mode_mod", collect_css_mode_mod), &
                  new_testsuite("js_mod", collect_js_mod), &
                  new_testsuite("sgml_mode_mod", collect_sgml_mode_mod), &
+                 new_testsuite("charset_mod", collect_charset_mod), &
                  new_testsuite("expression_motion_mod", collect_expression_motion_mod), &
                  new_testsuite("page_mod", collect_page_mod), &
                  new_testsuite("simple_goto_mod", collect_simple_goto_mod), &

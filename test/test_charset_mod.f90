@@ -1,5 +1,5 @@
-! test_charset_fm.f90 -- tests for charset_fm.
-! Ports test/src/charset-tests.el of GNU Emacs 31.1; the other expected
+! test_charset_mod.f90 -- tests for charset_mod.
+! Ports GNU Emacs 31.1 test/src/charset-tests.el; the other expected
 ! values are those GNU Emacs gives.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
@@ -20,32 +20,33 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-module test_charset_fm
+module test_charset_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, FM_OK, FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
-    use handle_fm, only: handle_type
-    use insdel_fm, only: insert
-    use charset_fm, only: CHARSET_NAME_LEN, charsetp, define_charset, decode_char, encode_char, make_char, &
-                          split_char, char_charset, char_charset_in, charset_list, charset_priority_list, &
-                          charset_priority_highest, sort_charsets, iso_charset, get_unused_iso_final_char, &
-                          map_charset_chars, find_charset_string, find_charset_region, charset_dimension, &
-                          charset_chars, charset_iso_final_char, charset_description, charset_short_name, &
-                          charset_long_name, charset_id_internal, charset_after, charset_info, charset_info_type
+    use error_mod, only: status_type, FM_OK, FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR
+    use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
+    use handle_mod, only: handle_type
+    use insdel_mod, only: insert
+    use charset_mod, only: CHARSET_NAME_LEN, is_charset, define_charset, decode_char, encode_char, make_char, &
+                           split_char, char_charset, charset_list, charset_priority_list, &
+                           charset_priority_highest, sort_charsets, iso_charset, get_unused_iso_final_char, &
+                           map_charset_chars, find_charset_string, find_charset_region, charset_dimension, &
+                           charset_chars, charset_iso_final_char, charset_description, charset_short_name, &
+                           charset_long_name, charset_id_internal, charset_after, charset_attributes, charset_attributes_type, &
+                           CHARSET_METHOD_SUPERSET
     implicit none(type, external)
     private
 
-    public :: collect_charset_fm
+    public :: collect_charset_mod
 
     ! The ranges map_charset_chars reports.
     integer(int32) :: ranges(2, 64)
-    integer :: nranges = 0
+    integer :: range_count = 0
 
 contains
 
     !> Collect all exported unit tests.
-    subroutine collect_charset_fm(testsuite)
+    subroutine collect_charset_mod(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [new_unittest("charset-decode-char", test_decode_char_error), &
@@ -63,13 +64,13 @@ contains
                      new_unittest("charset-attributes", test_attributes), &
                      new_unittest("iso-charset", test_iso_charset), &
                      new_unittest("deferred-maps", test_deferred)]
-    end subroutine collect_charset_fm
+    end subroutine collect_charset_mod
 
     subroutine record_range(from, to)
         integer(int32), intent(in) :: from, to
 
-        nranges = nranges + 1
-        ranges(:, nranges) = [from, to]
+        range_count = range_count + 1
+        ranges(:, range_count) = [from, to]
     end subroutine record_range
 
     ! (should-error (decode-char 'ascii 0.5)): here a charset that is not
@@ -94,7 +95,7 @@ contains
                             code_offset=int(z'28083A'), unify_map="CNS-F")
         call check(error, status%code == FM_OK)
         if (allocated(error)) return
-        call check(error, charsetp("charset-tests-cs-1"))
+        call check(error, is_charset("charset-tests-cs-1"))
     end subroutine test_define_charset
 
     subroutine test_charset_list(error)
@@ -113,7 +114,7 @@ contains
                    .and. names(5) == "emacs" .and. names(4) == "eight-bit" .and. names(3) == "ucs" &
                    .and. names(2) == "latin-iso8859-1" .and. names(1) == "control-1")
         if (allocated(error)) return
-        call check(error, charsetp("ucs") .and. charsetp("cp1252") .and. .not. charsetp("cp1252x"))
+        call check(error, is_charset("ucs") .and. is_charset("cp1252") .and. .not. is_charset("cp1252x"))
     end subroutine test_charset_list
 
     subroutine test_priority_list(error)
@@ -232,11 +233,10 @@ contains
         if (allocated(error)) return
         call check(error, char_charset(int(z'3FFF80'), status) == "eight-bit")
         if (allocated(error)) return
-        call check(error, char_charset_in(int(z'104'), [character(len=CHARSET_NAME_LEN) :: "iso-8859-1", &
-                                                        "iso-8859-2"], status) == "iso-8859-2")
+        call check(error, char_charset(int(z'104'), status, [character(len=CHARSET_NAME_LEN) :: "iso-8859-1", &
+                                                             "iso-8859-2"]) == "iso-8859-2")
         if (allocated(error)) return
-        call check(error, char_charset_in(int(z'20AC'), [character(len=CHARSET_NAME_LEN) :: "iso-8859-2"], &
-                                          status) == "")
+        call check(error, char_charset(int(z'20AC'), status, [character(len=CHARSET_NAME_LEN) :: "iso-8859-2"]) == "")
     end subroutine test_split_char
 
     subroutine test_make_char(error)
@@ -258,22 +258,22 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
 
-        nranges = 0
+        range_count = 0
         call map_charset_chars(record_range, "koi8-r", status)
-        call check(error, nranges == 32)
+        call check(error, range_count == 32)
         if (allocated(error)) return
         call check(error, all(ranges(:, 1) == [0, 127]) .and. all(ranges(:, 9) == [1040, 1103]) &
                    .and. all(ranges(:, 32) == [9632, 9632]))
         if (allocated(error)) return
-        nranges = 0
+        range_count = 0
         call map_charset_chars(record_range, "iso-8859-2", status, int(z'A0', int64), int(z'AF', int64))
-        call check(error, nranges == 15)
+        call check(error, range_count == 15)
         if (allocated(error)) return
         call check(error, all(ranges(:, 3) == [167, 168]) .and. all(ranges(:, 15) == [728, 728]))
         if (allocated(error)) return
-        nranges = 0
+        range_count = 0
         call map_charset_chars(record_range, "ipa", status)
-        call check(error, nranges == 29)
+        call check(error, range_count == 29)
         if (allocated(error)) return
         call check(error, all(ranges(:, 1) == [97, 98]) .and. all(ranges(:, 28) == [952, 952]) &
                    .and. all(ranges(:, 29) == [2097280, 2097375]))
@@ -282,7 +282,7 @@ contains
     subroutine test_find_charset(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=CHARSET_NAME_LEN), allocatable :: names(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: status
 
         names = find_charset_string("")
@@ -298,8 +298,8 @@ contains
         if (allocated(error)) return
         call check(error, names(1) == "ascii" .and. names(2) == "eight-bit")
         if (allocated(error)) return
-        call get_buffer_create(" *charset-test*", buf, status)
-        call set_buffer(buf, status)
+        call get_or_make_buffer(" *charset-test*", buffer, status)
+        call set_buffer(buffer, status)
         call erase_buffer(status)
         call insert("x"//achar(197)//achar(129)//"y", status)
         names = find_charset_region(1_int64, 4_int64, status)
@@ -308,13 +308,13 @@ contains
         call check(error, names(1) == "ascii" .and. names(2) == "unicode")
         if (allocated(error)) return
         call check(error, charset_after(2_int64) == "unicode" .and. charset_after(9_int64) == "")
-        call kill_buffer(buf, status)
+        call close_buffer(buffer, status)
     end subroutine test_find_charset
 
     subroutine test_attributes(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
-        type(charset_info_type) :: info
+        type(charset_attributes_type) :: attributes
         logical :: found
 
         call check(error, charset_dimension("japanese-jisx0208", status) == 2)
@@ -330,10 +330,10 @@ contains
         call check(error, charset_id_internal("ascii", status) == 0 &
                    .and. charset_id_internal("eight-bit", status) == 4)
         if (allocated(error)) return
-        call charset_info("cp932", info, found)
-        call check(error, found .and. info%method == "superset" .and. info%dimension == 2)
+        call charset_attributes("cp932", attributes, found)
+        call check(error, found .and. attributes%method == CHARSET_METHOD_SUPERSET .and. attributes%dimension == 2)
         if (allocated(error)) return
-        call check(error, info%docstring == "CP932 (Microsoft shift-jis)")
+        call check(error, attributes%docstring == "CP932 (Microsoft shift-jis)")
     end subroutine test_attributes
 
     subroutine test_iso_charset(error)
@@ -356,4 +356,4 @@ contains
         if (allocated(error)) return
         call check(error, index(status%detail, "not ported yet") > 0)
     end subroutine test_deferred
-end module test_charset_fm
+end module test_charset_mod

@@ -452,6 +452,9 @@ module fortmacs
                           detect_coding_string, detect_coding_region, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
     use mule_mod, only: auto_codings, auto_coding_regexps, auto_coding_type, prefer_coding_system, &
                         set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system
+    use charset_mod, only: CHARSET_NAME_LEN, is_charset, define_charset, define_charset_alias, set_charset_priority, &
+                           charset_priority_list, decode_char, encode_char, make_char, split_char, char_charset, &
+                           unify_charset
     use process_mod, only: set_process_coding_system, process_coding_system
     use callproc_mod, only: shell_file_name
     use simple_mod, only: shell_command, shell_command_on_region, read_shell_command, display_message_or_buffer, &
@@ -936,6 +939,8 @@ module fortmacs
               auto_codings, auto_coding_regexps, auto_coding_type, prefer_coding_system, &
               set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system, &
               set_process_coding_system, process_coding_system
+    public :: CHARSET_NAME_LEN, is_charset, define_charset, define_charset_alias, set_charset_priority, &
+              charset_priority_list, decode_char, encode_char, make_char, split_char, char_charset, unify_charset
     public :: post_self_insert_hook, execute_at_time, execute_with_timer, execute_with_idle_timer, cancel_timer, destroy_timer, &
               is_timer, timer_max_repeats
     public :: auto_revert_mode, auto_revert_tail_mode, global_auto_revert_mode, turn_on_auto_revert_mode, &
