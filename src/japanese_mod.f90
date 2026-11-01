@@ -28,10 +28,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset', `shift-jis' and `iso-2022' that japanese.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) japanese_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -168,4 +169,21 @@ contains
         call define_coding_system_alias("ebcdic-jp-kana", "ibm290")
         call define_coding_system_alias("cp290", "ibm290")
     end subroutine init_japanese
+
+    !> Port of the language environments of japanese.el.
+    module subroutine define_japanese_language_environments()
+        call define_language_environment("Japanese", &
+                                         has_documentation=.true., &
+                                        charsets=[character(len=40) :: "japanese-jisx0208", "japanese-jisx0212", "latin-jisx0201", &
+                                                   "katakana-jisx0201", "japanese-jisx0213.2004-1", "japanese-jisx0213-1", &
+                                                   "japanese-jisx0213-2", "japanese-jisx0208-1978"], &
+                                         sample_text="Japanese (日本語)"//achar(9)//"こんにちは, ｺﾝﾆﾁﾊ", &
+                                    coding_systems=[character(len=40) :: "iso-2022-jp", "japanese-iso-8bit", "japanese-shift-jis", &
+                                     "japanese-iso-7bit-1978-irv", "iso-2022-jp-2004", "japanese-shift-jis-2004", "euc-jis-2004"], &
+                               coding_system_order=[character(len=40) :: "iso-2022-jp", "japanese-iso-8bit", "japanese-shift-jis", &
+                                                  "iso-2022-jp-2004", "euc-jis-2004", "japanese-shift-jis-2004", "iso-2022-jp-2"], &
+                                         input_method="japanese", &
+                                         tutorial="TUTORIAL.ja", &
+                                         iso639_language="ja")
+    end subroutine define_japanese_language_environments
 end submodule japanese_mod

@@ -20,10 +20,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset' that georgian.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) georgian_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -37,4 +38,14 @@ contains
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "georgian-academy"], &
                                           doc="Georgian Academy encoding")
     end subroutine init_georgian
+
+    !> Port of the language environments of georgian.el.
+    module subroutine define_georgian_language_environments()
+        call define_language_environment("Georgian", &
+                                         documentation="Support for georgian-ps character set.", &
+                                         coding_systems=[character(len=40) :: "georgian-ps"], &
+                                         coding_system_order=[character(len=40) :: "georgian-ps"], &
+                                         nonascii_translation="georgian-ps", &
+                                         input_method="georgian")
+    end subroutine define_georgian_language_environments
 end submodule georgian_mod

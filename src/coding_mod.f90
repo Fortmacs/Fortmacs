@@ -83,7 +83,7 @@ module coding_mod
     implicit none(type, external)
     private
 
-    public :: define_charset_coding_system, define_iso_2022_coding_system
+    public :: define_charset_coding_system, define_iso_2022_coding_system, define_language_environments
     public :: set_terminal_coding_system_internal, terminal_coding_system, set_keyboard_coding_system_internal, &
               keyboard_coding_system
     public :: init_coding, is_coding_system, check_coding_system, coding_system_id, coding_system_name, &
@@ -471,9 +471,177 @@ module coding_mod
         module subroutine init_georgian()
             implicit none(type, external)
         end subroutine init_georgian
+        !> Define the language environments of chinese.el (in chinese_mod).
+        !> Port of chinese.el's language environments.
+        module subroutine define_chinese_language_environments()
+            implicit none(type, external)
+        end subroutine define_chinese_language_environments
+        !> Define the language environments of cyrillic.el (in cyrillic_mod).
+        !> Port of cyrillic.el's language environments.
+        module subroutine define_cyrillic_language_environments()
+            implicit none(type, external)
+        end subroutine define_cyrillic_language_environments
+        !> Define the language environments of indian.el (in indian_mod).
+        !> Port of indian.el's language environments.
+        module subroutine define_indian_language_environments()
+            implicit none(type, external)
+        end subroutine define_indian_language_environments
+        !> Define the language environments of sinhala.el (in sinhala_mod).
+        !> Port of sinhala.el's language environments.
+        module subroutine define_sinhala_language_environments()
+            implicit none(type, external)
+        end subroutine define_sinhala_language_environments
+        !> Define the language environments of english.el (in english_mod).
+        !> Port of english.el's language environments.
+        module subroutine define_english_language_environments()
+            implicit none(type, external)
+        end subroutine define_english_language_environments
+        !> Define the language environments of ethiopic.el (in ethiopic_mod).
+        !> Port of ethiopic.el's language environments.
+        module subroutine define_ethiopic_language_environments()
+            implicit none(type, external)
+        end subroutine define_ethiopic_language_environments
+        !> Define the language environments of european.el (in european_mod).
+        !> Port of european.el's language environments.
+        module subroutine define_european_language_environments()
+            implicit none(type, external)
+        end subroutine define_european_language_environments
+        !> Define the language environments of czech.el (in czech_mod).
+        !> Port of czech.el's language environments.
+        module subroutine define_czech_language_environments()
+            implicit none(type, external)
+        end subroutine define_czech_language_environments
+        !> Define the language environments of slovak.el (in slovak_mod).
+        !> Port of slovak.el's language environments.
+        module subroutine define_slovak_language_environments()
+            implicit none(type, external)
+        end subroutine define_slovak_language_environments
+        !> Define the language environments of romanian.el (in romanian_mod).
+        !> Port of romanian.el's language environments.
+        module subroutine define_romanian_language_environments()
+            implicit none(type, external)
+        end subroutine define_romanian_language_environments
+        !> Define the language environments of greek.el (in greek_mod).
+        !> Port of greek.el's language environments.
+        module subroutine define_greek_language_environments()
+            implicit none(type, external)
+        end subroutine define_greek_language_environments
+        !> Define the language environments of hebrew.el (in hebrew_mod).
+        !> Port of hebrew.el's language environments.
+        module subroutine define_hebrew_language_environments()
+            implicit none(type, external)
+        end subroutine define_hebrew_language_environments
+        !> Define the language environments of japanese.el (in japanese_mod).
+        !> Port of japanese.el's language environments.
+        module subroutine define_japanese_language_environments()
+            implicit none(type, external)
+        end subroutine define_japanese_language_environments
+        !> Define the language environments of korean.el (in korean_mod).
+        !> Port of korean.el's language environments.
+        module subroutine define_korean_language_environments()
+            implicit none(type, external)
+        end subroutine define_korean_language_environments
+        !> Define the language environments of lao.el (in lao_mod).
+        !> Port of lao.el's language environments.
+        module subroutine define_lao_language_environments()
+            implicit none(type, external)
+        end subroutine define_lao_language_environments
+        !> Define the language environments of tai-viet.el (in tai_viet_mod).
+        !> Port of tai-viet.el's language environments.
+        module subroutine define_tai_viet_language_environments()
+            implicit none(type, external)
+        end subroutine define_tai_viet_language_environments
+        !> Define the language environments of thai.el (in thai_mod).
+        !> Port of thai.el's language environments.
+        module subroutine define_thai_language_environments()
+            implicit none(type, external)
+        end subroutine define_thai_language_environments
+        !> Define the language environments of tibetan.el (in tibetan_mod).
+        !> Port of tibetan.el's language environments.
+        module subroutine define_tibetan_language_environments()
+            implicit none(type, external)
+        end subroutine define_tibetan_language_environments
+        !> Define the language environments of vietnamese.el (in vietnamese_mod).
+        !> Port of vietnamese.el's language environments.
+        module subroutine define_vietnamese_language_environments()
+            implicit none(type, external)
+        end subroutine define_vietnamese_language_environments
+        !> Define the language environments of misc-lang.el (in misc_lang_mod).
+        !> Port of misc-lang.el's language environments.
+        module subroutine define_misc_lang_language_environments()
+            implicit none(type, external)
+        end subroutine define_misc_lang_language_environments
+        !> Define the language environments of utf-8-lang.el (in utf_8_lang_mod).
+        !> Port of utf-8-lang.el's language environments.
+        module subroutine define_utf_8_lang_language_environments()
+            implicit none(type, external)
+        end subroutine define_utf_8_lang_language_environments
+        !> Define the language environments of georgian.el (in georgian_mod).
+        !> Port of georgian.el's language environments.
+        module subroutine define_georgian_language_environments()
+            implicit none(type, external)
+        end subroutine define_georgian_language_environments
+        !> Define the language environments of khmer.el (in khmer_mod).
+        !> Port of khmer.el's language environments.
+        module subroutine define_khmer_language_environments()
+            implicit none(type, external)
+        end subroutine define_khmer_language_environments
+        !> Define the language environments of burmese.el (in burmese_mod).
+        !> Port of burmese.el's language environments.
+        module subroutine define_burmese_language_environments()
+            implicit none(type, external)
+        end subroutine define_burmese_language_environments
+        !> Define the language environments of cham.el (in cham_mod).
+        !> Port of cham.el's language environments.
+        module subroutine define_cham_language_environments()
+            implicit none(type, external)
+        end subroutine define_cham_language_environments
+        !> Define the language environments of philippine.el (in philippine_mod).
+        !> Port of philippine.el's language environments.
+        module subroutine define_philippine_language_environments()
+            implicit none(type, external)
+        end subroutine define_philippine_language_environments
+        !> Define the language environments of indonesian.el (in indonesian_mod).
+        !> Port of indonesian.el's language environments.
+        module subroutine define_indonesian_language_environments()
+            implicit none(type, external)
+        end subroutine define_indonesian_language_environments
     end interface
 
 contains
+
+    !> Define the language environments of the language files, in the
+    !> order loadup.el loads them (mule_mod calls this once).
+    !> Port of loadup.el (the language files' language environments).
+    subroutine define_language_environments()
+        call define_chinese_language_environments()
+        call define_cyrillic_language_environments()
+        call define_indian_language_environments()
+        call define_sinhala_language_environments()
+        call define_english_language_environments()
+        call define_ethiopic_language_environments()
+        call define_european_language_environments()
+        call define_czech_language_environments()
+        call define_slovak_language_environments()
+        call define_romanian_language_environments()
+        call define_greek_language_environments()
+        call define_hebrew_language_environments()
+        call define_japanese_language_environments()
+        call define_korean_language_environments()
+        call define_lao_language_environments()
+        call define_tai_viet_language_environments()
+        call define_thai_language_environments()
+        call define_tibetan_language_environments()
+        call define_vietnamese_language_environments()
+        call define_misc_lang_language_environments()
+        call define_utf_8_lang_language_environments()
+        call define_georgian_language_environments()
+        call define_khmer_language_environments()
+        call define_burmese_language_environments()
+        call define_cham_language_environments()
+        call define_philippine_language_environments()
+        call define_indonesian_language_environments()
+    end subroutine define_language_environments
 
     ! ------------------------------------------------------------------
     ! Defining coding systems

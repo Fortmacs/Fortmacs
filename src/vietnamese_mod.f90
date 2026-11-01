@@ -27,10 +27,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset' that vietnamese.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) vietnamese_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -55,4 +56,24 @@ contains
                                           doc="windows-1258 encoding for Vietnamese (MIME: WINDOWS-1258)")
         call define_coding_system_alias("cp1258", "windows-1258")
     end subroutine init_vietnamese
+
+    !> Port of the language environments of vietnamese.el.
+    module subroutine define_vietnamese_language_environments()
+        call define_language_environment("Vietnamese", &
+                                        documentation="For Vietnamese, Emacs uses special charsets internally."//achar(10)//"They" &
+                                         //" can be decoded from and encoded to VISCII, VSCII-1 (TCVN-57" &
+                                         //"12),"//achar(10)//"VIQR and windows-1258.  The current setting gives highe" &
+                                         //"r priority"//achar(10)//"to the coding system VISCII than VSCII-1.  If you" &
+                                         //" prefer VSCII-1,"//achar(10)//"please do: (prefer-coding-system 'vietnames" &
+                                         //"e-vscii).  There are"//achar(10)//"two Vietnamese input methods: VIQR and " &
+                                         //"Telex, VIQR is the default"//achar(10)//"setting.", &
+                                         charsets=[character(len=40) :: "viscii"], &
+                                         sample_text="Vietnamese (Tiếng Việt)"//achar(9)//"Chào bạn", &
+                                  coding_systems=[character(len=40) :: "vietnamese-viscii", "vietnamese-vscii", "vietnamese-viqr", &
+                                                         "windows-1258"], &
+                                         coding_system_order=[character(len=40) :: "vietnamese-viscii"], &
+                                         nonascii_translation="viscii", &
+                                         input_method="vietnamese-viqr", &
+                                         unibyte_display="vietnamese-viscii")
+    end subroutine define_vietnamese_language_environments
 end submodule vietnamese_mod

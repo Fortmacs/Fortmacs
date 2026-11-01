@@ -27,10 +27,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `iso-2022' that tibetan.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) tibetan_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -47,4 +48,23 @@ contains
                                            charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "tibetan"])
         call define_coding_system_alias("tibetan", "tibetan-iso-8bit")
     end subroutine init_tibetan
+
+    !> Port of the language environments of tibetan.el.
+    module subroutine define_tibetan_language_environments()
+        call define_language_environment("Tibetan", &
+                                         has_documentation=.true., &
+                                         charsets=[character(len=40) :: "tibetan", "tibetan-1-column"], &
+                                         sample_text="Tibetan (བོད་སྐ"//char(246)//""//char(144)//""//char(130)//"" &
+                                         //char(142) &
+                                         //"ད་) ༄༅༅༎བཀྲ"//char(246)//""//char(144)//""//char(130)//""//char(142) &
+                                         //"་ཤིས་བདེ་ལེགས༎ཨོཾ་མ" &
+                                         //char(246)//""//char(144)//""//char(130)//""//char(142)//"་ཎི་པ" &
+                                         //char(246)//"" &
+                                         //char(144)//"" &
+                                         //char(130)//""//char(142)//"དྨེ་ཧའ" &
+                                         //"ུྂ༎", &
+                                         coding_systems=[character(len=40) :: "tibetan-iso-8bit"], &
+                                         coding_system_order=[character(len=40) :: "iso-2022-7bit", "tibetan-iso-8bit"], &
+                                         input_method="tibetan-wylie")
+    end subroutine define_tibetan_language_environments
 end submodule tibetan_mod

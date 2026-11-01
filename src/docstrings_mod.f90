@@ -77,6 +77,7 @@ module docstrings_mod
                            prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_mod, only: shell_file_name
     use casefiddle_mod, only: case_identifiers_as_words
+    use charset_mod, only: current_iso639_language
     use cmds_mod, only: auto_fill_chars, post_self_insert_hook
     use coding_mod, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
                           coding_system_require_warning, default_process_coding_system, eol_mnemonic_dos, &
@@ -367,9 +368,10 @@ module docstrings_mod
                               minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
                               read_file_name_completion_ignore_case
     use mule_conf_mod, only: password_colon_equivalents, password_word_equivalents
-    use mule_mod, only: auto_coding_regexps, auto_codings, default_keyboard_coding_system, &
-                        default_terminal_coding_system, keyboard_coding_system_variable, &
-                        last_coding_system_specified, mule_keymap, select_safe_coding_system_accept_default
+    use mule_mod, only: auto_coding_regexps, auto_codings, current_language_environment, &
+                        default_input_method, default_keyboard_coding_system, default_terminal_coding_system, &
+                        keyboard_coding_system_variable, last_coding_system_specified, mule_keymap, &
+                        select_safe_coding_system_accept_default
     use mule_util_mod, only: truncate_string_ellipsis_variable
     use names_mod, only: user_init_file
     use newcomment_mod, only: comment_add, comment_auto_fill_only_comments, comment_column, &
@@ -602,7 +604,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1483) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1486) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -709,13 +711,13 @@ module docstrings_mod
                                                       "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
                                              "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
                                                    "describe_coding_system", "describe_command", "describe_current_coding_system", &
-                                                     "describe_function", "describe_key", "describe_key_briefly", "describe_mode", &
-                                                         "describe_name", "describe_variable", "destroy_process", "destroy_timer", &
-                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
-                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
-                                                 "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", "diff_file_next", &
-                                                       "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_cut", &
-                                                            "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
+                                                                    "describe_function", "describe_key", "describe_key_briefly", &
+                                           "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
+                                               "destroy_process", "destroy_timer", "detect_coding_region", "detect_coding_string", &
+                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
+                                                   "diff_buffers", "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", &
+                                                      "diff_file_next", "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", &
+                                           "diff_hunk_cut", "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
                                                 "diff_revert_and_cut_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                         "dired", "dired_backup_diff", "dired_build_subdirs", "dired_change_marks", &
                                          "dired_copy_filename", "dired_create_directory", "dired_create_empty_file", "dired_diff", &
@@ -970,39 +972,41 @@ module docstrings_mod
                                               "redraw_display", "regexp_quote", "region_beginning", "region_bounds", "region_end", &
                                                   "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
                                                    "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
-                                          "replace_regexp", "replace_string", "revert_buffer", "revert_buffer_with_coding_system", &
-                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
-                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
-                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
-                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
-                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
-                                            "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
-                                                       "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
-                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
-                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
-                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
-                                                           "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
-                                              "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
-                                              "set_process_sentinel", "set_register", "set_repeat_map", "set_standard_case_table", &
-                                               "set_syntax_table", "set_terminal_coding_system", "set_variable", "sgml_close_tag", &
-                                                 "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", &
-                                                     "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", &
-                                                          "sgml_name_self", "sgml_namify_char", "sgml_pretty_print", "sgml_quote", &
-                                           "sgml_skip_tag_backward", "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", &
-                                                "sgml_validate", "sh_add", "sh_assignment", "sh_backslash_region", "sh_base_mode", &
-                                                                  "sh_basic_indent_line", "sh_beginning_of_command", "sh_cd_here", &
-                                                       "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
-                                                                "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
-                                                              "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
-                                                      "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "shell", &
-                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
-                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
-                                             "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
-                                             "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
-                                                        "show_paren__default", "show_paren_default_test", "show_paren_local_mode", &
-                                           "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
+                                                "replace_regexp", "replace_string", "reset_language_environment", "revert_buffer", &
+                                                          "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
+                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                         "save_some_buffers", "savehist_mode", "savehist_save", "scan_expressions", "scan_groups", &
+                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
+                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
+                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                                       "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
+                                                     "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
+                                                     "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
+                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
+                                                               "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                                     "set_language_environment", "set_mark", "set_mark_command", "set_match_data", &
+                                                          "set_process_buffer", "set_process_coding_system", "set_process_filter", &
+                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
+                                                                  "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
+                                                "set_terminal_coding_system", "set_variable", "sgml_close_tag", "sgml_delete_tag", &
+                                            "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", &
+                                                           "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", &
+                                                  "sgml_namify_char", "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", &
+                                          "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", "sgml_validate", "sh_add", &
+                                                   "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
+                                                        "sh_beginning_of_command", "sh_cd_here", "sh_electric_here_document_mode", &
+                                                  "sh_end_of_command", "sh_execute_region", "sh_load_style", "sh_make_vars_local", &
+                                                              "sh_mode", "sh_name_style", "sh_reset_indent_vars_to_global_values", &
+                                                    "sh_save_styles_to_buffer", "sh_send_line_or_region_and_step", "sh_set_shell", &
+                                                              "sh_show_shell", "shell", "shell_backward_command", "shell_command", &
+                                                           "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
+                                                  "shell_dynamic_complete_command", "shell_dynamic_complete_environment_variable", &
+                                                                  "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
+                                                "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
+                                                            "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
+                                                              "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                                     "skip_syntax_forward", "smie_backward_expression_command", "smie_close_block", &
                                                   "smie_down_group", "smie_forward_expression_command", "smie_next_indent_change", &
                                               "spaces_string", "special_mode", "split_char", "split_window", "split_window_below", &
@@ -1050,7 +1054,7 @@ module docstrings_mod
                                                     "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1248) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1251) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                                "abbrev_start_location_buffer", "abbrev_tables", "abbrevs_changed", &
                                                 "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
@@ -1161,16 +1165,17 @@ module docstrings_mod
                                                              "css_base_mode_hook", "css_base_mode_map", "css_class_list_function", &
                                                               "css_electric_keys", "css_font_lock_keywords", "css_fontify_colors", &
                                             "css_id_list_function", "css_indent_offset", "css_lookup_url_format", "css_mode_hook", &
-                                                                    "css_mode_map", "css_mode_syntax_table", "css_smie_grammar", &
-                                                    "current_minibuffer_command", "current_prefix_arg", "custom_variable_history", &
-                                                   "cut_read_only_ok", "cut_rectangle", "cut_whole_line", "cycle_spacing_actions", &
-                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
-                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
-                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
-                                                                    "dabbrev_eliminate_newlines", "dabbrev_ignored_buffer_modes", &
-                                                "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
-                                                          "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
-                                                "deactivate_mark_hook", "default_justification", "default_keyboard_coding_system", &
+                                           "css_mode_map", "css_mode_syntax_table", "css_smie_grammar", "current_iso639_language", &
+                                               "current_language_environment", "current_minibuffer_command", "current_prefix_arg", &
+                                                 "custom_variable_history", "cut_read_only_ok", "cut_rectangle", "cut_whole_line", &
+                                                                    "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
+                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
+                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
+                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
+                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
+                                               "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_input_method", &
+                                                                    "default_justification", "default_keyboard_coding_system", &
                                                                 "default_process_coding_system", "default_terminal_coding_system", &
                                                             "define_ibuffer_column", "defining_kbd_macro", "delete_active_region", &
                                                     "delete_exited_processes", "delete_pair_blink_delay", "delete_pair_push_mark", &
@@ -5394,6 +5399,10 @@ contains
             entry%file = "help_mod.f90"
             entry%command = .true.
             entry%doc = "Print the name of the functions KEY_LIST invokes."
+        case ("describe_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Describe how Emacs supports language environment LANGUAGE_NAME."
         case ("describe_mode")
             entry%file = "help_fns_mod.f90"
             entry%fortran = "call describe_mode(status)"
@@ -13291,6 +13300,26 @@ contains
                         "which will run faster and will not set the mark or print anything."//LF// &
                         "(You may need a more complex loop if FROM_STRING can match the null string"//LF// &
                         "and TO_STRING is also null.)"
+        case ("reset_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Reset multilingual environment of Emacs to the default status."//LF// &
+                        ""//LF// &
+                        "The default status is as follows:"//LF// &
+                        ""//LF// &
+                        "  The default value of `buffer_file_coding_system' is """"."//LF// &
+                        "  The default coding system for process I/O is """"."//LF// &
+                        "  The default value for the command `set_terminal_coding_system' is """"."//LF// &
+                        "  The default value for the command `set_keyboard_coding_system' is """"."//LF// &
+                        ""//LF// &
+                        "  The order of priorities of coding systems are as follows:"//LF// &
+                        "        utf-8"//LF// &
+                        "        iso-2022-7bit"//LF// &
+                        "        iso-latin-1"//LF// &
+                        "        iso-2022-7bit-lock"//LF// &
+                        "        iso-2022-8bit-ss2"//LF// &
+                        "        emacs-mule"//LF// &
+                        "        raw-text"
         case ("revert_buffer")
             entry%file = "files_mod.f90"
             entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
@@ -13890,6 +13919,18 @@ contains
                         "`raw-text', the decoding of keyboard input is disabled."//LF// &
                         ""//LF// &
                         "The setting has no effect on graphical terminals."
+        case ("set_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set up multilingual environment for using LANGUAGE_NAME."//LF// &
+                        "This sets the coding system priority and the default input method"//LF// &
+                        "and sometimes other things.  LANGUAGE_NAME should be a string"//LF// &
+                        "which is the name of a language environment.  For example, ""Latin-1"""//LF// &
+                        "specifies the character set for the major languages of Western Europe."//LF// &
+                        ""//LF// &
+                        "If there is a prior value for `current_language_environment', this"//LF// &
+                        "executes the hook `exit_language_environment_hook'.  After setting up"//LF// &
+                        "the new language environment, it executes `set_language_environment_hook'."
         case ("set_mark")
             entry%file = "simple_mod.f90"
             entry%fortran = "call set_mark(pos)"
@@ -19363,6 +19404,33 @@ contains
             entry%file = "css_mode_mod.f90"
             entry%fortran = "css_smie_grammar"
             entry%doc = "The SMIE grammar of CSS mode."
+        case ("current_iso639_language")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "current_iso639_language"
+
+            if (allocated(current_iso639_language)) then
+                entry%value = repr(current_iso639_language)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "ISO639 language mnemonic for the current language environment."//LF// &
+                        "If the current language environment is for multiple languages (e.g. ""Latin-1""),"//LF// &
+                        "the value may be several mnemonics.  Unallocated when it has none;"//LF// &
+                        "`set_language_environment' sets it."
+        case ("current_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "current_language_environment"
+
+            if (allocated(current_language_environment%value)) then
+                entry%value = repr(current_language_environment%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The last language environment specified with `set_language_environment'."//LF// &
+                        "This variable should be set only with \[customize], which is equivalent"//LF// &
+                        "to using the function `set_language_environment'."
         case ("current_minibuffer_command")
             entry%file = "callint_mod.f90"
             entry%fortran = "current_minibuffer_command"
@@ -19728,6 +19796,19 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "deactivate_mark_hook"
             entry%doc = "Hook run when the mark becomes inactive."
+        case ("default_input_method")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "default_input_method"
+
+            if (allocated(default_input_method%value)) then
+                entry%value = repr(default_input_method%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default input method for multilingual text (a string)."//LF// &
+                        "This is the input method activated automatically by the command"//LF// &
+                        "`toggle_input_method' (\[toggle_input_method])."
         case ("default_justification")
             entry%file = "fill_mod.f90"
             entry%fortran = "default_justification"

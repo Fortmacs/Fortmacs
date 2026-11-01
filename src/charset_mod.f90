@@ -199,6 +199,13 @@ module charset_mod
 
     logical :: initialized = .false.
 
+    !> ISO639 language mnemonic for the current language environment.
+    !> If the current language environment is for multiple languages (e.g. "Latin-1"),
+    !> the value may be several mnemonics.  Unallocated when it has none;
+    !> `set_language_environment' sets it.  Port of charset.c
+    !> current-iso639-language.
+    character(len=:), allocatable, public :: current_iso639_language
+
     interface
         !> Define the charsets of mule-conf.el (in mule_conf_charsets_mod).
         !> Port of mule-conf.el's charsets.
