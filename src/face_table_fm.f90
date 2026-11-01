@@ -206,6 +206,7 @@ module face_table_fm
     use faces_fm, only: region
     use faces_fm, only: scroll_bar
     use faces_fm, only: secondary_selection
+    use sgml_mode_fm, only: sgml_namespace
     use sh_script_fm, only: sh_escaped_newline
     use sh_script_fm, only: sh_heredoc
     use sh_script_fm, only: sh_quoted_exec
@@ -431,6 +432,7 @@ module face_table_fm
         type(named_face_type), pointer :: region => region
         type(named_face_type), pointer :: scroll_bar => scroll_bar
         type(named_face_type), pointer :: secondary_selection => secondary_selection
+        type(named_face_type), pointer :: sgml_namespace => sgml_namespace
         type(named_face_type), pointer :: sh_escaped_newline => sh_escaped_newline
         type(named_face_type), pointer :: sh_heredoc => sh_heredoc
         type(named_face_type), pointer :: sh_quoted_exec => sh_quoted_exec
