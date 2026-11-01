@@ -27,6 +27,7 @@ module test_fileio_mod
                          FM_FILE_ALREADY_EXISTS, &
                          FM_FILE_MISSING, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
+    use coding_mod, only: last_coding_system_used
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, &
                           is_buffer_modified, current_buffer
     use insdel_mod, only: insert, after_change_functions
@@ -434,12 +435,12 @@ contains
         call teardown(buffer)
     end subroutine test_write_and_insert
 
-    !> Invalid UTF-8 survives a visit and save byte for byte.
+    !> Bytes that are neither UTF-8 nor Latin-1 visit as emacs-mule.
     subroutine test_raw_bytes(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
-        character(len=:), allocatable :: bytes, back
+        character(len=:), allocatable :: bytes
         integer(int64) :: inserted
         integer :: u, ios
 
@@ -452,19 +453,14 @@ contains
         write (u) bytes
         close (u)
         call insert_file_contents(testdir//"/f3", .true., inserted, st)
-        ! Neither UTF-8 nor Latin-1: raw text, eight raw-byte characters (GNU
-        ! Emacs detects emacs-mule, which is Deferred).
-        call check(error, st%ok() .and. inserted == 8 .and. buffers(current)%multibyte, "8 raw bytes")
+        ! Neither UTF-8 nor Latin-1: emacs-mule, as GNU Emacs detects it,
+        ! with seven characters: a, three raw bytes, b, a raw byte and Ź
+        ! (latin-iso8859-2 0xAC).
+        call check(error, st%ok() .and. inserted == 7 .and. buffers(current)%multibyte, "7 characters")
         if (allocated(error)) return
-        call write_region(testdir//"/f4", .true., st)
-        allocate (character(len=len(bytes)) :: back)
-        open (newunit=u, file=testdir//"/f4", access="stream", form="unformatted", status="old", &
-              action="read", iostat=ios)
-        call check(error, ios == 0, "open f4")
-        if (allocated(error)) return
-        read (u, iostat=ios) back
-        close (u)
-        call check(error, ios == 0 .and. back == bytes, "round trip")
+        call check(error, last_coding_system_used%value == "emacs-mule", "emacs-mule")
+        ! (Writing it back asks for a coding system in GNU Emacs, as
+        ! select-safe-coding-system does not offer emacs-mule.)
         call teardown(buffer)
     end subroutine test_raw_bytes
 

@@ -61,6 +61,7 @@ module charset_mod
     public :: charset_range_procedure, charset_attributes_type, init_charset
     public :: charset_type, charsets, find_charset, decode_char_id, char_charset_id
     public :: encode_char_id, find_iso_charset, iso_2022_charset_order
+    public :: emacs_mule_charset_order, emacs_mule_charsets, emacs_mule_bytes
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -164,14 +165,18 @@ module charset_mod
     !> Viso_2022_charset_list: the ids of the ISO-2022 charsets in priority
     !> order.
     integer, allocatable, protected :: iso_2022_charset_order(:)
-    ! Vemacs_mule_charset_list (ids).
-    integer, allocatable :: emacs_mule_charset_order(:)
+    !> Vemacs_mule_charset_list: the ids of the charsets with an emacs-mule
+    !> id in priority order.
+    integer, allocatable, protected :: emacs_mule_charset_order(:)
 
-    ! iso_charset_table[dimension][chars_96][final] (0 for none),
-    ! emacs_mule_charset (as emacs_mule_charsets) and emacs_mule_bytes.
+    ! iso_charset_table[dimension][chars_96][final] (0 for none).
     integer :: iso_charset_table(1:3, 0:1, 0:127) = 0
-    integer :: emacs_mule_charsets(0:255) = 0
-    integer :: emacs_mule_bytes(0:255) = 0
+    !> emacs_mule_charset: the id of the charset of each emacs-mule id (0
+    !> for none).
+    integer, protected :: emacs_mule_charsets(0:255) = 0
+    !> emacs_mule_bytes: the length of an emacs-mule sequence by its
+    !> leading byte.
+    integer, protected :: emacs_mule_bytes(0:255) = 0
 
     !> The ids of ascii, iso-8859-1 and unicode (charset.c knows them by
     !> name).
@@ -214,6 +219,12 @@ contains
         initialized = .true.
         allocate (charsets(200), aliases(16), defined_names(256), charset_order(200), unified_charsets(32))
         allocate (iso_2022_charset_order(0), emacs_mule_charset_order(0))
+        ! coding.c:syms_of_coding.
+        emacs_mule_bytes = 1
+        emacs_mule_bytes(int(z'9A')) = 3
+        emacs_mule_bytes(int(z'9B')) = 3
+        emacs_mule_bytes(int(z'9C')) = 4
+        emacs_mule_bytes(int(z'9D')) = 4
         charset_ascii = define_charset_internal("ascii", 1, [0, 127, 0, 0, 0, 0, 0, 0], 0_int64, 127_int64, &
                                                 iachar("B"), -1, 0, .true., .false., 0)
         charset_iso_8859_1 = define_charset_internal("iso-8859-1", 1, [0, 255, 0, 0, 0, 0, 0, 0], 0_int64, &
