@@ -242,7 +242,7 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        six PRs: 41a charsets (charset.c, mule-conf.el's charsets, the
        one-byte maps) — done; 41b the charset coding systems (coding.c's
        charset type, the one-byte coding systems of language/*.el,
-       `define-coding-system`); 41c the CJK maps with ISO-2022,
+       `define-coding-system`) — done; 41c the CJK maps with ISO-2022,
        Shift-JIS and Big5 (and EUC); 41d emacs-mule; 41e language
        environments (C-x RET l, `describe-language-environment`,
        mule-diag.el's charset commands); 41f input methods (quail).
